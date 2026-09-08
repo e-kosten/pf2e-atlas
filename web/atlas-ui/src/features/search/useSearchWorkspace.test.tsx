@@ -7,6 +7,7 @@ import type {
   OpenResultWindowRequest,
   ResultWindowPage,
 } from "../../generated/atlas";
+import { recordSummaryFixture } from "../../test/recordFixtures";
 import {
   DEFAULT_SEARCH_STATE,
   encodeSearchState,
@@ -50,6 +51,60 @@ describe("useSearchWorkspace", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
     apiMocks.readResultWindowPage.mockResolvedValue(resultWindowPage());
     history.replaceState(null, "", "/");
+  });
+
+  it("restores relationship routes, aborts old searches, and removes the filter with selection reset", async () => {
+    history.replaceState(
+      null,
+      "",
+      "/search?reference-direction=incoming&reference-record=spells%3Afirst",
+    );
+    const first = deferred<ResultWindowPage>();
+    let oldSignal: AbortSignal | undefined;
+    apiMocks.openResultWindow.mockImplementationOnce((_request, signal) => {
+      oldSignal = signal;
+      return first.promise;
+    });
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(oldSignal).toBeInstanceOf(AbortSignal));
+    expect(result.current.search.relationship?.record_key).toBe("spells:first");
+    act(() => {
+      history.pushState(
+        null,
+        "",
+        "/search?reference-direction=outgoing&reference-record=spells%3Asecond",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await waitFor(() => expect(oldSignal?.aborted).toBe(true));
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
+    expect(apiMocks.openResultWindow.mock.calls[1][0].mode.filter.relationship).toEqual(
+      { direction: "outgoing", record_key: "spells:second" },
+    );
+    await act(async () => {
+      first.resolve(resultWindowPage(["spells:stale"], { windowId: 999n }));
+    });
+    expect(
+      result.current.resultPage?.rows.some(
+        (row) => row.record.surface.metadata.record_key === "spells:stale",
+      ),
+    ).toBe(false);
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(apiMocks.readResultWindowPage).toHaveBeenCalled());
+    expect(
+      apiMocks.readResultWindowPage.mock.calls[
+        apiMocks.readResultWindowPage.mock.calls.length - 1
+      ]?.[0],
+    ).not.toBe(999n);
+    act(() => result.current.selectRecord("spells:selected"));
+    act(() =>
+      result.current.setSearch({ ...result.current.search, relationship: undefined }),
+    );
+    expect(result.current.selectedRecordKey).toBeNull();
+    expect(result.current.pageNumber).toBe(1);
+    expect(location.search).not.toContain("reference-");
   });
 
   it("debounces result-window requests while preserving immediate search state", async () => {
@@ -418,9 +473,13 @@ describe("useSearchWorkspace", () => {
     act(() => result.current.setPageNumber(2));
 
     await waitFor(() =>
-      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(7n, {
-        page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
-      }),
+      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(
+        7n,
+        {
+          page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
+        },
+        expect.any(AbortSignal),
+      ),
     );
     expect(result.current.pageNumber).toBe(2);
     expect(result.current.diagnostics.resultRequest).toMatchObject({
@@ -447,7 +506,7 @@ describe("useSearchWorkspace", () => {
 
     await waitFor(() => expect(result.current.resultsRefreshing).toBe(true));
     expect(result.current.resultsLoading).toBe(false);
-    expect(result.current.resultPage?.rows[0]?.record.record_key).toBe(
+    expect(result.current.resultPage?.rows[0]?.record.surface.metadata.record_key).toBe(
       "spell:dirge-of-doom",
     );
 
@@ -460,7 +519,9 @@ describe("useSearchWorkspace", () => {
 
     await waitFor(() => expect(result.current.resultsRefreshing).toBe(false));
     expect(result.current.resultPage?.page.number).toBe(2);
-    expect(result.current.resultPage?.rows[0]?.record.record_key).toBe("spell:heal");
+    expect(result.current.resultPage?.rows[0]?.record.surface.metadata.record_key).toBe(
+      "spell:heal",
+    );
   });
 
   it("resets page execution when search changes from a later page", async () => {
@@ -570,12 +631,7 @@ function resultWindowPage(
       has_more: false,
     },
     rows: recordKeys.map((recordKey) => ({
-      record: {
-        record_key: recordKey,
-        title: recordKey.split(":")[1] ?? recordKey,
-        kind: "spell",
-        kind_label: "Spell",
-      },
+      record: recordSummaryFixture(recordKey, recordKey.split(":")[1] ?? recordKey),
     })),
   };
 }

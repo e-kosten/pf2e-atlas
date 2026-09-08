@@ -1,14 +1,14 @@
 import { Button, Form, Input, InputNumber, Popover, Select } from "antd";
-import type { BaseSelectRef } from "rc-select";
-import { MoreHorizontal, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { Minus, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
   EncounterConditionDefinitionView,
-  EncounterParticipantConditionView,
+  EncounterRuntimeConditionView,
   EncounterParticipantView,
   UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
+import { useRecordPreviewRenderer } from "../../shared/records/RecordPreviewContext";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { optionalNumber } from "./participantEdits";
 
@@ -38,8 +38,8 @@ export function EncounterConditionControls({
   current: EncounterParticipantView;
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onRemoveCondition: (participantKey: string, conditionId: number) => void;
+  onReference: (recordKey: string) => void;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -49,114 +49,94 @@ export function EncounterConditionControls({
   const [conditionForm] = Form.useForm<AddConditionForm>();
   const [addConditionOpen, setAddConditionOpen] = useState(false);
   const [addDetailsOpen, setAddDetailsOpen] = useState(false);
-  const addConditionSelectRef = useRef<BaseSelectRef>(null);
   const addConditionRef = Form.useWatch("conditionRef", conditionForm);
   const addCondition = conditionDefinition(addConditionRef, conditionDefinitions);
   const addConditionHasValue = addCondition?.has_value ?? false;
-  const openAddCondition = (open: boolean) => {
-    setAddConditionOpen(open);
-    if (open) {
-      window.setTimeout(() => addConditionSelectRef.current?.focus(), 0);
+  const submitAddCondition = () => {
+    const values = conditionForm.getFieldsValue();
+    const condition = conditionDefinition(values.conditionRef, conditionDefinitions);
+    if (!condition) {
+      return;
     }
+    onAddCondition({
+      participant_key: current.participant_key,
+      condition_ref: condition.condition_ref,
+      ...(!condition.has_value || values.value === undefined
+        ? {}
+        : { value: values.value }),
+      ...(values.duration === undefined ? {} : { duration_rounds: values.duration }),
+      ...(values.sourceParticipantKey
+        ? { source_participant_key: values.sourceParticipantKey }
+        : {}),
+      ...(values.note ? { note: values.note } : {}),
+    });
+    conditionForm.resetFields();
+    setAddDetailsOpen(false);
+    setAddConditionOpen(false);
   };
 
   return (
-    <section className="encounter-conditions">
+    <section className="creature-sheet__panel record-surface-card--conditions encounter-conditions">
       <div className="encounter-conditions__header">
         <h3>Conditions</h3>
-        <Popover
-          content={
-            <Form
-              form={conditionForm}
-              onFinish={(values) => {
-                const condition = conditionDefinition(
-                  values.conditionRef,
-                  conditionDefinitions,
-                );
-                if (!condition) {
-                  return;
-                }
-                onAddCondition({
-                  participant_key: current.participant_key,
-                  condition_ref: condition.condition_ref,
-                  ...(!condition.has_value || values.value === undefined
-                    ? {}
-                    : { value: BigInt(values.value) }),
-                  ...(values.duration === undefined
-                    ? {}
-                    : { duration_rounds: BigInt(values.duration) }),
-                  ...(values.sourceParticipantKey
-                    ? { source_participant_key: values.sourceParticipantKey }
-                    : {}),
-                  ...(values.note ? { note: values.note } : {}),
-                });
-                conditionForm.resetFields();
-                setAddDetailsOpen(false);
-                setAddConditionOpen(false);
-              }}
-            >
-              <div className="encounter-add-condition__row">
-                <Form.Item name="conditionRef" rules={[{ required: true }]}>
-                  <Select
-                    aria-label="Add condition"
-                    ref={addConditionSelectRef}
-                    showSearch
-                    optionFilterProp="label"
-                    options={conditionDefinitions.map((condition) => ({
-                      label: condition.name,
-                      value: condition.condition_ref,
-                    }))}
-                    placeholder="Condition"
-                    onChange={(conditionRef) => {
-                      const condition = conditionDefinition(
-                        conditionRef,
-                        conditionDefinitions,
-                      );
-                      conditionForm.setFieldValue(
-                        "value",
-                        condition?.has_value
-                          ? (optionalNumber(condition.default_value) ?? 1)
-                          : undefined,
-                      );
-                    }}
-                  />
-                </Form.Item>
-                {addConditionHasValue && (
-                  <Form.Item name="value">
-                    <InputNumber aria-label="Condition value" min={0} />
-                  </Form.Item>
-                )}
-                <Popover
-                  content={<ConditionDetailsFields participants={participants} />}
-                  open={addDetailsOpen}
-                  onOpenChange={setAddDetailsOpen}
-                  placement="bottomRight"
-                  trigger="click"
-                >
-                  <Button
-                    aria-label="Condition details"
-                    icon={<MoreHorizontal size={14} />}
-                  />
-                </Popover>
-                <Button type="primary" onClick={() => conditionForm.submit()}>
-                  Add
-                </Button>
-              </div>
-            </Form>
-          }
-          open={addConditionOpen}
-          onOpenChange={openAddCondition}
-          placement="bottomRight"
-          trigger="click"
+        <Button
+          aria-expanded={addConditionOpen}
+          onClick={() => setAddConditionOpen((open) => !open)}
+          size="small"
         >
-          <Button size="small">Add Condition</Button>
-        </Popover>
+          Add Condition
+        </Button>
       </div>
-      {current.conditions.length === 0 ? (
+      {addConditionOpen && (
+        <Form className="encounter-add-condition" form={conditionForm}>
+          <div className="encounter-add-condition__row">
+            <Form.Item name="conditionRef" rules={[{ required: true }]}>
+              <Select
+                aria-label="Add condition"
+                showSearch
+                optionFilterProp="label"
+                options={conditionDefinitions.map((condition) => ({
+                  label: condition.name,
+                  value: condition.condition_ref,
+                }))}
+                placeholder="Condition"
+                onChange={(conditionRef) => {
+                  const condition = conditionDefinition(
+                    conditionRef,
+                    conditionDefinitions,
+                  );
+                  conditionForm.setFieldValue(
+                    "value",
+                    condition?.has_value
+                      ? (optionalNumber(condition.default_value) ?? 1)
+                      : undefined,
+                  );
+                }}
+              />
+            </Form.Item>
+            {addConditionHasValue && (
+              <Form.Item name="value">
+                <InputNumber aria-label="Condition value" min={0} />
+              </Form.Item>
+            )}
+            <Button
+              aria-expanded={addDetailsOpen}
+              aria-label="Condition details"
+              icon={<MoreHorizontal size={14} />}
+              onClick={() => setAddDetailsOpen((open) => !open)}
+            />
+            <Button type="primary" onClick={submitAddCondition}>
+              Add
+            </Button>
+          </div>
+          {addDetailsOpen && <ConditionDetailsFields participants={participants} />}
+        </Form>
+      )}
+      {(current.record_view.encounter?.conditions ?? []).length === 0 ? (
         <p className="encounter-empty-note">No conditions</p>
       ) : (
         <div className="encounter-condition-list">
-          {current.conditions.map((condition) => (
+          {(current.record_view.encounter?.conditions ?? []).map((condition) => (
             <ConditionEditor
               condition={condition}
               key={condition.condition_id.toString()}
@@ -214,17 +194,18 @@ function ConditionEditor({
   onRemove,
   onUpdate,
 }: {
-  condition: EncounterParticipantConditionView;
+  condition: EncounterRuntimeConditionView;
   participantKey: string;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
-  onRemove: (participantKey: string, conditionId: bigint) => void;
+  onReference: (recordKey: string) => void;
+  onRemove: (participantKey: string, conditionId: number) => void;
   onUpdate: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
   ) => void;
 }) {
+  const renderRecordPreview = useRecordPreviewRenderer();
   const [detailsForm] = Form.useForm<ConditionDetailsForm>();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasValue = conditionTakesValue(condition, conditionDefinitions);
@@ -246,8 +227,7 @@ function ConditionEditor({
   const saveDetails = () => {
     const values = detailsForm.getFieldsValue();
     update({
-      duration_rounds:
-        values.duration === undefined ? undefined : BigInt(values.duration),
+      duration_rounds: values.duration,
       source_participant_key: values.sourceParticipantKey,
       note: values.note || undefined,
     });
@@ -273,65 +253,98 @@ function ConditionEditor({
         .join(" ")}
     >
       {condition.condition_key ? (
-        <button
-          className="encounter-condition-row__name encounter-condition-row__name-button"
-          onClick={(event) =>
-            onReference(
-              condition.condition_key!,
-              event.currentTarget.getBoundingClientRect(),
-            )
-          }
-          type="button"
-        >
-          {condition.name}
-        </button>
+        renderRecordPreview ? (
+          renderRecordPreview(condition.condition_key, (open) => (
+            <button
+              aria-expanded={open}
+              aria-haspopup="dialog"
+              className="encounter-condition-row__name encounter-condition-row__name-button"
+              type="button"
+            >
+              {condition.name}
+            </button>
+          ))
+        ) : (
+          <button
+            className="encounter-condition-row__name encounter-condition-row__name-button"
+            onClick={() => onReference(condition.condition_key!)}
+            type="button"
+          >
+            {condition.name}
+          </button>
+        )
       ) : (
         <span className="encounter-condition-row__name">{condition.name}</span>
       )}
       {hasValue && (
-        <EditableCommitField
-          ariaLabel={`${condition.name} value`}
-          inputMode="numeric"
-          onCommit={(value) => commitConditionValue(value, update)}
-          size="small"
-          value={inputNumberValue(condition.value)}
-        />
+        <div
+          aria-label={`${condition.name} value controls`}
+          className="encounter-condition-value-controls"
+          role="group"
+        >
+          <Button
+            aria-label={`Decrease ${condition.name} value`}
+            disabled={(condition.value ?? 0) <= 0}
+            icon={<Minus size={12} />}
+            onClick={() => stepConditionValue(condition.value, -1, update)}
+            size="small"
+          />
+          <EditableCommitField
+            ariaLabel={`${condition.name} value`}
+            inputMode="numeric"
+            onCommit={(value) => commitConditionValue(value, update)}
+            size="small"
+            value={inputNumberValue(condition.value)}
+          />
+          <Button
+            aria-label={`Increase ${condition.name} value`}
+            icon={<Plus size={12} />}
+            onClick={() => stepConditionValue(condition.value, 1, update)}
+            size="small"
+          />
+        </div>
       )}
-      {condition.duration_rounds !== undefined && (
-        <span className="encounter-condition-chip">
-          {condition.duration_rounds.toString()} rounds
-        </span>
+      {(condition.duration_rounds !== undefined || hasDetails) && (
+        <div className="encounter-condition-row__metadata">
+          {condition.duration_rounds !== undefined && (
+            <span className="encounter-condition-chip">
+              {condition.duration_rounds.toString()} rounds
+            </span>
+          )}
+          {hasDetails && <span className="encounter-condition-meta">Details</span>}
+        </div>
       )}
-      {hasDetails && <span className="encounter-condition-meta">Details</span>}
-      <Popover
-        content={
-          <Form form={detailsForm} layout="vertical">
-            <ConditionDetailsFields participants={participants} />
-            <div className="encounter-condition-details__actions">
-              <Button type="primary" onClick={saveDetails}>
-                Save
-              </Button>
-            </div>
-          </Form>
-        }
-        open={detailsOpen}
-        onOpenChange={openDetails}
-        placement="bottomRight"
-        trigger="click"
-      >
+      <div className="encounter-condition-row__actions">
+        <Popover
+          content={
+            <Form form={detailsForm} layout="vertical">
+              <ConditionDetailsFields participants={participants} />
+              <div className="encounter-condition-details__actions">
+                <Button type="primary" onClick={saveDetails}>
+                  Save
+                </Button>
+              </div>
+            </Form>
+          }
+          open={detailsOpen}
+          onOpenChange={openDetails}
+          placement="bottomRight"
+          trigger="click"
+        >
+          <Button
+            aria-label={`Edit ${condition.name} details`}
+            icon={<MoreHorizontal size={14} />}
+            size="small"
+          />
+        </Popover>
         <Button
-          aria-label={`Edit ${condition.name} details`}
-          icon={<MoreHorizontal size={14} />}
+          danger
+          aria-label={`Remove ${condition.name}`}
+          icon={<Trash2 size={12} />}
           size="small"
+          onClick={() => onRemove(participantKey, condition.condition_id)}
         />
-      </Popover>
-      <Button
-        danger
-        aria-label={`Remove ${condition.name}`}
-        icon={<Trash2 size={12} />}
-        size="small"
-        onClick={() => onRemove(participantKey, condition.condition_id)}
-      />
+      </div>
     </div>
   );
 }
@@ -344,7 +357,7 @@ function conditionDefinition(
 }
 
 function conditionTakesValue(
-  condition: EncounterParticipantConditionView,
+  condition: EncounterRuntimeConditionView,
   definitions: EncounterConditionDefinitionView[],
 ): boolean {
   const definition = conditionDefinition(condition.condition_key, definitions);
@@ -363,9 +376,17 @@ function commitConditionValue(
   if (!/^\d+$/.test(trimmed)) {
     return;
   }
-  update({ value: BigInt(trimmed) });
+  update({ value: Number(trimmed) });
 }
 
-function inputNumberValue(value: bigint | undefined): string {
+function inputNumberValue(value: number | undefined): string {
   return value === undefined ? "" : value.toString();
+}
+
+function stepConditionValue(
+  value: number | undefined,
+  step: -1 | 1,
+  update: (changes: Partial<UpdateEncounterParticipantConditionRequest>) => void,
+) {
+  update({ value: Math.max(0, (value ?? 0) + step) });
 }

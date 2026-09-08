@@ -1,0 +1,476 @@
+Night Hag
+  Type: creature · Pack: Bestiary 1
+  Key: pathfinder-bestiary:WQy7HBUcgDLsfVJd
+
+Public Notes
+  Night hags are thieves and merchants of mortal souls. These foul creatures
+  collect souls in dark gems or crystalline jars to sell in fiendish markets,
+  and are themselves empowered by potent magic jewels known as Heartstones. They
+  haunt the Ethereal Plane, where they prey upon mortals in their dreams,
+  debilitating them with horrific nightmares as they rest. A night hag may find
+  a particular target and haunt them continuously over the course of weeks,
+  slowly and cruelly breaking down the victim's will and ability to resist,
+  until their soul is forfeit.
+  A night hag is a canny mastermind and soul broker, willing to consider any
+  deal as long as she is convinced she has the upper hand. Although a night hag
+  finds it easy to travel the Ethereal Plane and prey upon helpless souls that
+  can't fight back, these souls are also the least desirable to the evil
+  outsiders the night hag bargains with, and so a night hag gathers allies and
+  minions that allow her to prey on more potent souls without personally risking
+  herself. Their favored minions are Nightmares, with whom they share a special
+  bond.
+  Above all, night hags avoid fighting foes that can harry them on the Ethereal
+  Plane, picking fights only when they are certain they can escape.
+  ---
+  Malevolent crones who lurk at the edges of civilization, hags use their
+  deceptive, magical abilities to prey upon humanoids, manipulating and
+  corrupting them. Some say hags arose from fey that became twisted by their
+  inner selfishness. Hags gather together in covens for greater power, craft
+  unique magical items known as Hag Eyes, and are known to replace infant
+  humanoids with their own offspring-these children areChangelings who have the
+  potential to become hags themselves.
+
+Bind Soul (At Will) (Heartstone)
+  You wrench the target's soul away before it can pass on to the afterlife and
+  imprison it in a black sapphire. While the soul is in the gem, the target
+  can't be returned to life through any means, even powerful magic such as wish.
+  If the gem is destroyed or bind soul is counteracted on the gem, the soul is
+  freed. The gem has AC 16 and Hardness 10. A gem can't hold more than one soul,
+  and any attempt wastes the spell.
+
+Control Weather
+  You alter the weather, making it calm and normal for the season or choosing up
+  to two effects based on the season.
+  You can't specifically control the manifestations, such as the exact path of a
+  tornado or the targets of lightning strikes.
+  - Autumn cold weather, fog, mild heat, sleet
+  - Spring drizzle, heat, hurricane, sleet, thunderstorm, tornado
+  - Summer drizzle, downpour, extreme heat, hail, heat
+  - Winter blizzard, mild cold, extreme cold, thaw
+  ---
+  Critical Success You change the weather as desired and can affect a larger
+  area (up to a 5-mile-radius circle), or a longer duration (any number of
+  additional d12 hours, up to 16d12).
+  Success You change the weather as desired.
+  Failure You fail to change the weather as desired.
+  Critical Failure The weather changes in an unanticipated way, determined by
+  the GM but generally as contradictory to your true desires as possible (for
+  instance, a terrible storm emerges when you would prefer good weather).
+  ---
+  Heightened (9th) You can create unseasonable weather and contradictory weather
+  effects, such as extreme cold and a hurricane. You can make the weather calm
+  and normal weather for a different season or choose weather effects from any
+  season's list.
+
+Dream Council
+  When you Cast this Spell, any targets-including you-can choose to immediately
+  fall asleep. The spell ends for any creatures that don't choose to fall
+  asleep. Sleepers join a shared dream, where they can communicate with one
+  another as though they were in the same room. Individual targets leave this
+  shared dream upon awakening, and if all the targets awaken, the spell ends.
+
+Ethereal Jaunt (At Will) (Heartstone)
+  You travel to the Ethereal Plane, which overlaps the Material Plane. Material
+  Plane creatures can't see you, and you can move through things on the Material
+  Plane. You move at half your normal Speeds, but can move in any direction
+  (including up and down). You can see onto the Material Plane within a radius
+  of 60 feet; it is gray, hazy, and Concealed from you. You can't affect the
+  Material Plane, and you can't be affected by the Material Plane except by
+  force effects and abjurations originating there. When the spell ends, you
+  return to the Material Plane. If you're in the air, you fall (unless you can
+  fly), and if you're inside an object, you're pushed into the nearest open
+  space and take 1d6 damage per 5 feet you were pushed. If you cast this spell
+  when not on the Material Plane, it is lost.
+  ---
+  Heightened (9th) You can target up to five additional willing creatures at a
+  range of 30 feet. The duration is up to 10 minutes.
+
+Baleful Polymorph
+  You transform the target creature into a harmless animal appropriate to the
+  area, with effects based on its Fortitude save.
+  ---
+  Critical Success The target is unaffected.
+  Success The target's body gains minor features of the harmless animal. Its
+  insides churn as they partially transform, causing it to be Sickened 1. When
+  it recovers from the Sickened condition, its features revert to normal.
+  Failure The target transforms for 1 minute but keeps its mind. If it spends
+  all its actions on its turn concentrating on its original form, it can attempt
+  a Will save to end the effect immediately.
+  Critical Failure The target is transformed into the chosen harmless animal,
+  body and mind, for an unlimited duration.
+
+Dominate
+  You take command of the target, forcing it to obey your orders. If you issue
+  an obviously self-destructive order, the target doesn't act until you issue a
+  new order. The effect depends on its Will save.
+  ---
+  Critical Success The target is unaffected.
+  Success The target is Stunned 1 as it fights off your commands.
+  Failure You control the target. It gains the Controlled condition, but it can
+  attempt a Will save at the end of each of its turns. On a success, the spell
+  ends.
+  Critical Failure As a failure, but the target receives a new save only if you
+  give it a new order that is against its nature, such as killing its allies.
+  ---
+  Heightened (10th) The duration is unlimited.
+
+Scrying
+  You magically spy on a creature of your choice. Scrying works like
+  Clairvoyance, except that the image you receive is less precise, insufficient
+  for teleport and similar spells. Instead of creating an eye in a set location
+  within 500 feet, you instead create an eye that manifests just above the
+  target. You can choose a target either by name or by touching one of its
+  possessions or a piece of its body. If you haven't met the target in person,
+  scrying's DC is 2 lower, and if you are unaware of the target's identity
+  (perhaps because you found an unknown creature's fang at a crime scene), the
+  DC is instead 10 lower. The effect of scrying depends on the target's Will
+  save.
+  ---
+  Critical Success The spell fails and the target is temporarily immune for 1
+  week. The target also gains a glimpse of you and learns its rough distance and
+  direction from you.
+  Success The spell fails and the target is temporarily immune for 1 day.
+  Failure The spell succeeds.
+  Critical Failure The spell succeeds, and the eye follows the target if it
+  moves, traveling up to 60 feet per round.
+
+Spellwrack
+  You cause any spells cast on the target to spill out their energy in harmful
+  surges. The target must attempt a Will save.
+  ---
+  Critical Success The target is unaffected.
+  Success Whenever the target becomes affected by a spell with a duration, the
+  target takes 2d12[persistent,force] damage. Each time it takes persistent
+  force damage from spellwrack, it reduces the remaining duration of spells
+  affecting it by 1 round. Only a successful Arcana check against your spell DC
+  can help the target recover from the Persistent Damage; the curse and the
+  Persistent Damage end after 1 minute.
+  Failure As success, but the curse and Persistent Damage do not end on their
+  own.
+  Critical Failure As failure, but the persistent force damage is
+  4d12[persistent,force] damage.
+
+Illusory Scene
+  You form an imaginary scene that includes up to 10 discrete creatures or
+  objects of various sizes, all of which must be within the spell's area. These
+  elements generate appropriate sounds and smells, and they feel right to the
+  touch. Elements of an illusory scene are incapable of speech. Unlike with the
+  Illusory Creature spell, creatures in your scene lack combat abilities and
+  statistics. Your scene doesn't include changes to the environment around it,
+  though you can place your scene within the illusory environment of a Mirage
+  spell.
+  When you create the scene, you can choose to have it be static or follow a
+  program. Though a static scene is stationary, it includes basic natural
+  movement. For example, wind blowing on an illusory piece of paper would rustle
+  it. A program can be up to 1 minute long and repeats when finished. For
+  instance, you could create a scene of two orcs fighting each other, and the
+  fight would go the same way for each repetition. If you create a loop, the two
+  fighters end up in the same place at the start of the scene and at the end of
+  it, but you can smooth the program so it's hard to tell when the loop ends and
+  begins. Anyone observing the scene for more than a few minutes almost always
+  notices it looping. You're unable to alter the program after you create the
+  illusion.
+  Any creature that touches any part of the image or uses the Seek action to
+  examine it can attempt to disbelieve your illusion. If they interact with a
+  portion of the illusion, they disbelieve only that portion. They disbelieve
+  the entire scene only on a critical success.
+  ---
+  Heightened (6th) Creatures or objects in your scene can speak. You must speak
+  the specific lines for each actor when creating your program. The spell
+  disguises your voice for each actor.
+  Heightened (8th) As the 6th-rank version, and the duration is unlimited.
+
+Prying Eye
+  You create an Invisible, floating eye, 1 inch in diameter, at a location you
+  can see within 500 feet. It sees in all directions with your normal visual
+  senses and continuously transmits what it sees to you. The first time you
+  Sustain the Spell each round, you can either move the eye up to 30 feet,
+  seeing only things in front of the eye, or move it up to 10 feet, seeing
+  everything in all directions around it. There is no limit to how far from you
+  the eye can move, but the spell ends immediately if you and the eye ever cease
+  to be on the same plane of existence. You can attempt Seek actions through the
+  eye if you want to attempt Perception checks with it. Any damage dealt to the
+  eye destroys it and ends the spell.
+
+Shadow Blast (Heartstone)
+  You shape the quasi-real substance of the Shadow Plane into a blast. Choose
+  acid, bludgeoning, cold, electricity, fire, force, piercing, slashing, or
+  sonic damage, and choose a cone, a burst within 120 feet, or a line. The blast
+  deals 5d8 damage of the type you chose to each creature in the area.
+  ---
+  Heightened (+1) The damage increases by 1d8.
+
+Clairvoyance
+  You create an Invisible floating eye at a location within range (even if it's
+  outside your line of sight or line of effect). The eye can't move, but you can
+  see in all directions from that point as if using your normal visual senses.
+
+Nightmare
+  You send disturbing nightmares to your target. The next time the target falls
+  asleep, it must attempt a Will save. If you know the target only by name and
+  have never met them, the target gets a +4 circumstance bonus to the Will save.
+  ---
+  Critical Success The target suffers no adverse effects and is temporarily
+  immune for 1 week.
+  Success The target experiences the nightmares but suffers no adverse effects
+  other than unpleasant memories.
+  Failure The target experiences the nightmares and awakens Fatigued.
+  Critical Failure The target experiences the nightmares, awakens Fatigued, and
+  is Drained 2 until it is no longer Fatigued.
+
+Nightmare
+  You send disturbing nightmares to your target. The next time the target falls
+  asleep, it must attempt a Will save. If you know the target only by name and
+  have never met them, the target gets a +4 circumstance bonus to the Will save.
+  ---
+  Critical Success The target suffers no adverse effects and is temporarily
+  immune for 1 week.
+  Success The target experiences the nightmares but suffers no adverse effects
+  other than unpleasant memories.
+  Failure The target experiences the nightmares and awakens Fatigued.
+  Critical Failure The target experiences the nightmares, awakens Fatigued, and
+  is Drained 2 until it is no longer Fatigued.
+
+Talking Corpse
+  You grant the target corpse a semblance of life, which it uses to speak the
+  answers to three questions posed to it. This spell calls on the physical
+  body's latent memories rather than summoning back the deceased's spirit, so
+  the corpse must be mostly intact for the spell to function. The more damage
+  the corpse has taken, the more inaccurate or patchwork its answers are, and it
+  must have a throat and mouth to speak at all. If anyone has previously cast
+  this spell on the corpse in the last week, the spell automatically fails. The
+  corpse can attempt a Will save to resist answering the questions using the
+  statistics of the original creature at its time of death, with the following
+  effects.
+  ---
+  Critical Success The target can lie or refuse to answer your questions, and
+  the target's spirit haunts you for 24 hours, bothering you and causing you to
+  be unable to gain any rest for that time.
+  Success The target can provide false information or refuse to answer your
+  questions.
+  Failure The target must answer truthfully, but its answers can be brief,
+  cryptic, and repetitive. It can still mislead you or attempt to stall so that
+  the spell's duration runs out before you can ask all your questions.
+  Critical Failure As failure, but the target's answers are more direct and less
+  repetitive, though still cryptic. It takes a -2 status penalty to Deception
+  checks to deceive or mislead you.
+
+Clairaudience
+  You create an Invisible floating ear at a location within range (even if it's
+  outside your line of sight or line of effect). It can't move, but you can hear
+  through the ear as if using your normal auditory senses.
+
+Dream Message
+  You send a message to your target's dream. The message is one-way, up to 1
+  minute of speech (roughly 150 words). If the target is asleep, they receive
+  the message instantly. If not, they receive it the next time they sleep. As
+  soon as they receive it, the spell ends, and you know the message was sent.
+  ---
+  Heightened (4th) You can target up to 10 creatures you know by name and have
+  met in person. You must send the same message to all of them; the spell ends
+  for each creature individually.
+
+Dream Message (At Will)
+  You send a message to your target's dream. The message is one-way, up to 1
+  minute of speech (roughly 150 words). If the target is asleep, they receive
+  the message instantly. If not, they receive it the next time they sleep. As
+  soon as they receive it, the spell ends, and you know the message was sent.
+  ---
+  Heightened (4th) You can target up to 10 creatures you know by name and have
+  met in person. You must send the same message to all of them; the spell ends
+  for each creature individually.
+
+Augury
+  You gain a vague glimpse of the future. During the casting of this spell, ask
+  about the results of a particular course of action. The spell can predict
+  results up to 30 minutes into the future and reveals the GM's best guess among
+  the following outcomes:
+  - Weal The results will be good.
+  - Woe The results will be bad.
+  - Weal and Woe The results will be a mix of good and bad.
+  - Nothing There won't be particularly good or bad results.
+  The GM rolls a secret Flat DC 6. On a failure, the result is always "nothing."
+  This makes it impossible to tell whether a "nothing" result is accurate. If
+  anyone asks about the same topic as the first casting of augury during an
+  additional casting, the GM uses the secret roll result from the first casting.
+  If circumstances change, though, it's possible to get a different result.
+
+Invisibility (At Will)
+  Cloaked in illusion, the target becomes Invisible. This makes it Undetected to
+  all creatures, though the creatures can attempt to find the target, making it
+  Hidden to them instead. If the target uses a hostile action, the spell ends
+  after that hostile action is completed.
+  ---
+  Heightened (4th) The spell lasts 1 minute, but it doesn't end if the target
+  uses a hostile action.
+
+Charm
+  To the target, your words are honey and your visage seems bathed in a dreamy
+  haze. It must attempt a Will save, with a +4 circumstance bonus if you or your
+  allies recently threatened it or used hostile actions against it.
+  You can Dismiss the spell. If you use hostile actions against the target, the
+  spell ends. When the spell ends, the target doesn't necessarily realize it was
+  charmed unless its friendship with you or the actions you convinced it to take
+  clash with its expectations, meaning you could potentially convince the target
+  to continue being your friend via mundane means.
+  ---
+  Critical Success The target is unaffected and aware you tried to charm it.
+  Success The target is unaffected but thinks your spell was something harmless
+  instead of charm, unless it identifies the spell.
+  Failure The target's attitude becomes Friendly toward you. If it was Friendly,
+  it becomes Helpful. It can't use hostile actions against you.
+  Critical Failure The target's attitude becomes Helpful toward you, and it
+  can't use hostile actions against you.
+  ---
+  Heightened (4th) The duration lasts until the next time you make your daily
+  preparations.
+  Heightened (8th) The duration lasts until the next time you make your daily
+  preparations, and you can target up to 10 creatures.
+
+Detect Alignment (Constant) (All Alignments)
+  Your eyes glow as you sense aligned auras. Choose chaotic, evil, good, or
+  lawful. You detect auras of that alignment. You receive no information beyond
+  presence or absence. You can choose not to detect creatures or effects you're
+  aware have that alignment.
+  Only creatures of 6th level or higher-unless divine spellcasters, undead, or
+  beings from the Outer Sphere-have alignment auras.
+  ---
+  Heightened (2nd) You learn each aura's location and strength.
+
+Detect Magic (Constant) (3rd)
+  You send out a pulse that registers the presence of magic. You receive no
+  information beyond the presence or absence of magic. You can choose to ignore
+  magic you're fully aware of, such as the magic items and ongoing spells of you
+  and your allies.
+  You detect illusion magic only if that magic's effect has a lower level than
+  the rank of your detect magic spell. However, items that have an illusion aura
+  but aren't deceptive in appearance (such as an invisibility potion) typically
+  are detected normally.
+  ---
+  Heightened (3rd) You learn the school of magic for the highest-level effect
+  within range that the spell detects. If multiple effects are equally strong,
+  the GM determines which you learn.
+  Heightened (4th) As 3rd level, but you also pinpoint the source of the
+  highest-level magic. Like for an imprecise sense, you don't learn the exact
+  location, but can narrow down the source to within a 5-foot cube (or the
+  nearest if larger than that).
+
+Illusory Disguise
+  You create an illusion that causes you to appear as another creature of the
+  same body shape, and with roughly similar height (within 6 inches) and weight
+  (within 50 pounds), as yourself. The disguise is typically good enough to hide
+  your identity, but not to impersonate a specific individual. The spell doesn't
+  change your voice, scent, or mannerisms. You can change the appearance of your
+  clothing and worn items, such as making your armor look like a dress. Held
+  items are unaffected, and any worn item you remove returns to its true
+  appearance.
+  Casting illusory disguise counts as setting up a disguise for the Impersonate
+  use of Deception; it ignores any circumstance penalties you might take for
+  disguising yourself as a dissimilar creature, it gives you a +4 status bonus
+  to Deception checks to prevent others from seeing through your disguise, and
+  you add your level even if you're untrained. You can Dismiss this spell.
+  ---
+  Heightened (2nd) The spell also disguises your voice and scent, and it gains
+  the auditory and olfactory traits.
+  Heightened (3rd) You can appear as any creature of the same size, even a
+  specific individual. You must have seen an individual to take on their
+  appearance. The spell also disguises your voice and scent, and it gains the
+  auditory and olfactory traits.
+  Spell Effect: Illusory Disguise
+
+Magic Missile (At Will)
+  You send a dart of force streaking toward a creature that you can see. It
+  automatically hits and deals 1d4+1 force damage. For each additional action
+  you use when Casting the Spell, increase the number of missiles you shoot by
+  one, to a maximum of three missiles for 3 actions. You choose the target for
+  each missile individually. If you shoot more than one missile at the same
+  target, combine the damage before applying bonuses or penalties to damage,
+  resistances, weaknesses, and so forth.
+  ---
+  Heightened (+2) You shoot one additional missile with each action you spend.
+
+Ray of Enfeeblement (At Will)
+  A ray that saps a foe's strength flashes from your hand. Attempt a ranged
+  spell attack against the target. If you succeed, that creature attempts a
+  Fortitude save to determine the spell's effect. If your attack roll is a
+  critical success, use the outcome for one degree of success worse than the
+  result of its save.
+  ---
+  Critical Success The target is unaffected.
+  Success The target becomes Enfeebled 1.
+  Failure The target becomes Enfeebled 2.
+  Critical Failure The target becomes Enfeebled 3.
+
+Sleep (At Will)
+  Each creature in the area becomes drowsy and might fall asleep. A creature
+  that falls Unconscious from this spell doesn't fall Prone or release what it's
+  holding. This spell doesn't prevent creatures from waking up due to a
+  successful Perception check, limiting its utility in combat.
+  ---
+  Critical Success The creature is unaffected.
+  Success The creature takes a -1 status penalty to Perception checks for 1
+  round.
+  Failure The creature falls Unconscious. If it's still Unconscious after 1
+  minute, it wakes up automatically.
+  Critical Failure The creature falls Unconscious. If it's still Unconscious
+  after 1 hour, it wakes up automatically.
+  ---
+  Heightened (4th) The creatures fall Unconscious for 1 round on a failure or 1
+  minute on a critical failure. They fall Prone and release what they're
+  holding, and they can't attempt Perception checks to wake up. When the
+  duration ends, the creature is sleeping normally instead of automatically
+  waking up.
+
+Heartstone
+  This gemstone grants its wearer a +2 item bonus to saving throws.
+  Each heartstone is powered by the spirit of a specific night hag. If it's
+  separated from her for 24 hours (or she's been dead for 24 hours), it becomes
+  a nonmagical gemstone. A heartstone allows the hag to use additional occult
+  innate spells: Ethereal Jaunt (9th level) and Seize Soul at will, and Shadow
+  Blast twice per day.
+  ---
+  Activate 1 command
+  Requirements You must be touching the heartstone.
+  ---
+  Effect The heartstone attempts to counteract one disease affecting you
+  (counteract rank 5, counteract modifier +18).
+  ---
+  Craft Requirements You must be a night hag.
+
+Coven
+  A night hag adds Dominate, Nightmare, Scrying, and Spellwrack to her coven's
+  spells.
+  ---
+  PF2E.NPC.Abilities.Glossary.Coven
+
+Nightmare Rider
+  When a night hag rides a Nightmare, the nightmare also gains the night hag's
+  status bonus to saves against magic, and both the hag and rider benefit when
+  the night hag uses her Heartstone's Ethereal Jaunt innate spell.
+
+Constant Spells
+  PF2E.NPC.Abilities.Glossary.ConstantSpells
+
+Abyssal Plague
+  A creature can't recover from drained until abyssal plague is cured.
+  Saving Throw Fortitude DC 28
+  Stage 1 Drained 1 (1 day)
+  Stage 2 Drained increases by 2 (1 day)
+
+Change Shape
+  The night hag can take on the appearance of any Medium female humanoid. This
+  doesn't change her Speed or her attack and damage bonuses with her Strikes,
+  but might change the damage type her Strikes deal (typically to bludgeoning).
+  ---
+  PF2E.NPC.Abilities.Glossary.ChangeShape
+
+Dream Haunting
+  If a night hag is ethereal and hovering over a sleeping chaotic or evil
+  creature, she can ride the victim's back until dawn. The creature endures
+  tormenting dreams as the hag casts Nightmare on it, and is exposed to abyssal
+  plague. Any drained caused by dream haunting is cumulative.
+  Only an ethereal being can confront the night hag and stop her dream haunting.
+
+Spell Ambush
+  A creature Off Guard to the night hag takes a -2 circumstance penalty to
+  checks and DCs to defend against her spells.

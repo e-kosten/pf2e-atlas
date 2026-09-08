@@ -12,16 +12,12 @@ As those boundaries stabilize, production code should not rely on panic-oriented
 
 ## Decision
 
-Keep the broad workspace Clippy gate:
-
-```bash
-cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-```
-
-Add a second non-test runtime Clippy gate:
+Lint production and non-production targets as complementary, non-overlapping
+sets. Runtime libraries and binaries carry the strict policy:
 
 ```bash
 cargo clippy --workspace --lib --bins -- -D warnings \
+  -D clippy::dbg_macro \
   -D clippy::unwrap_used \
   -D clippy::expect_used \
   -D clippy::panic \
@@ -30,7 +26,20 @@ cargo clippy --workspace --lib --bins -- -D warnings \
   -D clippy::unreachable
 ```
 
-The all-targets gate also rejects `dbg!`, which is useful during local debugging but emits file/line diagnostics to stderr and should not be committed in runtime code or tests.
+Tests, benches, and examples retain warnings-as-errors and the `dbg!` ban
+without the runtime panic denies:
+
+```bash
+cargo clippy --workspace --tests --benches --examples -- \
+  -D warnings -D clippy::dbg_macro
+```
+
+Do not combine an all-targets pass with the runtime pass: that recompiles and
+relints production targets while obscuring which policy applies. A small
+fixture must prove that panic-oriented production code fails and equivalent
+assertion-oriented test code remains permitted.
+
+Both target sets reject `dbg!`, which is useful during local debugging but emits file/line diagnostics to stderr and should not be committed in runtime code or tests.
 
 The runtime-only gate applies to library and binary targets, not test targets. Runtime code must propagate errors, return explicit fallback values, or encode impossible states in types rather than panicking. Tests may continue to use assertion-oriented `unwrap`, `expect`, and `panic!` when that keeps the test clearer.
 

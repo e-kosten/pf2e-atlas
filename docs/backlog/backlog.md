@@ -12,6 +12,12 @@ This is the tracked backlog for open durable future work.
 
 Completed and retired items are tracked separately in [history/done-and-superseded.md](./history/done-and-superseded.md).
 
+## Source-Faithful Contract State
+
+The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. The integrated record-presentation implementation, product review, and validation are complete for those three canonical families. PR 7 remains draft while every remaining registry family is modeled or receives an explicit human-approved product disposition; later simplification and main-promotion planning follow that modeling milestone. The remaining families are separate required work and are not implied by these cutovers; [standalone and embedded consumables](./items/rust-consumable-record-family.md) are one of the next modeling portfolios.
+
+The contract preserves all 313 exact type-registry assignments, keeps non-creature priority as a later decision, and retains overflow-only child embeddings. The product remains default-visible/public-only rather than an authentication boundary: typed visibility/provenance is data, and target exclusions require non-auth product rationale.
+
 ## Now
 
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)
@@ -63,6 +69,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Later
 
+- [Rust standalone and embedded consumable record family](./items/rust-consumable-record-family.md)
+  Reconcile consumables under one source-faithful family contract while preserving identity, order, typed inventory/economy/use facts, safe content/references, and the False Door exact-20 minimum regression. Status: deferred.
+
 - [Rust derived-tag runtime and editorial redesign](./items/rust-derived-tag-redesign.md)
   Redesign retained derived-tag concepts against record kinds, explicit source axes, typed filters, and Rust artifact ownership. Status: planned.
 
@@ -72,11 +81,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust CLI content output formats](./items/rust-cli-content-output-formats.md)
   Decide which optional non-markdown content formats the Rust CLI should expose for record JSON output. Status: deferred.
 
+- [Rust entity-aware query facts and filter modeling](./items/rust-entity-aware-query-facts-and-filter-modeling.md)
+  Evaluate family-owned typed query-facts projections and entity-aware product filters over a common query/filter IR without creating a second semantic model. Status: proposed.
+
 - [Rust side data and metric source fact convergence](./items/rust-side-data-metric-source-fact-convergence.md)
   Track cleanup for overlapping Rust side-table and metric projections. Status: proposed.
-
-- [Rust Foundry type mechanics parsers](./items/rust-foundry-type-mechanics-parsers.md)
-  Evaluate peer Foundry-type mechanics parsers for source facts currently exposed primarily through metrics. Status: proposed.
 
 - [Rust graph context deeper local graph](./items/rust-graph-context-deeper-local-graph.md)
   Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command. Status: proposed.
@@ -92,6 +101,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Rust artifact JSON content model review](./items/rust-artifact-json-content-model-review.md)
   Decide whether rich content JSON, content rows, and reference occurrence provenance should be refactored into a stronger artifact model. Status: proposed.
+
+- [Rust release tooling and changelog evaluation](./items/rust-release-tooling-changelog-evaluation.md)
+  Evaluate Knope and existing release tooling for human-reviewed compatibility notes, changelogs, application versions, and release packaging without conflating generated-index or local-state versions. Status: proposed.
 
 - [Rust optional PF2e art ingest](./items/rust-optional-pf2e-art-ingest.md)
   Track optional local ingestion of PF2e system icons and module-provided creature portrait/token art for future web presentation. Status: proposed.

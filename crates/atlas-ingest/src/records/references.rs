@@ -2,13 +2,14 @@ use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ContentSourceKind, ContentVisibility, FoundryLink, FoundryLinkBehavior,
-    ReferenceEdge, ReferenceRelationKind, RichDocument, RichLinkTarget, iter_foundry_links,
-    render_plain_text, visit_foundry_links_mut,
+    AtlasRecord, ContentOwner, ContentSourceKind, ContentVisibility, DuplicateContentStatus,
+    FoundryLink, FoundryLinkBehavior, RecordBody, RecordContentDocument, ReferenceEdge,
+    ReferenceRelationKind, RichDocument, RichLinkTarget, iter_foundry_links, render_plain_text,
+    visit_foundry_links_mut,
 };
 
-use crate::records::{LoadedSourceRecord, RecordReferenceIndex, ReferenceCandidate};
-use crate::source::normalize::{normalize_text, parse_foundry_content};
+use crate::records::{LoadedSourceRecord, RecordReferenceIndex};
+use crate::source::normalize::normalize_text;
 
 pub(crate) fn build_record_reference_index(records: &[LoadedSourceRecord]) -> RecordReferenceIndex {
     let mut index = RecordReferenceIndex::default();
@@ -53,7 +54,9 @@ pub(crate) fn resolve_reference_edges(records: &[LoadedSourceRecord]) -> Vec<Ref
     let mut references = Vec::new();
     for loaded in records {
         let record = &loaded.record;
-        for (source_kind, visibility, document) in record_content_documents(record) {
+        let documents =
+            owned_content_documents(loaded).unwrap_or_else(|| record_content_documents(record));
+        for (source_kind, visibility, document) in documents {
             collect_document_reference_edges(
                 record,
                 source_kind,
@@ -87,10 +90,55 @@ pub(crate) fn resolve_content_references(
     index: &RecordReferenceIndex,
 ) {
     for loaded in records {
-        let record = &mut loaded.record;
-        for content in &mut record.content.documents {
-            if content.contributes_to_reference_occurrences() {
+        let record_key = loaded.record.identity.key.clone();
+        for child in &mut loaded.facts.canonical_spell_children {
+            for document in &mut child.definition.content.documents {
+                resolve_document_references(&mut document.document, index);
+                document.refresh_derived_state();
+            }
+        }
+        let canonical_content = match &mut loaded.facts.canonical_body {
+            Some(RecordBody::Creature(creature)) => Some(&mut creature.content),
+            Some(RecordBody::Hazard(hazard)) => Some(&mut hazard.content),
+            Some(RecordBody::Spell(spell)) => Some(&mut spell.definition.content),
+            None => None,
+        };
+        if let Some(content) = canonical_content {
+            for document in &mut content.documents {
+                resolve_document_references(&mut document.document, index);
+                document.refresh_derived_state();
+            }
+            loaded.record.content.documents = content
+                .documents
+                .iter()
+                .filter(|content| content.owner == ContentOwner::Record(record_key.clone()))
+                .map(|content| RecordContentDocument {
+                    source_kind: content.source_kind,
+                    label: content.label.clone(),
+                    document: content.document.clone(),
+                })
+                .collect();
+        } else if let Some(RecordBody::Hazard(hazard)) = &mut loaded.facts.canonical_body {
+            for content in &mut hazard.content.documents {
                 resolve_document_references(&mut content.document, index);
+                content.refresh_derived_state();
+            }
+            loaded.record.content.documents = hazard
+                .content
+                .documents
+                .iter()
+                .filter(|content| content.owner == ContentOwner::Record(record_key.clone()))
+                .map(|content| RecordContentDocument {
+                    source_kind: content.source_kind,
+                    label: content.label.clone(),
+                    document: content.document.clone(),
+                })
+                .collect();
+        } else {
+            for content in &mut loaded.record.content.documents {
+                if content.contributes_to_reference_occurrences() {
+                    resolve_document_references(&mut content.document, index);
+                }
             }
         }
     }
@@ -149,6 +197,44 @@ fn record_content_documents(
         .content
         .default_backlink_documents()
         .map(|content| (content.source_kind, content.visibility(), &content.document))
+        .collect()
+}
+
+fn owned_content_documents(
+    loaded: &LoadedSourceRecord,
+) -> Option<Vec<(ContentSourceKind, ContentVisibility, &RichDocument)>> {
+    let mut documents = match loaded.facts.canonical_body.as_ref() {
+        Some(RecordBody::Creature(creature)) => owned_documents(&creature.content),
+        Some(RecordBody::Hazard(hazard)) => owned_documents(&hazard.content),
+        Some(RecordBody::Spell(spell)) => owned_documents(&spell.definition.content),
+        None if !loaded.facts.canonical_spell_children.is_empty() => {
+            record_content_documents(&loaded.record)
+        }
+        None => return None,
+    };
+    documents.extend(
+        loaded
+            .facts
+            .canonical_spell_children
+            .iter()
+            .flat_map(|child| owned_documents(&child.definition.content)),
+    );
+    Some(documents)
+}
+
+fn owned_documents(
+    content: &atlas_record::OwnedRichContent,
+) -> Vec<(ContentSourceKind, ContentVisibility, &RichDocument)> {
+    content
+        .documents
+        .iter()
+        .filter(|content| {
+            !matches!(
+                content.duplicate_status,
+                DuplicateContentStatus::CopiedFromCanonicalTarget { .. }
+            )
+        })
+        .map(|content| (content.source_kind, content.visibility, &content.document))
         .collect()
 }
 
@@ -224,67 +310,17 @@ pub(crate) fn record_by_key<'a>(
     index.by_key.get(&record_key.to_string())
 }
 
-pub(crate) fn extract_reference_candidates_from_text(text: &str) -> Vec<ReferenceCandidate> {
-    let mut candidates = Vec::new();
-    let mut offset = 0;
-
-    while offset < text.len() {
-        let Some((start, prefix)) = next_reference_prefix(text, offset) else {
-            break;
-        };
-        let target_start = start + prefix.len();
-        let Some(close_relative) = text[target_start..].find(']') else {
-            break;
-        };
-        let close = target_start + close_relative;
-        let raw_target = text[target_start..close].to_string();
-        let mut end = close + 1;
-        let mut display_text = None;
-
-        if text[end..].starts_with('{')
-            && let Some(display_close_relative) = text[end + 1..].find('}')
-        {
-            let display_close = end + 1 + display_close_relative;
-            let display =
-                render_plain_text(&parse_foundry_content(&text[end + 1..display_close]).document);
-            if !display.is_empty() {
-                display_text = Some(display);
-            }
-            end = display_close + 1;
-        }
-
-        candidates.push(ReferenceCandidate {
-            raw_target,
-            display_text,
-            reference_text: text[start..end].to_string(),
-        });
-        offset = end;
-    }
-
-    candidates
-}
-
-pub(crate) fn next_reference_prefix(text: &str, offset: usize) -> Option<(usize, &'static str)> {
-    ["@UUID[", "@Compendium["]
-        .into_iter()
-        .filter_map(|prefix| {
-            text[offset..]
-                .find(prefix)
-                .map(|position| (offset + position, prefix))
-        })
-        .min_by_key(|(position, _)| *position)
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::{
-        AtlasRecord, ContentSourceKind, FoundryDocumentType, FoundryLink, FoundryLinkBehavior,
-        FoundryLinkMacroKind, FoundryLinkSource, FoundryRecordInfo, FoundryRecordType,
-        RecordClassification, RecordContentDocument, RecordIdentity, RecordProvenance,
-        RichDocument, RichLinkTarget, RichNode, iter_foundry_links,
+        AtlasRecord, ContentSourceKind, FactValue, FoundryDocumentType, FoundryLink,
+        FoundryLinkBehavior, FoundryLinkMacroKind, FoundryLinkSource, FoundryRecordInfo,
+        FoundryRecordType, RecordClassification, RecordContentDocument, RecordIdentity,
+        RecordProvenance, RichDocument, RichLinkTarget, RichNode, SpellIdentity, SpellProvenance,
+        SpellRecord, SpellSourceId, iter_foundry_links,
     };
 
     use super::{
@@ -340,6 +376,57 @@ mod tests {
             resolve_reference_edges(&records).is_empty(),
             "embedded content should resolve occurrences but stay out of default backlink edges"
         );
+    }
+
+    #[test]
+    fn canonical_spell_content_blocks_legacy_record_reference_fallback() {
+        let target = loaded_record("spells-srd:targetSpell", "Target Spell", Vec::new());
+        let mut host = loaded_record(
+            "spells-srd:hostSpell",
+            "Host Spell",
+            vec![RecordContentDocument {
+                source_kind: ContentSourceKind::Description,
+                label: None,
+                document: RichDocument::new(vec![RichNode::FoundryLink {
+                    link: FoundryLink {
+                        target: RichLinkTarget::Unresolved {
+                            target: "Compendium.pf2e.spells-srd.Item.Target Spell".to_string(),
+                            fallback_label: "Target Spell".to_string(),
+                        },
+                        label: None,
+                        source: FoundryLinkSource {
+                            macro_kind: FoundryLinkMacroKind::Uuid,
+                            authored_target: "Compendium.pf2e.spells-srd.Item.Target Spell"
+                                .to_string(),
+                            relation: None,
+                        },
+                        behavior: FoundryLinkBehavior::Reference,
+                    },
+                }]),
+            }],
+        );
+        let host_key = host.record.identity.key.clone();
+        host.facts.canonical_body = Some(atlas_record::RecordBody::Spell(SpellRecord::new(
+            SpellIdentity {
+                record_key: host_key,
+                source_id: SpellSourceId::new("hostSpell").expect("source id"),
+                name: "Host Spell".to_string(),
+            },
+            SpellProvenance {
+                source_path: "packs/spells/host-spell.json".to_string(),
+                source_contract_version: "fixture".to_string(),
+                source_system_version: "6.12.4".to_string(),
+                source_upstream_commit: "fixture".to_string(),
+                standalone_location: FactValue::Null,
+            },
+        )));
+        let mut records = vec![host, target];
+        let index = build_record_reference_index(&records);
+
+        resolve_content_references(&mut records, &index);
+
+        assert!(records[0].record.content.documents.is_empty());
+        assert!(resolve_reference_edges(&records).is_empty());
     }
 
     fn loaded_record(

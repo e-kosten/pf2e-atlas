@@ -16,15 +16,20 @@ import type {
   EncounterDetailView,
   EncounterIndexView,
   EncounterParticipantView,
+  EncounterParticipantResetResultView,
+  EncounterSpellCastRequest,
+  EncounterSpellCastResultView,
   EncounterUpdateView,
   FilterEditorView,
   FilterSavedListRequest,
   FilterValueListView,
   OpenResultWindowRequest,
   ReadResultWindowPageRequest,
+  RecordDetailRequest,
   RecordDetailView,
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
+  ResetEncounterParticipantRequest,
   SavedListCreateView,
   ResultWindowPage,
   SavedListDetailView,
@@ -78,9 +83,11 @@ export async function discoverFilterValues(
 
 export async function openResultWindow(
   request: OpenResultWindowRequest,
+  signal?: AbortSignal,
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>("/api/result-windows", {
     method: "POST",
+    signal,
     body: jsonBody(request),
   });
   return normalizeResultWindowPage(page);
@@ -89,19 +96,47 @@ export async function openResultWindow(
 export async function readResultWindowPage(
   windowId: bigint,
   request: ReadResultWindowPageRequest,
+  signal?: AbortSignal,
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>(
     `/api/result-windows/${windowId.toString()}/page`,
     {
       method: "POST",
+      signal,
       body: jsonBody(request),
     },
   );
   return normalizeResultWindowPage(page);
 }
 
-export async function getRecordDetail(recordKey: string): Promise<RecordDetailView> {
-  return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
+export async function getRecordDetail(
+  recordKey: string,
+  request: RecordDetailRequest = {},
+  signal?: AbortSignal,
+): Promise<RecordDetailView> {
+  const query = new URLSearchParams();
+  if (request.spell_form_id !== undefined) {
+    query.set("spell_form_id", request.spell_form_id);
+  }
+  if (request.spell_cast_rank !== undefined) {
+    query.set("spell_cast_rank", safeIntegerPathSegment(request.spell_cast_rank));
+  }
+  if (request.reference_outgoing_limit !== undefined) {
+    query.set(
+      "reference_outgoing_limit",
+      safeIntegerPathSegment(request.reference_outgoing_limit),
+    );
+  }
+  if (request.reference_backlink_limit !== undefined) {
+    query.set(
+      "reference_backlink_limit",
+      safeIntegerPathSegment(request.reference_backlink_limit),
+    );
+  }
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}${suffix}`, {
+    signal,
+  });
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {
@@ -233,7 +268,7 @@ export async function updateEncounterParticipantCondition(
   request: UpdateEncounterParticipantConditionRequest,
 ): Promise<EncounterDetailView> {
   return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${request.condition_id.toString()}`,
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${safeIntegerPathSegment(request.condition_id)}`,
     {
       method: "PATCH",
       body: jsonBody(request),
@@ -244,11 +279,39 @@ export async function updateEncounterParticipantCondition(
 export async function removeEncounterParticipantCondition(
   encounterRef: string,
   participantKey: string,
-  conditionId: bigint,
+  conditionId: number,
 ): Promise<EncounterDetailView> {
   return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${conditionId.toString()}`,
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${safeIntegerPathSegment(conditionId)}`,
     { method: "DELETE" },
+  );
+}
+
+export async function mutateEncounterSpellCast(
+  encounterRef: string,
+  participantKey: string,
+  request: EncounterSpellCastRequest,
+): Promise<EncounterSpellCastResultView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/spell-casts`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function resetEncounterParticipant(
+  encounterRef: string,
+  participantKey: string,
+  request: ResetEncounterParticipantRequest,
+): Promise<EncounterParticipantResetResultView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reset`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
   );
 }
 
@@ -362,10 +425,23 @@ function parseJsonResponse(
 
 function jsonBody(value: unknown): string {
   return JSON.stringify(value, (_key, nestedValue) => {
+    if (
+      typeof nestedValue === "number" &&
+      Number.isInteger(nestedValue) &&
+      !Number.isSafeInteger(nestedValue)
+    ) {
+      throw new AtlasApiError(
+        0,
+        "Request numeric field exceeds JSON safe integer range",
+      );
+    }
     if (typeof nestedValue !== "bigint") {
       return nestedValue;
     }
-    if (nestedValue > BigInt(Number.MAX_SAFE_INTEGER)) {
+    if (
+      nestedValue > BigInt(Number.MAX_SAFE_INTEGER) ||
+      nestedValue < BigInt(Number.MIN_SAFE_INTEGER)
+    ) {
       throw new AtlasApiError(
         0,
         "Request numeric field exceeds JSON safe integer range",
@@ -373,6 +449,13 @@ function jsonBody(value: unknown): string {
     }
     return Number(nestedValue);
   });
+}
+
+function safeIntegerPathSegment(value: number): string {
+  if (!Number.isSafeInteger(value)) {
+    throw new AtlasApiError(0, "Request numeric field exceeds JSON safe integer range");
+  }
+  return value.toString();
 }
 
 function fallbackErrorMessage(

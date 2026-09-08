@@ -1,15 +1,29 @@
+//! Offline raw-source inventory.
+//!
+//! This surface is deliberately diagnostic-only. It discovers normalized raw
+//! paths and examples, but cannot classify product ownership or establish
+//! source-leaf completeness. Exact coverage belongs to `source_coverage`.
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 use crate::error::IngestError;
+use crate::source::dto::{PF2E_SOURCE_CONTRACT_VERSION, PF2E_SOURCE_PINNED_COMMIT};
 use crate::source::loader::{
     default_manifest_path, json_files, parse_manifest, relative_source_path, resolve_pack_path,
 };
 
+mod predicate_inventory;
+
+pub use predicate_inventory::RetrievalPredicateInventoryEntry;
+use predicate_inventory::retrieval_predicate_inventory;
+
+const SOURCE_PATH_INVENTORY_VERSION: &str = "pf2e-source-path-inventory/v1";
 const SAMPLE_LIMIT: usize = 3;
 const DEFAULT_PATH_LIMIT: usize = 200;
 
@@ -22,16 +36,32 @@ pub struct SourcePathAuditOptions {
     pub record_type: Option<String>,
     pub min_records: usize,
     pub limit: Option<usize>,
+    pub strict: bool,
+    pub baseline_report: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourcePathAuditReport {
+    pub coverage_policy_version: &'static str,
+    pub coverage_policy_digest: String,
+    pub authoritative_completeness: bool,
+    pub source_contract_version: &'static str,
+    pub source_upstream_commit: &'static str,
+    pub registry_assignment_count: usize,
     pub source_root: String,
     pub manifest_path: String,
     pub pack_count: usize,
     pub record_count: usize,
     pub path_count: usize,
     pub filters: SourcePathAuditFilters,
+    pub summary: SourcePathAuditSummary,
+    pub enforcement: SourcePathAuditEnforcement,
+    pub closure_totals: SourcePathAuditClosureTotals,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_diff: Option<SourcePathAuditDiff>,
+    pub closure_failures: Vec<SourcePathAuditClosureFailure>,
+    pub diagnostics: Vec<SourceCoverageDiagnostic>,
+    pub retrieval_predicate_inventory: Vec<RetrievalPredicateInventoryEntry>,
     pub paths: Vec<SourcePathAuditPathReport>,
 }
 
@@ -46,16 +76,83 @@ pub struct SourcePathAuditFilters {
     pub min_records: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<usize>,
+    pub strict: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub baseline_report: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourcePathAuditSummary {
+    pub consumed_paths: usize,
+    pub ignored_with_rationale_paths: usize,
+    pub provenance_only_paths: usize,
+    pub deferred_paths: usize,
+    pub unknown_paths: usize,
+    pub generic_deferred_paths: usize,
+    pub unowned_recursive_matches: usize,
+    pub consumed_regressions: usize,
+    pub creature_paths: usize,
+    pub creature_consumed_paths: usize,
+    pub creature_provenance_only_paths: usize,
+    pub creature_deferred_paths: usize,
+    pub creature_unknown_paths: usize,
+    pub creature_catch_all_paths: usize,
+    pub creature_unowned_paths: usize,
+    pub creature_consumed_regressions: usize,
+    pub type_drift_diagnostics: usize,
+    pub source_diff_changes: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourcePathAuditEnforcement {
+    pub mode: SourcePathAuditMode,
+    pub passed: bool,
+    pub violation_count: usize,
+    pub aggregate_warning_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourcePathAuditClosureTotals {
+    pub expected_observation_count: usize,
+    pub observed_observation_count: usize,
+    pub failure_count: usize,
+    pub mismatch_count: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourcePathAuditMode {
+    Relaxed,
+    Strict,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourcePathAuditPathReport {
+    pub document_type: String,
+    pub record_type: String,
     pub path: String,
+    pub path_family: String,
+    pub matched_rule_id: String,
+    pub owner_family: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extractor_identity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preserved_occurrence_count: Option<usize>,
+    pub fixture_key: String,
+    pub validation: String,
+    pub checkpoint: String,
+    pub recursive_match: bool,
+    pub complete_family_assignment: bool,
     pub record_count: usize,
     pub occurrence_count: usize,
     pub value_types: Vec<SourcePathAuditValueType>,
-    pub coverage_status: SourcePathCoverageStatus,
-    pub known_consumers: Vec<String>,
+    pub disposition: SourcePathCoverageDisposition,
+    pub owner: String,
+    pub product_rationale: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub future_owner: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub future_plan: Option<String>,
     pub examples: Vec<SourcePathAuditSample>,
 }
 
@@ -65,19 +162,102 @@ pub struct SourcePathAuditValueType {
     pub count: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct SourcePathAuditSample {
     pub record_key: String,
     pub source_path: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SourcePathCoverageStatus {
-    Consumed,
-    Partial,
-    Uncovered,
+pub enum SourcePathCoverageDisposition {
+    Unconsumed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceCoverageDiagnosticKind {
+    UnknownPath,
+    MalformedShape,
+    UnknownDiscriminator,
+    InvalidParentContext,
+    UnsupportedSourceVersion,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceCoverageDiagnostic {
+    pub kind: SourceCoverageDiagnosticKind,
+    pub document_type: String,
+    pub record_type: String,
+    pub json_path: String,
+    pub expected_shape: String,
+    pub actual_shape: String,
+    pub occurrence_count: usize,
+    pub examples: Vec<SourcePathAuditSample>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourcePathAuditDiff {
+    pub baseline_policy_version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub baseline_source_upstream_commit: Option<String>,
+    pub added_paths: Vec<SourcePathAuditDiffEntry>,
+    pub removed_paths: Vec<SourcePathAuditDiffEntry>,
+    pub changed_dispositions: Vec<SourcePathAuditDispositionChange>,
+    pub consumed_regressions: Vec<SourcePathAuditDispositionChange>,
+}
+
+impl SourcePathAuditDiff {
+    pub fn change_count(&self) -> usize {
+        self.added_paths.len() + self.removed_paths.len() + self.changed_dispositions.len()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct SourcePathAuditDiffEntry {
+    pub document_type: String,
+    pub record_type: String,
+    pub path: String,
+    pub disposition: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourcePathAuditDispositionChange {
+    pub document_type: String,
+    pub record_type: String,
+    pub path: String,
+    pub baseline_disposition: String,
+    pub current_disposition: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct SourcePathAuditClosureFailure {
+    pub document_type: String,
+    pub record_type: String,
+    pub path: String,
+    pub source_occurrence_count: usize,
+    pub preserved_occurrence_count: usize,
+    pub mismatches: Vec<SourcePathAuditObservationMismatch>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct SourcePathAuditObservationMismatch {
+    pub normalized_path: String,
+    pub record_key: String,
+    pub member_identity: String,
+    pub contextual_source_path: String,
+    pub destination: String,
+    pub expected_state: String,
+    pub expected_type: String,
+    pub expected_value: String,
+    pub observed_state: String,
+    pub observed_type: String,
+    pub observed_value: String,
+    pub expected_multiplicity: usize,
+    pub observed_multiplicity: usize,
+    pub expected_order: Option<usize>,
+    pub observed_order: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -88,8 +268,17 @@ struct MutablePathStats {
     examples: Vec<SourcePathAuditSample>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct PathKey {
+    document_type: String,
+    record_type: String,
+    path: String,
+}
+
 #[derive(Debug)]
 struct RecordContext {
+    document_type: String,
+    record_type: String,
     record_key: String,
     source_path: String,
 }
@@ -97,7 +286,7 @@ struct RecordContext {
 pub fn audit_source_paths(
     options: SourcePathAuditOptions,
 ) -> Result<SourcePathAuditReport, IngestError> {
-    let source_root = options.source_root;
+    let source_root = options.source_root.clone();
     if !source_root.is_dir() {
         return Err(IngestError::SourceUnavailable(format!(
             "{} is not a readable directory",
@@ -109,98 +298,164 @@ pub fn audit_source_paths(
         .clone()
         .unwrap_or_else(|| default_manifest_path(&source_root));
     let parsed_manifest = parse_manifest(&manifest_path)?;
-    let mut stats = BTreeMap::<String, MutablePathStats>::new();
+    let mut stats = BTreeMap::new();
     let mut pack_count = 0;
     let mut record_count = 0;
 
-    for manifest_pack in parsed_manifest.manifest.packs {
-        if options
-            .pack_name
-            .as_ref()
-            .is_some_and(|pack_name| pack_name != &manifest_pack.name)
-        {
+    for pack in parsed_manifest.manifest.packs {
+        if !selected(&options, &pack.name, &pack.document_type, None) {
             continue;
         }
-        if options
-            .document_type
-            .as_ref()
-            .is_some_and(|document_type| document_type != &manifest_pack.document_type)
-        {
-            continue;
-        }
-        let resolved_path = resolve_pack_path(&source_root, &manifest_pack);
+        let resolved_path = resolve_pack_path(&source_root, &pack);
         if !resolved_path.is_dir() {
             continue;
         }
         pack_count += 1;
-        for path in json_files(&resolved_path)? {
-            let value = read_json_value(&path)?;
+        for source_file in json_files(&resolved_path)? {
+            let value = read_json_value(&source_file)?;
             let record_type = value
                 .get("type")
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_string();
-            if options
-                .record_type
-                .as_ref()
-                .is_some_and(|expected| expected != &record_type)
-            {
+            if !selected(
+                &options,
+                &pack.name,
+                &pack.document_type,
+                Some(&record_type),
+            ) {
                 continue;
             }
-            let record_key = value
-                .get("_id")
-                .and_then(Value::as_str)
-                .map(|id| format!("{}:{id}", manifest_pack.name))
-                .unwrap_or_else(|| relative_source_path(&source_root, &path));
             let context = RecordContext {
-                record_key,
-                source_path: relative_source_path(&source_root, &path),
+                document_type: pack.document_type.clone(),
+                record_type,
+                record_key: value
+                    .get("_id")
+                    .and_then(Value::as_str)
+                    .map(|id| format!("{}:{id}", pack.name))
+                    .unwrap_or_else(|| relative_source_path(&source_root, &source_file)),
+                source_path: relative_source_path(&source_root, &source_file),
             };
             record_count += 1;
-            let mut record_paths = BTreeSet::new();
-            collect_value_paths("$", &value, &context, &mut stats, &mut record_paths);
-            for path in record_paths {
-                if let Some(path_stats) = stats.get_mut(&path) {
-                    path_stats.record_keys.insert(context.record_key.clone());
-                }
-            }
+            collect_inventory_paths("$", &value, &context, &mut stats);
         }
     }
+    finish_inventory(
+        options,
+        source_root,
+        manifest_path,
+        pack_count,
+        record_count,
+        stats,
+    )
+}
 
-    let limit = options.limit.unwrap_or(DEFAULT_PATH_LIMIT);
+fn selected(
+    options: &SourcePathAuditOptions,
+    pack_name: &str,
+    document_type: &str,
+    record_type: Option<&str>,
+) -> bool {
+    options
+        .pack_name
+        .as_deref()
+        .is_none_or(|expected| expected == pack_name)
+        && options
+            .document_type
+            .as_deref()
+            .is_none_or(|expected| expected == document_type)
+        && record_type.is_none_or(|record_type| {
+            options
+                .record_type
+                .as_deref()
+                .is_none_or(|expected| expected == record_type)
+        })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish_inventory(
+    options: SourcePathAuditOptions,
+    source_root: PathBuf,
+    manifest_path: PathBuf,
+    pack_count: usize,
+    record_count: usize,
+    stats: BTreeMap<PathKey, MutablePathStats>,
+) -> Result<SourcePathAuditReport, IngestError> {
     let mut paths = stats
         .into_iter()
-        .filter_map(|(path, stats)| {
+        .filter_map(|(key, stats)| {
             let record_count = stats.record_keys.len();
-            (record_count >= options.min_records).then(|| {
-                let consumers = known_consumers(&path);
-                SourcePathAuditPathReport {
-                    path,
-                    record_count,
-                    occurrence_count: stats.occurrence_count,
-                    value_types: stats
-                        .value_types
-                        .into_iter()
-                        .map(|(kind, count)| SourcePathAuditValueType { kind, count })
-                        .collect(),
-                    coverage_status: coverage_status(&consumers),
-                    known_consumers: consumers,
-                    examples: stats.examples,
-                }
-            })
+            (record_count >= options.min_records)
+                .then(|| diagnostic_path_report(key, stats, record_count))
         })
         .collect::<Vec<_>>();
-    paths.sort_by(|left, right| {
-        coverage_rank(left.coverage_status)
-            .cmp(&coverage_rank(right.coverage_status))
-            .then_with(|| right.record_count.cmp(&left.record_count))
-            .then_with(|| right.occurrence_count.cmp(&left.occurrence_count))
-            .then_with(|| left.path.cmp(&right.path))
-    });
+    paths.sort_by(path_report_order);
     let path_count = paths.len();
-    paths.truncate(limit);
+    let source_diff = options
+        .baseline_report
+        .as_deref()
+        .map(|baseline| compare_baseline(baseline, &paths))
+        .transpose()?;
+    let source_diff_changes = source_diff
+        .as_ref()
+        .map_or(0, SourcePathAuditDiff::change_count);
+    let creature_paths = paths
+        .iter()
+        .filter(|path| is_creature_path(&path.document_type, &path.record_type))
+        .count();
+    let summary = SourcePathAuditSummary {
+        consumed_paths: 0,
+        ignored_with_rationale_paths: 0,
+        provenance_only_paths: 0,
+        deferred_paths: 0,
+        unknown_paths: path_count,
+        generic_deferred_paths: 0,
+        unowned_recursive_matches: 0,
+        consumed_regressions: 0,
+        creature_paths,
+        creature_consumed_paths: 0,
+        creature_provenance_only_paths: 0,
+        creature_deferred_paths: 0,
+        creature_unknown_paths: creature_paths,
+        creature_catch_all_paths: 0,
+        creature_unowned_paths: creature_paths,
+        creature_consumed_regressions: 0,
+        type_drift_diagnostics: 0,
+        source_diff_changes,
+    };
+    let warning_count = path_count + source_diff_changes + 1;
+    let enforcement = SourcePathAuditEnforcement {
+        mode: if options.strict {
+            SourcePathAuditMode::Strict
+        } else {
+            SourcePathAuditMode::Relaxed
+        },
+        passed: !options.strict,
+        violation_count: if options.strict { warning_count } else { 0 },
+        aggregate_warning_count: warning_count,
+    };
+    let diagnostics = paths
+        .iter()
+        .map(|path| SourceCoverageDiagnostic {
+            kind: SourceCoverageDiagnosticKind::UnknownPath,
+            document_type: path.document_type.clone(),
+            record_type: path.record_type.clone(),
+            json_path: path.path.clone(),
+            expected_shape: "exact source-leaf declaration plus actual-read receipt".to_string(),
+            actual_shape: "diagnostic inventory observation only".to_string(),
+            occurrence_count: path.occurrence_count,
+            examples: path.examples.clone(),
+        })
+        .collect();
+    paths.truncate(options.limit.unwrap_or(DEFAULT_PATH_LIMIT));
 
     Ok(SourcePathAuditReport {
+        coverage_policy_version: SOURCE_PATH_INVENTORY_VERSION,
+        coverage_policy_digest: inventory_policy_digest(),
+        authoritative_completeness: false,
+        source_contract_version: PF2E_SOURCE_CONTRACT_VERSION,
+        source_upstream_commit: PF2E_SOURCE_PINNED_COMMIT,
+        registry_assignment_count: 0,
         source_root: source_root.display().to_string(),
         manifest_path: manifest_path.display().to_string(),
         pack_count,
@@ -212,41 +467,54 @@ pub fn audit_source_paths(
             record_type: options.record_type,
             min_records: options.min_records,
             limit: options.limit,
+            strict: options.strict,
+            baseline_report: options
+                .baseline_report
+                .map(|path| path.display().to_string()),
         },
+        summary,
+        enforcement,
+        closure_totals: SourcePathAuditClosureTotals {
+            expected_observation_count: 0,
+            observed_observation_count: 0,
+            failure_count: 0,
+            mismatch_count: 0,
+        },
+        source_diff,
+        closure_failures: Vec::new(),
+        diagnostics,
+        retrieval_predicate_inventory: retrieval_predicate_inventory(),
         paths,
     })
 }
 
-fn read_json_value(path: &Path) -> Result<Value, IngestError> {
-    let serialized = fs::read_to_string(path)
-        .map_err(|error| IngestError::RecordParseFailed(error.to_string()))?;
-    serde_json::from_str(&serialized)
-        .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))
-}
-
-fn collect_value_paths(
+fn collect_inventory_paths(
     path: &str,
     value: &Value,
     context: &RecordContext,
-    stats: &mut BTreeMap<String, MutablePathStats>,
-    record_paths: &mut BTreeSet<String>,
+    stats: &mut BTreeMap<PathKey, MutablePathStats>,
 ) {
-    record_path(path, value, context, stats, record_paths);
     match value {
+        Value::Object(map) if map.is_empty() => record_path(path, value, context, stats),
         Value::Object(map) => {
             for (key, child) in map {
-                let segment = object_segment(path, key, map.len());
-                let child_path = format!("{path}.{segment}");
-                collect_value_paths(&child_path, child, context, stats, record_paths);
+                collect_inventory_paths(
+                    &format!("{path}.{}", object_segment(path, key, map.len())),
+                    child,
+                    context,
+                    stats,
+                );
             }
         }
+        Value::Array(values) if values.is_empty() => record_path(path, value, context, stats),
         Value::Array(values) => {
-            let child_path = format!("{path}[]");
             for child in values {
-                collect_value_paths(&child_path, child, context, stats, record_paths);
+                collect_inventory_paths(&format!("{path}[]"), child, context, stats);
             }
         }
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
+            record_path(path, value, context, stats);
+        }
     }
 }
 
@@ -254,62 +522,71 @@ fn record_path(
     path: &str,
     value: &Value,
     context: &RecordContext,
-    stats: &mut BTreeMap<String, MutablePathStats>,
-    record_paths: &mut BTreeSet<String>,
+    stats: &mut BTreeMap<PathKey, MutablePathStats>,
 ) {
-    if matches!(value, Value::Array(_) | Value::Object(_)) {
-        return;
-    }
-    let path_stats = stats.entry(path.to_string()).or_default();
-    path_stats.occurrence_count += 1;
-    *path_stats
+    let stats = stats
+        .entry(PathKey {
+            document_type: context.document_type.clone(),
+            record_type: context.record_type.clone(),
+            path: path.to_string(),
+        })
+        .or_default();
+    stats.occurrence_count += 1;
+    *stats
         .value_types
         .entry(value_type(value).to_string())
         .or_insert(0) += 1;
-    if let Some(sample) = scalar_sample(value)
-        && path_stats.examples.len() < SAMPLE_LIMIT
-        && !sample.is_empty()
-    {
-        path_stats.examples.push(SourcePathAuditSample {
+    stats.record_keys.insert(context.record_key.clone());
+    if stats.examples.len() < SAMPLE_LIMIT {
+        stats.examples.push(SourcePathAuditSample {
             record_key: context.record_key.clone(),
             source_path: context.source_path.clone(),
-            value: sample,
+            value: sample(value),
         });
     }
-    record_paths.insert(path.to_string());
 }
 
-fn value_type(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "null",
-        Value::Bool(_) => "boolean",
-        Value::Number(_) => "number",
-        Value::String(_) => "string",
-        Value::Array(_) => "array",
-        Value::Object(_) => "object",
+fn diagnostic_path_report(
+    key: PathKey,
+    stats: MutablePathStats,
+    record_count: usize,
+) -> SourcePathAuditPathReport {
+    SourcePathAuditPathReport {
+        document_type: key.document_type,
+        record_type: key.record_type,
+        path: key.path.clone(),
+        path_family: key.path,
+        matched_rule_id: "diagnostic_inventory_only".to_string(),
+        owner_family: "none".to_string(),
+        extractor_identity: None,
+        preserved_occurrence_count: None,
+        fixture_key: "not_applicable".to_string(),
+        validation: "non-authoritative inventory; exact coverage contract required".to_string(),
+        checkpoint: "none".to_string(),
+        recursive_match: false,
+        complete_family_assignment: false,
+        record_count,
+        occurrence_count: stats.occurrence_count,
+        value_types: stats
+            .value_types
+            .into_iter()
+            .map(|(kind, count)| SourcePathAuditValueType { kind, count })
+            .collect(),
+        disposition: SourcePathCoverageDisposition::Unconsumed,
+        owner: "unassigned".to_string(),
+        product_rationale:
+            "Diagnostic discovery is not product ownership or completeness evidence.".to_string(),
+        future_owner: None,
+        future_plan: None,
+        examples: stats.examples,
     }
 }
 
-fn scalar_sample(value: &Value) -> Option<String> {
-    let text = match value {
-        Value::Null => "null".to_string(),
-        Value::Bool(value) => value.to_string(),
-        Value::Number(value) => value.to_string(),
-        Value::String(value) => value.clone(),
-        Value::Array(_) | Value::Object(_) => return None,
-    };
-    Some(truncate_sample(&text))
-}
-
-fn truncate_sample(value: &str) -> String {
-    const MAX_CHARS: usize = 160;
-    let mut chars = value.chars();
-    let truncated = chars.by_ref().take(MAX_CHARS).collect::<String>();
-    if chars.next().is_some() {
-        format!("{truncated}...")
-    } else {
-        truncated
-    }
+fn read_json_value(path: &Path) -> Result<Value, IngestError> {
+    let serialized = fs::read_to_string(path)
+        .map_err(|error| IngestError::RecordParseFailed(error.to_string()))?;
+    serde_json::from_str(&serialized)
+        .map_err(|error| IngestError::RecordParseFailed(format!("{}: {error}", path.display())))
 }
 
 fn object_segment(parent_path: &str, key: &str, sibling_count: usize) -> String {
@@ -325,10 +602,18 @@ fn object_segment(parent_path: &str, key: &str, sibling_count: usize) -> String 
 }
 
 fn is_dynamic_key_parent(path: &str) -> bool {
-    path.ends_with(".damageRolls")
-        || path.ends_with(".damage")
-        || path.ends_with(".overlays")
-        || path.ends_with(".resources")
+    [
+        ".damageRolls",
+        ".damage",
+        ".itemGrants",
+        ".overlays",
+        ".resources",
+        ".skills",
+        ".saves",
+        ".slots",
+    ]
+    .iter()
+    .any(|suffix| path.ends_with(suffix))
 }
 
 fn looks_like_source_id_or_hash(key: &str) -> bool {
@@ -350,126 +635,155 @@ fn is_simple_path_key(key: &str) -> bool {
         })
 }
 
-fn known_consumers(path: &str) -> Vec<String> {
-    let mut consumers = Vec::new();
-    push_if(
-        &mut consumers,
-        "record_identity",
-        matches!(
-            path,
-            "$._id" | "$.name" | "$.type" | "$.img" | "$.folder" | "$.sort"
-        ),
-    );
-    push_if(
-        &mut consumers,
-        "publication",
-        path.starts_with("$.system.publication.")
-            || path.starts_with("$.system.details.publication."),
-    );
-    push_if(
-        &mut consumers,
-        "traits",
-        path.starts_with("$.system.traits."),
-    );
-    push_if(
-        &mut consumers,
-        "actor_mechanics",
-        path.starts_with("$.system.abilities.")
-            || path.starts_with("$.system.attributes.allSaves.")
-            || path.starts_with("$.system.attributes.ac.")
-            || path.starts_with("$.system.attributes.hp.")
-            || path.starts_with("$.system.attributes.speed.")
-            || path.starts_with("$.system.details.languages.")
-            || path.starts_with("$.system.details.level.")
-            || path.starts_with("$.system.initiative.")
-            || path.starts_with("$.system.perception.")
-            || path.starts_with("$.system.saves.")
-            || path.starts_with("$.system.skills.")
-            || path.starts_with("$.system.traits.size."),
-    );
-    push_if(
-        &mut consumers,
-        "actor_sets",
-        path.starts_with("$.system.attributes.immunities")
-            || path.starts_with("$.system.attributes.resistances")
-            || path.starts_with("$.system.attributes.weaknesses"),
-    );
-    push_if(
-        &mut consumers,
-        "rich_content",
-        path == "$.system.description.value"
-            || path == "$.system.details.blurb"
-            || path == "$.system.details.publicNotes"
-            || path == "$.system.details.privateNotes"
-            || path == "$.items[].system.description.value",
-    );
-    push_if(
-        &mut consumers,
-        "embedded_item_facts",
-        path.starts_with("$.items[]."),
-    );
-    push_if(
-        &mut consumers,
-        "activity_mechanics",
-        path.starts_with("$.items[].system.bonus.")
-            || path.starts_with("$.items[].system.attackEffects.")
-            || path.starts_with("$.items[].system.damageRolls.")
-            || path.starts_with("$.items[].system.damage.")
-            || path.starts_with("$.items[].system.defense.")
-            || path.starts_with("$.items[].system.location.")
-            || path.starts_with("$.items[].system.overlays.")
-            || path.starts_with("$.items[].system.range.")
-            || path.starts_with("$.items[].system.target.")
-            || path.starts_with("$.items[].system.time."),
-    );
-    push_if(
-        &mut consumers,
-        "spell_mechanics",
-        path.starts_with("$.system.area.")
-            || path.starts_with("$.system.cost.")
-            || path.starts_with("$.system.defense.")
-            || path.starts_with("$.system.duration.")
-            || path.starts_with("$.system.level.")
-            || path.starts_with("$.system.range.")
-            || path.starts_with("$.system.target.")
-            || path.starts_with("$.system.time.")
-            || path.starts_with("$.system.traits.traditions."),
-    );
-    push_if(
-        &mut consumers,
-        "rules_unmodeled",
-        path.starts_with("$.items[].system.rules") || path.starts_with("$.system.rules"),
-    );
-    consumers
-}
-
-fn push_if(consumers: &mut Vec<String>, label: &str, condition: bool) {
-    if condition {
-        consumers.push(label.to_string());
+fn value_type(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
     }
 }
 
-fn coverage_status(consumers: &[String]) -> SourcePathCoverageStatus {
-    if consumers.is_empty() {
-        return SourcePathCoverageStatus::Uncovered;
-    }
-    if consumers.iter().any(|consumer| {
-        matches!(
-            consumer.as_str(),
-            "rules_unmodeled" | "embedded_item_facts" | "actor_sets"
-        )
-    }) {
-        SourcePathCoverageStatus::Partial
+fn sample(value: &Value) -> String {
+    const MAX_CHARS: usize = 160;
+    let serialized = match value {
+        Value::String(value) => value.clone(),
+        value => value.to_string(),
+    };
+    let mut chars = serialized.chars();
+    let truncated = chars.by_ref().take(MAX_CHARS).collect::<String>();
+    if chars.next().is_some() {
+        format!("{truncated}...")
     } else {
-        SourcePathCoverageStatus::Consumed
+        truncated
     }
 }
 
-fn coverage_rank(status: SourcePathCoverageStatus) -> u8 {
-    match status {
-        SourcePathCoverageStatus::Uncovered => 0,
-        SourcePathCoverageStatus::Partial => 1,
-        SourcePathCoverageStatus::Consumed => 2,
+fn compare_baseline(
+    path: &Path,
+    current_paths: &[SourcePathAuditPathReport],
+) -> Result<SourcePathAuditDiff, IngestError> {
+    let baseline = fs::read(path)
+        .map_err(|error| baseline_error(path, &format!("failed to read: {error}")))?;
+    let baseline: Value = serde_json::from_slice(&baseline)
+        .map_err(|error| baseline_error(path, &format!("failed to parse: {error}")))?;
+    let version = baseline
+        .get("coverage_policy_version")
+        .and_then(Value::as_str)
+        .ok_or_else(|| baseline_error(path, "is missing coverage_policy_version"))?;
+    if version != SOURCE_PATH_INVENTORY_VERSION {
+        return Err(baseline_error(
+            path,
+            &format!("uses policy {version}, expected {SOURCE_PATH_INVENTORY_VERSION}"),
+        ));
+    }
+    let count = baseline
+        .get("path_count")
+        .and_then(Value::as_u64)
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| baseline_error(path, "is missing a valid path_count"))?;
+    let entries = baseline
+        .get("paths")
+        .and_then(Value::as_array)
+        .ok_or_else(|| baseline_error(path, "is missing paths"))?;
+    if entries.len() != count {
+        return Err(baseline_error(
+            path,
+            &format!(
+                "is truncated: path_count is {count} but paths contains {}",
+                entries.len()
+            ),
+        ));
+    }
+    let baseline_keys = entries
+        .iter()
+        .map(|entry| baseline_key(path, entry))
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    let current_keys = current_paths
+        .iter()
+        .map(|entry| {
+            (
+                entry.document_type.clone(),
+                entry.record_type.clone(),
+                entry.path.clone(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    Ok(SourcePathAuditDiff {
+        baseline_policy_version: version.to_string(),
+        baseline_source_upstream_commit: baseline
+            .get("source_upstream_commit")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        added_paths: current_keys
+            .difference(&baseline_keys)
+            .map(diff_entry)
+            .collect(),
+        removed_paths: baseline_keys
+            .difference(&current_keys)
+            .map(diff_entry)
+            .collect(),
+        changed_dispositions: Vec::new(),
+        consumed_regressions: Vec::new(),
+    })
+}
+
+fn baseline_key(path: &Path, entry: &Value) -> Result<(String, String, String), IngestError> {
+    let field = |name: &str| {
+        entry
+            .get(name)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| baseline_error(path, &format!("path entry is missing {name}")))
+    };
+    Ok((
+        field("document_type")?,
+        field("record_type")?,
+        field("path")?,
+    ))
+}
+
+fn diff_entry(key: &(String, String, String)) -> SourcePathAuditDiffEntry {
+    SourcePathAuditDiffEntry {
+        document_type: key.0.clone(),
+        record_type: key.1.clone(),
+        path: key.2.clone(),
+        disposition: "unconsumed".to_string(),
+    }
+}
+
+fn baseline_error(path: &Path, message: &str) -> IngestError {
+    IngestError::RecordParseFailed(format!(
+        "source inventory baseline {} {message}",
+        path.display()
+    ))
+}
+
+fn inventory_policy_digest() -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(SOURCE_PATH_INVENTORY_VERSION.as_bytes());
+    format!("sha256:{:x}", hasher.finalize())
+}
+
+fn path_report_order(
+    left: &SourcePathAuditPathReport,
+    right: &SourcePathAuditPathReport,
+) -> std::cmp::Ordering {
+    left.document_type
+        .cmp(&right.document_type)
+        .then_with(|| left.record_type.cmp(&right.record_type))
+        .then_with(|| left.path.cmp(&right.path))
+}
+
+fn is_creature_path(document_type: &str, record_type: &str) -> bool {
+    document_type == "Actor" && record_type == "npc"
+}
+
+pub fn disposition_label(disposition: SourcePathCoverageDisposition) -> &'static str {
+    match disposition {
+        SourcePathCoverageDisposition::Unconsumed => "unconsumed",
     }
 }
 
@@ -478,36 +792,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn path_normalization_wildcards_dynamic_damage_keys() {
-        assert_eq!(
-            object_segment("$.items[].system.damageRolls", "abc123xyz789", 2),
-            "*"
+    fn diagnostic_inventory_never_claims_coverage() {
+        let mut stats = MutablePathStats {
+            occurrence_count: 1,
+            ..MutablePathStats::default()
+        };
+        stats.record_keys.insert("pack:id".to_string());
+        let report = diagnostic_path_report(
+            PathKey {
+                document_type: "Actor".to_string(),
+                record_type: "npc".to_string(),
+                path: "$.system.abilities.*.mod".to_string(),
+            },
+            stats,
+            1,
         );
         assert_eq!(
-            object_segment("$.system.attributes.ac", "value", 2),
-            "value"
+            report.disposition,
+            SourcePathCoverageDisposition::Unconsumed
         );
-    }
-
-    #[test]
-    fn coverage_marks_known_but_partial_families() {
-        let consumers = known_consumers("$.items[].system.rules[].key");
-        assert!(consumers.contains(&"rules_unmodeled".to_string()));
-        assert_eq!(
-            coverage_status(&consumers),
-            SourcePathCoverageStatus::Partial
-        );
-        assert_eq!(
-            coverage_status(&known_consumers("$.system.unknownFuture.value")),
-            SourcePathCoverageStatus::Uncovered
-        );
-        assert_eq!(
-            coverage_status(&known_consumers("$.system.details.publication.title")),
-            SourcePathCoverageStatus::Consumed
-        );
-        assert_eq!(
-            coverage_status(&known_consumers("$.system.details.blurb")),
-            SourcePathCoverageStatus::Consumed
-        );
+        assert_eq!(report.matched_rule_id, "diagnostic_inventory_only");
+        assert!(report.extractor_identity.is_none());
+        assert!(!report.complete_family_assignment);
     }
 }

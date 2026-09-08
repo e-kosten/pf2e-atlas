@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
 use atlas_index::{IndexVariantGroup, VariantReadIndex};
-use atlas_record::AtlasRecord;
+use atlas_record::RetrievedRecord;
 
 use crate::query::normalize_record_query;
 use crate::{
@@ -27,9 +27,9 @@ pub struct ResolveVariantGroupRefRequest<'a> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantGroupResult {
-    pub seed: Option<AtlasRecord>,
+    pub seed: Option<RetrievedRecord>,
     pub variant_group_key: Option<String>,
-    pub variants: Vec<AtlasRecord>,
+    pub variants: Vec<RetrievedRecord>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -205,11 +205,11 @@ impl AtlasRetrievalService {
     fn load_records_preserving_order(
         &self,
         record_keys: &[RecordKey],
-    ) -> Result<Vec<AtlasRecord>, SearchError> {
+    ) -> Result<Vec<RetrievedRecord>, SearchError> {
         let mut by_key = self
             .get_records(GetRecordsRequest { record_keys })?
             .into_iter()
-            .map(|record| (record.identity.key.clone(), record))
+            .map(|record| (record.record.identity.key.clone(), record))
             .collect::<BTreeMap<_, _>>();
         let mut records = Vec::with_capacity(record_keys.len());
         for key in record_keys {
@@ -238,7 +238,7 @@ mod tests {
         RemasterReadIndex, VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
     };
     use atlas_record::{
-        AtlasRecordSet, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
+        AtlasRecord, AtlasRecordSet, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
         RecordClassification, RecordContent, RecordIdentity, RecordMechanics, RecordProvenance,
         RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
         RecordVisibilityReason,
@@ -263,12 +263,12 @@ mod tests {
             result
                 .seed
                 .as_ref()
-                .map(|record| record.identity.key.to_string()),
+                .map(|record| record.record.identity.key.to_string()),
             Some("actions:testAction1".to_string())
         );
         assert_eq!(result.variant_group_key.as_deref(), Some("test-action"));
         assert_eq!(
-            result.variants[0].identity.key.to_string(),
+            result.variants[0].record.identity.key.to_string(),
             "actions:testAction1"
         );
         Ok(())
@@ -310,7 +310,7 @@ mod tests {
             result
                 .seed
                 .as_ref()
-                .map(|record| record.identity.key.to_string()),
+                .map(|record| record.record.identity.key.to_string()),
             Some("actions:testAction1".to_string())
         );
         Ok(())
@@ -355,7 +355,7 @@ mod tests {
             result
                 .seed
                 .as_ref()
-                .map(|record| record.identity.key.to_string()),
+                .map(|record| record.record.identity.key.to_string()),
             Some("actions:testAction1".to_string())
         );
         Ok(())
@@ -503,7 +503,7 @@ mod tests {
         fn load_records_by_key(
             &self,
             keys: &[RecordKey],
-        ) -> Result<Vec<AtlasRecord>, RecordLoadError> {
+        ) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
             Ok(keys
                 .iter()
                 .filter_map(|key| {
@@ -511,6 +511,11 @@ mod tests {
                         .iter()
                         .find(|record| record.identity.key == *key)
                         .cloned()
+                        .map(|record| RetrievedRecord {
+                            record,
+                            body: None,
+                            spell_children: Vec::new(),
+                        })
                 })
                 .collect())
         }
@@ -529,18 +534,23 @@ mod tests {
             Ok(self
                 .load_records_by_key(keys)?
                 .into_iter()
-                .map(|record| atlas_index::SearchCandidateRecord {
-                    key: record.identity.key,
-                    name: record.identity.name,
-                    traits: record.classification.traits,
-                    kind: record.classification.kind,
-                    foundry_type: record.foundry.record_type,
-                    inferred_groups: record.classification.taxonomy.inferred_groups,
-                    item_category: record
+                .map(|retrieved| atlas_index::SearchCandidateRecord {
+                    key: retrieved.record.identity.key,
+                    name: retrieved.record.identity.name,
+                    traits: retrieved.record.classification.traits,
+                    kind: retrieved.record.classification.kind,
+                    foundry_type: retrieved.record.foundry.record_type,
+                    inferred_groups: retrieved.record.classification.taxonomy.inferred_groups,
+                    item_category: retrieved
+                        .record
                         .mechanics
                         .item()
                         .and_then(|item| item.category.clone()),
-                    item_group: record.mechanics.item().and_then(|item| item.group.clone()),
+                    item_group: retrieved
+                        .record
+                        .mechanics
+                        .item()
+                        .and_then(|item| item.group.clone()),
                 })
                 .collect())
         }

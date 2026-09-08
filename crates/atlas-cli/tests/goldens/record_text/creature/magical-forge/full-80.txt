@@ -1,0 +1,82 @@
+Magical Forge
+  Type: creature · Pack: Triumph of the Tusk
+  Key: triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n
+
+Classification
+  Level: 9
+  Rarity: common
+  Traits: construct, mindless
+  Size: huge
+  Adjustment: weak
+  Source: Pathfinder #208: Hoof, Cinder, and Storm
+
+Defenses
+  AC: 30; (24 when broken); construct armor
+  HP: current 115; maximum 135; temporary 0
+  Hardness: 8
+  Fortitude: 21
+  Reflex: 11
+  Will: 13
+
+Awareness and abilities
+  Perception: +15; darkvision
+  Initiative: perception
+  Abilities: Str +7, Dex -2, Con +6, Int -5, Wis +0, Cha -5
+  Athletics: +22
+
+Movement
+  land: 15 feet
+
+Strikes
+  - Door — [1 action]
+    Traits: magical
+    Attack effects: improved-grab
+    Attack: attack +21
+    Damage: 2d12+9 bludgeoning
+    Damage: 1d8 fire
+
+Activities
+  - Construct Armor (Hardness 8) — passive
+    Category: defensive
+  - Fan the Flames — [2 actions]
+    Category: offensive
+  - Swallow Whole — [1 action]
+    Traits: attack
+    Category: offensive
+  - Improved Grab — [free action]
+    Category: offensive
+
+Public Notes
+  This huge forge or oven is animated to protect a workspace or kitchen, travel
+  alongside its owner, or both.
+  ---
+  Many animated objects have useful functions but become dangers when
+  uncontrolled.
+
+Summary
+  Weak animated furnace
+
+Construct Armor (Hardness 8)
+  Like normal objects, an animated furnace has Hardness. This Hardness reduces
+  any damage the furnace takes by an amount equal to the Hardness. Once an
+  animated furnace is reduced to fewer than half its Hit Points, or immediately
+  upon being damaged by a critical hit, its construct armor breaks, removing the
+  Hardness and reducing its Armor Class to 24.
+
+Fan the Flames
+  The animated furnace opens its door and fans its flames in a cone that deals
+  5d6[fire] damage (Reflex DC 28 save).
+
+Swallow Whole
+  Large, (2d8+9)[fire], Rupture 15
+  ---
+  PF2E.NPC.Abilities.Glossary.SwallowWhole
+
+Improved Grab
+  PF2E.NPC.Abilities.Glossary.ImprovedGrab
+
+Source and edition
+  Publication: Pathfinder #208: Hoof, Cinder, and Storm
+  Pack: Triumph of the Tusk (triumph-of-the-tusk-bestiary)
+  Edition: remaster
+  Counterparts: verified: none

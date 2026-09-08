@@ -2,7 +2,9 @@ use rusqlite::TransactionBehavior;
 
 use super::model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterWithParticipants, NewEncounter,
+    EncounterParticipantCondition, EncounterParticipantReset, EncounterParticipantSpellState,
+    EncounterSpellResource, EncounterSpellResourceMutation, EncounterSpellResourceOperation,
+    EncounterSpellResourceTarget, EncounterWithParticipants, NewEncounter,
     ReorderEncounterParticipant, UpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition,
 };
@@ -70,6 +72,24 @@ impl<'a> Encounters<'a> {
         let mut connection = self.store.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let participant_key = storage::add_participant(&transaction, encounter_ref, participant)?;
+        storage::capture_participant_baseline(&transaction, &participant_key)?;
+        transaction.commit()?;
+        self.participant(&participant_key)?
+            .ok_or(LocalStateError::ParticipantNotFound(participant_key))
+    }
+
+    pub fn add_participant_with_spell_resources(
+        &self,
+        encounter_ref: &str,
+        participant: AddEncounterParticipant,
+        spell_resources: &[EncounterSpellResource],
+    ) -> LocalStateResult<EncounterParticipant> {
+        validate_ref(encounter_ref)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let participant_key = storage::add_participant(&transaction, encounter_ref, participant)?;
+        storage::capture_participant_baseline(&transaction, &participant_key)?;
+        storage::initialize_spell_state(&transaction, &participant_key, spell_resources)?;
         transaction.commit()?;
         self.participant(&participant_key)?
             .ok_or(LocalStateError::ParticipantNotFound(participant_key))
@@ -177,6 +197,72 @@ impl<'a> Encounters<'a> {
             Some(round_number),
             mark_running,
         )
+    }
+
+    pub fn initialize_spell_state(
+        &self,
+        participant_key: &str,
+        resources: &[EncounterSpellResource],
+    ) -> LocalStateResult<EncounterParticipantSpellState> {
+        validate_ref(participant_key)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let state = storage::initialize_spell_state(&transaction, participant_key, resources)?;
+        transaction.commit()?;
+        Ok(state)
+    }
+
+    pub fn spell_state(
+        &self,
+        participant_key: &str,
+    ) -> LocalStateResult<EncounterParticipantSpellState> {
+        validate_ref(participant_key)?;
+        let connection = self.store.connection()?;
+        storage::spell_state(&connection, participant_key)
+    }
+
+    pub fn mutate_spell_resource(
+        &self,
+        participant_key: &str,
+        target: &EncounterSpellResourceTarget,
+        operation: EncounterSpellResourceOperation,
+    ) -> LocalStateResult<EncounterSpellResourceMutation> {
+        validate_ref(participant_key)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let mutation =
+            storage::mutate_spell_resource(&transaction, participant_key, target, operation)?;
+        transaction.commit()?;
+        Ok(mutation)
+    }
+
+    pub fn participant_reset_available(&self, participant_key: &str) -> LocalStateResult<bool> {
+        validate_ref(participant_key)?;
+        let connection = self.store.connection()?;
+        storage::has_participant_baseline(&connection, participant_key)
+    }
+
+    pub fn reset_participant(
+        &self,
+        participant_key: &str,
+    ) -> LocalStateResult<EncounterParticipantReset> {
+        validate_ref(participant_key)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let reset = storage::reset_participant(&transaction, participant_key)?;
+        transaction.commit()?;
+        Ok(reset)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reset_participant_with_injected_failure(
+        &self,
+        participant_key: &str,
+    ) -> LocalStateResult<EncounterParticipantReset> {
+        validate_ref(participant_key)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        storage::reset_participant_with_injected_failure(&transaction, participant_key)
     }
 
     fn participant(&self, participant_key: &str) -> LocalStateResult<Option<EncounterParticipant>> {

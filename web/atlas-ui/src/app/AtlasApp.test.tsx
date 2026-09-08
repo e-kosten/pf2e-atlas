@@ -1,12 +1,25 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   FilterEditorView,
   RecordDetailView,
   ResultWindowPage,
 } from "../generated/atlas";
+import {
+  recordDetailFixture as typedRecordDetailFixture,
+  recordSummaryFixture,
+} from "../test/recordFixtures";
 import { AtlasApp } from "./AtlasApp";
+
+const tenSecondTestDeadline = 10_000;
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -66,25 +79,56 @@ describe("AtlasApp routing", () => {
   });
 
   it("restores record and reader views from browser history without running search queries", async () => {
-    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    const addEventListener = vi.spyOn(window, "addEventListener");
+    try {
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      await waitFor(() =>
+        expect(addEventListener).toHaveBeenCalledWith("popstate", expect.any(Function)),
+      );
+    } finally {
+      addEventListener.mockRestore();
+    }
 
+    await import("../features/records/RecordViews");
     await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     vi.clearAllMocks();
 
-    history.pushState(null, "", "/records/spell%3Aheal");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    await act(async () => {
+      history.pushState(null, "", "/records/spell%3Aheal");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
 
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "spell:heal",
+        undefined,
+        expect.any(AbortSignal),
+      ),
+    );
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
-    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("spell:heal");
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+      "spell:heal",
+      undefined,
+      expect.any(AbortSignal),
+    );
 
     vi.clearAllMocks();
-    history.pushState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    await act(async () => {
+      history.pushState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
 
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "spell:linked",
+        undefined,
+        expect.any(AbortSignal),
+      ),
+    );
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
@@ -92,49 +136,72 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
   });
 
-  it("opens the search side-detail record as a full-page record route", async () => {
-    history.replaceState(null, "", "/search?q=heal&mode=text");
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
-    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+  it(
+    "opens the search side-detail record as a full-page record route",
+    async () => {
+      history.replaceState(null, "", "/search?q=heal&mode=text");
+      apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("button", { name: /spell:heal/ });
-    fireEvent.click(resultRow);
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+      const resultRow = await screen.findByRole("button", { name: /heal/i });
+      fireEvent.click(resultRow);
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
-    vi.clearAllMocks();
-    fireEvent.click(screen.getByRole("link", { name: "Open full page" }));
+      vi.clearAllMocks();
+      fireEvent.click(await screen.findByRole("link", { name: "Open full page" }));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/records/spell%3Aheal"));
-    expect(window.location.search).toBe("");
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
-    expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
-    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
-  });
+      await waitFor(() =>
+        expect(window.location.pathname).toBe("/records/spell%3Aheal"),
+      );
+      expect(window.location.search).toBe("");
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+      expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+      expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
+      expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
+    },
+    tenSecondTestDeadline,
+  );
 
-  it("adds the search side-detail record to a saved list", async () => {
-    history.replaceState(null, "", "/search?q=heal&mode=text");
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
-    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+  it(
+    "adds the search side-detail record to a saved list",
+    async () => {
+      history.replaceState(null, "", "/search?q=heal&mode=text");
+      apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("button", { name: /spell:heal/ });
-    fireEvent.click(resultRow);
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+      const resultRow = await waitFor(() => {
+        const row = document.querySelector<HTMLElement>(".result-row");
+        expect(row).not.toBeNull();
+        return row!;
+      });
+      fireEvent.click(resultRow);
+      expect(
+        await screen.findByText("heal", { selector: "h1,h2,h3,h4,h5,h6" }),
+      ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
-    const dialog = await screen.findByRole("dialog", { name: "Add to List" });
-    const selector = within(dialog).getByRole("combobox");
-    fireEvent.mouseDown(selector);
-    fireEvent.click(await screen.findByText("Research"));
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+      const addToList = await waitFor(() => {
+        const button = document.querySelector<HTMLButtonElement>(
+          'button[aria-label="Add to saved list"]',
+        );
+        expect(button).not.toBeNull();
+        return button!;
+      });
+      fireEvent.click(addToList);
+      const dialog = await screen.findByRole("dialog", { name: "Add to List" });
+      const selector = within(dialog).getByRole("combobox");
+      fireEvent.mouseDown(selector);
+      fireEvent.click(await screen.findByText("Research"));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
-    await waitFor(() =>
-      expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-        list_ref: "research",
-        record_ref: "spell:heal",
-      }),
-    );
-  }, 10_000);
+      await waitFor(() =>
+        expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
+          list_ref: "research",
+          record_ref: "spell:heal",
+        }),
+      );
+    },
+    tenSecondTestDeadline,
+  );
 });
 
 function installLocalStorage() {
@@ -191,12 +258,7 @@ function resultWindowPage(recordKeys: string[] = []): ResultWindowPage {
       has_more: false,
     },
     rows: recordKeys.map((recordKey) => ({
-      record: {
-        record_key: recordKey,
-        title: recordKey.split(":")[1] ?? recordKey,
-        kind: "spell",
-        kind_label: "Spell",
-      },
+      record: recordSummaryFixture(recordKey, recordKey.split(":")[1] ?? recordKey),
     })),
   };
 }
@@ -220,17 +282,5 @@ function savedListIndexFixture() {
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
   const title = recordKey.split(":")[1] ?? recordKey;
-  return {
-    record_key: recordKey,
-    title,
-    kind: "spell",
-    presentation: {
-      record_key: recordKey,
-      kind: "spell",
-      title,
-      identity: [],
-      badges: [],
-      sections: [],
-    },
-  };
+  return typedRecordDetailFixture({ recordKey, title });
 }

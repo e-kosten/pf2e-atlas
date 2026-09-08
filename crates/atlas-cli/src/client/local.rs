@@ -60,7 +60,7 @@ impl AtlasClient for LocalAtlasClient {
     fn get_records(
         &self,
         record_keys: Vec<RecordKey>,
-    ) -> ClientResult<Vec<atlas_record::AtlasRecord>> {
+    ) -> ClientResult<Vec<atlas_record::RetrievedRecord>> {
         self.service
             .get_records(record_keys)
             .map_err(|error| error.into_app_error())

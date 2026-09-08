@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { RecordDetailView } from "../../generated/atlas";
+import { recordDetailFixture as typedRecordDetailFixture } from "../../test/recordFixtures";
 import { ReaderView, RecordView } from "./RecordViews";
 import { ATLAS_ROUTE_CHANGE_EVENT, currentAtlasRoute } from "../../app/routes";
 
@@ -43,6 +44,8 @@ describe("record route views", () => {
     });
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+    expect(screen.queryByText("spell:heal")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Source & provenance/ }));
     expect(screen.getByText("spell:heal")).toBeInTheDocument();
     expect(screen.getByText("Reader view")).toBeInTheDocument();
   });
@@ -67,7 +70,11 @@ describe("record route views", () => {
     render(<ReaderHarness />, { wrapper: queryClientWrapper() });
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Linked Record" }));
+    fireEvent.click(screen.getByRole("link", { name: "Linked Record" }));
+    expect(
+      screen.getByRole("dialog", { name: "Linked Record spell details" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open spell record" }));
 
     await waitFor(() => expect(window.location.pathname).toBe("/reader/spell%3Aheal"));
     expect(window.location.search).toBe("?preview=spell%3Alinked");
@@ -187,34 +194,10 @@ function savedListIndexFixture() {
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
   const title = recordKey.split(":")[1] ?? recordKey;
-  return {
-    record_key: recordKey,
+  return typedRecordDetailFixture({
+    recordKey,
     title,
-    kind: "spell",
-    presentation: {
-      record_key: recordKey,
-      kind: "spell",
-      title,
-      identity: [],
-      badges: [],
-      sections: [
-        {
-          kind: "description",
-          title: "Description",
-          blocks: [
-            {
-              kind: "relationships",
-              content: [
-                {
-                  kind: "reference",
-                  label: "Linked Record",
-                  record_key: "spell:linked",
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
+    referenceLabel: "Linked Record",
+    referenceRecordKey: "spell:linked",
+  });
 }

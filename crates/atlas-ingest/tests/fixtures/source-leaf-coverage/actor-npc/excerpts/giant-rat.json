@@ -1,0 +1,29 @@
+{
+  "_id": "iIJPJcDT8wlJ8z5M",
+  "name": "Giant Rat",
+  "type": "npc",
+  "system": {
+    "abilities": {
+      "cha": { "mod": -3 },
+      "con": { "mod": 2 },
+      "dex": { "mod": 3 },
+      "int": { "mod": -4 },
+      "str": { "mod": 1 },
+      "wis": { "mod": 1 }
+    },
+    "skills": {
+      "acrobatics": { "base": 5 },
+      "athletics": {
+        "base": 2,
+        "special": [
+          {
+            "base": 4,
+            "label": "to Climb or Swim",
+            "predicate": [{ "or": ["action:climb", "action:swim"] }]
+          }
+        ]
+      },
+      "stealth": { "base": 5 }
+    }
+  }
+}

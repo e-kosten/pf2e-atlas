@@ -6,6 +6,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Rust record presentation mechanics unification](./items/rust-record-presentation-mechanics-unification.md)
+  Creature, hazard, and standalone-spell records now share typed app-service presentation, source-faithful rich content, encounter composition, reference navigation, and responsive web surfaces. This three-family presentation milestone passed product review and CI on the integration branch; remaining registry-family modeling stays open. Status: done.
+
 - [Rust web UI frontend architecture cleanup](./items/rust-web-ui-frontend-architecture-cleanup.md)
   The React frontend now uses `app`, `features`, and `shared` module ownership with shared filter discovery, record/detail primitives, and feature-local route modules. Status: done.
 
@@ -94,6 +97,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
   Short-lived app/editorial index access now routes through the shared application storage owner instead of parallel helper seams. Status: done.
 
 ## Superseded
+
+- [Rust Foundry type mechanics parsers](./items/rust-foundry-type-mechanics-parsers.md)
+  Canonical creature, hazard, and standalone-spell bodies supersede the proposed generic peer-parser family; later family migrations require their own typed owner and direct cutover. Status: superseded.
 
 - [Node-era backlog retirement](./items/node-era-backlog-retirement.md)
   Implementation-specific terminal, tagging, and transport backlog entries were retired from the active backlog and consolidated into Rust-era CLI, skill, Ratatui, and derived-tag follow-up items. Status: superseded.

@@ -17,12 +17,98 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  source-leaf-route:
+    name: validation route
+    runs-on: ubuntu-24.04
+    outputs:
+      lint: ${{ steps.route.outputs.lint }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify routing fixtures
+        run: scripts/validation/test-source-leaf-coverage-routing.sh
+      - name: Classify source-leaf checks
+        id: route
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          scripts/validation/source-leaf-coverage.sh diff-paths "$BASE_SHA" HEAD > "$RUNNER_TEMP/source-leaf-paths"
+          scripts/validation/source-leaf-coverage.sh route "$RUNNER_TEMP/source-leaf-paths" >> "$GITHUB_OUTPUT"
+
+  source-leaf:
+    name: source leaf focused
+    needs: source-leaf-route
+    if: needs.source-leaf-route.outputs.lint == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check out accepted PF2e fixture blobs
+        if: needs.source-leaf-route.outputs.lint == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: foundryvtt/pf2e
+          ref: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          path: .source-leaf-pf2e
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            static/system.json
+            packs/pathfinder-bestiary/night-hag.json
+            packs/pathfinder-monster-core/giant-rat.json
+            packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json
+            packs/lost-omens-bestiary/tian-xia-world-guide/inkdrop.json
+            packs/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json
+            packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json
+            packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json
+            packs/feats/ancestry/anadi/anadi-lore.json
+      - name: Authenticate accepted PF2e fixture source
+        run: >-
+          scripts/validation/authenticate-pf2e-source.sh
+          "$GITHUB_WORKSPACE/.source-leaf-pf2e"
+          4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          cfac03aed24c62ab9b2d5fa12b13e04e19796a8e
+      - name: Run source-leaf lint and adversarial fixtures
+        if: needs.source-leaf-route.outputs.lint == 'true'
+        env:
+          PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.source-leaf-pf2e
+        run: scripts/validation/source-leaf-coverage.sh lint
+
   rust:
     name: rust
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
+      - name: Verify runtime lint policy fixture
+        run: scripts/validation/test-runtime-lint-policy.sh
+      - name: Check out accepted PF2e fixture blobs
+        uses: actions/checkout@v5
+        with:
+          repository: foundryvtt/pf2e
+          ref: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          path: .focused-pf2e
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            static/system.json
+            packs/pathfinder-bestiary/night-hag.json
+            packs/pathfinder-monster-core/giant-rat.json
+            packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json
+            packs/lost-omens-bestiary/tian-xia-world-guide/inkdrop.json
+            packs/curtain-call-bestiary/book-3-bring-the-house-down/gray-master.json
+            packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json
+            packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json
+            packs/feats/ancestry/anadi/anadi-lore.json
+      - name: Authenticate accepted PF2e fixture source
+        run: >-
+          scripts/validation/authenticate-pf2e-source.sh
+          "$GITHUB_WORKSPACE/.focused-pf2e"
+          4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          cfac03aed24c62ab9b2d5fa12b13e04e19796a8e
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -33,7 +119,17 @@ jobs:
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run build
       - name: Rust verification
-        run: scripts/verify.sh
+        run: scripts/validation/fast.sh
+      - name: Focused ingest and artifact validation
+        env:
+          PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.focused-pf2e
+        run: scripts/validation/focused.sh
+      - name: Verify Linux artifact generation lifecycle
+        run: |
+          cargo test -p atlas-index artifact::pair_integration_tests::first_generation_materialization_opens_through_bound_public_reader -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::newly_materialized_generation_opens_sqlite_through_installed_handle -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::generation_replacement_during_final_reopen_fails_closed_without_trust -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::final_installed_handle_is_digest_authenticated_before_trust -- --exact
 
   web-ui:
     name: web ui

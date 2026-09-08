@@ -1,0 +1,119 @@
+Night Hag
+  Type: creature · Pack: Bestiary 1
+  Key:
+       pathfinder-bestiary:WQy7HBUcgDLsfVJd
+
+Classification
+  Level: 9
+  Rarity: common
+  Traits: evil, fiend, hag, humanoid,
+          unholy
+  Size: med
+  Source: Pathfinder Bestiary
+
+Defenses
+  AC: 28
+  HP: current 170; maximum 170;
+      temporary 0
+  Fortitude: 19
+  Reflex: 17
+  Will: 18
+  All saves: +2 status to all saves vs.
+             magic, -2 to all saves (if
+             heartstone is lost)
+  Immunities: sleep
+  Resistances: mental 10
+  Weaknesses: cold-iron 10
+
+Awareness and abilities
+  Perception: +18; darkvision
+  Initiative: perception
+  Languages: aklo, chthonian, common,
+             diabolic, empyrean
+  Abilities: Str +5, Dex +4, Con +6, Int
+             +4, Wis +5, Cha +3
+  Arcana: +18
+  Deception: +18
+  Diplomacy: +18
+  Intimidation: +14
+  Occultism: +20
+  Religion: +20
+
+Movement
+  land: 25 feet
+
+Resources
+  Focus: maximum 1
+
+Strikes
+  - Jaws — [1 action]
+  - Claw — [1 action]
+
+Activities
+  - Coven — passive
+  - Nightmare Rider — passive
+  - Constant Spells — passive
+  - +2 Status to All Saves vs. Magic —
+    passive
+  - -2 to All Saves (If Heartstone is
+    Lost) — passive
+  - Abyssal Plague — passive
+  - Change Shape — [1 action]
+  - Dream Haunting — passive
+  - Spell Ambush — passive
+
+Spellcasting
+  - Occult Innate Spells — innate ·
+    occult
+    Rank 9
+      - Bind Soul (At Will) (Heartstone)
+        — [2 actions]
+      - Ethereal Jaunt (At Will)
+        (Heartstone) — [2 actions]
+    Rank 8
+      - Dream Council — 10 minutes
+    Rank 5
+      - Shadow Blast (Heartstone) — [2
+        actions]
+      - Nightmare — 10 minutes
+    Rank 3
+      - Dream Message (At Will) — 10
+        minutes
+      - Magic Missile (At Will) — 1 to
+        3
+    Rank 2
+      - Invisibility (At Will) — [2
+        actions]
+      - Detect Alignment (Constant) (All
+        Alignments) — [2 actions]
+    Rank 1
+      - Detect Magic (Constant) (3rd)
+        — [2 actions]
+      - Ray of Enfeeblement (At Will)
+        — [2 actions]
+      - Sleep (At Will) — [2 actions]
+  - Coven Spells — innate · occult
+    Rank 8
+      - Baleful Polymorph — [2
+        actions]
+    Rank 6
+      - Dominate — [2 actions]
+      - Scrying — 10 minutes
+      - Spellwrack — [2 actions]
+    Rank 5
+      - Illusory Scene — 10 minutes
+      - Prying Eye — 1 minute
+      - Clairvoyance — 1 minute
+      - Talking Corpse — 10 minutes
+      - Clairaudience — 1 minute
+      - Dream Message — 10 minutes
+      - Augury — 10 minutes
+      - Charm — [2 actions]
+      - Illusory Disguise — [2
+        actions]
+    Rank 4
+      - Nightmare — 10 minutes
+  - Control Weather — 1 day
+
+Equipment
+  - Heartstone

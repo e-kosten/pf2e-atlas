@@ -10,6 +10,8 @@ PF2e Atlas keeps persisted Foundry raw JSON for provenance, parity debugging, an
 
 At the same time, leaving useful source structure in raw JSON pushes interpretation into later consumers. That makes search, CLI output, web presentation, encounter runtime behavior, agent workflows, and future API clients inconsistent or forces each surface to understand Foundry-specific JSON shapes.
 
+Selective promotion does not permit selective discovery. The source-faithful contract separately requires every meaningful path and every document/type/role/parent-context tuple to have an explicit disposition and owner, including registration-only, container, generated, hidden, and provenance-only inputs.
+
 The ingest path therefore needs an explicit product test for promoting source fields into typed Atlas facts.
 
 ## Decision
@@ -34,12 +36,14 @@ When a source field is promoted, the owning crate should match the product role:
 - `atlas-app-service` owns final product-facing compositions such as record surfaces and encounter-adjusted views.
 - Frontends own interaction and rendering, not reinterpretation of Foundry source JSON.
 
+Coverage dispositions may retain a field as owned content, derived projection, provenance-only input, ignored-with-non-auth-product-rationale, or an exact future family plan. Visibility, corpus absence, absent authorization, and generic deferral are not coverage dispositions. Current Atlas is unauthenticated but the pinned base is not GM-complete because default-visible/public-only routing still suppresses some product participation. Checkpoint A's target removes classification-only suppression; typed visibility/provenance does not establish a security boundary.
+
 ## Consequences
 
 Source-field promotion work should begin by stating which product surface the field improves. For example, actor resource pools can support record presentation and encounter runtime; ritual DCs can support record presentation and mechanics projection; token names may support variant-family evidence, but should be weighed against their token-display semantics before becoming authoritative identity.
 
 The audit command can reveal candidate gaps, but a high-frequency raw JSON path is not by itself a requirement to model that path. Conversely, a low-frequency path may still be worth modeling when it unlocks important record usability or runtime behavior.
 
-Coverage labels in audit reports should mature toward declarations from the real extractor owners. Heuristic path-family maps are acceptable for early discovery, but they should not become a parallel source interpretation layer.
+Raw-path inventory remains useful for discovery, but it is never coverage acceptance. Coverage declarations use exact source contract, document class, discriminator, role, parent context, and leaf selectors, and acceptance requires source-grounded evidence that the declared reader ran and the value survived every declared final owner. Path families, prefixes, declaration strings, transient consumers, diagnostics, and raw clones cannot satisfy that evidence. Missing, Null, and populated values remain distinct through the shared source-presence model.
 
 If a consumer needs to parse raw JSON at runtime to ship a feature, treat that as an ingest or projection gap unless the feature is explicitly diagnostic/debug tooling.

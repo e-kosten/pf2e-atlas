@@ -1,8 +1,10 @@
 .encounter-conditions__header {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: space-between;
+  min-width: 0;
 }
 
 .encounter-condition-list {
@@ -10,6 +12,8 @@
   gap: 8px;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 420px));
   justify-content: start;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .encounter-add-condition__row {
@@ -48,23 +52,23 @@
   align-items: center;
   border: 1px solid var(--line);
   border-radius: 6px;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  grid-template-columns: minmax(110px, 1fr) 72px auto auto auto auto;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
   padding: 8px;
-}
-
-.encounter-condition-row--no-value {
-  grid-template-columns: minmax(110px, 1fr) auto auto auto auto;
+  width: 100%;
 }
 
 .encounter-condition-row__name {
+  flex: 1 1 140px;
   font-weight: 600;
+  max-width: 100%;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .encounter-condition-row__name-button {
@@ -80,8 +84,40 @@
   text-decoration: underline;
 }
 
-.encounter-condition-row .ant-input-number {
-  width: 72px;
+.encounter-condition-value-controls {
+  align-items: center;
+  display: grid;
+  flex: 0 1 auto;
+  gap: 4px;
+  grid-template-columns: auto 58px auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.encounter-condition-value-controls .ant-btn {
+  min-width: 24px;
+  padding-inline: 5px;
+}
+
+.encounter-condition-value-controls .ant-input {
+  min-width: 0;
+  text-align: center;
+}
+
+.encounter-condition-row__metadata,
+.encounter-condition-row__actions {
+  align-items: center;
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.encounter-condition-row__actions {
+  flex-wrap: nowrap;
+  margin-left: auto;
 }
 
 .encounter-condition-chip,
@@ -103,4 +139,14 @@
 .encounter-conditions h3 {
   font-size: 14px;
   margin: 4px 0 0;
+}
+
+@media (max-width: 560px) {
+  .encounter-condition-row__name {
+    flex-basis: 100%;
+  }
+
+  .encounter-condition-row__metadata {
+    flex: 1 1 auto;
+  }
 }

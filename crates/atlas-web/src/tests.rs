@@ -1,28 +1,55 @@
+use std::fs;
+use std::path::PathBuf;
+
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
     AppReadinessStatus, AppReadinessView, CreateEncounterRequest, CreateSavedListRequest,
-    DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
+    CreatureSurfaceActivityTypeView, CreatureSurfaceActivityView, CreatureSurfaceContentBlockView,
+    CreatureSurfaceContentInlineView, CreatureSurfaceContentProvenanceView,
+    CreatureSurfaceContentRoleView, CreatureSurfaceContentView, CreatureSurfaceDefensesView,
+    CreatureSurfaceDomainUnavailableView, CreatureSurfaceFactOwnerView,
+    CreatureSurfaceFactProvenanceView, CreatureSurfaceFrequencyView,
+    CreatureSurfaceIntegerPresenceView, CreatureSurfaceOccurrenceIdentityStabilityView,
+    CreatureSurfaceOccurrenceProvenanceView, CreatureSurfaceProvenanceView,
+    CreatureSurfaceShieldView, CreatureSurfaceSkillSourceEntryView, CreatureSurfaceSourceFieldView,
+    CreatureSurfaceSourceLocatorView, CreatureSurfaceSpellView, CreatureSurfaceSpellcastingView,
+    CreatureSurfaceUnavailableCauseView, CreatureSurfaceUnavailableDomainsView,
+    CreatureSurfaceUnavailableFieldView, CreatureSurfaceUnavailableStateView,
+    CreatureSurfaceUnmodeledSkillReasonView, CreatureSurfaceUnmodeledSkillView,
+    CreatureSurfaceView, DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
     DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
+    EncounterDetailView, EncounterIndexView, EncounterParticipantKindView,
+    EncounterParticipantPreservedDomainView, EncounterParticipantResetAvailabilityView,
+    EncounterParticipantResetDomainView, EncounterParticipantResetResultView,
+    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
+    EncounterParticipantView, EncounterRuntimeActionBudgetView,
+    EncounterRuntimeAutomationLimitationCodeView, EncounterRuntimeAutomationLimitationTargetView,
+    EncounterRuntimeAutomationLimitationView, EncounterRuntimeConditionView, EncounterRuntimeView,
+    EncounterRuntimeVitalsView, EncounterSpellCastAvailabilityView,
+    EncounterSpellCastOperationView, EncounterSpellCastRequest, EncounterSpellCastResultView,
+    EncounterSpellCastStateView, EncounterSpellSpendTargetView, EncounterStatusView,
     EncounterSummaryView, EncounterUpdateView, FilterControlView, FilterEditorFieldView,
     FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterSavedListRequest,
     FilterValueListView, FilterValueOption, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    ResultWindowModeSummary, ResultWindowPage, SavedListCreateView, SavedListDetailView,
-    SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    SearchPageView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    RecordDetailRequest, RecordDetailView, RecordSummaryView,
+    RecordSurfaceEditionCounterpartRoleView, RecordSurfaceEditionCounterpartView,
+    RecordSurfaceEditionStatusView, RecordSurfaceEditionView, RecordSurfaceMetadataView,
+    RecordSurfacePresentationView, RecordSurfaceProfileView, RecordSurfaceSourceView,
+    RecordSurfaceView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, ResetEncounterParticipantRequest, ResultWindowModeSummary,
+    ResultWindowPage, RuntimeCanonicalTargetView, RuntimeCapabilityView, RuntimeCountSegmentView,
+    RuntimeCountView, RuntimeFactProvenanceView, RuntimeFactSourceView, RuntimeNumberView,
+    RuntimeRuleView, SavedListCreateView, SavedListDetailView, SavedListIndexView,
+    SavedListItemMutationView, SavedListItemSnapshotView, SavedListItemStatusView,
+    SavedListItemView, SavedListSummaryView, SavedListUpdateView, SearchPageView,
+    SetEncounterTurnRequest, SurfaceUnavailableReasonView, SurfaceUnavailableView,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::AppServiceError;
-use atlas_domain::{RecordKey, RecordKind};
-use atlas_record::RecordPresentationDocument;
 use axum::Router;
 use axum::body::Body;
 use axum::body::to_bytes;
@@ -336,8 +363,74 @@ async fn result_window_routes_return_success_and_service_errors() {
 async fn record_and_filter_routes_use_real_router_wiring() {
     let (status, body) = route_json(Method::GET, "/api/records/actions:testAction1", None).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["record_key"], "actions:testAction1");
-    assert_eq!(body["presentation"]["title"], "Test Action 1");
+    assert_eq!(
+        body["surface"]["metadata"]["record_key"],
+        "actions:testAction1"
+    );
+    assert_eq!(body["surface"]["metadata"]["title"], "Test Action 1");
+    assert_eq!(body["surface"]["profile"], "record_detail");
+    assert_eq!(
+        body["surface"]["presentation"]["presentation_type"],
+        "unavailable"
+    );
+    assert!(body["surface"].get("sections").is_none());
+    assert!(body["surface"]["metadata"].get("traits").is_none());
+    assert_no_empty_containers(&body["surface"]);
+
+    let (status, body) = route_json(Method::GET, "/api/records/hazards:testHazard", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let surface = &body["surface"];
+    assert_eq!(surface["metadata"]["record_key"], "hazards:testHazard");
+    assert_eq!(surface["presentation"]["presentation_type"], "hazard");
+    let hazard = &surface["presentation"]["body"];
+    assert_eq!(hazard["complexity"], "complex");
+    assert_eq!(hazard["detection"]["stealth_modifier"], 12);
+    assert_eq!(hazard["detection"]["difficulty_class"], 22);
+    assert_eq!(hazard["defenses"]["saves"]["fortitude"], 0);
+    assert_eq!(
+        hazard["activities"]
+            .as_array()
+            .expect("hazard activities")
+            .iter()
+            .map(|activity| activity["occurrence_id"].as_str().expect("occurrence id"))
+            .collect::<Vec<_>>(),
+        vec![
+            "occurrence-action",
+            "occurrence-strike",
+            "occurrence-unsupported"
+        ]
+    );
+    assert!(hazard["activities"][0].get("slug").is_none());
+    assert_eq!(hazard["activities"][0]["rules"][0]["slug"], "fixture-aura");
+    assert!(
+        hazard["unavailable_fields"]
+            .as_array()
+            .is_none_or(|fields| fields.iter().all(|field| {
+                !matches!(
+                    field["field"].as_str(),
+                    Some("activity.slug" | "activity.publication")
+                )
+            }))
+    );
+    assert!(hazard.get("image").is_none());
+    assert!(hazard.get("publication_license").is_none());
+    assert_eq!(hazard["provenance"]["image"]["state"], "missing");
+    assert_eq!(
+        hazard["provenance"]["publication_license"]["state"],
+        "missing"
+    );
+    assert_eq!(
+        hazard["provenance"]["source_metadata"][0],
+        serde_json::json!({
+            "field": "token_name",
+            "value": {
+                "state": "typed",
+                "source_path": "/prototypeToken/name",
+                "value": "Test Hazard"
+            }
+        })
+    );
+    assert_no_empty_containers(surface);
 
     let editor_request = json!({
         "context": { "kind": "filtered", "filter": { "clauses": [] } }
@@ -357,6 +450,209 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["field_id"], "pack");
     assert_eq!(body["options"][0]["label"], "Actions");
+}
+
+#[tokio::test]
+async fn record_route_transports_opaque_spell_form_and_cast_rank_selection() {
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/records/spells-srd:test?spell_form_id=spell-form:test&spell_cast_rank=5",
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["surface"]["metadata"]["title"],
+        "selected:spell-form:test:5"
+    );
+
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/records/spells-srd:test?spell_form_id=spell-form:test&spell_cast_rank=300",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+}
+
+#[tokio::test]
+async fn record_route_transports_reference_limits_and_rejects_invalid_values() {
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/records/spells-srd:test?reference_outgoing_limit=0&reference_backlink_limit=8",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["surface"]["metadata"]["title"],
+        "references:Some(0):Some(8)"
+    );
+
+    for query in [
+        "reference_outgoing_limit=invalid",
+        "reference_outgoing_limit=256",
+        "reference_backlink_limit=invalid",
+        "reference_backlink_limit=256",
+    ] {
+        let (status, body) = route_json(
+            Method::GET,
+            &format!("/api/records/spells-srd:test?{query}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "query: {query}");
+        assert_eq!(body["code"], "invalid_request", "query: {query}");
+    }
+}
+
+#[tokio::test]
+async fn record_route_preserves_typed_edition_metadata() {
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/records/pathfinder-bestiary:KDRlxdIUADWHI6Vr",
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["surface"]["metadata"]["edition"]["status"], "legacy");
+    assert_eq!(
+        body["surface"]["metadata"]["edition"]["counterparts"][0]["role"],
+        "remastered_counterpart"
+    );
+    assert_eq!(
+        body["surface"]["metadata"]["edition"]["counterparts"][0]["record_key"],
+        "pathfinder-monster-core:MSm1im7lZA5i82rz"
+    );
+    assert_eq!(
+        body["surface"]["metadata"]["edition"]["counterparts"][0]["title"],
+        "Air Scamp"
+    );
+}
+
+#[tokio::test]
+async fn record_route_preserves_typed_domain_failure_distinct_from_empty_omission() {
+    let (status, body) = route_json(Method::GET, "/api/records/creatures:typedFailure", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let creature = &body["surface"]["presentation"]["body"];
+    assert!(creature.get("movement").is_none());
+    let shield = &creature["defenses"]["shield"];
+    assert_eq!(shield["armor_class_bonus"], 2);
+    assert!(shield.get("broken_threshold").is_none());
+    assert_eq!(shield["hardness"], 5);
+    assert_eq!(shield["maximum_hit_points"], 20);
+    assert_eq!(
+        creature["unavailable_domains"]["defenses"]["causes"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+    let frequency = &creature["activities"][0]["frequency"];
+    assert_eq!(frequency["maximum"], 1);
+    assert!(frequency.get("period").is_none());
+    assert_eq!(frequency["display"], "1");
+    assert_eq!(
+        creature["unavailable_domains"]["activities"]["causes"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        creature["unavailable_domains"]["movement"]["causes"][0]["state"],
+        "unsupported"
+    );
+    assert_eq!(
+        creature["unavailable_domains"]["movement"]["causes"][0]["field"],
+        "movement_mode"
+    );
+    assert!(
+        creature["unavailable_domains"]["movement"]["causes"][0]
+            .get("source_path")
+            .is_none()
+    );
+    let unmodeled = &creature["unavailable_domains"]["skills"]["causes"][0];
+    assert_eq!(unmodeled["state"], "unsupported");
+    assert_eq!(unmodeled["field"], "unmodeled_skill");
+    let hostile_key = "<img src=x onerror=alert(1)> ../../etc/passwd\nskill";
+    assert_eq!(unmodeled["unmodeled_skill"]["authored_key"], hostile_key);
+    assert_eq!(unmodeled["unmodeled_skill"]["authored_order"], 3);
+    assert_eq!(
+        unmodeled["unmodeled_skill"]["source_entries"][0]["authored_key"],
+        hostile_key
+    );
+    assert_eq!(unmodeled["unmodeled_skill"]["base"]["state"], "null");
+    assert_eq!(
+        unmodeled["unmodeled_skill"]["reason"],
+        "unknown_authored_key"
+    );
+    assert!(unmodeled.get("source_path").is_none());
+    assert!(unmodeled.get("raw_json").is_none());
+    assert!(unmodeled.get("diagnostic").is_none());
+    assert_eq!(creature["unmodeled_skills"][0]["authored_key"], hostile_key);
+    assert_eq!(
+        creature["unmodeled_skills"][0]["component_id"],
+        "unmodeled-skill-1"
+    );
+    assert!(creature["unmodeled_skills"][0].get("source_path").is_none());
+}
+
+#[tokio::test]
+async fn record_route_serializes_owned_activity_and_spell_content_without_flattening() {
+    let (status, body) =
+        route_json(Method::GET, "/api/records/creatures:activityContent", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let creature = &body["surface"]["presentation"]["body"];
+    assert_eq!(
+        creature["activities"][0]["provenance"]["nested_source_id"],
+        "source-occurrence-plague"
+    );
+    assert_eq!(
+        creature["spellcasting"][0]["provenance"]["stable_source_locator"],
+        "items/entry-occult"
+    );
+    assert_eq!(
+        creature["spellcasting"][0]["spells"][0]["provenance"]["nested_source_id"],
+        "source-bind-soul"
+    );
+    assert!(
+        creature["activities"][0]["provenance"]
+            .get("source_path")
+            .is_none()
+    );
+    let activity_content = &creature["activities"][0]["content"][0];
+    assert_eq!(activity_content["content_key"], "item:plague:description");
+    assert_eq!(
+        activity_content["blocks"][0]["spans"][0]["span_type"],
+        "check"
+    );
+    assert_eq!(
+        activity_content["blocks"][0]["spans"][0]["display"],
+        "Fortitude DC 28"
+    );
+    assert_eq!(
+        activity_content["blocks"][0]["spans"][0]["statistic"],
+        "fortitude"
+    );
+    assert_eq!(
+        activity_content["blocks"][0]["spans"][0]["difficulty_class"],
+        28
+    );
+    assert_eq!(activity_content["blocks"][1]["block_type"], "divider");
+    assert!(activity_content.get("owner").is_none());
+    assert!(activity_content.get("text").is_none());
+    assert_eq!(
+        creature["spellcasting"][0]["spells"][0]["content"][0]["content_key"],
+        "bind-soul"
+    );
+    assert_eq!(
+        creature["standalone_spells"][0]["content"][0]["content_key"],
+        "control-weather"
+    );
+    assert_eq!(creature["content"][0]["content_key"], "heartstone");
+    assert_eq!(creature["content"].as_array().map(Vec::len), Some(1));
 }
 
 #[tokio::test]
@@ -498,6 +794,36 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["encounter"]["encounter_key"], "ambush");
     assert_eq!(body["participants"][0]["participant_key"], "participant_a");
+    assert!(body["participants"][0].get("record_view").is_some());
+    assert!(body["participants"][0].get("surface").is_none());
+    assert_eq!(
+        body["participants"][0]["record_view"]["encounter"]["level"]["base_value"],
+        5
+    );
+    assert_eq!(
+        body["participants"][0]["record_view"]["encounter"]["level"]["adjusted_value"],
+        6
+    );
+    assert!(
+        body["participants"][0]["record_view"]["encounter"]
+            .get("adjusted_level")
+            .is_none()
+    );
+    for known_empty_collection in [
+        "skills",
+        "resources",
+        "spellcasting",
+        "activities",
+        "conditions",
+        "automation_limitations",
+    ] {
+        assert!(
+            body["participants"][0]["record_view"]["encounter"]
+                .get(known_empty_collection)
+                .is_none()
+        );
+    }
+    assert_no_empty_containers(&body["participants"][0]["record_view"]);
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -566,6 +892,51 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["participant_key"], "participant_a");
     assert_eq!(body["display_name"], "Renamed Goblin");
+    assert_eq!(
+        body["record_view"]["encounter"]["action_budget"]["can_act"]["available"],
+        true
+    );
+    assert_eq!(
+        body["record_view"]["encounter"]["action_budget"]["can_react"]["available"],
+        true
+    );
+    write_action_budget_api_sample("api-participant-active.json", &body);
+
+    let (status, defeated_body) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/participant_a",
+        Some(json!({
+            "participant_key": "ignored",
+            "display_name": "Renamed Goblin",
+            "side": "enemy",
+            "participant_variant": "normal",
+            "initiative": 19,
+            "max_hp": 12,
+            "current_hp": 0,
+            "temporary_hp": 1,
+            "defeated": true,
+            "hidden": false,
+            "note": "wounded"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let defeated_budget = &defeated_body["record_view"]["encounter"]["action_budget"];
+    assert_eq!(defeated_body["defeated"], true);
+    assert_eq!(defeated_budget["actions"]["adjusted_value"], 3);
+    assert_eq!(defeated_budget["reactions"]["adjusted_value"], 1);
+    for capability in ["can_act", "can_react"] {
+        assert_eq!(defeated_budget[capability]["available"], false);
+        assert_eq!(
+            defeated_budget[capability]["provenance"]["source"]["source_type"],
+            "participant_state"
+        );
+        assert_eq!(
+            defeated_budget[capability]["reason"],
+            "Defeated participants cannot act or react."
+        );
+    }
+    write_action_budget_api_sample("api-participant-defeated.json", &defeated_body);
 
     let (status, body) = route_json(
         Method::POST,
@@ -597,7 +968,7 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/participant_a/conditions",
         Some(json!({
             "participant_key": "ignored",
-            "name": "Frightened",
+            "name": "Clumsy",
             "value": 1,
             "duration_rounds": 2
         })),
@@ -605,31 +976,171 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
-        body["participants"][0]["conditions"][0]["name"],
-        "Frightened"
+        body["participants"][0]["record_view"]["encounter"]["conditions"][0]["name"],
+        "Clumsy"
     );
+    assert_eq!(
+        body["participants"][0]["record_view"]["encounter"]["automation_limitations"][0]["code"],
+        "condition_attack_adjustment_partial"
+    );
+    assert_eq!(
+        body["participants"][0]["record_view"]["encounter"]["automation_limitations"][0]["target"],
+        json!({"target_type": "condition", "condition_id": 7})
+    );
+    assert!(
+        body["participants"][0]["record_view"]["encounter"]
+            .get("unapplied_facts")
+            .is_none()
+    );
+    assert_no_empty_containers(&body["participants"][0]["record_view"]);
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/spell-casts",
+        Some(json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "innate_use",
+                "entry_id": "entry-innate",
+                "spell_occurrence_id": "spell-shadow-blast"
+            },
+            "operation": "cast_one"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["operation"], "cast_one");
+    assert_eq!(body["participant_key"], "participant_a");
+    assert_eq!(body["before"]["state"]["remaining"], 2);
+    assert_eq!(body["after"]["state"]["remaining"], 1);
+    assert_eq!(
+        body["after"]["spend_target"]["spell_occurrence_id"],
+        "spell-shadow-blast"
+    );
+    write_spell_cast_api_sample("api-spell-cast-before-after.json", &body);
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/spell-casts",
+        Some(json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "innate_use",
+                "entry_id": "wrong-entry",
+                "spell_occurrence_id": "spell-shadow-blast"
+            },
+            "operation": "cast_one"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/spell-casts",
+        Some(json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "spontaneous_pool",
+                "entry_id": "entry-spontaneous",
+                "rank": 9_007_199_254_740_992_i64
+            },
+            "operation": "cast_one"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+    assert!(
+        body["message"]
+            .as_str()
+            .expect("message should be a string")
+            .contains("JavaScript safe-integer range")
+    );
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/spell-casts",
+        Some(json!({
+            "spell_occurrence_id": "spell-shadow-blast",
+            "spend_target": {
+                "target_type": "innate_use",
+                "entry_id": "entry-innate",
+                "spell_occurrence_id": "spell-shadow-blast"
+            },
+            "operation": "restore_one"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["operation"], "restore_one");
+    assert_eq!(body["before"]["state"]["remaining"], 1);
+    assert_eq!(body["after"]["state"]["remaining"], 2);
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/reset",
+        Some(json!({ "confirmation": "reset_participant" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["participant_key"], "participant_a");
+    assert_eq!(
+        body["reset_domains"],
+        json!([
+            "hit_points",
+            "defeated",
+            "conditions",
+            "initiative_turn_state",
+            "variant_adjustments",
+            "action_budget",
+            "spell_resources"
+        ])
+    );
+    assert_eq!(
+        body["preserved_domains"],
+        json!(["display_name", "notes", "visibility", "side"])
+    );
+    assert_eq!(body["cleared_current_turn"], true);
+    assert_eq!(body["participant"]["reset"]["available"], true);
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/reset",
+        Some(json!({ "confirmation": "confirmed" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
 
     let (status, body) = route_json(
         Method::PATCH,
         "/api/encounters/ambush/participants/participant_a/conditions/7",
         Some(json!({
             "condition_id": 999,
-            "name": "Frightened",
+            "name": "Clumsy",
             "value": 2,
             "duration_rounds": 1
         })),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["participants"][0]["conditions"][0]["condition_id"], 7);
-    assert_eq!(body["participants"][0]["conditions"][0]["value"], 2);
+    assert_eq!(
+        body["participants"][0]["record_view"]["encounter"]["conditions"][0]["condition_id"],
+        7
+    );
+    assert_eq!(
+        body["participants"][0]["record_view"]["encounter"]["conditions"][0]["value"],
+        2
+    );
 
     let (status, body) = route_json(
         Method::PATCH,
         "/api/encounters/ambush/participants/wrong_participant/conditions/7",
         Some(json!({
             "condition_id": 999,
-            "name": "Frightened",
+            "name": "Clumsy",
             "value": 3
         })),
     )
@@ -654,11 +1165,11 @@ async fn encounter_routes_use_real_router_wiring() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        body["participants"][0]["conditions"]
-            .as_array()
-            .unwrap()
-            .is_empty()
+        body["participants"][0]["record_view"]["encounter"]
+            .get("conditions")
+            .is_none()
     );
+    assert_no_empty_containers(&body["participants"][0]["record_view"]);
 
     let (status, body) = route_json(
         Method::DELETE,
@@ -677,6 +1188,108 @@ async fn encounter_routes_use_real_router_wiring() {
     let (status, body) = route_json(Method::GET, "/api/encounters/missing", None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["code"], "encounter_not_found");
+}
+
+#[tokio::test]
+async fn encounter_routes_accept_omitted_numeric_optionals_and_reject_unsafe_values() {
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/record",
+        Some(json!({
+            "encounter_ref": "ignored",
+            "record_ref": "actors:testCreature",
+            "quantity": 1
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/manual",
+        Some(json!({
+            "encounter_ref": "ignored",
+            "display_name": "Kyra"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/participant_a",
+        Some(json!({
+            "participant_key": "ignored",
+            "display_name": "Goblin",
+            "side": "enemy",
+            "participant_variant": "normal",
+            "temporary_hp": 0,
+            "defeated": false,
+            "hidden": false
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/participants/participant_a/conditions",
+        Some(json!({
+            "participant_key": "ignored",
+            "name": "Clumsy"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/participant_a/conditions/7",
+        Some(json!({
+            "condition_id": 999,
+            "name": "Clumsy",
+            "value": 3,
+            "duration_rounds": 1
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["participants"][0]["record_view"]["encounter"]["conditions"][0]["value"],
+        3
+    );
+
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/wrong_participant/conditions/7",
+        Some(json!({
+            "condition_id": 999,
+            "name": "Clumsy",
+            "value": 3
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["code"], "encounter_participant_not_found");
+
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/encounters/ambush/participants/participant_a/conditions/7",
+        Some(json!({
+            "condition_id": 7,
+            "name": "Clumsy",
+            "value": 9_007_199_254_740_992_i64
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+    assert!(
+        body["message"]
+            .as_str()
+            .expect("message should be string")
+            .contains("JavaScript safe-integer range")
+    );
 }
 
 #[tokio::test]
@@ -804,21 +1417,50 @@ impl AtlasWebService for MockService {
         Ok(result_window_page(window_id, request.page.number))
     }
 
-    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
-        Ok(RecordDetailView {
-            record_key: record_key.to_string(),
-            title: "Test Action 1".to_string(),
-            kind: "rule".to_string(),
-            presentation: RecordPresentationDocument {
-                record_key: RecordKey::parse(record_key).expect("fixture key should parse"),
-                kind: RecordKind::Rule,
-                title: "Test Action 1".to_string(),
-                identity: vec![],
-                badges: vec![],
-                sections: vec![],
-            },
-            surface: None,
-        })
+    fn record_detail(
+        &self,
+        record_key: &str,
+        request: RecordDetailRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        if record_key == "pathfinder-bestiary:KDRlxdIUADWHI6Vr" {
+            return Ok(RecordDetailView {
+                surface: air_mephit_surface(),
+            });
+        }
+        if record_key == "creatures:activityContent" {
+            return Ok(RecordDetailView {
+                surface: activity_content_surface(),
+            });
+        }
+        if record_key == "creatures:typedFailure" {
+            return Ok(RecordDetailView {
+                surface: typed_failure_surface(),
+            });
+        }
+        if record_key == "hazards:testHazard" {
+            return Ok(RecordDetailView {
+                surface: hazard_record_surface(),
+            });
+        }
+        let mut detail = RecordDetailView {
+            surface: unavailable_surface(
+                Some(record_key),
+                "Test Action 1",
+                RecordSurfaceProfileView::RecordDetail,
+                None,
+            ),
+        };
+        if request.reference_outgoing_limit.is_some() || request.reference_backlink_limit.is_some()
+        {
+            detail.surface.metadata.title = format!(
+                "references:{:?}:{:?}",
+                request.reference_outgoing_limit, request.reference_backlink_limit
+            );
+        }
+        if let (Some(form_id), Some(cast_rank)) = (request.spell_form_id, request.spell_cast_rank) {
+            detail.surface.metadata.title = format!("selected:{form_id}:{cast_rank}");
+        }
+        Ok(detail)
     }
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
@@ -911,6 +1553,7 @@ impl AtlasWebService for MockService {
         if encounter_ref == "missing" {
             return Err(encounter_not_found(encounter_ref));
         }
+        let display_name = request.display_name.clone();
         Ok(EncounterParticipantView {
             participant_key: request.participant_key,
             record_key: Some("actors:testCreature".to_string()),
@@ -922,17 +1565,26 @@ impl AtlasWebService for MockService {
             side: request.side,
             initiative: request.initiative,
             initiative_order: 1,
-            max_hp: request.max_hp,
-            current_hp: request.current_hp,
-            temporary_hp: request.temporary_hp,
             defeated: request.defeated,
             hidden: request.hidden,
             note: request.note.clone(),
             note_hint: request.note,
-            conditions: vec![],
-            stat_block: None,
-            record: Some(record_summary()),
-            surface: None,
+            reset: EncounterParticipantResetAvailabilityView {
+                available: true,
+                unavailable_reason: None,
+            },
+            record_view: unavailable_surface(
+                Some("actors:testCreature"),
+                &display_name,
+                RecordSurfaceProfileView::EncounterParticipant,
+                Some(test_runtime(
+                    request.max_hp,
+                    request.current_hp,
+                    request.temporary_hp,
+                    false,
+                    request.defeated,
+                )),
+            ),
         })
     }
 
@@ -975,7 +1627,7 @@ impl AtlasWebService for MockService {
         Ok(encounter_detail(
             encounter_ref,
             None,
-            request.name.as_deref() == Some("Frightened"),
+            request.name.as_deref() == Some("Clumsy"),
         ))
     }
 
@@ -995,8 +1647,13 @@ impl AtlasWebService for MockService {
             ));
         }
         let mut detail = encounter_detail(encounter_ref, None, true);
-        detail.participants[0].conditions[0].condition_id = request.condition_id;
-        detail.participants[0].conditions[0].value = request.value;
+        runtime_mut(&mut detail.participants[0]).conditions[0].condition_id = request.condition_id;
+        if let EncounterRuntimeAutomationLimitationTargetView::Condition { condition_id } =
+            &mut runtime_mut(&mut detail.participants[0]).automation_limitations[0].target
+        {
+            *condition_id = request.condition_id;
+        }
+        runtime_mut(&mut detail.participants[0]).conditions[0].value = request.value;
         Ok(detail)
     }
 
@@ -1015,6 +1672,86 @@ impl AtlasWebService for MockService {
             ));
         }
         Ok(encounter_detail(encounter_ref, None, false))
+    }
+
+    fn mutate_encounter_spell_cast(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: EncounterSpellCastRequest,
+    ) -> Result<EncounterSpellCastResultView, AppServiceError> {
+        if encounter_ref != "ambush" || participant_key != "participant_a" {
+            return Err(encounter_not_found(encounter_ref));
+        }
+        let EncounterSpellSpendTargetView::InnateUse {
+            entry_id,
+            spell_occurrence_id,
+        } = &request.spend_target
+        else {
+            return Err(AppServiceError::invalid_request(
+                "fixture expects an innate spell use",
+            ));
+        };
+        if entry_id.as_deref() != Some("entry-innate")
+            || spell_occurrence_id != &request.spell_occurrence_id
+        {
+            return Err(AppServiceError::invalid_request(
+                "fixture spell identity mismatch",
+            ));
+        }
+        let availability = |remaining| EncounterSpellCastAvailabilityView {
+            spend_target: Some(request.spend_target.clone()),
+            available: remaining > 0,
+            state: EncounterSpellCastStateView::Tracked {
+                maximum: 2,
+                initial_remaining: 2,
+                remaining,
+            },
+            blocked_reason: None,
+        };
+        let (before, after) = match request.operation {
+            EncounterSpellCastOperationView::CastOne => (availability(2), availability(1)),
+            EncounterSpellCastOperationView::RestoreOne => (availability(1), availability(2)),
+        };
+        Ok(EncounterSpellCastResultView {
+            operation: request.operation,
+            participant_key: participant_key.to_string(),
+            spell_occurrence_id: request.spell_occurrence_id,
+            before,
+            after,
+            participant: encounter_participant(participant_key, "Goblin", Some(18), false),
+        })
+    }
+
+    fn reset_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        _request: ResetEncounterParticipantRequest,
+    ) -> Result<EncounterParticipantResetResultView, AppServiceError> {
+        if encounter_ref != "ambush" || participant_key != "participant_a" {
+            return Err(encounter_not_found(encounter_ref));
+        }
+        Ok(EncounterParticipantResetResultView {
+            participant_key: participant_key.to_string(),
+            reset_domains: vec![
+                EncounterParticipantResetDomainView::HitPoints,
+                EncounterParticipantResetDomainView::Defeated,
+                EncounterParticipantResetDomainView::Conditions,
+                EncounterParticipantResetDomainView::InitiativeTurnState,
+                EncounterParticipantResetDomainView::VariantAdjustments,
+                EncounterParticipantResetDomainView::ActionBudget,
+                EncounterParticipantResetDomainView::SpellResources,
+            ],
+            preserved_domains: vec![
+                EncounterParticipantPreservedDomainView::DisplayName,
+                EncounterParticipantPreservedDomainView::Notes,
+                EncounterParticipantPreservedDomainView::Visibility,
+                EncounterParticipantPreservedDomainView::Side,
+            ],
+            cleared_current_turn: true,
+            participant: encounter_participant(participant_key, "Goblin", Some(18), false),
+        })
     }
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
@@ -1124,6 +1861,328 @@ impl AtlasWebService for MockService {
     }
 }
 
+fn air_mephit_surface() -> RecordSurfaceView {
+    let mut surface = unavailable_surface(
+        Some("pathfinder-bestiary:KDRlxdIUADWHI6Vr"),
+        "Air Mephit",
+        RecordSurfaceProfileView::RecordDetail,
+        None,
+    );
+    surface.metadata.edition = Some(RecordSurfaceEditionView {
+        status: RecordSurfaceEditionStatusView::Legacy,
+        counterparts: vec![RecordSurfaceEditionCounterpartView {
+            role: RecordSurfaceEditionCounterpartRoleView::RemasteredCounterpart,
+            record_key: "pathfinder-monster-core:MSm1im7lZA5i82rz".to_string(),
+            title: "Air Scamp".to_string(),
+        }],
+    });
+    surface
+}
+
+fn activity_content_surface() -> RecordSurfaceView {
+    let content = |content_key: &str, label: &str| CreatureSurfaceContentView {
+        content_key: content_key.to_string(),
+        role: CreatureSurfaceContentRoleView::EmbeddedCapability,
+        authored_order: 0,
+        label: Some(label.to_string()),
+        blocks: vec![
+            CreatureSurfaceContentBlockView::Paragraph {
+                spans: vec![CreatureSurfaceContentInlineView::Check {
+                    display: "Fortitude DC 28".to_string(),
+                    statistic: Some("fortitude".to_string()),
+                    difficulty_class: Some(28),
+                }],
+            },
+            CreatureSurfaceContentBlockView::Divider,
+        ],
+        content_hash: "fixture".to_string(),
+        visibility: "public".to_string(),
+        provenance: CreatureSurfaceContentProvenanceView {
+            source_record_key: "creatures:activityContent".to_string(),
+            relative_source_path: format!("items[{content_key}].system.description.value"),
+            field_family: "embedded_item_description".to_string(),
+            nested_source_id: Some(content_key.to_string()),
+        },
+    };
+    RecordSurfaceView {
+        metadata: RecordSurfaceMetadataView {
+            record_key: Some("creatures:activityContent".to_string()),
+            title: "Activity Content".to_string(),
+            kind: "creature".to_string(),
+            kind_label: "Creature".to_string(),
+            level: Some(9),
+            rarity: None,
+            traits: Vec::new(),
+            edition: None,
+            source: None,
+        },
+        profile: RecordSurfaceProfileView::RecordDetail,
+        presentation: RecordSurfacePresentationView::Creature {
+            body: Box::new(CreatureSurfaceView {
+                teaser: None,
+                size: None,
+                adjustment: None,
+                initiative: None,
+                vitals: None,
+                defenses: None,
+                saves: None,
+                awareness: None,
+                abilities: None,
+                skills: None,
+                unmodeled_skills: None,
+                movement: None,
+                resources: None,
+                spellcasting: Some(vec![CreatureSurfaceSpellcastingView {
+                    occurrence_id: "entry-occult".to_string(),
+                    authored_order: 0,
+                    provenance: occurrence_provenance("entry-occult"),
+                    label: "Occult Innate Spells".to_string(),
+                    preparation: Some("innate".to_string()),
+                    tradition: Some("occult".to_string()),
+                    attack_modifier: Some(20),
+                    difficulty_class: Some(28),
+                    slots: None,
+                    spells: vec![CreatureSurfaceSpellView {
+                        occurrence_id: "bind-soul".to_string(),
+                        authored_order: 1,
+                        provenance: occurrence_provenance("bind-soul"),
+                        label: "Bind Soul".to_string(),
+                        target_record_key: None,
+                        rank: Some(9),
+                        context: None,
+                        traits: vec!["spell".to_string()],
+                        content: Some(vec![content("bind-soul", "Bind Soul")]),
+                    }],
+                }]),
+                standalone_spells: Some(vec![CreatureSurfaceSpellView {
+                    occurrence_id: "control-weather".to_string(),
+                    authored_order: 2,
+                    provenance: occurrence_provenance("control-weather"),
+                    label: "Control Weather".to_string(),
+                    target_record_key: Some("spells:control-weather".to_string()),
+                    rank: Some(8),
+                    context: None,
+                    traits: vec!["spell".to_string()],
+                    content: Some(vec![content("control-weather", "Control Weather")]),
+                }]),
+                activities: Some(vec![CreatureSurfaceActivityView {
+                    occurrence_id: "occurrence:plague".to_string(),
+                    authored_order: 0,
+                    provenance: occurrence_provenance("occurrence-plague"),
+                    activity_type: CreatureSurfaceActivityTypeView::Action,
+                    label: "Abyssal Plague".to_string(),
+                    traits: Vec::new(),
+                    action_cost: None,
+                    attack_effects: None,
+                    category: None,
+                    frequency: None,
+                    requirements: None,
+                    cost: None,
+                    uses: None,
+                    self_effect: None,
+                    rolls: Vec::new(),
+                    damage: Vec::new(),
+                    content: Some(vec![content("item:plague:description", "Abyssal Plague")]),
+                }]),
+                rituals: None,
+                equipment: None,
+                lore: None,
+                content: Some(vec![content("heartstone", "Heartstone")]),
+                relationships: None,
+                unavailable_domains: None,
+                provenance: None,
+            }),
+        },
+        issues: None,
+        references: None,
+        encounter: None,
+    }
+}
+
+fn occurrence_provenance(id: &str) -> CreatureSurfaceOccurrenceProvenanceView {
+    CreatureSurfaceOccurrenceProvenanceView {
+        identity_stability: CreatureSurfaceOccurrenceIdentityStabilityView::StableNestedSourceId,
+        nested_source_id: Some(format!("source-{id}")),
+        stable_source_locator: Some(format!("items/{id}")),
+        source_locators: Some(vec![CreatureSurfaceSourceLocatorView {
+            locator: format!("items/{id}"),
+            precedence: 0,
+        }]),
+    }
+}
+
+fn hostile_unmodeled_skill() -> CreatureSurfaceUnmodeledSkillView {
+    let authored_key = "<img src=x onerror=alert(1)> ../../etc/passwd\nskill".to_string();
+    CreatureSurfaceUnmodeledSkillView {
+        component_id: "unmodeled-skill-1".to_string(),
+        authored_order: 3,
+        source_entries: Some(vec![CreatureSurfaceSkillSourceEntryView {
+            authored_order: 0,
+            authored_key: authored_key.clone(),
+            modifier: CreatureSurfaceIntegerPresenceView::Null,
+        }]),
+        source_item_id: Some("source-unmodeled-skill-1".to_string()),
+        authored_key,
+        base: CreatureSurfaceIntegerPresenceView::Null,
+        reason: CreatureSurfaceUnmodeledSkillReasonView::UnknownAuthoredKey,
+    }
+}
+
+fn typed_failure_surface() -> RecordSurfaceView {
+    RecordSurfaceView {
+        metadata: RecordSurfaceMetadataView {
+            record_key: Some("creatures:typedFailure".to_string()),
+            title: "Typed Failure".to_string(),
+            kind: "creature".to_string(),
+            kind_label: "Creature".to_string(),
+            level: Some(1),
+            rarity: None,
+            traits: Vec::new(),
+            edition: None,
+            source: None,
+        },
+        profile: RecordSurfaceProfileView::RecordDetail,
+        presentation: RecordSurfacePresentationView::Creature {
+            body: Box::new(CreatureSurfaceView {
+                teaser: None,
+                size: None,
+                adjustment: None,
+                initiative: None,
+                vitals: None,
+                defenses: Some(CreatureSurfaceDefensesView {
+                    armor_class: None,
+                    armor_class_details: None,
+                    hardness: None,
+                    shield: Some(CreatureSurfaceShieldView {
+                        armor_class_bonus: Some(2),
+                        broken_threshold: None,
+                        hardness: Some(5),
+                        maximum_hit_points: Some(20),
+                    }),
+                    immunities: Vec::new(),
+                    resistances: Vec::new(),
+                    weaknesses: Vec::new(),
+                    provenance: CreatureSurfaceFactProvenanceView {
+                        owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                        field: CreatureSurfaceSourceFieldView::Defenses,
+                    },
+                }),
+                saves: None,
+                awareness: None,
+                abilities: None,
+                skills: None,
+                unmodeled_skills: Some(vec![hostile_unmodeled_skill()]),
+                movement: None,
+                resources: None,
+                spellcasting: None,
+                standalone_spells: None,
+                activities: Some(vec![CreatureSurfaceActivityView {
+                    occurrence_id: "partial-frequency".to_string(),
+                    authored_order: 0,
+                    provenance: occurrence_provenance("partial-frequency"),
+                    activity_type: CreatureSurfaceActivityTypeView::Action,
+                    label: "Partial Frequency".to_string(),
+                    traits: Vec::new(),
+                    action_cost: None,
+                    attack_effects: None,
+                    category: None,
+                    frequency: Some(CreatureSurfaceFrequencyView {
+                        maximum: Some(1),
+                        period: None,
+                        display: Some("1".to_string()),
+                    }),
+                    requirements: None,
+                    cost: None,
+                    uses: None,
+                    self_effect: None,
+                    rolls: Vec::new(),
+                    damage: Vec::new(),
+                    content: None,
+                }]),
+                rituals: None,
+                equipment: None,
+                lore: None,
+                content: None,
+                relationships: None,
+                unavailable_domains: Some(CreatureSurfaceUnavailableDomainsView {
+                    classification: None,
+                    initiative: None,
+                    vitals: None,
+                    defenses: Some(CreatureSurfaceDomainUnavailableView {
+                        causes: vec![CreatureSurfaceUnavailableCauseView {
+                            state: CreatureSurfaceUnavailableStateView::Null,
+                            field: CreatureSurfaceUnavailableFieldView::ShieldBrokenThreshold,
+                            component_id: None,
+                            provenance: CreatureSurfaceFactProvenanceView {
+                                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                                field: CreatureSurfaceSourceFieldView::Defenses,
+                            },
+                            unmodeled_skill: None,
+                            message: "Display only.".to_string(),
+                        }],
+                    }),
+                    saves: None,
+                    awareness: None,
+                    abilities: None,
+                    skills: Some(CreatureSurfaceDomainUnavailableView {
+                        causes: vec![CreatureSurfaceUnavailableCauseView {
+                            state: CreatureSurfaceUnavailableStateView::Unsupported,
+                            field: CreatureSurfaceUnavailableFieldView::UnmodeledSkill,
+                            component_id: Some("unmodeled-skill-1".to_string()),
+                            provenance: CreatureSurfaceFactProvenanceView {
+                                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                                field: CreatureSurfaceSourceFieldView::Skills,
+                            },
+                            unmodeled_skill: Some(hostile_unmodeled_skill()),
+                            message: "The source supplied an unrecognized skill key.".to_string(),
+                        }],
+                    }),
+                    movement: Some(CreatureSurfaceDomainUnavailableView {
+                        causes: vec![CreatureSurfaceUnavailableCauseView {
+                            state: CreatureSurfaceUnavailableStateView::Unsupported,
+                            field: CreatureSurfaceUnavailableFieldView::MovementMode,
+                            component_id: Some("speed-1".to_string()),
+                            provenance: CreatureSurfaceFactProvenanceView {
+                                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                                field: CreatureSurfaceSourceFieldView::Movement,
+                            },
+                            unmodeled_skill: None,
+                            message: "Display only.".to_string(),
+                        }],
+                    }),
+                    resources: None,
+                    spellcasting: None,
+                    activities: Some(CreatureSurfaceDomainUnavailableView {
+                        causes: vec![CreatureSurfaceUnavailableCauseView {
+                            state: CreatureSurfaceUnavailableStateView::Missing,
+                            field: CreatureSurfaceUnavailableFieldView::ActionFrequencyPeriod,
+                            component_id: Some("partial-frequency".to_string()),
+                            provenance: CreatureSurfaceFactProvenanceView {
+                                owner: CreatureSurfaceFactOwnerView::CanonicalCreature,
+                                field: CreatureSurfaceSourceFieldView::EmbeddedEntities,
+                            },
+                            unmodeled_skill: None,
+                            message: "Display only.".to_string(),
+                        }],
+                    }),
+                    equipment: None,
+                    lore: None,
+                    relationships: None,
+                }),
+                provenance: Some(CreatureSurfaceProvenanceView {
+                    source_path: "packs/creatures/typed-failure.json".to_string(),
+                    source_contract_version: "test".to_string(),
+                    source_system_version: "test".to_string(),
+                    source_upstream_commit: "test".to_string(),
+                }),
+            }),
+        },
+        issues: None,
+        references: None,
+        encounter: None,
+    }
+}
+
 fn encounter_not_found(encounter_ref: &str) -> AppServiceError {
     AppServiceError::new(
         AppErrorCode::EncounterNotFound,
@@ -1178,32 +2237,166 @@ fn encounter_participant(
         side: EncounterParticipantSideView::Enemy,
         initiative,
         initiative_order: 1,
-        max_hp: Some(12),
-        current_hp: Some(6),
-        temporary_hp: 0,
         defeated: false,
         hidden: false,
         note: Some("wounded".to_string()),
         note_hint: Some("wounded".to_string()),
-        conditions: if include_condition {
-            vec![EncounterParticipantConditionView {
+        reset: EncounterParticipantResetAvailabilityView {
+            available: true,
+            unavailable_reason: None,
+        },
+        record_view: unavailable_surface(
+            Some("actors:testCreature"),
+            display_name,
+            RecordSurfaceProfileView::EncounterParticipant,
+            Some(test_runtime(Some(12), Some(6), 0, include_condition, false)),
+        ),
+    }
+}
+
+fn test_runtime(
+    maximum_hp: Option<i64>,
+    current_hp: Option<i64>,
+    temporary_hp: i64,
+    include_condition: bool,
+    defeated: bool,
+) -> EncounterRuntimeView {
+    let participant_provenance = || RuntimeFactProvenanceView {
+        source: RuntimeFactSourceView::ParticipantState,
+        canonical_target: None,
+    };
+    EncounterRuntimeView {
+        hazard: None,
+        level: Some(RuntimeNumberView {
+            label: "Level".to_string(),
+            base_value: 5,
+            adjusted_value: 6,
+            modifiers: Vec::new(),
+            suppressed_modifiers: Vec::new(),
+            provenance: RuntimeFactProvenanceView {
+                source: RuntimeFactSourceView::CanonicalRecord,
+                canonical_target: Some(RuntimeCanonicalTargetView::Level),
+            },
+        }),
+        vitals: Some(EncounterRuntimeVitalsView {
+            maximum_hp: maximum_hp.map(|value| RuntimeNumberView {
+                label: "Maximum HP".to_string(),
+                base_value: value,
+                adjusted_value: value,
+                modifiers: Vec::new(),
+                suppressed_modifiers: Vec::new(),
+                provenance: participant_provenance(),
+            }),
+            current_hp,
+            temporary_hp,
+        }),
+        defenses: None,
+        saves: None,
+        awareness: None,
+        abilities: None,
+        skills: Vec::new(),
+        movement: None,
+        resources: Vec::new(),
+        spellcasting: Vec::new(),
+        standalone_spells: Vec::new(),
+        activities: Vec::new(),
+        action_budget: Some(test_action_budget(defeated)),
+        conditions: include_condition
+            .then(|| EncounterRuntimeConditionView {
                 condition_id: 7,
                 condition_key: None,
-                name: "Frightened".to_string(),
+                name: "Clumsy".to_string(),
                 value: Some(1),
                 source_participant_key: None,
                 duration_rounds: Some(2),
                 note: None,
                 created_at: "2026-01-01T00:00:00Z".to_string(),
                 updated_at: "2026-01-01T00:00:00Z".to_string(),
-            }]
-        } else {
-            vec![]
-        },
-        stat_block: None,
-        record: Some(record_summary()),
-        surface: None,
+                provenance: RuntimeFactProvenanceView {
+                    source: RuntimeFactSourceView::Condition {
+                        condition_id: 7,
+                        condition_ref: "clumsy".to_string(),
+                        label: "Clumsy 1".to_string(),
+                    },
+                    canonical_target: None,
+                },
+            })
+            .into_iter()
+            .collect(),
+        automation_limitations: include_condition
+            .then(|| EncounterRuntimeAutomationLimitationView {
+                code:
+                    EncounterRuntimeAutomationLimitationCodeView::ConditionAttackAdjustmentPartial,
+                target: EncounterRuntimeAutomationLimitationTargetView::Condition {
+                    condition_id: 7,
+                },
+                message:
+                    "Only structured activity attack rolls receive this Dexterity-based penalty."
+                        .to_string(),
+            })
+            .into_iter()
+            .collect(),
     }
+}
+
+fn test_action_budget(defeated: bool) -> EncounterRuntimeActionBudgetView {
+    let runtime_rule_provenance = || RuntimeFactProvenanceView {
+        source: RuntimeFactSourceView::RuntimeRule {
+            rule: RuntimeRuleView::ActionBudget,
+        },
+        canonical_target: None,
+    };
+    let count = |label: &str, value| RuntimeCountView {
+        label: label.to_string(),
+        base_value: value,
+        adjusted_value: value,
+        segments: vec![RuntimeCountSegmentView {
+            label: "Base".to_string(),
+            value,
+            restricted: false,
+            reason: None,
+        }],
+        adjustments: Vec::new(),
+        suppressed_adjustments: Vec::new(),
+        provenance: runtime_rule_provenance(),
+    };
+    let capability = RuntimeCapabilityView {
+        available: !defeated,
+        provenance: defeated.then_some(RuntimeFactProvenanceView {
+            source: RuntimeFactSourceView::ParticipantState,
+            canonical_target: None,
+        }),
+        reason: defeated.then(|| "Defeated participants cannot act or react.".to_string()),
+    };
+    EncounterRuntimeActionBudgetView {
+        actions: count("Actions", 3),
+        reactions: count("Reactions", 1),
+        can_act: capability.clone(),
+        can_react: capability,
+        notes: Vec::new(),
+    }
+}
+
+fn write_action_budget_api_sample(file_name: &str, value: &Value) {
+    let Ok(root) = std::env::var("F2_ACTION_BUDGET_SAMPLE_ROOT") else {
+        return;
+    };
+    let root = PathBuf::from(root);
+    fs::create_dir_all(&root).expect("action-budget sample root should be creatable");
+    let mut bytes = serde_json::to_vec_pretty(value).expect("API sample should serialize");
+    bytes.push(b'\n');
+    fs::write(root.join(file_name), bytes).expect("API sample should write");
+}
+
+fn write_spell_cast_api_sample(file_name: &str, value: &Value) {
+    let Ok(root) = std::env::var("F2_SPELL_CAST_SAMPLE_ROOT") else {
+        return;
+    };
+    let root = PathBuf::from(root);
+    fs::create_dir_all(&root).expect("spell-cast sample root should be creatable");
+    let mut bytes = serde_json::to_vec_pretty(value).expect("API sample should serialize");
+    bytes.push(b'\n');
+    fs::write(root.join(file_name), bytes).expect("API sample should write");
 }
 
 fn saved_list_summary() -> SavedListSummaryView {
@@ -1221,18 +2414,215 @@ fn saved_list_summary() -> SavedListSummaryView {
 
 fn record_summary() -> RecordSummaryView {
     RecordSummaryView {
-        record_key: "actions:testAction1".to_string(),
-        title: "Test Action 1".to_string(),
-        kind: "rule".to_string(),
-        kind_label: "Rule".to_string(),
-        level_label: None,
-        rarity: None,
-        traits: vec![],
-        taxonomy: vec![],
-        publication: None,
-        pack: Some("Actions".to_string()),
-        preview: None,
-        surface: None,
+        surface: unavailable_surface(
+            Some("actions:testAction1"),
+            "Test Action 1",
+            RecordSurfaceProfileView::SearchCompact,
+            None,
+        ),
+    }
+}
+
+fn hazard_record_surface() -> RecordSurfaceView {
+    let activity = |occurrence_id: &str,
+                    activity_type: atlas_app_model::HazardSurfaceActivityTypeView,
+                    authored_order| atlas_app_model::HazardSurfaceActivityView {
+        occurrence_id: occurrence_id.to_string(),
+        entity_id: format!("entity-{authored_order}"),
+        authored_order,
+        source_ordinal: authored_order,
+        identity_stability:
+            atlas_app_model::HazardSurfaceOccurrenceIdentityStabilityView::StableSourceIdentity,
+        label: format!("Activity {authored_order}"),
+        activity_type,
+        child_type: None,
+        traits: None,
+        action_cost: None,
+        attack_mode: None,
+        frequency: None,
+        category: None,
+        death_note: None,
+        self_effect: None,
+        attack_bonus: None,
+        attack_effects: None,
+        damage: None,
+        rules: (authored_order == 0).then(|| {
+            vec![atlas_app_model::HazardSurfaceRuleView::Aura {
+                authored_order: 0,
+                radius: Some(5),
+                slug: Some("fixture-aura".to_string()),
+                traits: Vec::new(),
+            }]
+        }),
+        content: None,
+    };
+    let mut surface = unavailable_surface(
+        Some("hazards:testHazard"),
+        "Test Hazard",
+        RecordSurfaceProfileView::RecordDetail,
+        None,
+    );
+    surface.metadata.kind = "hazard".to_string();
+    surface.metadata.kind_label = "Hazard".to_string();
+    surface.metadata.source = Some(RecordSurfaceSourceView {
+        publication_title: None,
+        pack_label: "Hazards".to_string(),
+        document_type: "Actor".to_string(),
+        record_type: "hazard".to_string(),
+        source_path: None,
+        source_contract_version: None,
+        source_system_version: None,
+        source_upstream_commit: None,
+    });
+    surface.presentation = RecordSurfacePresentationView::Hazard {
+        body: Box::new(atlas_app_model::HazardSurfaceView {
+            teaser: None,
+            complexity: Some(atlas_app_model::HazardSurfaceComplexityView::Complex),
+            size: None,
+            emits_sound: None,
+            detection: Some(atlas_app_model::HazardSurfaceDetectionView {
+                stealth_modifier: Some(12),
+                difficulty_class: Some(22),
+                details: None,
+            }),
+            defenses: Some(atlas_app_model::HazardSurfaceDefensesView {
+                applicability: atlas_app_model::HazardSurfaceDefenseApplicabilityView {
+                    health: atlas_app_model::HazardSurfaceApplicabilityStateView::Unknown,
+                    structure: atlas_app_model::HazardSurfaceApplicabilityStateView::Unknown,
+                    rule_id: "pf2e-hazard-structural-applicability".into(),
+                    rule_version: 1,
+                },
+                armor_class: Some(22),
+                hardness: None,
+                hit_points: None,
+                saves: Some(atlas_app_model::HazardSurfaceSavesView {
+                    fortitude: Some(0),
+                    reflex: Some(8),
+                    will: Some(4),
+                }),
+                immunities: None,
+                weaknesses: None,
+                resistances: None,
+            }),
+            lifecycle: None,
+            activities: Some(vec![
+                activity(
+                    "occurrence-action",
+                    atlas_app_model::HazardSurfaceActivityTypeView::Action,
+                    0,
+                ),
+                activity(
+                    "occurrence-strike",
+                    atlas_app_model::HazardSurfaceActivityTypeView::Strike,
+                    1,
+                ),
+                activity(
+                    "occurrence-unsupported",
+                    atlas_app_model::HazardSurfaceActivityTypeView::UnsupportedChild,
+                    2,
+                ),
+            ]),
+            content: None,
+            relationships: None,
+            unavailable_fields: None,
+            provenance: atlas_app_model::HazardSurfaceProvenanceView {
+                source_path: "packs/hazards/test-hazard.json".to_string(),
+                source_contract_version: "test".to_string(),
+                source_system_version: "test".to_string(),
+                source_upstream_commit: "test".to_string(),
+                convenience_rule_id: "pf2e-hazard-derived-conveniences".to_string(),
+                convenience_rule_version: 1,
+                image: atlas_app_model::HazardSurfaceProvenanceTextView::Missing,
+                publication_license: atlas_app_model::HazardSurfaceProvenanceTextView::Missing,
+                source_metadata: vec![
+                    atlas_app_model::HazardSurfaceSourceMetadataFactView::TokenName {
+                        value: atlas_app_model::HazardSurfaceSourceFactView::Typed {
+                            source_path: "/prototypeToken/name".to_string(),
+                            value: "Test Hazard".to_string(),
+                        },
+                    },
+                ],
+            },
+        }),
+    };
+    surface
+}
+
+fn unavailable_surface(
+    record_key: Option<&str>,
+    title: &str,
+    profile: RecordSurfaceProfileView,
+    encounter: Option<EncounterRuntimeView>,
+) -> RecordSurfaceView {
+    RecordSurfaceView {
+        metadata: RecordSurfaceMetadataView {
+            record_key: record_key.map(str::to_string),
+            title: title.to_string(),
+            kind: "rule".to_string(),
+            kind_label: "Rule".to_string(),
+            level: None,
+            rarity: None,
+            traits: Vec::new(),
+            edition: None,
+            source: Some(RecordSurfaceSourceView {
+                publication_title: None,
+                pack_label: "Actions".to_string(),
+                document_type: "Item".to_string(),
+                record_type: "action".to_string(),
+                source_path: None,
+                source_contract_version: None,
+                source_system_version: None,
+                source_upstream_commit: None,
+            }),
+        },
+        profile,
+        presentation: RecordSurfacePresentationView::Unavailable {
+            unavailable: SurfaceUnavailableView {
+                reason: SurfaceUnavailableReasonView::RecordFamilyNotMigrated,
+                requested_kind: "rule".to_string(),
+                message: "Typed record presentation is unavailable for this record family."
+                    .to_string(),
+            },
+        },
+        issues: None,
+        references: None,
+        encounter,
+    }
+}
+
+fn runtime_mut(participant: &mut EncounterParticipantView) -> &mut EncounterRuntimeView {
+    participant
+        .record_view
+        .encounter
+        .as_mut()
+        .expect("fixture participant should expose encounter runtime")
+}
+
+fn assert_no_empty_containers(value: &Value) {
+    assert_no_empty_containers_at(value, "$");
+}
+
+fn assert_no_empty_containers_at(value: &Value, path: &str) {
+    match value {
+        Value::Object(object) => {
+            assert!(
+                !object.is_empty(),
+                "transport JSON must not contain empty objects at {path}"
+            );
+            for (key, child) in object {
+                assert_no_empty_containers_at(child, &format!("{path}/{key}"));
+            }
+        }
+        Value::Array(values) => {
+            assert!(
+                !values.is_empty(),
+                "transport JSON must not contain empty arrays at {path}"
+            );
+            for (index, child) in values.iter().enumerate() {
+                assert_no_empty_containers_at(child, &format!("{path}/{index}"));
+            }
+        }
+        _ => {}
     }
 }
 
@@ -1251,7 +2641,6 @@ fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
         rows: vec![atlas_app_model::ResultWindowRow {
             record: record_summary(),
             match_summary: None,
-            surface: None,
         }],
     }
 }

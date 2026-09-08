@@ -95,6 +95,7 @@ fn supported_basic_field(field: &str) -> bool {
             | "basic_save"
             | "sustained"
             | "damage_types"
+            | "spell_damage_types"
             | "range_value"
             | "area_type"
             | "area_value"
@@ -136,6 +137,7 @@ fn filter_field_label(field: &str) -> &'static str {
         "basic_save" => "Basic Save",
         "sustained" => "Sustained",
         "damage_types" => "Damage Type",
+        "spell_damage_types" => "Spell Damage Type",
         "range_value" => "Range",
         "area_type" => "Area Type",
         "area_value" => "Area Size",
@@ -391,6 +393,7 @@ fn field_group_id(field: &str) -> &'static str {
         "traditions" | "spell_kinds" | "save_type" | "basic_save" | "sustained" | "range_value"
         | "area_type" | "area_value" => "spells",
         "damage_types" => "spells_equipment",
+        "spell_damage_types" => "spells",
         "item_category" | "item_group" | "price_cp" | "bulk_value" | "hands" | "usage"
         | "base_item" => "equipment",
         "size" | "speed_types" | "languages" | "senses" | "immunities" | "resistances"
@@ -639,7 +642,10 @@ mod tests {
         let values = filter_value_list_view(
             "rarity",
             &FilterDiscoveryContext::Filtered {
-                filter: BasicSearchFilter { clauses: vec![] },
+                filter: BasicSearchFilter {
+                    relationship: None,
+                    clauses: vec![],
+                },
             },
             FilterValueDiscovery {
                 field: "rarity".to_string(),
@@ -685,7 +691,10 @@ mod tests {
         let values = filter_value_list_view(
             "size",
             &FilterDiscoveryContext::Filtered {
-                filter: BasicSearchFilter { clauses: vec![] },
+                filter: BasicSearchFilter {
+                    relationship: None,
+                    clauses: vec![],
+                },
             },
             FilterValueDiscovery {
                 field: "size".to_string(),
@@ -738,6 +747,7 @@ mod tests {
     fn value_projection_preserves_counts_selection_and_boolean_labels() {
         let context = FilterDiscoveryContext::Filtered {
             filter: BasicSearchFilter {
+                relationship: None,
                 clauses: vec![FilterClause {
                     id: "pack-include_any".to_string(),
                     field: "pack".to_string(),
@@ -784,7 +794,10 @@ mod tests {
         let remaster = filter_value_list_view(
             "publication_remaster",
             &FilterDiscoveryContext::Filtered {
-                filter: BasicSearchFilter { clauses: vec![] },
+                filter: BasicSearchFilter {
+                    relationship: None,
+                    clauses: vec![],
+                },
             },
             FilterValueDiscovery {
                 field: "publication_remaster".to_string(),
@@ -811,6 +824,7 @@ mod tests {
     fn metric_key_values_project_labels_counts_and_selection() {
         let context = FilterDiscoveryContext::Filtered {
             filter: BasicSearchFilter {
+                relationship: None,
                 clauses: vec![FilterClause {
                     id: "metric-metric_compare".to_string(),
                     field: "metric".to_string(),

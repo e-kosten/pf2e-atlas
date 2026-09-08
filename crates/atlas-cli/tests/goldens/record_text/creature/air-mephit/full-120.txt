@@ -1,0 +1,100 @@
+Air Mephit
+  Type: creature · Pack: Bestiary 1
+  Key: pathfinder-bestiary:KDRlxdIUADWHI6Vr
+
+Classification
+  Level: 1
+  Rarity: common
+  Traits: air, elemental
+  Size: sm
+  Source: Pathfinder Bestiary
+
+Defenses
+  AC: 16
+  HP: current 12; maximum 12; temporary 0; fast healing 2 (in open air)
+  Fortitude: 3
+  Reflex: 19
+  Will: 7
+  Immunities: bleed, paralyzed, poison, sleep
+
+Awareness and abilities
+  Perception: +3; darkvision
+  Initiative: perception
+  Languages: sussuran
+  Abilities: Str +1, Dex +4, Con +0, Int -2, Wis +0, Cha +0
+  Acrobatics: +7
+  Stealth: +7
+
+Movement
+  land: 20 feet
+  fly: 40 feet
+
+Resources
+  Focus: maximum 1
+
+Strikes
+  - Claw — [1 action]
+    Traits: agile, finesse, unarmed
+    Attack: attack +9
+    Damage: 1d6+1 slashing
+
+Activities
+  - Fast Healing 2 (In Open Air) — passive
+    Category: defensive
+  - Breath Weapon — [2 actions]
+    Traits: air, arcane
+    Category: offensive
+
+Spellcasting
+  - Arcane Innate Spells — innate · arcane
+    Attack: +9
+    DC: 17
+    Rank 2
+      - Blur — [2 actions]
+        Traits: concentrate, illusion, manipulate, visual
+        Target: 1 creature
+        Range: touch
+        Time: 2
+    Rank 1
+      - Gust of Wind — [2 actions]
+        Traits: air, concentrate, manipulate
+        Time: 2
+
+Public Notes
+  Air mephits are capricious and flighty relative to their kin; they are as likely to fly blindly into battle as they
+  are to whine in terror at a loud noise. They are pale blue in coloration and have thin wings that trail small puffs of
+  vapor as they fly through the skies.
+  ---
+  Mephits-sometimes known as elemental scamps-are little bipedal critters with bat-like wings who serve stronger
+  elementals on the Elemental Planes or neophyte spellcasters who summon them to the Material Plane. All mephits have an
+  inkling of magical power as well as a breath weapon.
+
+Blur
+  The target's form appears blurry. It becomes Concealed. As the nature of this effect still leaves the target's
+  location obvious, the target can't use this concealment to Hide or Sneak.
+
+Gust of Wind
+  A violent wind issues forth from your palm, blowing from the point where you are when you cast the spell to the line's
+  opposite end. The wind extinguishes small non-magical fires, disperses fog and mist, blows objects of light Bulk or
+  less around, and pushes larger objects. Large or smaller creatures in the area must attempt a Fortitude save. Large or
+  smaller creatures that later move into the gust must attempt the save on entering.
+  ---
+  Critical Success The creature is unaffected.
+  Success The creature can't move against the wind.
+  Failure The creature is knocked Prone. If it was flying, it suffers the effects of critical failure instead.
+  Critical Failure The creature is pushed 30 feet in the wind's direction, knocked Prone, and takes 2d6 bludgeoning
+  damage.
+
+Fast Healing 2 (In Open Air)
+  PF2E.NPC.Abilities.Glossary.FastHealing
+
+Breath Weapon
+  The air mephit breathes sand and grit in a cone that deals 2d6[slashing] damage to each creature within the area
+  (Reflex DC 17 save).
+  The air mephit can't use Breath Weapon again for 1d4 rounds.
+
+Source and edition
+  Publication: Pathfinder Bestiary
+  Pack: Bestiary 1 (pathfinder-bestiary)
+  Edition: legacy
+  Counterpart: remastered counterpart: Air Scamp (pathfinder-monster-core:MSm1im7lZA5i82rz)

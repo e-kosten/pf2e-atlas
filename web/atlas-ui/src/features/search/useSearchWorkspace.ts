@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
-import { keepPreviousData, useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
   getReadiness,
   getRecordDetail,
@@ -75,6 +75,8 @@ export type SearchWorkspaceState = {
   resultsLoading: boolean;
   resultsRefreshing: boolean;
   detailLoading: boolean;
+  detailRefreshing: boolean;
+  detailError: Error | null;
   filterDiscoveryLoading: boolean;
   diagnostics: AtlasWorkspaceDiagnostics;
   errorMessage: string | null;
@@ -140,11 +142,14 @@ export function useSearchWorkspace({
     queryFn: getReadiness,
   });
 
-  const resultsQuery = useQuery({
+  const resultsQuery = useQuery<ResultWindowPage>({
     queryKey: ["results", activeSearchExecutionToken, pageNumber],
     enabled: canRunResultSearch,
-    placeholderData: keepPreviousData,
-    queryFn: async () => {
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === activeSearchExecutionToken
+        ? previousData
+        : undefined,
+    queryFn: async ({ signal }) => {
       const startedAt = performance.now();
       if (
         pageNumber === 1 ||
@@ -153,7 +158,9 @@ export function useSearchWorkspace({
         try {
           const page = await openResultWindow(
             buildOpenRequest(activeSearch, pageNumber),
+            signal,
           );
+          if (signal.aborted) throw new DOMException("Request aborted", "AbortError");
           setResultWindow({
             searchExecutionToken: activeSearchExecutionToken,
             windowId: page.window_id,
@@ -168,9 +175,13 @@ export function useSearchWorkspace({
         }
       }
       try {
-        return await readResultWindowPage(resultWindow.windowId, {
-          page: { number: pageNumber, size: activeSearch.pageSize },
-        });
+        return await readResultWindowPage(
+          resultWindow.windowId,
+          {
+            page: { number: pageNumber, size: activeSearch.pageSize },
+          },
+          signal,
+        );
       } finally {
         setLastResultRequest({
           durationMs: elapsedMilliseconds(startedAt),
@@ -188,7 +199,7 @@ export function useSearchWorkspace({
 
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
-    enabled,
+    enabled: enabled && !activeSearch.relationshipInvalid,
     hiddenFieldIds: search.hiddenFilterIds,
     queryKeyPrefix: ["filter-discovery", activeSearchExecutionToken],
     retainedValueQueryKeyPrefix: ["filter-discovery"],
@@ -198,10 +209,10 @@ export function useSearchWorkspace({
 
   const detailQuery = useQuery({
     queryKey: ["record-detail", selectedRecordKey],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const startedAt = performance.now();
       try {
-        return await getRecordDetail(selectedRecordKey!);
+        return await getRecordDetail(selectedRecordKey!, undefined, signal);
       } finally {
         setLastDetailRequest({
           durationMs: elapsedMilliseconds(startedAt),
@@ -222,12 +233,22 @@ export function useSearchWorkspace({
       return null;
     }
     return focusedResultKey &&
-      resultRows.some((row) => row.record.record_key === focusedResultKey)
+      resultRows.some(
+        (row) => row.record.surface.metadata.record_key === focusedResultKey,
+      )
       ? focusedResultKey
-      : resultRows[0].record.record_key;
+      : (resultRows[0].record.surface.metadata.record_key ?? null);
   }, [focusedResultKey, resultRows]);
 
   function setSearch(next: SearchFormState) {
+    if (
+      JSON.stringify(next.relationship) !== JSON.stringify(search.relationship) ||
+      next.relationshipInvalid !== search.relationshipInvalid
+    ) {
+      dispatch({ type: "url.restored", search: next, selectedRecordKey: null });
+      history.pushState(null, "", `${searchPath(null)}${searchStateQueryString(next)}`);
+      return;
+    }
     dispatch({ type: "search.changed", search: next });
     const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next)}`;
     history.replaceState(null, "", url);
@@ -246,7 +267,9 @@ export function useSearchWorkspace({
       return;
     }
     const currentIndex = activeResultKey
-      ? resultRows.findIndex((row) => row.record.record_key === activeResultKey)
+      ? resultRows.findIndex(
+          (row) => row.record.surface.metadata.record_key === activeResultKey,
+        )
       : -1;
     const fallbackIndex = direction === "next" ? 0 : resultRows.length - 1;
     const nextIndex =
@@ -258,7 +281,7 @@ export function useSearchWorkspace({
           );
     dispatch({
       type: "result.focused",
-      recordKey: resultRows[nextIndex].record.record_key,
+      recordKey: resultRows[nextIndex].record.surface.metadata.record_key ?? null,
     });
   }
 
@@ -274,7 +297,6 @@ export function useSearchWorkspace({
 
   const errorMessage =
     messageFromError(resultsQuery.error) ??
-    messageFromError(detailQuery.error) ??
     filterDiscovery.errorMessage ??
     messageFromError(readiness.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
@@ -306,7 +328,9 @@ export function useSearchWorkspace({
     readiness,
     resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing,
-    detailLoading: detailQuery.isLoading || detailQuery.isFetching,
+    detailError: detailQuery.error,
+    detailLoading: detailQuery.isLoading,
+    detailRefreshing: detailQuery.isFetching && !detailQuery.isLoading,
     filterDiscoveryLoading: filterDiscovery.loading,
     diagnostics: {
       activeWindowId,

@@ -106,9 +106,11 @@ impl Command {
                 IndexCommand::Check(options) => options.json,
                 IndexCommand::Inspect(options) => options.json,
                 IndexCommand::Validate(options) => options.json,
+                IndexCommand::ValidateCorpus(_) => false,
             },
             Self::Record(args) => match &args.command {
                 RecordCommand::Get(options) => options.json,
+                RecordCommand::Provenance(options) => options.json,
                 RecordCommand::Resolve(options) => options.json,
             },
             Self::Graph(args) => match &args.command {
@@ -160,9 +162,13 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Check(options) => commands::index::run_index_check(options),
             IndexCommand::Inspect(options) => commands::index::run_index_inspect(options),
             IndexCommand::Validate(options) => commands::index::run_index_validate(options),
+            IndexCommand::ValidateCorpus(options) => {
+                commands::index::run_index_validate_corpus(options)
+            }
         },
         Command::Record(record) => match record.command {
             RecordCommand::Get(options) => commands::record::run_record_get(options),
+            RecordCommand::Provenance(options) => commands::record::run_record_provenance(options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
         },
         Command::Graph(graph) => match graph.command {

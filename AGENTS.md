@@ -41,6 +41,26 @@ Keep each documentation surface focused on its job:
 
 When writing or editing docs, prefer statements of current behavior and current ownership over repo-history framing unless the document is explicitly an ADR or backlog/history note.
 
+## Outcome-Scoped Agent Work
+
+Agent task briefs should state the requested outcome, accepted base or implementation context, risk-appropriate validation, and any material architecture or source-fidelity invariants, non-goals, or decisions that require escalation. Keep one concise current brief and omit fields that do not matter for a trivial task. A correction from the user or the decision owner authorized to change a requirement should say whether it supersedes an earlier instruction; arrival order alone does not make a delayed callback authoritative. Acknowledge the current base/candidate and do not execute stale commands.
+
+File and module lists are planning and coordination aids, not exhaustive permission allowlists. Completing an authorized outcome includes necessary callers, imports, tests, current-behavior docs, generated bindings, formatting, and removal of superseded refactor paths. Report material incidental edits in the handoff, but do not stop for administrative path or file-count amendments when the behavior and architectural envelope are unchanged.
+
+Escalate when work requires a product or architecture decision, changes source-field disposition or weakens acceptance, crosses the stated non-goals, performs destructive or external actions, or incurs substantial unexpected cost. Do not escalate routine implementation choices or mechanically necessary cross-file edits inside the outcome. A new outcome-scoped brief supersedes older procedural allowlist, publication-wrapper, or amendment requirements; it does not waive architecture, source-fidelity, candidate-provenance, validation, or explicit human-approval requirements.
+
+During implementation and ordinary slice handoff, run focused checks that cover the changed risk. The owner of the integrated/final candidate runs the repository's applicable full gates once; a slice owner runs them only when that handoff is itself the final candidate or an existing repository trigger requires them. Re-run a full gate only after a relevant candidate, toolchain, or policy input changes. Reuse prior evidence only when its relevant source, toolchain, candidate, generator, and policy inputs are unchanged, and disclose what was reused and what it does not prove. Embedding or full semantic-artifact work belongs at final artifact or end-to-end gates when the change affects those boundaries, not in ordinary UI, docs, or unit-test loops.
+
+## Validation Strategy
+
+Choose validation by the behavior that changed. Small production-code writer/reader tests own codec variants, `Missing | Null | Value`, relationships, authored order, identity, and fault behavior. Synthetic fixtures are preferred for precise mutations; curated isolated Foundry records with the relevant relationship context are also valid. Small no-embedding tests retain disabled-model, absent-vector, and `BaseOnly` coverage.
+
+At final integration/CI, run one full embedded production build only when changed artifact constructors, persisted codecs, document-embedding producers, or validation composition can affect source-to-reader compatibility. Its normal strict source admission and per-record decode failures remain intact, while final validation checks manifest/hash/generation identity, schema/required-table shape, foreign keys, logical/cross-table invariants, global FTS/catalog/vector coverage, and a bounded selected-record public-reader smoke. It does not perform a physical SQLite page scan, build a second full no-embedding artifact, or require whole-corpus body equality, decode/re-encode or attachment scans, or exact canonical-to-relational mirror reconciliation. Those scans must not be introduced transitively through `Full` validation. A broad corpus diagnostic may remain explicitly callable for investigation, but is never an implicit final or CI gate.
+
+Independent validation should be skeptical and grounded in the actual diff, architecture invariants, and production call paths. Reviewers should reuse exact relevant evidence when inputs and trust context match, batch related findings, use adversarial or mutation checks where they can expose plausible failures, separate pre-existing baseline failures from candidate regressions, and never silently waive either. They should not force a second production build unless independent execution supplies a distinct material signal. Source/artifact identity and candidate provenance remain required at the trust boundaries where those identities are consumed; ordinary task coordination does not require authorization shell scripts, per-amendment checksum packages, or a new launcher/framework.
+
+When the execution environment supports and records model selection, use 5.6 Sol by default for ordinary implementation and review. Reserve 6-astra for justified unresolved complexity such as cross-domain architectural synthesis or security-critical reasoning. Never claim a model selection that cannot be verified.
+
 ## Frontend UI Direction
 
 For `web/atlas-ui`, Ant Design is the selected component library for generic application UI. Prefer Ant components and component tokens for buttons, icon buttons, links, navigation controls, tables, forms, overlays, selectors, alerts, empty/loading states, tags, pagination, and selected/active/hover styling before adding custom controls or local CSS state styling. Custom Atlas components should be reserved for product-specific surfaces such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, and encounter-runtime panels. See `web/atlas-ui/docs/frontend-guidelines.md` and `web/atlas-ui/AGENTS.md` for concrete frontend editing rules.
@@ -78,7 +98,9 @@ Keep crate entry points focused on composition:
 
 ## Testing Guidelines
 
-Rust workspace tests are the primary validation surface. Add or update tests under the owning crate for behavior changes, especially around ingest, indexing, lookup, search, filter discovery, graph context, and artifact validation.
+Rust workspace tests are the primary validation surface. Add or update tests under the owning crate for behavior changes, especially around ingest, indexing, lookup, search, filter discovery, graph context, and artifact validation. Use focused unit and integration tests while developing, then run the applicable final repository gates once. The full embedded production build belongs only to final integration/CI changes that can affect artifact construction or end-to-end compatibility; ordinary search-only changes use focused coverage. Follow the validation strategy above instead of using a whole-corpus parity scan as a default test.
+
+Every required check should name the concrete failure risk it covers, use a proportionate scope, and explain why cheaper existing coverage is insufficient. Independent reviewers may reuse exact evidence when its relevant inputs and trust context match; local evidence does not substitute for a genuinely independent CI boundary.
 
 Run the Rust verification gate before committing non-docs changes:
 
@@ -115,3 +137,7 @@ Git commands that mutate repository state must never be run in parallel within t
 ## Configuration & Data Notes
 
 Default repo-local data paths are `vendor/pf2e`, `.cache/hf-models`, and `.cache/pf2e-index.sqlite` when `--path-mode repo` is selected. The default global path mode uses platform cache paths under `pf2e-atlas`. If the PF2E checkout, embedding model, or artifact schema changes, run `atlas setup` or the relevant `atlas index` command.
+
+## Browser Validation Handoffs
+
+Frontend task packets must require implementer Safari MCP self-validation of the exact candidate in a separate tab before independent review, followed by independent reviewer tabs. Follow `web/atlas-ui/AGENTS.md` for viewport, theme, keyboard and evidence requirements. Do not wait for AO Browser capability or equate automated/HTTP checks with Safari acceptance. Existing runtime and saved-state authorization boundaries remain in force.

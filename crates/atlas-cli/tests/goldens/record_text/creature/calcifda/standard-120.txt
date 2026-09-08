@@ -1,0 +1,129 @@
+Calcifda
+  Type: creature · Pack: Quest for the Frozen Flame
+  Key: quest-for-the-frozen-flame-bestiary:kxO7gXbpcmY1pi7p
+
+Classification
+  Level: 10
+  Rarity: unique
+  Traits: earth, evil, fey, lawful
+  Size: med
+  Source: Pathfinder #177: Burning Tundra
+
+Defenses
+  AC: 31
+  HP: current 140; maximum 140; temporary 0
+  Shield: Hardness 0; BT 0; HP 0; AC bonus +2
+  Fortitude: 19
+  Reflex: 17
+  Will: 23
+  Immunities: paralyzed, petrified, visual
+  Resistances: physical 10 (except adamantine)
+  Weaknesses: cold-iron 5
+
+Awareness and abilities
+  Perception: +21; gemsight
+  Initiative: perception
+  Languages: aklo, cyclops, fey, hallit, jotun, petran
+  Abilities: Str +5, Dex +4, Con +5, Int +7, Wis +5, Cha +3
+  Athletics: +19
+  Nature: +19
+  Occultism: +21
+  Gem Lore: +21
+
+Movement
+  land: 25 feet
+  burrow: 25 feet
+
+Strikes
+  - Claw — [1 action]
+    Traits: agile, unarmed
+    Attack effects: coal-curse
+    Attack: attack +22
+    Damage: 3d6+11 slashing
+
+Activities
+  - Gemsight — passive
+    Category: defensive
+  - Light Sickness — passive
+    Category: defensive
+  - Coal Curse — passive
+    Traits: curse, primal
+    Category: offensive
+  - Earth Glide — passive
+    Category: offensive
+  - Gem Gaze — [1 action]
+    Traits: emotion, fear, mental, primal
+    Category: offensive
+  - Lashing Stone — [1 action]
+    Traits: concentrate
+    Category: offensive
+    Frequency: 1 per round
+  - Steady Spellcasting — passive
+    Category: offensive
+
+Spellcasting
+  - Occult Innate Spells — innate · divine
+    Attack: +19
+    DC: 29
+    Rank 5 · 3 slots
+      - Wall of Stone — [3 actions]
+        Traits: concentrate, earth, manipulate
+        Range: 120 feet
+        Time: 3
+    Rank 4 · 3 slots
+      - Clairvoyance — 1 minute
+        Traits: concentrate, manipulate, scrying
+        Range: 500 feet
+        Time: 1 minute
+      - Read Omens — 10 minutes
+        Traits: concentrate, manipulate, prediction
+        Time: 10 minutes
+      - Shape Stone — [2 actions]
+        Traits: concentrate, earth, manipulate
+        Target: cube of stone 10 feet across or smaller
+        Range: touch
+        Time: 2
+    Rank 3 · 2 slots
+      - Clairaudience — 1 minute
+        Traits: concentrate, manipulate, scrying
+        Range: 500 feet
+        Time: 1 minute
+      - Earthbind — [2 actions]
+        Traits: concentrate, manipulate
+        Target: 1 flying creature
+        Range: 120 feet
+        Time: 2
+    Rank 2 · 2 slots
+      - Augury — 10 minutes
+        Traits: concentrate, manipulate, prediction
+        Time: 10 minutes
+      - Undetectable Alignment — 1 minute
+        Traits: concentrate, manipulate
+        Target: 1 creature or object
+        Range: touch
+        Time: 1 minute
+    Rank 1
+      - Know Direction — [2 actions]
+        Traits: cantrip, concentrate, detection, manipulate
+        Time: 2
+      - Read Aura — 1 minute
+        Traits: cantrip, concentrate, detection, manipulate
+        Target: 1 object
+        Range: 30 feet
+        Time: 1 minute
+    Rank 0 · 2 slots
+
+Equipment
+  - Aeon Stone (Pearlescent Pyramid)
+    Traits: invested, magical
+    Level: 10
+    Usage: held-in-one-hand
+    Quantity: 1
+
+Lore
+  - Gem Lore — +21
+
+Data availability
+  Unsupported capability
+    Key: treasure
+    The source supplied an unsupported creature capability.

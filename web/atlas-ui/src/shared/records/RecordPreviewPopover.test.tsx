@@ -1,59 +1,134 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import type { RecordDetailView } from "../../generated/atlas";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { recordDetailFixture } from "../../test/recordFixtures";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
 
+const apiMocks = vi.hoisted(() => ({ getRecordDetail: vi.fn() }));
+
+vi.mock("../../api/atlasApi", () => ({
+  getRecordDetail: apiMocks.getRecordDetail,
+}));
+
 describe("RecordPreviewPopover", () => {
-  it("opens nested references without re-anchoring the active popover", () => {
-    const onReference = vi.fn();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
+      Promise.resolve(recordWithNestedReference(recordKey)),
+    );
+  });
+
+  it("loads record detail and keeps nested references in the same popover", async () => {
     render(
-      <RecordPreviewPopover
-        anchor={{ top: 10, right: 20, bottom: 30, left: 5, width: 15, height: 20 }}
-        detail={recordDetailFixture()}
-        loading={false}
-        onClose={vi.fn()}
-        onOpenFullPage={vi.fn()}
-        onReference={onReference}
-      />,
+      <RecordPreviewPopover onOpenFullPage={vi.fn()} recordKey="actors:goblin">
+        {(open) => (
+          <a aria-expanded={open} href="/records/actors%3Agoblin">
+            Open preview
+          </a>
+        )}
+      </RecordPreviewPopover>,
+      { wrapper: queryClientWrapper() },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Nested Rule" }));
-
-    expect(onReference).toHaveBeenCalledWith(
-      "rules:nested",
-      expect.objectContaining({ width: expect.any(Number) }),
+    fireEvent.click(screen.getByRole("link", { name: "Open preview" }));
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "actors:goblin",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
+    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    const header = document.querySelector<HTMLElement>(".preview-popover__header");
+    const content = document.querySelector<HTMLElement>(".preview-popover__content");
+    expect(header).not.toBeNull();
+    expect(content).not.toBeNull();
+    expect(within(header!).getByText("Goblin Warrior")).toBeInTheDocument();
+    expect(within(content!).queryByText("Goblin Warrior")).not.toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:nested",
+        undefined,
+        expect.any(AbortSignal),
+      ),
+    );
+    await waitFor(() =>
+      expect(within(header!).getByText("Nested Rule")).toBeInTheDocument(),
+    );
+    expect(within(content!).queryByText("Nested Rule")).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText("Reference preview")).toHaveLength(1);
+  });
+
+  it("opens the active record on the full-page action", async () => {
+    const onOpenFullPage = vi.fn();
+    render(
+      <RecordPreviewPopover onOpenFullPage={onOpenFullPage} recordKey="actors:goblin">
+        {(open) => (
+          <button aria-expanded={open} type="button">
+            Open preview
+          </button>
+        )}
+      </RecordPreviewPopover>,
+      { wrapper: queryClientWrapper() },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open preview" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Open reference full page" }),
+    );
+
+    expect(onOpenFullPage).toHaveBeenCalledWith("actors:goblin");
   });
 });
 
-function recordDetailFixture(): RecordDetailView {
-  return {
-    record_key: "conditionitems:friendly",
-    title: "Friendly",
-    kind: "rule",
-    presentation: {
-      record_key: "conditionitems:friendly",
-      kind: "rule",
-      title: "Friendly",
-      identity: [],
-      badges: [],
-      sections: [
-        {
-          kind: "references",
-          title: "References",
-          blocks: [
-            {
-              kind: "relationships",
-              content: [
-                {
-                  kind: "reference",
-                  label: "Nested Rule",
-                  record_key: "rules:nested",
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
+function queryClientWrapper() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return function QueryClientWrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   };
+}
+
+function recordWithNestedReference(recordKey: string) {
+  const detail = recordDetailFixture({
+    recordKey,
+    title: recordKey === "rules:nested" ? "Nested Rule" : "Goblin Warrior",
+  });
+  if (
+    recordKey !== "rules:nested" &&
+    detail.surface.presentation.presentation_type === "creature"
+  ) {
+    detail.surface.presentation.body.content = [
+      {
+        content_key: "nested-reference",
+        role: "primary_description",
+        authored_order: 0,
+        blocks: [
+          {
+            block_type: "paragraph",
+            spans: [
+              { span_type: "text", text: "See " },
+              {
+                span_type: "reference",
+                label: "Nested Rule",
+                record_key: "rules:nested",
+                embedded: false,
+              },
+            ],
+          },
+        ],
+        content_hash: "nested-reference-hash",
+        visibility: "public",
+        provenance: {
+          source_record_key: recordKey,
+          relative_source_path: "fixture.json",
+          field_family: "fixture.reference",
+        },
+      },
+    ];
+  }
+  return detail;
 }

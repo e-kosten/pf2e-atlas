@@ -1,0 +1,43 @@
+{
+  "_id": "losslessSpell",
+  "name": "Lossless Spell",
+  "type": "spell",
+  "system": {
+    "damage": {
+      "zeta-damage": {
+        "applyMod": false,
+        "formula": "1d8",
+        "kinds": ["damage", "damage"],
+        "type": "fire"
+      },
+      "alpha-damage": {
+        "applyMod": false,
+        "formula": "1d4",
+        "kinds": [],
+        "type": "electricity"
+      },
+      "zeta-damage": {
+        "applyMod": false,
+        "formula": "2d8",
+        "kinds": ["damage"],
+        "type": "cold"
+      }
+    },
+    "duration": {
+      "sustained": false,
+      "value": "1 round",
+      "value": "2 rounds"
+    },
+    "description": {
+      "gm": "GM context",
+      "value": "First public description",
+      "value": "Second public description"
+    },
+    "mystery": {
+      "enabled": false,
+      "empty": {},
+      "values": [0, null]
+    },
+    "rules": []
+  }
+}

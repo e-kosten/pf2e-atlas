@@ -3,7 +3,7 @@ use atlas_index::{
     FilterCompileError, FilterReadIndex, FtsQuery, FtsReadIndex, FtsSearchHit, RecordReadIndex,
     SearchCandidateRecord,
 };
-use atlas_record::AtlasRecord;
+use atlas_record::RetrievedRecord;
 
 use crate::SearchError;
 use crate::records::{RecordResolutionResult, RecordRetrieval, ResolveRecordRequest};
@@ -83,7 +83,7 @@ where
 pub(super) fn load_records_by_key<I>(
     index: &I,
     keys: &[RecordKey],
-) -> Result<Vec<AtlasRecord>, SearchError>
+) -> Result<Vec<RetrievedRecord>, SearchError>
 where
     I: RecordReadIndex + ?Sized,
 {

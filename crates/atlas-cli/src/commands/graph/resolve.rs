@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 use atlas_app_model::{AppError, AppErrorCode};
 use atlas_domain::{DetailLevel, RecordKey};
-use atlas_record::{RecordJsonOptions, record_json};
+use atlas_record::RecordJsonOptions;
 use atlas_search::{
     RecordRefResolutionResult, RecordResolutionResult, VariantGroupRefResolutionResult,
     VariantGroupResult,
@@ -10,6 +10,7 @@ use atlas_search::{
 use serde::Serialize;
 
 use crate::client::AtlasClient;
+use crate::commands::record::context::project_record;
 use crate::output::{write_json_error, write_json_error_data};
 
 pub(super) trait GraphRecordRefResolver {
@@ -50,7 +51,7 @@ pub(super) enum GraphCommandOutcome<T> {
 }
 
 pub(super) fn resolve_graph_record_ref(
-    service: &impl GraphRecordRefResolver,
+    service: &(impl GraphRecordRefResolver + AtlasClient),
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<RecordKey>, String> {
@@ -72,14 +73,14 @@ pub(super) fn resolve_graph_record_ref(
             Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
         }
         RecordRefResolutionResult::Ambiguous(matches) => {
-            write_record_resolution_ambiguity(record_ref, &matches, json)?;
+            write_record_resolution_ambiguity(service, record_ref, &matches, json)?;
             Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
         }
     }
 }
 
 pub(super) fn resolve_graph_variant_group(
-    service: &impl GraphVariantGroupResolver,
+    service: &(impl GraphVariantGroupResolver + AtlasClient),
     record_ref: &str,
     json: bool,
 ) -> Result<GraphCommandOutcome<VariantGroupResult>, String> {
@@ -107,7 +108,7 @@ pub(super) fn resolve_graph_variant_group(
             Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
         }
         VariantGroupRefResolutionResult::RecordResolutionAmbiguous(matches) => {
-            write_record_resolution_ambiguity(record_ref, &matches, json)?;
+            write_record_resolution_ambiguity(service, record_ref, &matches, json)?;
             Ok(GraphCommandOutcome::Exit(ExitCode::from(1)))
         }
         VariantGroupRefResolutionResult::VariantGroupAmbiguous(groups) => {
@@ -145,11 +146,13 @@ pub(super) fn graph_error_code(code: AppErrorCode) -> &'static str {
 }
 
 fn write_record_resolution_ambiguity(
+    client: &impl AtlasClient,
     record_ref: &str,
     matches: &[RecordResolutionResult],
     json: bool,
 ) -> Result<(), String> {
-    let ambiguity = ambiguous_record_resolution(record_ref, matches);
+    let ambiguity =
+        ambiguous_record_resolution(client, record_ref, matches).map_err(|error| error.message)?;
     let message = ambiguity.message();
     if json {
         write_json_error_data("record_resolution_ambiguous", message, ambiguity)?;
@@ -202,31 +205,34 @@ impl AmbiguousGraphResolution {
 }
 
 fn ambiguous_record_resolution(
+    client: &impl AtlasClient,
     record_ref: &str,
     matches: &[RecordResolutionResult],
-) -> AmbiguousGraphResolution {
+) -> Result<AmbiguousGraphResolution, AppError> {
     let record_options = RecordJsonOptions {
         detail: DetailLevel::Summary,
         include_source_json: false,
     };
-    AmbiguousGraphResolution {
+    Ok(AmbiguousGraphResolution {
         result: AmbiguousGraphResult {
             query: record_ref.to_string(),
             alternatives: matches
                 .iter()
                 .take(5)
-                .map(|resolution| GraphResolutionAlternativeJson {
-                    record: record_json(&resolution.record, record_options),
-                    resolution: GraphResolutionJson {
-                        query: resolution.query.clone(),
-                        normalized_query: resolution.normalized_query.clone(),
-                        match_kind: resolution.match_kind.as_str(),
-                        matched_text: resolution.matched_text.clone(),
-                    },
+                .map(|resolution| {
+                    Ok(GraphResolutionAlternativeJson {
+                        record: project_record(client, &resolution.record, record_options)?,
+                        resolution: GraphResolutionJson {
+                            query: resolution.query.clone(),
+                            normalized_query: resolution.normalized_query.clone(),
+                            match_kind: resolution.match_kind.as_str(),
+                            matched_text: resolution.matched_text.clone(),
+                        },
+                    })
                 })
-                .collect(),
+                .collect::<Result<Vec<_>, AppError>>()?,
         },
-    }
+    })
 }
 
 fn write_variant_group_ambiguity(
@@ -242,7 +248,7 @@ fn write_variant_group_ambiguity(
             let first_name = group
                 .variants
                 .first()
-                .map(|record| record.identity.name.as_str())
+                .map(|record| record.record.identity.name.as_str())
                 .unwrap_or("<empty>");
             format!("{group_key} ({first_name})")
         })

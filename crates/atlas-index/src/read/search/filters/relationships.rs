@@ -1,8 +1,6 @@
 use crate::artifact::inventory::{records, reference_edges};
 use atlas_domain::RecordKey;
-use atlas_record::{
-    ReferenceGraphMode, ReferenceGraphPolicy, ReferenceVisibilityPolicy, reference_graph_policy,
-};
+use atlas_record::{ReferenceGraphMode, ReferenceGraphPolicy, reference_graph_policy};
 
 use super::FilterCompiler;
 use super::error::FilterCompileError;
@@ -59,18 +57,8 @@ pub(crate) fn default_reference_edge_sql_predicate(alias: &str) -> String {
 }
 
 fn reference_edge_sql_predicate(alias: &str, policy: ReferenceGraphPolicy) -> String {
-    let visibility = aliased_column(alias, reference_edges::columns::VISIBILITY);
     let source_kind = aliased_column(alias, reference_edges::columns::SOURCE_KIND);
     let mut predicates = Vec::new();
-    match policy.visibility {
-        ReferenceVisibilityPolicy::Only(required) => {
-            predicates.push(format!("{visibility} = '{}'", required.as_str()));
-        }
-        ReferenceVisibilityPolicy::Exclude(excluded) => {
-            predicates.push(format!("{visibility} != '{}'", excluded.as_str()));
-        }
-        ReferenceVisibilityPolicy::Any => {}
-    }
     if !policy.excluded_source_kinds.is_empty() {
         let excluded_source_kinds = policy
             .excluded_source_kinds
@@ -97,7 +85,7 @@ mod tests {
         let predicate = default_reference_edge_sql_predicate("re");
         assert_eq!(
             predicate,
-            "re.visibility = 'public' AND re.source_kind NOT IN ('embedded_item_description', 'embedded_spell_description')"
+            "re.source_kind NOT IN ('embedded_item_description', 'embedded_gm_description', 'embedded_spell_description')"
         );
     }
 

@@ -1,5 +1,5 @@
 use atlas_domain::{DetailLevel, SearchFilterNode};
-use atlas_record::{RecordJsonOptions, record_json};
+use atlas_record::RecordJsonOptions;
 use atlas_search::{
     RecordListSort, RetrievalMode, SearchErrorKind, SearchPage, SearchPageInfo, TextSearchMatch,
     TextSearchTuning, expert::DEFAULT_FTS_FUSION_POLICY_NAME,
@@ -23,7 +23,7 @@ pub(crate) mod args;
 use args::{CliRetrievalMode, CliSearchSort, SearchOptions};
 
 use super::filters::build_filter;
-use super::record::{detail_outputs_description, print_record_for_detail};
+use super::record::{context::project_record, detail_outputs_description, print_record_for_detail};
 
 #[derive(Debug, Serialize)]
 struct SearchData {
@@ -215,7 +215,7 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
     let by_key = list_result
         .records
         .into_iter()
-        .map(|record| (record.identity.key.to_string(), record))
+        .map(|record| (record.record.identity.key.to_string(), record))
         .collect::<BTreeMap<_, _>>();
     let record_options = RecordJsonOptions {
         detail: options.detail,
@@ -225,16 +225,19 @@ pub(crate) fn run_search(options: SearchOptions) -> Result<ExitCode, String> {
         .record_keys
         .iter()
         .filter_map(|key| by_key.get(&key.to_string()))
-        .map(|record| SearchResultItem {
-            record: record_json(record, record_options),
-            r#match: SearchMatchJson {
-                kind: "filter",
-                retrieval: None,
-                identity_match_kind: None,
-                explain: None,
-            },
+        .map(|record| {
+            Ok(SearchResultItem {
+                record: project_record(&client, record, record_options)
+                    .map_err(|error| error.message)?,
+                r#match: SearchMatchJson {
+                    kind: "filter",
+                    retrieval: None,
+                    identity_match_kind: None,
+                    explain: None,
+                },
+            })
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
 
     let data = SearchData {
         detail: options.detail.to_string(),
@@ -329,11 +332,14 @@ fn run_ranked_search_text(
     let results = result
         .records
         .into_iter()
-        .map(|item| SearchResultItem {
-            record: record_json(&item.record, record_options),
-            r#match: search_match_json(item.match_info),
+        .map(|item| {
+            Ok(SearchResultItem {
+                record: project_record(&client, &item.record, record_options)
+                    .map_err(|error| error.message)?,
+                r#match: search_match_json(item.match_info),
+            })
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
     let data = SearchData {
         detail: options.detail.to_string(),
         query: Some(query.to_string()),

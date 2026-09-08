@@ -20,6 +20,8 @@ export type MetricComparisonState = {
 };
 
 export type SearchFormState = {
+  relationship?: BasicSearchFilter["relationship"];
+  relationshipInvalid?: boolean;
   query: string;
   mode: "browse" | "text_search";
   visibleFilterIds: string[];
@@ -108,7 +110,12 @@ export function buildOpenRequest(
 }
 
 export function hasExecutableSearch(state: SearchFormState): boolean {
-  return state.query.trim().length > 0 || state.filterClauses.length > 0;
+  if (state.relationshipInvalid) return false;
+  return (
+    state.query.trim().length > 0 ||
+    state.filterClauses.length > 0 ||
+    state.relationship !== undefined
+  );
 }
 
 export function buildFilterDiscoveryContext(
@@ -173,6 +180,8 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
     visibleFilterIds: dedupeStrings(params.getAll("show-filter")),
     hiddenFilterIds: dedupeStrings(params.getAll("hide-filter")),
     filterClauses: clauses,
+    relationship: relationshipFromParams(params),
+    ...(invalidRelationshipParams(params) ? { relationshipInvalid: true } : {}),
     sort: oneOf(params.get("sort"), SORT_VALUES, DEFAULT_SEARCH_STATE.sort),
     pageSize: pageSizeParamValue(
       params.get("limit") ?? params.get("pageSize"),
@@ -197,6 +206,11 @@ export function decodeSearchState(value: string | null): SearchFormState {
     return {
       ...DEFAULT_SEARCH_STATE,
       query: stringValue(decoded.query, DEFAULT_SEARCH_STATE.query),
+      relationship: relationshipValue(decoded.relationship),
+      ...(decoded.relationshipInvalid ||
+      (decoded.relationship !== undefined && !relationshipValue(decoded.relationship))
+        ? { relationshipInvalid: true }
+        : {}),
       mode: oneOf(decoded.mode, MODE_VALUES, DEFAULT_SEARCH_STATE.mode),
       visibleFilterIds: dedupeStrings(
         stringArrayValue(
@@ -222,11 +236,16 @@ export function decodeSearchState(value: string | null): SearchFormState {
 }
 
 export function buildBasicFilter(state: SearchFormState): BasicSearchFilter {
-  return { clauses: filterClausesValue(state.filterClauses) ?? [] };
+  return {
+    clauses: filterClausesValue(state.filterClauses) ?? [],
+    ...(state.relationship ? { relationship: state.relationship } : {}),
+  };
 }
 
 function searchStateUrlPayload(state: SearchFormState): Partial<SearchFormState> {
   const payload: Partial<SearchFormState> = {};
+  if (state.relationship) payload.relationship = state.relationship;
+  if (state.relationshipInvalid) payload.relationshipInvalid = true;
   if (state.query !== DEFAULT_SEARCH_STATE.query) {
     payload.query = state.query;
   }
@@ -296,6 +315,11 @@ function readableSearchStateParams(state: SearchFormState): URLSearchParams {
 
 function baseSearchStateParams(state: SearchFormState): URLSearchParams {
   const params = new URLSearchParams();
+  if (state.relationshipInvalid) params.set("reference-invalid", "1");
+  if (state.relationship) {
+    params.set("reference-direction", state.relationship.direction);
+    params.set("reference-record", state.relationship.record_key);
+  }
   if (state.query !== DEFAULT_SEARCH_STATE.query) {
     params.set("q", state.query);
   }
@@ -786,4 +810,35 @@ function pageSizeValue(value: unknown, fallback: number): number {
 
 function booleanValue(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function relationshipFromParams(
+  params: URLSearchParams,
+): BasicSearchFilter["relationship"] {
+  return relationshipValue({
+    direction: params.get("reference-direction"),
+    record_key: params.get("reference-record"),
+  });
+}
+
+function relationshipValue(value: unknown): BasicSearchFilter["relationship"] {
+  if (
+    !isRecord(value) ||
+    (value.direction !== "incoming" && value.direction !== "outgoing") ||
+    typeof value.record_key !== "string"
+  )
+    return undefined;
+  // The service validates the exact key; never turn a malformed key into a name query.
+  return { direction: value.direction, record_key: value.record_key };
+}
+
+function invalidRelationshipParams(params: URLSearchParams): boolean {
+  if (params.has("reference-invalid")) return true;
+  if (!params.has("reference-direction") && !params.has("reference-record"))
+    return false;
+  return (
+    params.getAll("reference-direction").length !== 1 ||
+    params.getAll("reference-record").length !== 1 ||
+    !relationshipFromParams(params)
+  );
 }

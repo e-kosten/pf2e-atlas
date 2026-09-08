@@ -18,9 +18,9 @@ use atlas_local_state::{
     SavedListItemStatus, UpdateSavedList, hydrate_saved_list_item,
 };
 use atlas_search::{
-    GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult, RecordRetrieval, RecordScope,
-    ResolveRecordRefRequest, RetrievalMode, SearchPage, TextRetrieval, TextSearchRequest,
-    TextSearchTuning,
+    AtlasRetrievalService, GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult,
+    RecordRetrieval, RecordScope, ResolveRecordRefRequest, RetrievalMode, SearchPage,
+    TextRetrieval, TextSearchRequest, TextSearchTuning,
 };
 use serde_json::json;
 use time::OffsetDateTime;
@@ -29,7 +29,15 @@ use time::format_description::well_known::Rfc3339;
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::filter::lower_basic_filter;
 use crate::projection::record_summary;
+use crate::retrieval::{
+    VerifiedRemasterLookup, verified_remaster_lookup, verified_remaster_lookups_for_records,
+};
 use crate::service::AtlasAppService;
+
+struct HydratedSavedListRecords {
+    records_by_key: BTreeMap<String, atlas_record::RetrievedRecord>,
+    remaster_lookups_by_key: BTreeMap<String, VerifiedRemasterLookup>,
+}
 
 impl AtlasAppService {
     pub fn saved_lists(&self) -> AppServiceResult<SavedListIndexView> {
@@ -51,14 +59,14 @@ impl AtlasAppService {
                     format!("saved list `{list_ref}` was not found"),
                 )
             })?;
-        let records_by_key = hydrate_saved_list_records(self, &list.items)?;
+        let hydrated_records = hydrate_saved_list_records(self, &list.items)?;
         Ok(SavedListDetailView {
             list: saved_list_summary(list.list),
             items: list
                 .items
                 .into_iter()
-                .map(|item| saved_list_item_view(item, &records_by_key))
-                .collect(),
+                .map(|item| saved_list_item_view(item, &hydrated_records))
+                .collect::<AppServiceResult<Vec<_>>>()?,
         })
     }
 
@@ -317,10 +325,10 @@ impl AtlasAppService {
                     record_key: item.record_key,
                     note: item.note,
                     record_title_snapshot: record
-                        .map(|record| record.identity.name.clone())
+                        .map(|record| record.record.identity.name.clone())
                         .unwrap_or_else(|| item.snapshot.title),
                     record_kind_snapshot: record
-                        .map(|record| record.classification.kind.as_str().to_string())
+                        .map(|record| record.record.classification.kind.as_str().to_string())
                         .or(item.snapshot.kind),
                 }
             })
@@ -335,11 +343,14 @@ impl AtlasAppService {
             items: imported,
             replace: request.replace,
         })?;
-        let records_by_key = hydrate_saved_list_records(self, &imported.items)?;
+        let hydrated_records = hydrate_saved_list_records(self, &imported.items)?;
         let mut active_count = 0;
         let mut unresolved_count = 0;
         for item in &imported.items {
-            if records_by_key.contains_key(&item.record_key) {
+            if hydrated_records
+                .records_by_key
+                .contains_key(&item.record_key)
+            {
                 active_count += 1;
             } else {
                 unresolved_count += 1;
@@ -385,7 +396,7 @@ impl AtlasAppService {
             .iter()
             .filter_map(|item| RecordKey::parse(&item.record_key).ok())
             .collect::<Vec<_>>();
-        let records_by_key = if let Some(query) = query {
+        let hydrated_records = if let Some(query) = query {
             searched_saved_list_records(self, &active_keys, filter, query)?
         } else if has_match_scope {
             filtered_saved_list_records(self, &active_keys, filter)?
@@ -397,9 +408,14 @@ impl AtlasAppService {
             items: list
                 .items
                 .into_iter()
-                .filter(|item| !has_match_scope || records_by_key.contains_key(&item.record_key))
-                .map(|item| saved_list_item_view(item, &records_by_key))
-                .collect(),
+                .filter(|item| {
+                    !has_match_scope
+                        || hydrated_records
+                            .records_by_key
+                            .contains_key(&item.record_key)
+                })
+                .map(|item| saved_list_item_view(item, &hydrated_records))
+                .collect::<AppServiceResult<Vec<_>>>()?,
         })
     }
 
@@ -411,29 +427,38 @@ impl AtlasAppService {
 fn hydrate_saved_list_records(
     service: &AtlasAppService,
     items: &[SavedListItem],
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<HydratedSavedListRecords> {
     let record_keys = items
         .iter()
         .filter_map(|item| RecordKey::parse(&item.record_key).ok())
         .collect::<Vec<_>>();
     if record_keys.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok(HydratedSavedListRecords {
+            records_by_key: BTreeMap::new(),
+            remaster_lookups_by_key: BTreeMap::new(),
+        });
     }
     service.submit_retrieval(move |retrieval| {
-        Ok(retrieval
+        let records_by_key = retrieval
             .get_records(GetRecordsRequest {
                 record_keys: &record_keys,
             })?
             .into_iter()
-            .map(|record| (record.identity.key.to_string(), record))
-            .collect())
+            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved))
+            .collect::<BTreeMap<_, _>>();
+        let remaster_lookups_by_key =
+            verified_remaster_lookups_for_records(retrieval, records_by_key.values())?;
+        Ok(HydratedSavedListRecords {
+            records_by_key,
+            remaster_lookups_by_key,
+        })
     })
 }
 
 fn hydrate_export_records(
     service: &AtlasAppService,
     items: &[SavedListExportItemView],
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, atlas_record::RetrievedRecord>> {
     let record_keys = items
         .iter()
         .filter_map(|item| RecordKey::parse(&item.record_key).ok())
@@ -447,7 +472,7 @@ fn hydrate_export_records(
                 record_keys: &record_keys,
             })?
             .into_iter()
-            .map(|record| (record.identity.key.to_string(), record))
+            .map(|retrieved| (retrieved.record.identity.key.to_string(), retrieved))
             .collect())
     })
 }
@@ -455,7 +480,10 @@ fn hydrate_export_records(
 fn saved_list_export_item(item: SavedListItemView) -> SavedListExportItemView {
     let status = item.status;
     let (record_name, kind) = match item.record {
-        Some(record) => (record.title, Some(record.kind)),
+        Some(record) => (
+            record.surface.metadata.title,
+            Some(record.surface.metadata.kind),
+        ),
         None => (item.snapshot.title.clone(), item.snapshot.kind.clone()),
     };
     SavedListExportItemView {
@@ -483,9 +511,12 @@ fn filtered_saved_list_records(
     service: &AtlasAppService,
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::SearchFilterNode>,
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<HydratedSavedListRecords> {
     if record_keys.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok(HydratedSavedListRecords {
+            records_by_key: BTreeMap::new(),
+            remaster_lookups_by_key: BTreeMap::new(),
+        });
     }
     let record_keys = record_keys.to_vec();
     let filter = filter.cloned();
@@ -499,15 +530,20 @@ fn filtered_saved_list_records(
                     .with_scope(RecordScope::Keys(&record_keys))
                     .with_sort(atlas_search::RecordListSort::RecordKey),
             )?;
-            for record in result.records {
-                records.insert(record.identity.key.to_string(), record);
+            for retrieved in result.records {
+                records.insert(retrieved.record.identity.key.to_string(), retrieved);
             }
             if !result.page.has_more {
                 break;
             }
             page_number += 1;
         }
-        Ok(records)
+        let remaster_lookups_by_key =
+            verified_remaster_lookups_for_records(retrieval, records.values())?;
+        Ok(HydratedSavedListRecords {
+            records_by_key: records,
+            remaster_lookups_by_key,
+        })
     })
 }
 
@@ -516,9 +552,12 @@ fn searched_saved_list_records(
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::SearchFilterNode>,
     query: &str,
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<HydratedSavedListRecords> {
     if record_keys.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok(HydratedSavedListRecords {
+            records_by_key: BTreeMap::new(),
+            remaster_lookups_by_key: BTreeMap::new(),
+        });
     }
     let record_keys = record_keys.to_vec();
     let scoped_keys = record_keys.iter().cloned().collect::<BTreeSet<_>>();
@@ -544,9 +583,12 @@ fn searched_saved_list_records(
                 tuning: Some(tuning),
                 explain: false,
             })?;
-            for record in result.records {
-                if scoped_keys.contains(&record.record.identity.key) {
-                    records.insert(record.record.identity.key.to_string(), record.record);
+            for result_record in result.records {
+                if scoped_keys.contains(&result_record.record.record.identity.key) {
+                    records.insert(
+                        result_record.record.record.identity.key.to_string(),
+                        result_record.record,
+                    );
                 }
             }
             if !result.page.has_more {
@@ -554,7 +596,12 @@ fn searched_saved_list_records(
             }
             page_number += 1;
         }
-        Ok(records)
+        let remaster_lookups_by_key =
+            verified_remaster_lookups_for_records(retrieval, records.values())?;
+        Ok(HydratedSavedListRecords {
+            records_by_key: records,
+            remaster_lookups_by_key,
+        })
     })
 }
 
@@ -577,31 +624,46 @@ fn resolve_record_ref(
                 ));
             }
             RecordRefResolutionResult::Ambiguous(matches) => {
-                return Err(record_resolution_ambiguous_error(&record_ref, matches));
+                return Err(record_resolution_ambiguous_error(
+                    retrieval,
+                    &record_ref,
+                    matches,
+                )?);
             }
         };
         let records = retrieval.get_records(GetRecordsRequest {
             record_keys: std::slice::from_ref(&key),
         })?;
-        records.into_iter().next().ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::RecordNotFound,
-                format!("record not found: {key}"),
-            )
-        })
+        records
+            .into_iter()
+            .next()
+            .map(|record| record.record)
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::RecordNotFound,
+                    format!("record not found: {key}"),
+                )
+            })
     })
 }
 
 fn record_resolution_ambiguous_error(
+    retrieval: &AtlasRetrievalService,
     record_ref: &str,
     matches: Vec<atlas_search::RecordResolutionResult>,
-) -> AppServiceError {
+) -> AppServiceResult<AppServiceError> {
     let details = RecordResolutionAmbiguousView {
         record_ref: record_ref.to_string(),
         matches: matches
             .into_iter()
-            .map(record_resolution_candidate_view)
-            .collect(),
+            .map(|resolution| {
+                let remaster_lookup = verified_remaster_lookup(retrieval, &resolution.record)?;
+                Ok(record_resolution_candidate_view(
+                    resolution,
+                    &remaster_lookup,
+                ))
+            })
+            .collect::<AppServiceResult<Vec<_>>>()?,
     };
     let details = serde_json::to_value(details).unwrap_or_else(|_| {
         json!({
@@ -609,20 +671,21 @@ fn record_resolution_ambiguous_error(
             "matches": [],
         })
     });
-    AppServiceError::from(
+    Ok(AppServiceError::from(
         atlas_app_model::AppError::new(
             AppErrorCode::RecordResolutionAmbiguous,
             format!("record resolution ambiguous: {record_ref}"),
         )
         .with_details(details),
-    )
+    ))
 }
 
 fn record_resolution_candidate_view(
     resolution: atlas_search::RecordResolutionResult,
+    remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordResolutionCandidateView {
     RecordResolutionCandidateView {
-        record: record_summary(&resolution.record),
+        record: record_summary(&resolution.record, remaster_lookup),
         query: resolution.query,
         normalized_query: resolution.normalized_query,
         match_kind: resolution.match_kind.as_str().to_string(),
@@ -652,17 +715,36 @@ fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
 
 fn saved_list_item_view(
     item: SavedListItem,
-    records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
-) -> SavedListItemView {
-    let record = records_by_key.get(&item.record_key);
+    hydrated_records: &HydratedSavedListRecords,
+) -> AppServiceResult<SavedListItemView> {
+    let record = hydrated_records.records_by_key.get(&item.record_key);
+    let remaster_lookup = hydrated_records
+        .remaster_lookups_by_key
+        .get(&item.record_key);
     let hydrated = hydrate_saved_list_item(item, record);
-    saved_list_item_from_hydrated(hydrated)
+    saved_list_item_from_hydrated(hydrated, remaster_lookup)
 }
 
 fn saved_list_item_from_hydrated(
-    item: HydratedSavedListItem<&atlas_record::AtlasRecord>,
-) -> SavedListItemView {
-    SavedListItemView {
+    item: HydratedSavedListItem<&atlas_record::RetrievedRecord>,
+    remaster_lookup: Option<&VerifiedRemasterLookup>,
+) -> AppServiceResult<SavedListItemView> {
+    let record = match item.record {
+        Some(record) => {
+            let remaster_lookup = remaster_lookup.ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::InternalError,
+                    format!(
+                        "canonical saved-list record `{}` is missing its authenticated remaster lookup",
+                        record.record.identity.key
+                    ),
+                )
+            })?;
+            Some(record_summary(record, remaster_lookup))
+        }
+        None => None,
+    };
+    Ok(SavedListItemView {
         record_key: item.record_key,
         position: item.position,
         note: item.note,
@@ -671,8 +753,8 @@ fn saved_list_item_from_hydrated(
             title: item.snapshot.title,
             kind: item.snapshot.kind,
         },
-        record: item.record.map(record_summary),
-    }
+        record,
+    })
 }
 
 fn saved_list_item_status(status: SavedListItemStatus) -> SavedListItemStatusView {
@@ -688,13 +770,125 @@ mod tests {
         AddSavedListItemRequest, AppErrorCode, BasicSearchFilter, BatchAddSavedListItemsRequest,
         BatchSavedListItemInput, BatchSavedListItemOutcomeView, CreateSavedListRequest,
         FilterClause, FilterClauseOperator, FilterSavedListRequest, ImportSavedListRequest,
+        RecordSurfaceEditionCounterpartRoleView, RecordSurfaceEditionStatusView,
         RemoveSavedListItemRequest, SavedListItemMutationOutcomeView, SavedListItemStatusView,
         UpdateSavedListRequest,
     };
-    use atlas_domain::RecordKey;
+    use atlas_domain::{RecordKey, RecordKind, RemasterLinkSource};
     use atlas_local_state::{NewSavedList, ResolvedSavedListItem};
+    use atlas_search::{
+        RecordResolutionMatchKind, RecordResolutionResult, RemasterLinkResult, RemasterLinksResult,
+    };
 
     use crate::test_support::fixture_worker;
+
+    const AIR_MEPHIT_KEY: &str = "pathfinder-bestiary:KDRlxdIUADWHI6Vr";
+    const AIR_SCAMP_KEY: &str = "pathfinder-monster-core:MSm1im7lZA5i82rz";
+
+    #[test]
+    fn linked_air_pair_ambiguous_candidates_include_verified_counterparts() {
+        let air_mephit = edition_record(AIR_MEPHIT_KEY, "Air Mephit", false);
+        let air_scamp = edition_record(AIR_SCAMP_KEY, "Air Scamp", true);
+        let link = RemasterLinkResult {
+            remaster_record: air_scamp.clone(),
+            legacy_record: air_mephit.clone(),
+            source: RemasterLinkSource::RemasterJournal,
+            source_ref: "journal:Bestiaries".to_string(),
+        };
+        let legacy_candidate = ambiguous_candidate(
+            air_mephit.clone(),
+            RemasterLinksResult {
+                seed: air_mephit,
+                links: vec![link.clone()],
+            },
+        );
+        let remaster_candidate = ambiguous_candidate(
+            air_scamp.clone(),
+            RemasterLinksResult {
+                seed: air_scamp,
+                links: vec![link],
+            },
+        );
+
+        let legacy_edition = legacy_candidate
+            .record
+            .surface
+            .metadata
+            .edition
+            .expect("legacy ambiguity candidate should expose edition metadata");
+        assert_eq!(
+            legacy_edition.status,
+            RecordSurfaceEditionStatusView::Legacy
+        );
+        assert_eq!(legacy_edition.counterparts.len(), 1);
+        assert_eq!(
+            legacy_edition.counterparts[0].role,
+            RecordSurfaceEditionCounterpartRoleView::RemasteredCounterpart
+        );
+        assert_eq!(legacy_edition.counterparts[0].record_key, AIR_SCAMP_KEY);
+        assert_eq!(legacy_edition.counterparts[0].title, "Air Scamp");
+
+        let remaster_edition = remaster_candidate
+            .record
+            .surface
+            .metadata
+            .edition
+            .expect("remaster ambiguity candidate should expose edition metadata");
+        assert_eq!(
+            remaster_edition.status,
+            RecordSurfaceEditionStatusView::Remaster
+        );
+        assert_eq!(remaster_edition.counterparts.len(), 1);
+        assert_eq!(
+            remaster_edition.counterparts[0].role,
+            RecordSurfaceEditionCounterpartRoleView::LegacyCounterpart
+        );
+        assert_eq!(remaster_edition.counterparts[0].record_key, AIR_MEPHIT_KEY);
+        assert_eq!(remaster_edition.counterparts[0].title, "Air Mephit");
+    }
+
+    fn ambiguous_candidate(
+        record: atlas_record::RetrievedRecord,
+        links: RemasterLinksResult,
+    ) -> atlas_app_model::RecordResolutionCandidateView {
+        let resolution = RecordResolutionResult {
+            query: "Air".to_string(),
+            normalized_query: "air".to_string(),
+            match_kind: RecordResolutionMatchKind::Name,
+            matched_text: record.record.identity.name.clone(),
+            alias_source: None,
+            alias_source_ref: None,
+            record,
+        };
+        let lookup = crate::retrieval::VerifiedRemasterLookup::from_test_result(links);
+        super::record_resolution_candidate_view(resolution, &lookup)
+    }
+
+    fn edition_record(
+        record_key: &str,
+        title: &str,
+        remaster: bool,
+    ) -> atlas_record::RetrievedRecord {
+        let mut record = atlas_record::AtlasRecord::new(
+            atlas_record::RecordIdentity::new(
+                RecordKey::parse(record_key).expect("edition fixture key"),
+                title,
+            ),
+            atlas_record::RecordClassification::new(RecordKind::Creature),
+            atlas_record::FoundryRecordInfo::new(
+                "Edition Fixture",
+                atlas_record::FoundryDocumentType::Actor,
+                atlas_record::FoundryRecordType::Npc,
+            ),
+            atlas_record::RecordProvenance::new(format!("fixtures/{record_key}.json")),
+        );
+        record.publication.remaster = remaster;
+        atlas_record::RetrievedRecord {
+            record,
+            body: None,
+            spell_children: Vec::new(),
+        }
+    }
 
     #[test]
     fn saved_lists_returns_local_state_summaries() {
@@ -789,14 +983,17 @@ mod tests {
         assert_eq!(view.list.slug, "research");
         assert_eq!(view.items.len(), 2);
         assert_eq!(view.items[0].status, SavedListItemStatusView::Active);
-        assert_eq!(
-            view.items[0]
-                .record
-                .as_ref()
-                .expect("active item should hydrate")
-                .title,
-            "Test Action 1"
-        );
+        let active_record = view.items[0]
+            .record
+            .as_ref()
+            .expect("active item should hydrate");
+        assert_eq!(active_record.surface.metadata.title, "Test Action 1");
+        let edition =
+            active_record.surface.metadata.edition.as_ref().expect(
+                "canonical saved-list summary should expose authenticated edition metadata",
+            );
+        assert_eq!(edition.status, RecordSurfaceEditionStatusView::Legacy);
+        assert!(edition.counterparts.is_empty());
         assert_eq!(view.items[1].status, SavedListItemStatusView::Unresolved);
         assert!(view.items[1].record.is_none());
         assert_eq!(view.items[1].snapshot.title, "Missing Action");
@@ -839,6 +1036,7 @@ mod tests {
                 list_ref: "research".to_string(),
                 query: None,
                 filter: Some(BasicSearchFilter {
+                    relationship: None,
                     clauses: vec![FilterClause {
                         id: "kind-include_any".to_string(),
                         field: "kind".to_string(),

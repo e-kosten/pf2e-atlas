@@ -32,12 +32,15 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
 
     let analyze_help = help_output(&["index", "analyze"])?;
     assert!(analyze_help.contains(
-        "atlas index analyze --source vendor/pf2e --manifest scratch/ingest-manifest.json --json"
+        "atlas index analyze --source vendor/pf2e --manifest vendor/pf2e/static/system.json --json"
     ));
+    assert!(analyze_help.contains("Read Foundry pack declarations"));
 
     let audit_help = help_output(&["index", "audit-source-paths"])?;
     assert!(audit_help.contains("atlas index audit-source-paths --record-type npc"));
     assert!(audit_help.contains("--min-records"));
+    assert!(audit_help.contains("--strict"));
+    assert!(audit_help.contains("--baseline"));
 
     let inspect_help = help_output(&["index", "inspect"])?;
     assert!(inspect_help.contains("atlas index inspect --json"));
@@ -45,6 +48,11 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     let record_get_help = help_output(&["record", "get"])?;
     assert!(record_get_help.contains("equipment-srd:s1vB3HdXjMigYAnY"));
     assert!(record_get_help.contains("Canonical record keys"));
+
+    let record_provenance_help = help_output(&["record", "provenance"])?;
+    assert!(record_provenance_help.contains("atlas record provenance bestiary:Night-Hag"));
+    assert!(record_provenance_help.contains("does not resolve names"));
+    assert!(record_provenance_help.contains("--json"));
 
     let record_resolve_help = help_output(&["record", "resolve"])?;
     assert!(record_resolve_help.contains("atlas record resolve \"Treat Wounds\""));

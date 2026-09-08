@@ -20,6 +20,7 @@ pub(super) enum ConditionRule {
     Restrained,
     Encumbered,
     Prone,
+    Fatigued,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +43,8 @@ const CREATURES: &[AppliesTo] = &[AppliesTo::Creature];
 const CREATURES_AND_HAZARDS: &[AppliesTo] = &[AppliesTo::Creature, AppliesTo::Hazard];
 const OBJECTS: &[AppliesTo] = &[AppliesTo::Object];
 const STAT_MODIFIER: &[Category] = &[Category::StatModifier];
+const STAT_MODIFIER_AND_RUNTIME_STATE: &[Category] =
+    &[Category::StatModifier, Category::RuntimeState];
 const DETECTION: &[Category] = &[Category::Detection];
 const ATTITUDE: &[Category] = &[Category::Attitude];
 const DEATH_AND_DYING: &[Category] = &[Category::DeathAndDying];
@@ -173,13 +176,14 @@ const MODELED_CONDITIONS: &[ModeledCondition] = &[
         CREATURES,
         RUNTIME_STATE,
     ),
-    tracked(
+    automated(
         "conditionitems:HL2l2VRSaQHu9lUw",
         "Fatigued",
         false,
         None,
         CREATURES,
-        RUNTIME_STATE,
+        STAT_MODIFIER_AND_RUNTIME_STATE,
+        ConditionRule::Fatigued,
     ),
     tracked(
         "conditionitems:sDPxOjQ9kx2RZE8D",

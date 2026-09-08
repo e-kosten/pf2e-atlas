@@ -1,0 +1,75 @@
+Balor
+  Type: creature · Pack: Bestiary 1
+  Key: pathfinder-bestiary:9vNYtJZiseCEf4wt
+
+Classification
+  Level: 20
+  Rarity: common
+  Traits: chaotic, demon, evil, fiend, unholy
+  Size: lg
+  Source: Pathfinder Bestiary
+
+Defenses
+  AC: 45
+  HP: current 480; maximum 480; temporary 0
+  Fortitude: 39
+  Reflex: 35
+  Will: 34
+  All saves: +1 status to all saves vs. magic
+  Immunities: fire
+  Weaknesses: cold 20, cold-iron 20, holy 20
+
+Awareness and abilities
+  Perception: +36; darkvision
+  Initiative: perception
+  Languages: chthonian, draconic, empyrean
+  Abilities: Str +9, Dex +7, Con +9, Int +6, Wis +6, Cha +8
+  Acrobatics: +35
+  Athletics: +37
+  Deception: +36
+  Diplomacy: +32
+  Intimidation: +38
+  Religion: +32
+  Society: +32
+  Stealth: +33
+
+Movement
+  land: 35 feet
+  fly: 70 feet
+
+Resources
+  Focus: maximum 1
+
+Strikes
+  - Vorpal Cold Iron Silver Longsword — [1 action]
+  - Cold Iron Silver Flame Whip — [1 action]
+
+Activities
+  - Telepathy 100 feet — passive
+  - Constant Spells — passive
+  - +1 Status to All Saves vs. Magic — passive
+  - Attack of Opportunity (Special) — [reaction]
+  - Aura of Flame — passive
+  - Death Throes — passive
+  - Dimensional Dervish — passive
+  - Dispelling Strike — [free action]
+  - Infuse Weapons — passive
+  - Lifedrinker — [free action]
+  - Whip Reposition — passive
+  - Improved Grab — [free action]
+
+Spellcasting
+  - Divine Innate Spells — innate · divine
+    Rank 10
+      - Divine Decree — [2 actions]
+      - Dimension Door — [2 actions]
+    Rank 6
+      - Dominate (At Will) — [2 actions]
+      - True Seeing (Constant) — [2 actions]
+    Rank 5
+      - Dimension Door (At Will) — [1 action]
+    Rank 8
+      - Dispel Magic (At Will) — [2 actions]
+    Rank 1
+      - Telekinetic Projectile — [2 actions]
+  - Abyssal Pact — 1 day

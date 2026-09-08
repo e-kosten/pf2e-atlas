@@ -30,11 +30,3 @@ fn extracts_migration_rename_pairs_from_source_comments() {
         ]
     );
 }
-
-#[test]
-fn html_text_keeps_uuid_display_text() {
-    assert_eq!(
-        html_text(r#"<td>@UUID[Compendium.pf2e.foo.Item.abc]{Off-Guard}</td>"#),
-        "Off-Guard"
-    );
-}

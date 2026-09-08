@@ -20,7 +20,7 @@ pub fn boolean_columns() -> Vec<BooleanColumn> {
         boolean_column(record_metrics::columns::BOOL_VALUE, true),
         boolean_column(actor_records::columns::IS_COMPLEX, false),
         boolean_column(spell_records::columns::SUSTAINED, false),
-        boolean_column(spell_records::columns::BASIC_SAVE, false),
+        boolean_column(spell_records::columns::BASIC_SAVE, true),
     ]
     .into()
 }
@@ -82,13 +82,6 @@ pub const REQUIRED_REFERENCES: &[RequiredReference] = &[
         key: "reference_occurrences.record_key",
         table: reference_occurrences::TABLE,
         column: reference_occurrences::columns::RECORD_KEY,
-        referenced_table: records::TABLE,
-        referenced_column: records::columns::RECORD_KEY,
-    },
-    RequiredReference {
-        key: "reference_occurrences.target_record_key",
-        table: reference_occurrences::TABLE,
-        column: reference_occurrences::columns::TARGET_RECORD_KEY,
         referenced_table: records::TABLE,
         referenced_column: records::columns::RECORD_KEY,
     },

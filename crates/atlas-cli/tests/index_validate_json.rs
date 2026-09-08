@@ -5,10 +5,10 @@ use rusqlite::Connection;
 
 mod support;
 
-use support::command::{check_base_index, validate_base_index, validate_index};
+use support::command::{atlas_command, check_base_index, validate_base_index, validate_index};
 use support::db::{
     create_valid_artifact_database_omitting, create_valid_artifact_database_with_override,
-    temp_db_path,
+    refresh_bound_test_manifest, remove_fixture_artifact, temp_db_path,
 };
 use support::json::parse_ok_data;
 
@@ -27,12 +27,34 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
     assert_eq!(actual["message"], "artifact metadata is valid");
     assert_eq!(
         actual["artifact_contract_version"],
-        "pf2e-atlas-artifact/v1"
+        "pf2e-atlas-artifact/v8"
     );
-    assert_eq!(actual["schema_version"], "1");
+    assert_eq!(actual["schema_version"], "4");
     assert_eq!(actual["source_signature"], "foundry-pf2e:fixture");
     assert_eq!(actual["embedding_dimensions"], "384");
     fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn validate_index_json_uses_vector_validation_after_valid_metadata()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("cli-valid-metadata-vector-validation");
+    create_valid_artifact_database_with_override(&path, None)?;
+
+    let output = validate_index(&path)?;
+
+    assert_eq!(output.status.code(), Some(3));
+    let actual = parse_ok_data(&output)?;
+    assert_eq!(actual["code"], "artifact_contract_violation");
+    assert_diagnostic(
+        &actual,
+        "artifact_contract_violation",
+        "table:record_vector_index",
+        "present",
+        "missing",
+    );
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -62,6 +84,50 @@ fn validate_index_json_reports_unavailable_index() -> Result<(), Box<dyn std::er
     assert_eq!(output.status.code(), Some(3));
     let actual = parse_ok_data(&output)?;
     assert_unavailable_index(&actual, &path);
+    Ok(())
+}
+
+#[test]
+fn validate_index_json_rejects_missing_manifest_before_database_diagnostics()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("cli-missing-manifest");
+    create_valid_artifact_database_with_override(&path, None)?;
+    fs::remove_file(path.parent().unwrap().join("manifest.json"))?;
+
+    let output = validate_index(&path)?;
+
+    assert_eq!(output.status.code(), Some(3));
+    let actual = parse_ok_data(&output)?;
+    assert_index_unavailable(&actual, &path);
+    assert!(
+        actual["message"]
+            .as_str()
+            .unwrap()
+            .contains("required adjacent manifest is missing")
+    );
+    remove_fixture_artifact(&path)?;
+    Ok(())
+}
+
+#[test]
+fn validate_index_json_rejects_manifest_hash_mismatch_before_database_diagnostics()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("cli-manifest-hash-mismatch");
+    create_valid_artifact_database_with_override(&path, None)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE artifact_metadata SET value = '5' WHERE key = 'schema_version'",
+        [],
+    )?;
+    drop(connection);
+
+    let output = validate_index(&path)?;
+
+    assert_eq!(output.status.code(), Some(3));
+    let actual = parse_ok_data(&output)?;
+    assert_index_unavailable(&actual, &path);
+    assert_ne!(actual["code"], "unsupported_schema_version");
+    remove_fixture_artifact(&path)?;
     Ok(())
 }
 
@@ -96,6 +162,7 @@ fn validate_index_json_reports_missing_artifact_metadata() -> Result<(), Box<dyn
         [],
     )?;
     drop(connection);
+    refresh_bound_test_manifest(&path)?;
 
     let output = validate_index(&path)?;
 
@@ -177,35 +244,65 @@ fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn st
 fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-unsupported-schema");
-    create_valid_artifact_database_with_override(&path, Some(("schema_version", "2")))?;
+    create_valid_artifact_database_with_override(&path, Some(("schema_version", "5")))?;
 
     let output = validate_index(&path)?;
 
     assert_eq!(output.status.code(), Some(3));
     let actual = parse_ok_data(&output)?;
     assert_metadata_failure(&actual, &path, "unsupported_schema_version");
-    assert_eq!(actual["schema_version"], "2");
+    assert_eq!(actual["schema_version"], "5");
     assert_diagnostic(
         &actual,
         "unsupported_schema_version",
         "schema_version",
-        "1",
-        "2",
+        "4",
+        "5",
     );
+
+    let embeddings_only = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "validate", "--embeddings-only", "--index"])
+        .arg(&path)
+        .arg("--json")
+        .output()?;
+    assert_eq!(embeddings_only.status.code(), Some(3));
+    let embeddings_only_actual = parse_ok_data(&embeddings_only)?;
+    assert_metadata_failure(&embeddings_only_actual, &path, "unsupported_schema_version");
+    assert_diagnostic(
+        &embeddings_only_actual,
+        "unsupported_schema_version",
+        "schema_version",
+        "4",
+        "5",
+    );
+
+    let retrieval = atlas_command()
+        .args(["record", "get", "actions:testAction0001", "--index"])
+        .arg(&path)
+        .arg("--json")
+        .output()?;
+    assert_eq!(retrieval.status.code(), Some(3));
+    let retrieval_json: serde_json::Value = serde_json::from_slice(&retrieval.stdout)?;
+    assert_eq!(retrieval_json["error"]["code"], "index_unavailable");
+
     fs::remove_file(path)?;
     Ok(())
 }
 
 fn assert_unavailable_index(value: &serde_json::Value, path: &std::path::Path) {
-    assert_eq!(value["valid"], false);
-    assert_eq!(value["code"], "index_unavailable");
-    assert_eq!(value["index"], path.display().to_string());
+    assert_index_unavailable(value, path);
     assert!(
         value["message"]
             .as_str()
             .unwrap()
             .contains("unable to open database file")
     );
+}
+
+fn assert_index_unavailable(value: &serde_json::Value, path: &std::path::Path) {
+    assert_eq!(value["valid"], false);
+    assert_eq!(value["code"], "index_unavailable");
+    assert_eq!(value["index"], path.display().to_string());
 }
 
 fn assert_metadata_failure(value: &serde_json::Value, path: &std::path::Path, code: &str) {
@@ -216,7 +313,7 @@ fn assert_metadata_failure(value: &serde_json::Value, path: &std::path::Path, co
         value["message"],
         "artifact metadata is incompatible with this runtime"
     );
-    assert_eq!(value["artifact_contract_version"], "pf2e-atlas-artifact/v1");
+    assert_eq!(value["artifact_contract_version"], "pf2e-atlas-artifact/v8");
 }
 
 fn assert_diagnostic(

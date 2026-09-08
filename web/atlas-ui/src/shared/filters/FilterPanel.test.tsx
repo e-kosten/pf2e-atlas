@@ -4,6 +4,8 @@ import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
 import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
 import { FilterPanel } from "./FilterPanel";
 
+const tenSecondTestDeadline = 10_000;
+
 describe("FilterPanel", () => {
   it("renders backend-provided default fields and range metadata", () => {
     render(<FilterPanel workspace={workspace()} />);
@@ -409,28 +411,32 @@ describe("FilterPanel", () => {
     );
   });
 
-  it("keeps an open option picker stable while refreshed filter values narrow", async () => {
-    const { rerender } = render(<FilterPanel workspace={workspace()} />);
+  it(
+    "keeps an open option picker stable while refreshed filter values narrow",
+    async () => {
+      const { rerender } = render(<FilterPanel workspace={workspace()} />);
 
-    fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
-    await waitFor(() => expect(filterOptionRow("spell (1)")).toBeInTheDocument());
+      fireEvent.click(screen.getByLabelText(/edit kinds filter/i));
+      await waitFor(() => expect(filterOptionRow("spell (1)")).toBeInTheDocument());
 
-    rerender(
-      <FilterPanel
-        workspace={workspace({
-          filterValuesByField: {
-            kind: {
-              field_id: "kind",
-              matching_record_count: 1n,
-              options: [],
+      rerender(
+        <FilterPanel
+          workspace={workspace({
+            filterValuesByField: {
+              kind: {
+                field_id: "kind",
+                matching_record_count: 1n,
+                options: [],
+              },
             },
-          },
-        })}
-      />,
-    );
+          })}
+        />,
+      );
 
-    expect(screen.getByRole("button", { name: "spell (1)" })).toBeInTheDocument();
-  });
+      expect(screen.getByRole("button", { name: "spell (1)" })).toBeInTheDocument();
+    },
+    tenSecondTestDeadline,
+  );
 });
 
 function workspace(

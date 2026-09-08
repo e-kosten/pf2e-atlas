@@ -12,12 +12,13 @@ use atlas_app_model::{
     SavedListItemView, SavedListSummaryView, UpdateSavedListRequest,
 };
 use atlas_domain::{DetailLevel, RecordKey};
-use atlas_record::{RecordJson, RecordJsonOptions, record_json};
+use atlas_record::{RecordJson, RecordJsonOptions};
 use serde::Serialize;
 
 use crate::client::{
     AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
 };
+use crate::commands::record::context::project_record;
 use crate::output::{write_json_data, write_json_error, write_json_error_data};
 
 pub(crate) mod args;
@@ -522,8 +523,8 @@ fn list_show_data(
         items: view
             .items
             .into_iter()
-            .map(|item| list_show_item(item, &records_by_key, detail))
-            .collect(),
+            .map(|item| list_show_item(client, item, &records_by_key, detail))
+            .collect::<Result<Vec<_>, AppError>>()?,
     })
 }
 
@@ -567,7 +568,7 @@ fn list_show_no_records_data(
 fn hydrate_records(
     client: &impl AtlasClient,
     items: &[SavedListItemView],
-) -> Result<BTreeMap<String, atlas_record::AtlasRecord>, AppError> {
+) -> Result<BTreeMap<String, atlas_record::RetrievedRecord>, AppError> {
     let keys = items
         .iter()
         .filter(|item| item.record.is_some())
@@ -579,19 +580,21 @@ fn hydrate_records(
     Ok(client
         .get_records(keys)?
         .into_iter()
-        .map(|record| (record.identity.key.to_string(), record))
+        .map(|record| (record.record.identity.key.to_string(), record))
         .collect())
 }
 
 fn list_show_item(
+    client: &impl AtlasClient,
     item: SavedListItemView,
-    records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
+    records_by_key: &BTreeMap<String, atlas_record::RetrievedRecord>,
     detail: DetailLevel,
-) -> ListShowItem {
+) -> Result<ListShowItem, AppError> {
     let record = records_by_key
         .get(&item.record_key)
-        .map(|record| record_json(record, record_json_options(detail)));
-    ListShowItem {
+        .map(|record| project_record(client, record, record_json_options(detail)))
+        .transpose()?;
+    Ok(ListShowItem {
         record_key: item.record_key,
         position: item.position,
         note: item.note,
@@ -601,7 +604,7 @@ fn list_show_item(
             kind: item.snapshot.kind,
         },
         record,
-    }
+    })
 }
 
 fn list_add_record_refs(options: &ListAddOptions) -> Result<Vec<String>, String> {
@@ -663,7 +666,14 @@ fn list_show_item_no_record(item: SavedListItemView) -> ListShowItemNoRecord {
 fn list_show_summary_item(item: SavedListItemView) -> ListShowSummaryItem {
     let status = list_item_status_text(item.status);
     let (name, level, kind) = match item.record {
-        Some(record) => (record.title, record.level_label, record.kind),
+        Some(record) => {
+            let metadata = record.surface.metadata;
+            (
+                metadata.title,
+                metadata.level.map(|level| level.to_string()),
+                metadata.kind,
+            )
+        }
         None => (
             item.snapshot.title,
             None,
@@ -951,7 +961,8 @@ fn write_app_json_error_with_client(
     let (code, _) = cli_error_code(error.code);
     if error.code == AppErrorCode::RecordResolutionAmbiguous
         && let Some(details) = error.details.as_ref()
-        && let Some(data) = legacy_ambiguous_record_refs(client, details)
+        && let Some(data) =
+            legacy_ambiguous_record_refs(client, details).map_err(|error| error.to_string())?
     {
         return write_json_error_data(code, error.message, data);
     }
@@ -961,51 +972,64 @@ fn write_app_json_error_with_client(
 fn legacy_ambiguous_record_refs(
     client: &impl AtlasClient,
     details: &serde_json::Value,
-) -> Option<LegacyAmbiguousRecordRefs> {
+) -> Result<Option<LegacyAmbiguousRecordRefs>, String> {
     let ambiguity = match serde_json::from_value::<RecordResolutionAmbiguousView>(details.clone()) {
         Ok(ambiguity) => ambiguity,
-        Err(_) => return legacy_ambiguous_record_refs_from_value(details),
+        Err(_) => return Ok(legacy_ambiguous_record_refs_from_value(details)),
     };
     let keys = ambiguity
         .matches
         .iter()
-        .filter_map(|candidate| RecordKey::parse(&candidate.record.record_key).ok())
+        .filter_map(|candidate| {
+            candidate
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref()
+                .and_then(|record_key| RecordKey::parse(record_key).ok())
+        })
         .collect::<Vec<_>>();
     if keys.len() != ambiguity.matches.len() {
-        return None;
+        return Ok(None);
     }
     let records_by_key = client
         .get_records(keys)
         .ok()
         .unwrap_or_default()
         .into_iter()
-        .map(|record| (record.identity.key.to_string(), record))
+        .map(|record| (record.record.identity.key.to_string(), record))
         .collect::<BTreeMap<_, _>>();
     let matches = ambiguity
         .matches
         .iter()
         .map(|candidate| {
-            records_by_key
-                .get(&candidate.record.record_key)
+            let metadata = &candidate.record.surface.metadata;
+            Ok(metadata
+                .record_key
+                .as_deref()
+                .and_then(|record_key| records_by_key.get(record_key))
                 .map(|record| {
-                    serde_json::json!(record_json(
-                        record,
-                        record_json_options(DetailLevel::Standard)
-                    ))
+                    project_record(client, record, record_json_options(DetailLevel::Standard))
+                        .map_err(|error| error.message)
+                        .and_then(|record| {
+                            serde_json::to_value(record).map_err(|error| error.to_string())
+                        })
                 })
+                .transpose()?
                 .unwrap_or_else(|| {
                     serde_json::json!({
-                        "key": candidate.record.record_key,
-                        "name": candidate.record.title,
-                        "kind": candidate.record.kind,
+                        "key": metadata.record_key,
+                        "name": metadata.title,
+                        "kind": metadata.kind,
                     })
-                })
+                }))
         })
-        .collect();
-    Some(LegacyAmbiguousRecordRefs {
+        .collect::<Result<Vec<_>, String>>()?;
+    Ok(Some(LegacyAmbiguousRecordRefs {
         record_ref: ambiguity.record_ref,
         matches,
-    })
+    }))
 }
 
 fn legacy_ambiguous_record_refs_from_value(

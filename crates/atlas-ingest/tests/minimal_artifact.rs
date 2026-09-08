@@ -1,7 +1,9 @@
 use std::fs;
 
-use atlas_index::{SqliteIndexReader, ValidationStatus};
+use atlas_domain::RecordKey;
+use atlas_index::{ReferenceEdgeDirection, SqliteIndexReader, ValidationStatus};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
+use atlas_record::{CreatureMovementMode, RecordBody};
 use rusqlite::Connection;
 use serde_json::Value;
 
@@ -339,10 +341,13 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
 
     let connection = Connection::open(&output_path)?;
     let mut statement = connection.prepare(
-        "SELECT content_key, occurrence_ordinal, target_record_key, source_kind, visibility, display_text, reference_text, relation_kind
-         FROM reference_occurrences
-         WHERE record_key = 'actions:occurrenceAction1'
-         ORDER BY content_key, occurrence_ordinal",
+        "SELECT r.content_key, r.occurrence_ordinal, r.target_record_key,
+                c.source_kind, r.visibility, r.label, r.target_kind, r.relation_kind
+         FROM reference_occurrences r
+         JOIN record_content c
+           ON c.record_key = r.record_key AND c.content_key = r.content_key
+         WHERE r.record_key = 'actions:occurrenceAction1'
+         ORDER BY r.content_key, r.occurrence_ordinal",
     )?;
     let rows = statement
         .query_map([], |row| {
@@ -372,7 +377,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "description",
         "public",
         "Heal One",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "reference",
     );
     assert_occurrence(
@@ -383,7 +388,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "description",
         "public",
         "Heal Two",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "reference",
     );
     assert_occurrence(
@@ -394,7 +399,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "description",
         "public",
         "Heal Embed",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "embed",
     );
     assert_occurrence(
@@ -405,7 +410,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "embedded_item_description",
         "public",
         "Heal Embedded",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "reference",
     );
     assert_occurrence(
@@ -416,7 +421,7 @@ fn writes_reference_occurrences_with_content_provenance() -> Result<(), Box<dyn 
         "public_notes",
         "public",
         "Heal Notes",
-        "Compendium.pf2e.spells.Item.targetSpell01",
+        "record",
         "reference",
     );
 
@@ -445,7 +450,7 @@ fn assert_occurrence(
     source_kind: &str,
     visibility: &str,
     display_text: &str,
-    reference_text: &str,
+    target_kind: &str,
     relation_kind: &str,
 ) {
     assert!(
@@ -457,7 +462,7 @@ fn assert_occurrence(
                 row_source_kind,
                 row_visibility,
                 row_display,
-                row_reference,
+                row_target_kind,
                 row_relation,
             )| {
                 content_key.starts_with(content_key_prefix)
@@ -466,7 +471,7 @@ fn assert_occurrence(
                     && row_source_kind == source_kind
                     && row_visibility == visibility
                     && row_display == display_text
-                    && row_reference == reference_text
+                    && row_target_kind == target_kind
                     && row_relation == relation_kind
             },
         ),
@@ -477,11 +482,17 @@ fn assert_occurrence(
 #[test]
 fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn std::error::Error>> {
     let root = fixture_root("source-signature");
+    let mirror_root = fixture_root("source-signature-mirror");
     write_fixture_source(&root)?;
+    write_fixture_source(&mirror_root)?;
 
     let first = analyze_foundry_source(&root, None)?.source.source_signature;
     let second = analyze_foundry_source(&root, None)?.source.source_signature;
+    let mirror = analyze_foundry_source(&mirror_root, None)?
+        .source
+        .source_signature;
     assert_eq!(first, second);
+    assert_eq!(first, mirror);
 
     fs::write(
         root.join("packs/actions/demoralize.json"),
@@ -507,6 +518,52 @@ fn source_signature_is_stable_and_changes_with_source() -> Result<(), Box<dyn st
     assert_ne!(third, fourth);
 
     fs::remove_dir_all(root)?;
+    fs::remove_dir_all(mirror_root)?;
+    Ok(())
+}
+
+#[test]
+fn source_signature_includes_rejected_raw_records_without_hashing_projection_failures()
+-> Result<(), Box<dyn std::error::Error>> {
+    let first_root = fixture_root("source-signature-rejected-first");
+    let second_root = fixture_root("source-signature-rejected-second");
+    write_fixture_source(&first_root)?;
+    write_fixture_source(&second_root)?;
+    let clean_signature = analyze_foundry_source(&first_root, None)?
+        .source
+        .source_signature;
+
+    let missing_id = r#"{
+      "name": "Projection Rejection",
+      "type": "action",
+      "system": {
+        "description": { "value": "<p>This raw record is signed before normalization.</p>" }
+      }
+    }"#;
+    for root in [&first_root, &second_root] {
+        fs::write(root.join("packs/actions/missing-id.json"), missing_id)?;
+        fs::write(root.join("packs/actions/broken-json.json"), "{")?;
+    }
+
+    let first = analyze_foundry_source(&first_root, None)?;
+    let second = analyze_foundry_source(&second_root, None)?;
+
+    assert_eq!(first.skipped_record_count, 2);
+    assert_eq!(second.skipped_record_count, 2);
+    assert_ne!(first.source.source_signature, clean_signature);
+    assert_eq!(
+        first.source.source_signature,
+        second.source.source_signature
+    );
+    assert!(
+        first
+            .skipped_records
+            .iter()
+            .all(|record| !std::path::Path::new(&record.path).is_absolute())
+    );
+
+    fs::remove_dir_all(first_root)?;
+    fs::remove_dir_all(second_root)?;
     Ok(())
 }
 
@@ -803,7 +860,8 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(report.generated_record_count, 2);
     assert_eq!(report.pending_document_embedding_count, 2);
     assert_eq!(report.document_embedding_count, 0);
-    let validation = SqliteIndexReader::open_read_only(&output_path)?.validate()?;
+    let reader = SqliteIndexReader::open_read_only(&output_path)?;
+    let validation = reader.validate()?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(validation.source_record_count.as_deref(), Some("1"));
     assert_eq!(validation.artifact_record_count.as_deref(), Some("3"));
@@ -828,16 +886,45 @@ fn generates_affliction_records_from_staged_embedded_items()
         [],
         |row| row.get(0),
     )?;
+    let source_instance_key: String = connection.query_row(
+        "SELECT record_key FROM records WHERE record_role = 'source_instance'",
+        [],
+        |row| row.get(0),
+    )?;
+    let source_instance_policy: (String, String, i64) = connection.query_row(
+        "SELECT retrieval_disposition, retrieval_rationale, is_default_visible
+         FROM records WHERE record_key = ?1",
+        [&source_instance_key],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
     let ghoul_fever_count: usize = connection.query_row(
         "SELECT COUNT(*) FROM records
          WHERE pack_name = 'derived-afflictions'
            AND name = 'Ghoul Fever'
            AND foundry_record_type = 'affliction'
-           AND record_kind = 'affliction'
-           AND is_default_visible = 1",
+           AND record_kind = 'affliction'",
         [],
         |row| row.get(0),
     )?;
+    let mut role_statement = connection.prepare(
+        "SELECT raw_json FROM records
+         WHERE pack_name IN ('derived-afflictions', 'derived-affliction-instances')
+         ORDER BY pack_name",
+    )?;
+    let mut generated_roles = role_statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .map(|row| {
+            let raw: Value = serde_json::from_str(&row?)?;
+            Ok::<_, Box<dyn std::error::Error>>(
+                raw.pointer("/_derived/role")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    generated_roles.sort();
+    drop(role_statement);
     let serpent_dagger_count: usize = connection.query_row(
         "SELECT COUNT(*) FROM records
          WHERE pack_name = 'derived-afflictions'
@@ -849,7 +936,28 @@ fn generates_affliction_records_from_staged_embedded_items()
     assert_eq!(generated_fts_count, 1);
     assert_eq!(generated_edge_count, 3);
     assert_eq!(ghoul_fever_count, 1);
+    assert_eq!(generated_roles, ["canonical", "source_instance"]);
     assert_eq!(serpent_dagger_count, 0);
+    assert_eq!(
+        source_instance_policy,
+        (
+            "direct_only".to_string(),
+            "duplicate_source_instance".to_string(),
+            0
+        )
+    );
+    let source_instance_key = RecordKey::parse(&source_instance_key)?;
+    assert_eq!(
+        reader
+            .load_records_by_key(std::slice::from_ref(&source_instance_key))?
+            .len(),
+        1
+    );
+    assert!(
+        !reader
+            .reference_edges_for_seed(&source_instance_key, ReferenceEdgeDirection::Outgoing)?
+            .is_empty()
+    );
 
     drop(connection);
     fs::remove_dir_all(root)?;
@@ -882,7 +990,8 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert!(report.source_signature.starts_with("foundry-pf2e:sha256:"));
     assert!(report.skipped_records.is_empty());
 
-    let validation = SqliteIndexReader::open_read_only(&output_path)?.validate()?;
+    let reader = SqliteIndexReader::open_read_only(&output_path)?;
+    let validation = reader.validate()?;
     assert_eq!(validation.status, ValidationStatus::Ok);
     assert_eq!(
         validation.source_signature.as_deref(),
@@ -891,6 +1000,13 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(validation.source_record_count.as_deref(), Some("5"));
     assert_eq!(validation.artifact_record_count.as_deref(), Some("5"));
     assert_eq!(validation.generated_record_count.as_deref(), Some("0"));
+    let goblin_key = RecordKey::parse("bestiary:testActor0001")?;
+    let mut goblin_records =
+        reader.load_hydrated_records_by_key(std::slice::from_ref(&goblin_key))?;
+    let goblin_record = goblin_records.pop().ok_or("missing canonical goblin")?;
+    let Some(RecordBody::Creature(goblin)) = goblin_record.body else {
+        return Err("goblin must hydrate through its canonical creature body".into());
+    };
 
     let connection = Connection::open(&output_path)?;
     let pack_count: usize =
@@ -913,13 +1029,17 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )?;
-    let (spell_taxonomy_terms, spell_mechanic_terms, spell_source_terms): (String, String, String) =
-        connection.query_row(
-            "SELECT taxonomy_terms, mechanic_terms, source_terms
+    let (spell_traits, spell_taxonomy_terms, spell_mechanic_terms, spell_source_terms): (
+        String,
+        String,
+        String,
+        String,
+    ) = connection.query_row(
+        "SELECT traits, taxonomy_terms, mechanic_terms, source_terms
          FROM records_fts WHERE record_key = 'spells:testSpell0001'",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )?;
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )?;
     let (actor_mechanic_terms, actor_metric_terms): (String, String) = connection.query_row(
         "SELECT mechanic_terms, metric_terms
          FROM records_fts WHERE record_key = 'bestiary:testActor0001'",
@@ -959,6 +1079,11 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         connection.query_row("SELECT COUNT(*) FROM actor_records", [], |row| row.get(0))?;
     let item_side_count: usize =
         connection.query_row("SELECT COUNT(*) FROM item_records", [], |row| row.get(0))?;
+    let spell_item_side_count: usize = connection.query_row(
+        "SELECT COUNT(*) FROM item_records WHERE record_key = 'spells:testSpell0001'",
+        [],
+        |row| row.get(0),
+    )?;
     let spell_side_count: usize =
         connection.query_row("SELECT COUNT(*) FROM spell_records", [], |row| row.get(0))?;
     let reference_edge_count: usize =
@@ -1035,17 +1160,6 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
         [],
         |row| row.get(0),
     )?;
-    let (actor_size, actor_languages, actor_speed_types, actor_senses): (
-        String,
-        String,
-        String,
-        String,
-    ) = connection.query_row(
-        "SELECT size, languages_json, speed_types_json, senses_json
-         FROM actor_records WHERE record_key = 'bestiary:testActor0001'",
-        [],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-    )?;
     let (item_group, item_bulk, item_hands, item_damage_types): (String, f64, String, String) =
         connection.query_row(
             "SELECT system_group, bulk_value, hands_requirement, damage_types_json
@@ -1091,8 +1205,10 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert!(action_source_terms.contains("Player Core"));
     assert!(action_source_terms.contains("Actions"));
     assert!(spell_taxonomy_terms.contains("spell"));
-    assert!(spell_taxonomy_terms.contains("cantrip"));
-    assert!(spell_mechanic_terms.contains("level 1"));
+    assert!(!spell_taxonomy_terms.contains("cantrip"));
+    assert!(spell_traits.contains("cantrip"));
+    assert!(spell_mechanic_terms.contains("rank 1"));
+    assert!(!spell_mechanic_terms.contains("level 1"));
     assert!(spell_mechanic_terms.contains("1st rank"));
     assert!(spell_mechanic_terms.contains("basic save"));
     assert!(spell_source_terms.contains("Spells"));
@@ -1108,11 +1224,12 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(spell_rarity, "common");
     assert_eq!(spell_publication_family, "core");
     assert_eq!(trait_count, 13);
-    assert_eq!(metric_count, 20);
-    assert!(metric_key_catalog_count >= 20);
+    assert_eq!(metric_count, 18);
+    assert!(metric_key_catalog_count >= 18);
     assert!(metric_value_catalog_count >= 3);
-    assert_eq!(actor_side_count, 1);
-    assert_eq!(item_side_count, 4);
+    assert_eq!(actor_side_count, 0);
+    assert_eq!(item_side_count, 3);
+    assert_eq!(spell_item_side_count, 0);
     assert_eq!(spell_side_count, 1);
     assert_eq!(reference_edge_count, 1);
     assert_eq!(reference_to, "spells:testSpell0001");
@@ -1134,10 +1251,46 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(weapon_damage_faces, 8.0);
     assert_eq!(actor_catalog_count, 1);
     assert_eq!(save_best_catalog_value, "ref");
-    assert_eq!(actor_size, "small");
-    assert_eq!(actor_languages, "[\"goblin\"]");
-    assert_eq!(actor_speed_types, "[\"climb\",\"land\"]");
-    assert_eq!(actor_senses, "[\"darkvision\"]");
+    assert_eq!(
+        goblin.size.value.as_value().map(|size| size.as_source()),
+        Some("sm")
+    );
+    assert_eq!(
+        goblin
+            .languages
+            .value
+            .as_value()
+            .and_then(|languages| languages.values.as_value())
+            .map(|languages| languages
+                .iter()
+                .map(|language| language.as_str())
+                .collect::<Vec<_>>()),
+        Some(vec!["goblin"])
+    );
+    assert_eq!(
+        goblin.movement.value.as_value().map(|speeds| {
+            speeds
+                .iter()
+                .map(|speed| speed.mode.clone())
+                .collect::<Vec<_>>()
+        }),
+        Some(vec![
+            CreatureMovementMode::Land,
+            CreatureMovementMode::Climb
+        ])
+    );
+    assert_eq!(
+        goblin
+            .perception
+            .value
+            .as_value()
+            .and_then(|perception| perception.senses.as_value())
+            .map(|senses| senses
+                .iter()
+                .map(|sense| sense.sense_type.as_str())
+                .collect::<Vec<_>>()),
+        Some(vec!["darkvision"])
+    );
     assert_eq!(item_group, "bow");
     assert_eq!(item_bulk, 2.0);
     assert_eq!(item_hands, "two_hands");
@@ -1146,7 +1299,7 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(spell_kinds, "[\"cantrip\"]");
     assert_eq!(spell_range_text, "30 feet");
     assert_eq!(spell_range_value, 30.0);
-    assert_eq!(spell_target_text, "1 willing creature");
+    assert_eq!(spell_target_text, "<p>1 willing creature</p>");
     assert_eq!(spell_save_type, "fortitude");
     assert_eq!(spell_basic_save, 1);
     assert_eq!(spell_damage_types, "[\"vitality\"]");

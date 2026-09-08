@@ -32,12 +32,17 @@ fn graph_uses_json_returns_backlinks_as_uses() -> Result<(), Box<dyn std::error:
     let data = ok_data(&json);
     assert_eq!(data["detail"], "summary");
     assert_eq!(data["seed"]["record"]["key"], "actions:testAction1");
+    assert_eq!(data["seed"]["record"]["presentation_type"], "unmigrated");
     assert!(data.get("outgoing").is_none());
     assert!(data.get("backlinks").is_none());
     assert_eq!(data["uses"]["total_records"], 2);
     assert_eq!(data["uses"]["total_edges"], 2);
     assert_eq!(data["uses"]["truncated"], true);
     assert_eq!(data["uses"]["records"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        data["uses"]["records"][0]["presentation_type"],
+        "unmigrated"
+    );
     assert_eq!(data["uses"]["edges"].as_array().unwrap().len(), 1);
     assert_section_edges_point_to_returned_records(&data["uses"], "from");
 

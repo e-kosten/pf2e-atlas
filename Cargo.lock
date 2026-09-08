@@ -91,7 +91,6 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 name = "atlas-app-model"
 version = "0.1.0"
 dependencies = [
- "atlas-record",
  "serde",
  "serde_json",
  "ts-rs",
@@ -103,11 +102,17 @@ version = "0.1.0"
 dependencies = [
  "atlas-app-model",
  "atlas-domain",
+ "atlas-embedding",
+ "atlas-index",
+ "atlas-ingest",
  "atlas-local-state",
  "atlas-record",
  "atlas-runtime",
  "atlas-search",
+ "rusqlite",
+ "serde",
  "serde_json",
+ "sha2",
  "thiserror",
  "time",
 ]
@@ -202,6 +207,7 @@ dependencies = [
  "sha2",
  "thiserror",
  "tracing",
+ "yaml_serde",
 ]
 
 [[package]]
@@ -223,6 +229,7 @@ dependencies = [
  "atlas-domain",
  "serde",
  "serde_json",
+ "sha2",
  "ts-rs",
 ]
 
@@ -278,6 +285,7 @@ dependencies = [
  "atlas-app-model",
  "atlas-app-service",
  "atlas-domain",
+ "atlas-ingest",
  "atlas-record",
  "axum",
  "rust-embed",

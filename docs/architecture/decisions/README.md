@@ -9,7 +9,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0020-rust-content-documents.md`](./0020-rust-content-documents.md): records preserve authored rich text as `RichDocument`, with presentation, structured FTS, semantic chunks, and reference edges derived from that canonical content model.
 - [`0021-rust-runtime-index-and-retrieval-boundaries.md`](./0021-rust-runtime-index-and-retrieval-boundaries.md): runtime path policy belongs to `atlas-runtime`, SQLite read access belongs to `SqliteIndexReader` behind focused read traits and the `RetrievalReadIndex` bundle, artifact writes go through `IndexArtifactWriter`, and product retrieval routes through `AtlasRetrievalService`.
 - [`0022-rust-artifact-policy-ownership.md`](./0022-rust-artifact-policy-ownership.md): artifact shape/storage, typed metric definitions, and default reference graph policy have explicit owning crates.
-- [`0023-rust-cli-json-contract.md`](./0023-rust-cli-json-contract.md): CLI JSON uses one envelope, shared record/result DTOs, stable detail hydration levels, and standard exit-code classes.
+- [`0023-rust-cli-json-contract.md`](./0023-rust-cli-json-contract.md): CLI JSON uses one envelope, an `atlas-record` retrieval aggregate, a shared-base tagged entity `RecordJson`, presence-based detail hydration without empty placeholders, explicit raw opt-in, and standard exit-code classes.
 - [`0024-rust-search-retrieval-and-fusion-controls.md`](./0024-rust-search-retrieval-and-fusion-controls.md): text search uses one default hybrid surface with advanced FTS/vector retrieval controls, weighted-RRF fusion, and exact identity tiering.
 - [`0025-rust-graph-context-retrieval.md`](./0025-rust-graph-context-retrieval.md): graph context retrieval is key-based, one-hop, and separate from search relationship filters.
 - [`0026-rust-cli-product-surface.md`](./0026-rust-cli-product-surface.md): PF2e Atlas is a Rust CLI plus first-party skill product; future TUI and derived tags are Rust-owned follow-ups.
@@ -19,6 +19,15 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0030-local-state-database.md`](./0030-local-state-database.md): durable mutable local state such as saved lists lives in a separate local-state SQLite database beside the generated artifact.
 - [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): app-service composes final app-facing record surfaces from source facts plus product context, while the frontend renders and hosts interactions.
 - [`0032-ingest-product-intent.md`](./0032-ingest-product-intent.md): ingest promotes Foundry source fields only when they improve durable Atlas product surfaces, while broad raw JSON scans remain diagnostic tooling.
+
+## Checkpoint B ADRs
+
+Checkpoint B approved these decisions as the dependency-ordered implementation contract. Each implementation slice remains bounded by its named owner and prerequisites:
+
+- [`0033-source-fidelity-and-exhaustive-coverage.md`](./0033-source-fidelity-and-exhaustive-coverage.md): source interpretation uses a pinned serialized-Source boundary and exhaustive zero-unassigned registry, with a truthful default-visible/public-only base and an approved unauthenticated GM-complete target whose exclusions need non-auth rationales.
+- [`0034-canonical-entities-occurrences-and-projections.md`](./0034-canonical-entities-occurrences-and-projections.md): canonical entities own intrinsic facts, occurrences own context, runtime instances own mutable state, and the completed creature cutover carries the canonical body without a second model.
+- [`0035-atomic-canonical-artifact.md`](./0035-atomic-canonical-artifact.md): artifact contract v8/schema v4 stores and completely hydrates canonical creatures, hazards, spells, and consumable spell children without duplicate hydration models or obsolete sparse activity/spellcasting tables.
+- [`0036-source-faithful-record-surfaces.md`](./0036-source-faithful-record-surfaces.md): app-service, CLI, and web consume canonical creature, hazard, and standalone-spell bodies through typed contracts, with generic presentation retained only for families that have not completed their own cutover.
 
 ## Historical ADRs
 

@@ -9,7 +9,7 @@ use super::specs::{
     SHIELD_STATIC_SPECS, WEAPON_STATIC_SPECS,
 };
 use super::value::{number_like_value, slugify_metric_segment};
-use super::{dedupe_metrics, validate_metric_rows};
+use super::{dedupe_metrics, extract_metrics, validate_metric_rows};
 
 fn exact_metric_key(definition: metric_definitions::MetricDefinition) -> &'static str {
     definition
@@ -138,6 +138,27 @@ fn source_specs_reference_the_definitions_they_emit() {
 }
 
 #[test]
+fn npc_metrics_are_absent_from_the_generic_record_carrier() {
+    let raw = serde_json::json!({
+        "system": {
+            "attributes": {
+                "ac": {"value": 99},
+                "hp": {"value": 999, "max": 999, "broken": 7},
+                "speed": {"value": "90 feet"}
+            },
+            "abilities": {"str": {"mod": 94, "value": 96, "modifier": 98}},
+            "perception": {"mod": 88},
+            "saves": {"fortitude": {"value": 77}},
+            "skills": {"arcana": {"value": 66, "rank": 2}}
+        }
+    });
+
+    let metrics = extract_metrics(&raw, "Actor", "npc").expect("npc metric extraction");
+
+    assert!(metrics.is_empty());
+}
+
+#[test]
 fn source_specs_emit_first_valid_static_metric_path() {
     let raw = serde_json::json!({
         "system": {
@@ -224,50 +245,6 @@ fn source_specs_emit_dynamic_pattern_metrics() {
         &metrics,
         &metric_definitions::actor::sense::range_key("darkvision"),
         60.0,
-    );
-}
-
-#[test]
-fn extracts_disable_dc_and_rank_metrics_from_hazard_checks() {
-    let raw = serde_json::json!({
-        "system": {
-            "details": {
-                "disable": "@Check[thievery|dc:27] (expert) to disable the lock @Check[crafting|dc:30] or Thievery (master) to jam the gears"
-            }
-        }
-    });
-
-    let metrics = extract_actor_metrics(&raw).expect("actor metrics extract");
-
-    assert_number_metric(
-        &metrics,
-        exact_metric_key(metric_definitions::actor::disable::DC_MIN),
-        27.0,
-    );
-    assert_number_metric(
-        &metrics,
-        exact_metric_key(metric_definitions::actor::disable::DC_MAX),
-        30.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::disable::skill_dc_min_key("thievery"),
-        27.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::disable::skill_dc_max_key("thievery"),
-        30.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::disable::skill_rank_min_key("thievery"),
-        3.0,
-    );
-    assert_number_metric(
-        &metrics,
-        &metric_definitions::actor::disable::skill_dc_min_key("crafting"),
-        30.0,
     );
 }
 

@@ -31,28 +31,31 @@ export function RecordView({ route }: RecordViewProps) {
       primary={
         <RecordPane
           actions={
-            <>
-              <AddToListButton recordKey={route.recordKey} />
-              <RouteLink
-                route={{
-                  kind: "reader",
-                  recordKey: route.recordKey,
-                  previewRecordKey: null,
-                }}
-              >
-                Reader view
-              </RouteLink>
-            </>
+            detail.data ? (
+              <>
+                <AddToListButton recordKey={route.recordKey} />
+                <RouteLink
+                  route={{
+                    kind: "reader",
+                    recordKey: route.recordKey,
+                    previewRecordKey: null,
+                  }}
+                >
+                  Reader view
+                </RouteLink>
+              </>
+            ) : null
           }
           title="Record Detail"
         >
           <RecordDetailPane
             detail={detail.data}
             errors={[detail.error]}
-            loading={detail.isLoading || detail.isFetching}
+            loading={detail.isLoading}
             onReference={(recordKey) =>
               navigateToAtlasRoute({ kind: "record", recordKey })
             }
+            stale={detail.isFetching && Boolean(detail.data)}
           />
         </RecordPane>
       }
@@ -68,19 +71,21 @@ export function ReaderView({ route }: ReaderViewProps) {
       primary={
         <RecordPane
           actions={
-            <>
-              <AddToListButton recordKey={route.recordKey} />
-              <RouteLink route={{ kind: "record", recordKey: route.recordKey }}>
-                Detail page
-              </RouteLink>
-            </>
+            detail.data ? (
+              <>
+                <AddToListButton recordKey={route.recordKey} />
+                <RouteLink route={{ kind: "record", recordKey: route.recordKey }}>
+                  Detail page
+                </RouteLink>
+              </>
+            ) : null
           }
           title="Reader"
         >
           <RecordDetailPane
             detail={detail.data}
             errors={[detail.error]}
-            loading={detail.isLoading || detail.isFetching}
+            loading={detail.isLoading}
             onReference={(previewRecordKey) =>
               navigateToAtlasRoute({
                 kind: "reader",
@@ -88,13 +93,15 @@ export function ReaderView({ route }: ReaderViewProps) {
                 previewRecordKey,
               })
             }
+            stale={detail.isFetching && Boolean(detail.data)}
           />
         </RecordPane>
       }
       auxiliary={
         <RecordPane
           actions={
-            route.previewRecordKey && (
+            route.previewRecordKey &&
+            preview.data && (
               <>
                 <AddToListButton recordKey={route.previewRecordKey} />
                 <RouteIconLink
@@ -125,15 +132,18 @@ export function ReaderView({ route }: ReaderViewProps) {
             detail={route.previewRecordKey ? preview.data : undefined}
             emptyMessage="Select a linked record to preview it."
             errors={[preview.error]}
-            loading={
-              route.previewRecordKey ? preview.isLoading || preview.isFetching : false
-            }
+            loading={route.previewRecordKey ? preview.isLoading : false}
             onReference={(previewRecordKey) =>
               navigateToAtlasRoute({
                 kind: "reader",
                 recordKey: route.recordKey,
                 previewRecordKey,
               })
+            }
+            stale={
+              Boolean(route.previewRecordKey) &&
+              preview.isFetching &&
+              Boolean(preview.data)
             }
           />
         </RecordPane>

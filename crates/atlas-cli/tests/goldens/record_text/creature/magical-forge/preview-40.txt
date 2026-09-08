@@ -1,0 +1,44 @@
+Magical Forge
+  Type: creature · Pack: Triumph of the
+  Tusk
+  Key:
+       triumph-of-the-tusk-bestiary:EBpwhiVtWKqi8M3n
+
+Classification
+  Level: 9
+  Rarity: common
+  Traits: construct, mindless
+  Size: huge
+  Adjustment: weak
+  Source: Pathfinder #208: Hoof, Cinder,
+          and Storm
+
+Defenses
+  AC: 30; (24 when broken); construct
+      armor
+  HP: current 115; maximum 135;
+      temporary 0
+  Hardness: 8
+  Fortitude: 21
+  Reflex: 11
+  Will: 13
+
+Awareness and abilities
+  Perception: +15; darkvision
+  Initiative: perception
+  Abilities: Str +7, Dex -2, Con +6, Int
+             -5, Wis +0, Cha -5
+  Athletics: +22
+
+Movement
+  land: 15 feet
+
+Strikes
+  - Door — [1 action]
+
+Activities
+  - Construct Armor (Hardness 8) —
+    passive
+  - Fan the Flames — [2 actions]
+  - Swallow Whole — [1 action]
+  - Improved Grab — [free action]

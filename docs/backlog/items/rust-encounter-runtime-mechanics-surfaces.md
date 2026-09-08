@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-06-25
 
+A7 candidate disposition: **subsumed** by E1-E3 and F2 for typed movement/action/resource targets, deterministic effect projection, composed runtime DTOs, and feature-owned controls. Checkpoint B is not yet approved.
+
 ## Problem
 
 Encounter condition automation currently targets typed stat rows such as AC, saves, skills, and activity rolls. Several useful PF2e encounter effects target runtime surfaces that are not currently represented as first-class projections, especially movement speeds and action economy.
@@ -38,7 +40,8 @@ The implementation should:
 
 ## Related
 
-- [Encounter runtime surfaces plan](../../../scratch/plans/2026-06-25-encounter-runtime-surfaces-plan.md)
+- [ADR 0034 candidate: Canonical entities, occurrences, runtime instances, and projections](../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)
+- [ADR 0036 candidate: Source-faithful record surfaces](../../architecture/decisions/0036-source-faithful-record-surfaces.md)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
 - [Rust encounter actor context effects](./rust-encounter-actor-context-effects.md)
-- [Rust Foundry type mechanics parsers](./rust-foundry-type-mechanics-parsers.md)
+- [Rust Foundry type mechanics parsers](../history/items/rust-foundry-type-mechanics-parsers.md)

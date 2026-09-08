@@ -3,10 +3,9 @@ use std::sync::atomic::Ordering;
 
 use atlas_app_model::{
     AppErrorCode, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView,
-    RecordSurfaceProfileView, ResultMatchSummary, ResultWindowMode, ResultWindowModeSummary,
-    ResultWindowPage, ResultWindowRow,
+    ResultMatchSummary, ResultWindowMode, ResultWindowModeSummary, ResultWindowPage,
+    ResultWindowRow,
 };
-use atlas_domain::RecordKind;
 use atlas_search::{
     AtlasRetrievalService, ListRecordsRequest, RecordListSort, RecordRetrieval, SearchPage,
     TextRetrieval, TextSearchMatch, TextSearchRequest,
@@ -15,8 +14,8 @@ use atlas_search::{
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::filter::lower_basic_filter;
 use crate::projection::{record_summary, search_page_view, text_match_summary};
+use crate::retrieval::verified_remaster_lookup;
 use crate::service::AtlasAppService;
-use crate::surfaces::record_surface;
 
 pub(super) const MAX_RESULT_WINDOWS: usize = 64;
 const MAX_EXPIRED_RESULT_WINDOWS: usize = MAX_RESULT_WINDOWS;
@@ -153,12 +152,13 @@ fn render_result_window_page(
                 rows: result
                     .records
                     .iter()
-                    .map(|record| ResultWindowRow {
-                        record: record_summary(record),
-                        surface: compact_surface(record),
-                        match_summary: None,
+                    .map(|record| {
+                        Ok(ResultWindowRow {
+                            record: record_summary_with_edition(retrieval, record)?,
+                            match_summary: None,
+                        })
                     })
-                    .collect(),
+                    .collect::<AppServiceResult<Vec<_>>>()?,
             })
         }
         ResultWindowMode::TextSearch { query, exclude, .. } => {
@@ -180,22 +180,24 @@ fn render_result_window_page(
                 rows: result
                     .records
                     .iter()
-                    .map(|record| ResultWindowRow {
-                        record: record_summary(&record.record),
-                        surface: compact_surface(&record.record),
-                        match_summary: Some(match_summary(&record.match_info)),
+                    .map(|record| {
+                        Ok(ResultWindowRow {
+                            record: record_summary_with_edition(retrieval, &record.record)?,
+                            match_summary: Some(match_summary(&record.match_info)),
+                        })
                     })
-                    .collect(),
+                    .collect::<AppServiceResult<Vec<_>>>()?,
             })
         }
     }
 }
 
-fn compact_surface(
-    record: &atlas_record::AtlasRecord,
-) -> Option<atlas_app_model::RecordSurfaceView> {
-    (record.classification.kind == RecordKind::Creature)
-        .then(|| record_surface(record, RecordSurfaceProfileView::SearchCompact))
+fn record_summary_with_edition(
+    retrieval: &AtlasRetrievalService,
+    record: &atlas_record::RetrievedRecord,
+) -> AppServiceResult<atlas_app_model::RecordSummaryView> {
+    let remaster_lookup = verified_remaster_lookup(retrieval, record)?;
+    Ok(record_summary(record, &remaster_lookup))
 }
 
 fn record_list_sort(value: RecordListSortView) -> RecordListSort {
@@ -228,7 +230,7 @@ mod tests {
 
     use atlas_app_model::{
         BasicSearchFilter, OpenResultWindowRequest, ReadResultWindowPageRequest,
-        RecordListSortView, ResultWindowMode, SearchPageRequest,
+        RecordListSortView, RecordSurfaceEditionStatusView, ResultWindowMode, SearchPageRequest,
     };
 
     use super::*;
@@ -351,8 +353,34 @@ mod tests {
         assert_eq!(first_page.page.number, 1);
         assert_eq!(first_page.page.count, 2);
         assert_eq!(first_page.page.total, 3);
-        assert_eq!(first_page.rows[0].record.record_key, "actions:testAction1");
-        assert_eq!(first_page.rows[0].record.pack.as_deref(), Some("Actions"));
+        assert_eq!(
+            first_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref(),
+            Some("actions:testAction1")
+        );
+        assert_eq!(
+            first_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .source
+                .as_ref()
+                .map(|source| source.pack_label.as_str()),
+            Some("Actions")
+        );
+        let edition = first_page.rows[0]
+            .record
+            .surface
+            .metadata
+            .edition
+            .as_ref()
+            .expect("search compact record should expose edition metadata");
+        assert_eq!(edition.status, RecordSurfaceEditionStatusView::Legacy);
+        assert!(edition.counterparts.is_empty());
 
         let second_page = worker
             .read_result_window_page(
@@ -365,7 +393,15 @@ mod tests {
 
         assert_eq!(second_page.page.number, 2);
         assert_eq!(second_page.page.count, 1);
-        assert_eq!(second_page.rows[0].record.record_key, "actions:testAction3");
+        assert_eq!(
+            second_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref(),
+            Some("actions:testAction3")
+        );
     }
 
     #[test]
@@ -424,14 +460,31 @@ mod tests {
 
         assert_eq!(first_page.window_id, first_window_id);
         assert_eq!(second_page.window_id, second_window_id);
-        assert_eq!(first_page.rows[0].record.record_key, "actions:testAction1");
-        assert_eq!(second_page.rows[0].record.record_key, "actions:testAction2");
+        assert_eq!(
+            first_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref(),
+            Some("actions:testAction1")
+        );
+        assert_eq!(
+            second_page.rows[0]
+                .record
+                .surface
+                .metadata
+                .record_key
+                .as_deref(),
+            Some("actions:testAction2")
+        );
     }
 
     fn stored_window(id: &str) -> StoredResultWindow {
         StoredResultWindow {
             mode: ResultWindowMode::ListRecords {
                 filter: Some(BasicSearchFilter {
+                    relationship: None,
                     clauses: Vec::new(),
                 }),
                 sort: atlas_app_model::RecordListSortView::RecordKey,

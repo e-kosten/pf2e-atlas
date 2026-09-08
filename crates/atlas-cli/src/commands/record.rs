@@ -3,11 +3,8 @@ use std::process::ExitCode;
 
 use atlas_app_model::{AppError, AppErrorCode};
 use atlas_domain::{DetailLevel, RecordKey};
-use atlas_record::{
-    PresentationContent, PresentationContentBlock, PresentationInline, RecordBlockJson,
-    RecordJsonOptions, RecordSectionJson, record_json,
-};
-use atlas_search::RecordResolutionResult;
+use atlas_record::RecordJsonOptions;
+use atlas_search::{GraphContextRequest, MAX_GRAPH_CONTEXT_LIMIT, RecordResolutionResult};
 use serde::Serialize;
 
 use crate::client::{
@@ -17,8 +14,12 @@ use crate::output::{CliError, write_json_data, write_json_error, write_json_erro
 use crate::terminal::TerminalStyle;
 
 pub(crate) mod args;
+pub(crate) mod context;
+mod provenance;
+mod render;
 
-use args::{RecordGetOptions, RecordResolveOptions};
+use args::{RecordGetOptions, RecordProvenanceOptions, RecordResolveOptions};
+use context::{project_record, project_record_provenance_with_remaster};
 
 use super::filters::build_filter;
 
@@ -136,7 +137,7 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
     };
     let by_key = records
         .into_iter()
-        .map(|record| (record.identity.key.to_string(), record))
+        .map(|record| (record.record.identity.key.to_string(), record))
         .collect::<BTreeMap<_, _>>();
     let record_options = RecordJsonOptions {
         detail: options.detail,
@@ -149,7 +150,8 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
             let data = RecordGetData {
                 detail: options.detail.to_string(),
                 body: SingleRecordBody {
-                    record: record_json(record, record_options),
+                    record: project_record(&client, record, record_options)
+                        .map_err(|error| error.message)?,
                 },
             };
             if options.json {
@@ -173,24 +175,27 @@ pub(crate) fn run_record_get(options: RecordGetOptions) -> Result<ExitCode, Stri
         .map(|key| {
             let key_text = key.to_string();
             if let Some(record) = by_key.get(&key_text) {
-                RecordGetItem {
+                Ok(RecordGetItem {
                     key: key_text,
-                    record: Some(record_json(record, record_options)),
+                    record: Some(
+                        project_record(&client, record, record_options)
+                            .map_err(|error| error.message)?,
+                    ),
                     error: None,
-                }
+                })
             } else {
                 failed += 1;
-                RecordGetItem {
+                Ok(RecordGetItem {
                     key: key_text.clone(),
                     record: None,
                     error: Some(CliError {
                         code: "record_not_found",
                         message: format!("record not found: {key_text}"),
                     }),
-                }
+                })
             }
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, String>>()?;
     let data = RecordGetData {
         detail: options.detail.to_string(),
         body: BatchRecordBody {
@@ -246,7 +251,13 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
             Ok(matches) => matches,
             Err(error) => return app_error(error, options.json),
         };
-        let item = resolve_item(query, matches, record_options, options.alternatives);
+        let item = resolve_item(
+            &client,
+            query,
+            matches,
+            record_options,
+            options.alternatives,
+        )?;
         if item.error.is_some() {
             failed += 1;
         }
@@ -322,14 +333,72 @@ pub(crate) fn run_record_resolve(options: RecordResolveOptions) -> Result<ExitCo
     })
 }
 
+pub(crate) fn run_record_provenance(options: RecordProvenanceOptions) -> Result<ExitCode, String> {
+    let key = match RecordKey::parse(&options.key) {
+        Ok(key) => key,
+        Err(error) => {
+            return invalid_record_key(options.json, &options.key, error.to_string());
+        }
+    };
+    let client = match record_client(options.path_mode.into(), options.index, options.json)? {
+        RecordCommandStep::Ready(client) => client,
+        RecordCommandStep::Exit(code) => return Ok(code),
+    };
+    let remaster = match client.remaster_links(key.clone()) {
+        Ok(Some(result)) => result,
+        Ok(None) => {
+            if options.json {
+                write_json_error("record_not_found", format!("record not found: {key}"))?;
+            } else {
+                eprintln!("record not found: {key}");
+            }
+            return Ok(ExitCode::from(1));
+        }
+        Err(error) => return app_error(error, options.json),
+    };
+    let record = match project_record_provenance_with_remaster(
+        &remaster.seed,
+        RecordJsonOptions {
+            detail: DetailLevel::Full,
+            include_source_json: false,
+        },
+        &remaster,
+    ) {
+        Ok(record) => record,
+        Err(error) => return provenance_failure(options.json, error.message),
+    };
+    let graph = match client.graph_context(
+        GraphContextRequest::new(key)
+            .with_outgoing_limit(MAX_GRAPH_CONTEXT_LIMIT)
+            .with_backlink_limit(MAX_GRAPH_CONTEXT_LIMIT),
+    ) {
+        Ok(Some(graph)) => graph,
+        Ok(None) => {
+            return provenance_failure(
+                options.json,
+                "record disappeared during provenance lookup".to_string(),
+            );
+        }
+        Err(error) => return app_error(error, options.json),
+    };
+    let data = provenance::provenance_data(&record, Some(&graph));
+    if options.json {
+        write_json_data(data)?;
+    } else {
+        print!("{}", provenance::render_provenance(&data));
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 fn resolve_item(
+    client: &impl AtlasClient,
     query: &str,
     matches: Vec<RecordResolutionResult>,
     record_options: RecordJsonOptions,
     alternatives: u8,
-) -> RecordResolveItem {
+) -> Result<RecordResolveItem, String> {
     if matches.is_empty() {
-        return RecordResolveItem {
+        return Ok(RecordResolveItem {
             query: query.to_string(),
             record: None,
             resolution: None,
@@ -338,32 +407,34 @@ fn resolve_item(
                 code: "record_resolution_miss",
                 message: format!("record resolution miss: {query}"),
             }),
-        };
+        });
     }
     if matches.len() > 1 {
-        return RecordResolveItem {
+        let projected_alternatives = matches
+            .iter()
+            .take(alternatives as usize)
+            .map(|resolution| {
+                Ok(RecordResolveAlternative {
+                    record: project_record(client, &resolution.record, record_options)
+                        .map_err(|error| error.message)?,
+                    resolution: resolution_json(resolution, record_options),
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        return Ok(RecordResolveItem {
             query: query.to_string(),
             record: None,
             resolution: None,
-            alternatives: Some(
-                matches
-                    .iter()
-                    .take(alternatives as usize)
-                    .map(|resolution| RecordResolveAlternative {
-                        record: record_json(&resolution.record, record_options),
-                        resolution: resolution_json(resolution, record_options),
-                    })
-                    .collect::<Vec<_>>(),
-            )
-            .filter(|alternatives| !alternatives.is_empty()),
+            alternatives: Some(projected_alternatives)
+                .filter(|alternatives| !alternatives.is_empty()),
             error: Some(CliError {
                 code: "record_resolution_ambiguous",
                 message: format!("record resolution ambiguous: {query}"),
             }),
-        };
+        });
     }
     let Some(resolution) = matches.into_iter().next() else {
-        return RecordResolveItem {
+        return Ok(RecordResolveItem {
             query: query.to_string(),
             record: None,
             resolution: None,
@@ -372,15 +443,18 @@ fn resolve_item(
                 code: "record_resolution_miss",
                 message: format!("record resolution miss: {query}"),
             }),
-        };
+        });
     };
-    RecordResolveItem {
+    Ok(RecordResolveItem {
         query: query.to_string(),
-        record: Some(record_json(&resolution.record, record_options)),
+        record: Some(
+            project_record(client, &resolution.record, record_options)
+                .map_err(|error| error.message)?,
+        ),
         resolution: Some(resolution_json(&resolution, record_options)),
         alternatives: None,
         error: None,
-    }
+    })
 }
 
 fn resolution_json(
@@ -488,236 +562,19 @@ fn print_resolve_batch(batch: &BatchResolveBody, detail: DetailLevel) {
 }
 
 pub(crate) fn print_record_for_detail(record: &atlas_record::RecordJson, detail: DetailLevel) {
-    let style = TerminalStyle::stdout();
-    print_record_header(record, style);
-    if let Some(traits) = non_empty_traits(record) {
-        println!("{}: {traits}", style.label("Traits"));
-    }
-    if let Some(source) = record_source_label(record) {
-        println!("{}: {source}", style.label("Source"));
-    }
-    if let Some(prerequisites) = record_prerequisites_label(record) {
-        println!("{}: {prerequisites}", style.label("Prerequisites"));
-    }
-    if detail == DetailLevel::Preview {
-        for fact_line in preview_fact_lines(record) {
-            println!("{fact_line}");
-        }
-    }
-    if let Some(description) = record_description_text(record, detail, style) {
-        println!();
-        println!("{description}");
-    }
-}
-
-pub(crate) fn detail_outputs_description(detail: DetailLevel) -> bool {
-    matches!(detail, DetailLevel::Preview | DetailLevel::Description)
-}
-
-fn print_record_header(record: &atlas_record::RecordJson, style: TerminalStyle) {
-    let level = record
-        .level
-        .map(|level| format!(" {level}"))
-        .unwrap_or_default();
-    println!(
-        "{}  {}  {}{}",
-        style.metadata(&record.key),
-        style.label(&record.name),
-        record.kind,
-        level
+    print!(
+        "{}",
+        render::render_record(
+            record,
+            detail,
+            render::effective_width(),
+            TerminalStyle::stdout()
+        )
     );
 }
 
-fn non_empty_traits(record: &atlas_record::RecordJson) -> Option<String> {
-    (!record.traits.is_empty()).then(|| record.traits.join(", "))
-}
-
-fn record_source_label(record: &atlas_record::RecordJson) -> Option<String> {
-    let source = record.source.as_ref()?;
-    source
-        .publication_title
-        .clone()
-        .or_else(|| source.pack.as_ref().map(|pack| pack.label.clone()))
-}
-
-fn record_prerequisites_label(record: &atlas_record::RecordJson) -> Option<String> {
-    record
-        .sections
-        .iter()
-        .find(|section| section.kind == "summary")
-        .into_iter()
-        .flat_map(|section| &section.blocks)
-        .find_map(|block| match block {
-            RecordBlockJson::FactList { facts } => facts
-                .iter()
-                .find(|fact| fact.key == "prerequisites")
-                .map(|fact| fact.value.clone()),
-            RecordBlockJson::Prose { .. }
-            | RecordBlockJson::Content { .. }
-            | RecordBlockJson::Relationships { .. } => None,
-        })
-        .filter(|value| !value.trim().is_empty())
-}
-
-fn preview_fact_lines(record: &atlas_record::RecordJson) -> Vec<String> {
-    let style = TerminalStyle::stdout();
-    record
-        .sections
-        .iter()
-        .filter(|section| section.kind != "description_preview")
-        .filter_map(|section| {
-            let facts = section
-                .blocks
-                .iter()
-                .flat_map(|block| match block {
-                    RecordBlockJson::FactList { facts } => facts.as_slice(),
-                    RecordBlockJson::Prose { .. }
-                    | RecordBlockJson::Content { .. }
-                    | RecordBlockJson::Relationships { .. } => &[],
-                })
-                .filter(|fact| fact.key != "prerequisites")
-                .map(|fact| format!("{} {}", fact.label, fact.value))
-                .collect::<Vec<_>>();
-            (!facts.is_empty()).then(|| {
-                format!(
-                    "{}: {}",
-                    style.label(section.title.as_str()),
-                    facts.join("; ")
-                )
-            })
-        })
-        .collect()
-}
-
-fn record_description_text(
-    record: &atlas_record::RecordJson,
-    detail: DetailLevel,
-    style: TerminalStyle,
-) -> Option<String> {
-    let section_kind = match detail {
-        DetailLevel::Preview => "description_preview",
-        DetailLevel::Description => "description",
-        _ => return None,
-    };
-    record
-        .sections
-        .iter()
-        .find(|section| section.kind == section_kind)
-        .and_then(|section| section_text(section, style))
-}
-
-fn section_text(section: &RecordSectionJson, style: TerminalStyle) -> Option<String> {
-    let blocks = section
-        .blocks
-        .iter()
-        .filter_map(|block| block_text(block, style))
-        .collect::<Vec<_>>();
-    (!blocks.is_empty()).then(|| blocks.join("\n\n"))
-}
-
-fn block_text(block: &RecordBlockJson, style: TerminalStyle) -> Option<String> {
-    match block {
-        RecordBlockJson::Prose { text } => (!text.trim().is_empty()).then(|| text.clone()),
-        RecordBlockJson::Content { content } => render_content(content, style),
-        RecordBlockJson::FactList { .. } | RecordBlockJson::Relationships { .. } => None,
-    }
-}
-
-fn render_content(content: &PresentationContent, style: TerminalStyle) -> Option<String> {
-    let blocks = content
-        .blocks
-        .iter()
-        .filter_map(|block| render_content_block(block, style, 0))
-        .collect::<Vec<_>>();
-    (!blocks.is_empty()).then(|| blocks.join("\n\n"))
-}
-
-fn render_content_block(
-    block: &PresentationContentBlock,
-    style: TerminalStyle,
-    indent: usize,
-) -> Option<String> {
-    match block {
-        PresentationContentBlock::Heading { text, .. } => (!text.trim().is_empty())
-            .then(|| format!("{}{}", " ".repeat(indent), style.label(text))),
-        PresentationContentBlock::Paragraph { spans } => {
-            let text = render_inline_spans(spans, style);
-            (!text.trim().is_empty()).then(|| format!("{}{}", " ".repeat(indent), text))
-        }
-        PresentationContentBlock::List { ordered, items } => {
-            let mut rendered = Vec::new();
-            for (index, item) in items.iter().enumerate() {
-                let item_text = item
-                    .blocks
-                    .iter()
-                    .filter_map(|block| render_content_block(block, style, indent + 2))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                if item_text.trim().is_empty() {
-                    continue;
-                }
-                let marker = if *ordered {
-                    format!("{}.", index + 1)
-                } else {
-                    "-".to_string()
-                };
-                rendered.push(format!(
-                    "{}{} {}",
-                    " ".repeat(indent),
-                    marker,
-                    item_text.trim_start()
-                ));
-            }
-            (!rendered.is_empty()).then(|| rendered.join("\n"))
-        }
-        PresentationContentBlock::Table { caption, rows } => {
-            let mut lines = Vec::new();
-            if let Some(caption) = caption.as_ref().filter(|value| !value.trim().is_empty()) {
-                lines.push(format!("{}{}", " ".repeat(indent), style.label(caption)));
-            }
-            for row in rows {
-                let cells = row
-                    .cells
-                    .iter()
-                    .map(|cell| {
-                        render_content(cell, style)
-                            .unwrap_or_default()
-                            .replace('\n', " ")
-                    })
-                    .collect::<Vec<_>>();
-                if !cells.is_empty() {
-                    lines.push(format!("{}{}", " ".repeat(indent), cells.join(" | ")));
-                }
-            }
-            (!lines.is_empty()).then(|| lines.join("\n"))
-        }
-        PresentationContentBlock::Rule => {
-            Some(format!("{}{}", " ".repeat(indent), style.separator()))
-        }
-    }
-}
-
-fn render_inline_spans(spans: &[PresentationInline], style: TerminalStyle) -> String {
-    let mut output = String::new();
-    for span in spans {
-        match span {
-            PresentationInline::Text { text } => output.push_str(text),
-            PresentationInline::Strong { spans } => {
-                output.push_str(&style.label(&render_inline_spans(spans, style)));
-            }
-            PresentationInline::Emphasis { spans } => {
-                output.push_str(&render_inline_spans(spans, style));
-            }
-            PresentationInline::Code { text } => {
-                output.push('`');
-                output.push_str(text);
-                output.push('`');
-            }
-            PresentationInline::Reference { label, .. } => output.push_str(label),
-            PresentationInline::LineBreak => output.push('\n'),
-        }
-    }
-    output
+pub(crate) fn detail_outputs_description(detail: DetailLevel) -> bool {
+    detail != DetailLevel::Summary
 }
 
 fn invalid_record_key(json: bool, key: &str, message: String) -> Result<ExitCode, String> {
@@ -822,6 +679,15 @@ fn invalid_input(json: bool, message: String) -> Result<ExitCode, String> {
     if json {
         write_json_error("invalid_input", message)?;
         Ok(ExitCode::from(2))
+    } else {
+        Err(message)
+    }
+}
+
+fn provenance_failure(json: bool, message: String) -> Result<ExitCode, String> {
+    if json {
+        write_json_error("query_failed", message)?;
+        Ok(ExitCode::from(3))
     } else {
         Err(message)
     }

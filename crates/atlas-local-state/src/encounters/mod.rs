@@ -4,10 +4,12 @@ mod storage;
 
 pub use model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterStatus, EncounterWithParticipants, NewEncounter,
-    ParticipantKind, ParticipantSide, ParticipantVariant, ReorderEncounterParticipant,
-    ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    EncounterParticipantCondition, EncounterParticipantReset, EncounterParticipantResetDomain,
+    EncounterParticipantSpellState, EncounterSpellResource, EncounterSpellResourceMutation,
+    EncounterSpellResourceOperation, EncounterSpellResourceTarget, EncounterStatus,
+    EncounterWithParticipants, NewEncounter, ParticipantHazardState, ParticipantKind,
+    ParticipantSide, ParticipantVariant, ReorderEncounterParticipant, ReorderPlacement,
+    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 pub use service::Encounters;
 

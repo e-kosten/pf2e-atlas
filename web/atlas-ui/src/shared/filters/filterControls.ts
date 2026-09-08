@@ -137,7 +137,9 @@ export function hasActiveFilters(search: SearchFormState): boolean {
     search.query.length > 0 ||
     search.filterClauses.length > 0 ||
     search.visibleFilterIds.length > 0 ||
-    search.hiddenFilterIds.length > 0
+    search.hiddenFilterIds.length > 0 ||
+    search.relationship !== undefined ||
+    Boolean(search.relationshipInvalid)
   );
 }
 
@@ -152,6 +154,8 @@ export function clearAllFilters(search: SearchFormState): SearchFormState {
   return {
     ...search,
     query: "",
+    relationship: undefined,
+    relationshipInvalid: undefined,
     mode: "browse",
     visibleFilterIds: [],
     hiddenFilterIds: [],

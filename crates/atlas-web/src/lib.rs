@@ -10,3 +10,8 @@ pub use router::router;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod reference_filter_http_tests;
+#[cfg(test)]
+mod spell_http_tests;

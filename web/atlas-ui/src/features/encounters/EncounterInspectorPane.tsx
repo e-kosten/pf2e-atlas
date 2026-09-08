@@ -1,48 +1,44 @@
-import { Button, Form, Input, Select } from "antd";
-import { Pencil } from "lucide-react";
+import { Button, Form, Input, Select, Tag } from "antd";
+import { RotateCcw } from "lucide-react";
 import { useState } from "react";
-import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
   EncounterParticipantVariantView,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
+  EncounterSpellCastRequest,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import {
   applyParticipantUpdate,
-  optionalBigIntInput,
+  optionalIntegerInput,
   participantUpdate,
 } from "./participantEdits";
-import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
+import { RecordPreviewScope } from "../../shared/records/RecordPreviewScope";
 import { RecordSurface } from "../../shared/records/RecordSurface";
-import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
+import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
-
 export function EncounterInspectorPane({
-  onCloseRecordPreview,
   onOpenRecordFullPage,
-  onReference,
   onAddCondition,
   onRemoveCondition,
+  onResetParticipant,
+  onSpellCast,
   onUpdateCondition,
   onUpdate,
   participant,
   participants,
   conditionDefinitions,
-  previewDetail,
-  previewLoading,
-  previewRecordKey,
-  previewAnchor,
+  currentTurnParticipantKey,
 }: {
-  onCloseRecordPreview: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onRemoveCondition: (participantKey: string, conditionId: number) => void;
+  onResetParticipant: (participantKey: string) => void;
+  onSpellCast: (participantKey: string, request: EncounterSpellCastRequest) => void;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -51,42 +47,34 @@ export function EncounterInspectorPane({
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
-  previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
-  previewLoading: boolean;
-  previewRecordKey: string | null;
-  previewAnchor: RecordPreviewAnchor | null;
+  currentTurnParticipantKey: string | null;
 }) {
   if (!participant) {
     return (
       <section className="encounter-pane detail-empty">Select a participant.</section>
     );
   }
-  const surface = participant.surface;
+  const surface = participant.record_view;
   return (
     <section className="encounter-pane encounter-record-pane">
       {surface ? (
-        <EncounterParticipantSurface
-          conditionDefinitions={conditionDefinitions}
-          onAddCondition={onAddCondition}
-          onReference={onReference}
-          onRemoveCondition={onRemoveCondition}
-          onUpdate={onUpdate}
-          onUpdateCondition={onUpdateCondition}
-          participant={participant}
-          participants={participants}
-        />
+        <RecordPreviewScope onOpenFullPage={onOpenRecordFullPage}>
+          <EncounterParticipantSurface
+            conditionDefinitions={conditionDefinitions}
+            currentTurnParticipantKey={currentTurnParticipantKey}
+            onAddCondition={onAddCondition}
+            onReference={onOpenRecordFullPage}
+            onRemoveCondition={onRemoveCondition}
+            onResetParticipant={onResetParticipant}
+            onSpellCast={onSpellCast}
+            onUpdate={onUpdate}
+            onUpdateCondition={onUpdateCondition}
+            participant={participant}
+            participants={participants}
+          />
+        </RecordPreviewScope>
       ) : (
         <SurfaceUnavailable participant={participant} />
-      )}
-      {previewRecordKey && (
-        <RecordPreviewPopover
-          anchor={previewAnchor}
-          detail={previewDetail}
-          loading={previewLoading}
-          onClose={onCloseRecordPreview}
-          onOpenFullPage={() => onOpenRecordFullPage(previewRecordKey)}
-          onReference={onReference}
-        />
       )}
     </section>
   );
@@ -114,15 +102,20 @@ function EncounterParticipantSurface({
   onAddCondition,
   onReference,
   onRemoveCondition,
+  onResetParticipant,
+  onSpellCast,
   onUpdate,
   onUpdateCondition,
   participant,
   participants,
+  currentTurnParticipantKey,
 }: {
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onReference: (recordKey: string) => void;
+  onRemoveCondition: (participantKey: string, conditionId: number) => void;
+  onResetParticipant: (participantKey: string) => void;
+  onSpellCast: (participantKey: string, request: EncounterSpellCastRequest) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   onUpdateCondition: (
     participantKey: string,
@@ -130,12 +123,12 @@ function EncounterParticipantSurface({
   ) => void;
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
+  currentTurnParticipantKey: string | null;
 }) {
   const [projectedCurrent, setProjectedCurrent] = useState<{
     source: EncounterParticipantView | null;
     participant: EncounterParticipantView | null;
   }>({ source: null, participant: null });
-  const [noteOpen, setNoteOpen] = useState(false);
   const activeCurrent =
     projectedCurrent.source === participant &&
     projectedCurrent.participant?.participant_key === participant.participant_key
@@ -149,35 +142,38 @@ function EncounterParticipantSurface({
     });
     onUpdate(request);
   };
-  const surface = activeCurrent.surface ?? participant.surface;
+  const surface = activeCurrent.record_view ?? participant.record_view;
   if (!surface) {
     return null;
   }
   return (
     <RecordSurface
       onReference={onReference}
+      onSpellCast={(request) => onSpellCast(activeCurrent.participant_key, request)}
       surface={surface}
       slots={{
         header: (
           <ParticipantEditStrip
+            currentTurn={activeCurrent.participant_key === currentTurnParticipantKey}
             participant={activeCurrent}
             onUpdate={updateParticipant}
           />
         ),
         header_actions: (
-          <>
-            <Button
-              aria-label="Participant note"
-              icon={<Pencil size={14} />}
-              onClick={() => setNoteOpen((open) => !open)}
-              size="small"
-              type={noteOpen ? "primary" : "default"}
+          <div className="encounter-participant-header-actions">
+            <HazardStateControl
+              participant={activeCurrent}
+              onUpdate={updateParticipant}
             />
             <ParticipantVariantControl
               participant={activeCurrent}
               onUpdate={updateParticipant}
             />
-          </>
+            <ParticipantResetControl
+              onReset={() => onResetParticipant(activeCurrent.participant_key)}
+              participant={activeCurrent}
+            />
+          </div>
         ),
         vitals: (
           <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
@@ -193,18 +189,70 @@ function EncounterParticipantSurface({
             participants={participants}
           />
         ),
-        ...(noteOpen
-          ? {
-              notes: (
-                <ParticipantNoteEditor
-                  participant={activeCurrent}
-                  onUpdate={updateParticipant}
-                />
-              ),
-            }
-          : {}),
+        notes: (
+          <ParticipantNoteEditor
+            participant={activeCurrent}
+            onUpdate={updateParticipant}
+          />
+        ),
       }}
     />
+  );
+}
+
+function ParticipantResetControl({
+  onReset,
+  participant,
+}: {
+  onReset: () => void;
+  participant: EncounterParticipantView;
+}) {
+  if (
+    !["creature", "hazard"].includes(participant.participant_kind) ||
+    !participant.reset.available
+  ) {
+    return null;
+  }
+  const kind = participant.participant_kind;
+  return (
+    <DangerActionButton
+      aria-label={`Reset ${participant.display_name}`}
+      confirmContent={`This restores the ${kind}'s mechanical encounter state to its creation baseline. Custom name, notes, and visibility are preserved. This cannot be undone.`}
+      confirmOkText={`Reset ${kind}`}
+      confirmTitle={`Reset ${participant.display_name}?`}
+      icon={<RotateCcw size={14} />}
+      onConfirm={onReset}
+      size="small"
+    >
+      Reset {kind}
+    </DangerActionButton>
+  );
+}
+
+function HazardStateControl({
+  onUpdate,
+  participant,
+}: {
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+  participant: EncounterParticipantView;
+}) {
+  const state = participant.record_view.encounter?.hazard?.state;
+  if (participant.participant_kind !== "hazard" || !state) return null;
+  return (
+    <div className="encounter-variant-control">
+      <span>Hazard state</span>
+      <Select
+        aria-label="Hazard state"
+        className="encounter-variant-select"
+        onChange={(hazard_state) => onUpdate({ hazard_state })}
+        options={[
+          { label: "Active", value: "active" },
+          { label: "Disabled", value: "disabled" },
+        ]}
+        size="small"
+        value={state}
+      />
+    </div>
   );
 }
 
@@ -240,14 +288,20 @@ function ParticipantVariantControl({
 }
 
 function ParticipantEditStrip({
+  currentTurn,
   onUpdate,
   participant,
 }: {
+  currentTurn: boolean;
   onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
   participant: EncounterParticipantView;
 }) {
   return (
     <section className="encounter-participant-strip">
+      <div className="encounter-participant-strip__state">
+        <Tag>{currentTurn ? "Current turn" : "Not current turn"}</Tag>
+        {participant.defeated && <Tag>Defeated</Tag>}
+      </div>
       <Form.Item label="Name" layout="vertical">
         <EditableCommitField
           ariaLabel="Participant name"
@@ -260,7 +314,7 @@ function ParticipantEditStrip({
           ariaLabel="Participant initiative"
           inputMode="numeric"
           onCommit={(value) => {
-            const initiative = optionalBigIntInput(value);
+            const initiative = optionalIntegerInput(value);
             if (initiative !== null) {
               onUpdate({ initiative });
             }
@@ -294,6 +348,8 @@ function ParticipantNoteEditor({
 }) {
   return (
     <Input.TextArea
+      aria-label="Participant note"
+      autoSize={{ minRows: 3, maxRows: 10 }}
       key={`note-${participant.participant_key}-${participant.note ?? ""}`}
       defaultValue={participant.note ?? ""}
       onBlur={(event) => {

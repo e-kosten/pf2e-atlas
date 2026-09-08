@@ -6,6 +6,11 @@ pub(crate) struct TerminalStyle {
 }
 
 impl TerminalStyle {
+    #[cfg(test)]
+    pub(crate) const fn plain() -> Self {
+        Self { enabled: false }
+    }
+
     pub(crate) fn stdout() -> Self {
         Self {
             enabled: stdout_supports_style(),

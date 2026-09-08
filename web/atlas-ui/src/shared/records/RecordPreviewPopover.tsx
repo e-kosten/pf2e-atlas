@@ -1,88 +1,63 @@
-import type React from "react";
-import { RecordPresentation } from "./RecordPresentation";
+import { useState } from "react";
+import type { PreviewPopoverTrigger } from "../ui/overlays/PreviewPopover";
+import { PreviewPopover, usePreviewPopoverClose } from "../ui/overlays/PreviewPopover";
+import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
-import type {
-  RecordPreviewAnchor,
-  RecordPreviewContentProps,
-} from "./recordPreviewTypes";
-
-type RecordPreviewPopoverProps = RecordPreviewContentProps & {
-  anchor: RecordPreviewAnchor | null;
-};
+import { RecordPreviewContext } from "./RecordPreviewContext";
+import { useRecordDetail } from "./useRecordDetail";
 
 export function RecordPreviewPopover({
-  anchor,
-  detail,
-  loading,
-  onClose,
+  children,
   onOpenFullPage,
-  onReference,
-}: RecordPreviewPopoverProps) {
-  const position = recordPreviewPosition(anchor);
+  recordKey,
+}: {
+  children: PreviewPopoverTrigger;
+  onOpenFullPage: (recordKey: string) => void;
+  recordKey: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [activeRecordKey, setActiveRecordKey] = useState(recordKey);
+  const detail = useRecordDetail(open ? activeRecordKey : null);
 
   return (
-    <div
-      aria-label="Reference preview overlay"
-      className="record-preview-popover__backdrop"
-      role="presentation"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
+    <PreviewPopover
+      actions={
+        <RecordPopoverActions onOpenFullPage={() => onOpenFullPage(activeRecordKey)} />
+      }
+      ariaLabel="Reference preview"
+      content={
+        <RecordPreviewContext.Provider value={null}>
+          <RecordDetailPane
+            detail={detail.data}
+            errors={[detail.error]}
+            loading={detail.isLoading || detail.isFetching}
+            onReference={setActiveRecordKey}
+            showTitle={false}
+          />
+        </RecordPreviewContext.Provider>
+      }
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) {
+          setActiveRecordKey(recordKey);
         }
       }}
+      title={detail.data?.surface.metadata.title ?? "Loading record…"}
     >
-      <section
-        aria-label="Reference preview"
-        className="record-preview-popover"
-        role="dialog"
-        style={position}
-      >
-        <header className="record-preview-popover__header">
-          <span>Reference</span>
-          <RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />
-        </header>
-        <div className="record-preview-popover__body">
-          <RecordPresentation
-            detail={detail}
-            loading={loading}
-            onReference={onReference}
-          />
-        </div>
-      </section>
-    </div>
+      {children}
+    </PreviewPopover>
   );
 }
 
-function recordPreviewPosition(
-  anchor: RecordPreviewAnchor | null,
-): React.CSSProperties {
-  const margin = 16;
-  const gap = 8;
-  const width = Math.min(560, Math.max(360, window.innerWidth - margin * 2));
-  const maxHeight = Math.min(560, window.innerHeight - margin * 2);
-  if (!anchor) {
-    return {
-      maxHeight,
-      right: margin,
-      top: margin,
-      width,
-    };
-  }
-  const fitsRight = anchor.right + gap + width <= window.innerWidth - margin;
-  const fitsLeft = anchor.left - gap - width >= margin;
-  const left = fitsRight
-    ? anchor.right + gap
-    : fitsLeft
-      ? anchor.left - gap - width
-      : clamp(anchor.left, margin, window.innerWidth - margin - width);
-  return {
-    left,
-    maxHeight,
-    top: clamp(anchor.top, margin, window.innerHeight - margin - maxHeight),
-    width,
-  };
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), Math.max(min, max));
+function RecordPopoverActions({ onOpenFullPage }: { onOpenFullPage: () => void }) {
+  const close = usePreviewPopoverClose();
+  return (
+    <RecordPreviewActions
+      onClose={close}
+      onOpenFullPage={() => {
+        close();
+        onOpenFullPage();
+      }}
+    />
+  );
 }

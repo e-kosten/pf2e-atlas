@@ -15,8 +15,10 @@ import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 import {
   clampCurrentHp,
-  optionalBigIntInput,
+  optionalIntegerInput,
   optionalHpFormulaInput,
+  participantCurrentHp,
+  participantMaximumHp,
   participantUpdate,
 } from "./participantEdits";
 
@@ -76,9 +78,7 @@ export function EncounterRosterPane({
         encounter_ref: slug,
         record_ref: selectedRecordKey ?? "",
         quantity: values.quantity ?? 1,
-        ...(values.initiative === undefined
-          ? {}
-          : { initiative: BigInt(values.initiative) }),
+        ...(values.initiative === undefined ? {} : { initiative: values.initiative }),
       }),
     onSuccess: () => {
       setRecordOpen(false);
@@ -92,10 +92,8 @@ export function EncounterRosterPane({
       addEncounterManualParticipant({
         encounter_ref: slug,
         display_name: values.name,
-        ...(values.maxHp === undefined ? {} : { max_hp: BigInt(values.maxHp) }),
-        ...(values.initiative === undefined
-          ? {}
-          : { initiative: BigInt(values.initiative) }),
+        ...(values.maxHp === undefined ? {} : { max_hp: values.maxHp }),
+        ...(values.initiative === undefined ? {} : { initiative: values.initiative }),
       }),
     onSuccess: () => {
       setPcOpen(false);
@@ -169,10 +167,10 @@ export function EncounterRosterPane({
         className="encounter-roster__hp-input"
         inputMode="numeric"
         onCommit={(value) => commitRosterHp(participant, value, onUpdate)}
-        placeholder={participant.max_hp === undefined ? "" : "HP"}
+        placeholder={participantMaximumHp(participant) === undefined ? "" : "HP"}
         size="small"
         stopPropagation
-        value={inputNumberValue(participant.current_hp)}
+        value={inputNumberValue(participantCurrentHp(participant))}
       />
       <span className="encounter-roster__row-actions">
         <Button
@@ -252,7 +250,7 @@ export function EncounterRosterPane({
         onFinish={(values) => addRecord.mutate(values)}
         onSelectedRecordKeyChange={setSelectedRecordKey}
         open={recordOpen}
-        selectedLabel={(row) => `Selected: ${row.record.title}`}
+        selectedLabel={(row) => `Selected: ${row.record.surface.metadata.title}`}
         selectedPrompt="Select a creature or hazard."
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
@@ -321,7 +319,7 @@ function commitRosterInitiative(
   value: string,
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void,
 ) {
-  const initiative = optionalBigIntInput(value);
+  const initiative = optionalIntegerInput(value);
   if (initiative === null) {
     return;
   }
@@ -336,16 +334,15 @@ function commitRosterHp(
   if (hp === null) {
     return;
   }
-  const clampedHp =
-    hp === undefined ? undefined : BigInt(clampCurrentHp(participant, Number(hp)));
+  const clampedHp = hp === undefined ? undefined : clampCurrentHp(participant, hp);
   onUpdate(
     participantUpdate(participant, {
       current_hp: clampedHp,
-      defeated: clampedHp === BigInt(0) ? true : participant.defeated,
+      defeated: clampedHp === 0 ? true : participant.defeated,
     }),
   );
 }
-function inputNumberValue(value: bigint | undefined): string {
+function inputNumberValue(value: number | undefined): string {
   return value === undefined ? "" : value.toString();
 }
 function isInteractiveEventTarget(target: EventTarget): boolean {

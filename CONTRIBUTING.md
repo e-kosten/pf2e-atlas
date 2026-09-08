@@ -87,6 +87,97 @@ just verify
 Validation is quiet by default: successful gates print summary lines, and detailed
 Cargo output is replayed only when a gate fails. Use `just verify --verbose` or
 `scripts/verify.sh --verbose` when you want the full command stream.
+The full workspace test gate runs test binaries with one harness thread because
+multiple artifact-owning CLI fixtures can otherwise make retained SQLite reader
+acquisition fail under local verification resource pressure. This still runs
+every test and preserves concurrency exercised inside individual tests.
+The web gate runs the complete Vitest suite serially with one worker. Individual
+multi-step integration tests may declare a measured outer timeout while keeping
+their normal assertion deadlines and behavior.
+
+Validation has three explicit tiers:
+
+- `just validate-fast` is the focused formatting plus complementary Clippy
+  tier: strict panic-oriented denies apply to runtime libraries/binaries, while
+  tests, benches, and examples retain warnings-as-errors and the `dbg!` ban.
+  The target sets do not overlap and no all-targets pass repeats runtime linting.
+  It does not run workspace tests/build or corpus/deep validation.
+  `scripts/validation/fast.sh --base <ref>` makes it path-sensitive.
+- `just validate-focused` runs the ingest/index source-contract, mutation,
+  corruption, publication, generation-binding, and validation-snapshot tests.
+  It never scans the full source. Synthetic fixtures are preferred for precise
+  mutations, while curated isolated Foundry records may be used when their
+  relationship context matters.
+- The ordinary Rust CI job also runs four focused Linux artifact-pair checks.
+  They cover first-generation public-reader open, installed-handle retention,
+  replacement failure, and digest authentication without building the corpus.
+- `just validate-exhaustive --source <path> --candidate-head <sha>
+  --snapshot-root <new-path> --report <new-path>` is the final artifact-integration
+  gate.
+  Set `PF2E_EMBEDDING_CACHE_ROOT` or pass `--embedding-cache-path`. The command
+  requires clean source and candidate checkouts, performs exactly one source
+  traversal, and produces exactly one full embedded production artifact. It
+  retains normal strict source admission, publication identity, schema and
+  SQLite structural checks, global FTS/catalog/vector coverage, and bounded
+  public-reader hydration of the pinned Night Hag and Giant Rat records. It does
+  not produce a full no-embedding artifact or run whole-corpus body equality,
+  decode/re-encode, attachment, or canonical-to-relational mirror scans.
+
+Run that embedded production build once in final integration/CI when changed
+artifact constructors, persisted codecs, document-embedding producers, or the
+production validation path can break source-to-reader compatibility. Search-only,
+UI-only, documentation, and focused-test changes do not trigger it. This gate is
+more expensive than the focused suites because only it crosses the clean pinned
+source, writer/publication, manifest/generation, vector, and public-reader
+boundaries together.
+
+The exhaustive snapshot is private, disposable validation evidence. Its identity
+binds source/candidate commits and trees, source signature and pack manifest,
+policy/contracts/schema/migrations/inventory, target/features/toolchain, and
+embedding identity. Missing, dirty, partial, corrupt, ambiguous, mismatched, or
+concurrently published state fails closed. The snapshot is never a runtime input,
+product artifact, fallback, public serialization contract, or canonical model.
+Its required inventory contains `validation-assertions.json`,
+`artifact-validation.json`, `timing.json`, `progress.jsonl`,
+`snapshot-manifest.json`, and `checksums.sha256`, plus the embedded
+`artifacts/with_embeddings/index.sqlite` publication pair and its bound generation
+evidence. `file-sizes.json` is optional diagnostic telemetry. There is no captured
+build input, strict-audit report, corpus-assertions report, or no-embedding
+artifact.
+Within the embedded artifact phase, validation opens one generation-bound
+`SqliteIndexReader` and retains its existing Diesel hydration and rusqlite
+validation connections. One explicit structural/global validation result feeds inspection
+and evidence projection; the same reader performs the bounded selected-record
+smoke. Existing locally published generations are not rehashed on ordinary
+open; transfer, copy, and recovery boundaries retain exactly-once checksums.
+Per-operation wall timing and byte/count observations come from their enclosing
+operations. CPU timing and the full file-size inventory are optional diagnostics,
+not acceptance requirements. Writer, publication, and reader receipts carry the
+actual digest and generation evidence.
+
+`artifact_contract_version`, `schema_version`, and `manifest_version` respectively
+cover incompatible canonical/artifact semantics, physical DDL, and envelope
+shape. A pull request that changes Diesel migrations, persisted codecs, manifest
+fields, or reader/writer interpretation must state whether the generated index
+requires a rebuild and show the old and new constants. Reviewers inspect that
+small explicit diff alongside the runtime mismatch and compatibility tests.
+Generated indexes remain rebuildable; durable local state keeps its independent
+forward-migration and preservation policy.
+
+Requested embedding selectors are resolved through the existing embedding-model
+catalog before source traversal. Validation binds the typed model and canonical
+provider ID, so accepted aliases do not create different receipt identities;
+artifact metadata is still checked after publication. Any later validation
+failure atomically preserves a typed `failure.json`, partial `timing.json`, and
+checksum closure. When a live generation already supplies trusted visible and
+generation digests, failure preservation reuses them and does not rehash the
+artifact pair.
+
+Legacy/new matrix reproduction is a one-time trust-establishment review for this
+migration only. Permanent candidate acceptance uses the fast and focused tiers,
+plus human-selected artifact integration when compatibility or rebuild risk
+warrants it; the migration matrix is not a permanent recipe, normal CI gate, or
+Checkpoint C rerun.
 
 Run the CLI from source:
 
@@ -208,6 +299,32 @@ Published release assets are treated as immutable. Fix bad published releases wi
 
 Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for Linux x64, Linux ARM64, macOS Apple Silicon, and Windows x64 release targets. macOS Intel and Windows ARM64 release binaries are deferred until the native ONNX Runtime packaging strategy supports them cleanly.
 
+## Task Briefs And Independent Validation
+
+Use outcome-scoped briefs for delegated engineering. A brief identifies the desired result and the rules that must remain true; it does not attempt to predict every file the implementation will need. Likely paths are useful for coordination, but necessary callers, imports, tests, documentation, generated bindings, formatting, and refactor cleanup remain inside the task when they are required to deliver the stated outcome.
+
+An ordinary brief should be short and include the following when material:
+
+- outcome and accepted base or current context;
+- architectural and source-fidelity invariants;
+- non-goals;
+- focused checks for iteration and applicable final repository gates;
+- conditions requiring escalation.
+
+Keep one explicitly current brief. A correction from the user or the decision owner authorized to change the requirement should name what it supersedes; message arrival order by itself does not make a delayed callback current. Callbacks and handoffs should identify the current base/candidate and note superseded assumptions so stale instructions are not executed. Outcome-scoped briefs replace procedural file-allowlist amendments, authorization shell scripts, per-amendment checksum publication, and newly invented launcher/framework requirements for ordinary repository work. They do not replace semantic requirements, final validation, explicit product approval, or source/artifact/candidate authentication at a boundary that actually consumes those identities.
+
+Escalate product or architecture choices, changed source disposition, weaker acceptance, destructive or external actions, work outside the stated non-goals, and substantial unexpected cost. Administrative path/count changes and mechanically necessary edits within the outcome do not need approval. If implementation uncovers a broader outcome rather than a necessary consequence of the current one, stop and ask.
+
+Use focused, risk-based unit and integration validation while editing and for ordinary slice handoff. The integrated/final candidate owner runs the applicable repository gates below once. A slice owner runs them only when that handoff is the final candidate or one of the existing branch-review, merge, push, or Rust-heavy commit triggers below applies. Re-run a check only after one of its relevant candidate, source, toolchain, generator, or policy inputs changes. Evidence may be reused when those inputs and the trust context match; the handoff must identify what was reused and its limitation. Local evidence does not replace execution at a genuinely independent CI boundary. Do not invent a receipt platform to transfer ordinary test authority. Embeddings and the single full production artifact are appropriate only for final artifact-construction or end-to-end compatibility risk. They are unnecessary for routine search, UI, documentation, and unit-test iterations.
+
+Independent review should inspect the exact diff and the evidence relevant to its material risks. Reviewers reuse matching focused and final evidence instead of forcing a second production build; they rerun a check only when independence itself supplies a distinct failure signal. Batch related findings into one remediation round where practical. Classify pre-existing baseline failures separately from new regressions, but report both and do not silently waive either. Prefer focused adversarial, mutation, rollback, identity, and residue checks over repeating unrelated expensive gates.
+
+Every required check must name the concrete failure risk it detects, use a
+proportionate scope, and explain why cheaper existing unit or integration coverage
+does not already detect that risk. Full artifact integration is selected during
+human compatibility and rebuild review when a change crosses the source-to-reader
+artifact boundary.
+
 ## Validation Before Commit
 
 Run the full Rust gate before opening a branch for review, merging back to `main`, or preparing a Rust-heavy commit manually:
@@ -267,3 +384,38 @@ The normal setup path can fetch or update source data automatically:
 ```bash
 atlas setup
 ```
+
+### Source-Faithful Record Workflow
+
+Checkpoint B approved the source-faithful contract in ADRs 0033-0036. Implementation remains dependency-ordered; creature, hazard, and spell families now have canonical typed bodies, while later family implementation, deployment, and named task ownership remain separate gates. Contributors changing source interpretation or canonical records must keep these steps in the same bounded task ownership:
+
+1. Refresh the pinned PF2e source identity and regenerate/reconcile the union-derived type registry. Preserve registration-only zero-count entries and exact parent contexts.
+2. Update real-owner source coverage declarations and field-level fixtures. Preserve `Missing | Null | Value` where the pinned contract permits it; zero and false are meaningful values. Empty strings, nulls, and empty collections are scaffolding for path-warning purposes, but the B1 typed boundary still validates their declared presence and shape.
+3. Run focused ingest/record tests. New meaningful unknowns, type drift, parent-context drift, lost assignment, and fixture drift must fail through normal admission or the owning focused fixture rather than fall through raw JSON pointers. Preserve leaf-exact declarations and add a precise mutation test whenever a formerly covered parent could conceal a new or stale child. The relaxed raw-path audit is an optional diagnostic, not a final corpus gate.
+4. For artifact changes, land the migration/version, checked-in Diesel schema, writer, complete `atlas-index::read` hydration, validation/inspection, corruption fixtures, and CLI diagnostics as one atomic unit. Small production-code writer/reader tests prove codec, presence, relationship, order, identity, and fault semantics. The current contract is `pf2e-atlas-artifact/v8` with schema `4` and manifest `pf2e-atlas-artifact-manifest/v3`; creature, hazard, and spell hydration must come only from their matching typed `RecordBody` variants.
+5. Run `just verify`; run `just web-ui-verify` for frontend-affecting work. Browser automation proves semantics/accessibility/runtime behavior only; Checkpoint E remains the separate human visual gate.
+6. Search for residual raw-runtime parsing, duplicate source interpretation, partial hydration, fallback adapters, and old/new presentation paths before calling a refactor complete. For creature, hazard, and spell work, also reject generic record-mechanics hydration or presentation; retained generic mechanics must have an explicit non-canonical-family record-kind boundary.
+
+Run the relaxed audit for an aggregate local review:
+
+```bash
+atlas index audit-source-paths \
+  --source vendor/pf2e \
+  --limit 1000000 \
+  --json
+```
+
+Run strict mode in CI and before a source refresh. To review a vendored-source update, retain the previous full report and pass it as the baseline; strict mode fails on added, removed, or reclassified meaningful paths until the diff and declarations are reviewed:
+
+```bash
+atlas index audit-source-paths \
+  --source vendor/pf2e \
+  --limit 1000000 \
+  --strict \
+  --baseline previous-source-coverage.json \
+  --json
+```
+
+The JSON path list, diagnostics, source diff, disposition summaries, and pinned-base retrieval-predicate inventory are deterministically sorted. `consumed`, `ignored_with_rationale`, `provenance_only`, `deferred`, and `unknown` are distinct outcomes; every row exposes its matched rule, owner family, fixture/checkpoint, and validation contract, every consumed row names its extractor, and every deferred row names an exact future owner and plan. Strict summaries also expose generic deferred matches, unowned recursive matches, and consumed regressions; all three must be zero for a passing corpus audit.
+
+Atlas currently has no authentication or viewer authorization boundary and is primarily a GM tool, but the pinned base still contains default-visible/public-only routing and is not GM-complete. The approved target preserves typed visibility, role, source kind, and provenance while removing classification-only suppression of useful authored information across ingest, artifact, search, graph, discovery, metrics, CLI, app, and UI. Any retained exclusion needs a documented non-auth product rationale, fixtures, validation, and audit checkpoint. Do not describe either the base predicates or target metadata as a privacy/security boundary; future authenticated filtering requires a separate approved feature.

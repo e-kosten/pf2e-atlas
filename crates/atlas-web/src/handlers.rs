@@ -2,14 +2,15 @@ use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, CreateEncounterRequest,
     CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterSavedListRequest, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
+    EncounterSpellCastRequest, FilterSavedListRequest, OpenResultWindowRequest,
+    ReadResultWindowPageRequest, RecordDetailRequest, RemoveSavedListItemRequest,
+    ReorderEncounterParticipantRequest, ResetEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use axum::Json;
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{Path, Query, State};
 use axum::response::IntoResponse;
 
 use crate::error::{WebError, parse_window_id};
@@ -317,6 +318,36 @@ pub(crate) async fn remove_encounter_participant_condition(
     ))
 }
 
+pub(crate) async fn mutate_encounter_spell_cast(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<EncounterSpellCastRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.mutate_encounter_spell_cast(&encounter_ref, &participant_key, request)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn reset_encounter_participant(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<ResetEncounterParticipantRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.reset_encounter_participant(&encounter_ref, &participant_key, request)
+        })
+        .await?,
+    ))
+}
+
 pub(crate) async fn discover_filter_editor(
     State(state): State<AtlasWebState>,
     payload: Result<Json<DiscoverFilterEditorRequest>, JsonRejection>,
@@ -369,9 +400,11 @@ pub(crate) async fn read_result_window_page(
 pub(crate) async fn record_detail(
     State(state): State<AtlasWebState>,
     Path(record_key): Path<String>,
+    query: Result<Query<RecordDetailRequest>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+    let Query(request) = query.map_err(WebError::invalid_query)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.record_detail(&record_key)).await?,
+        call_service(state, move || service.record_detail(&record_key, request)).await?,
     ))
 }

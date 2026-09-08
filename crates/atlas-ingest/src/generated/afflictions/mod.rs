@@ -14,7 +14,8 @@ mod source_facts;
 
 pub(crate) use model::{
     AfflictionFamily, AfflictionOccurrence, DerivedAfflictionRecordInput, GeneratedAfflictionBuild,
-    GeneratedAfflictionError,
+    GeneratedAfflictionError, GeneratedAfflictionRelationship, GeneratedAfflictionRelationshipKind,
+    GeneratedAfflictionRole,
 };
 
 use crate::diagnostics::{DERIVED_AFFLICTION_INSTANCES_PACK_NAME, DERIVED_AFFLICTIONS_PACK_NAME};
@@ -38,6 +39,7 @@ pub(crate) fn build_generated_afflictions(
         return Ok(GeneratedAfflictionBuild {
             records: Vec::new(),
             references: Vec::new(),
+            relationships: Vec::new(),
         });
     }
     let canonical_pack_name =
@@ -63,6 +65,7 @@ pub(crate) fn build_generated_afflictions(
 
     let mut generated_records = Vec::new();
     let mut generated_references = Vec::new();
+    let mut generated_relationships = Vec::new();
     for (family, family_occurrences) in occurrences_by_family {
         for cluster in cluster_affliction_occurrences(family_occurrences) {
             let candidate = choose_affliction_authoritative_candidate(&cluster)
@@ -125,6 +128,7 @@ pub(crate) fn build_generated_afflictions(
                 },
                 "_derived": {
                     "kind": "canonicalAffliction",
+                    "role": GeneratedAfflictionRole::Canonical.as_str(),
                     "normalizationKey": identity_key,
                     "representativeInstanceRecordKey": representative_instance_key,
                     "linkedNames": all_linked_names,
@@ -158,7 +162,7 @@ pub(crate) fn build_generated_afflictions(
                     .map(|record| record.publication.category)
                     .unwrap_or(representative.host_record.publication.category),
                 source_path: format!("derived://afflictions/{}", canonical_key.id()),
-                is_default_visible: true,
+                role: GeneratedAfflictionRole::Canonical,
                 raw: canonical_raw,
             });
             generated_records.push(canonical_record.clone());
@@ -212,15 +216,14 @@ pub(crate) fn build_generated_afflictions(
                         .unwrap_or(occurrence.host_record.publication.remaster),
                     category: occurrence.host_record.publication.category,
                     source_path: occurrence.source_path.clone(),
-                    is_default_visible: false,
+                    role: GeneratedAfflictionRole::SourceInstance,
                     raw: instance_raw,
                 });
 
-                generated_references.extend(generated_affliction_edges(
-                    occurrence,
-                    &instance_key,
-                    &canonical_key,
-                ));
+                let (references, relationships) =
+                    generated_affliction_edges(occurrence, &instance_key, &canonical_key);
+                generated_references.extend(references);
+                generated_relationships.extend(relationships);
                 generated_records.push(instance_record);
             }
         }
@@ -244,5 +247,6 @@ pub(crate) fn build_generated_afflictions(
     Ok(GeneratedAfflictionBuild {
         records: generated_records,
         references: generated_references,
+        relationships: generated_relationships,
     })
 }

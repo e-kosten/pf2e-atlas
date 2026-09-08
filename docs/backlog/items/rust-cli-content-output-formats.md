@@ -2,6 +2,8 @@
 
 Status: deferred
 
+A7 candidate disposition: **deferred**. ADR 0023 structured content blocks remain the single default; additional output formats require a future CLI contract decision.
+
 ## Context
 
 The Rust CLI now exposes structured presentation-content blocks derived from canonical `RichDocument` values and renders terminal output directly from that DTO. Future consumers may still need additional output formats tailored to automation, source auditing, or web presentation.

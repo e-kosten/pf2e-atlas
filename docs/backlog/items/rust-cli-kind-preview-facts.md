@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-05-18
 
+A7 candidate disposition: **subsumed** by D2 additive structured facts in the existing `atlas-record::RecordJson` preview/detail vocabulary. Checkpoint B is not yet approved.
+
 ## Problem
 
 Human-readable Atlas search previews show key, name, kind, traits, source, and a text excerpt, but the most useful scan facts differ by record kind. Creature result previews should expose level and combat stats such as AC or HP. Equipment previews often need price, bulk, category, and activation details. Spell previews already benefit from level and traits but may need action cost, traditions, save, range, and duration more consistently.

@@ -1,0 +1,288 @@
+Night Hag
+  Type: creature · Pack: Bestiary 1
+  Key:
+       pathfinder-bestiary:WQy7HBUcgDLsfVJd
+
+Classification
+  Level: 9
+  Rarity: common
+  Traits: evil, fiend, hag, humanoid,
+          unholy
+  Size: med
+  Source: Pathfinder Bestiary
+
+Defenses
+  AC: 28
+  HP: current 170; maximum 170;
+      temporary 0
+  Fortitude: 19
+  Reflex: 17
+  Will: 18
+  All saves: +2 status to all saves vs.
+             magic, -2 to all saves (if
+             heartstone is lost)
+  Immunities: sleep
+  Resistances: mental 10
+  Weaknesses: cold-iron 10
+
+Awareness and abilities
+  Perception: +18; darkvision
+  Initiative: perception
+  Languages: aklo, chthonian, common,
+             diabolic, empyrean
+  Abilities: Str +5, Dex +4, Con +6, Int
+             +4, Wis +5, Cha +3
+  Arcana: +18
+  Deception: +18
+  Diplomacy: +18
+  Intimidation: +14
+  Occultism: +20
+  Religion: +20
+
+Movement
+  land: 25 feet
+
+Resources
+  Focus: maximum 1
+
+Strikes
+  - Jaws — [1 action]
+    Traits: magical, unarmed, unholy
+    Attack effects: abyssal-plague
+    Attack: attack +20
+    Damage: 1d6 spirit
+    Damage: 2d8+8 piercing
+  - Claw — [1 action]
+    Traits: agile, magical, unarmed,
+            unholy
+    Attack: attack +20
+    Damage: 2d10+8 slashing
+    Damage: 1d6 spirit
+
+Activities
+  - Coven — passive
+    Traits: mental, occult
+    Category: interaction
+  - Nightmare Rider — passive
+    Category: interaction
+  - Constant Spells — passive
+    Category: interaction
+  - +2 Status to All Saves vs. Magic —
+    passive
+    Category: defensive
+  - -2 to All Saves (If Heartstone is
+    Lost) — passive
+    Category: defensive
+  - Abyssal Plague — passive
+    Traits: disease
+    Category: offensive
+  - Change Shape — [1 action]
+    Traits: concentrate, occult,
+            polymorph
+    Category: offensive
+  - Dream Haunting — passive
+    Traits: mental, occult
+    Category: offensive
+  - Spell Ambush — passive
+    Category: offensive
+
+Spellcasting
+  - Occult Innate Spells — innate ·
+    occult
+    Attack: +20
+    DC: 28
+    Rank 9
+      - Bind Soul (At Will) (Heartstone)
+        — [2 actions]
+        Traits: concentrate, evil,
+                manipulate
+        Cost: black sapphire with a gp
+              value of at least the
+              target's level × 100
+        Target: 1 creature that died
+                within the last minute
+        Range: 30 feet
+        Time: 2
+      - Ethereal Jaunt (At Will)
+        (Heartstone) — [2 actions]
+        Traits: concentrate, manipulate,
+                teleportation
+        Time: 2
+    Rank 8
+      - Dream Council — 10 minutes
+        Traits: concentrate, illusion,
+                manipulate, mental,
+                sleep
+        Target: up to 12 creatures you
+                know by name and have
+                met in person
+        Range: planetary
+        Time: 10 minutes
+    Rank 5
+      - Shadow Blast (Heartstone) — [2
+        actions]
+        Traits: concentrate, manipulate,
+                shadow
+        Range: varies
+        Time: 2
+        Damage: 5d8 untyped damage
+      - Nightmare — 10 minutes
+        Traits: concentrate, illusion,
+                manipulate, mental
+        Target: 1 creature you know by
+                name
+        Range: planetary
+        Time: 10 minutes
+    Rank 3
+      - Dream Message (At Will) — 10
+        minutes
+        Traits: concentrate, manipulate,
+                mental
+        Target: 1 creature you know by
+                name and have met in
+                person
+        Range: planetary
+        Time: 10 minutes
+      - Magic Missile (At Will) — 1 to
+        3
+        Traits: concentrate, force,
+                manipulate
+        Target: 1 creature
+        Range: 120 feet
+        Time: 1 to 3
+        Damage: 1d4+1 force damage
+    Rank 2
+      - Invisibility (At Will) — [2
+        actions]
+        Traits: illusion, manipulate
+        Target: 1 creature
+        Range: touch
+        Time: 2
+      - Detect Alignment (Constant) (All
+        Alignments) — [2 actions]
+        Traits: concentrate, detection,
+                manipulate
+        Time: 2
+    Rank 1
+      - Detect Magic (Constant) (3rd)
+        — [2 actions]
+        Traits: cantrip, concentrate,
+                detection, manipulate
+        Time: 2
+      - Ray of Enfeeblement (At Will)
+        — [2 actions]
+        Traits: attack, concentrate,
+                manipulate
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+      - Sleep (At Will) — [2 actions]
+        Traits: concentrate,
+                incapacitation,
+                manipulate, mental,
+                sleep
+        Range: 30 feet
+        Time: 2
+  - Coven Spells — innate · occult
+    Attack: +15
+    DC: 23
+    Rank 8
+      - Baleful Polymorph — [2
+        actions]
+        Traits: concentrate,
+                incapacitation,
+                manipulate, polymorph
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+    Rank 6
+      - Dominate — [2 actions]
+        Traits: concentrate,
+                incapacitation,
+                manipulate, mental
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+      - Scrying — 10 minutes
+        Traits: concentrate, manipulate,
+                scrying
+        Target: 1 creature
+        Range: planetary
+        Time: 10 minutes
+      - Spellwrack — [2 actions]
+        Traits: concentrate, curse,
+                force, manipulate
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+    Rank 5
+      - Illusory Scene — 10 minutes
+        Traits: auditory, concentrate,
+                illusion, manipulate,
+                olfactory, visual
+        Range: 500 feet
+        Time: 10 minutes
+      - Prying Eye — 1 minute
+        Traits: concentrate, manipulate,
+                scrying
+        Range: see text
+        Time: 1 minute
+      - Clairvoyance — 1 minute
+        Traits: concentrate, manipulate,
+                scrying
+        Range: 500 feet
+        Time: 1 minute
+      - Talking Corpse — 10 minutes
+        Traits: concentrate, manipulate
+        Target: 1 corpse
+        Range: touch
+        Time: 10 minutes
+      - Clairaudience — 1 minute
+        Traits: concentrate, manipulate,
+                scrying
+        Range: 500 feet
+        Time: 1 minute
+      - Dream Message — 10 minutes
+        Traits: concentrate, manipulate,
+                mental
+        Target: 1 creature you know by
+                name and have met in
+                person
+        Range: planetary
+        Time: 10 minutes
+      - Augury — 10 minutes
+        Traits: concentrate, manipulate,
+                prediction
+        Time: 10 minutes
+      - Charm — [2 actions]
+        Traits: concentrate, emotion,
+                incapacitation,
+                manipulate, mental
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+      - Illusory Disguise — [2
+        actions]
+        Traits: concentrate, illusion,
+                manipulate, visual
+        Time: 2
+    Rank 4
+      - Nightmare — 10 minutes
+        Traits: concentrate, illusion,
+                manipulate, mental
+        Target: 1 creature you know by
+                name
+        Range: planetary
+        Time: 10 minutes
+  - Control Weather — 1 day
+    Time: 1 day
+
+Rituals
+  Actor DC: 23
+
+Equipment
+  - Heartstone
+    Traits: invested, occult
+    Level: 9
+    Usage: worn
+    Quantity: 1

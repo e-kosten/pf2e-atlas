@@ -7,10 +7,11 @@ use crate::handlers::{
     add_encounter_manual_participant, add_encounter_participant_condition,
     add_encounter_record_participant, add_saved_list_item, create_encounter, create_saved_list,
     delete_encounter, delete_saved_list, discover_filter_editor, discover_filter_values, encounter,
-    encounter_condition_definitions, encounters, filter_saved_list, open_result_window,
-    read_result_window_page, readiness, record_detail, remove_encounter_participant,
-    remove_encounter_participant_condition, remove_saved_list_item, reorder_encounter_participant,
-    saved_list, saved_lists, set_encounter_turn, update_encounter, update_encounter_participant,
+    encounter_condition_definitions, encounters, filter_saved_list, mutate_encounter_spell_cast,
+    open_result_window, read_result_window_page, readiness, record_detail,
+    remove_encounter_participant, remove_encounter_participant_condition, remove_saved_list_item,
+    reorder_encounter_participant, reset_encounter_participant, saved_list, saved_lists,
+    set_encounter_turn, update_encounter, update_encounter_participant,
     update_encounter_participant_condition, update_saved_list,
 };
 use crate::service::AtlasWebState;
@@ -56,6 +57,14 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/{condition_id}",
             axum::routing::patch(update_encounter_participant_condition)
                 .delete(remove_encounter_participant_condition),
+        )
+        .route(
+            "/api/encounters/{encounter_ref}/participants/{participant_key}/spell-casts",
+            post(mutate_encounter_spell_cast),
+        )
+        .route(
+            "/api/encounters/{encounter_ref}/participants/{participant_key}/reset",
+            post(reset_encounter_participant),
         )
         .route(
             "/api/encounters/{encounter_ref}/turn",

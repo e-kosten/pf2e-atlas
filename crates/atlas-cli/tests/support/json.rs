@@ -9,7 +9,10 @@ pub fn parse_json(output: &Output) -> Result<Value, Box<dyn std::error::Error>> 
 }
 
 pub fn ok_data(value: &Value) -> &Value {
-    assert_eq!(value["status"], "ok");
+    assert_eq!(
+        value["status"], "ok",
+        "unexpected response envelope: {value}"
+    );
     value.get("data").expect("ok envelope should contain data")
 }
 
@@ -33,10 +36,18 @@ pub fn parse_error(
 }
 
 pub fn record_sections(record: &Value) -> Vec<&str> {
-    record["sections"]
-        .as_array()
-        .expect("sections")
-        .iter()
+    record
+        .get("sections")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .chain(
+            record
+                .get("supplementary_sections")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten(),
+        )
         .map(|section| section["kind"].as_str().expect("section kind"))
         .collect()
 }

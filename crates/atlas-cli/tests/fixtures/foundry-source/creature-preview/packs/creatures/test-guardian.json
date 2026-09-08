@@ -28,6 +28,7 @@
         "value": 25
       },
       "hp": {
+        "max": 80,
         "value": 80
       },
       "speed": {
@@ -44,13 +45,13 @@
     },
     "saves": {
       "fortitude": {
-        "mod": 14
+        "value": 14
       },
       "reflex": {
-        "mod": 11
+        "value": 11
       },
       "will": {
-        "mod": 12
+        "value": 12
       }
     }
   }

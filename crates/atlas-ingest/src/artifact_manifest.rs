@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::UNIX_EPOCH;
 
+pub use atlas_index::ARTIFACT_MANIFEST_VERSION;
 use atlas_index::{ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -13,7 +14,6 @@ use crate::source::loader::{
 };
 use crate::source::model::Manifest;
 
-pub const ARTIFACT_MANIFEST_VERSION: &str = "pf2e-atlas-artifact-manifest/v1";
 pub const ADJACENT_ARTIFACT_MANIFEST_PATH: &str = "manifest.json";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,6 +41,7 @@ pub struct ArtifactManifestSource {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactManifestBuild {
+    pub artifact_sha256: String,
     pub artifact_record_count: usize,
     pub generated_record_count: usize,
     pub document_embedding_count: usize,
@@ -69,6 +70,7 @@ pub(crate) struct ArtifactManifestInput {
     pub generated_record_count: usize,
     pub document_embedding_count: usize,
     pub embedding_model: String,
+    pub artifact_sha256: String,
     pub source_position: SourcePositionReport,
 }
 
@@ -88,6 +90,7 @@ impl ArtifactManifest {
                 fingerprint_unavailable_reason: input.source_position.unavailable_reason,
             },
             build: ArtifactManifestBuild {
+                artifact_sha256: input.artifact_sha256,
                 artifact_record_count: input.artifact_record_count,
                 generated_record_count: input.generated_record_count,
                 document_embedding_count: input.document_embedding_count,
@@ -110,7 +113,21 @@ pub fn write_artifact_manifest(
 ) -> Result<(), IngestError> {
     let serialized = serde_json::to_string_pretty(manifest)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    fs::write(path, serialized).map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("manifest.json");
+    let temporary = parent.join(format!(".{file_name}.{}.tmp", std::process::id()));
+    fs::write(&temporary, serialized)
+        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    match fs::rename(&temporary, path) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            let _ = fs::remove_file(&temporary);
+            Err(IngestError::ArtifactWriteFailed(error.to_string()))
+        }
+    }
 }
 
 pub fn read_artifact_manifest(path: &Path) -> Result<ArtifactManifest, IngestError> {

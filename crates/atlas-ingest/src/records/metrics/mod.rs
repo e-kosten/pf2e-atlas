@@ -6,7 +6,6 @@ use atlas_record::{MetricRow, MetricValue};
 use serde_json::Value;
 
 mod actor;
-mod disable;
 mod emit;
 mod item;
 mod specs;
@@ -14,9 +13,7 @@ mod specs;
 mod tests;
 mod value;
 
-pub(crate) use value::{
-    first_number_like_at_paths, number_like_at_pointer, slugify_metric_segment,
-};
+pub(crate) use value::slugify_metric_segment;
 
 pub(crate) fn extract_metrics(
     raw: &Value,
@@ -24,6 +21,7 @@ pub(crate) fn extract_metrics(
     record_type: &str,
 ) -> Result<Vec<MetricRow>, String> {
     let metrics = match document_type {
+        "Actor" if matches!(record_type, "npc" | "hazard") => Vec::new(),
         "Actor" => actor::extract_actor_metrics(raw)?,
         "Item" => item::extract_item_metrics(raw, record_type)?,
         _ => Vec::new(),

@@ -16,11 +16,22 @@ pub(crate) fn lower_basic_filter(
     let Some(filter) = filter else {
         return Ok(None);
     };
-    if filter.clauses.is_empty() {
+    if filter.is_empty() {
         return Ok(None);
     }
     let mut simple = SimpleSearchFilter::default();
     let mut direct_nodes = Vec::new();
+    if let Some(relationship) = &filter.relationship {
+        let key = atlas_domain::RecordKey::parse(&relationship.record_key).map_err(|_| {
+            AppServiceError::invalid_request("Reference filter requires a valid record key")
+        })?;
+        direct_nodes.push(match relationship.direction {
+            atlas_app_model::ReferenceSearchDirection::Incoming => SearchFilterNode::links_to(key),
+            atlas_app_model::ReferenceSearchDirection::Outgoing => {
+                SearchFilterNode::linked_from(key)
+            }
+        });
+    }
 
     for clause in &filter.clauses {
         if is_empty_clause(clause) {
@@ -87,6 +98,7 @@ pub(crate) fn filter_context_excluding_field(
     match context {
         FilterDiscoveryContext::Filtered { filter } => FilterDiscoveryContext::Filtered {
             filter: BasicSearchFilter {
+                relationship: filter.relationship.clone(),
                 clauses: filter
                     .clauses
                     .iter()
@@ -99,6 +111,7 @@ pub(crate) fn filter_context_excluding_field(
             FilterDiscoveryContext::SavedList {
                 list_ref: list_ref.clone(),
                 filter: BasicSearchFilter {
+                    relationship: filter.relationship.clone(),
                     clauses: filter
                         .clauses
                         .iter()
@@ -204,7 +217,8 @@ fn lower_range(
     };
     let numeric_match = numeric_match(range)?;
     match canonical_field(field).as_str() {
-        "level" | "rank" => simple.level = Some(numeric_match),
+        "level" => simple.level = Some(numeric_match),
+        "rank" => simple.spell_rank = Some(numeric_match),
         "price" | "price_cp" => simple.price_cp = Some(numeric_match),
         other if let Some(field) = number_field(other) => {
             direct_nodes.push(SearchFilterNode::metadata(MetadataPredicate::Number {
@@ -346,6 +360,7 @@ fn set_field(field: &str) -> Option<MetadataSetField> {
         "traditions" => MetadataSetField::Traditions,
         "spell_kinds" => MetadataSetField::SpellKinds,
         "damage_types" => MetadataSetField::DamageTypes,
+        "spell_damage_types" => MetadataSetField::SpellDamageTypes,
         "languages" => MetadataSetField::Languages,
         "speed_types" => MetadataSetField::SpeedTypes,
         "senses" => MetadataSetField::Senses,
@@ -431,8 +446,67 @@ mod tests {
     use super::{filter_context_excluding_field, lower_basic_filter};
 
     #[test]
+    fn relationship_filter_preserves_exact_direction_and_discovery_scope() {
+        use atlas_app_model::{
+            FilterDiscoveryContext, ReferenceSearchDirection, RelationshipConstraint,
+        };
+        for direction in [
+            ReferenceSearchDirection::Incoming,
+            ReferenceSearchDirection::Outgoing,
+        ] {
+            let filter = BasicSearchFilter {
+                clauses: vec![],
+                relationship: Some(RelationshipConstraint {
+                    direction,
+                    record_key: "spells:exactKey".into(),
+                }),
+            };
+            assert!(!filter.is_empty());
+            let key = atlas_domain::RecordKey::parse("spells:exactKey").expect("valid key");
+            let expected = match direction {
+                ReferenceSearchDirection::Incoming => SearchFilterNode::links_to(key),
+                ReferenceSearchDirection::Outgoing => SearchFilterNode::linked_from(key),
+            };
+            assert_eq!(
+                lower_basic_filter(Some(&filter)).expect("lower"),
+                Some(expected.clone())
+            );
+            for context in [
+                FilterDiscoveryContext::Filtered {
+                    filter: filter.clone(),
+                },
+                FilterDiscoveryContext::SavedList {
+                    list_ref: "test".into(),
+                    filter: filter.clone(),
+                },
+            ] {
+                let excluded = filter_context_excluding_field(&context, "kind");
+                assert_eq!(
+                    super::lower_basic_filter_context(&excluded).expect("discovery"),
+                    Some(expected.clone())
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn relationship_filter_rejects_invalid_keys_without_name_fallback() {
+        for key in ["Fireball", "", "spells:bad key", "spells:one:two"] {
+            let filter = BasicSearchFilter {
+                clauses: vec![],
+                relationship: Some(atlas_app_model::RelationshipConstraint {
+                    direction: atlas_app_model::ReferenceSearchDirection::Incoming,
+                    record_key: key.into(),
+                }),
+            };
+            assert!(lower_basic_filter(Some(&filter)).is_err(), "{key}");
+        }
+    }
+
+    #[test]
     fn lowers_required_traits_as_all_predicates() {
         let node = lower_basic_filter(Some(&BasicSearchFilter {
+            relationship: None,
             clauses: vec![clause(
                 "traits",
                 FilterClauseOperator::IncludeAll,
@@ -451,6 +525,7 @@ mod tests {
     #[test]
     fn lowers_any_traits_as_any_group() {
         let node = lower_basic_filter(Some(&BasicSearchFilter {
+            relationship: None,
             clauses: vec![clause(
                 "traits",
                 FilterClauseOperator::IncludeAny,
@@ -469,6 +544,7 @@ mod tests {
     #[test]
     fn lowers_excluded_rarity_as_not_any_group() {
         let node = lower_basic_filter(Some(&BasicSearchFilter {
+            relationship: None,
             clauses: vec![clause(
                 "rarity",
                 FilterClauseOperator::ExcludeAny,
@@ -494,6 +570,7 @@ mod tests {
     #[test]
     fn lowers_level_range_and_metric_comparison() {
         let node = lower_basic_filter(Some(&BasicSearchFilter {
+            relationship: None,
             clauses: vec![
                 FilterClause {
                     id: "level".to_string(),
@@ -544,6 +621,7 @@ mod tests {
     fn discovery_context_exclusion_removes_same_app_field_aliases_only() {
         let context = atlas_app_model::FilterDiscoveryContext::Filtered {
             filter: BasicSearchFilter {
+                relationship: None,
                 clauses: vec![
                     clause("kind", FilterClauseOperator::IncludeAny, ["spell"]),
                     clause("record_kind", FilterClauseOperator::IncludeAny, ["feat"]),
@@ -574,6 +652,7 @@ mod tests {
     #[test]
     fn lowers_expanded_option_filters_to_metadata_predicates() {
         let node = lower_basic_filter(Some(&BasicSearchFilter {
+            relationship: None,
             clauses: vec![
                 clause(
                     "traditions",
@@ -607,6 +686,7 @@ mod tests {
     #[test]
     fn lowers_expanded_boolean_and_number_filters_to_metadata_predicates() {
         let node = lower_basic_filter(Some(&BasicSearchFilter {
+            relationship: None,
             clauses: vec![
                 clause("basic_save", FilterClauseOperator::IncludeAny, ["true"]),
                 FilterClause {
@@ -643,6 +723,7 @@ mod tests {
     #[test]
     fn rejects_inverted_range() {
         let error = lower_basic_filter(Some(&BasicSearchFilter {
+            relationship: None,
             clauses: vec![FilterClause {
                 id: "level".to_string(),
                 field: "level".to_string(),

@@ -1,7 +1,16 @@
 import type React from "react";
+import type { RelationshipConstraint } from "../generated/atlas";
+import {
+  DEFAULT_SEARCH_STATE,
+  searchStateQueryString,
+} from "../shared/filters/searchState";
 
 export type AtlasRoute =
-  | { kind: "search"; selectedRecordKey: string | null }
+  | {
+      kind: "search";
+      selectedRecordKey: string | null;
+      relationship?: RelationshipConstraint;
+    }
   | { kind: "presentationMocks" }
   | { kind: "encounters" }
   | { kind: "encounter"; slug: string }
@@ -99,7 +108,15 @@ export function currentAtlasRoute(): AtlasRoute {
 export function atlasRoutePath(route: AtlasRoute): string {
   switch (route.kind) {
     case "search":
-      return searchPath(route.selectedRecordKey);
+      return (
+        searchPath(route.selectedRecordKey) +
+        (route.relationship
+          ? searchStateQueryString({
+              ...DEFAULT_SEARCH_STATE,
+              relationship: route.relationship,
+            })
+          : "")
+      );
     case "presentationMocks":
       return presentationMocksPath();
     case "encounters":

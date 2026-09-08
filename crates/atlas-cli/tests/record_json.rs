@@ -8,8 +8,284 @@ mod support;
 use support::json::{ok_data, record_sections};
 use support::path::temp_source_root;
 use support::source::{
-    write_ambiguous_action_source, write_record_search_source, write_tooling_collision_source,
+    write_ambiguous_action_source, write_creature_preview_source, write_hazard_source,
+    write_record_search_source, write_tooling_collision_source,
 };
+
+#[test]
+fn hazard_record_uses_typed_json_text_search_filters_and_provenance()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-hazard-record-contract");
+    write_hazard_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--source"])
+        .arg(&root)
+        .args(["--output"])
+        .arg(&index_path)
+        .args(["--no-embeddings", "--json"])
+        .output()?;
+    assert!(
+        build_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build_output.stderr)
+    );
+
+    let get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "hazards:BHq5wpQU8hQEke8D",
+            "--detail",
+            "full",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(get_output.status.success());
+    let get_json: Value = serde_json::from_slice(&get_output.stdout)?;
+    let record = &ok_data(&get_json)["record"];
+    assert_eq!(record["presentation_type"], "hazard");
+    assert_eq!(record["level"], 0);
+    assert_eq!(record["rarity"], "common");
+    assert_eq!(record["source"]["publication_title"], "Pathfinder GM Core");
+    assert_eq!(record["source"]["publication_remaster"], true);
+    assert!(record.get("provenance").is_none());
+    assert!(record.get("migration").is_none());
+    let rendered = serde_json::to_string(record)?;
+    for expected in [
+        "Detection DC",
+        "Broken Threshold",
+        "Fortitude",
+        "Pitfall",
+        "Trigger",
+        "Effect",
+        "Reset",
+    ] {
+        assert!(
+            rendered.contains(expected),
+            "missing {expected}: {rendered}"
+        );
+    }
+    assert!(!rendered.contains("publication_license"));
+    assert!(!rendered.contains("actor_effects"));
+    assert!(!rendered.contains("img"));
+    let availability = record["availability"]
+        .as_array()
+        .expect("hazard availability");
+    assert!(
+        availability
+            .iter()
+            .any(|row| { row["field"] == "action.actions" && row["state"] == "null" })
+    );
+    assert!(availability.iter().all(|row| {
+        !row["field"].as_str().is_some_and(|field| {
+            field.contains("source_metadata")
+                || field == "provenance.token.name"
+                || field == "entity.unsupported.action.unexpected.traits.rarity"
+        })
+    }));
+
+    let text_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "hazards:BHq5wpQU8hQEke8D",
+            "--detail",
+            "full",
+            "--index",
+        ])
+        .arg(&index_path)
+        .output()?;
+    assert!(text_output.status.success());
+    let text = String::from_utf8(text_output.stdout)?;
+    for expected in [
+        "Detection DC: 18",
+        "AC: 10",
+        "HP: 12",
+        "Hardness: 3",
+        "BT: 6",
+        "Fort: +1",
+        "Ref: +1",
+        "Will: +0",
+        "Pitfall: Reaction",
+        "Trigger",
+        "Effect",
+    ] {
+        assert!(text.contains(expected), "missing {expected:?}:\n{text}");
+    }
+    for hidden in ["Damage 0", "Occurrence ", "Entity ", "Temporary HP: 0"] {
+        assert!(!text.contains(hidden), "leaked {hidden:?}:\n{text}");
+    }
+
+    let search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "search",
+            "mechanical",
+            "--retrieval",
+            "fts",
+            "--kind",
+            "hazard",
+            "--metric",
+            "ac.value=10",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(
+        search_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&search_output.stdout)
+    );
+    let search_json: Value = serde_json::from_slice(&search_output.stdout)?;
+    let search = ok_data(&search_json);
+    assert_eq!(search["pagination"]["total"], 1);
+    assert_eq!(
+        search["results"][0]["record"]["presentation_type"],
+        "hazard"
+    );
+
+    let provenance_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "provenance",
+            "hazards:BHq5wpQU8hQEke8D",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(provenance_output.status.success());
+    let provenance_json: Value = serde_json::from_slice(&provenance_output.stdout)?;
+    let provenance = ok_data(&provenance_json);
+    assert_eq!(
+        provenance["hazard_provenance"]["convenience_rule_id"],
+        "pf2e-hazard-conveniences"
+    );
+    assert_eq!(
+        provenance["hazard_provenance"]["publication_license"],
+        "ORC"
+    );
+    assert_eq!(
+        provenance["hazard_provenance"]["occurrences"][0]["family"],
+        "action"
+    );
+    assert!(
+        provenance["hazard_provenance"]["content"]
+            .as_array()
+            .is_some_and(|rows| !rows.is_empty())
+    );
+    let source_metadata = provenance["hazard_provenance"]["source_metadata"]
+        .as_array()
+        .expect("hazard source metadata");
+    assert_eq!(
+        source_metadata
+            .iter()
+            .map(|fact| fact["field"].as_str().expect("source metadata field"))
+            .collect::<Vec<_>>(),
+        vec![
+            "token_name",
+            "has_health",
+            "temporary_maximum",
+            "save_detail",
+            "save_detail",
+            "save_detail",
+            "item_rarity",
+            "item_lineage",
+        ]
+    );
+    let has_health = &source_metadata[1];
+    assert_eq!(has_health["value"]["value"]["state"], "value");
+    assert_eq!(has_health["value"]["value"]["value"]["support"], "typed");
+    assert_eq!(has_health["value"]["value"]["value"]["value"], true);
+    assert_eq!(
+        has_health["value"]["provenance"]["relativeSourcePath"],
+        "/system/attributes/hasHealth"
+    );
+    assert_eq!(source_metadata[2]["value"]["value"]["value"]["value"], 0);
+    assert_eq!(source_metadata[3]["save"], "fortitude");
+    assert_eq!(source_metadata[3]["value"]["value"]["value"]["value"], "");
+    assert_eq!(source_metadata[6]["entity_id"], "lY83oUjx0DLxDByK");
+    assert_eq!(
+        source_metadata[6]["value"]["value"]["value"]["value"],
+        "common"
+    );
+    assert_eq!(provenance["references"]["lookup_performed"], true);
+    assert!(
+        provenance["references"]["edges"]
+            .as_array()
+            .is_some_and(|edges| edges.iter().any(|edge| {
+                edge["direction"] == "outgoing"
+                    && edge["to_record_key"] == "actionspf2e:grabEdgeTest0001"
+            }))
+    );
+    assert!(!serde_json::to_string(provenance)?.contains("image"));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+fn assert_no_internal_creature_locators(record: &Value) {
+    fn reject_named_debug_fields(value: &Value) {
+        match value {
+            Value::Object(object) => {
+                for forbidden in [
+                    "target_entity_id",
+                    "parent_entry_id",
+                    "slot",
+                    "owner",
+                    "provenance",
+                ] {
+                    assert!(
+                        !object.contains_key(forbidden),
+                        "ordinary creature JSON exposed {forbidden}"
+                    );
+                }
+                object.values().for_each(reject_named_debug_fields);
+            }
+            Value::Array(values) => values.iter().for_each(reject_named_debug_fields),
+            _ => {}
+        }
+    }
+
+    reject_named_debug_fields(record);
+    for family in ["strikes", "actions", "equipment", "lore"] {
+        for row in record[family].as_array().into_iter().flatten() {
+            assert!(row.get("id").is_none(), "ordinary {family} row exposed id");
+        }
+    }
+    if let Some(spellcasting) = record.get("spellcasting") {
+        for entry in spellcasting["entries"].as_array().into_iter().flatten() {
+            assert!(
+                entry.get("id").is_none(),
+                "ordinary spellcasting entry exposed id"
+            );
+            for spell in entry["spells"].as_array().into_iter().flatten() {
+                assert!(spell.get("id").is_none(), "ordinary spell row exposed id");
+            }
+            for slot in entry["slots"].as_array().into_iter().flatten() {
+                for prepared in slot["prepared"].as_array().into_iter().flatten() {
+                    assert!(
+                        prepared.get("id").is_none(),
+                        "ordinary prepared spell exposed item id"
+                    );
+                }
+            }
+        }
+        for spell in spellcasting["standalone_spells"]
+            .as_array()
+            .into_iter()
+            .flatten()
+        {
+            assert!(
+                spell.get("id").is_none(),
+                "ordinary standalone spell exposed id"
+            );
+        }
+    }
+}
 
 #[test]
 fn record_get_resolve_and_filter_search_use_shared_record_shape()
@@ -40,6 +316,8 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert_eq!(get_data["record"]["key"], "actions:testAction0001");
     assert_eq!(get_data["record"]["name"], "Treat Wounds");
     assert_eq!(get_data["record"]["kind"], "rule");
+    assert_eq!(get_data["record"]["presentation_type"], "unmigrated");
+    assert_eq!(get_data["record"]["migration"]["plan_id"], "H7");
     assert!(record_sections(&get_data["record"]).contains(&"description"));
     assert!(!record_sections(&get_data["record"]).contains(&"description_preview"));
     assert!(get_data["record"].get("source_json").is_none());
@@ -56,7 +334,13 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .arg(&index_path)
         .arg("--json")
         .output()?;
-    assert!(preview_get_output.status.success());
+    assert!(
+        preview_get_output.status.success(),
+        "preview command failed: status={}; stdout={}; stderr={}",
+        preview_get_output.status,
+        String::from_utf8_lossy(&preview_get_output.stdout),
+        String::from_utf8_lossy(&preview_get_output.stderr)
+    );
     let preview_get_json: Value = serde_json::from_slice(&preview_get_output.stdout)?;
     let preview_get_data = ok_data(&preview_get_json);
     assert_eq!(preview_get_data["detail"], "preview");
@@ -82,7 +366,8 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(record_sections(&description_get_data["record"]).contains(&"description"));
     assert!(!record_sections(&description_get_data["record"]).contains(&"description_preview"));
     assert!(!record_sections(&description_get_data["record"]).contains(&"details"));
-    let description_sections = serde_json::to_string(&description_get_data["record"]["sections"])?;
+    let description_sections =
+        serde_json::to_string(&description_get_data["record"]["supplementary_sections"])?;
     assert!(description_sections.contains("\"label\":\"Treat Wounds\""));
     assert!(description_sections.contains("\"record_key\":\"actions:testAction0001\""));
 
@@ -110,6 +395,27 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     );
     assert!(record_sections(&full_get_data["record"]).contains(&"description"));
     assert!(!record_sections(&full_get_data["record"]).contains(&"description_preview"));
+
+    let preview_raw_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "actions:testAction0001",
+            "--detail",
+            "preview",
+            "--include-raw",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(preview_raw_get_output.status.success());
+    let preview_raw_get_json: Value = serde_json::from_slice(&preview_raw_get_output.stdout)?;
+    assert!(
+        ok_data(&preview_raw_get_json)["record"]["source_json"]
+            .as_str()
+            .is_some()
+    );
 
     let batch_get_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -145,7 +451,12 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .arg(&index_path)
         .arg("--json")
         .output()?;
-    assert!(successful_batch_get_output.status.success());
+    assert!(
+        successful_batch_get_output.status.success(),
+        "batch get failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&successful_batch_get_output.stdout),
+        String::from_utf8_lossy(&successful_batch_get_output.stderr),
+    );
     let successful_batch_get_json: Value =
         serde_json::from_slice(&successful_batch_get_output.stdout)?;
     let successful_batch_get_data = ok_data(&successful_batch_get_json);
@@ -224,8 +535,10 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
     assert!(text_resolve_description_output.status.success());
     let text_resolve_description_stdout =
         String::from_utf8(text_resolve_description_output.stdout)?;
-    assert!(text_resolve_description_stdout.contains("actions:testAction0001  Treat Wounds  rule"));
-    assert!(text_resolve_description_stdout.contains("Source: Actions"));
+    assert!(text_resolve_description_stdout.starts_with("Treat Wounds\n"));
+    assert!(text_resolve_description_stdout.contains("Type: rule"));
+    assert!(text_resolve_description_stdout.contains("Key: actions:testAction0001"));
+    assert!(text_resolve_description_stdout.contains("Pack: Actions"));
     assert!(
         text_resolve_description_stdout
             .contains("You spend 10 minutes treating one injured living creature with")
@@ -453,7 +766,9 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .output()?;
     assert!(text_get_output.status.success());
     let text_get_stdout = String::from_utf8(text_get_output.stdout)?;
-    assert!(text_get_stdout.contains("actions:testAction0001\tTreat Wounds\trule"));
+    assert!(text_get_stdout.starts_with("Treat Wounds\n"));
+    assert!(text_get_stdout.contains("Type: rule"));
+    assert!(text_get_stdout.contains("Key: actions:testAction0001"));
     assert!(!text_get_stdout.contains("\"status\""));
 
     let text_search_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -476,13 +791,208 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .output()?;
     assert!(text_search_preview_output.status.success());
     let text_search_preview_stdout = String::from_utf8(text_search_preview_output.stdout)?;
-    assert!(text_search_preview_stdout.contains("actions:testAction0001  Treat Wounds  rule"));
-    assert!(text_search_preview_stdout.contains("Source: Actions"));
+    assert!(text_search_preview_stdout.contains("Treat Wounds\n"));
+    assert!(text_search_preview_stdout.contains("Type: rule"));
+    assert!(text_search_preview_stdout.contains("Key: actions:testAction0001"));
+    assert!(text_search_preview_stdout.contains("Pack: Actions"));
     assert!(
         text_search_preview_stdout
             .contains("You spend 10 minutes treating one injured living creature with")
     );
     assert!(text_search_preview_stdout.contains("Match: filter"));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn creature_record_uses_direct_tagged_fields_at_each_detail()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-creature-record-contract");
+    write_creature_preview_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--source"])
+        .arg(&root)
+        .arg("--output")
+        .arg(&index_path)
+        .args(["--no-embeddings", "--json"])
+        .output()?;
+    assert!(build_output.status.success());
+
+    for detail in ["summary", "preview", "description", "standard", "full"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args([
+                "record",
+                "get",
+                "creatures:testCreature001",
+                "--detail",
+                detail,
+                "--index",
+            ])
+            .arg(&index_path)
+            .arg("--json")
+            .output()?;
+        assert!(output.status.success(), "detail {detail}");
+        let json: Value = serde_json::from_slice(&output.stdout)?;
+        let record = &ok_data(&json)["record"];
+        assert_eq!(record["presentation_type"], "creature");
+        assert_no_internal_creature_locators(record);
+        assert!(record.get("sections").is_none());
+        let includes_scan_fields = matches!(detail, "preview" | "standard" | "full");
+        for field in ["defenses", "perception", "languages", "movement"] {
+            assert_eq!(
+                record.get(field).is_some(),
+                includes_scan_fields,
+                "detail {detail} field {field}"
+            );
+        }
+        for field in ["skills", "resources", "strikes", "actions", "spellcasting"] {
+            assert!(
+                record.get(field).is_none(),
+                "detail {detail} must omit source-missing field {field}"
+            );
+        }
+        if includes_scan_fields {
+            assert!(record["defenses"].is_object());
+            assert!(record["movement"].is_object());
+        }
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "creatures:testCreature001",
+            "--detail",
+            "standard",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    let json: Value = serde_json::from_slice(&output.stdout)?;
+    let record = &ok_data(&json)["record"];
+    assert_eq!(record["defenses"]["ac"]["value"], 25);
+    assert_eq!(record["defenses"]["hp"]["maximum"], 80);
+    assert_eq!(record["defenses"]["saves"]["fortitude"]["value"], 14);
+    assert_eq!(record["perception"]["modifier"], 12);
+    assert_eq!(record["languages"][0], "common");
+    assert_eq!(record["movement"]["modes"][0]["value_feet"], 25);
+    let forbidden_generic_body = ["creature", "mechanics"].join("_");
+    assert!(!serde_json::to_string(record)?.contains(&forbidden_generic_body));
+
+    for detail in ["summary", "preview", "description", "standard", "full"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args([
+                "record",
+                "get",
+                "creatures:WQy7HBUcgDLsfVJd",
+                "--detail",
+                detail,
+                "--index",
+            ])
+            .arg(&index_path)
+            .arg("--json")
+            .output()?;
+        assert!(output.status.success(), "Night Hag detail {detail}");
+        let json: Value = serde_json::from_slice(&output.stdout)?;
+        let record = &ok_data(&json)["record"];
+        assert_eq!(record["presentation_type"], "creature");
+        assert_no_internal_creature_locators(record);
+        let includes_scan_fields = matches!(detail, "preview" | "standard" | "full");
+        assert_eq!(record.get("defenses").is_some(), includes_scan_fields);
+        assert_eq!(record.get("strikes").is_some(), includes_scan_fields);
+        assert_eq!(record.get("actions").is_some(), includes_scan_fields);
+        assert_eq!(record.get("spellcasting").is_some(), includes_scan_fields);
+        for forbidden in ["relationships", "provenance", "availability_evidence"] {
+            assert!(
+                record.get(forbidden).is_none(),
+                "ordinary {detail} exposed provenance-only {forbidden}"
+            );
+        }
+        if detail == "preview" {
+            assert!(record["strikes"][0].get("rolls").is_none());
+            assert!(record["strikes"][0].get("damage").is_none());
+            assert!(record["strikes"][0].get("modes").is_none());
+            assert!(record["actions"][0].get("rolls").is_none());
+            assert!(record["spellcasting"]["spells"][0].get("damage").is_none());
+        }
+        if matches!(detail, "standard" | "full") {
+            assert_eq!(record["defenses"]["ac"]["value"], 28);
+            assert_eq!(record["defenses"]["hp"]["maximum"], 170);
+            assert_eq!(record["defenses"]["saves"]["fortitude"]["value"], 19);
+            assert_eq!(record["defenses"]["immunities"][0]["iwr_type"], "sleep");
+            assert_eq!(record["defenses"]["resistances"][0]["iwr_type"], "mental");
+            assert_eq!(record["defenses"]["weaknesses"][0]["iwr_type"], "cold-iron");
+            assert_eq!(record["perception"]["modifier"], 18);
+            assert_eq!(record["languages"][0], "aklo");
+            assert_eq!(record["skills"][0]["slug"], "occultism");
+            assert_eq!(record["skills"][0]["note"], "ancient soul lore");
+            assert_eq!(record["skills"][1]["slug"], "lore");
+            assert_eq!(record["movement"]["modes"][0]["mode"], "land");
+            assert_eq!(record["movement"]["modes"][1]["mode"], "fly");
+            assert_eq!(record["resources"][0]["maximum"], 1);
+            assert_eq!(record["resources"][0]["serialized_value"], 1);
+            assert_eq!(record["defenses"]["resistances"][0]["value"], 10);
+            assert_eq!(record["defenses"]["weaknesses"][0]["value"], 10);
+            let change_shape = record["actions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|action| action["label"] == "Change Shape")
+                .expect("Change Shape action");
+            assert_eq!(change_shape["action_cost"]["kind"], "actions");
+            assert_eq!(change_shape["action_cost"]["actions"], 1);
+            assert_eq!(record["strikes"].as_array().unwrap().len(), 2);
+            assert_eq!(record["actions"].as_array().unwrap().len(), 2);
+            assert_eq!(
+                record["spellcasting"]["entries"].as_array().unwrap().len(),
+                2
+            );
+            let spells = record["spellcasting"]["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|entry| entry["spells"].as_array().into_iter().flatten())
+                .collect::<Vec<_>>();
+            assert_eq!(spells.len(), 2);
+            assert!(record["strikes"][0]["rolls"].is_array());
+            assert!(record["strikes"][0]["damage"].is_array());
+            assert!(record["actions"][0]["rolls"].is_array());
+            assert!(spells[0]["damage"].is_array());
+            assert_eq!(spells[0]["context"]["rank"], 3);
+            assert!(spells[0].get("parent_entry_id").is_none());
+            if detail == "full" {
+                assert!(serde_json::to_string(record)?.contains("Heartstones"));
+            }
+        }
+        if detail == "full" {
+            assert!(record["source"].get("source_path").is_none());
+            assert!(record["source"].get("foundry").is_none());
+            assert!(record["strikes"][0].get("provenance").is_none());
+        }
+    }
+
+    let resolve_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "resolve",
+            "Night Hag",
+            "--kind",
+            "creature",
+            "--detail",
+            "standard",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(resolve_output.status.success());
+    let resolved_json: Value = serde_json::from_slice(&resolve_output.stdout)?;
+    let resolved = &ok_data(&resolved_json)["result"]["record"];
+    assert_eq!(resolved["presentation_type"], "creature");
+    assert_eq!(resolved["strikes"].as_array().unwrap().len(), 2);
 
     fs::remove_dir_all(root)?;
     Ok(())
@@ -572,6 +1082,13 @@ fn record_resolve_reports_ambiguity() -> Result<(), Box<dyn std::error::Error>> 
     assert_eq!(
         data["result"]["error"]["code"],
         "record_resolution_ambiguous"
+    );
+    assert!(
+        data["result"]["alternatives"]
+            .as_array()
+            .expect("ambiguity alternatives")
+            .iter()
+            .all(|alternative| alternative["record"]["presentation_type"] == "unmigrated")
     );
     assert_eq!(data["result"]["alternatives"].as_array().unwrap().len(), 2);
     assert_eq!(

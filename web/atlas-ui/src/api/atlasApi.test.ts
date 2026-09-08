@@ -1,4 +1,8 @@
-import type { AppError, OpenResultWindowRequest } from "../generated/atlas";
+import type {
+  AppError,
+  EncounterSpellCastRequest,
+  OpenResultWindowRequest,
+} from "../generated/atlas";
 import {
   addSavedListItem,
   AtlasApiError,
@@ -11,9 +15,13 @@ import {
   getRecordDetail,
   getSavedList,
   getSavedLists,
+  mutateEncounterSpellCast,
   openResultWindow,
   readResultWindowPage,
+  removeEncounterParticipantCondition,
   removeSavedListItem,
+  resetEncounterParticipant,
+  updateEncounterParticipantCondition,
   updateSavedList,
 } from "./atlasApi";
 
@@ -36,6 +44,76 @@ describe("atlasApi", () => {
       }),
     );
   });
+
+  it("requests an opaque spell form and cast rank through record detail", async () => {
+    const fetchMock = mockFetch({ surface: {} });
+    const signal = new AbortController().signal;
+
+    await getRecordDetail(
+      "spells-srd:rime/slick",
+      {
+        spell_form_id: "opaque:form/id",
+        spell_cast_rank: 8,
+      },
+      signal,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/records/spells-srd%3Arime%2Fslick?spell_form_id=opaque%3Aform%2Fid&spell_cast_rank=8",
+      expect.objectContaining({ signal }),
+    );
+  });
+
+  it("preserves explicit record-reference limits in the detail query", async () => {
+    const fetchMock = mockFetch({ surface: {} });
+
+    await getRecordDetail("spells-srd:heal", {
+      reference_outgoing_limit: 0,
+      reference_backlink_limit: 8,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/records/spells-srd%3Aheal?reference_outgoing_limit=0&reference_backlink_limit=8",
+      expect.any(Object),
+    );
+  });
+
+  it("keeps omitted spell selection and reference limits out of record detail", async () => {
+    const fetchMock = mockFetch({ surface: {} });
+
+    await getRecordDetail("spells-srd:heal");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/records/spells-srd%3Aheal",
+      expect.not.objectContaining({ body: expect.anything() }),
+    );
+  });
+
+  it("rejects unsafe spell cast ranks before record-detail transport", async () => {
+    await expect(
+      getRecordDetail("spells-srd:rime", {
+        spell_form_id: "opaque:rime",
+        spell_cast_rank: Number.MAX_SAFE_INTEGER + 1,
+      }),
+    ).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+  });
+
+  it.each(["reference_outgoing_limit", "reference_backlink_limit"] as const)(
+    "rejects an unsafe %s before record-detail transport",
+    async (field) => {
+      await expect(
+        getRecordDetail("spells-srd:heal", {
+          [field]: Number.MAX_SAFE_INTEGER + 1,
+        }),
+      ).rejects.toMatchObject({
+        name: "AtlasApiError",
+        message: "Request numeric field exceeds JSON safe integer range",
+      });
+    },
+  );
 
   it("posts result-window requests as JSON and normalizes bigint fields", async () => {
     const fetchMock = mockFetch(resultWindowPayload());
@@ -106,6 +184,170 @@ describe("atlasApi", () => {
       name: "AtlasApiError",
       message: "Request numeric field exceeds JSON safe integer range",
     });
+  });
+
+  it("round-trips encounter numbers without bigint conversion", async () => {
+    const fetchMock = mockFetch({
+      encounter: { round_number: 2 },
+      participants: [
+        {
+          position: 0,
+          initiative: 18,
+          initiative_order: 0,
+          record_view: {
+            metadata: { level: 9 },
+            encounter: {
+              conditions: [{ condition_id: 12, value: 2, duration_rounds: 3 }],
+            },
+          },
+        },
+      ],
+    });
+    const result = await updateEncounterParticipantCondition(
+      "encounter/one",
+      "participant/one",
+      {
+        condition_id: 12,
+        name: "Frightened",
+        value: 2,
+        duration_rounds: 3,
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/encounters/encounter%2Fone/participants/participant%2Fone/conditions/12",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          condition_id: 12,
+          name: "Frightened",
+          value: 2,
+          duration_rounds: 3,
+        }),
+      }),
+    );
+    expect(result.encounter.round_number).toBe(2);
+    expect(result.participants[0]?.position).toBe(0);
+    expect(result.participants[0]?.record_view.metadata.level).toBe(9);
+    expect(
+      result.participants[0]?.record_view.encounter?.conditions?.[0]?.condition_id,
+    ).toBe(12);
+  });
+
+  it("rejects unsafe encounter integer requests", async () => {
+    await expect(
+      updateEncounterParticipantCondition("encounter", "participant", {
+        condition_id: Number.MAX_SAFE_INTEGER + 1,
+        name: "Unsafe",
+      }),
+    ).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+
+    await expect(
+      removeEncounterParticipantCondition(
+        "encounter",
+        "participant",
+        Number.MAX_SAFE_INTEGER + 1,
+      ),
+    ).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+  });
+
+  it("posts an opaque typed spell-cast target without reconstructing its identity", async () => {
+    const request: EncounterSpellCastRequest = {
+      spell_occurrence_id: "spell/occurrence",
+      spend_target: {
+        target_type: "prepared_slot",
+        entry_id: "entry/id",
+        rank: 4,
+        slot_id: "slot4:0",
+      },
+      operation: "cast_one",
+    };
+    const resultPayload = {
+      operation: "cast_one",
+      participant_key: "participant/key",
+      spell_occurrence_id: "spell/occurrence",
+      before: {
+        spend_target: request.spend_target,
+        available: true,
+        state: {
+          state_type: "tracked",
+          maximum: 1,
+          initial_remaining: 1,
+          remaining: 1,
+        },
+      },
+      after: {
+        spend_target: request.spend_target,
+        available: false,
+        state: {
+          state_type: "tracked",
+          maximum: 1,
+          initial_remaining: 1,
+          remaining: 0,
+        },
+        blocked_reason: "exhausted",
+      },
+      participant: {},
+    };
+    const fetchMock = mockFetch(resultPayload);
+
+    await expect(
+      mutateEncounterSpellCast("encounter/ref", "participant/key", request),
+    ).resolves.toEqual(resultPayload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/encounters/encounter%2Fref/participants/participant%2Fkey/spell-casts",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(request),
+      }),
+    );
+  });
+
+  it("rejects unsafe numeric fields in typed spell targets", async () => {
+    await expect(
+      mutateEncounterSpellCast("encounter", "participant", {
+        spell_occurrence_id: "spell",
+        spend_target: {
+          target_type: "spontaneous_pool",
+          entry_id: "entry",
+          rank: Number.MAX_SAFE_INTEGER + 1,
+        },
+        operation: "cast_one",
+      }),
+    ).rejects.toMatchObject({
+      name: "AtlasApiError",
+      message: "Request numeric field exceeds JSON safe integer range",
+    });
+  });
+
+  it("posts the exact typed participant-reset confirmation", async () => {
+    const resultPayload = {
+      participant_key: "participant/key",
+      reset_domains: ["hit_points", "conditions", "spell_resources"],
+      preserved_domains: ["display_name", "notes", "visibility", "side"],
+      cleared_current_turn: true,
+      participant: {},
+    };
+    const fetchMock = mockFetch(resultPayload);
+
+    await expect(
+      resetEncounterParticipant("encounter/ref", "participant/key", {
+        confirmation: "reset_participant",
+      }),
+    ).resolves.toEqual(resultPayload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/encounters/encounter%2Fref/participants/participant%2Fkey/reset",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ confirmation: "reset_participant" }),
+      }),
+    );
   });
 
   it("posts filter-editor requests and normalizes record counts", async () => {
