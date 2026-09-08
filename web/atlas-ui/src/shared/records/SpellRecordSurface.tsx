@@ -209,16 +209,15 @@ function CastingSection({
         : null,
     casting ? factItem("cost", "Cost", casting.cost) : null,
     casting ? factItem("requirements", "Requirements", casting.requirements) : null,
-    casting
-      ? factItem("counteraction", "Counteraction", casting.counteraction, formatBoolean)
-      : null,
     traditions ? factItem("traditions", "Traditions", traditions, formatList) : null,
     ...ritualFactItems(ritual),
   ].filter((entry): entry is RecordKeyValueItem => entry !== null);
-  if (!items.length) return null;
+  const usesCounteract = casting && meaningfulKnown(casting.counteraction) === true;
+  if (!items.length && !usesCounteract) return null;
   return (
     <div className="spell-sheet__mechanics-group">
       <RecordKeyValueList ariaLabel="Spell casting" items={items} />
+      {usesCounteract && <p>Uses a counteract check</p>}
     </div>
   );
 }
