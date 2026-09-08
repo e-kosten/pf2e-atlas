@@ -123,7 +123,7 @@ fn heal_rime_and_qi_expose_keyed_spell_json_terminal_and_provenance()
     assert_eq!(layers[0]["key"], "5");
     assert_eq!(
         layers[0]["patch"]["damage"]["value"]["members"][0]["value"]["formula"]["value"],
-        "4d4"
+        "8d4"
     );
     assert_eq!(
         layers[0]["patch"]["damage"]["value"]["members"][0]["value"]["kinds"]["state"],
@@ -136,18 +136,18 @@ fn heal_rime_and_qi_expose_keyed_spell_json_terminal_and_provenance()
     assert_eq!(layers[1]["key"], "8");
     assert_eq!(
         layers[1]["patch"]["damage"]["value"]["members"][0]["value"]["formula"]["value"],
-        "6d4"
+        "14d4"
     );
     let rime_text = record_text("spells-srd:Popa5umI3H33levx", &artifact.0)?;
     for expected in [
-        "Area: 10-foot burst",
+        "Area: 15-foot burst",
         "Damage: 2d4 cold",
         "Heightened (5th)",
-        "Area: 20-foot burst",
-        "Damage: 4d4 cold",
-        "Heightened (8th)",
         "Area: 30-foot burst",
-        "Damage: 6d4 cold",
+        "Damage: 8d4 cold",
+        "Heightened (8th)",
+        "Area: 60-foot burst",
+        "Damage: 14d4 cold",
         "Forms\n  - Base",
     ] {
         assert!(
