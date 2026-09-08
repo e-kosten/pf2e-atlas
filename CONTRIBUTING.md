@@ -91,6 +91,10 @@ The full workspace test gate runs test binaries with one harness thread because
 multiple artifact-owning CLI fixtures can otherwise make retained SQLite reader
 acquisition fail under local verification resource pressure. This still runs
 every test and preserves concurrency exercised inside individual tests.
+The web gate likewise runs every Vitest file with one worker. GitHub-hosted CI
+uses twice the local per-test execution deadline to account for its measured
+runner speed; local deadlines and every assertion remain unchanged, and CI does
+not retry timed-out tests.
 
 Validation has three explicit tiers:
 
@@ -106,6 +110,11 @@ Validation has three explicit tiers:
   It never scans the full source. Synthetic fixtures are preferred for precise
   mutations, while curated isolated Foundry records may be used when their
   relationship context matters.
+- The CI-only artifact-pair lane runs a small Linux bound-reader integration
+  when generation, trust, lock, or retained-handle lifecycle changes. It creates
+  a valid manifest-bound SQLite fixture, materializes its first generation, and
+  queries through the public reader. This is separate from artifact version
+  ownership and does not build the source corpus.
 - `just validate-exhaustive --source <path> --candidate-head <sha>
   --snapshot-root <new-path> --report <new-path>` is the final artifact-integration
   gate.

@@ -18,8 +18,6 @@ contract|crates/atlas-index/src/artifact/inventory/tables/record_tables.rs
 contract|crates/atlas-index/src/artifact/inventory/tables/relationships.rs
 contract|crates/atlas-index/src/artifact/inventory/tables/search.rs
 contract|crates/atlas-index/src/artifact/metadata.rs
-contract|crates/atlas-index/src/artifact/pair.rs
-contract|crates/atlas-index/src/artifact/publication.rs
 contract|crates/atlas-index/src/artifact/storage.rs
 
 # Hydrated-record read codecs and write-side artifact packages/projections.
@@ -149,12 +147,14 @@ contract|crates/atlas-ingest/src/index_build_input.rs
 contract|crates/atlas-ingest/src/source_pipeline.rs
 
 # Manifest envelope owners.
-manifest|crates/atlas-index/src/artifact/pair.rs
+manifest|crates/atlas-index/src/artifact/pair_manifest.rs
 manifest|crates/atlas-ingest/src/artifact_manifest.rs
 manifest|crates/atlas-ingest/src/build.rs
 
 # Reviewed production non-owners are intentionally absent: crate/module facades
-# (`lib.rs`, `artifact.rs`, `read.rs`, and subtree `mod.rs` files), ingest reports,
+# (`lib.rs`, `artifact.rs`, `read.rs`, and subtree `mod.rs` files), operational
+# publication and generation-cache lifecycle (`artifact/pair.rs` and
+# `artifact/publication.rs`), ingest reports,
 # index query/discovery/inspection code, embedding-cache reuse adapters, and
 # audit/deep-validation implementations consume the contracts owned above but do
 # not define persisted codecs, deterministic projections, envelope fields, or

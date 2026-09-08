@@ -16,6 +16,7 @@ new_fixture() {
   mkdir -p "$case_dir/scripts/validation"
   cp "$repo_root/scripts/validation/check-artifact-version-bump.sh" "$case_dir/scripts/validation/"
   cp "$repo_root/scripts/validation/artifact-version-owners.txt" "$case_dir/scripts/validation/"
+  cp "$repo_root/scripts/validation/verify-artifact-owner-transfer.py" "$case_dir/scripts/validation/"
   mkdir -p "$case_dir/crates/atlas-index/src/artifact"
   printf '%s\n' \
     'pub const ARTIFACT_CONTRACT_VERSION: &str = "fixture-contract/v1";' \
@@ -26,6 +27,8 @@ new_fixture() {
     crates/atlas-index/src/artifact/inventory/tables/canonical.rs \
     crates/atlas-index/src/artifact/canonical_json.rs \
     crates/atlas-index/src/artifact/pair.rs \
+    crates/atlas-index/src/artifact/pair_manifest.rs \
+    crates/atlas-index/src/artifact/publication.rs \
     crates/atlas-index/src/artifact/storage.rs \
     crates/atlas-index/src/read/records/canonical.rs \
     crates/atlas-index/src/write/input.rs \
@@ -132,6 +135,55 @@ expect_guard_success_head() {
   fi
 }
 
+new_transfer_fixture() {
+  name="$1"
+  new_fixture "$name"
+  rm "$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs"
+  cat >"$case_dir/crates/atlas-index/src/artifact/pair.rs" <<'EOF'
+const MANIFEST_VERSION: &str = "v3";
+
+fn read_manifest() -> &'static str {
+    MANIFEST_VERSION
+}
+
+fn lifecycle() {}
+EOF
+  sed -i.bak \
+    's#manifest|crates/atlas-index/src/artifact/pair_manifest.rs#manifest|crates/atlas-index/src/artifact/pair.rs#' \
+    "$case_dir/scripts/validation/artifact-version-owners.txt"
+  rm "$case_dir/scripts/validation/artifact-version-owners.txt.bak"
+  git -C "$case_dir" add -A
+  git -C "$case_dir" commit -qm "test: establish mixed manifest owner"
+  case_base="$(git -C "$case_dir" rev-parse HEAD)"
+}
+
+write_transfer_files() {
+  mkdir -p "$case_dir/scripts/validation/artifact-owner-transfers"
+  cat >"$case_dir/scripts/validation/artifact-owner-transfers.txt" <<'EOF'
+manifest|crates/atlas-index/src/artifact/pair.rs|crates/atlas-index/src/artifact/pair_manifest.rs|scripts/validation/artifact-owner-transfers/pair.items
+EOF
+  cat >"$case_dir/scripts/validation/artifact-owner-transfers/pair.items" <<'EOF'
+const MANIFEST_VERSION
+fn read_manifest
+EOF
+  cat >"$case_dir/crates/atlas-index/src/artifact/pair.rs" <<'EOF'
+fn lifecycle() {}
+EOF
+cat >"$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs" <<'EOF'
+pub(super) const MANIFEST_VERSION: &str = "v3";
+
+pub(super) fn read_manifest() -> &'static str {
+    MANIFEST_VERSION
+}
+EOF
+  sed -i.bak \
+    '\#^[^|]*|crates/atlas-index/src/artifact/pair.rs$#d' \
+    "$case_dir/scripts/validation/artifact-version-owners.txt"
+  rm "$case_dir/scripts/validation/artifact-version-owners.txt.bak"
+  printf 'manifest|crates/atlas-index/src/artifact/pair_manifest.rs\n' \
+    >>"$case_dir/scripts/validation/artifact-version-owners.txt"
+}
+
 # Keep one positive fixture for each compatibility-owner family. The seven paths
 # called out by the independent review are included literally in this inventory.
 for owner in \
@@ -184,9 +236,108 @@ commit_case "test: change schema owner"
 expect_guard_failure "guard accepted a schema owner without a schema bump"
 
 new_fixture manifest-owner
-printf 'changed manifest\n' >>"$case_dir/crates/atlas-ingest/src/artifact_manifest.rs"
+printf 'changed manifest parser\n' >>"$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs"
 commit_case "test: change manifest owner"
 expect_guard_failure "guard accepted a manifest owner without a manifest bump"
+replace_version 'fixture-contract/v1' 'fixture-contract/v2'
+commit_case "test: bump only contract version for manifest change"
+expect_guard_failure "guard accepted a contract bump for a manifest-only change"
+replace_version 'fixture-manifest/v1' 'fixture-manifest/v2'
+commit_case "test: bump manifest version for manifest change"
+expect_guard_success "guard rejected the exact manifest bump after a manifest change"
+
+new_transfer_fixture verified-owner-transfer
+write_transfer_files
+commit_case "test: transfer unchanged manifest owner"
+expect_guard_success "guard rejected a mechanically identical owner transfer"
+printf '\nfn changed_manifest_semantics() {}\n' \
+  >>"$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs"
+commit_case "test: change transferred manifest owner"
+expect_guard_failure "guard treated a post-transfer manifest mutation as version-neutral"
+
+new_transfer_fixture changed-owner-transfer
+write_transfer_files
+sed -i.bak 's/MANIFEST_VERSION$/"changed"/' \
+  "$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs"
+rm "$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs.bak"
+commit_case "test: change semantics during owner transfer"
+expect_guard_failure "guard accepted changed semantics during owner transfer"
+
+new_transfer_fixture retained-source-transfer
+write_transfer_files
+cat >>"$case_dir/crates/atlas-index/src/artifact/pair.rs" <<'EOF'
+const MANIFEST_VERSION: &str = "v3";
+
+fn read_manifest() -> &'static str {
+    MANIFEST_VERSION
+}
+EOF
+commit_case "test: retain manifest semantics in prior owner"
+expect_guard_failure "guard accepted duplicated semantics after owner transfer"
+
+new_transfer_fixture extra-target-item-transfer
+write_transfer_files
+printf '\nfn undeclared_manifest_semantics() {}\n' \
+  >>"$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs"
+commit_case "test: add undeclared target semantics"
+expect_guard_failure "guard accepted undeclared target semantics during transfer"
+
+new_transfer_fixture wrong-class-transfer
+sed -i.bak \
+  's#manifest|crates/atlas-index/src/artifact/pair.rs#contract|crates/atlas-index/src/artifact/pair.rs#' \
+  "$case_dir/scripts/validation/artifact-version-owners.txt"
+rm "$case_dir/scripts/validation/artifact-version-owners.txt.bak"
+git -C "$case_dir" add -A
+git -C "$case_dir" commit -qm "test: register prior owner in wrong class"
+case_base="$(git -C "$case_dir" rev-parse HEAD)"
+write_transfer_files
+commit_case "test: transfer from wrong owner class"
+expect_guard_failure "guard accepted transfer from a wrong-class owner"
+
+new_transfer_fixture missing-source-transfer
+write_transfer_files
+rm "$case_dir/crates/atlas-index/src/artifact/pair.rs"
+commit_case "test: delete prior owner during transfer"
+expect_guard_failure "guard accepted transfer with a missing prior owner"
+
+new_transfer_fixture duplicate-transfer-declaration
+write_transfer_files
+cat >>"$case_dir/scripts/validation/artifact-owner-transfers.txt" <<'EOF'
+manifest|crates/atlas-index/src/artifact/pair.rs|crates/atlas-index/src/artifact/pair_manifest.rs|scripts/validation/artifact-owner-transfers/pair.items
+EOF
+commit_case "test: duplicate owner transfer declaration"
+expect_guard_failure "guard accepted duplicate owner transfer declarations"
+
+new_transfer_fixture renamed-target-after-transfer
+write_transfer_files
+commit_case "test: transfer unchanged manifest owner"
+git -C "$case_dir" mv \
+  crates/atlas-index/src/artifact/pair_manifest.rs \
+  crates/atlas-index/src/artifact/renamed_manifest.rs
+sed -i.bak \
+  's#artifact/pair_manifest.rs#artifact/renamed_manifest.rs#' \
+  "$case_dir/scripts/validation/artifact-version-owners.txt"
+rm "$case_dir/scripts/validation/artifact-version-owners.txt.bak"
+commit_case "test: rename transferred owner"
+expect_guard_failure "guard accepted a later transferred-owner rename"
+
+new_transfer_fixture deleted-target-after-transfer
+write_transfer_files
+commit_case "test: transfer unchanged manifest owner"
+rm "$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs"
+commit_case "test: delete transferred owner"
+expect_guard_failure "guard accepted a later transferred-owner deletion"
+
+new_fixture deleted-manifest-owner
+rm "$case_dir/crates/atlas-index/src/artifact/pair_manifest.rs"
+commit_case "test: delete manifest owner"
+expect_guard_failure "guard missed a deleted manifest owner"
+
+new_fixture lifecycle-non-owner
+printf 'changed generation lifecycle\n' >>"$case_dir/crates/atlas-index/src/artifact/pair.rs"
+printf 'changed publication lifecycle\n' >>"$case_dir/crates/atlas-index/src/artifact/publication.rs"
+commit_case "test: change version-neutral artifact lifecycle"
+expect_guard_success "guard treated internal artifact lifecycle as a persisted contract"
 
 new_fixture build-contract-and-manifest-owner
 printf 'changed final build projection\n' >>"$case_dir/crates/atlas-ingest/src/build.rs"
@@ -224,7 +375,7 @@ commit_case "test: change only a version declaration"
 expect_guard_success "guard treated a version declaration as contract metadata semantics"
 
 new_fixture downgrade
-printf 'changed pair\n' >>"$case_dir/crates/atlas-index/src/artifact/pair.rs"
+printf 'changed final package\n' >>"$case_dir/crates/atlas-ingest/src/build.rs"
 replace_version 'fixture-contract/v1' 'fixture-contract/v0'
 replace_version 'fixture-manifest/v1' 'fixture-manifest/v0'
 commit_case "test: downgrade versions"
@@ -252,6 +403,13 @@ commit_case "test: change second contract owner"
 replace_version 'fixture-contract/v2' 'fixture-contract/v3'
 commit_case "test: advance contract to version three"
 expect_guard_success "guard rejected sequential accumulated contract history"
+
+new_fixture owner-after-last-bump
+replace_version 'fixture-contract/v1' 'fixture-contract/v2'
+commit_case "test: advance contract to version two"
+printf 'uncovered owner change\n' >>"$case_dir/crates/atlas-index/src/write/sqlite/records.rs"
+commit_case "test: change owner after the final bump"
+expect_guard_failure "guard accepted an owner change after the last qualifying bump"
 
 new_fixture sequential-skip
 replace_version 'fixture-contract/v1' 'fixture-contract/v2'
@@ -292,7 +450,7 @@ expect_guard_success_head "synthetic checkout changed explicit candidate evaluat
 expect_guard_failure_head "guard silently linearized a nonlinear synthetic head" "$synthetic_head"
 
 new_fixture multi-version
-printf 'changed pair\n' >>"$case_dir/crates/atlas-index/src/artifact/pair.rs"
+printf 'changed final package\n' >>"$case_dir/crates/atlas-ingest/src/build.rs"
 replace_version 'fixture-contract/v1' 'fixture-contract/v2'
 commit_case "test: bump only contract version"
 expect_guard_failure "guard accepted an overlapping owner with only one required bump"

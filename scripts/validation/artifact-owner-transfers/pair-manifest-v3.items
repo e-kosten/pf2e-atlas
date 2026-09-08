@@ -1,0 +1,12 @@
+const ADJACENT_MANIFEST_FILE_NAME
+struct ArtifactSha256
+impl ArtifactSha256
+impl std::fmt::Display for ArtifactSha256
+impl TryFrom<String> for ArtifactSha256
+struct PairManifest
+struct PairManifestBuild
+fn adjacent_manifest_path
+fn verify_pair_files
+fn verify_manifest_digest
+fn read_manifest
+fn pair_mismatch

@@ -6,8 +6,8 @@ use std::time::Instant;
 use crate::IndexWriteError;
 use crate::artifact::pair::{
     ArtifactPublicationReceipt, PairLock, cleanup_generation_files, prepare_generation_file,
-    verify_manifest_digest, verify_pair_files,
 };
+use crate::artifact::pair_manifest::{verify_manifest_digest, verify_pair_files};
 
 #[derive(Debug, Clone, Default)]
 pub struct ArtifactPublicationTelemetry {
