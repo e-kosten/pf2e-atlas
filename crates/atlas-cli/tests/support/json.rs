@@ -9,7 +9,10 @@ pub fn parse_json(output: &Output) -> Result<Value, Box<dyn std::error::Error>> 
 }
 
 pub fn ok_data(value: &Value) -> &Value {
-    assert_eq!(value["status"], "ok");
+    assert_eq!(
+        value["status"], "ok",
+        "unexpected response envelope: {value}"
+    );
     value.get("data").expect("ok envelope should contain data")
 }
 

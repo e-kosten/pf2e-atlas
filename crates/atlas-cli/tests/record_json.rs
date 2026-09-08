@@ -451,7 +451,12 @@ fn record_get_resolve_and_filter_search_use_shared_record_shape()
         .arg(&index_path)
         .arg("--json")
         .output()?;
-    assert!(successful_batch_get_output.status.success());
+    assert!(
+        successful_batch_get_output.status.success(),
+        "batch get failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&successful_batch_get_output.stdout),
+        String::from_utf8_lossy(&successful_batch_get_output.stderr),
+    );
     let successful_batch_get_json: Value =
         serde_json::from_slice(&successful_batch_get_output.stdout)?;
     let successful_batch_get_data = ok_data(&successful_batch_get_json);
