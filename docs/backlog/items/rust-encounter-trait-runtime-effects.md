@@ -38,4 +38,4 @@ The implementation should:
 
 - [Rust encounter runtime mechanics surfaces](./rust-encounter-runtime-mechanics-surfaces.md)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
-- [Rust record presentation mechanics unification](./rust-record-presentation-mechanics-unification.md)
+- [Rust record presentation mechanics unification](../history/items/rust-record-presentation-mechanics-unification.md)
