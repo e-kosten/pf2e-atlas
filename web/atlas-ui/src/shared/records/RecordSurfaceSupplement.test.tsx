@@ -217,3 +217,69 @@ it.each(["outgoing", "backlinks"] as const)(
     expect(screen.queryByText(/Showing 0 of/)).not.toBeInTheDocument();
   },
 );
+
+it("shows a shared consequence once without merging distinct ordinal/shape facts", () => {
+  const consequence =
+    "Authored content remains readable; exact values are in Source & provenance.";
+  const { container } = render(
+    <RecordSurfaceIssues
+      issues={[
+        {
+          fact_id: "a",
+          code: "unsupported",
+          placement: "record",
+          fact_label: "Authored field",
+          message: "Additional authored fact 1 contains text.",
+          consequence,
+        },
+        {
+          fact_id: "b",
+          code: "unsupported",
+          placement: "record",
+          fact_label: "Authored field",
+          message: "Additional authored fact 2 contains a list.",
+          consequence,
+        },
+      ]}
+    />,
+  );
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+  expect(screen.getAllByText(consequence)).toHaveLength(1);
+  expect(screen.getByText("Additional authored fact 1 contains text.")).toBeVisible();
+  expect(screen.getByText("Additional authored fact 2 contains a list.")).toBeVisible();
+  expect(container.querySelectorAll("[data-fact-id]")).toHaveLength(2);
+});
+
+it.each([
+  { total: 1, edges: 1, expected: "1 record" },
+  { total: 2, edges: 3, expected: "2 records" },
+])("keeps complete reference counts compact: %j", ({ total, edges, expected }) => {
+  const records = Array.from({ length: total }, (_, index) => ({
+    record_key: `spells:r${index}`,
+    title: `Spell ${index}`,
+    kind: "spell",
+  }));
+  render(
+    <RecordSurfaceReferences
+      onReference={vi.fn()}
+      references={{
+        outgoing: {
+          state: "available",
+          requested_limit: 8,
+          total_records: total,
+          total_edges: edges,
+          truncated: false,
+          records,
+          edges: [],
+        },
+        backlinks: { state: "not_requested" },
+      }}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "References" }));
+  expect(screen.getByText(expected)).toBeVisible();
+  expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+  if (total === edges)
+    expect(screen.queryByText("1 reference")).not.toBeInTheDocument();
+  else expect(screen.getByText("3 references")).toBeVisible();
+});

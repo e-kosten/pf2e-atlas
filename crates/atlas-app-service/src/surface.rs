@@ -164,6 +164,7 @@ pub(crate) fn unavailable_participant_surface(
             "No canonical record body is available for this participant.",
         ),
         issues: Some(vec![atlas_app_model::RecordSurfaceIssueView {
+            consequence: None,
             fact_id: None,
             code: atlas_app_model::RecordSurfaceIssueCodeView::Unavailable,
             placement: atlas_app_model::RecordSurfaceIssuePlacementView::Record,
@@ -404,6 +405,7 @@ fn spell_content_issue(
         ),
     };
     atlas_app_model::RecordSurfaceIssueView {
+        consequence: None,
         fact_id: Some(format!(
             "{}:damage:{}",
             document.id.content_key.as_str(),
@@ -4835,6 +4837,27 @@ mod tests {
                 None,
             );
             let serialized = serde_json::to_string(&view)?;
+            let common = spell_surface_json(&record);
+            for fact in view
+                .unavailable_fields
+                .iter()
+                .flatten()
+                .filter(|fact| fact.consequence.is_some())
+            {
+                assert!(fact.message.contains("contains"));
+                assert!(!fact.message.contains("provenance"));
+                let projected = common["issues"]
+                    .as_array()
+                    .expect("issues")
+                    .iter()
+                    .find(|issue| issue["fact_id"].as_str() == fact.fact_id.as_deref())
+                    .expect("distinct fact retained");
+                assert_eq!(projected["message"], fact.message);
+                assert_eq!(
+                    projected["consequence"].as_str(),
+                    fact.consequence.as_deref()
+                );
+            }
             assert!(serialized.contains(natural), "{key}: missing {natural}");
             assert!(!serialized.contains("damage damage"));
             let mut ordinary_hazard = hazard.clone();

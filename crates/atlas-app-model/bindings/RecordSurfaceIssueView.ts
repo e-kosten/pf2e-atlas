@@ -3,4 +3,4 @@ import type { RecordSurfaceIssueCodeView } from "./RecordSurfaceIssueCodeView";
 import type { RecordSurfaceIssuePlacementView } from "./RecordSurfaceIssuePlacementView";
 import type { RecordSurfaceIssueSubjectView } from "./RecordSurfaceIssueSubjectView";
 
-export type RecordSurfaceIssueView = { fact_id?: string, code: RecordSurfaceIssueCodeView, placement: RecordSurfaceIssuePlacementView, subject?: RecordSurfaceIssueSubjectView, fact_label?: string, message: string, };
+export type RecordSurfaceIssueView = { fact_id?: string, code: RecordSurfaceIssueCodeView, placement: RecordSurfaceIssuePlacementView, subject?: RecordSurfaceIssueSubjectView, fact_label?: string, message: string, consequence?: string, };
