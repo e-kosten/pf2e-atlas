@@ -17,10 +17,9 @@ import {
   recordDetailFixture as typedRecordDetailFixture,
   recordSummaryFixture,
 } from "../test/recordFixtures";
-import { testDeadline } from "../test/testDeadline";
 import { AtlasApp } from "./AtlasApp";
 
-const tenSecondTestDeadline = testDeadline(10_000);
+const tenSecondTestDeadline = 10_000;
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),

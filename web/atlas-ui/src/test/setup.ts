@@ -1,8 +1,4 @@
 import "@testing-library/jest-dom/vitest";
-import { configure } from "@testing-library/react";
-import { testDeadline } from "./testDeadline";
-
-configure({ asyncUtilTimeout: testDeadline(1_000) });
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,

@@ -1,2 +1,0 @@
-# class|prior owner|new owner|complete transferred Rust item inventory
-manifest|crates/atlas-index/src/artifact/pair.rs|crates/atlas-index/src/artifact/pair_manifest.rs|scripts/validation/artifact-owner-transfers/pair-manifest-v3.items

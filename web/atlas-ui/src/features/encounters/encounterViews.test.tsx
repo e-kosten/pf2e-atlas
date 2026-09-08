@@ -18,14 +18,13 @@ import {
   recordDetailFixture as typedRecordDetailFixture,
   recordSummaryFixture as typedRecordSummaryFixture,
 } from "../../test/recordFixtures";
-import { testDeadline } from "../../test/testDeadline";
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
 
-const tenSecondTestDeadline = testDeadline(10_000);
-const fifteenSecondTestDeadline = testDeadline(15_000);
+const tenSecondTestDeadline = 10_000;
+const fifteenSecondTestDeadline = 15_000;
 
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),

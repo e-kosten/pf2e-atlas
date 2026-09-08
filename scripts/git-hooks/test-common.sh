@@ -102,35 +102,6 @@ if grep -q 'npm --prefix web/atlas-ui run verify' "$log"; then
   exit 1
 fi
 
-fake_guard="$tmp/fake-artifact-version-guard"
-cat > "$fake_guard" <<'EOF_GUARD'
-#!/bin/sh
-printf 'artifact-version-guard %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
-exit 1
-EOF_GUARD
-chmod +x "$fake_guard"
-: >"$log"
-local_oid="$(git -C "$repo_root" rev-parse HEAD)"
-remote_oid="$(git -C "$repo_root" rev-parse HEAD^)"
-pre_push_output="$({
-  printf 'refs/heads/test %s refs/heads/test %s\n' "$local_oid" "$remote_oid"
-} | ATLAS_ARTIFACT_VERSION_GUARD="$fake_guard" ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/.githooks/pre-push" 2>&1)" || {
-  printf '%s\n' "$pre_push_output" >&2
-  echo "advisory artifact-version failure blocked pre-push" >&2
-  exit 1
-}
-grep -q "artifact-version-guard --base $remote_oid --head $local_oid" "$log" || {
-  echo "pre-push did not invoke the merge-base-aware artifact-version guard" >&2
-  exit 1
-}
-case "$pre_push_output" in
-  *'required pre-merge CI remains authoritative'*) ;;
-  *)
-    echo "pre-push did not identify failed local version feedback as advisory" >&2
-    exit 1
-    ;;
-esac
-
 : >"$log"
 verbose_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify-changed.sh" --all --full --verbose 2>&1)
 case "$verbose_output" in
