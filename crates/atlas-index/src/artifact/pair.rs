@@ -914,6 +914,13 @@ fn ensure_generation_file_with_reopen_hook(
                                 "artifact generation changed while reopening its installed name",
                             ));
                         }
+                        materialization.verify_sha_pass_count += 1;
+                        let reopened_state = authenticate_installed_generation(
+                            &installed_file,
+                            &path,
+                            &reopened_state,
+                            sha256,
+                        )?;
                         drop(file);
                         materialization.distinct_identity_check_count += 1;
                         if reopened_state.identity == source_identity {
@@ -967,6 +974,55 @@ fn ensure_generation_file_with_reopen_hook(
             Err(error) => return Err(error),
         }
     }
+}
+
+fn authenticate_installed_generation(
+    file: &File,
+    path: &Path,
+    expected_state: &FileState,
+    expected_sha256: &ArtifactSha256,
+) -> Result<FileState, std::io::Error> {
+    let state_before_digest = FileState::from_file_io(file)?;
+    if &state_before_digest != expected_state {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "artifact generation changed before authenticating its installed handle",
+        ));
+    }
+    let actual_sha256 = sha256_file(file)?;
+    let authenticated_state = FileState::from_file_io(file)?;
+    if authenticated_state != state_before_digest {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "artifact generation changed while authenticating its installed handle",
+        ));
+    }
+    let path_metadata = std::fs::symlink_metadata(path)?;
+    if is_alias_metadata(&path_metadata) || !path_metadata.file_type().is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "artifact generation entry {} must remain a direct regular file while authenticating",
+                path.display()
+            ),
+        ));
+    }
+    let path_state = FileState::from_metadata_io(&path_metadata)?;
+    if path_state != authenticated_state {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "artifact generation changed after reopening its installed handle",
+        ));
+    }
+    if actual_sha256 != expected_sha256.as_str() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "installed artifact generation has digest {actual_sha256}, expected {expected_sha256}"
+            ),
+        ));
+    }
+    Ok(authenticated_state)
 }
 
 fn copy_and_seal_generation(
@@ -1349,6 +1405,32 @@ mod receipt_tests {
             b"replacement generation!!"
         );
         assert!(!trust_path.exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn final_installed_handle_is_digest_authenticated_before_trust() {
+        let root = temp_root("generation-reopen-digest");
+        std::fs::create_dir_all(&root).unwrap();
+        let installed_path = root.join("generation.sqlite");
+        std::fs::write(&installed_path, b"verified generation bytes").unwrap();
+        let installed_file = File::open(&installed_path).unwrap();
+        let digest = ArtifactSha256::try_from(sha256_file(&installed_file).unwrap()).unwrap();
+        std::fs::write(&installed_path, b"untrusted generation byte").unwrap();
+        seal_file_read_only(&installed_file).unwrap();
+        let opened_state = FileState::from_file_io(&installed_file).unwrap();
+
+        let error = authenticate_installed_generation(
+            &installed_file,
+            &installed_path,
+            &opened_state,
+            &digest,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("has digest"));
         std::fs::remove_dir_all(root).unwrap();
     }
 

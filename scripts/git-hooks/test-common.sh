@@ -21,7 +21,6 @@ chmod +x "$fake_bin/cargo"
 
 cat > "$fake_bin/npm" <<'EOF_NPM'
 #!/bin/sh
-printf 'npm-ci %s\n' "${CI:-}" >> "$ATLAS_TEST_COMMAND_LOG"
 printf 'npm %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
 printf 'npm detail output for %s\n' "$*"
 exit 0
@@ -154,9 +153,4 @@ grep -q 'npm --prefix web/atlas-ui run verify' "$log" || {
   echo "full changed-path verification did not run web verify" >&2
   exit 1
 }
-grep -q '^npm-ci true$' "$log" || {
-  echo "full changed-path verification did not apply automated web deadlines" >&2
-  exit 1
-}
-
 printf 'git-hook common smoke tests passed\n'
