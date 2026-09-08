@@ -486,6 +486,23 @@ function FormsSection({
       (selection !== undefined &&
         (selection.formId !== defaultForm.id ||
           selection.castRank !== defaultForm.minimum_cast_rank)));
+  const validDraft =
+    draftForm !== undefined &&
+    draftRank !== null &&
+    Number.isInteger(draftRank) &&
+    draftRank >= draftForm.minimum_cast_rank &&
+    draftRank <= 255;
+  const draftIsApplied =
+    draftFormId === body.effective_form.id &&
+    draftRank === body.effective_form.cast_rank &&
+    body.effective_form.result.state === "available";
+  const draftIsPending =
+    loading && selection?.formId === draftFormId && selection?.castRank === draftRank;
+  const replacesDifferentRequest =
+    selection !== undefined &&
+    (selection.formId !== draftFormId || selection.castRank !== draftRank);
+  const canApply =
+    validDraft && (!draftIsApplied || replacesDifferentRequest) && !draftIsPending;
   const requested = selection && selectionLabel(catalog, selection);
   const matchesRequest =
     !selection ||
@@ -578,9 +595,9 @@ function FormsSection({
             />
           </div>
           <Button
-            disabled={draftFormId === undefined || draftRank === null}
+            disabled={!canApply}
             onClick={() => {
-              if (draftFormId !== undefined && draftRank !== null) {
+              if (canApply && draftFormId !== undefined && draftRank !== null) {
                 onSelectionChange({ formId: draftFormId, castRank: draftRank });
               }
             }}
