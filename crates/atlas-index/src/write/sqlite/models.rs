@@ -69,6 +69,8 @@ pub(super) struct RecordRow {
     pub visibility_reason: String,
     pub metric_count: i64,
     pub metric_order_sha256: String,
+    pub consumable_entity_count: i64,
+    pub consumable_occurrence_count: i64,
     pub raw_json: String,
     pub record_role: String,
     pub retrieval_disposition: String,

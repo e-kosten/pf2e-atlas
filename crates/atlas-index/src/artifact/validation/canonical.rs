@@ -471,6 +471,13 @@ pub(super) fn validate_canonical_structure(
             "canonical consumable spell children must belong to consumable records",
         ),
         (
+            "canonical_consumable_occurrences.parent_count_anchor",
+            "SELECT COUNT(*) FROM records r
+             WHERE r.consumable_entity_count <> (SELECT COUNT(*) FROM canonical_consumable_entities e WHERE e.owner_record_key=r.record_key)
+                OR r.consumable_occurrence_count <> (SELECT COUNT(*) FROM canonical_consumable_occurrences o WHERE o.owner_record_key=r.record_key)",
+            "parent-owned consumable counts must authenticate each complete attachment, including empty sets",
+        ),
+        (
             "canonical_consumable_entities.invalid_owner_family",
             "SELECT COUNT(*)
              FROM canonical_consumable_entities e

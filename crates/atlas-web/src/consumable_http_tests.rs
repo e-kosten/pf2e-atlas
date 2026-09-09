@@ -236,6 +236,31 @@ async fn pinned_npc_and_hazard_consumables_cross_production_readers_and_search_s
             selected.first()
         );
         let record = &selected[0];
+        let occurrence_name = record.consumable_occurrences.occurrences[0]
+            .contextual_name
+            .clone();
+        let occurrence_search = service.search_text(
+            occurrence_name.clone(),
+            None,
+            None,
+            atlas_search::SearchPage::new(1, 20)?,
+            Some(
+                atlas_search::TextSearchTuning::default()
+                    .with_retrieval(atlas_search::RetrievalMode::Fts),
+            ),
+            false,
+        )?;
+        // ADR0024: ordinary precision FTS searches parent title/aliases and
+        // high-signal facets, not occurrence mechanics/prose/reference columns.
+        // The title query above proves attachment preservation through the service;
+        // paired production FtsReadIndex/embedding tests prove owned input coverage.
+        assert!(
+            !occurrence_search
+                .records
+                .iter()
+                .any(|hit| hit.record.record.identity.key == key),
+            "occurrence-only {occurrence_name:?} must not become a parent identity/facet: {occurrence_search:?}"
+        );
         assert_eq!(record.consumable_occurrences.occurrences.len(), count);
         record.consumable_occurrences.validated_entities()?;
         let cli = serde_json::to_value(record_json(
@@ -354,6 +379,19 @@ async fn production_occurrence_child_navigation_distinguishes_reuse_and_retained
         portable.join("spells/heal.json"),
         root.0.join("packs/spells/heal.json"),
     )?;
+    for (id, name) in [
+        ("h5OccurrenceLink", "Occurrence Link Target"),
+        ("h5MismatchLink", "Mismatch Link Target"),
+    ] {
+        let mut target: Value =
+            serde_json::from_slice(&std::fs::read(portable.join("spells/heal.json"))?)?;
+        target["_id"] = serde_json::json!(id);
+        target["name"] = serde_json::json!(name);
+        std::fs::write(
+            root.0.join(format!("packs/spells/{id}.json")),
+            serde_json::to_vec(&target)?,
+        )?;
+    }
     for (id, name, mismatch) in [
         ("h5ReusedWand", "Reused wand", false),
         ("h5LocalWand", "Retained local wand", true),
@@ -363,10 +401,11 @@ async fn production_occurrence_child_navigation_distinguishes_reuse_and_retained
         local["name"] = Value::String(name.to_string());
         local["_stats"] = serde_json::json!({"compendiumSource":"Compendium.pf2e.equipment-srd.Item.eOtQtVRLeGH39dNx"});
         if mismatch {
+            local["system"]["description"] = serde_json::json!({"value":"<p>Occurrence-only dose link @UUID[Compendium.pf2e.spells-srd.Item.h5OccurrenceLink]{OccurrenceDoseLink}</p>"});
             local["system"]["spell"]["system"]["damage"]["0"]["formula"] =
                 Value::String("7d8".to_string());
             local["system"]["spell"]["system"]["description"] = serde_json::json!({
-                "value":"<p>Occurrence-owned Spell narrative. @UUID[Compendium.pf2e.spells-srd.Item.rfZpqmj0AIIdkVIs]{Heal}</p>"
+                "value":"<p>Occurrence-owned Spell narrative. @UUID[Compendium.pf2e.spells-srd.Item.h5MismatchLink]{MismatchChildLink}</p>"
             });
         }
         npc["items"].as_array_mut().unwrap().push(local);
@@ -423,6 +462,72 @@ async fn production_occurrence_child_navigation_distinguishes_reuse_and_retained
                         .contains("Occurrence-owned Spell narrative")
                 );
                 assert_eq!(document.reference_occurrences.len(), 1);
+                let target = atlas_domain::RecordKey::parse("spells-srd:h5MismatchLink")?;
+                assert_eq!(
+                    document.owner,
+                    atlas_record::ContentOwner::ConsumableOccurrence(occurrence.id.clone())
+                );
+                assert_eq!(document.reference_occurrences[0].owner, document.owner);
+                assert!(
+                    matches!(&document.reference_occurrences[0].target, atlas_record::RichLinkTarget::Record { key, .. } if key == &target)
+                );
+                let connection = rusqlite::Connection::open(&artifact)?;
+                for content in occurrence
+                    .owned_content()
+                    .flat_map(|content| &content.documents)
+                {
+                    let reference = content
+                        .reference_occurrences
+                        .first()
+                        .expect("unique authored link");
+                    let target = atlas_domain::RecordKey::parse(
+                        if content.source_kind
+                            == atlas_record::ContentSourceKind::EmbeddedSpellDescription
+                        {
+                            "spells-srd:h5MismatchLink"
+                        } else {
+                            "spells-srd:h5OccurrenceLink"
+                        },
+                    )?;
+                    assert!(
+                        matches!(&reference.target, atlas_record::RichLinkTarget::Record { key, .. } if key == &target)
+                    );
+                    let row: (String, String, i64, i64) = connection.query_row(
+                        "SELECT owner_kind,owner_consumable_occurrence_id,owner_consumable_occurrence_authored_order,contributes_to_search FROM record_content WHERE record_key=?1 AND content_key=?2 AND authored_order=?3",
+                        rusqlite::params![owner_key, content.id.content_key.as_str(), i64::from(content.authored_order)],
+                        |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?)))?;
+                    assert_eq!(
+                        row,
+                        (
+                            "consumable_occurrence".to_string(),
+                            occurrence.id.as_str().to_string(),
+                            i64::from(occurrence.authored_order),
+                            1
+                        )
+                    );
+                    let refs: i64 = connection.query_row(
+                        "SELECT COUNT(*) FROM reference_occurrences WHERE record_key=?1 AND content_key=?2 AND owner_kind='consumable_occurrence' AND owner_consumable_occurrence_id=?3 AND owner_consumable_occurrence_authored_order=?4 AND target_record_key=?5",
+                        rusqlite::params![owner_key, content.id.content_key.as_str(), occurrence.id.as_str(), i64::from(occurrence.authored_order), target.to_string()], |row| row.get(0))?;
+                    assert_eq!(
+                        refs, 1,
+                        "one occurrence-owned resolved reference row per authored document"
+                    );
+                }
+                for (label, target) in [
+                    ("OccurrenceDoseLink", "spells-srd:h5OccurrenceLink"),
+                    ("MismatchChildLink", "spells-srd:h5MismatchLink"),
+                ] {
+                    let count: i64 = connection.query_row(
+                        "SELECT COUNT(*) FROM reference_edges WHERE from_record_key=?1 AND to_record_key=?2 AND display_text=?3",
+                        rusqlite::params![owner_key,target,label], |row| row.get(0))?;
+                    assert_eq!(count, 1, "containing-parent graph edge for {label}");
+                }
+                let all = reader.load_hydrated_records()?;
+                assert_eq!(
+                    all.iter()
+                        .find(|record| record.record.identity.key.to_string() == owner_key),
+                    Some(&parent[0])
+                );
             }
             assert!(
                 matches!(
@@ -502,6 +607,36 @@ async fn production_occurrence_child_navigation_distinguishes_reuse_and_retained
         );
         selected_children.push(selected["surface"]["presentation"].clone());
     }
+    fn has_resolved_inline(value: &Value, label: &str, record_key: &str) -> bool {
+        if value.get("span_type").and_then(Value::as_str) == Some("reference")
+            && value.get("label").and_then(Value::as_str) == Some(label)
+            && value.get("record_key").and_then(Value::as_str) == Some(record_key)
+        {
+            return true;
+        }
+        match value {
+            Value::Array(values) => values
+                .iter()
+                .any(|value| has_resolved_inline(value, label, record_key)),
+            Value::Object(values) => values
+                .values()
+                .any(|value| has_resolved_inline(value, label, record_key)),
+            _ => false,
+        }
+    }
+    assert!(
+        has_resolved_inline(
+            &selected_children[1],
+            "MismatchChildLink",
+            "spells-srd:h5MismatchLink"
+        ),
+        "selected local H2 content provides exact app navigation target: {}",
+        selected_children[1]
+    );
+    assert!(
+        has_resolved_inline(&parent, "OccurrenceDoseLink", "spells-srd:h5OccurrenceLink"),
+        "ordinary occurrence content provides exact app navigation target"
+    );
     assert_ne!(
         selected_children[0], selected_children[1],
         "inspection must not replace retained local mechanics with canonical mechanics"

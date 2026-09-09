@@ -218,6 +218,7 @@ fn npc_canonical_facts_drive_display_and_fts_without_a_generic_metric_carrier() 
     let presentation = build_search_presentation_document_with_content_filter(
         record,
         Some(canonical_body),
+        None,
         |_| true,
     );
     assert!(presentation.sections.iter().any(|section| {
@@ -231,7 +232,7 @@ fn npc_canonical_facts_drive_display_and_fts_without_a_generic_metric_carrier() 
             )
         })
     }));
-    let fts = build_search_fts_projection(record, &[], Some(canonical_body));
+    let fts = build_search_fts_projection(record, &[], Some(canonical_body), None);
     assert!(fts.metric_terms.contains("Arcana"));
     assert!(fts.mechanic_terms.contains("AC 28"));
     assert!(fts.mechanic_terms.contains("Max HP 170"));

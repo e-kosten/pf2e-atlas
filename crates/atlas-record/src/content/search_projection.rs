@@ -34,13 +34,14 @@ pub fn build_record_fts_projection(
     record: &AtlasRecord,
     aliases: &[String],
 ) -> RecordFtsProjection {
-    build_search_fts_projection(record, aliases, None)
+    build_search_fts_projection(record, aliases, None, None)
 }
 
 pub fn build_search_fts_projection(
     record: &AtlasRecord,
     aliases: &[String],
     canonical_body: Option<&RecordBody>,
+    consumable_occurrences: Option<&crate::ConsumableOccurrenceSet>,
 ) -> RecordFtsProjection {
     let mut projection = RecordFtsProjection {
         title: record.identity.name.clone(),
@@ -71,10 +72,50 @@ pub fn build_search_fts_projection(
         append_owned_content(&consumable.content, &mut projection);
     }
 
+    if (canonical_creature.is_some() || canonical_hazard.is_some())
+        && let Some(occurrences) = consumable_occurrences
+    {
+        for fact in consumable_occurrence_search_facts(occurrences) {
+            append_text(&mut projection.mechanic_terms, &fact.value);
+        }
+        for occurrence in &occurrences.occurrences {
+            append_owned_content_documents(
+                occurrence.searchable_content_documents(),
+                &mut projection,
+            );
+        }
+    }
     projection
 }
 
 pub fn build_search_presentation_document_with_content_filter(
+    record: &AtlasRecord,
+    canonical_body: Option<&RecordBody>,
+    consumable_occurrences: Option<&crate::ConsumableOccurrenceSet>,
+    include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
+) -> RecordPresentationDocument {
+    let mut document = canonical_search_presentation_document(
+        record,
+        canonical_body,
+        include_supplemental_content,
+    );
+    if (canonical_creature_for_record(record, canonical_body).is_some()
+        || canonical_hazard_for_record(record, canonical_body).is_some())
+        && let Some(occurrences) = consumable_occurrences
+    {
+        let facts = consumable_occurrence_search_facts(occurrences);
+        if !facts.is_empty() {
+            document.sections.push(PresentationSection {
+                kind: PresentationSectionKind::Details,
+                title: "Consumables".to_string(),
+                blocks: vec![PresentationBlock::FactList(facts)],
+            });
+        }
+    }
+    document
+}
+
+fn canonical_search_presentation_document(
     record: &AtlasRecord,
     canonical_body: Option<&RecordBody>,
     include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
@@ -139,6 +180,70 @@ pub fn build_search_presentation_document_with_content_filter(
     ));
     document.sections = canonical_sections;
     document
+}
+
+// An attachment owns contextual names and local definitions. Resolved definitions
+// remain on their canonical target; current state and mismatch evidence are not search facts.
+fn consumable_occurrence_search_facts(
+    occurrences: &crate::ConsumableOccurrenceSet,
+) -> Vec<PresentationFact> {
+    let mut facts = Vec::new();
+    for occurrence in &occurrences.occurrences {
+        facts.push(presentation_fact(
+            "consumable.name",
+            "Consumable",
+            occurrence.contextual_name.clone(),
+        ));
+        // Validated attachments retain occurrence order; entity storage order is not presentation order.
+        for entity in &occurrences.entities {
+            if entity.id != occurrence.entity_id {
+                continue;
+            }
+            let crate::ConsumableEntityTarget::ParentOwned { definition, .. } = &entity.target
+            else {
+                continue;
+            };
+            if let Some(level) = known_consumable_fact(&definition.level) {
+                facts.push(presentation_fact(
+                    "consumable.level",
+                    "Level",
+                    level.to_string(),
+                ));
+            }
+            for (key, label, fact) in [
+                ("consumable.category", "Category", &definition.category),
+                ("consumable.usage", "Usage", &definition.usage),
+                ("consumable.base_item", "Base item", &definition.base_item),
+            ] {
+                if let Some(value) = known_consumable_fact(fact) {
+                    facts.push(presentation_fact(key, label, value.clone()));
+                }
+            }
+            if let Some(traits) = known_consumable_fact(&definition.traits) {
+                facts.push(presentation_fact(
+                    "consumable.traits",
+                    "Traits",
+                    traits.join(" "),
+                ));
+            }
+            if let Some(damage) = known_consumable_fact(&definition.damage) {
+                for (key, label, fact) in [
+                    ("consumable.damage", "Damage", &damage.formula),
+                    ("consumable.damage_type", "Damage type", &damage.damage_type),
+                    (
+                        "consumable.damage_category",
+                        "Damage category",
+                        &damage.category,
+                    ),
+                ] {
+                    if let Some(value) = known_consumable_fact(fact) {
+                        facts.push(presentation_fact(key, label, value.clone()));
+                    }
+                }
+            }
+        }
+    }
+    facts
 }
 
 fn canonical_consumable_search_document(
@@ -882,7 +987,14 @@ fn append_hazard_owned_content(hazard: &HazardRecord, projection: &mut RecordFts
 }
 
 fn append_owned_content(content: &crate::OwnedRichContent, projection: &mut RecordFtsProjection) {
-    let mut documents = content.documents.iter().collect::<Vec<_>>();
+    append_owned_content_documents(content.documents.iter(), projection);
+}
+
+fn append_owned_content_documents<'a>(
+    documents: impl Iterator<Item = &'a crate::OwnedRichContentDocument>,
+    projection: &mut RecordFtsProjection,
+) {
+    let mut documents = documents.collect::<Vec<_>>();
     documents.sort_by_key(|document| (document.authored_order, document.id.content_key.as_str()));
     for document in documents {
         let rendered = crate::render_plain_text(&document.document);
@@ -1527,7 +1639,7 @@ mod tests {
         );
         spell.definition.content.documents.push(owned.clone());
         let body = RecordBody::Spell(spell);
-        let projection = build_search_fts_projection(&record, &[], Some(&body));
+        let projection = build_search_fts_projection(&record, &[], Some(&body), None);
         assert_eq!(projection.body, "30-foot emanation");
         assert!(projection.references.is_empty());
         let RecordBody::Spell(spell) = body else {
@@ -1563,11 +1675,15 @@ mod tests {
             },
         ));
 
-        let projection = build_search_fts_projection(&record, &[], Some(&body));
+        let projection = build_search_fts_projection(&record, &[], Some(&body), None);
         assert!(!projection.mechanic_terms.contains("legacy-secret"));
         assert!(!projection.taxonomy_terms.contains("legacy-secret"));
-        let presentation =
-            build_search_presentation_document_with_content_filter(&record, Some(&body), |_| true);
+        let presentation = build_search_presentation_document_with_content_filter(
+            &record,
+            Some(&body),
+            None,
+            |_| true,
+        );
         assert_eq!(presentation.title, "Canonical Spell");
         assert!(presentation.sections.is_empty());
     }

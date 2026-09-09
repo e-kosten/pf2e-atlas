@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use atlas_domain::RecordKey;
 use atlas_record::{
     AtlasRecord, ConsumableEntity, ConsumableOccurrence, ConsumableOccurrenceSet,
-    ConsumableSpellChild, ContentIdentityStability, ContentRole, FactValue, OwnedRichContent,
-    RecordBody, RichLinkTarget, SpellStandaloneTarget,
+    ConsumableSpellChild, ContentIdentityStability, ContentOwner, ContentRole, FactValue,
+    OwnedRichContent, RecordBody, RichLinkTarget, SpellStandaloneTarget,
 };
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
@@ -378,6 +378,43 @@ pub(super) fn read_consumable_occurrences(
             }
         }
     }
+    // The required parent anchor survives coordinated deletion of both child relations.
+    // Zero is an authenticated empty set, rather than an inference from absent rows.
+    let mut anchors = crate::schema::records::table
+        .select((
+            crate::schema::records::record_key,
+            crate::schema::records::foundry_record_type,
+            crate::schema::records::consumable_entity_count,
+            crate::schema::records::consumable_occurrence_count,
+        ))
+        .into_boxed();
+    if let Some(keys) = keys {
+        anchors = anchors.filter(crate::schema::records::record_key.eq_any(key_strings(keys)));
+    }
+    for (key, family, entities, occurrences) in anchors
+        .load::<(String, String, i64, i64)>(connection)
+        .map_err(query_failed)?
+    {
+        let record_key = RecordKey::parse(&key)
+            .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?;
+        let set = grouped.get(&record_key);
+        let actual_entities = i64::try_from(set.map_or(0, |set| set.entities.len()))
+            .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?;
+        let actual_occurrences = i64::try_from(set.map_or(0, |set| set.occurrences.len()))
+            .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?;
+        if (entities, occurrences) != (actual_entities, actual_occurrences) {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{key}: consumable attachment parent counts do not match child relations"
+            )));
+        }
+        if matches!(family.as_str(), "npc" | "character" | "hazard") {
+            grouped.entry(record_key).or_default();
+        } else if entities != 0 || occurrences != 0 {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{key}: consumable attachment has an ineligible parent"
+            )));
+        }
+    }
     // Validate targets even when callers requested only the containing actor.
     let valid_targets =
         canonical_consumable_records::table
@@ -421,16 +458,18 @@ fn reconcile_consumable_occurrence_content(
         .map_err(query_failed)?;
     for (key, set) in grouped {
         for occurrence in &set.occurrences {
-            reconcile_owned_content(
-                &key.to_string(),
-                &occurrence.authored_content,
-                &content_rows,
-                &reference_rows,
-                ExpectedContentOwner::ConsumableOccurrence {
-                    id: occurrence.id.as_str(),
-                    authored_order: i64::from(occurrence.authored_order),
-                },
-            )?;
+            for content in occurrence.owned_content() {
+                reconcile_owned_content(
+                    &key.to_string(),
+                    content,
+                    &content_rows,
+                    &reference_rows,
+                    ExpectedContentOwner::ConsumableOccurrence {
+                        id: occurrence.id.as_str(),
+                        authored_order: i64::from(occurrence.authored_order),
+                    },
+                )?;
+            }
         }
     }
     Ok(())
@@ -790,6 +829,28 @@ fn reconcile_owned_content(
     expected_owner: ExpectedContentOwner<'_>,
 ) -> Result<(), RecordLoadError> {
     for document in &owned.documents {
+        let owner_matches = match (&document.owner, expected_owner) {
+            (ContentOwner::Record(key), ExpectedContentOwner::Record) => {
+                key.to_string() == record_key
+            }
+            (
+                ContentOwner::ConsumableOccurrence(id),
+                ExpectedContentOwner::ConsumableOccurrence { id: expected, .. },
+            ) => id.as_str() == expected,
+            _ => false,
+        };
+        if document.id.parent_record_key.to_string() != record_key || !owner_matches {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{record_key}: canonical content does not match its expected owner"
+            )));
+        }
+        if document.reference_occurrences.iter().any(|reference| {
+            reference.owner != document.owner || reference.origin != document.origin
+        }) {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{record_key}: canonical reference owner/origin does not match its document"
+            )));
+        }
         let content_key = document.id.content_key.as_str();
         let authored_order = i64::from(document.authored_order);
         let matching = rows
@@ -824,7 +885,15 @@ fn reconcile_owned_content(
             || row.visibility != document.visibility.as_str()
             || row.provenance_json != provenance_json
             || row.source_kind != document.source_kind.as_str()
-            || row.contributes_to_search != document.source_kind.default_contributes_to_search()
+            || row.contributes_to_search
+                != match expected_owner {
+                    ExpectedContentOwner::Record => {
+                        document.source_kind.default_contributes_to_search()
+                    }
+                    ExpectedContentOwner::ConsumableOccurrence { .. } => {
+                        document.visibility == atlas_record::ContentVisibility::Public
+                    }
+                }
             || row.contributes_to_references
                 != document
                     .source_kind

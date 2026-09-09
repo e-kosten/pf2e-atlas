@@ -338,6 +338,44 @@ pub struct ConsumableOccurrence {
     pub unsupported_content: Vec<UnsupportedSourceValue>,
 }
 
+impl ConsumableOccurrence {
+    /// The occurrence owns its authored prose and any retained local Spell child.
+    /// Reused target children are not copied into this traversal.
+    pub fn owned_content(&self) -> impl Iterator<Item = &crate::OwnedRichContent> {
+        let child = match &self.spell_reuse {
+            ConsumableSpellReuse::Mismatch {
+                local_evidence: ConsumableLocalSpellEvidence::Child(child),
+                ..
+            } => Some(&child.definition.content),
+            _ => None,
+        };
+        std::iter::once(&self.authored_content).chain(child)
+    }
+
+    pub fn owned_content_mut(&mut self) -> impl Iterator<Item = &mut crate::OwnedRichContent> {
+        let child = match &mut self.spell_reuse {
+            ConsumableSpellReuse::Mismatch {
+                local_evidence: ConsumableLocalSpellEvidence::Child(child),
+                ..
+            } => Some(&mut child.definition.content),
+            _ => None,
+        };
+        std::iter::once(&mut self.authored_content).chain(child)
+    }
+
+    /// Approved occurrence prose stays searchable without restoring generic content ownership.
+    pub fn searchable_content_documents(
+        &self,
+    ) -> impl Iterator<Item = &crate::OwnedRichContentDocument> {
+        self.owned_content()
+            .flat_map(|content| &content.documents)
+            .filter(|document| {
+                // A target-equal copy is still this parent's authored capability prose.
+                document.visibility == crate::ContentVisibility::Public
+            })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConsumableOccurrenceId(String);
 

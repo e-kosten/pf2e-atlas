@@ -646,8 +646,12 @@ fn rule_elements_model_known_shapes_and_preserve_unknown_exactly() {
         "{\"key\":\"FutureHazardRule\",\"payload\":{\"amount\":7}}"
     );
     let facts = project_hazard_facts(hazard);
-    let fts =
-        build_search_fts_projection(&loaded.record, &[], loaded.facts.canonical_body.as_ref());
+    let fts = build_search_fts_projection(
+        &loaded.record,
+        &[],
+        loaded.facts.canonical_body.as_ref(),
+        None,
+    );
     assert!(
         facts
             .mechanic_terms

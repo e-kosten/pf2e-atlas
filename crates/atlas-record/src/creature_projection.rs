@@ -242,6 +242,7 @@ mod tests {
         let presentation = build_search_presentation_document_with_content_filter(
             &record,
             Some(&canonical_body),
+            None,
             |_| true,
         );
         assert!(
@@ -260,7 +261,7 @@ mod tests {
             }),
             "{presentation:#?}"
         );
-        let fts = build_search_fts_projection(&record, &[], Some(&canonical_body));
+        let fts = build_search_fts_projection(&record, &[], Some(&canonical_body), None);
         assert!(fts.metric_terms.contains("Arcana"));
         assert!(fts.metric_terms.contains("Theater lore"));
         assert!(fts.metric_terms.contains("Fly Speed"));
