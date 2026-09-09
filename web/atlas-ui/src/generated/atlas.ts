@@ -1,4 +1,5 @@
 export type { ConsumableDamageView } from "../../../../crates/atlas-app-model/bindings/ConsumableDamageView";
+export type { ConsumableDefinitionView } from "../../../../crates/atlas-app-model/bindings/ConsumableDefinitionView";
 export type { ConsumableEquippedView } from "../../../../crates/atlas-app-model/bindings/ConsumableEquippedView";
 export type { ConsumableFactView } from "../../../../crates/atlas-app-model/bindings/ConsumableFactView";
 export type { ConsumableMaterialView } from "../../../../crates/atlas-app-model/bindings/ConsumableMaterialView";

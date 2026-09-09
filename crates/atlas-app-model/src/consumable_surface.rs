@@ -33,6 +33,30 @@ pub struct ConsumableSurfaceView {
     pub content: Vec<CreatureSurfaceContentView>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub struct ConsumableDefinitionView {
+    pub slug: ConsumableFactView<String>,
+    pub level: ConsumableFactView<i32>,
+    pub category: ConsumableFactView<String>,
+    pub rarity: ConsumableFactView<String>,
+    pub traits: ConsumableFactView<Vec<String>>,
+    pub other_tags: ConsumableFactView<Vec<String>>,
+    pub usage: ConsumableFactView<String>,
+    pub base_item: ConsumableFactView<String>,
+    pub bulk: ConsumableFactView<String>,
+    pub size: ConsumableFactView<String>,
+    pub stack_group: ConsumableFactView<String>,
+    pub material: ConsumableFactView<ConsumableMaterialView>,
+    pub price: ConsumableFactView<ConsumablePriceView>,
+    pub maximum_uses: ConsumableFactView<i32>,
+    pub auto_destroy: ConsumableFactView<bool>,
+    pub maximum_hp: ConsumableFactView<i32>,
+    pub hardness: ConsumableFactView<i32>,
+    pub publication: ConsumableFactView<ConsumablePublicationView>,
+    pub damage: ConsumableFactView<ConsumableDamageView>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "state", content = "value", rename_all = "snake_case")]
 #[ts(tag = "state", content = "value", rename_all = "snake_case")]
@@ -118,7 +142,7 @@ pub struct ConsumableOccurrenceView {
     pub target: ConsumableOccurrenceTargetView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub definition: Option<Box<ConsumableSurfaceView>>,
+    pub definition: Option<Box<ConsumableDefinitionView>>,
     pub source_state: ConsumableSourceStateView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

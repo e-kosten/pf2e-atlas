@@ -1,5 +1,6 @@
 import { Button, Collapse, Descriptions, Empty, Space, Tag } from "antd";
 import type {
+  ConsumableDefinitionView,
   ConsumableFactView,
   ConsumableOccurrenceView,
   ConsumableSourceStateView,
@@ -46,7 +47,11 @@ export function ConsumableDetailSurface({
         showTitle={showTitle}
       />
       <ConsumableDescription body={body} onReference={onReference} />
-      <ConsumableFacts body={body} onReference={onReference} />
+      <ConsumableFacts body={body} />
+      <SourceState state={body.source_state} />
+      {body.spell_child ? (
+        <SpellChildLink child={body.spell_child} onReference={onReference} />
+      ) : null}
       <RecordSurfaceIssues issues={issues} />
       <ConsumableProvenance metadata={metadata} />
       <RecordSurfaceReferences
@@ -165,14 +170,8 @@ function OccurrenceBody({
         <Tag>{parentOwnedReason(occurrence.target.reason)}</Tag>
       ) : null}
       <SourceState state={occurrence.source_state} />
-      {occurrence.definition ? (
-        <ConsumableFacts
-          body={occurrence.definition}
-          onReference={onReference}
-          showSourceState={false}
-        />
-      ) : null}
-      {!occurrence.definition && occurrence.spell_child ? (
+      {occurrence.definition ? <ConsumableFacts body={occurrence.definition} /> : null}
+      {occurrence.spell_child ? (
         <SpellChildLink child={occurrence.spell_child} onReference={onReference} />
       ) : null}
       {(occurrence.content ?? []).map((content) => (
@@ -208,15 +207,7 @@ function ConsumableDescription({
   );
 }
 
-function ConsumableFacts({
-  body,
-  onReference,
-  showSourceState = true,
-}: {
-  body: ConsumableSurfaceView;
-  onReference?: ReferenceHandler;
-  showSourceState?: boolean;
-}) {
+function ConsumableFacts({ body }: { body: ConsumableFactsView }) {
   const items = [
     item("Category", text(body.category)),
     item("Usage", text(body.usage)),
@@ -251,10 +242,6 @@ function ConsumableFacts({
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       )}
-      {showSourceState ? <SourceState state={body.source_state} /> : null}
-      {body.spell_child ? (
-        <SpellChildLink child={body.spell_child} onReference={onReference} />
-      ) : null}
       {body.other_tags.state === "known" && body.other_tags.value.length ? (
         <Space aria-label="Other tags" size="small" wrap>
           {body.other_tags.value.map((tag) => (
@@ -358,7 +345,9 @@ function boolean(fact: ConsumableFactView<boolean>) {
   return fact.state === "known" ? (fact.value ? "Yes" : "No") : undefined;
 }
 
-function price(fact: ConsumableSurfaceView["price"]): string | undefined {
+type ConsumableFactsView = ConsumableSurfaceView | ConsumableDefinitionView;
+
+function price(fact: ConsumableDefinitionView["price"]): string | undefined {
   if (fact.state !== "known" || fact.value.denominations.state !== "known")
     return undefined;
   const values = fact.value.denominations.value.map(
@@ -368,7 +357,7 @@ function price(fact: ConsumableSurfaceView["price"]): string | undefined {
   return values.join(" · ") || undefined;
 }
 
-function material(fact: ConsumableSurfaceView["material"]): string | undefined {
+function material(fact: ConsumableDefinitionView["material"]): string | undefined {
   if (fact.state !== "known") return undefined;
   return (
     [
@@ -383,7 +372,9 @@ function material(fact: ConsumableSurfaceView["material"]): string | undefined {
   );
 }
 
-function publication(fact: ConsumableSurfaceView["publication"]): string | undefined {
+function publication(
+  fact: ConsumableDefinitionView["publication"],
+): string | undefined {
   if (fact.state !== "known") return undefined;
   return (
     [
