@@ -7,7 +7,10 @@ import type {
 } from "../../generated/atlas";
 import { useRecordPreviewRenderer } from "./RecordPreviewContext";
 
-export type ReferenceHandler = (recordKey: string) => void;
+export type ReferenceHandler = (
+  recordKey: string,
+  child?: import("../../generated/atlas").ConsumableSpellChildLinkView,
+) => void;
 
 export function RichContent({
   compact = false,

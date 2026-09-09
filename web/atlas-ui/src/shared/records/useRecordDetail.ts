@@ -12,11 +12,14 @@ export function useRecordDetail(
   recordKey: string | null,
   spellSelection?: SpellFormSelection,
   referenceRequest?: RecordReferenceRequest,
+  child?: Pick<RecordDetailRequest, "consumable_child_id" | "consumable_occurrence_id">,
 ) {
   return useQuery({
     queryKey: [
       "record-detail",
       recordKey,
+      child?.consumable_child_id ?? null,
+      child?.consumable_occurrence_id ?? null,
       spellSelection?.formId ?? null,
       spellSelection?.castRank ?? null,
       referenceRequest?.reference_outgoing_limit ?? null,
@@ -31,6 +34,7 @@ export function useRecordDetail(
             }
           : {}),
         ...referenceRequest,
+        ...child,
       };
       return getRecordDetail(
         recordKey!,

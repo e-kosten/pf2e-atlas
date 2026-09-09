@@ -58,6 +58,8 @@ impl AtlasAppService {
             AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
         })?;
         let RecordDetailRequest {
+            consumable_child_id,
+            consumable_occurrence_id,
             spell_form_id,
             spell_cast_rank,
             reference_outgoing_limit,
@@ -79,6 +81,11 @@ impl AtlasAppService {
                 ));
             }
         };
+        if consumable_occurrence_id.is_some() && consumable_child_id.is_none() {
+            return Err(AppServiceError::invalid_request(
+                "consumable_occurrence_id requires consumable_child_id",
+            ));
+        }
         let outgoing_limit = reference_outgoing_limit.unwrap_or(8);
         let backlink_limit = reference_backlink_limit.unwrap_or(0);
         self.submit_retrieval(move |retrieval| {
@@ -92,6 +99,22 @@ impl AtlasAppService {
                         format!("record `{record_key}` was not found"),
                     )
                 })?;
+            if let Some(child_id) = consumable_child_id.as_deref() {
+                let child = selected_consumable_child(
+                    &record,
+                    child_id,
+                    consumable_occurrence_id.as_deref(),
+                )?;
+                let remaster_lookup = verified_remaster_lookup(retrieval, &record)?;
+                return Ok(RecordDetailView {
+                    surface: crate::surface::consumable_spell_child_surface(
+                        &record,
+                        child,
+                        spell_selection,
+                        &remaster_lookup,
+                    )?,
+                });
+            }
             if spell_selection.is_some()
                 && !matches!(&record.body, Some(atlas_record::RecordBody::Spell(_)))
             {
@@ -128,6 +151,39 @@ impl AtlasAppService {
             Ok(detail)
         })
     }
+}
+
+fn selected_consumable_child<'a>(
+    record: &'a atlas_record::RetrievedRecord,
+    child_id: &str,
+    occurrence_id: Option<&str>,
+) -> AppServiceResult<&'a atlas_record::ConsumableSpellChild> {
+    let child = if let Some(occurrence_id) = occurrence_id {
+        record
+            .consumable_occurrences
+            .occurrences
+            .iter()
+            .find(|occurrence| occurrence.id.as_str() == occurrence_id)
+            .and_then(|occurrence| match &occurrence.spell_reuse {
+                atlas_record::ConsumableSpellReuse::Mismatch {
+                    local_evidence: atlas_record::ConsumableLocalSpellEvidence::Child(child),
+                    ..
+                } => Some(child.as_ref()),
+                _ => None,
+            })
+    } else {
+        record
+            .spell_children
+            .iter()
+            .find(|child| child.child_id.as_str() == child_id)
+    };
+    child
+        .filter(|child| child.child_id.as_str() == child_id)
+        .ok_or_else(|| {
+            AppServiceError::invalid_request(
+                "the exact consumable Spell child does not exist on this owner",
+            )
+        })
 }
 
 #[cfg(test)]

@@ -458,6 +458,7 @@ impl std::error::Error for RecordRelationshipContextError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordJsonError {
+    InvalidConsumableOccurrences(crate::ConsumableOccurrenceSetError),
     MissingCreatureBody {
         record_key: String,
     },
@@ -493,6 +494,7 @@ pub enum RecordJsonError {
 impl std::fmt::Display for RecordJsonError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::InvalidConsumableOccurrences(error) => error.fmt(formatter),
             Self::MissingCreatureBody { record_key } => write!(
                 formatter,
                 "retrieved creature record `{record_key}` is missing its canonical creature body"
@@ -798,6 +800,20 @@ pub fn record_json_with_context(
     context: RecordJsonContext,
 ) -> Result<RecordJson, RecordJsonError> {
     let record = &retrieved.record;
+    retrieved
+        .consumable_occurrences
+        .validated_entities()
+        .map_err(RecordJsonError::InvalidConsumableOccurrences)?;
+    if retrieved
+        .consumable_occurrences
+        .entities
+        .first()
+        .is_some_and(|entity| entity.owner_record_key != record.identity.key)
+    {
+        return Err(RecordJsonError::InvalidConsumableOccurrences(
+            crate::ConsumableOccurrenceSetError::WrongOwner,
+        ));
+    }
     let RecordJsonContext {
         edition,
         relationships,
@@ -822,7 +838,7 @@ pub fn record_json_with_context(
                 );
                 if let RecordPresentationJson::Creature { consumables, .. } = &mut presentation {
                     *consumables = if options.detail != DetailLevel::Summary {
-                        consumable::occurrence_json(&retrieved.consumable_occurrences)
+                        consumable::occurrence_json(&retrieved.consumable_occurrences)?
                     } else {
                         Vec::new()
                     };
@@ -855,7 +871,7 @@ pub fn record_json_with_context(
                         Vec::new()
                     },
                     consumables: if options.detail != DetailLevel::Summary {
-                        consumable::occurrence_json(&retrieved.consumable_occurrences)
+                        consumable::occurrence_json(&retrieved.consumable_occurrences)?
                     } else {
                         Vec::new()
                     },

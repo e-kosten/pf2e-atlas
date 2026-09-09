@@ -438,6 +438,15 @@ pub(super) fn validate_canonical_structure(
             "non-consumable records must not have canonical consumable bodies",
         ),
         (
+            "canonical_consumable_records.legacy_item_fields",
+            "SELECT COUNT(*) FROM canonical_consumable_records c
+             JOIN records r ON r.record_key=c.record_key
+             WHERE r.system_category IS NOT NULL OR r.system_group IS NOT NULL
+                OR r.system_base_item IS NOT NULL OR r.system_usage IS NOT NULL
+                OR r.system_price_json IS NOT NULL OR r.price_cp IS NOT NULL",
+            "canonical consumables must not have legacy item query fields",
+        ),
+        (
             "canonical_consumable_records.missing_query_projection",
             "SELECT COUNT(*)
              FROM canonical_consumable_records c

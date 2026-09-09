@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use atlas_app_model::{
     ConsumableDamageView, ConsumableDefinitionView, ConsumableEquippedView, ConsumableFactView,
     ConsumableMaterialView, ConsumableOccurrenceIdentityStabilityView,
@@ -28,17 +26,13 @@ pub(crate) fn standalone_consumable_surface(
 
 pub(crate) fn consumable_occurrence_views(
     set: &ConsumableOccurrenceSet,
-) -> Option<Vec<ConsumableOccurrenceView>> {
-    let entities = set
-        .entities
-        .iter()
-        .map(|entity| (entity.id.as_str(), &entity.target))
-        .collect::<BTreeMap<_, _>>();
+) -> Result<Option<Vec<ConsumableOccurrenceView>>, atlas_record::ConsumableOccurrenceSetError> {
+    let entities = set.validated_entities()?;
     let values = set
         .occurrences
         .iter()
-        .filter_map(|occurrence| {
-            let target = *entities.get(occurrence.entity_id.as_str())?;
+        .map(|occurrence| {
+            let target = &entities[&occurrence.entity_id].target;
             let (target_view, definition) = match target {
                 ConsumableEntityTarget::Resolved {
                     record_key,
@@ -81,7 +75,7 @@ pub(crate) fn consumable_occurrence_views(
                 ConsumableEntityTarget::Resolved { record_key, .. } => Some(record_key),
                 ConsumableEntityTarget::ParentOwned { .. } => None,
             };
-            Some(ConsumableOccurrenceView {
+            ConsumableOccurrenceView {
                 occurrence_id: occurrence.id.as_str().to_string(),
                 authored_order: occurrence.authored_order,
                 name: occurrence.contextual_name.clone(),
@@ -96,17 +90,17 @@ pub(crate) fn consumable_occurrence_views(
                 target: target_view,
                 definition,
                 source_state: source_state(&occurrence.state),
-                spell_child: occurrence_spell_link(&occurrence.spell_reuse, target_record_key),
+                spell_child: occurrence_spell_link(occurrence, target_record_key),
                 content: occurrence
                     .authored_content
                     .documents
                     .iter()
                     .filter_map(crate::surface::content_view)
                     .collect(),
-            })
+            }
         })
         .collect::<Vec<_>>();
-    (!values.is_empty()).then_some(values)
+    Ok((!values.is_empty()).then_some(values))
 }
 
 fn consumable_surface(
@@ -185,16 +179,14 @@ fn consumable_definition_surface(definition: &ConsumableDefinition) -> Consumabl
             effects: fact(&value.effects, Clone::clone),
         }),
         price: fact(&definition.price, |value| ConsumablePriceView {
-            denominations: fact_try(&value.denominations, |values| {
+            denominations: fact(&value.denominations, |values| {
                 values
                     .iter()
-                    .map(|value| {
-                        Ok(ConsumablePriceDenominationView {
-                            denomination: value.denomination.clone(),
-                            amount: i32::try_from(value.amount)?,
-                        })
+                    .map(|value| ConsumablePriceDenominationView {
+                        denomination: value.denomination.clone(),
+                        amount: value.amount.to_string(),
                     })
-                    .collect::<Result<Vec<_>, std::num::TryFromIntError>>()
+                    .collect()
             }),
             per: integer_fact(&value.per),
         }),
@@ -229,29 +221,8 @@ fn source_state(state: &ConsumableSourceState) -> ConsumableSourceStateView {
     }
 }
 
-fn integer_fact(fact: &ConsumableFact<i64>) -> ConsumableFactView<i32> {
-    match fact {
-        FactValue::Missing => ConsumableFactView::Missing,
-        FactValue::Null => ConsumableFactView::Null,
-        FactValue::Value(ConsumableSourceValue::Known(value)) => i32::try_from(*value)
-            .map(ConsumableFactView::Known)
-            .unwrap_or(ConsumableFactView::Unsupported),
-        FactValue::Value(ConsumableSourceValue::Unsupported(_)) => ConsumableFactView::Unsupported,
-    }
-}
-
-fn fact_try<T, U, E>(
-    fact: &ConsumableFact<T>,
-    map: impl FnOnce(&T) -> Result<U, E>,
-) -> ConsumableFactView<U> {
-    match fact {
-        FactValue::Missing => ConsumableFactView::Missing,
-        FactValue::Null => ConsumableFactView::Null,
-        FactValue::Value(ConsumableSourceValue::Known(value)) => map(value)
-            .map(ConsumableFactView::Known)
-            .unwrap_or(ConsumableFactView::Unsupported),
-        FactValue::Value(ConsumableSourceValue::Unsupported(_)) => ConsumableFactView::Unsupported,
-    }
+fn integer_fact(value: &ConsumableFact<i64>) -> ConsumableFactView<String> {
+    fact(value, ToString::to_string)
 }
 
 fn fact<T, U>(fact: &ConsumableFact<T>, map: impl FnOnce(&T) -> U) -> ConsumableFactView<U> {
@@ -261,12 +232,29 @@ fn fact<T, U>(fact: &ConsumableFact<T>, map: impl FnOnce(&T) -> U) -> Consumable
         FactValue::Value(ConsumableSourceValue::Known(value)) => {
             ConsumableFactView::Known(map(value))
         }
-        FactValue::Value(ConsumableSourceValue::Unsupported(_)) => ConsumableFactView::Unsupported,
+        FactValue::Value(ConsumableSourceValue::Unsupported(value)) => {
+            ConsumableFactView::Unsupported {
+                reason: match value.reason {
+                    atlas_record::UnsupportedSourceReason::OpenVocabulary => "open_vocabulary",
+                    atlas_record::UnsupportedSourceReason::AmbiguousLegacyShape => {
+                        "ambiguous_legacy_shape"
+                    }
+                    atlas_record::UnsupportedSourceReason::InvalidPredicate => "invalid_predicate",
+                    atlas_record::UnsupportedSourceReason::NonCanonicalRuntimeValue => {
+                        "non_canonical_runtime_value"
+                    }
+                    atlas_record::UnsupportedSourceReason::SourceFieldDrift => "source_field_drift",
+                }
+                .to_string(),
+            }
+        }
     }
 }
 
 fn spell_child_link(child: &atlas_record::ConsumableSpellChild) -> ConsumableSpellChildLinkView {
     ConsumableSpellChildLinkView {
+        parent_record_key: child.parent_record_key.to_string(),
+        occurrence_id: None,
         child_id: child.child_id.as_str().to_string(),
         target_record_key: match &child.standalone_target {
             FactValue::Value(SpellStandaloneTarget::Resolved(record_key)) => {
@@ -278,14 +266,25 @@ fn spell_child_link(child: &atlas_record::ConsumableSpellChild) -> ConsumableSpe
 }
 
 fn occurrence_spell_link(
-    reuse: &ConsumableSpellReuse,
+    occurrence: &atlas_record::ConsumableOccurrence,
     target_record_key: Option<&atlas_domain::RecordKey>,
 ) -> Option<ConsumableSpellChildLinkView> {
-    match reuse {
+    match &occurrence.spell_reuse {
         ConsumableSpellReuse::Reused { target_child_id } => Some(ConsumableSpellChildLinkView {
+            parent_record_key: target_record_key?.to_string(),
+            occurrence_id: None,
             child_id: target_child_id.as_str().to_string(),
             target_record_key: target_record_key.map(ToString::to_string),
         }),
+        ConsumableSpellReuse::Mismatch {
+            local_evidence: atlas_record::ConsumableLocalSpellEvidence::Child(child),
+            ..
+        } => {
+            let mut link = spell_child_link(child);
+            link.parent_record_key = occurrence.owner_record_key.to_string();
+            link.occurrence_id = Some(occurrence.id.as_str().to_string());
+            Some(link)
+        }
         ConsumableSpellReuse::NotPresent | ConsumableSpellReuse::Mismatch { .. } => None,
     }
 }
@@ -340,11 +339,32 @@ mod tests {
             }],
         };
 
-        let views = super::consumable_occurrence_views(&set).expect("one occurrence");
+        let mut missing = set.clone();
+        missing.entities.clear();
+        assert_eq!(
+            super::consumable_occurrence_views(&missing),
+            Err(atlas_record::ConsumableOccurrenceSetError::MissingEntity)
+        );
+        let mut duplicate = set.clone();
+        duplicate.entities.push(duplicate.entities[0].clone());
+        assert_eq!(
+            super::consumable_occurrence_views(&duplicate),
+            Err(atlas_record::ConsumableOccurrenceSetError::DuplicateEntity)
+        );
+        let mut orphan = set.clone();
+        orphan.occurrences.clear();
+        assert_eq!(
+            super::consumable_occurrence_views(&orphan),
+            Err(atlas_record::ConsumableOccurrenceSetError::OrphanEntity)
+        );
+
+        let views = super::consumable_occurrence_views(&set)
+            .expect("valid graph")
+            .expect("one occurrence");
         let json = serde_json::to_value(&views[0]).expect("serialize occurrence");
         assert_eq!(
             json.pointer("/source_state/quantity/value"),
-            Some(&serde_json::json!(2))
+            Some(&serde_json::json!("2"))
         );
         let definition = json
             .pointer("/definition")
@@ -352,6 +372,27 @@ mod tests {
         assert!(definition.get("source_state").is_none());
         assert!(definition.get("spell_child").is_none());
         assert!(definition.get("content").is_none());
+    }
+
+    #[test]
+    fn integer_transport_preserves_i64_and_javascript_boundaries() {
+        for value in [
+            i64::MIN,
+            i32::MIN as i64 - 1,
+            i32::MAX as i64 + 1,
+            9_007_199_254_740_991,
+            9_007_199_254_740_992,
+            i64::MAX,
+        ] {
+            let projected = super::integer_fact(&FactValue::Value(
+                atlas_record::ConsumableSourceValue::Known(value),
+            ));
+            let json = serde_json::to_value(projected).expect("JSON");
+            assert_eq!(
+                json,
+                serde_json::json!({"state":"known", "value":value.to_string()})
+            );
+        }
     }
 
     fn missing_definition() -> ConsumableDefinition {

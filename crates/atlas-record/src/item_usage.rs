@@ -1,17 +1,13 @@
 /// Derives the established filter vocabulary from a typed Foundry item usage slug.
 ///
-/// The order is significant because the longer forms contain the one-hand
-/// spelling. This is a query projection only; occurrence-local equipped state
-/// never participates.
+/// Only the admitted exact slugs establish a hands requirement. This is a query
+/// projection only; occurrence-local equipped state never participates.
 pub fn hands_requirement_from_usage(usage: &str) -> Option<&'static str> {
-    if usage.contains("held-in-two-hands") {
-        Some("two_hands")
-    } else if usage.contains("held-in-one-plus-hands") {
-        Some("one_plus_hands")
-    } else if usage.contains("held-in-one-hand") {
-        Some("one_hand")
-    } else {
-        None
+    match usage {
+        "held-in-two-hands" => Some("two_hands"),
+        "held-in-one-plus-hands" => Some("one_plus_hands"),
+        "held-in-one-hand" => Some("one_hand"),
+        _ => None,
     }
 }
 
@@ -34,5 +30,16 @@ mod tests {
             Some("two_hands")
         );
         assert_eq!(hands_requirement_from_usage("worn"), None);
+        for usage in [
+            "not-held-in-one-hand",
+            "held-in-one-hand-sideways",
+            "held-in-two-hands-invalid",
+            "held-in-one-plus-hands-invalid",
+            " held-in-one-hand",
+            "held-in-one-hand ",
+            "",
+        ] {
+            assert_eq!(hands_requirement_from_usage(usage), None, "{usage}");
+        }
     }
 }

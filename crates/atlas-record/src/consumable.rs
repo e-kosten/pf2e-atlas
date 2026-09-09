@@ -185,6 +185,69 @@ pub struct ConsumableOccurrenceSet {
     pub occurrences: Vec<ConsumableOccurrence>,
 }
 
+/// Invalid attachment membership is corruption, never an absent occurrence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConsumableOccurrenceSetError {
+    DuplicateEntity,
+    MissingEntity,
+    OrphanEntity,
+    WrongOwner,
+    DuplicateOccurrence,
+    InvalidOrder,
+}
+
+impl std::fmt::Display for ConsumableOccurrenceSetError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid consumable occurrence graph: {self:?}")
+    }
+}
+
+impl std::error::Error for ConsumableOccurrenceSetError {}
+
+impl ConsumableOccurrenceSet {
+    pub fn validated_entities(
+        &self,
+    ) -> Result<
+        std::collections::BTreeMap<&ConsumableEntityId, &ConsumableEntity>,
+        ConsumableOccurrenceSetError,
+    > {
+        use ConsumableOccurrenceSetError as Error;
+        let mut entities = std::collections::BTreeMap::new();
+        let owner = self.entities.first().map(|entity| &entity.owner_record_key);
+        for entity in &self.entities {
+            if Some(&entity.owner_record_key) != owner {
+                return Err(Error::WrongOwner);
+            }
+            if entities.insert(&entity.id, entity).is_some() {
+                return Err(Error::DuplicateEntity);
+            }
+        }
+        let mut used = std::collections::BTreeSet::new();
+        let mut ids = std::collections::BTreeSet::new();
+        let mut previous_order = None;
+        for occurrence in &self.occurrences {
+            let entity = entities
+                .get(&occurrence.entity_id)
+                .ok_or(Error::MissingEntity)?;
+            if entity.owner_record_key != occurrence.owner_record_key {
+                return Err(Error::WrongOwner);
+            }
+            if !ids.insert(&occurrence.id) {
+                return Err(Error::DuplicateOccurrence);
+            }
+            if previous_order.is_some_and(|order| order >= occurrence.authored_order) {
+                return Err(Error::InvalidOrder);
+            }
+            previous_order = Some(occurrence.authored_order);
+            used.insert(&occurrence.entity_id);
+        }
+        if used.len() != entities.len() {
+            return Err(Error::OrphanEntity);
+        }
+        Ok(entities)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConsumableEntity {
     pub id: ConsumableEntityId,

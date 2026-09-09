@@ -1,3 +1,6 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { recordDetailFixture } from "../../test/recordFixtures";
+import { RecordDetailPane } from "./RecordDetailPane";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type {
   ConsumableFactView,
@@ -13,6 +16,56 @@ const missing = { state: "missing" } as const;
 const known = <T,>(value: T): ConsumableFactView<T> => ({ state: "known", value });
 
 describe("ConsumableRecordSurface", () => {
+  it.each(["pointer", "keyboard"])(
+    "opens occurrence and ordinary disclosures without a motion start style via %s",
+    (method) => {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const detail = { surface: standaloneSurface() };
+      const renderPane = (current: typeof detail) => (
+        <QueryClientProvider client={client}>
+          <RecordDetailPane detail={current} loading={false} onReference={vi.fn()} />
+        </QueryClientProvider>
+      );
+      const { rerender } = render(renderPane(detail));
+      const activate = (label: string) => {
+        const header = screen.getByText(label).closest(".ant-collapse-header")!;
+        if (method === "keyboard") {
+          (header as HTMLElement).focus();
+          fireEvent.keyDown(header, { key: "Enter", keyCode: 13 });
+        } else fireEvent.click(header);
+        expect(header).toHaveAttribute("aria-expanded", "true");
+        const content = header
+          .closest(".ant-collapse-item")!
+          .querySelector(".ant-collapse-content") as HTMLElement;
+        expect(content).not.toHaveClass("ant-motion-collapse-enter-start");
+        expect(content.style.height).not.toBe("0px");
+        expect(content.style.opacity).not.toBe("0");
+        return content;
+      };
+      expect(
+        within(activate("Source & provenance")).getByText(
+          "packs/equipment/arboreal-wand.json",
+        ),
+      ).toBeVisible();
+      const parent = recordDetailFixture();
+      if (parent.surface.presentation.presentation_type !== "creature")
+        throw new Error("creature fixture");
+      parent.surface.presentation.body.consumables = [
+        occurrence({
+          occurrence_id: "disclosure-dose",
+          name: "Disclosure dose",
+          target: { state: "parent_owned", reason: "no_locator" },
+          definition: consumableDefinition(),
+        }),
+      ];
+      rerender(renderPane(parent));
+      expect(
+        within(activate("Disclosure dose")).getByText("Held In One Hand"),
+      ).toBeVisible();
+      // Real height and visible-text evidence is separately required by the Safari probe.
+    },
+  );
+
   it("renders standalone definition and source state without inferring missing facts", () => {
     const onReference = vi.fn();
     render(<RecordSurface onReference={onReference} surface={standaloneSurface()} />);
@@ -32,7 +85,11 @@ describe("ConsumableRecordSurface", () => {
     expect(screen.getByText("packs/equipment/arboreal-wand.json")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Open embedded spell" }));
-    expect(onReference).toHaveBeenCalledWith("spells-srd:heal");
+    expect(onReference).toHaveBeenCalledWith("equipment:wand", {
+      parent_record_key: "equipment:wand",
+      child_id: "embedded-heal",
+      target_record_key: "spells-srd:heal",
+    });
   });
 
   it("keeps resolved and parent-owned occurrences distinct and navigable", () => {
@@ -75,6 +132,50 @@ describe("ConsumableRecordSurface", () => {
       throw new Error("local occurrence panel");
     expect(within(localOccurrence).getAllByText("Quantity")).toHaveLength(1);
     expect(screen.getAllByText("Embedded definition")).toHaveLength(1);
+  });
+
+  it("retains exact reused and local mismatch child locators", () => {
+    const onReference = vi.fn();
+    const reused = { parent_record_key: "equipment:target", child_id: "target-child" };
+    const mismatch = {
+      parent_record_key: "actors:owner",
+      occurrence_id: "local-dose",
+      child_id: "local-child",
+    };
+    render(
+      <ConsumableOccurrences
+        onReference={onReference}
+        occurrences={[
+          occurrence({
+            occurrence_id: "reused-dose",
+            name: "Reused spell",
+            target: {
+              state: "resolved",
+              record_key: "equipment:target",
+              mismatch_fields: [],
+            },
+            spell_child: reused,
+          }),
+          occurrence({
+            occurrence_id: "local-dose",
+            name: "Retained spell",
+            target: {
+              state: "resolved",
+              record_key: "equipment:target",
+              mismatch_fields: ["spell"],
+            },
+            spell_child: mismatch,
+          }),
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByText("Reused spell"));
+    fireEvent.click(screen.getByRole("button", { name: "Open embedded spell" }));
+    expect(onReference).toHaveBeenLastCalledWith("equipment:target", reused);
+    fireEvent.click(screen.getByText("Reused spell"));
+    fireEvent.click(screen.getByText("Retained spell"));
+    fireEvent.click(screen.getByRole("button", { name: "Open embedded spell" }));
+    expect(onReference).toHaveBeenLastCalledWith("actors:owner", mismatch);
   });
 
   it("renders the exact structured damage summary without evaluating its formula", () => {
@@ -120,14 +221,17 @@ describe("ConsumableRecordSurface", () => {
     if (surface.presentation?.presentation_type !== "consumable") {
       throw new Error("consumable fixture");
     }
-    surface.presentation.body.maximum_uses = { state: "unsupported" };
+    surface.presentation.body.maximum_uses = {
+      state: "unsupported",
+      value: { reason: "source_field_drift" },
+    };
     surface.presentation.body.auto_destroy = { state: "null" };
     surface.presentation.body.source_state = {
-      quantity: { state: "unsupported" },
+      quantity: { state: "unsupported", value: { reason: "source_field_drift" } },
       current_uses: { state: "null" },
       current_hp: missing,
       container_id: missing,
-      equipped: { state: "unsupported" },
+      equipped: { state: "unsupported", value: { reason: "source_field_drift" } },
     };
 
     render(<RecordSurface onReference={() => undefined} surface={surface} />);
@@ -200,13 +304,14 @@ function consumableBody(): ConsumableSurfaceView {
   return {
     ...consumableDefinition(),
     source_state: {
-      quantity: known(2),
-      current_uses: known(1),
-      current_hp: known(1),
+      quantity: known("2"),
+      current_uses: known("1"),
+      current_hp: known("1"),
       container_id: { state: "null" },
       equipped: missing,
     },
     spell_child: {
+      parent_record_key: "equipment:wand",
       child_id: "embedded-heal",
       target_record_key: "spells-srd:heal",
     },
@@ -217,7 +322,7 @@ function consumableBody(): ConsumableSurfaceView {
 function consumableDefinition(): ConsumableDefinitionView {
   return {
     slug: known("arboreal-wand"),
-    level: known(4),
+    level: known("4"),
     category: known("wand"),
     rarity: known("common"),
     traits: known(["consumable", "magical", "wand"]),
@@ -229,13 +334,13 @@ function consumableDefinition(): ConsumableDefinitionView {
     stack_group: missing,
     material: missing,
     price: known({
-      denominations: known([{ denomination: "gp", amount: 1 }]),
-      per: known(1),
+      denominations: known([{ denomination: "gp", amount: "1" }]),
+      per: known("1"),
     }),
-    maximum_uses: known(1),
+    maximum_uses: known("1"),
     auto_destroy: known(false),
-    maximum_hp: known(1),
-    hardness: known(0),
+    maximum_hp: known("1"),
+    hardness: known("0"),
     publication: missing,
     damage: missing,
   };

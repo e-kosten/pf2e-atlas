@@ -6,7 +6,7 @@ use diesel::{RunQueryDsl, SqliteConnection};
 
 use super::FilterCompiler;
 use super::error::FilterCompileError;
-use super::sql_render::{RECORDS_ALIAS, record_column};
+use super::sql_render::{RECORDS_ALIAS, price_column, record_column};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SqliteEligibleRecordKeyset<'a> {
@@ -237,15 +237,15 @@ impl SqliteFilteredRecordSort {
             ),
             Self::PriceAsc => format!(
                 "{} IS NULL ASC, {} ASC, {} ASC, {} ASC",
-                record_column(records::columns::PRICE_CP),
-                record_column(records::columns::PRICE_CP),
+                price_column(),
+                price_column(),
                 record_column(records::columns::NORMALIZED_NAME),
                 record_column(records::columns::RECORD_KEY)
             ),
             Self::PriceDesc => format!(
                 "{} IS NULL ASC, {} DESC, {} ASC, {} ASC",
-                record_column(records::columns::PRICE_CP),
-                record_column(records::columns::PRICE_CP),
+                price_column(),
+                price_column(),
                 record_column(records::columns::NORMALIZED_NAME),
                 record_column(records::columns::RECORD_KEY)
             ),

@@ -33,6 +33,7 @@ type SupplementalContentExtraction = (
 
 struct EmbeddedContentPointer {
     pointer: &'static str,
+    occurrence_owned: bool,
     source_kind: ContentSourceKind,
     label: Option<String>,
     local_key: String,
@@ -255,6 +256,7 @@ fn collect_consumable_spell_content(
             nested_source_id: child_id,
             authored_ordinal: 0,
             identity_stability: None,
+            occurrence_owned: false,
         },
         localization,
         accumulator,
@@ -307,6 +309,10 @@ fn collect_embedded_item_content(
         return;
     };
     for (index, item) in items.iter().enumerate() {
+        let occurrence_owned = matches!(
+            raw.get("type").and_then(Value::as_str),
+            Some("npc" | "character" | "hazard")
+        ) && item.get("type").and_then(Value::as_str) == Some("consumable");
         let label = string_field(item, "name");
         let hazard_identity = hazard_identities.and_then(|identities| {
             identities
@@ -327,6 +333,7 @@ fn collect_embedded_item_content(
         collect_embedded_content_at_pointer(
             item,
             EmbeddedContentPointer {
+                occurrence_owned,
                 pointer: "/system/description/value",
                 source_kind: ContentSourceKind::EmbeddedItemDescription,
                 label: label.clone(),
@@ -341,6 +348,7 @@ fn collect_embedded_item_content(
         collect_embedded_content_at_pointer(
             item,
             EmbeddedContentPointer {
+                occurrence_owned,
                 pointer: "/system/description/gm",
                 source_kind: ContentSourceKind::EmbeddedGmDescription,
                 label: label.clone(),
@@ -355,6 +363,7 @@ fn collect_embedded_item_content(
         collect_embedded_content_at_pointer(
             item,
             EmbeddedContentPointer {
+                occurrence_owned,
                 pointer: "/system/spell/system/description/value",
                 source_kind: ContentSourceKind::EmbeddedSpellDescription,
                 label,
@@ -407,6 +416,11 @@ fn collect_embedded_content_at_pointer(
         parsed.document.clone(),
         parsed.diagnostics.clone(),
     ));
+    // Route by the exact source item before the generic document loses its
+    // ordinal and nested identity. Equal sibling prose is never an identity.
+    if source.occurrence_owned {
+        return;
+    }
     accumulator.content.push((
         Some(source.local_key),
         supplemental_content(source.source_kind, source.label, parsed.document),

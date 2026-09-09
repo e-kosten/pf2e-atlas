@@ -246,7 +246,7 @@ it("retains the last valid selected response after same-key refresh becomes unav
   });
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   await screen.findByText("3d8");
-  const queryKey = ["record-detail", "spells:heal", "base", 3, null, null];
+  const queryKey = ["record-detail", "spells:heal", null, null, "base", 3, null, null];
   const updated = fixture("spells:heal", "base", 3);
   if (
     updated.surface.presentation.presentation_type !== "spell" ||

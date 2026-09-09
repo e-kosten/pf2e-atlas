@@ -33,6 +33,7 @@ pub(crate) struct ConsumableOccurrenceCandidate {
     pub(crate) authored_order: u32,
     pub(crate) source_path: String,
     pub(crate) source_id: ConsumableSourceFact<String>,
+    pub(crate) content_source_id: String,
     pub(crate) source: VersionedItemSource,
     spell_source: LocalSpellSource,
 }
@@ -124,6 +125,10 @@ pub(crate) fn collect_actor_consumable_candidates(
         candidates.push(ConsumableOccurrenceCandidate {
             authored_order,
             source_path: format!("{source_path}#items[{ordinal}]"),
+            content_source_id: match &source_id {
+                ConsumableSourceFact::Value(value) => value.clone(),
+                _ => format!("item-{ordinal}"),
+            },
             source_id,
             source,
             spell_source,
@@ -911,16 +916,24 @@ fn compare_spell_child(
             return Ok(ConsumableSpellReuse::NotPresent);
         }
     };
-    let child_content = loaded
-        .facts
-        .source_facts
-        .content_sources
-        .iter()
-        .find(|content| {
-            content.source_kind == atlas_record::ContentSourceKind::EmbeddedSpellDescription
-                && content.nested_source_id.as_deref() == Some(source.spell.id.as_str())
-        })
-        .cloned();
+    let child_content = actor_spell_content(
+        &loaded.facts.source_facts.content_sources,
+        &candidate.content_source_id,
+        candidate.authored_order,
+    )?
+    .map(|mut content| {
+        // The lookup key may be a parser-only fallback for duplicate/missing IDs.
+        // Canonical provenance retains the authored ID and exact source position.
+        content.nested_source_id = match &candidate.source_id {
+            ConsumableSourceFact::Value(id) => Some(id.clone()),
+            _ => None,
+        };
+        content.relative_source_path = format!(
+            "$.items[{}].system.spell.system.description.value",
+            candidate.authored_order
+        );
+        content
+    });
     let local = super::spells::convert_consumable_spell_child(
         owner_key.clone(),
         &loaded.record.provenance.source_path,
@@ -958,6 +971,29 @@ fn compare_spell_child(
     Ok(ConsumableSpellReuse::Reused {
         target_child_id: target.child_id.clone(),
     })
+}
+
+// Source facts are scoped to one containing record. Bind both its normalized
+// item identity and authored position; duplicate IDs cannot redirect the lookup.
+fn actor_spell_content(
+    content_sources: &[crate::records::SourceContentFact],
+    item_id: &str,
+    item_order: u32,
+) -> Result<Option<crate::records::SourceContentFact>, String> {
+    let ordinal = item_order.to_string();
+    let mut matching = content_sources.iter().filter(|content| {
+        content.source_kind == atlas_record::ContentSourceKind::EmbeddedSpellDescription
+            && content.authored_ordinal_or_range.as_deref() == Some(ordinal.as_str())
+    });
+    let Some(content) = matching.next() else {
+        return Ok(None);
+    };
+    if content.nested_source_id.as_deref() != Some(item_id) || matching.next().is_some() {
+        return Err(
+            "actor Spell content does not match unique containing item identity".to_string(),
+        );
+    }
+    Ok(Some(content.clone()))
 }
 
 fn unavailable_local_spell_reuse(
@@ -1095,6 +1131,166 @@ mod tests {
         spell_definition_mismatch, stable_occurrence_id, unavailable_local_spell_reuse,
     };
     use crate::source::dto::{ConsumableSourceFact, ItemSource, parse_serialized_source_object};
+
+    #[test]
+    fn production_actor_spell_hashes_match_independent_raw_identity()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use serde_json::{Value, json};
+        use std::{collections::BTreeMap, fs};
+        struct Fixture(std::path::PathBuf);
+        impl Drop for Fixture {
+            fn drop(&mut self) {
+                let _ = fs::remove_dir_all(&self.0);
+            }
+        }
+        let root = Fixture(std::env::temp_dir().join(format!(
+            "atlas-h5-raw-child-hash-{}-{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_nanos()
+        )));
+        fs::create_dir_all(root.0.join("packs/actors"))?;
+        fs::write(
+            root.0.join("module.json"),
+            r#"{"packs":[{"name":"actors","label":"Actors","type":"Actor","path":"packs/actors"}]}"#,
+        )?;
+        let seed: Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/foundry-source/spell-source-contract/packs/equipment/arboreal-wand-rank-4.json"
+        ))?;
+        let mut expected = BTreeMap::new();
+        for kind in ["npc", "character", "hazard"] {
+            let mut items = Vec::new();
+            for ordinal in 0..2_u32 {
+                let mut item = seed.clone();
+                // NPC/Character duplicate item IDs and identical nested Spell IDs
+                // must still preserve the two different authored descriptions.
+                let item_id = if kind == "hazard" {
+                    format!("dose{ordinal}")
+                } else {
+                    "sameDose".to_string()
+                };
+                item["_id"] = json!(item_id);
+                let prose =
+                    format!("<p>{kind} child <strong>{ordinal}</strong> retained narrative.</p>");
+                item["system"]["spell"]["system"]["description"] = json!({"value":prose});
+                let raw_child = &item["system"]["spell"];
+                let parsed = crate::source::normalize::parse_foundry_content(
+                    raw_child["system"]["description"]["value"]
+                        .as_str()
+                        .unwrap(),
+                );
+                let hash = atlas_record::ContentHash::for_document(&parsed.document);
+                expected.insert(
+                    (
+                        format!("actors:{kind}"),
+                        ordinal,
+                        item_id,
+                        raw_child["_id"].as_str().unwrap().to_string(),
+                    ),
+                    hash,
+                );
+                items.push(item);
+            }
+            fs::write(
+                root.0.join(format!("packs/actors/{kind}.json")),
+                serde_json::to_vec(&json!({
+                    "_id":kind,"name":kind,"type":kind,"system":{},"items":items
+                }))?,
+            )?;
+        }
+        let loaded = crate::source_pipeline::load_foundry_source(&root.0, None)?;
+        let mut actual = BTreeMap::new();
+        for record in loaded.records {
+            for occurrence in record.facts.consumable_occurrences.occurrences {
+                let ConsumableSpellReuse::Mismatch {
+                    local_evidence: ConsumableLocalSpellEvidence::Child(child),
+                    ..
+                } = occurrence.spell_reuse
+                else {
+                    panic!("unresolved authored child must retain its typed evidence");
+                };
+                let item_id = occurrence
+                    .source_id
+                    .as_value()
+                    .and_then(atlas_record::ConsumableSourceValue::known)
+                    .unwrap()
+                    .as_str()
+                    .to_string();
+                let [document] = child.definition.content.documents.as_slice() else {
+                    panic!("one exact authored child document");
+                };
+                assert_eq!(
+                    document.provenance.nested_source_id.as_deref(),
+                    Some(item_id.as_str())
+                );
+                assert_eq!(
+                    document.provenance.authored_ordinal_or_range.as_deref(),
+                    Some(occurrence.authored_order.to_string().as_str())
+                );
+                assert_eq!(
+                    document.content_hash,
+                    atlas_record::ContentHash::for_document(&document.document)
+                );
+                assert!(
+                    actual
+                        .insert(
+                            (
+                                record.record.identity.key.to_string(),
+                                occurrence.authored_order,
+                                item_id,
+                                child.child_id.as_str().to_string()
+                            ),
+                            document.content_hash.clone()
+                        )
+                        .is_none()
+                );
+            }
+        }
+        assert_eq!(actual.len(), 6);
+        assert_eq!(
+            actual, expected,
+            "canonical child hashes must match independently parsed raw descriptions by full containing occurrence identity"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn actor_spell_content_requires_identity_position_and_unique_document() {
+        let parsed =
+            crate::source::normalize::parse_foundry_content("<p>Exact local narrative</p>");
+        let document = crate::records::SourceContentFact {
+            content_key: "local-spell".to_string(),
+            identity_stability: atlas_record::ContentIdentityStability::StableSourceIdentity,
+            source_kind: atlas_record::ContentSourceKind::EmbeddedSpellDescription,
+            relative_source_path: "$.items[_id=local].system.spell.system.description.value"
+                .to_string(),
+            nested_source_id: Some("local".to_string()),
+            authored_ordinal_or_range: Some("2".to_string()),
+            authored_order: 3,
+            label: Some("Local".to_string()),
+            document: parsed.document,
+            diagnostics: parsed.diagnostics,
+        };
+        let facts = [document.clone()];
+        assert!(
+            super::actor_spell_content(&facts, "local", 2)
+                .unwrap()
+                .is_some()
+        );
+        assert!(super::actor_spell_content(&facts, "nested-spell-id", 2).is_err());
+        assert!(
+            super::actor_spell_content(&facts, "local", 1)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            super::actor_spell_content(&[document.clone(), document.clone()], "local", 2).is_err()
+        );
+        let mut sibling = document.clone();
+        sibling.authored_ordinal_or_range = Some("1".to_string());
+        assert_eq!(
+            super::actor_spell_content(&[sibling, document.clone()], "local", 2).unwrap(),
+            Some(document)
+        );
+    }
 
     #[test]
     fn actor_collector_retains_nested_duplicate_as_typed_unsupported() {
