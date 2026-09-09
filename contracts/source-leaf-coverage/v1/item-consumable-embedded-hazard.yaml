@@ -23,7 +23,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-id@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -83,7 +83,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: folder-consumable-context@4cbdaa37
       record_count: 1
       occurrence_count: 0
@@ -137,7 +137,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-img@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -191,7 +191,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-name@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -251,7 +251,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-sort@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -311,7 +311,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-type@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -371,7 +371,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-baseitem@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -431,7 +431,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-bulk-value@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -491,7 +491,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-category@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -551,7 +551,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-containerid@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -611,7 +611,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-damage@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -671,7 +671,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-description-value@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -731,7 +731,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-equipped-carrytype@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -791,7 +791,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-hardness@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -851,7 +851,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-hp-max@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -911,7 +911,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-hp-value@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -971,7 +971,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-level-value@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1031,7 +1031,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-material-grade@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1091,7 +1091,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-material-type@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1151,7 +1151,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-price-value-gp@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1211,7 +1211,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-publication-license@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1271,7 +1271,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-publication-remaster@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1331,7 +1331,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-publication-title@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1391,7 +1391,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-quantity@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1451,7 +1451,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-size@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1511,7 +1511,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-slug@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1571,7 +1571,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-traits-rarity@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1631,7 +1631,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-traits-value@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1691,7 +1691,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-usage-value@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1751,7 +1751,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-uses-autodestroy@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1811,7 +1811,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-uses-max@4cbdaa37
       record_count: 1
       occurrence_count: 1
@@ -1871,7 +1871,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: consumable-system-uses-value@4cbdaa37
       record_count: 1
       occurrence_count: 1

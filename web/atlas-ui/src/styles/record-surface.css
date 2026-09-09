@@ -843,6 +843,21 @@
   font-weight: 700;
 }
 
+.record-surface-references__children {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0 0 0 12px;
+  list-style: none;
+}
+
+.record-surface-references__children .ant-btn-link {
+  height: auto;
+  padding: 0;
+  white-space: normal;
+  text-align: left;
+}
+
 .record-surface-references__evidence {
   gap: 3px;
   padding-left: 12px;

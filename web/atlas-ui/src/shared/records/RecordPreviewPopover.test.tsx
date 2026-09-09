@@ -81,6 +81,30 @@ describe("RecordPreviewPopover", () => {
 
     expect(onOpenFullPage).toHaveBeenCalledWith("actors:goblin");
   });
+
+  it("routes a child reference out of the parent-only preview with its locator", async () => {
+    const childLocator = "v1~j~s~706167652d31";
+    const onOpenFullPage = vi.fn();
+    apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
+      Promise.resolve(recordWithNestedReference(recordKey, childLocator)),
+    );
+    render(
+      <RecordPreviewPopover onOpenFullPage={onOpenFullPage} recordKey="actors:goblin">
+        {(open) => (
+          <button aria-expanded={open} type="button">
+            Open preview
+          </button>
+        )}
+      </RecordPreviewPopover>,
+      { wrapper: queryClientWrapper() },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open preview" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
+
+    expect(onOpenFullPage).toHaveBeenCalledWith("rules:nested", childLocator);
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(1);
+  });
 });
 
 function queryClientWrapper() {
@@ -92,7 +116,7 @@ function queryClientWrapper() {
   };
 }
 
-function recordWithNestedReference(recordKey: string) {
+function recordWithNestedReference(recordKey: string, childLocator?: string) {
   const detail = recordDetailFixture({
     recordKey,
     title: recordKey === "rules:nested" ? "Nested Rule" : "Goblin Warrior",
@@ -115,6 +139,7 @@ function recordWithNestedReference(recordKey: string) {
                 span_type: "reference",
                 label: "Nested Rule",
                 record_key: "rules:nested",
+                ...(childLocator ? { child_locator: childLocator } : {}),
                 embedded: false,
               },
             ],

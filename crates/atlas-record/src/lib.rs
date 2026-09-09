@@ -126,7 +126,8 @@ pub use journal::{
     JournalPageKind, JournalPageText, JournalPageTitle, JournalPageVideo, JournalRecord,
     MediaLocator, RollTableRecord, SourceDocumentId, TableResult, TableResultEntry,
     TableResultKind, TableResultRange, TableResultSourceMetadata, TableResultTarget,
-    decode_content_child_locator, encode_content_child_locator,
+    decode_content_child_locator, decode_content_child_selector, encode_content_child_locator,
+    encode_content_child_selector,
 };
 pub use json_projection::{
     CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,

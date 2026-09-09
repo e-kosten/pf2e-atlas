@@ -476,7 +476,7 @@ fn reference_inline(link: &FoundryLink) -> PresentationInline {
         RichLinkTarget::Record { key, .. } => (Some(key.clone()), None),
         RichLinkTarget::RecordChild { key, locator, .. } => (
             Some(key.clone()),
-            Some(crate::encode_content_child_locator(locator)),
+            Some(crate::encode_content_child_selector(locator)),
         ),
         RichLinkTarget::LocalContent { .. }
         | RichLinkTarget::External { .. }

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { RecordDetailRequest, RecordDetailView } from "../../generated/atlas";
 import { AtlasApiError, getRecordDetail } from "../../api/atlasApi";
+import { recordDetailFixture as typedRecordDetailFixture } from "../../test/recordFixtures";
 import { SearchView } from "./SearchView";
 import { useSearchWorkspace } from "./useSearchWorkspace";
 
@@ -198,6 +199,28 @@ it("aborts an unresolved prior record and ignores its late response after a reco
   });
   expect(screen.queryByRole("heading", { name: "Heal" })).not.toBeInTheDocument();
   expect(screen.getByText("1d8")).toBeInTheDocument();
+});
+
+it("opens an exact child reference from search detail instead of dropping its locator", async () => {
+  const childLocator = "v1~t~s~726573756c742d31";
+  vi.mocked(getRecordDetail).mockResolvedValueOnce(
+    typedRecordDetailFixture({
+      recordKey: "spells:heal",
+      title: "Heal",
+      contentReferenceLabel: "Exact table result",
+      contentReferenceRecordKey: "tables:hero-points",
+      contentReferenceChildLocator: childLocator,
+    }),
+  );
+  mount();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Related content" }));
+  fireEvent.click(await screen.findByRole("link", { name: "Exact table result" }));
+
+  await waitFor(() =>
+    expect(window.location.pathname).toBe("/records/tables%3Ahero-points"),
+  );
+  expect(window.location.search).toBe(`?child=${encodeURIComponent(childLocator)}`);
 });
 
 it(

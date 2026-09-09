@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use atlas_domain::RecordKey;
 use atlas_record::{
     FactValue, HazardOccurrenceIdentityStability, HazardRelationshipKind, HazardRelationshipTarget,
-    MetricValue, RecordBody, project_creature_facts, project_hazard_facts,
+    MetricValue, RecordBody, decode_content_child_locator, project_creature_facts,
+    project_hazard_facts,
 };
 use rusqlite::Connection;
 use rusqlite::types::ValueRef;
@@ -239,6 +241,9 @@ pub(crate) fn validate_canonical_records(
             "roll_table",
             diagnostics,
         )?;
+    }
+    if diagnostics.is_empty() {
+        validate_h8_semantic_structure(connection, diagnostics)?;
     }
     Ok(())
 }
@@ -586,6 +591,89 @@ pub(super) fn validate_canonical_structure(
                 "0 invalid rows".to_string(),
                 invalid.to_string(),
             );
+        }
+    }
+    if diagnostics.is_empty() {
+        validate_h8_semantic_structure(connection, diagnostics)?;
+    }
+    Ok(())
+}
+
+fn validate_h8_semantic_structure(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT canonical_json FROM canonical_journal_records
+             UNION ALL
+             SELECT canonical_json FROM canonical_roll_table_records",
+        )
+        .map_err(query_failed)?;
+    let bodies = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(query_failed)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(query_failed)?
+        .into_iter()
+        .map(|json| canonical_json::decode::<RecordBody>(&json, "canonical H8 semantic validation"))
+        .collect::<Result<Vec<_>, _>>();
+    let bodies = match bodies {
+        Ok(bodies) => bodies,
+        Err(error) => {
+            invalid(diagnostics, &error, "canonical_h8_records.child_integrity");
+            return Ok(());
+        }
+    };
+    let catalog = match crate::h8_integrity::H8ChildCatalog::from_bodies(&bodies) {
+        Ok(catalog) => catalog,
+        Err(error) => {
+            invalid(diagnostics, &error, "canonical_h8_records.child_integrity");
+            return Ok(());
+        }
+    };
+    if let Err(error) = catalog.validate_body_targets(&bodies) {
+        invalid(diagnostics, &error, "canonical_h8_records.child_integrity");
+        return Ok(());
+    }
+
+    let mut statement = connection
+        .prepare(
+            "SELECT from_record_key,to_record_key,source_child_locator,target_child_locator
+             FROM reference_edges
+             WHERE source_child_locator <> '' OR target_child_locator <> ''
+             ORDER BY from_record_key,to_record_key,source_child_locator,target_child_locator",
+        )
+        .map_err(query_failed)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(query_failed)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(query_failed)?;
+    for (from, to, source, target) in rows {
+        let parsed = (|| {
+            let from = RecordKey::parse(&from).map_err(|error| error.to_string())?;
+            let to = RecordKey::parse(&to).map_err(|error| error.to_string())?;
+            let source = (!source.is_empty())
+                .then(|| decode_content_child_locator(&source))
+                .transpose()
+                .map_err(|_| "invalid reference source child locator".to_string())?;
+            let target = (!target.is_empty())
+                .then(|| decode_content_child_locator(&target))
+                .transpose()
+                .map_err(|_| "invalid reference target child locator".to_string())?;
+            catalog.validate_edge_locators(&from, source.as_ref(), &to, target.as_ref())
+        })();
+        if let Err(error) = parsed {
+            invalid(diagnostics, &error, "reference_edges.child_integrity");
+            return Ok(());
         }
     }
     Ok(())

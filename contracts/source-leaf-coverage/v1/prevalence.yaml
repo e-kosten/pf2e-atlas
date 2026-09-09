@@ -3324,17 +3324,6 @@ entries:
     normalized_path: "$.pages[].flags.core.sourceId"
     record_count: 113
     occurrence_count: 16
-  - entry_id: "journal-entry-page-pages-image@4cbdaa37"
-    type_id: "journalentry--root--top-level--root--root--root"
-    selector:
-      source_contract_version: "pf2e-serialized-source/v1"
-      document_class: "JournalEntry"
-      type_discriminator: "*"
-      role: "top_level"
-      parent_context: {}
-    normalized_path: "$.pages[].image"
-    record_count: 113
-    occurrence_count: 587
   - entry_id: "journal-entry-page-pages-name@4cbdaa37"
     type_id: "journalentry--root--top-level--root--root--root"
     selector:
@@ -3366,17 +3355,6 @@ entries:
       role: "top_level"
       parent_context: {}
     normalized_path: "$.pages[].src"
-    record_count: 113
-    occurrence_count: 587
-  - entry_id: "journal-entry-page-pages-system@4cbdaa37"
-    type_id: "journalentry--root--top-level--root--root--root"
-    selector:
-      source_contract_version: "pf2e-serialized-source/v1"
-      document_class: "JournalEntry"
-      type_discriminator: "*"
-      role: "top_level"
-      parent_context: {}
-    normalized_path: "$.pages[].system"
     record_count: 113
     occurrence_count: 587
   - entry_id: "journal-entry-page-pages-text-content@4cbdaa37"

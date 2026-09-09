@@ -82,11 +82,11 @@ fn project_section(
                 source_child_locator: edge
                     .source_child
                     .as_ref()
-                    .map(atlas_record::encode_content_child_locator),
+                    .map(atlas_record::encode_content_child_selector),
                 target_child_locator: edge
                     .target_child
                     .as_ref()
-                    .map(atlas_record::encode_content_child_locator),
+                    .map(atlas_record::encode_content_child_selector),
                 display_text: edge.display_text,
                 reference_text: edge.reference_text,
                 source: RecordSurfaceReferenceSourceView {
@@ -141,6 +141,9 @@ fn app_error_code(kind: SearchErrorKind) -> AppErrorCode {
 mod tests {
     use atlas_app_model::RecordSurfaceReferenceSectionView;
     use atlas_domain::{RecordKey, RecordKind};
+    use atlas_record::{
+        ContentChildIdentity, ContentChildKind, ContentChildLocator, SourceDocumentId,
+    };
     use atlas_search::{
         GraphContextEdge, GraphContextEdgeSource, GraphContextResult, GraphContextSection,
         SearchError,
@@ -256,6 +259,85 @@ mod tests {
                 RecordSurfaceReferenceSectionView::NotRequested
             );
         }
+    }
+
+    #[test]
+    fn record_references_preserve_distinct_child_edges_to_one_parent_record() {
+        let fixture = encounter_fixture_worker();
+        let mut seed = fixture
+            .worker
+            .get_records(vec![
+                RecordKey::parse("actions:testAction1").expect("fixture key"),
+            ])
+            .expect("fixture record should load")
+            .pop()
+            .expect("fixture record should exist");
+        seed.record.identity.key = RecordKey::parse("tables:seed").expect("seed key");
+        seed.record.classification.kind = RecordKind::RollTable;
+        let mut target = seed.clone();
+        target.record.identity.key = RecordKey::parse("journals:target").expect("target key");
+        target.record.identity.name = "Target journal".to_string();
+        target.record.classification.kind = RecordKind::Journal;
+        let seed_key = seed.record.identity.key.clone();
+        let target_key = target.record.identity.key.clone();
+        let child = |id: &str| ContentChildLocator {
+            parent: target_key.clone(),
+            kind: ContentChildKind::JournalPage,
+            identity: ContentChildIdentity::Stable(
+                SourceDocumentId::new(id).expect("child source ID"),
+            ),
+        };
+        let edge = |id: &str, label: &str| GraphContextEdge {
+            from: seed_key.clone(),
+            to: target_key.clone(),
+            source_child: None,
+            target_child: Some(child(id)),
+            display_text: Some(label.to_string()),
+            reference_text: label.to_string(),
+            source: GraphContextEdgeSource {
+                kind: "table_result".to_string(),
+                visibility: "public".to_string(),
+                relation_kind: "reference".to_string(),
+            },
+        };
+
+        let projected = project_record_references(
+            GraphContextResult {
+                seed,
+                outgoing: GraphContextSection {
+                    records: vec![target],
+                    edges: vec![
+                        edge("first-page", "First page"),
+                        edge("second-page", "Second page"),
+                    ],
+                    total_records: 1,
+                    total_edges: 2,
+                    truncated: false,
+                },
+                backlinks: empty_section(),
+            },
+            8,
+            0,
+        );
+        let RecordSurfaceReferenceSectionView::Available {
+            records,
+            edges,
+            total_records,
+            total_edges,
+            truncated,
+            next_limit,
+            ..
+        } = projected.outgoing
+        else {
+            panic!("outgoing references should be available");
+        };
+        assert_eq!(records.len(), 1);
+        assert_eq!(edges.len(), 2);
+        assert_ne!(edges[0].target_child_locator, edges[1].target_child_locator);
+        assert_eq!(total_records, 1);
+        assert_eq!(total_edges, 2);
+        assert!(!truncated);
+        assert_eq!(next_limit, None);
     }
 
     #[test]

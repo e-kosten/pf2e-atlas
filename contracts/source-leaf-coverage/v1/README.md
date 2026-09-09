@@ -81,12 +81,12 @@ authenticated parent while the child `_id` remains an independently receipted
 local identity. Artifact and public-surface owners remain deferred to their
 later H2 slices rather than being claimed by the ingest receipt.
 
-The four H8 field-ledger files partition the 35 authenticated top-level
-JournalEntry and RollTable source leaves into parent and parent-owned-child
-inventories. Same-selector parent and child files are assembled into one
-complete JournalEntry or RollTable ledger before lint and receipt evaluation. Their
-receipts read the shared ordered source DTO once, select the exact typed H8
-canonical owner, and repeat that selection after `IndexBuildInput` projection.
-Child member identity/order comes from the containing `pages` or `results`
-array; media locators and exact empty source containers remain provenance only
-and are never fetched, rendered, ranked, embedded, or executed.
+The two H8 field-ledger files partition the 33 v1-admissible top-level
+JournalEntry and RollTable source leaves across their exact parent selectors.
+Each complete ledger includes its parent fields and every supported scalar
+descendant of its parent-owned `pages` or `results` array. Their receipts read
+the shared ordered source DTO once, select the exact typed H8 canonical owner,
+and repeat that selection after `IndexBuildInput` projection. Child member
+identity/order comes from the containing array; media locators and exact empty
+source containers remain provenance only and are never fetched, rendered,
+ranked, embedded, or executed.

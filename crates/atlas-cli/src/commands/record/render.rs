@@ -555,6 +555,7 @@ impl Writer {
                         .filter(|value| !value.trim().is_empty())
                         .unwrap_or_else(|| "Untitled result".to_string());
                     self.bullet(format!("{range}: {label}"), 2);
+                    self.field("Drawn", h8_boolean_state(&result.drawn), 4);
                 }
                 TableResultEntryJson::Unsupported { unsupported } => self.bullet(
                     format!(
@@ -1774,6 +1775,16 @@ fn h8_fact_state<T>(value: &H8FactJson<T>) -> &'static str {
     }
 }
 
+fn h8_boolean_state(value: &H8FactJson<bool>) -> &'static str {
+    match value {
+        H8FactJson::Known(true) => "yes",
+        H8FactJson::Known(false) => "no",
+        H8FactJson::Missing => "missing",
+        H8FactJson::Null => "null",
+        H8FactJson::Unsupported(_) => "unsupported",
+    }
+}
+
 fn resolved_spell_fact<T>(value: &SpellResolvedFieldJson<T>) -> Option<&T> {
     match value {
         SpellResolvedFieldJson::Available { value } => spell_fact(value),
@@ -2299,8 +2310,23 @@ pub(super) mod tests {
         let table_text = table_writer.finish();
         assert!(table_text.contains("Formula: 1d1"));
         assert!(table_text.contains("1–1: Gain a hero point."));
+        assert!(table_text.contains("Drawn: no"));
         assert!(!table_text.contains("secret-table.webp"));
         assert!(!table_text.contains("secret-result.webp"));
+    }
+
+    #[test]
+    fn h8_terminal_distinguishes_every_drawn_source_state() {
+        let unsupported = H8FactJson::Unsupported(atlas_record::H8UnsupportedValueJson {
+            shape: "string",
+            value: "\"yes\"".to_string(),
+            reason: "source_field_drift",
+        });
+        assert_eq!(h8_boolean_state(&H8FactJson::Known(true)), "yes");
+        assert_eq!(h8_boolean_state(&H8FactJson::Known(false)), "no");
+        assert_eq!(h8_boolean_state(&H8FactJson::Missing), "missing");
+        assert_eq!(h8_boolean_state(&H8FactJson::Null), "null");
+        assert_eq!(h8_boolean_state(&unsupported), "unsupported");
     }
 
     fn h8_source_metadata_json() -> H8SourceMetadataJson {

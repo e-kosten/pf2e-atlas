@@ -19,7 +19,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: roll-table--id@4cbdaa37
     record_count: 69
     occurrence_count: 69
@@ -53,7 +53,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: roll-table-description@4cbdaa37
     record_count: 69
     occurrence_count: 69
@@ -87,7 +87,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: roll-table-displayroll@4cbdaa37
     record_count: 69
     occurrence_count: 69
@@ -121,7 +121,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: roll-table-formula@4cbdaa37
     record_count: 69
     occurrence_count: 69
@@ -155,7 +155,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: roll-table-img@4cbdaa37
     record_count: 69
     occurrence_count: 69
@@ -189,7 +189,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: roll-table-name@4cbdaa37
     record_count: 69
     occurrence_count: 69
@@ -223,7 +223,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: roll-table-ownership-default@4cbdaa37
     record_count: 69
     occurrence_count: 69
@@ -257,7 +257,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: roll-table-replacement@4cbdaa37
     record_count: 69
     occurrence_count: 69
@@ -276,6 +276,312 @@ leaves:
     artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
     search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
     cli: {disposition: promoted, rationale: "ordinary terminal detail presents this typed fact without raw-source fallback"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[]._id
+  leaf_kind: array_member
+  expected_shapes: [string]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-id@4cbdaa37
+    record_count: 69
+    occurrence_count: 1465
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-id]}
+  fixtures:
+    - {case_id: table-result-results-id, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:ddd7097d0bb4ac276120bf9b2dbd7672c06492ef31a1a3cc1c6701ac81146e28, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[]._id)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[]._id)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[]._id)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[]._id)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[]._id)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: not_applicable, rationale: "ordinary terminal output does not expose this source or provenance-only fact"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[].documentCollection
+  leaf_kind: array_member
+  expected_shapes: [string]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-documentcollection@4cbdaa37
+    record_count: 69
+    occurrence_count: 1393
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-documentcollection]}
+  fixtures:
+    - {case_id: table-result-results-documentcollection, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:7e6998c3e10040a26c4afc51975f582ac07add3bac5cacd148816f1868766c19, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[].documentCollection)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[].documentCollection)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[].documentCollection)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[].documentCollection)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[].documentCollection)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: not_applicable, rationale: "ordinary terminal output does not expose this source or provenance-only fact"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[].documentId
+  leaf_kind: array_member
+  expected_shapes: [string]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-documentid@4cbdaa37
+    record_count: 69
+    occurrence_count: 1465
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-documentid]}
+  fixtures:
+    - {case_id: table-result-results-documentid, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:8f329fb60a46e5243fd323e04b62008ad3ec1624d04bd48020a1e915737af676, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[].documentId)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[].documentId)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[].documentId)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[].documentId)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[].documentId)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: not_applicable, rationale: "ordinary terminal output does not expose this source or provenance-only fact"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[].drawn
+  leaf_kind: array_member
+  expected_shapes: [boolean]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-drawn@4cbdaa37
+    record_count: 69
+    occurrence_count: 1465
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-drawn]}
+  fixtures:
+    - {case_id: table-result-results-drawn, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[].drawn)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[].drawn)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[].drawn)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[].drawn)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[].drawn)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: not_applicable, rationale: "ordinary terminal output does not expose this source or provenance-only fact"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[].img
+  leaf_kind: array_member
+  expected_shapes: [string]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-img@4cbdaa37
+    record_count: 69
+    occurrence_count: 1465
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-img]}
+  fixtures:
+    - {case_id: table-result-results-img, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:5715992b0dd6f7254d87efeec0cc4559a23844522f949fe745a465774163f7f4, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[].img)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[].img)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[].img)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[].img)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[].img)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: not_applicable, rationale: "ordinary terminal output does not expose this source or provenance-only fact"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: not_applicable, rationale: "ordinary UI does not expose this source or provenance-only fact"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[].range[]
+  leaf_kind: array_member
+  expected_shapes: [number]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-range@4cbdaa37
+    record_count: 69
+    occurrence_count: 2930
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-range]}
+  fixtures:
+    - {case_id: table-result-results-range, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[].range[])"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[].range[])"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[].range[])"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[].range[])"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[].range[])"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: promoted, rationale: "ordinary terminal detail presents this typed fact without raw-source fallback"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[].text
+  leaf_kind: array_member
+  expected_shapes: [string]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-text@4cbdaa37
+    record_count: 69
+    occurrence_count: 1465
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-text]}
+  fixtures:
+    - {case_id: table-result-results-text, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:4577efe97cbf02589d0ed08edee77d3f320c7f3fb37482bb2290d867c8164350, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[].text)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[].text)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[].text)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[].text)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[].text)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: promoted, rationale: "this semantic text or record identity contributes to the parent record search surface"}
+    cli: {disposition: promoted, rationale: "ordinary terminal detail presents this typed fact without raw-source fallback"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[].type
+  leaf_kind: array_member
+  expected_shapes: [string]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-type@4cbdaa37
+    record_count: 69
+    occurrence_count: 1465
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-type]}
+  fixtures:
+    - {case_id: table-result-results-type, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:6c0842ae642cdacbf92bb069fa0f846fbb988529795ab0cc9734d2e4c2929034, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[].type)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[].type)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[].type)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[].type)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[].type)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: not_applicable, rationale: "ordinary terminal output does not expose this source or provenance-only fact"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.results[].weight
+  leaf_kind: array_member
+  expected_shapes: [number]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
+    entry_id: table-result-results-weight@4cbdaa37
+    record_count: 69
+    occurrence_count: 1465
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [table-result-results-weight]}
+  fixtures:
+    - {case_id: table-result-results-weight, record_key: rollable-tables:W0qudblot2Z9Vu86, source_path: packs/rollable-tables/10th-level-permanent-items.json, source_file_digest: sha256:b5944700eac102b8fa61b200fe3b9aafde9a0a9ba42683df6c369d9f132b4ae3, excerpt_digest: sha256:e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.results[].weight)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.results[].weight)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.results[].weight)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.results[].weight)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.results[].weight)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: not_applicable, rationale: "ordinary terminal output does not expose this source or provenance-only fact"}
     app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
     ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
     runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}

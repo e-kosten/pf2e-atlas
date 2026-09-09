@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ContentChildLocator, ContentOwner, ContentRole, ContentSourceKind,
+    AtlasRecord, ContentChildLocator, ContentOrigin, ContentOwner, ContentRole, ContentSourceKind,
     ContentVisibility, DuplicateContentStatus, FactValue, FoundryLink, FoundryLinkBehavior,
     H8FieldValue, JournalPageEntry, RecordBody, RecordContentDocument, ReferenceEdge,
     ReferenceRelationKind, RichDocument, RichLinkTarget, TableResultEntry, iter_foundry_links,
@@ -217,11 +217,20 @@ fn sync_h8_field_content(body: Option<&mut RecordBody>) {
                 let JournalPageEntry::Page(page) = entry else {
                     continue;
                 };
+                let expected_path = format!("$.pages[{}].text.content", page.source_ordinal);
                 let Some(document) = journal.content.documents.iter().find(|document| {
                     document.role == ContentRole::JournalPage
+                        && document.source_kind == ContentSourceKind::JournalPage
                         && matches!(
                             &document.owner,
                             ContentOwner::Child(locator) if locator == &page.locator
+                        )
+                        && matches!(
+                            &document.origin,
+                            ContentOrigin::ChildField {
+                                locator,
+                                relative_source_path,
+                            } if locator == &page.locator && relative_source_path == &expected_path
                         )
                 }) else {
                     continue;
@@ -236,7 +245,15 @@ fn sync_h8_field_content(body: Option<&mut RecordBody>) {
         Some(RecordBody::RollTable(table)) => {
             if let Some(document) = table.content.documents.iter().find(|document| {
                 document.role == ContentRole::PrimaryDescription
+                    && document.source_kind == ContentSourceKind::Description
                     && document.owner == ContentOwner::Record(table.identity.record_key.clone())
+                    && matches!(
+                        &document.origin,
+                        ContentOrigin::RecordField {
+                            source_kind: ContentSourceKind::Description,
+                            relative_source_path,
+                        } if relative_source_path == "$.description"
+                    )
             }) && matches!(table.description, FactValue::Value(H8FieldValue::Known(_)))
             {
                 table.description =
@@ -249,11 +266,20 @@ fn sync_h8_field_content(body: Option<&mut RecordBody>) {
                 let TableResultEntry::Result(result) = entry else {
                     continue;
                 };
+                let expected_path = format!("$.results[{}].text", result.source_ordinal);
                 let Some(document) = table.content.documents.iter().find(|document| {
                     document.role == ContentRole::TableResult
+                        && document.source_kind == ContentSourceKind::TableResult
                         && matches!(
                             &document.owner,
                             ContentOwner::Child(locator) if locator == &result.locator
+                        )
+                        && matches!(
+                            &document.origin,
+                            ContentOrigin::ChildField {
+                                locator,
+                                relative_source_path,
+                            } if locator == &result.locator && relative_source_path == &expected_path
                         )
                 }) else {
                     continue;

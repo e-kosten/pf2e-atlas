@@ -1030,35 +1030,54 @@ mod tests {
     #[test]
     fn h8_roll_table_surface_localizes_unsupported_child_and_keeps_siblings_available() {
         let key = RecordKey::parse("roll-tables:h8Surface").expect("table key");
-        let locator = ContentChildLocator {
-            parent: key.clone(),
-            kind: ContentChildKind::TableResult,
-            identity: ContentChildIdentity::Stable(
-                SourceDocumentId::new("broken-result").expect("result id"),
-            ),
+        let unsupported_child = |source_ordinal, source_id| {
+            TableResultEntry::Unsupported(H8UnsupportedChild {
+                locator: ContentChildLocator {
+                    parent: key.clone(),
+                    kind: ContentChildKind::TableResult,
+                    identity: ContentChildIdentity::Unstable { source_ordinal },
+                },
+                source_id,
+                source_ordinal,
+                exact_source: atlas_record::H8ExactSourceObject {
+                    compact_json: format!(r#"{{"ordinal":{source_ordinal}}}"#),
+                },
+                reason: "table result has an unsupported identity".to_string(),
+            })
         };
         let record = h8_fixture(
             key.clone(),
             RecordKind::RollTable,
             RecordBody::RollTable(RollTableRecord {
                 identity: H8Identity {
-                    record_key: key,
+                    record_key: key.clone(),
                     source_id: SourceDocumentId::new("h8-table").expect("source id"),
                     name: "H8 Table".to_string(),
                 },
                 description: FactValue::Missing,
                 results: FactValue::Value(H8FieldValue::Known(vec![
-                    TableResultEntry::Unsupported(H8UnsupportedChild {
-                        locator,
-                        source_id: FactValue::Value(H8FieldValue::Known(
+                    unsupported_child(
+                        0,
+                        FactValue::Value(H8FieldValue::Known(
                             SourceDocumentId::new("broken-result").expect("result id"),
                         )),
-                        source_ordinal: 0,
-                        exact_source: atlas_record::H8ExactSourceObject {
-                            compact_json: r#"{"img":"a","img":"b"}"#.to_string(),
-                        },
-                        reason: "table result has a duplicated owned member".to_string(),
-                    }),
+                    ),
+                    unsupported_child(
+                        1,
+                        FactValue::Value(H8FieldValue::Known(
+                            SourceDocumentId::new("broken-result").expect("duplicate result id"),
+                        )),
+                    ),
+                    unsupported_child(2, FactValue::Missing),
+                    unsupported_child(3, FactValue::Null),
+                    unsupported_child(
+                        4,
+                        FactValue::Value(H8FieldValue::Unsupported(UnsupportedSourceValue {
+                            shape: UnsupportedSourceShape::String,
+                            value: r#"""#.to_string(),
+                            reason: UnsupportedSourceReason::SourceFieldDrift,
+                        })),
+                    ),
                 ])),
                 formula: FactValue::Missing,
                 replacement: FactValue::Missing,
@@ -1078,9 +1097,41 @@ mod tests {
         let atlas_app_model::H8FactView::Known(results) = &body.results else {
             panic!("table results");
         };
+        let unsupported = results
+            .iter()
+            .map(|entry| match entry {
+                atlas_app_model::TableResultEntryView::Unsupported { unsupported } => unsupported,
+                atlas_app_model::TableResultEntryView::Result { .. } => {
+                    panic!("unsupported result")
+                }
+            })
+            .collect::<Vec<_>>();
+        assert!(unsupported.iter().all(|child| {
+            child.identity_stability
+                == atlas_app_model::H8IdentityStabilityView::UnstableAuthoredOrdinal
+        }));
         assert!(matches!(
-            results[0],
-            atlas_app_model::TableResultEntryView::Unsupported { .. }
+            &unsupported[0].source_id,
+            atlas_app_model::H8FactView::Known(value) if value == "broken-result"
+        ));
+        assert!(matches!(
+            &unsupported[1].source_id,
+            atlas_app_model::H8FactView::Known(value) if value == "broken-result"
+        ));
+        assert!(matches!(
+            &unsupported[2].source_id,
+            atlas_app_model::H8FactView::Missing
+        ));
+        assert!(matches!(
+            &unsupported[3].source_id,
+            atlas_app_model::H8FactView::Null
+        ));
+        assert!(matches!(
+            &unsupported[4].source_id,
+            atlas_app_model::H8FactView::Unsupported(value)
+                if value.shape == "string"
+                    && value.exact_value == r#"""#
+                    && value.reason == "source_field_drift"
         ));
         assert!(
             surface
@@ -1088,7 +1139,7 @@ mod tests {
                 .as_ref()
                 .is_some_and(|issues| issues.iter().any(|issue| {
                     issue.code == RecordSurfaceIssueCodeView::Unsupported
-                        && issue.message == "table result has a duplicated owned member"
+                        && issue.message == "table result has an unsupported identity"
                 }))
         );
     }

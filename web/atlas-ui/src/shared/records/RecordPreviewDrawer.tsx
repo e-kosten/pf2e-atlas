@@ -8,7 +8,7 @@ type RecordPreviewContentProps = {
   loading: boolean;
   onClose: () => void;
   onOpenFullPage: () => void;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
 };
 
 export function RecordPreviewDrawer({

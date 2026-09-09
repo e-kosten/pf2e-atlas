@@ -256,8 +256,8 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         results={
           <EncounterInspectorPane
             onAddCondition={(request) => addCondition.mutate(request)}
-            onOpenRecordFullPage={(recordKey) =>
-              navigateToAtlasRoute({ kind: "record", recordKey })
+            onOpenRecordFullPage={(recordKey, childLocator) =>
+              navigateToAtlasRoute({ kind: "record", recordKey, childLocator })
             }
             onRemoveCondition={(participantKey, conditionId) =>
               removeCondition.mutate({ participantKey, conditionId })

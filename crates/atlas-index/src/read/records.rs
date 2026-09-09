@@ -10,7 +10,7 @@ use crate::sqlite::SqliteIndexReader;
 use crate::{FilterCompileError, RecordIdentityMatch, SearchCandidateRecord};
 
 mod candidates;
-mod canonical;
+pub(crate) mod canonical;
 pub(crate) mod children;
 mod content;
 mod identity;
@@ -38,9 +38,28 @@ pub enum RecordLoadError {
 pub fn load_persisted_record_set_from_diesel_connection(
     connection: &mut SqliteConnection,
 ) -> Result<AtlasRecordSet, RecordLoadError> {
+    let records = load_persisted_records_from_diesel_connection(connection)?;
+    let reference_edges = relationships::read_reference_edges(connection)?;
+    let child_parent_keys = reference_edges
+        .iter()
+        .flat_map(|edge| {
+            [edge.source_child.as_ref(), edge.target_child.as_ref()]
+                .into_iter()
+                .flatten()
+                .map(|locator| locator.parent.clone())
+        })
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let catalog = canonical::read_h8_child_catalog_by_key(connection, &child_parent_keys)?;
+    for edge in &reference_edges {
+        catalog
+            .validate_reference_edge(edge)
+            .map_err(RecordLoadError::InvalidData)?;
+    }
     Ok(AtlasRecordSet {
-        records: load_persisted_records_from_diesel_connection(connection)?,
-        reference_edges: relationships::read_reference_edges(connection)?,
+        records,
+        reference_edges,
         aliases: relationships::read_aliases(connection)?,
         remaster_links: relationships::read_remaster_links(connection)?,
     })
