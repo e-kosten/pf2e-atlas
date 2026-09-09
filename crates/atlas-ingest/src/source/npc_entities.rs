@@ -230,7 +230,7 @@ pub(crate) fn convert_npc_embedded_entities(
     candidates: &NpcEmbeddedCandidates,
     mut resolve: impl FnMut(&str) -> Option<RecordKey>,
 ) -> NpcEmbeddedConversion {
-    let items = match &candidates.items {
+    let source_items = match &candidates.items {
         SourcePresence::Missing => {
             return NpcEmbeddedConversion {
                 embedded: FactValue::Missing,
@@ -245,6 +245,14 @@ pub(crate) fn convert_npc_embedded_entities(
         }
         SourcePresence::Value(items) => items,
     };
+    // Consumables have their own canonical occurrence owner. Keeping them in the
+    // legacy creature embedded-entity projection would duplicate their content,
+    // references, and persistence rows under two incompatible owners.
+    let items = source_items
+        .iter()
+        .filter(|candidate| !is_consumable(&candidate.source))
+        .cloned()
+        .collect::<Vec<_>>();
     let mut entities = Vec::new();
     let mut occurrences = Vec::new();
     let mut diagnostics = Vec::new();
@@ -304,7 +312,7 @@ pub(crate) fn convert_npc_embedded_entities(
             )
         })
         .collect::<BTreeMap<_, _>>();
-    let prepared_context = prepared_spell_context(items, &owner);
+    let prepared_context = prepared_spell_context(&items, &owner);
 
     for (authored_order, (_, candidate)) in ordered.into_iter().enumerate() {
         let family = family(&candidate.source);
@@ -410,7 +418,7 @@ pub(crate) fn convert_npc_embedded_entities(
     for diagnostic in &mut diagnostics {
         diagnostic.record_key = owner.to_string();
     }
-    let relationships = build_relationships(items, &occurrence_ids);
+    let relationships = build_relationships(&items, &occurrence_ids);
     let mut actor_diagnostics = Vec::new();
     let actor_spellcasting =
         actor_spellcasting_context(&candidates.actor_spellcasting, &mut actor_diagnostics);
@@ -424,6 +432,14 @@ pub(crate) fn convert_npc_embedded_entities(
         }),
         diagnostics,
     }
+}
+
+fn is_consumable(source: &NpcEmbeddedItemSource) -> bool {
+    matches!(
+        source,
+        NpcEmbeddedItemSource::Deferred(deferred)
+            if deferred.item_type == super::dto::ItemType::Consumable
+    )
 }
 
 fn stable_locator(source: &SourcePresence<String>) -> FactValue<StableSourceLocator> {
@@ -2260,7 +2276,7 @@ mod tests {
                 .as_value()
                 .expect("embedded entities");
             assert_eq!(
-                embedded.occurrences.len(),
+                embedded.occurrences.len() + parent.facts.consumable_occurrence_candidates.len(),
                 supported_candidates,
                 "{record_key} keeps every supported sibling occurrence"
             );
@@ -2587,12 +2603,20 @@ mod tests {
                 creature.embedded_entities.value.as_value()
             })
             .collect::<Vec<_>>();
+        let legacy_occurrence_count = embedded
+            .iter()
+            .map(|value| value.occurrences.len())
+            .sum::<usize>();
+        let consumable_occurrence_count = loaded
+            .records
+            .iter()
+            .map(|record| record.facts.consumable_occurrence_candidates.len())
+            .sum::<usize>();
+        assert_eq!(legacy_occurrence_count, 71_026);
+        assert_eq!(consumable_occurrence_count, 1_825);
         assert_eq!(
-            embedded
-                .iter()
-                .map(|value| value.occurrences.len())
-                .sum::<usize>(),
-            72_354
+            legacy_occurrence_count + consumable_occurrence_count,
+            72_851
         );
         assert_eq!(
             embedded
@@ -2600,7 +2624,7 @@ mod tests {
                 .flat_map(|value| &value.occurrences)
                 .filter(|occurrence| occurrence.source_sort.as_value().is_some())
                 .count(),
-            72_354
+            71_026
         );
         assert_eq!(
             embedded

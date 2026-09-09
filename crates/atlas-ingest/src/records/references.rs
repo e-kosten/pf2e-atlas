@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
 use atlas_record::{
@@ -89,7 +89,7 @@ pub(crate) fn resolve_content_references(
     records: &mut [LoadedSourceRecord],
     index: &RecordReferenceIndex,
 ) {
-    for loaded in records {
+    for loaded in records.iter_mut() {
         let record_key = loaded.record.identity.key.clone();
         for child in &mut loaded.facts.canonical_spell_children {
             for document in &mut child.definition.content.documents {
@@ -101,6 +101,7 @@ pub(crate) fn resolve_content_references(
             Some(RecordBody::Creature(creature)) => Some(&mut creature.content),
             Some(RecordBody::Hazard(hazard)) => Some(&mut hazard.content),
             Some(RecordBody::Spell(spell)) => Some(&mut spell.definition.content),
+            Some(RecordBody::Consumable(consumable)) => Some(&mut consumable.content),
             None => None,
         };
         if let Some(content) = canonical_content {
@@ -140,6 +141,48 @@ pub(crate) fn resolve_content_references(
                     resolve_document_references(&mut content.document, index);
                 }
             }
+        }
+
+        for occurrence in &mut loaded.facts.consumable_occurrences.occurrences {
+            for document in &mut occurrence.authored_content.documents {
+                resolve_document_references(&mut document.document, index);
+                document.refresh_derived_state();
+            }
+        }
+    }
+
+    let consumable_content_hashes = records
+        .iter()
+        .filter_map(|loaded| loaded.facts.canonical_body.as_ref())
+        .filter_map(RecordBody::as_consumable)
+        .flat_map(|consumable| {
+            consumable.content.documents.iter().map(|document| {
+                (
+                    (
+                        document.id.parent_record_key.to_string(),
+                        document.id.content_key.as_str().to_string(),
+                    ),
+                    document.content_hash.as_str().to_string(),
+                )
+            })
+        })
+        .collect::<BTreeMap<_, _>>();
+    for document in records
+        .iter_mut()
+        .flat_map(|loaded| &mut loaded.facts.consumable_occurrences.occurrences)
+        .flat_map(|occurrence| &mut occurrence.authored_content.documents)
+    {
+        if let DuplicateContentStatus::CopiedFromConsumableTarget {
+            target_record_key,
+            target_content_key,
+            target_content_hash,
+        } = &mut document.duplicate_status
+            && let Some(resolved_hash) = consumable_content_hashes.get(&(
+                target_record_key.to_string(),
+                target_content_key.as_str().to_string(),
+            ))
+        {
+            target_content_hash.clone_from(resolved_hash);
         }
     }
 }
@@ -207,6 +250,7 @@ fn owned_content_documents(
         Some(RecordBody::Creature(creature)) => owned_documents(&creature.content),
         Some(RecordBody::Hazard(hazard)) => owned_documents(&hazard.content),
         Some(RecordBody::Spell(spell)) => owned_documents(&spell.definition.content),
+        Some(RecordBody::Consumable(consumable)) => owned_documents(&consumable.content),
         None if !loaded.facts.canonical_spell_children.is_empty() => {
             record_content_documents(&loaded.record)
         }
@@ -232,6 +276,7 @@ fn owned_documents(
             !matches!(
                 content.duplicate_status,
                 DuplicateContentStatus::CopiedFromCanonicalTarget { .. }
+                    | DuplicateContentStatus::CopiedFromConsumableTarget { .. }
             )
         })
         .map(|content| (content.source_kind, content.visibility, &content.document))

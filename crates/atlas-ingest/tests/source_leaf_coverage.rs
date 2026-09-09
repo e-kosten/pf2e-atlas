@@ -18,11 +18,18 @@ const ITEM_SPELL_LEDGER: &str =
 const CONSUMABLE_SPELL_CHILD_LEDGER: &str =
     include_str!("../../../contracts/source-leaf-coverage/v1/consumable-spell-child.yaml");
 const FIXTURE_ROOT: &str = "tests/fixtures/source-leaf-coverage/actor-npc";
-const HAZARD_LEDGERS: [&str; 4] = [
+const HAZARD_LEDGERS: [&str; 3] = [
     include_str!("../../../contracts/source-leaf-coverage/v1/actor-hazard.yaml"),
     include_str!("../../../contracts/source-leaf-coverage/v1/item-action-embedded-hazard.yaml"),
     include_str!("../../../contracts/source-leaf-coverage/v1/item-melee-embedded-hazard.yaml"),
-    include_str!("../../../contracts/source-leaf-coverage/v1/item-consumable-embedded-hazard.yaml"),
+];
+const H5_HAZARD_CONSUMABLE_LEDGER: &str =
+    include_str!("../../../contracts/source-leaf-coverage/v1/item-consumable-embedded-hazard.yaml");
+const H5_CONSUMABLE_LEDGERS: [&str; 4] = [
+    include_str!("../../../contracts/source-leaf-coverage/v1/item-consumable-standalone.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/item-consumable-npc.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/item-consumable-character.yaml"),
+    H5_HAZARD_CONSUMABLE_LEDGER,
 ];
 const HAZARD_FIXTURE_ROOT: &str = "tests/fixtures/hazards/pinned";
 
@@ -571,8 +578,46 @@ fn h1_bc_hazard_ledgers_are_exact_and_portably_pin_bound() {
 }
 
 #[test]
+fn h5_consumable_ledgers_cover_all_four_observed_contexts() {
+    let repository = require_pinned_repository();
+    let mut source_digests = std::collections::BTreeMap::new();
+    let mut type_ids = BTreeSet::new();
+    let mut leaf_count = 0_usize;
+    for source in H5_CONSUMABLE_LEDGERS {
+        let ledger = parse_source_leaf_ledger(source).expect("H5 consumable ledger parses");
+        assert!(type_ids.insert(ledger.type_id.clone()));
+        let failures = lint_source_leaf_ledger(&ledger);
+        assert!(
+            failures.is_empty(),
+            "H5 consumable ledger must satisfy the exact-leaf contract: {failures:#?}"
+        );
+        leaf_count += ledger.leaves.len();
+        for fixture in ledger.leaves.iter().flat_map(|leaf| &leaf.fixtures) {
+            let digest = source_digests
+                .entry(fixture.source_path.clone())
+                .or_insert_with(|| {
+                    format!(
+                        "sha256:{:x}",
+                        Sha256::digest(git_show(&repository, &fixture.source_path))
+                    )
+                });
+            assert_eq!(
+                digest, &fixture.source_file_digest,
+                "{} remains bound to its complete pinned source document",
+                fixture.case_id
+            );
+        }
+    }
+    assert_eq!(type_ids.len(), 4);
+    assert_eq!(leaf_count, 220);
+}
+
+#[test]
 fn h1_bc_hazard_pipeline_satisfies_selected_root_and_child_leaf_owners() {
     let repository = require_pinned_repository();
+    // H5 moves the embedded consumable out of HazardEntity. Its dedicated
+    // family census and artifact round-trip own that replacement boundary;
+    // this H1 receipt remains scoped to the three still-H1-owned ledgers.
     for source in HAZARD_LEDGERS {
         let ledger = parse_source_leaf_ledger(source).expect("hazard ledger parses");
         let mut receipts = Vec::new();

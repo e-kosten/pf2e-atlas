@@ -1,4 +1,4 @@
-use atlas_domain::RecordKey;
+use atlas_domain::{Rarity, RecordKey};
 use atlas_record::*;
 use serde_json::{Map, Value};
 
@@ -229,6 +229,27 @@ impl<T: CanonicalJson> CanonicalJson for SpellSourceValue<T> {
     }
 }
 
+impl<T: CanonicalJson> CanonicalJson for ConsumableSourceValue<T> {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::Known(value) => tagged("known", Some(value.to_canonical_json())),
+            Self::Unsupported(value) => tagged("unsupported", Some(value.to_canonical_json())),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, Some(value)) if kind == "known" => {
+                T::from_canonical_json(value, path).map(Self::Known)
+            }
+            (kind, Some(value)) if kind == "unsupported" => {
+                UnsupportedSourceValue::from_canonical_json(value, path).map(Self::Unsupported)
+            }
+            (kind, _) => Err(format!("{path}: invalid consumable source value `{kind}`")),
+        }
+    }
+}
+
 impl<T: CanonicalJson> CanonicalJson for SpellOrderedMember<T> {
     fn to_canonical_json(&self) -> Value {
         object_value([
@@ -412,6 +433,10 @@ string_newtype_json!(SpellAreaType, as_str, SpellAreaType::new);
 string_newtype_json!(SpellStatistic, as_str, SpellStatistic::new);
 string_newtype_json!(SpellOverlayId, as_str, SpellOverlayId::new);
 string_newtype_json!(SpellFormId, as_str, SpellFormId::new);
+string_newtype_json!(ConsumableSourceId, as_str, ConsumableSourceId::new);
+string_newtype_json!(ConsumableExactDecimal, as_str, ConsumableExactDecimal::new);
+string_newtype_json!(ConsumableEntityId, as_str, ConsumableEntityId::new);
+string_newtype_json!(ConsumableOccurrenceId, as_str, ConsumableOccurrenceId::new);
 
 impl CanonicalJson for CreatureNote {
     fn to_canonical_json(&self) -> Value {
@@ -2002,6 +2027,9 @@ impl CanonicalJson for ContentOwner {
             Self::HazardOccurrence(value) => {
                 tagged("hazard_occurrence", Some(value.to_canonical_json()))
             }
+            Self::ConsumableOccurrence(value) => {
+                tagged("consumable_occurrence", Some(value.to_canonical_json()))
+            }
         }
     }
     fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
@@ -2021,6 +2049,8 @@ impl CanonicalJson for ContentOwner {
             "hazard_occurrence" => {
                 HazardOccurrenceId::from_canonical_json(value, path).map(Self::HazardOccurrence)
             }
+            "consumable_occurrence" => ConsumableOccurrenceId::from_canonical_json(value, path)
+                .map(Self::ConsumableOccurrence),
             _ => Err(format!("{path}: invalid content owner `{kind}`")),
         }
     }
@@ -2075,6 +2105,19 @@ impl CanonicalJson for ContentOrigin {
                     ),
                 ])),
             ),
+            Self::ConsumableEmbeddedField {
+                nested_source_id,
+                relative_source_path,
+            } => tagged(
+                "consumable_embedded_field",
+                Some(object_value([
+                    ("nested_source_id", nested_source_id.to_canonical_json()),
+                    (
+                        "relative_source_path",
+                        relative_source_path.to_canonical_json(),
+                    ),
+                ])),
+            ),
             Self::Generated { source_kind } => tagged(
                 "generated",
                 Some(Value::String(source_kind.as_str().to_string())),
@@ -2120,6 +2163,16 @@ impl CanonicalJson for ContentOrigin {
                     relative_source_path,
                 })
             }
+            (kind, Some(value)) if kind == "consumable_embedded_field" => {
+                let mut value = object(value, path)?;
+                let nested_source_id = field(&mut value, "nested_source_id", path)?;
+                let relative_source_path = field(&mut value, "relative_source_path", path)?;
+                finish(value, path)?;
+                Ok(Self::ConsumableEmbeddedField {
+                    nested_source_id,
+                    relative_source_path,
+                })
+            }
             (kind, Some(value)) if kind == "generated" => Ok(Self::Generated {
                 source_kind: parse_content_source_kind(
                     &String::from_canonical_json(value, path)?,
@@ -2139,6 +2192,21 @@ impl CanonicalJson for DuplicateContentStatus {
                 "copied_from_canonical_target",
                 Some(target_record_key.to_canonical_json()),
             ),
+            Self::CopiedFromConsumableTarget {
+                target_record_key,
+                target_content_key,
+                target_content_hash,
+            } => tagged(
+                "copied_from_consumable_target",
+                Some(object_value([
+                    ("target_record_key", target_record_key.to_canonical_json()),
+                    ("target_content_key", target_content_key.to_canonical_json()),
+                    (
+                        "target_content_hash",
+                        target_content_hash.to_canonical_json(),
+                    ),
+                ])),
+            ),
         }
     }
     fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
@@ -2147,6 +2215,16 @@ impl CanonicalJson for DuplicateContentStatus {
             (kind, Some(value)) if kind == "copied_from_canonical_target" => {
                 RecordKey::from_canonical_json(value, path)
                     .map(|target_record_key| Self::CopiedFromCanonicalTarget { target_record_key })
+            }
+            (kind, Some(value)) if kind == "copied_from_consumable_target" => {
+                let mut fields = object(value, path)?;
+                let status = Self::CopiedFromConsumableTarget {
+                    target_record_key: field(&mut fields, "target_record_key", path)?,
+                    target_content_key: field(&mut fields, "target_content_key", path)?,
+                    target_content_hash: field(&mut fields, "target_content_hash", path)?,
+                };
+                finish(fields, path)?;
+                Ok(status)
             }
             (kind, _) => Err(format!("{path}: invalid duplicate content status `{kind}`")),
         }
@@ -2455,12 +2533,425 @@ impl CanonicalJson for CreatureRecord {
     }
 }
 
+struct_json!(ConsumableIdentity {
+    record_key,
+    source_id,
+    name
+});
+struct_json!(ConsumableDefinition {
+    slug,
+    level,
+    category,
+    rarity,
+    traits,
+    other_tags,
+    base_item,
+    bulk,
+    size,
+    stack_group,
+    material,
+    price,
+    usage,
+    maximum_uses,
+    auto_destroy,
+    maximum_hp,
+    hardness,
+    damage,
+    publication,
+    rules,
+    spell_child_id
+});
+struct_json!(ConsumableSourceState {
+    quantity,
+    current_uses,
+    current_hp,
+    container_id,
+    equipped
+});
+struct_json!(ConsumableEquippedState {
+    carry_type,
+    hands_held,
+    in_slot
+});
+struct_json!(ConsumableMaterial {
+    grade,
+    material_type,
+    effects
+});
+struct_json!(ConsumablePrice { denominations, per });
+struct_json!(ConsumablePriceDenomination {
+    denomination,
+    amount
+});
+struct_json!(ConsumableDamage {
+    formula,
+    category,
+    damage_type
+});
+struct_json!(ConsumablePublication {
+    title,
+    license,
+    remaster
+});
+struct_json!(ConsumableProvenance {
+    image,
+    folder,
+    source_sort,
+    target_locator,
+    source_path,
+    source_contract_version,
+    source_system_version,
+    source_upstream_commit
+});
+struct_json!(ConsumableContentIdentity {
+    content_key,
+    content_hash
+});
+struct_json!(ConsumableMismatch {
+    field_path,
+    local_value,
+    target_value
+});
+struct_json!(ConsumableEntity {
+    id,
+    owner_record_key,
+    target
+});
+struct_json!(ConsumableOccurrence {
+    id,
+    source_id,
+    identity_stability,
+    owner_record_key,
+    entity_id,
+    authored_order,
+    source_path,
+    source_sort,
+    source_image,
+    source_folder,
+    contextual_name,
+    locator,
+    state,
+    spell_reuse,
+    authored_content,
+    unsupported_content
+});
+struct_json!(ConsumableOccurrenceSet {
+    entities,
+    occurrences
+});
+struct_json!(ConsumableRecord {
+    identity,
+    definition,
+    source_state,
+    content,
+    unsupported_content,
+    provenance
+});
+
+unit_enum_json!(ConsumableOccurrenceIdentityStability {
+    StableSourceIdentity => "stable_source_identity",
+    UnstableOwnerOrdinal => "unstable_owner_ordinal"
+});
+unit_enum_json!(ConsumableSpellMismatchReason {
+    UnresolvedParent => "unresolved_parent",
+    TargetWithoutChild => "target_without_child",
+    LocalChildMissing => "local_child_missing",
+    LocalChildMalformed => "local_child_malformed",
+    ChildIdentity => "child_identity",
+    SourceContext => "source_context",
+    Definition => "definition",
+    ContentOrReferences => "content_or_references",
+    OverlayOrFormOrder => "overlay_or_form_order"
+});
+
+impl CanonicalJson for atlas_record::ConsumableLocalSpellEvidence {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::Missing => tagged("missing", None),
+            Self::Null => tagged("null", None),
+            Self::Malformed(value) => tagged("malformed", Some(value.to_canonical_json())),
+            Self::Child(value) => tagged("child", Some(value.to_canonical_json())),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, None) if kind == "missing" => Ok(Self::Missing),
+            (kind, None) if kind == "null" => Ok(Self::Null),
+            (kind, Some(value)) if kind == "malformed" => {
+                UnsupportedSourceValue::from_canonical_json(value, path).map(Self::Malformed)
+            }
+            (kind, Some(value)) if kind == "child" => {
+                ConsumableSpellChild::from_canonical_json(value, path)
+                    .map(Box::new)
+                    .map(Self::Child)
+            }
+            (kind, _) => Err(format!(
+                "{path}: invalid consumable local spell evidence `{kind}`"
+            )),
+        }
+    }
+}
+
+impl CanonicalJson for ConsumableMismatchValue {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::String(value) => tagged("string", Some(value.to_canonical_json())),
+            Self::Integer(value) => tagged("integer", Some(value.to_canonical_json())),
+            Self::Boolean(value) => tagged("boolean", Some(value.to_canonical_json())),
+            Self::Rarity(value) => tagged("rarity", Some(value.to_canonical_json())),
+            Self::Strings(value) => tagged("strings", Some(value.to_canonical_json())),
+            Self::ExactDecimal(value) => tagged("exact_decimal", Some(value.to_canonical_json())),
+            Self::Material(value) => tagged("material", Some(value.to_canonical_json())),
+            Self::Price(value) => tagged("price", Some(value.to_canonical_json())),
+            Self::Damage(value) => tagged("damage", Some(value.to_canonical_json())),
+            Self::Publication(value) => tagged("publication", Some(value.to_canonical_json())),
+            Self::Rules(value) => tagged("rules", Some(value.to_canonical_json())),
+            Self::SpellChildId(value) => tagged("spell_child_id", Some(value.to_canonical_json())),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, Some(value)) if kind == "string" => {
+                ConsumableFact::<String>::from_canonical_json(value, path).map(Self::String)
+            }
+            (kind, Some(value)) if kind == "integer" => {
+                ConsumableFact::<i64>::from_canonical_json(value, path).map(Self::Integer)
+            }
+            (kind, Some(value)) if kind == "boolean" => {
+                ConsumableFact::<bool>::from_canonical_json(value, path).map(Self::Boolean)
+            }
+            (kind, Some(value)) if kind == "rarity" => {
+                ConsumableFact::<Rarity>::from_canonical_json(value, path).map(Self::Rarity)
+            }
+            (kind, Some(value)) if kind == "strings" => {
+                ConsumableFact::<Vec<String>>::from_canonical_json(value, path).map(Self::Strings)
+            }
+            (kind, Some(value)) if kind == "exact_decimal" => {
+                ConsumableFact::<ConsumableExactDecimal>::from_canonical_json(value, path)
+                    .map(Self::ExactDecimal)
+            }
+            (kind, Some(value)) if kind == "material" => {
+                ConsumableFact::<ConsumableMaterial>::from_canonical_json(value, path)
+                    .map(Self::Material)
+            }
+            (kind, Some(value)) if kind == "price" => {
+                ConsumableFact::<ConsumablePrice>::from_canonical_json(value, path).map(Self::Price)
+            }
+            (kind, Some(value)) if kind == "damage" => {
+                ConsumableFact::<ConsumableDamage>::from_canonical_json(value, path)
+                    .map(Self::Damage)
+            }
+            (kind, Some(value)) if kind == "publication" => {
+                ConsumableFact::<ConsumablePublication>::from_canonical_json(value, path)
+                    .map(Self::Publication)
+            }
+            (kind, Some(value)) if kind == "rules" => {
+                ConsumableFact::<Vec<UnsupportedSourceValue>>::from_canonical_json(value, path)
+                    .map(Self::Rules)
+            }
+            (kind, Some(value)) if kind == "spell_child_id" => {
+                FactValue::<SpellChildId>::from_canonical_json(value, path).map(Self::SpellChildId)
+            }
+            (kind, _) => Err(format!(
+                "{path}: invalid consumable mismatch value `{kind}`"
+            )),
+        }
+    }
+}
+
+impl CanonicalJson for ConsumableEntityTarget {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::Resolved {
+                record_key,
+                immutable_mismatches,
+            } => tagged(
+                "resolved",
+                Some(object_value([
+                    ("record_key", record_key.to_canonical_json()),
+                    (
+                        "immutable_mismatches",
+                        immutable_mismatches.to_canonical_json(),
+                    ),
+                ])),
+            ),
+            Self::ParentOwned {
+                definition,
+                resolution,
+                content_identity,
+            } => tagged(
+                "parent_owned",
+                Some(object_value([
+                    ("definition", definition.to_canonical_json()),
+                    ("resolution", resolution.to_canonical_json()),
+                    ("content_identity", content_identity.to_canonical_json()),
+                ])),
+            ),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, Some(value)) if kind == "resolved" => {
+                let mut value = object(value, path)?;
+                let result = Self::Resolved {
+                    record_key: field(&mut value, "record_key", path)?,
+                    immutable_mismatches: field(&mut value, "immutable_mismatches", path)?,
+                };
+                finish(value, path)?;
+                Ok(result)
+            }
+            (kind, Some(value)) if kind == "parent_owned" => {
+                let mut value = object(value, path)?;
+                let result = Self::ParentOwned {
+                    definition: field(&mut value, "definition", path)?,
+                    resolution: field(&mut value, "resolution", path)?,
+                    content_identity: field(&mut value, "content_identity", path)?,
+                };
+                finish(value, path)?;
+                Ok(result)
+            }
+            (kind, _) => Err(format!("{path}: invalid consumable entity target `{kind}`")),
+        }
+    }
+}
+
+impl CanonicalJson for ConsumableTargetResolution {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::NoLocator => tagged("no_locator", None),
+            Self::MalformedOrDuplicateLocator(value) => tagged(
+                "malformed_or_duplicate_locator",
+                Some(value.to_canonical_json()),
+            ),
+            Self::TargetMissing(value) => tagged("target_missing", Some(value.to_canonical_json())),
+            Self::WrongDocumentOrFamily(value) => {
+                tagged("wrong_document_or_family", Some(value.to_canonical_json()))
+            }
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, None) if kind == "no_locator" => Ok(Self::NoLocator),
+            (kind, Some(value)) if kind == "malformed_or_duplicate_locator" => {
+                UnsupportedSourceValue::from_canonical_json(value, path)
+                    .map(Self::MalformedOrDuplicateLocator)
+            }
+            (kind, Some(value)) if kind == "target_missing" => {
+                StableSourceLocator::from_canonical_json(value, path).map(Self::TargetMissing)
+            }
+            (kind, Some(value)) if kind == "wrong_document_or_family" => {
+                StableSourceLocator::from_canonical_json(value, path)
+                    .map(Self::WrongDocumentOrFamily)
+            }
+            (kind, _) => Err(format!(
+                "{path}: invalid consumable target resolution `{kind}`"
+            )),
+        }
+    }
+}
+
+impl CanonicalJson for ConsumableLocatorState {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::Missing => tagged("missing", None),
+            Self::Null => tagged("null", None),
+            Self::Known(value) => tagged("known", Some(value.to_canonical_json())),
+            Self::Unsupported(value) => tagged("unsupported", Some(value.to_canonical_json())),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, None) if kind == "missing" => Ok(Self::Missing),
+            (kind, None) if kind == "null" => Ok(Self::Null),
+            (kind, Some(value)) if kind == "known" => {
+                StableSourceLocator::from_canonical_json(value, path).map(Self::Known)
+            }
+            (kind, Some(value)) if kind == "unsupported" => {
+                UnsupportedSourceValue::from_canonical_json(value, path).map(Self::Unsupported)
+            }
+            (kind, _) => Err(format!("{path}: invalid consumable locator state `{kind}`")),
+        }
+    }
+}
+
+impl CanonicalJson for ConsumableSpellReuse {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::NotPresent => tagged("not_present", None),
+            Self::Reused { target_child_id } => {
+                tagged("reused", Some(target_child_id.to_canonical_json()))
+            }
+            Self::Mismatch {
+                reason,
+                local_evidence,
+            } => tagged(
+                "mismatch",
+                Some(object_value([
+                    ("reason", reason.to_canonical_json()),
+                    ("local_evidence", local_evidence.to_canonical_json()),
+                ])),
+            ),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, None) if kind == "not_present" => Ok(Self::NotPresent),
+            (kind, Some(value)) if kind == "reused" => {
+                SpellChildId::from_canonical_json(value, path)
+                    .map(|target_child_id| Self::Reused { target_child_id })
+            }
+            (kind, Some(value)) if kind == "mismatch" => {
+                let mut value = object(value, path)?;
+                let reason = field(&mut value, "reason", path)?;
+                let local_evidence = field(&mut value, "local_evidence", path)?;
+                finish(value, path)?;
+                let compatible = matches!(
+                    (&reason, &local_evidence),
+                    (
+                        ConsumableSpellMismatchReason::LocalChildMissing,
+                        ConsumableLocalSpellEvidence::Missing | ConsumableLocalSpellEvidence::Null
+                    ) | (
+                        ConsumableSpellMismatchReason::LocalChildMalformed,
+                        ConsumableLocalSpellEvidence::Malformed(_)
+                    ) | (
+                        ConsumableSpellMismatchReason::UnresolvedParent
+                            | ConsumableSpellMismatchReason::TargetWithoutChild
+                            | ConsumableSpellMismatchReason::ChildIdentity
+                            | ConsumableSpellMismatchReason::SourceContext
+                            | ConsumableSpellMismatchReason::Definition
+                            | ConsumableSpellMismatchReason::ContentOrReferences
+                            | ConsumableSpellMismatchReason::OverlayOrFormOrder,
+                        ConsumableLocalSpellEvidence::Child(_)
+                    )
+                );
+                if !compatible {
+                    return Err(format!(
+                        "{path}: consumable spell mismatch reason and local evidence disagree"
+                    ));
+                }
+                Ok(Self::Mismatch {
+                    reason,
+                    local_evidence,
+                })
+            }
+            (kind, _) => Err(format!("{path}: invalid consumable spell reuse `{kind}`")),
+        }
+    }
+}
+
 impl CanonicalJson for RecordBody {
     fn to_canonical_json(&self) -> Value {
         match self {
             Self::Creature(value) => tagged("creature", Some(value.to_canonical_json())),
             Self::Hazard(value) => tagged("hazard", Some(value.to_canonical_json())),
             Self::Spell(value) => tagged("spell", Some(value.to_canonical_json())),
+            Self::Consumable(value) => tagged("consumable", Some(value.to_canonical_json())),
         }
     }
     fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
@@ -2473,6 +2964,9 @@ impl CanonicalJson for RecordBody {
             }
             (kind, Some(value)) if kind == "spell" => {
                 SpellRecord::from_canonical_json(value, path).map(Self::Spell)
+            }
+            (kind, Some(value)) if kind == "consumable" => {
+                ConsumableRecord::from_canonical_json(value, path).map(Self::Consumable)
             }
             (kind, _) => Err(format!("{path}: invalid record body `{kind}`")),
         }
@@ -3125,7 +3619,9 @@ mod tests {
         let mut fixture = spell_fixture();
         let spell = match &mut fixture {
             RecordBody::Spell(spell) => spell,
-            RecordBody::Creature(_) | RecordBody::Hazard(_) => panic!("spell fixture"),
+            RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Consumable(_) => {
+                panic!("spell fixture")
+            }
         };
         let area_drift = UnsupportedSourceValue {
             shape: UnsupportedSourceShape::String,
@@ -3188,7 +3684,9 @@ mod tests {
     fn consumable_spell_child_codec_preserves_arboreal_wand_identity_and_locator() {
         let definition = match spell_fixture() {
             RecordBody::Spell(spell) => spell.definition,
-            RecordBody::Creature(_) | RecordBody::Hazard(_) => panic!("spell fixture"),
+            RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Consumable(_) => {
+                panic!("spell fixture")
+            }
         };
         let child = ConsumableSpellChild {
             parent_record_key: RecordKey::parse("equipment-srd:eOtQtVRLeGH39dNx").expect("parent"),
@@ -3229,6 +3727,50 @@ mod tests {
         assert!(encoded.contains("rfZpqmj0AIIdkVIs"));
         assert!(encoded.contains("heightened_rank"));
         assert!(encoded.contains("Pathfinder Player Core"));
+
+        for (reason, local_evidence) in [
+            (
+                ConsumableSpellMismatchReason::LocalChildMissing,
+                ConsumableLocalSpellEvidence::Missing,
+            ),
+            (
+                ConsumableSpellMismatchReason::LocalChildMissing,
+                ConsumableLocalSpellEvidence::Null,
+            ),
+            (
+                ConsumableSpellMismatchReason::LocalChildMalformed,
+                ConsumableLocalSpellEvidence::Malformed(UnsupportedSourceValue {
+                    shape: UnsupportedSourceShape::String,
+                    value: "\"bad\"".to_string(),
+                    reason: UnsupportedSourceReason::SourceFieldDrift,
+                }),
+            ),
+            (
+                ConsumableSpellMismatchReason::Definition,
+                ConsumableLocalSpellEvidence::Child(Box::new(child)),
+            ),
+        ] {
+            let mismatch = ConsumableSpellReuse::Mismatch {
+                reason,
+                local_evidence,
+            };
+            let encoded = encode(&mismatch).expect("encode local spell mismatch evidence");
+            assert_eq!(
+                decode::<ConsumableSpellReuse>(&encoded, "local_spell_mismatch")
+                    .expect("decode local spell mismatch evidence"),
+                mismatch
+            );
+        }
+        let incompatible = ConsumableSpellReuse::Mismatch {
+            reason: ConsumableSpellMismatchReason::LocalChildMissing,
+            local_evidence: ConsumableLocalSpellEvidence::Child(Box::new(decoded)),
+        };
+        let encoded = encode(&incompatible).expect("encode incompatible mismatch fixture");
+        assert!(
+            decode::<ConsumableSpellReuse>(&encoded, "incompatible_local_spell_mismatch")
+                .expect_err("reason/evidence mismatch must fail closed")
+                .contains("reason and local evidence disagree")
+        );
     }
 
     #[test]
@@ -3236,7 +3778,9 @@ mod tests {
         let mut fixture = spell_fixture();
         let spell = match &mut fixture {
             RecordBody::Spell(spell) => spell,
-            RecordBody::Creature(_) | RecordBody::Hazard(_) => panic!("spell fixture"),
+            RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Consumable(_) => {
+                panic!("spell fixture")
+            }
         };
         spell.definition.targeting = known(SpellTargeting {
             area: known(SpellAreaValue {

@@ -8,7 +8,10 @@ use atlas_record::{
 use serde_json::Value;
 
 use crate::generated::afflictions::GeneratedAfflictionRole;
-use crate::source::dto::{SpellDocumentSource, VersionedHazardSource, VersionedNpcSource};
+use crate::source::consumables::ConsumableOccurrenceCandidate;
+use crate::source::dto::{
+    SpellDocumentSource, VersionedHazardSource, VersionedItemSource, VersionedNpcSource,
+};
 use crate::source::normalize::ContentParseDiagnostics;
 use crate::source::npc_core::NpcCoreDiagnostic;
 use crate::source::npc_entities::{NpcEmbeddedCandidates, NpcEmbeddedDiagnostic};
@@ -32,8 +35,11 @@ pub(crate) struct SourceConstructionFacts {
     pub(crate) npc_source: Option<VersionedNpcSource>,
     pub(crate) hazard_source: Option<VersionedHazardSource>,
     pub(crate) spell_source: Option<SpellDocumentSource>,
+    pub(crate) item_source: Option<VersionedItemSource>,
     pub(crate) canonical_body: Option<RecordBody>,
     pub(crate) canonical_spell_children: Vec<atlas_record::ConsumableSpellChild>,
+    pub(crate) consumable_occurrences: atlas_record::ConsumableOccurrenceSet,
+    pub(crate) consumable_occurrence_candidates: Vec<ConsumableOccurrenceCandidate>,
     pub(crate) npc_core_diagnostics: Vec<NpcCoreDiagnostic>,
     pub(crate) npc_embedded_candidates: Option<NpcEmbeddedCandidates>,
     pub(crate) npc_embedded_diagnostics: Vec<NpcEmbeddedDiagnostic>,
@@ -48,8 +54,11 @@ impl SourceConstructionFacts {
             npc_source: None,
             hazard_source: None,
             spell_source: None,
+            item_source: None,
             canonical_body: None,
             canonical_spell_children: Vec::new(),
+            consumable_occurrences: atlas_record::ConsumableOccurrenceSet::default(),
+            consumable_occurrence_candidates: Vec::new(),
             npc_core_diagnostics: Vec::new(),
             npc_embedded_candidates: None,
             npc_embedded_diagnostics: Vec::new(),

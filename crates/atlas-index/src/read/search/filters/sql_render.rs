@@ -1,6 +1,6 @@
 use crate::artifact::inventory::{
-    Column, Table, actor_records, item_records, record_metrics, record_traits, records,
-    spell_records,
+    Column, Table, actor_records, consumable_query_records, item_records, record_metrics,
+    record_traits, records, spell_records,
 };
 use atlas_domain::NumericMetricOperator;
 
@@ -12,6 +12,9 @@ pub(super) fn side_table_for_column(column: Column) -> Option<(&'static str, Tab
         table if table == actor_records::TABLE => Some(("a", actor_records::TABLE)),
         table if table == item_records::TABLE => Some(("i", item_records::TABLE)),
         table if table == spell_records::TABLE => Some(("s", spell_records::TABLE)),
+        table if table == consumable_query_records::TABLE => {
+            Some(("cq", consumable_query_records::TABLE))
+        }
         _ => None,
     }
 }
@@ -23,6 +26,8 @@ pub(super) fn record_key_column(table: Table) -> Column {
         item_records::columns::RECORD_KEY
     } else if table == spell_records::TABLE {
         spell_records::columns::RECORD_KEY
+    } else if table == consumable_query_records::TABLE {
+        consumable_query_records::columns::RECORD_KEY
     } else if table == record_traits::TABLE {
         record_traits::columns::RECORD_KEY
     } else if table == record_metrics::TABLE {

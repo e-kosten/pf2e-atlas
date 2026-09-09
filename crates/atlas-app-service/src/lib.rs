@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod consumable_surface;
 mod discovery;
 mod encounters;
 mod error;

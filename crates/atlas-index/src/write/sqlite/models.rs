@@ -90,6 +90,8 @@ pub(super) struct RecordContentRow {
     pub owner_hazard_entity_id: Option<String>,
     pub owner_hazard_occurrence_id: Option<String>,
     pub owner_hazard_occurrence_authored_order: Option<i64>,
+    pub owner_consumable_occurrence_id: Option<String>,
+    pub owner_consumable_occurrence_authored_order: Option<i64>,
     pub role: String,
     pub origin_json: String,
     pub visibility: String,
@@ -256,6 +258,47 @@ pub(super) struct CanonicalConsumableSpellChildRow {
 }
 
 #[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_consumable_records)]
+pub(super) struct CanonicalConsumableRecordRow {
+    pub record_key: String,
+    pub source_id: String,
+    pub name: String,
+    pub canonical_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_consumable_entities)]
+pub(super) struct CanonicalConsumableEntityRow {
+    pub owner_record_key: String,
+    pub entity_id: String,
+    pub target_record_key: Option<String>,
+    pub canonical_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_consumable_occurrences)]
+pub(super) struct CanonicalConsumableOccurrenceRow {
+    pub owner_record_key: String,
+    pub occurrence_id: String,
+    pub entity_id: String,
+    pub authored_order: i64,
+    pub canonical_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::consumable_query_records)]
+pub(super) struct ConsumableQueryRecordRow {
+    pub record_key: String,
+    pub category: Option<String>,
+    pub usage: Option<String>,
+    pub base_item: Option<String>,
+    pub bulk_value: Option<f64>,
+    pub hands_requirement: Option<String>,
+    pub price_cp: Option<i64>,
+    pub damage_types_json: String,
+}
+
+#[derive(Insertable)]
 #[diesel(table_name = crate::schema::spell_traditions)]
 pub(super) struct SpellTraditionRow {
     pub record_key: String,
@@ -391,6 +434,8 @@ pub(super) struct ReferenceOccurrenceRow {
     pub owner_hazard_entity_id: Option<String>,
     pub owner_hazard_occurrence_id: Option<String>,
     pub owner_hazard_occurrence_authored_order: Option<i64>,
+    pub owner_consumable_occurrence_id: Option<String>,
+    pub owner_consumable_occurrence_authored_order: Option<i64>,
     pub role: String,
     pub origin_json: String,
     pub visibility: String,

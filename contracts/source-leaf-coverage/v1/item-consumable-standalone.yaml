@@ -1,0 +1,4141 @@
+contract_version: atlas-source-leaf-coverage/v1
+type_id: item--consumable--top-level--root--root--root
+source_pin:
+  upstream_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+  source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+selector:
+  source_contract_version: pf2e-serialized-source/v1
+  document_class: Item
+  type_discriminator: consumable
+  role: top_level
+  parent_context:
+    document_class: null
+    type_discriminator: null
+    relationship_path: null
+leaves:
+  - normalized_path: $._id
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-id@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-id
+    fixtures:
+      - case_id: standalone-id
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:11051c41ddca2819bafafdb512bc6dbba52498ddb0ff4114d3adabea31d39212
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($._id)
+      - stage: canonical
+        destination: ConsumableIdentity/ConsumableOccurrence identity
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($._id)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($._id)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($._id)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $._id
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $._id
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $._id
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $._id
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $._id
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableIdentity/ConsumableOccurrence identity.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.img
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-img@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: provenance_only
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-img
+    fixtures:
+      - case_id: standalone-img
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:714b6e22e4238c4dbc60f527a2f4e42f415373e8c98d90e9731bb9118e55e4f8
+        provenance: pinned_source
+    final_owners:
+      - stage: durable_provenance
+        destination: ConsumableProvenance/ConsumableOccurrence.source_image
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.img
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.img
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.img
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.img
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.img
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableProvenance/ConsumableOccurrence.source_image.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.name
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-name@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-name
+    fixtures:
+      - case_id: standalone-name
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:2784a19779981f55edb2e4f4917129f977cfa3c772be6361f5954c9d2592b8b4
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.name)
+      - stage: canonical
+        destination: ConsumableIdentity/ConsumableOccurrence identity
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.name)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.name)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.name)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.name
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.name
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.name
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.name
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.name
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableIdentity/ConsumableOccurrence identity.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.baseItem
+    leaf_kind: scalar
+    expected_shapes:
+      - null
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-baseitem@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-baseitem
+    fixtures:
+      - case_id: standalone-system-baseitem
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.baseItem)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.baseItem)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.baseItem)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.baseItem)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.baseItem
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.baseItem
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.baseItem
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.baseItem
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.baseItem
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.bulk.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-bulk-value@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-bulk-value
+    fixtures:
+      - case_id: standalone-system-bulk-value
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.bulk.value)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.bulk.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.bulk.value)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.bulk.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.bulk.value
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.bulk.value
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.bulk.value
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.bulk.value
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.bulk.value
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.category
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-category@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-category
+    fixtures:
+      - case_id: standalone-system-category
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:377376a4b2ff660425d02f732cc7a5f19369180b946ed2a08ed295d6319fc79d
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.category)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.category)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.category)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.category)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.category
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.category
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.category
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.category
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.category
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.containerId
+    leaf_kind: scalar
+    expected_shapes:
+      - null
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-containerid@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-containerid
+    fixtures:
+      - case_id: standalone-system-containerid
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.containerId)
+      - stage: canonical
+        destination: ConsumableSourceState/ConsumableOccurrence.state
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.containerId)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.containerId)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.containerId)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.containerId
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.containerId
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.containerId
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.containerId
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.containerId
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableSourceState/ConsumableOccurrence.state.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.damage
+    leaf_kind: scalar
+    expected_shapes:
+      - null
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-damage@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1594
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-damage
+    fixtures:
+      - case_id: standalone-system-damage
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.damage)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.damage)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.damage)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.damage)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.damage
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.damage
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.damage.formula
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-damage-formula@4cbdaa37
+      record_count: 1670
+      occurrence_count: 76
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-damage-formula
+    fixtures:
+      - case_id: standalone-system-damage-formula
+        record_key: "equipment-srd:LKwI47eeJC0Y4hGu"
+        source_path: packs/equipment/silver-dragons-breath-potion-young.json
+        source_file_digest: sha256:6b8a82e175f2a87aed34c82b6edf7b932e74a1aef37e41adf203b4c714e67c50
+        excerpt_digest: sha256:06befacc5534c843362364d96840253235fbee7366e22e7754072eb16b77e86a
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.damage.formula)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.damage.formula)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.damage.formula)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.damage.formula)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.damage.formula
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.damage.formula
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.formula
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.formula
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.formula
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.damage.kind
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-damage-kind@4cbdaa37
+      record_count: 1670
+      occurrence_count: 76
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-damage-kind
+    fixtures:
+      - case_id: standalone-system-damage-kind
+        record_key: "equipment-srd:LKwI47eeJC0Y4hGu"
+        source_path: packs/equipment/silver-dragons-breath-potion-young.json
+        source_file_digest: sha256:6b8a82e175f2a87aed34c82b6edf7b932e74a1aef37e41adf203b4c714e67c50
+        excerpt_digest: sha256:12c2e70b5966107dd64d10b0dacb65c6f51407fa16cbaa1b439e1ed95ebcaa60
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.damage.kind)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.damage.kind)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.damage.kind)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.damage.kind)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.damage.kind
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.damage.kind
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.kind
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.kind
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.kind
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.damage.type
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-damage-type@4cbdaa37
+      record_count: 1670
+      occurrence_count: 76
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-damage-type
+    fixtures:
+      - case_id: standalone-system-damage-type
+        record_key: "equipment-srd:LKwI47eeJC0Y4hGu"
+        source_path: packs/equipment/silver-dragons-breath-potion-young.json
+        source_file_digest: sha256:6b8a82e175f2a87aed34c82b6edf7b932e74a1aef37e41adf203b4c714e67c50
+        excerpt_digest: sha256:7d3f6d65885a14ef8fb5a0616eb4585c09df6bac609a26c2683c89e04818e7c4
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.damage.type)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.damage.type)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.damage.type)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.damage.type)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.damage.type
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.damage.type
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.type
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.type
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.damage.type
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.description.value
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-description-value@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-description-value
+    fixtures:
+      - case_id: standalone-system-description-value
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:68d6b5c65a2b96997fa25f0ed4b7a6ff731820c4e26ff1cbc4d9fcbc3b6b847b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.description.value)
+      - stage: canonical
+        destination: OwnedRichContent/ConsumableOccurrence.authored_content
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.description.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.description.value)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.description.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.description.value
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.description.value
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.description.value
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.description.value
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.description.value
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to OwnedRichContent/ConsumableOccurrence.authored_content.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.hardness
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-hardness@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-hardness
+    fixtures:
+      - case_id: standalone-system-hardness
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.hardness)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.hardness)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.hardness)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.hardness)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.hardness
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.hardness
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hardness
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hardness
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hardness
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.hp.max
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-hp-max@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-hp-max
+    fixtures:
+      - case_id: standalone-system-hp-max
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.hp.max)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.hp.max)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.hp.max)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.hp.max)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.hp.max
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.hp.max
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hp.max
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hp.max
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hp.max
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.hp.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-hp-value@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-hp-value
+    fixtures:
+      - case_id: standalone-system-hp-value
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.hp.value)
+      - stage: canonical
+        destination: ConsumableSourceState/ConsumableOccurrence.state
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.hp.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.hp.value)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.hp.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.hp.value
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.hp.value
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hp.value
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hp.value
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.hp.value
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableSourceState/ConsumableOccurrence.state.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.level.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-level-value@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-level-value
+    fixtures:
+      - case_id: standalone-system-level-value
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.level.value)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.level.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.level.value)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.level.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.level.value
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.level.value
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.level.value
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.level.value
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.level.value
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.material.effects[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-material-effects-member@4cbdaa37
+      record_count: 1670
+      occurrence_count: 3
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-material-effects-member
+    fixtures:
+      - case_id: standalone-system-material-effects-member
+        record_key: "equipment-srd:XWO5pMQcYNybqWzf"
+        source_path: packs/equipment/silver-crescent-greater.json
+        source_file_digest: sha256:2049e285d55aed0f2612be19d88a45e6a007fa1382f016431ba52568cad1b2e7
+        excerpt_digest: sha256:30f96de6cb63ce646f69ad9a1cd51cd1a8f4c5c5e471a0cc4fc8bc981938ab5f
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.material.effects[])
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.material.effects[])
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.material.effects[])
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.material.effects[])
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.material.effects[]
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.material.effects[]
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.effects[]
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.effects[]
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.effects[]
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.material.grade
+    leaf_kind: scalar
+    expected_shapes:
+      - null
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-material-grade@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-material-grade
+    fixtures:
+      - case_id: standalone-system-material-grade
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.material.grade)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.material.grade)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.material.grade)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.material.grade)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.material.grade
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.material.grade
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.grade
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.grade
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.grade
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.material.type
+    leaf_kind: scalar
+    expected_shapes:
+      - null
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-material-type@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-material-type
+    fixtures:
+      - case_id: standalone-system-material-type
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.material.type)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.material.type)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.material.type)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.material.type)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.material.type
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.material.type
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.type
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.type
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.material.type
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.price.per
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-price-per@4cbdaa37
+      record_count: 1670
+      occurrence_count: 45
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-price-per
+    fixtures:
+      - case_id: standalone-system-price-per
+        record_key: "equipment-srd:oQr0x30JoLrWxQdA"
+        source_path: packs/equipment/rounds-rapier-pistol.json
+        source_file_digest: sha256:5d6936b043c14d06a2d80998369b1a608c001f0712f690531b73d0bb2626385c
+        excerpt_digest: sha256:4a44dc15364204a80fe80e9039455cc1608281820fe2b24f1e5233ade6af1dd5
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.price.per)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.price.per)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.price.per)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.price.per)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.price.per
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.price.per
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.price.per
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.price.per
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.price.per
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.price.value.*
+    leaf_kind: map_member
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-price-value-map-member@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1647
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    map_key_policy:
+      kind: open_vocabulary_retained_identity
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-price-value-map-member
+    fixtures:
+      - case_id: standalone-system-price-value-map-member
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.price.value.*)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.price.value.*)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.price.value.*)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.price.value.*)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.price.value.*
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.price.value.*
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.price.value.*
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.price.value.*
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.price.value.*
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.publication.license
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-publication-license@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-publication-license
+    fixtures:
+      - case_id: standalone-system-publication-license
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:74e9e30bdb35295410086d9b06d96dace1712ef543619a73684b563311e40cab
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.publication.license)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.publication.license)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.publication.license)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.publication.license)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.publication.license
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.publication.license
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.license
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.license
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.license
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.publication.remaster
+    leaf_kind: scalar
+    expected_shapes:
+      - boolean
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-publication-remaster@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-publication-remaster
+    fixtures:
+      - case_id: standalone-system-publication-remaster
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.publication.remaster)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.publication.remaster)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.publication.remaster)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.publication.remaster)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.publication.remaster
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.publication.remaster
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.remaster
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.remaster
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.remaster
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.publication.title
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-publication-title@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-publication-title
+    fixtures:
+      - case_id: standalone-system-publication-title
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:5f1829428546dbb3a12338563f6c8a6fab8f184a29cef57f320b8431958356ac
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.publication.title)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.publication.title)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.publication.title)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.publication.title)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.publication.title
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.publication.title
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.title
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.title
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.publication.title
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.quantity
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-quantity@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-quantity
+    fixtures:
+      - case_id: standalone-system-quantity
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.quantity)
+      - stage: canonical
+        destination: ConsumableSourceState/ConsumableOccurrence.state
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.quantity)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.quantity)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.quantity)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.quantity
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.quantity
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.quantity
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.quantity
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.quantity
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableSourceState/ConsumableOccurrence.state.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].category
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-category@4cbdaa37
+      record_count: 1670
+      occurrence_count: 13
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-category
+    fixtures:
+      - case_id: standalone-system-rules-member-category
+        record_key: "equipment-srd:xUMgX1vrP4EfLlw2"
+        source_path: packs/equipment/elemental-ammunition-moderate-fire.json
+        source_file_digest: sha256:0c2e788fb41b9ce46cf9f480e258293daed8f3b692b2985f0bcaab221796c143
+        excerpt_digest: sha256:4cac24209ce68e4a24a7b0ac160f37f1394a19ab35e740f7cf7deda7c0cec573
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].category)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].category
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].category
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].category
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].category
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].category
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].choices[].label
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-choices-member-label@4cbdaa37
+      record_count: 1670
+      occurrence_count: 7
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-choices-member-label
+    fixtures:
+      - case_id: standalone-system-rules-member-choices-member-label
+        record_key: "equipment-srd:C35j9PXcyDdrTsat"
+        source_path: packs/equipment/dragon-throat-scale.json
+        source_file_digest: sha256:2537aeb85734cb6566192a825d56cb1df099b0c2579348a887ab44d615fff5d2
+        excerpt_digest: sha256:f9c8f733ade9a561fa05ded19b4de355624e15e396e416df0d102a992b2ad924
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].choices[].label)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].choices[].label
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].choices[].label
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].choices[].label
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].choices[].label
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].choices[].label
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].choices[].value
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-choices-member-value@4cbdaa37
+      record_count: 1670
+      occurrence_count: 7
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-choices-member-value
+    fixtures:
+      - case_id: standalone-system-rules-member-choices-member-value
+        record_key: "equipment-srd:C35j9PXcyDdrTsat"
+        source_path: packs/equipment/dragon-throat-scale.json
+        source_file_digest: sha256:2537aeb85734cb6566192a825d56cb1df099b0c2579348a887ab44d615fff5d2
+        excerpt_digest: sha256:0e60c579f636df819d49d51680840d17d361ab7388b5356244863062eccb3f93
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].choices[].value)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].choices[].value
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].choices[].value
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].choices[].value
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].choices[].value
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].choices[].value
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].damageCategory
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-damagecategory@4cbdaa37
+      record_count: 1670
+      occurrence_count: 21
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-damagecategory
+    fixtures:
+      - case_id: standalone-system-rules-member-damagecategory
+        record_key: "equipment-srd:WnNvHEYObRivN1wI"
+        source_path: packs/equipment/elemental-ammunition-lesser-cold.json
+        source_file_digest: sha256:be91dff0fa65f8bac280c5876f5784df1b13058a8a589e1c6de16df68d07f4a4
+        excerpt_digest: sha256:4cac24209ce68e4a24a7b0ac160f37f1394a19ab35e740f7cf7deda7c0cec573
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].damageCategory)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].damageCategory
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].damageCategory
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].damageCategory
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].damageCategory
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].damageCategory
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].damageType
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-damagetype@4cbdaa37
+      record_count: 1670
+      occurrence_count: 36
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-damagetype
+    fixtures:
+      - case_id: standalone-system-rules-member-damagetype
+        record_key: "equipment-srd:WnNvHEYObRivN1wI"
+        source_path: packs/equipment/elemental-ammunition-lesser-cold.json
+        source_file_digest: sha256:be91dff0fa65f8bac280c5876f5784df1b13058a8a589e1c6de16df68d07f4a4
+        excerpt_digest: sha256:7d3f6d65885a14ef8fb5a0616eb4585c09df6bac609a26c2683c89e04818e7c4
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].damageType)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].damageType
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].damageType
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].damageType
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].damageType
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].damageType
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].definition[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-definition-member@4cbdaa37
+      record_count: 1670
+      occurrence_count: 4
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-definition-member
+    fixtures:
+      - case_id: standalone-system-rules-member-definition-member
+        record_key: "equipment-srd:Zjevw0WzUs1IIUAL"
+        source_path: packs/equipment/ghost-ammunition.json
+        source_file_digest: sha256:25bce0462fa49217d6fa0f11fe889747769550350acbb4e18430bc67216d2d5a
+        excerpt_digest: sha256:3ac4049d314cf56491ce609fc9d7f864afcc29fd2eb4d13621999816bec51a63
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].definition[])
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].definition[]
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].definition[]
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].definition[]
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].definition[]
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].definition[]
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].diceNumber
+    leaf_kind: array_member
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-dicenumber@4cbdaa37
+      record_count: 1670
+      occurrence_count: 18
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-dicenumber
+    fixtures:
+      - case_id: standalone-system-rules-member-dicenumber
+        record_key: "equipment-srd:A8Rv4EWEiQEaNSEX"
+        source_path: packs/equipment/magnetic-shot-lesser.json
+        source_file_digest: sha256:b6117a8b41b8cb1263eefe79c48e7c3bc4b6d4198d67ce3f54e882cf4484ac7a
+        excerpt_digest: sha256:d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].diceNumber)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].diceNumber
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].diceNumber
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].diceNumber
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].diceNumber
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].diceNumber
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].dieSize
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-diesize@4cbdaa37
+      record_count: 1670
+      occurrence_count: 15
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-diesize
+    fixtures:
+      - case_id: standalone-system-rules-member-diesize
+        record_key: "equipment-srd:xUMgX1vrP4EfLlw2"
+        source_path: packs/equipment/elemental-ammunition-moderate-fire.json
+        source_file_digest: sha256:0c2e788fb41b9ce46cf9f480e258293daed8f3b692b2985f0bcaab221796c143
+        excerpt_digest: sha256:769a48bd38bbfd4385c7699dee6280b173acb1e5ac675c58921ced6abe3eb624
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].dieSize)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].dieSize
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].dieSize
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].dieSize
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].dieSize
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].dieSize
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].domain
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-domain@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-domain
+    fixtures:
+      - case_id: standalone-system-rules-member-domain
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:5cf7504d9781301d83347546cdabc01a03c9638ab5b36c0a9203911078a0d1a4
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].domain)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].domain
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].domain
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].domain
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].domain
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].domain
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].flag
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-flag@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-flag
+    fixtures:
+      - case_id: standalone-system-rules-member-flag
+        record_key: "equipment-srd:C35j9PXcyDdrTsat"
+        source_path: packs/equipment/dragon-throat-scale.json
+        source_file_digest: sha256:2537aeb85734cb6566192a825d56cb1df099b0c2579348a887ab44d615fff5d2
+        excerpt_digest: sha256:fecdb540ba4b8ca7a6be62a4863b439dc0013ff21c80c31e88f1855fedd6fd77
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].flag)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].flag
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].flag
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].flag
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].flag
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].flag
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].itemId
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-itemid@4cbdaa37
+      record_count: 1670
+      occurrence_count: 4
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-itemid
+    fixtures:
+      - case_id: standalone-system-rules-member-itemid
+        record_key: "equipment-srd:C35j9PXcyDdrTsat"
+        source_path: packs/equipment/dragon-throat-scale.json
+        source_file_digest: sha256:2537aeb85734cb6566192a825d56cb1df099b0c2579348a887ab44d615fff5d2
+        excerpt_digest: sha256:6cc62554f55f228701ad1379622072e5323f39aaeb4d4a510e9737032975f053
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].itemId)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].itemId
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].itemId
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].itemId
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].itemId
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].itemId
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].key
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-key@4cbdaa37
+      record_count: 1670
+      occurrence_count: 92
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-key
+    fixtures:
+      - case_id: standalone-system-rules-member-key
+        record_key: "equipment-srd:rKknk8odXDBpON5l"
+        source_path: packs/equipment/explosive-ammunition.json
+        source_file_digest: sha256:67d3400f0f517fef7ff312211c65015a451c4adfa6c156f1fe9dce032f93f2b4
+        excerpt_digest: sha256:a267073a514317568c2dff6ddbfb49f51d5d604152402f4888fb972d7b85c049
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].key)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].key
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].key
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].key
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].key
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].key
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].label
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-label@4cbdaa37
+      record_count: 1670
+      occurrence_count: 4
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-label
+    fixtures:
+      - case_id: standalone-system-rules-member-label
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:d7cd05f878167b4cc4eeac4b9050db37972c206a7e34a7fd0b1254df8217a804
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].label)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].label
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].label
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].label
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].label
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].label
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].mode
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-mode@4cbdaa37
+      record_count: 1670
+      occurrence_count: 8
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-mode
+    fixtures:
+      - case_id: standalone-system-rules-member-mode
+        record_key: "equipment-srd:C35j9PXcyDdrTsat"
+        source_path: packs/equipment/dragon-throat-scale.json
+        source_file_digest: sha256:2537aeb85734cb6566192a825d56cb1df099b0c2579348a887ab44d615fff5d2
+        excerpt_digest: sha256:7b8a6f33b43ca26a3f2aa73e408748f9ceb391ac21dfe746c94563016ab72f85
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].mode)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].mode
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].mode
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].mode
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].mode
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].mode
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].option
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-option@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-option
+    fixtures:
+      - case_id: standalone-system-rules-member-option
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:a258d20b6abdacb001458eb4fe8a78ee54281730ff37f53a73d92a02a0ee307f
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].option)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].option
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].option
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].option
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].option
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].option
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].outcome[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-outcome-member@4cbdaa37
+      record_count: 1670
+      occurrence_count: 23
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-outcome-member
+    fixtures:
+      - case_id: standalone-system-rules-member-outcome-member
+        record_key: "equipment-srd:ENrhapQe2Gw8HdwR"
+        source_path: packs/equipment/meteor-shot-greater.json
+        source_file_digest: sha256:a5a1e89582fee2630fe1c33ec1d7f7796e13671418cc809cc6e02d32ff0c6fa5
+        excerpt_digest: sha256:0bb6b49b3aa7aae5db411d0ff211e9b1df4daf35ac856977d7cab353009f9445
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].outcome[])
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].outcome[]
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].outcome[]
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].outcome[]
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].outcome[]
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].outcome[]
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].override.damageType
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-override-damagetype@4cbdaa37
+      record_count: 1670
+      occurrence_count: 4
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-override-damagetype
+    fixtures:
+      - case_id: standalone-system-rules-member-override-damagetype
+        record_key: "equipment-srd:SfqfTak3o0cuSqhL"
+        source_path: packs/equipment/ooze-ammunition-moderate.json
+        source_file_digest: sha256:5462981f9b7ba19e706ef4bf97b8436662fb42f2e68d568ece267d9ea6584bbc
+        excerpt_digest: sha256:0e60c579f636df819d49d51680840d17d361ab7388b5356244863062eccb3f93
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].override.damageType)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].override.damageType
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].override.damageType
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].override.damageType
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].override.damageType
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].override.damageType
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].predicate[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-predicate-member@4cbdaa37
+      record_count: 1670
+      occurrence_count: 7
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-predicate-member
+    fixtures:
+      - case_id: standalone-system-rules-member-predicate-member
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:a258d20b6abdacb001458eb4fe8a78ee54281730ff37f53a73d92a02a0ee307f
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].predicate[])
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].predicate[]
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].predicate[]
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[]
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[]
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[]
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].predicate[].not
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-predicate-member-not@4cbdaa37
+      record_count: 1670
+      occurrence_count: 2
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-predicate-member-not
+    fixtures:
+      - case_id: standalone-system-rules-member-predicate-member-not
+        record_key: "equipment-srd:NSQOijKqomyotXkj"
+        source_path: packs/equipment/antler-arrow.json
+        source_file_digest: sha256:859d83d2bb759de945608d222720b20fa0d6955585a8f945224fdf8570d67a96
+        excerpt_digest: sha256:a345094c362f13037c6e90123ac02b1353f9afd7dd3d576ccd7e5ac630e74bc0
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].predicate[].not)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].predicate[].not
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].predicate[].not
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[].not
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[].not
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[].not
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].predicate[].or[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-predicate-member-or-member@4cbdaa37
+      record_count: 1670
+      occurrence_count: 4
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-predicate-member-or-member
+    fixtures:
+      - case_id: standalone-system-rules-member-predicate-member-or-member
+        record_key: "equipment-srd:hKed91BOXjyaNG3x"
+        source_path: packs/equipment/oozepick.json
+        source_file_digest: sha256:b63b3488f4510b9b0943cfcc12f121ee21ef6a62416a32dc72733d913a54950f
+        excerpt_digest: sha256:dbb667798318a40527452f29918c0172b2ed01c3826f01da1c4fffae8af79d78
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].predicate[].or[])
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].predicate[].or[]
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].predicate[].or[]
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[].or[]
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[].or[]
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].predicate[].or[]
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].prompt
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-prompt@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-prompt
+    fixtures:
+      - case_id: standalone-system-rules-member-prompt
+        record_key: "equipment-srd:C35j9PXcyDdrTsat"
+        source_path: packs/equipment/dragon-throat-scale.json
+        source_file_digest: sha256:2537aeb85734cb6566192a825d56cb1df099b0c2579348a887ab44d615fff5d2
+        excerpt_digest: sha256:c6299db62045b5d59c31a6625681646ad4970e0597f2c5d1f78a8a040aba59b6
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].prompt)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].prompt
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].prompt
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].prompt
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].prompt
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].prompt
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].property
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-property@4cbdaa37
+      record_count: 1670
+      occurrence_count: 8
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-property
+    fixtures:
+      - case_id: standalone-system-rules-member-property
+        record_key: "equipment-srd:C35j9PXcyDdrTsat"
+        source_path: packs/equipment/dragon-throat-scale.json
+        source_file_digest: sha256:2537aeb85734cb6566192a825d56cb1df099b0c2579348a887ab44d615fff5d2
+        excerpt_digest: sha256:b8da89cb6d9274cbc3b9a935665b316a1b4116c7a60262caae36411b308fd242
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].property)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].property
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].property
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].property
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].property
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].property
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].requiresEquipped
+    leaf_kind: array_member
+    expected_shapes:
+      - boolean
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-requiresequipped@4cbdaa37
+      record_count: 1670
+      occurrence_count: 2
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-requiresequipped
+    fixtures:
+      - case_id: standalone-system-rules-member-requiresequipped
+        record_key: "equipment-srd:C35j9PXcyDdrTsat"
+        source_path: packs/equipment/dragon-throat-scale.json
+        source_file_digest: sha256:2537aeb85734cb6566192a825d56cb1df099b0c2579348a887ab44d615fff5d2
+        excerpt_digest: sha256:fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].requiresEquipped)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].requiresEquipped
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].requiresEquipped
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].requiresEquipped
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].requiresEquipped
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].requiresEquipped
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].selector
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-selector@4cbdaa37
+      record_count: 1670
+      occurrence_count: 80
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-selector
+    fixtures:
+      - case_id: standalone-system-rules-member-selector
+        record_key: "equipment-srd:rKknk8odXDBpON5l"
+        source_path: packs/equipment/explosive-ammunition.json
+        source_file_digest: sha256:67d3400f0f517fef7ff312211c65015a451c4adfa6c156f1fe9dce032f93f2b4
+        excerpt_digest: sha256:f09701cd3f0730e8f316e5b222bb22b760ae012092f0c9832f2c854d77198843
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].selector)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].selector
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].selector
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].selector
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].selector
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].selector
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].text
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-text@4cbdaa37
+      record_count: 1670
+      occurrence_count: 31
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-text
+    fixtures:
+      - case_id: standalone-system-rules-member-text
+        record_key: "equipment-srd:rKknk8odXDBpON5l"
+        source_path: packs/equipment/explosive-ammunition.json
+        source_file_digest: sha256:67d3400f0f517fef7ff312211c65015a451c4adfa6c156f1fe9dce032f93f2b4
+        excerpt_digest: sha256:e356574c9e583e95d81f46ea2f3bdb4988668e8f2ff7d28983cf0bd8cab2ddf2
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].text)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].text
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].text
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].text
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].text
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].text
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].title
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-title@4cbdaa37
+      record_count: 1670
+      occurrence_count: 31
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-title
+    fixtures:
+      - case_id: standalone-system-rules-member-title
+        record_key: "equipment-srd:rKknk8odXDBpON5l"
+        source_path: packs/equipment/explosive-ammunition.json
+        source_file_digest: sha256:67d3400f0f517fef7ff312211c65015a451c4adfa6c156f1fe9dce032f93f2b4
+        excerpt_digest: sha256:d5a170b60d3d559ef56664ba2988e62bba0ad62a9261b413a143c9462e6c59d6
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].title)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].title
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].title
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].title
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].title
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].title
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].toggleable
+    leaf_kind: array_member
+    expected_shapes:
+      - boolean
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-toggleable@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-toggleable
+    fixtures:
+      - case_id: standalone-system-rules-member-toggleable
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].toggleable)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].toggleable
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].toggleable
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].toggleable
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].toggleable
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].toggleable
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].type
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-type@4cbdaa37
+      record_count: 1670
+      occurrence_count: 6
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-type
+    fixtures:
+      - case_id: standalone-system-rules-member-type
+        record_key: "equipment-srd:hKed91BOXjyaNG3x"
+        source_path: packs/equipment/oozepick.json
+        source_file_digest: sha256:b63b3488f4510b9b0943cfcc12f121ee21ef6a62416a32dc72733d913a54950f
+        excerpt_digest: sha256:24c84f68bc1fbc6d2a514cdb8b3f50cc30128665382cd823b7f85e6027dce5a1
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].type)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].type
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].type
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].type
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].type
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].type
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].value
+    leaf_kind: array_member
+    expected_shapes:
+      - number
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-value@4cbdaa37
+      record_count: 1670
+      occurrence_count: 36
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-value
+    fixtures:
+      - case_id: standalone-system-rules-member-value
+        record_key: "equipment-srd:WnNvHEYObRivN1wI"
+        source_path: packs/equipment/elemental-ammunition-lesser-cold.json
+        source_file_digest: sha256:be91dff0fa65f8bac280c5876f5784df1b13058a8a589e1c6de16df68d07f4a4
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].value)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].value
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].value
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].value.animation.intensity
+    leaf_kind: array_member
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-value-animation-intensity@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-value-animation-intensity
+    fixtures:
+      - case_id: standalone-system-rules-member-value-animation-intensity
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].value.animation.intensity)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].value.animation.intensity
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].value.animation.intensity
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.intensity
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.intensity
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.intensity
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].value.animation.speed
+    leaf_kind: array_member
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-value-animation-speed@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-value-animation-speed
+    fixtures:
+      - case_id: standalone-system-rules-member-value-animation-speed
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].value.animation.speed)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].value.animation.speed
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].value.animation.speed
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.speed
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.speed
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.speed
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].value.animation.type
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-value-animation-type@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-value-animation-type
+    fixtures:
+      - case_id: standalone-system-rules-member-value-animation-type
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:b88e3adb9a592d85a9a4fd1cc4ee6e0f15410d574c4a9962a5c6b25dfae00675
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].value.animation.type)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].value.animation.type
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].value.animation.type
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.type
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.type
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.animation.type
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].value.color
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-value-color@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-value-color
+    fixtures:
+      - case_id: standalone-system-rules-member-value-color
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:0be077b87a132572a0710cc952dbf318a8fc6666755d2a579a5a84f18f85d8e1
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].value.color)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].value.color
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].value.color
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.color
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.color
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.color
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].value.dim
+    leaf_kind: array_member
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-value-dim@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-value-dim
+    fixtures:
+      - case_id: standalone-system-rules-member-value-dim
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:4a44dc15364204a80fe80e9039455cc1608281820fe2b24f1e5233ade6af1dd5
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].value.dim)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].value.dim
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].value.dim
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.dim
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.dim
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.dim
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.rules[].value.shadows
+    leaf_kind: array_member
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-rules-member-value-shadows@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: typed_unsupported
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-rules-member-value-shadows
+    fixtures:
+      - case_id: standalone-system-rules-member-value-shadows
+        record_key: "equipment-srd:Ti4gWILk69LPxKuU"
+        source_path: packs/equipment/candle.json
+        source_file_digest: sha256:362fafbb9cdfe26ba6a6fe704911eda1999ccd899c2f7b44ccdd5621c99af1ac
+        excerpt_digest: sha256:44896b09365746b5f7167ee4d64988a38f7f4628803cbf86224e74eeb7c69e9d
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.rules[].value.shadows)
+      - stage: canonical
+        destination: ConsumableDefinition.rules exact authored object
+    surfaces:
+      artifact:
+        disposition: not_applicable
+        rationale: H5 canonical persistence policy for $.system.rules[].value.shadows
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.rules[].value.shadows
+      cli:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.shadows
+      app:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.shadows
+      ui:
+        disposition: not_applicable
+        rationale: H5 approved public context policy for $.system.rules[].value.shadows
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition.rules exact authored object.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.size
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-size@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-size
+    fixtures:
+      - case_id: standalone-system-size
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:25b4edf5c2276cc8c8dfaff3d5e749e32bdd729a10a5dab9e09e471d6e7f10d5
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.size)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.size)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.size)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.size)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.size
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.size
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.size
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.size
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.size
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.stackGroup
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-stackgroup@4cbdaa37
+      record_count: 1670
+      occurrence_count: 78
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-stackgroup
+    fixtures:
+      - case_id: standalone-system-stackgroup
+        record_key: "equipment-srd:cYkmDxRFtwQRvwVh"
+        source_path: packs/equipment/blindpepper-bolt.json
+        source_file_digest: sha256:337702f76db8d8dd9cd78a2af6faa14c2ee1945eb2b62e0b7c26fdfb4bf19a66
+        excerpt_digest: sha256:518c91d617ff445d8b63a4654990b8a807e7d77e977d2c01bd84de33d88dcd2f
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.stackGroup)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.stackGroup)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.stackGroup)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.stackGroup)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.stackGroup
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.stackGroup
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.stackGroup
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.stackGroup
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.stackGroup
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.traits.otherTags[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-traits-othertags-member@4cbdaa37
+      record_count: 1670
+      occurrence_count: 118
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-traits-othertags-member
+    fixtures:
+      - case_id: standalone-system-traits-othertags-member
+        record_key: "equipment-srd:3AjyXlvLUx4c2RCi"
+        source_path: packs/equipment/sprite-apple-pink.json
+        source_file_digest: sha256:0c06681db810f3ceb7abf4740c2f0a502a68c83ecd86afd6fefa70ed648d3d40
+        excerpt_digest: sha256:96a1e6599376756754782e41c3a9fa57ee81a00f7eea6c4c6f356053126ea3f4
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.traits.otherTags[])
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.traits.otherTags[])
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.traits.otherTags[])
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.traits.otherTags[])
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.traits.otherTags[]
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.traits.otherTags[]
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.otherTags[]
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.otherTags[]
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.otherTags[]
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.traits.rarity
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-traits-rarity@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-traits-rarity
+    fixtures:
+      - case_id: standalone-system-traits-rarity
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:eea96276bad0ea13c250c9f7ab7a1d9f8acdc1f2ad51e611df81b8dd41743fcf
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.traits.rarity)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.traits.rarity)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.traits.rarity)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.traits.rarity)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.traits.rarity
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.traits.rarity
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.rarity
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.rarity
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.rarity
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.traits.value[]
+    leaf_kind: array_member
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-traits-value-member@4cbdaa37
+      record_count: 1670
+      occurrence_count: 5370
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-traits-value-member
+    fixtures:
+      - case_id: standalone-system-traits-value-member
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:25409ee1f291bb803f89f7cc66f14863adafd4becd76fe6dbd6aae01a096e6c3
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.traits.value[])
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.traits.value[])
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.traits.value[])
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.traits.value[])
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.traits.value[]
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.traits.value[]
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.value[]
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.value[]
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.traits.value[]
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.usage.value
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-usage-value@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-usage-value
+    fixtures:
+      - case_id: standalone-system-usage-value
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:d97e0c0d3da17343df5771bb6b835b3c159def48bca8ba969ce018a8908765d2
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.usage.value)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.usage.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.usage.value)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.usage.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.usage.value
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.system.usage.value
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.usage.value
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.usage.value
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.usage.value
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.uses.autoDestroy
+    leaf_kind: scalar
+    expected_shapes:
+      - boolean
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-uses-autodestroy@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-uses-autodestroy
+    fixtures:
+      - case_id: standalone-system-uses-autodestroy
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.uses.autoDestroy)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.uses.autoDestroy)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.uses.autoDestroy)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.uses.autoDestroy)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.uses.autoDestroy
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.uses.autoDestroy
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.autoDestroy
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.autoDestroy
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.autoDestroy
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.uses.max
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-uses-max@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-uses-max
+    fixtures:
+      - case_id: standalone-system-uses-max
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.uses.max)
+      - stage: canonical
+        destination: ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.uses.max)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.uses.max)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.uses.max)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.uses.max
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.uses.max
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.max
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.max
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.max
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableDefinition/ConsumableEntityTarget.ParentOwned.definition.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.system.uses.value
+    leaf_kind: scalar
+    expected_shapes:
+      - number
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-system-uses-value@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-system-uses-value
+    fixtures:
+      - case_id: standalone-system-uses-value
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.system.uses.value)
+      - stage: canonical
+        destination: ConsumableSourceState/ConsumableOccurrence.state
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.system.uses.value)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.system.uses.value)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.system.uses.value)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.system.uses.value
+      search:
+        disposition: not_applicable
+        rationale: H5 query/content projection policy for $.system.uses.value
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.value
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.value
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.system.uses.value
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableSourceState/ConsumableOccurrence.state.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence
+  - normalized_path: $.type
+    leaf_kind: scalar
+    expected_shapes:
+      - string
+    source_prevalence:
+      source_contract_version: pf2e-serialized-source/v1
+      source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+      source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
+      inventory_version: pf2e-source-leaf-prevalence/v1
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
+      entry_id: h5-consumable-standalone-type@4cbdaa37
+      record_count: 1670
+      occurrence_count: 1670
+    fixture_prevalence:
+      record_count: 1
+      occurrence_count: 1
+    disposition: promoted
+    reader:
+      reader_id: source::dto::ConsumableSource::exact_leaf
+      parity_case_ids:
+        - standalone-type
+    fixtures:
+      - case_id: standalone-type
+        record_key: "equipment-srd:2MgFoNXTccL8Own9"
+        source_path: packs/equipment/jade-cat.json
+        source_file_digest: sha256:bb502124e618bbf7512893eeef7ae12679c8b7a9def740ab4e8c867cc771cc0b
+        excerpt_digest: sha256:25409ee1f291bb803f89f7cc66f14863adafd4becd76fe6dbd6aae01a096e6c3
+        provenance: pinned_source
+    final_owners:
+      - stage: source_dto
+        destination: ConsumableItemSource ($.type)
+      - stage: canonical
+        destination: ConsumableIdentity/ConsumableOccurrence identity
+      - stage: post_projection
+        destination: IndexBuildInput canonical H5 owner ($.type)
+      - stage: artifact_hydration
+        destination: RetrievedRecord H5 owner ($.type)
+      - stage: public_surface
+        destination: ConsumableSurfaceView H5 owner ($.type)
+    surfaces:
+      artifact:
+        disposition: promoted
+        rationale: H5 canonical persistence policy for $.type
+      search:
+        disposition: promoted
+        rationale: H5 query/content projection policy for $.type
+      cli:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.type
+      app:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.type
+      ui:
+        disposition: promoted
+        rationale: H5 approved public context policy for $.type
+      runtime:
+        disposition: not_applicable
+        rationale: H5 consumables are read-only records and occurrences
+    rationale: Exact standalone consumable leaf is assigned once to ConsumableIdentity/ConsumableOccurrence identity.
+    owner: atlas-ingest::source::consumables
+    acceptance_checkpoint: H5 source canonical hydration and surface evidence

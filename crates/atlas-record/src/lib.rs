@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod consumable;
 mod content;
 mod creature;
 mod creature_content_placement;
@@ -10,6 +11,7 @@ mod hazard_applicability;
 mod hazard_projection;
 #[cfg(test)]
 mod hazard_tests;
+mod item_usage;
 mod json_projection;
 mod mechanics;
 pub mod metrics;
@@ -26,6 +28,17 @@ mod retrieval_policy;
 mod retrieved_record;
 mod spell;
 
+pub use consumable::{
+    ConsumableContentIdentity, ConsumableDamage, ConsumableDefinition, ConsumableEntity,
+    ConsumableEntityId, ConsumableEntityTarget, ConsumableEquippedState, ConsumableExactDecimal,
+    ConsumableFact, ConsumableIdentity, ConsumableLocalSpellEvidence, ConsumableLocatorState,
+    ConsumableMaterial, ConsumableMismatch, ConsumableMismatchValue, ConsumableOccurrence,
+    ConsumableOccurrenceId, ConsumableOccurrenceIdentityStability, ConsumableOccurrenceSet,
+    ConsumablePrice, ConsumablePriceDenomination, ConsumableProvenance, ConsumablePublication,
+    ConsumableRecord, ConsumableSourceId, ConsumableSourceState, ConsumableSourceValue,
+    ConsumableSpellMismatchReason, ConsumableSpellReuse, ConsumableTargetResolution,
+    InvalidConsumableId, InvalidConsumableValue,
+};
 pub use content::{
     ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason,
     ContentFtsField, ContentHash, ContentId, ContentIdentityStability, ContentKey, ContentOrigin,
@@ -118,8 +131,15 @@ pub use hazard_projection::{
     project_hazard_source_metadata, project_hazard_strike_action_cost,
     project_hazard_weapon_type_consistency,
 };
+pub use item_usage::hands_requirement_from_usage;
 pub use json_projection::{
-    CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
+    ConsumableContentJson, ConsumableDamageJson, ConsumableDefinitionJson,
+    ConsumableEquippedStateJson, ConsumableFactJson, ConsumableJson,
+    ConsumableLocalSpellEvidenceJson, ConsumableOccurrenceJson, ConsumableOccurrenceTargetJson,
+    ConsumablePriceDenominationJson, ConsumablePriceJson, ConsumableProvenanceJson,
+    ConsumablePublicationJson, ConsumableSourceStateJson, ConsumableSpellChildFactJson,
+    ConsumableSpellReuseJson, ConsumableUnsupportedJson, CreatureAbilitiesJson,
+    CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
     CreatureAvailabilityEvidenceJson, CreatureAvailabilityFieldJson, CreatureAvailabilityJson,
     CreatureAvailabilityStateJson, CreatureContentJson, CreatureContentOwnerJson,
     CreatureContentProvenanceJson, CreatureDamageJson, CreatureDefensesJson, CreatureEquipmentJson,

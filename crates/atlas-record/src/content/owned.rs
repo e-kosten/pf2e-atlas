@@ -6,8 +6,8 @@ use super::{
     iter_foundry_links, render_plain_text,
 };
 use crate::{
-    CreatureEntityFamily, CreatureEntityId, CreatureOccurrenceId, HazardEntityFamily,
-    HazardEntityId, HazardOccurrenceId,
+    ConsumableOccurrenceId, CreatureEntityFamily, CreatureEntityId, CreatureOccurrenceId,
+    HazardEntityFamily, HazardEntityId, HazardOccurrenceId,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -79,6 +79,7 @@ pub enum ContentOwner {
     CreatureOccurrence(CreatureOccurrenceId),
     HazardEntity(HazardEntityId),
     HazardOccurrence(HazardOccurrenceId),
+    ConsumableOccurrence(ConsumableOccurrenceId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -109,6 +110,10 @@ pub enum ContentOrigin {
         nested_source_id: Option<String>,
         relative_source_path: String,
     },
+    ConsumableEmbeddedField {
+        nested_source_id: Option<String>,
+        relative_source_path: String,
+    },
     Generated {
         source_kind: ContentSourceKind,
     },
@@ -127,7 +132,14 @@ pub struct ContentProvenance {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DuplicateContentStatus {
     Unique,
-    CopiedFromCanonicalTarget { target_record_key: RecordKey },
+    CopiedFromCanonicalTarget {
+        target_record_key: RecordKey,
+    },
+    CopiedFromConsumableTarget {
+        target_record_key: RecordKey,
+        target_content_key: ContentKey,
+        target_content_hash: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

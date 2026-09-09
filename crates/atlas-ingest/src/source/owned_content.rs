@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_record::{
     ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason, ContentId,
@@ -17,6 +17,12 @@ pub(crate) fn finalize_npc_owned_content(records: &mut [LoadedSourceRecord]) {
             continue;
         };
         let source_content = loaded.facts.source_facts.content_sources.clone();
+        let consumable_source_ids = loaded
+            .facts
+            .consumable_occurrence_candidates
+            .iter()
+            .map(|candidate| candidate.source.source.source().id.clone())
+            .collect::<BTreeSet<_>>();
         let family_by_source_id = loaded
             .facts
             .npc_embedded_candidates
@@ -38,6 +44,13 @@ pub(crate) fn finalize_npc_owned_content(records: &mut [LoadedSourceRecord]) {
         let mut content = OwnedRichContent::default();
 
         for source in source_content {
+            if source
+                .nested_source_id
+                .as_ref()
+                .is_some_and(|source_id| consumable_source_ids.contains(source_id))
+            {
+                continue;
+            }
             let content_key = match ContentKey::new(source.content_key.clone()) {
                 Ok(key) => key,
                 Err(_) => continue,
@@ -93,10 +106,23 @@ pub(crate) fn finalize_hazard_owned_content(records: &mut [LoadedSourceRecord]) 
             continue;
         };
         let source_content = loaded.facts.source_facts.content_sources.clone();
+        let consumable_source_ids = loaded
+            .facts
+            .consumable_occurrence_candidates
+            .iter()
+            .map(|candidate| candidate.source.source.source().id.clone())
+            .collect::<BTreeSet<_>>();
         let embedded = hazard.embedded_entities.typed();
         let mut content = OwnedRichContent::default();
 
         for source in source_content {
+            if source
+                .nested_source_id
+                .as_ref()
+                .is_some_and(|source_id| consumable_source_ids.contains(source_id))
+            {
+                continue;
+            }
             let content_key = match ContentKey::new(source.content_key.clone()) {
                 Ok(key) => key,
                 Err(_) => continue,
@@ -189,6 +215,54 @@ pub(crate) fn finalize_spell_owned_content(records: &mut [LoadedSourceRecord]) {
             .documents
             .sort_by_key(|document| document.authored_order);
         spell.definition.content = content;
+    }
+}
+
+pub(crate) fn finalize_consumable_owned_content(records: &mut [LoadedSourceRecord]) {
+    for loaded in records {
+        let Some(RecordBody::Consumable(consumable)) = &mut loaded.facts.canonical_body else {
+            continue;
+        };
+        let mut content = OwnedRichContent::default();
+        for source in loaded
+            .facts
+            .source_facts
+            .content_sources
+            .iter()
+            .filter(|source| !source.source_kind.is_embedded())
+            .cloned()
+        {
+            let Ok(content_key) = ContentKey::new(source.content_key.clone()) else {
+                continue;
+            };
+            let diagnostics = source_diagnostics(&source);
+            content.documents.push(OwnedRichContentDocument::new(
+                ContentId::new(consumable.identity.record_key.clone(), content_key),
+                source.identity_stability,
+                ContentOwner::Record(consumable.identity.record_key.clone()),
+                record_role(source.source_kind),
+                ContentOrigin::RecordField {
+                    source_kind: source.source_kind,
+                    relative_source_path: source.relative_source_path.clone(),
+                },
+                source.source_kind.default_visibility(),
+                provenance(
+                    &consumable.identity.record_key,
+                    &loaded.record.provenance.source_path,
+                    &source,
+                ),
+                source.source_kind,
+                source.authored_order,
+                source.label,
+                source.document,
+                DuplicateContentStatus::Unique,
+                diagnostics,
+            ));
+        }
+        content
+            .documents
+            .sort_by_key(|document| document.authored_order);
+        consumable.content = content;
     }
 }
 
@@ -695,9 +769,8 @@ mod tests {
         let Some(source_root) = std::env::var_os("PF2E_SOURCE_ROOT") else {
             return;
         };
-        let mut loaded =
-            super::super::loader::load_foundry_source_records(Path::new(&source_root), None)
-                .expect("exact pinned source loads");
+        let loaded = crate::source_pipeline::load_foundry_source(Path::new(&source_root), None)
+            .expect("exact pinned source loads");
         assert_eq!(loaded.source_record_count, 25_641);
         assert!(loaded.skipped_records.is_empty());
         assert_eq!(
@@ -712,11 +785,6 @@ mod tests {
             .count();
         assert_eq!(source_count, 70);
 
-        let index = build_record_reference_index(&loaded.records);
-        finalize_npc_embedded_entities(&mut loaded.records, &index);
-        finalize_npc_owned_content(&mut loaded.records);
-        resolve_content_references(&mut loaded.records, &index);
-
         let documents = loaded
             .records
             .iter()
@@ -726,7 +794,15 @@ mod tests {
             .flat_map(|content| &content.documents)
             .filter(|content| content.source_kind == ContentSourceKind::EmbeddedGmDescription)
             .collect::<Vec<_>>();
-        assert_eq!(documents.len(), 70);
+        let consumable_documents = loaded
+            .records
+            .iter()
+            .flat_map(|record| &record.facts.consumable_occurrences.occurrences)
+            .flat_map(|occurrence| &occurrence.authored_content.documents)
+            .filter(|content| content.source_kind == ContentSourceKind::EmbeddedGmDescription)
+            .collect::<Vec<_>>();
+        assert_eq!(documents.len(), 68);
+        assert_eq!(consumable_documents.len(), 2);
         assert_eq!(
             documents
                 .iter()
