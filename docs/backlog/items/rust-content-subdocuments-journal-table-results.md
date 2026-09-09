@@ -1,22 +1,24 @@
 # Rust Content Subdocuments For Journal Pages And Table Results
 
-Status: deferred  
-Priority: later  
-Owner: unassigned  
-Last reviewed: 2026-05-16
+Status: in progress
+Priority: current modeling
+Owner: H8 Journal/RollTable family
+Last reviewed: 2026-09-08
 
-A7 candidate disposition: **retained** and assigned to H8. Child identity, order, ownership, typed visibility/provenance, links, and non-flattening constraints are binding; family implementation remains separately approved future work.
+H8 owns two dedicated top-level canonical families, `Journal` and `RollTable`, with ordered parent-owned `JournalPage` and `TableResult` children. Children use backend-owned opaque locators under the parent route; they are not standalone records. Their rich text contributes to the existing parent record's FTS row, while child-aware search hits and always-materialized child embeddings remain outside this slice.
+
+The approved media disposition is metadata-only: exact image/PDF/video locators and source states remain typed provenance, with no fetch, play, render, rank, or embed behavior. Roll execution is likewise outside H8.
 
 ## Problem
 
 The RichDocument migration models primary record descriptions, supplemental record-owned content, embedded actor/item capability text, FTS projections, semantic chunks, and reference edges from explicit rich-content sources. During planning, two rich-text source families were identified as real content but deferred from the first pass:
 
 - journal page bodies at `pages.*.text.content`
-- rollable table result prose at `results.*.description`
+- rollable table result prose at `results.*.text`
 
 These fields contain useful HTML/Foundry markup and references, but they are not clearly ordinary supplemental content on the parent record. They often represent nested subdocuments with their own names, ordering, and user-facing meaning.
 
-Rust ingest now extracts journal page text into ingest-only `JournalPageFact` values so remaster alias/link extraction can consume typed page facts instead of reparsing persisted raw JSON. Those facts intentionally remain construction state; they are not persisted as child content, FTS rows, semantic units, or reference-edge sources. This backlog item owns that later runtime child-content design.
+The H8 implementation directly replaces the former ingest-only journal-page construction facts. Canonical bodies, artifact hydration, public detail surfaces, and typed child reference context share one owner; no raw-JSON reparse or compatibility path remains.
 
 If they are flattened into the parent record, search and backlinks may point to overly broad parents such as `GM Screen`, `Archetypes`, or `Madcap Top Effect` when the useful content is a specific page or table result. If they are ignored entirely, Rust loses meaningful text and links that may be important for future TUI/CLI navigation and retrieval.
 
@@ -61,51 +63,26 @@ Representative table-result containers:
 - item-level random treasure tables such as `10th-level-permanent-items.json`
   - many result rows, but their description semantics may be weaker than effect/result tables
 
-## Desired Outcome
+## Accepted Outcome
 
-Design and implement a child-content model for nested rich text that can preserve, search, render, and link journal pages and table results without flattening them into broad parent records.
+Implement parent-owned nested content that preserves, searches, renders, and links journal pages and table results without promoting them to standalone records or flattening their identity into the parent.
 
-The model should answer:
+The model preserves:
 
-- whether journal pages and table results are child documents, child records, or supplemental content with child identities
-- how child documents are addressed by stable keys
-- how CLI/TUI search results identify both the parent and child target
-- how backlinks show source context without over-counting broad parent records
-- how FTS and semantic search weight nested content relative to parent record descriptions and embedded capability text
+- stable authored child IDs where unique, and explicitly unstable parent-scoped ordinal locators otherwise
+- opaque child locators that clients only round-trip under the parent record route
+- exact child source context on content/reference occurrences and graph edges
+- parent-record FTS hits with lower-weight embedded child content and no fabricated child winner
+- the existing overflow-only semantic-unit policy rather than unconditional child embeddings
 
-## Candidate Shape
+## Current contract
 
-One likely shape is a child document model:
-
-```rust
-pub struct ContentSubdocument {
-    pub key: ContentSubdocumentKey,
-    pub parent_record_key: RecordKey,
-    pub kind: ContentSubdocumentKind,
-    pub title: String,
-    pub ordinal: i64,
-    pub document: RichDocument,
-    pub visibility: ContentVisibility,
-}
-
-pub enum ContentSubdocumentKind {
-    JournalPage,
-    TableResult,
-}
-```
-
-Example identities:
-
-- `journals:gm-screen#page:Falling`
-- `journals:gm-screen#page:BasicActions`
-- `rollable-tables:madcap-top-effect#result:2`
-
-Reference edges could either:
-
-- store `from_record_key` as the parent plus `source_subdocument_key`, or
-- promote subdocuments into addressable records and allow `from_record_key` to point directly at the child identity if the domain model supports it.
-
-The first option is less disruptive to existing record-key assumptions. The second may produce cleaner search/detail navigation if journal pages become first-class user-visible targets.
+- `RecordKind::Journal` admits only a `JournalEntry` document with one `JournalRecord` body; `RecordKind::RollTable` admits only a `RollTable` document with one `RollTableRecord` body.
+- `ContentChildLocator` carries the parent record, child kind, and either a unique authored source ID or an explicitly unstable authored ordinal. The backend encodes it as a versioned opaque value; clients only round-trip it.
+- `RichLinkTarget::RecordChild` retains an exact parent-plus-child target. Graph traversal remains parent-record based, with optional source and target child locators preserving context.
+- Journal page and table result content remain parent-owned `OwnedRichContent`; authored ordering, content hashes, source paths, and reference occurrences survive codec, write, and read boundaries.
+- Missing, Null, known zero/false/empty values, malformed values, duplicate members, and unknown members retain distinct typed outcomes. Fixed identity or dispatch duplicates fail closed; other child failures localize to an unsupported child where the child is the smallest owner.
+- Ordinary lookup, detail, CLI, app, and UI surfaces expose the two parent families. Media metadata is provenance-only and roll or script execution is absent.
 
 ## Constraints
 
@@ -119,15 +96,12 @@ The first option is less disruptive to existing record-key assumptions. The seco
   - generated/special graph facts
   - ordinary content-derived references
 
-## Acceptance Sketch
+## Acceptance
 
-- Journal pages can be parsed into `RichDocument` values with page title and order preserved.
-- Journal page skip reasons from ingest construction facts can feed coverage/audit reporting for unsupported or empty page shapes.
-- Table results can be parsed into `RichDocument` values with result range/order preserved.
-- Search results can expose a child target label such as `GM Screen > Falling` or `Madcap Top Effect > Result 2`.
-- Reference/backlink output can show the child source context rather than only the parent record.
-- FTS and semantic retrieval can downweight or separately rank child content so exact searches for canonical records are not dominated by broad containers.
-- Artifact validation checks child content JSON and source-key coherence if child content is persisted.
+- Real-source fixtures prove Journal and RollTable source states, child identity and order, plus the Hero Point Deck cross-parent page reference.
+- A mixed real SQLite fixture proves atomic canonical write, all/keyed hydration, parent-only FTS rows, child content/reference ownership, and symmetric family corruption rejection.
+- Public JSON, CLI, app-model bindings, and UI tests preserve the opaque child locator and typed unsupported states without exposing a media viewer or roll executor.
+- Stable IDs survive reorder; duplicate, missing, and authored fallback-like IDs cannot collide or silently select a child.
 
 ## Related
 

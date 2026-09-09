@@ -25,6 +25,12 @@ const HAZARD_LEDGERS: [&str; 4] = [
     include_str!("../../../contracts/source-leaf-coverage/v1/item-consumable-embedded-hazard.yaml"),
 ];
 const HAZARD_FIXTURE_ROOT: &str = "tests/fixtures/hazards/pinned";
+const H8_LEDGERS: [&str; 4] = [
+    include_str!("../../../contracts/source-leaf-coverage/v1/journal-entry.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/journal-entry-page.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/roll-table.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/table-result.yaml"),
+];
 
 #[derive(Debug, Deserialize)]
 struct ActorFixtureManifest {
@@ -593,6 +599,52 @@ fn h1_bc_hazard_pipeline_satisfies_selected_root_and_child_leaf_owners() {
         assert!(report.passed, "{:#?}", report.failures);
         assert_eq!(report.receipt_count, ledger.leaves.len());
     }
+}
+
+#[test]
+fn h8_ledgers_are_exact_pin_bound_and_observed_by_typed_owners() {
+    let repository = require_pinned_repository();
+    let mut declaration_count = 0;
+    for ledger in h8_selector_ledgers() {
+        let lint = lint_source_leaf_ledger(&ledger);
+        assert!(lint.is_empty(), "H8 ledger lint: {lint:#?}");
+        let mut receipts = Vec::new();
+        for (leaf_index, leaf) in ledger.leaves.iter().enumerate() {
+            for fixture_index in 0..leaf.fixtures.len() {
+                receipts.push(
+                    capture_registered_source_leaf_receipt(
+                        &ledger,
+                        leaf_index,
+                        fixture_index,
+                        &repository,
+                    )
+                    .expect("pinned H8 production-pipeline receipt"),
+                );
+            }
+        }
+        let report = evaluate_source_leaf_coverage(&ledger, &receipts);
+        assert!(report.passed, "{:#?}", report.failures);
+        assert_eq!(report.receipt_count, ledger.leaves.len());
+        declaration_count += ledger.leaves.len();
+    }
+    assert_eq!(declaration_count, 35);
+}
+
+fn h8_selector_ledgers() -> Vec<atlas_ingest::SourceLeafCoverageLedger> {
+    H8_LEDGERS
+        .chunks_exact(2)
+        .map(|partitions| {
+            let mut ledger =
+                parse_source_leaf_ledger(partitions[0]).expect("H8 parent ledger parses");
+            let child = parse_source_leaf_ledger(partitions[1]).expect("H8 child ledger parses");
+            assert_eq!(ledger.contract_version, child.contract_version);
+            assert_eq!(ledger.type_id, child.type_id);
+            assert_eq!(ledger.source_pin, child.source_pin);
+            assert_eq!(ledger.selector, child.selector);
+            ledger.leaves.extend(child.leaves);
+            ledger
+        })
+        .collect()
 }
 
 #[test]

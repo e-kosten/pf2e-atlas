@@ -7,6 +7,8 @@ pub enum RecordBody {
     Creature(CreatureRecord),
     Hazard(crate::HazardRecord),
     Spell(crate::SpellRecord),
+    Journal(crate::JournalRecord),
+    RollTable(crate::RollTableRecord),
 }
 
 impl RecordBody {
@@ -15,34 +17,36 @@ impl RecordBody {
             Self::Creature(creature) => &creature.identity.record_key,
             Self::Hazard(hazard) => &hazard.identity.record_key,
             Self::Spell(spell) => &spell.identity.record_key,
+            Self::Journal(journal) => &journal.identity.record_key,
+            Self::RollTable(table) => &table.identity.record_key,
         }
     }
 
     pub fn creature(&self) -> Option<&CreatureRecord> {
         match self {
             Self::Creature(creature) => Some(creature),
-            Self::Hazard(_) | Self::Spell(_) => None,
+            Self::Hazard(_) | Self::Spell(_) | Self::Journal(_) | Self::RollTable(_) => None,
         }
     }
 
     pub fn creature_mut(&mut self) -> Option<&mut CreatureRecord> {
         match self {
             Self::Creature(creature) => Some(creature),
-            Self::Hazard(_) | Self::Spell(_) => None,
+            Self::Hazard(_) | Self::Spell(_) | Self::Journal(_) | Self::RollTable(_) => None,
         }
     }
 
     pub fn into_creature(self) -> Option<CreatureRecord> {
         match self {
             Self::Creature(creature) => Some(creature),
-            Self::Hazard(_) | Self::Spell(_) => None,
+            Self::Hazard(_) | Self::Spell(_) | Self::Journal(_) | Self::RollTable(_) => None,
         }
     }
 
     pub fn hazard(&self) -> Option<&crate::HazardRecord> {
         match self {
             Self::Hazard(hazard) => Some(hazard),
-            Self::Creature(_) | Self::Spell(_) => None,
+            Self::Creature(_) | Self::Spell(_) | Self::Journal(_) | Self::RollTable(_) => None,
         }
     }
 
@@ -53,14 +57,28 @@ impl RecordBody {
     pub fn as_creature_mut(&mut self) -> Option<&mut CreatureRecord> {
         match self {
             Self::Creature(record) => Some(record),
-            Self::Hazard(_) | Self::Spell(_) => None,
+            Self::Hazard(_) | Self::Spell(_) | Self::Journal(_) | Self::RollTable(_) => None,
         }
     }
 
     pub fn as_spell(&self) -> Option<&crate::SpellRecord> {
         match self {
             Self::Spell(record) => Some(record),
-            Self::Creature(_) | Self::Hazard(_) => None,
+            Self::Creature(_) | Self::Hazard(_) | Self::Journal(_) | Self::RollTable(_) => None,
+        }
+    }
+
+    pub fn as_journal(&self) -> Option<&crate::JournalRecord> {
+        match self {
+            Self::Journal(record) => Some(record),
+            Self::Creature(_) | Self::Hazard(_) | Self::Spell(_) | Self::RollTable(_) => None,
+        }
+    }
+
+    pub fn as_roll_table(&self) -> Option<&crate::RollTableRecord> {
+        match self {
+            Self::RollTable(record) => Some(record),
+            Self::Creature(_) | Self::Hazard(_) | Self::Spell(_) | Self::Journal(_) => None,
         }
     }
 }

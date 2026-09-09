@@ -583,6 +583,9 @@ fn content_owner(owner: &ContentOwner) -> String {
         ContentOwner::CreatureOccurrence(id) => format!("creature_occurrence:{}", id.as_str()),
         ContentOwner::HazardEntity(id) => format!("hazard_entity:{}", id.as_str()),
         ContentOwner::HazardOccurrence(id) => format!("hazard_occurrence:{}", id.as_str()),
+        ContentOwner::Child(locator) => {
+            format!("child:{}", crate::encode_content_child_locator(locator))
+        }
     }
 }
 

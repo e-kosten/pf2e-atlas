@@ -13,7 +13,7 @@ use super::{SourceLeafIdentity, SourceLeafSelector};
 
 pub const PF2E_SOURCE_LEAF_PREVALENCE_VERSION: &str = "pf2e-source-leaf-prevalence/v1";
 pub const PF2E_SOURCE_LEAF_PREVALENCE_SHA256: &str =
-    "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097";
+    "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc";
 
 const PREVALENCE_BYTES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -136,6 +136,24 @@ mod tests {
         "item--melee--embedded--actor--hazard--actor-items",
         "item--consumable--embedded--actor--hazard--actor-items",
     ];
+    const H8_LEDGERS: [&str; 4] = [
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/journal-entry.yaml"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/journal-entry-page.yaml"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/roll-table.yaml"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/table-result.yaml"
+        )),
+    ];
 
     #[test]
     fn accepted_prevalence_is_digest_pin_registry_and_count_bound() {
@@ -183,5 +201,51 @@ mod tests {
 
         assert_eq!(declared, inventory_hazard_identities);
         assert_eq!(declared_hazard_identities.len(), declared.len());
+    }
+
+    #[test]
+    fn h8_ledgers_exactly_partition_the_authenticated_parent_source_inventory() {
+        let inventory = accepted_prevalence().expect("accepted prevalence");
+        let inventory_identities = inventory
+            .iter()
+            .filter(|entry| {
+                matches!(
+                    entry.type_id.as_str(),
+                    "journalentry--root--top-level--root--root--root"
+                        | "rolltable--root--top-level--root--root--root"
+                )
+            })
+            .map(PrevalenceEntry::identity)
+            .collect::<BTreeSet<_>>();
+        let declared_identities = h8_selector_ledgers()
+            .iter()
+            .flat_map(|ledger| {
+                ledger
+                    .leaves
+                    .iter()
+                    .map(|leaf| ledger.identity_for(leaf))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(inventory_identities, declared_identities);
+        assert_eq!(declared_identities.len(), 35);
+    }
+
+    fn h8_selector_ledgers() -> Vec<super::super::SourceLeafCoverageLedger> {
+        H8_LEDGERS
+            .chunks_exact(2)
+            .map(|partitions| {
+                let mut ledger = super::super::parse_source_leaf_ledger(partitions[0])
+                    .expect("H8 parent ledger parses");
+                let child = super::super::parse_source_leaf_ledger(partitions[1])
+                    .expect("H8 child ledger parses");
+                assert_eq!(ledger.contract_version, child.contract_version);
+                assert_eq!(ledger.type_id, child.type_id);
+                assert_eq!(ledger.source_pin, child.source_pin);
+                assert_eq!(ledger.selector, child.selector);
+                ledger.leaves.extend(child.leaves);
+                ledger
+            })
+            .collect()
     }
 }

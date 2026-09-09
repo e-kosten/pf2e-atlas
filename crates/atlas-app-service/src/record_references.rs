@@ -79,6 +79,14 @@ fn project_section(
             .map(|edge| RecordSurfaceReferenceEdgeView {
                 from_record_key: edge.from.to_string(),
                 to_record_key: edge.to.to_string(),
+                source_child_locator: edge
+                    .source_child
+                    .as_ref()
+                    .map(atlas_record::encode_content_child_locator),
+                target_child_locator: edge
+                    .target_child
+                    .as_ref()
+                    .map(atlas_record::encode_content_child_locator),
                 display_text: edge.display_text,
                 reference_text: edge.reference_text,
                 source: RecordSurfaceReferenceSourceView {
@@ -188,6 +196,8 @@ mod tests {
                 .map(|record| GraphContextEdge {
                     from: fixture_record.record.identity.key.clone(),
                     to: record.record.identity.key.clone(),
+                    source_child: None,
+                    target_child: None,
                     display_text: Some(record.record.identity.name.clone()),
                     reference_text: record.record.identity.name.clone(),
                     source: GraphContextEdgeSource {

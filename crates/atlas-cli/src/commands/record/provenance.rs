@@ -1,7 +1,7 @@
 use atlas_record::{
     CreatureAvailabilityEvidenceJson, CreatureContentJson, CreatureContentOwnerJson,
     CreatureContentProvenanceJson, CreatureFactProvenanceJson, CreatureOccurrenceProvenanceJson,
-    CreatureProvenanceJson, HazardProvenanceJson, RecordEditionContextJson,
+    CreatureProvenanceJson, H8ProvenanceJson, HazardProvenanceJson, RecordEditionContextJson,
     RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson, RecordEditionStatusJson,
     RecordJson, RecordPresentationJson, SpellProvenanceJson,
 };
@@ -18,6 +18,8 @@ pub(super) struct RecordProvenanceData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hazard_provenance: Option<HazardProvenanceJson>,
     pub spell_provenance: Option<SpellProvenanceJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub h8_provenance: Option<H8ProvenanceJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub edition: Option<RecordEditionContextJson>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -110,6 +112,10 @@ pub(super) struct ReferenceProvenanceEdge {
     pub from_record_key: String,
     pub to_record_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_child_locator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_child_locator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub display_text: Option<String>,
     pub reference_text: String,
     pub source_kind: String,
@@ -128,6 +134,7 @@ pub(super) fn provenance_data(
         record_provenance: None,
         hazard_provenance: None,
         spell_provenance: None,
+        h8_provenance: None,
         edition: None,
         occurrences: Vec::new(),
         prepared_spells: Vec::new(),
@@ -151,6 +158,25 @@ pub(super) fn provenance_data(
         data.spell_provenance = spell.provenance.clone();
         data.edition = edition.clone();
         return data;
+    }
+    match &record.presentation {
+        RecordPresentationJson::Journal {
+            journal, edition, ..
+        } => {
+            data.h8_provenance = Some(journal.provenance.clone());
+            data.edition = edition.clone();
+            return data;
+        }
+        RecordPresentationJson::RollTable {
+            roll_table,
+            edition,
+            ..
+        } => {
+            data.h8_provenance = Some(roll_table.provenance.clone());
+            data.edition = edition.clone();
+            return data;
+        }
+        _ => {}
     }
     let RecordPresentationJson::Creature {
         strikes,
@@ -371,18 +397,26 @@ fn reference_provenance(graph: Option<&GraphContextResult>) -> ReferenceProvenan
         ("outgoing", &graph.outgoing),
         ("backlink", &graph.backlinks),
     ] {
-        references
-            .edges
-            .extend(section.edges.iter().map(|edge| ReferenceProvenanceEdge {
+        references.edges.extend(section.edges.iter().map(|edge| {
+            ReferenceProvenanceEdge {
                 direction,
                 from_record_key: edge.from.to_string(),
                 to_record_key: edge.to.to_string(),
+                source_child_locator: edge
+                    .source_child
+                    .as_ref()
+                    .map(atlas_record::encode_content_child_locator),
+                target_child_locator: edge
+                    .target_child
+                    .as_ref()
+                    .map(atlas_record::encode_content_child_locator),
                 display_text: edge.display_text.clone(),
                 reference_text: edge.reference_text.clone(),
                 source_kind: edge.source.kind.clone(),
                 visibility: edge.source.visibility.clone(),
                 relation_kind: edge.source.relation_kind.clone(),
-            }));
+            }
+        }));
     }
     references
 }
@@ -467,6 +501,16 @@ pub(super) fn render_provenance(data: &RecordProvenanceData) -> String {
                 provenance.unsupported_fields.len()
             ));
         }
+    }
+    if let Some(provenance) = &data.h8_provenance {
+        lines.extend([
+            String::new(),
+            "Journal/table provenance".to_string(),
+            format!("  Source path: {}", provenance.source_path),
+            format!("  Contract: {}", provenance.source_contract_version),
+            format!("  System: {}", provenance.source_system_version),
+            format!("  Upstream commit: {}", provenance.source_upstream_commit),
+        ]);
     }
     if let Some(provenance) = &data.spell_provenance {
         lines.extend([
@@ -696,6 +740,12 @@ pub(super) fn render_provenance(data: &RecordProvenanceData) -> String {
                 lines.push(format!("    Label: {label}"));
             }
             lines.push(format!("    Reference text: {}", row.reference_text));
+            if let Some(locator) = &row.source_child_locator {
+                lines.push(format!("    Source child: {locator}"));
+            }
+            if let Some(locator) = &row.target_child_locator {
+                lines.push(format!("    Target child: {locator}"));
+            }
             lines.push(format!("    Relation kind: {}", row.relation_kind));
             lines.push(format!("    Source kind: {}", row.source_kind));
             lines.push(format!("    Visibility: {}", row.visibility));
@@ -830,6 +880,7 @@ mod tests {
                 identity_diagnostics: Vec::new(),
             }),
             spell_provenance: None,
+            h8_provenance: None,
             edition: None,
             occurrences: Vec::new(),
             prepared_spells: Vec::new(),
@@ -958,6 +1009,8 @@ mod tests {
                 edges: vec![GraphContextEdge {
                     from: seed.record.identity.key.clone(),
                     to: RecordKey::parse("spells:Dream-Message").expect("target key"),
+                    source_child: None,
+                    target_child: None,
                     display_text: Some("Dream Message".into()),
                     reference_text: "@UUID[Compendium.spells.Dream-Message]".into(),
                     source: GraphContextEdgeSource {

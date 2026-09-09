@@ -4,7 +4,7 @@ use atlas_domain::RecordKey;
 use atlas_index::{
     GraphReferenceEdge, RecordLoadError, ReferenceEdgeDirection, ReferenceReadIndex,
 };
-use atlas_record::RetrievedRecord;
+use atlas_record::{ContentChildLocator, RetrievedRecord};
 
 use crate::{AtlasRetrievalService, SearchError};
 use crate::{GetRecordRequest, GetRecordsRequest, RecordRetrieval};
@@ -69,6 +69,8 @@ pub struct GraphContextSection {
 pub struct GraphContextEdge {
     pub from: RecordKey,
     pub to: RecordKey,
+    pub source_child: Option<ContentChildLocator>,
+    pub target_child: Option<ContentChildLocator>,
     pub display_text: Option<String>,
     pub reference_text: String,
     pub source: GraphContextEdgeSource,
@@ -230,6 +232,8 @@ fn sorted_unique_graph_edges(
         .map(|edge| GraphContextEdge {
             from: edge.from_record_key,
             to: edge.to_record_key,
+            source_child: edge.source_child,
+            target_child: edge.target_child,
             display_text: edge.display_text,
             reference_text: edge.reference_text,
             source: GraphContextEdgeSource {
@@ -249,6 +253,8 @@ fn sorted_unique_graph_edges(
             .then_with(|| left.from.cmp(&right.from))
             .then_with(|| left.to.cmp(&right.to))
             .then_with(|| left.source.cmp(&right.source))
+            .then_with(|| left.source_child.cmp(&right.source_child))
+            .then_with(|| left.target_child.cmp(&right.target_child))
     });
     edges.dedup();
     edges
@@ -268,7 +274,10 @@ fn graph_neighbor_key(edge: &GraphContextEdge, direction: ReferenceEdgeDirection
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atlas_record::{ContentSourceKind, ContentVisibility, ReferenceRelationKind};
+    use atlas_record::{
+        ContentChildIdentity, ContentChildKind, ContentChildLocator, ContentSourceKind,
+        ContentVisibility, ReferenceRelationKind, SourceDocumentId,
+    };
 
     fn key(value: &str) -> RecordKey {
         RecordKey::parse(value).expect("record key should parse")
@@ -288,6 +297,8 @@ mod tests {
             relation_kind: ReferenceRelationKind::Reference,
             source_kind: ContentSourceKind::Description,
             visibility: ContentVisibility::Public,
+            source_child: None,
+            target_child: None,
         }
     }
 
@@ -326,6 +337,33 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["z", "a", "b", "c"]
         );
+    }
+
+    #[test]
+    fn h8_sorted_unique_graph_edges_retains_and_orders_child_scoped_references() {
+        let child = |id: &str| ContentChildLocator {
+            parent: key("journals:seed"),
+            kind: ContentChildKind::JournalPage,
+            identity: ContentChildIdentity::Stable(
+                SourceDocumentId::new(id).expect("source document ID"),
+            ),
+        };
+        let mut second = edge(
+            "journals:seed",
+            "journals:target",
+            Some("Shared label"),
+            "same",
+        );
+        second.source_child = Some(child("page-b"));
+        let mut first = second.clone();
+        first.source_child = Some(child("page-a"));
+
+        let edges =
+            sorted_unique_graph_edges(vec![second, first], ReferenceEdgeDirection::Outgoing);
+
+        assert_eq!(edges.len(), 2);
+        assert_eq!(edges[0].source_child, Some(child("page-a")));
+        assert_eq!(edges[1].source_child, Some(child("page-b")));
     }
 
     #[test]

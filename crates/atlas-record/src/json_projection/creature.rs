@@ -1443,7 +1443,9 @@ fn content_json(
             ContentOwner::CreatureOccurrence(id) => CreatureContentOwnerJson::Occurrence {
                 occurrence_id: id.as_str().to_string(),
             },
-            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => return None,
+            ContentOwner::HazardEntity(_)
+            | ContentOwner::HazardOccurrence(_)
+            | ContentOwner::Child(_) => return None,
         },
         role: content_role(document.role),
         authored_order: document.authored_order,

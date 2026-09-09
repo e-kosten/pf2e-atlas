@@ -204,6 +204,24 @@ pub(super) struct CanonicalSpellRecordRow {
 }
 
 #[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_journal_records)]
+pub(super) struct CanonicalJournalRecordRow {
+    pub record_key: String,
+    pub source_id: String,
+    pub name: String,
+    pub canonical_json: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::canonical_roll_table_records)]
+pub(super) struct CanonicalRollTableRecordRow {
+    pub record_key: String,
+    pub source_id: String,
+    pub name: String,
+    pub canonical_json: String,
+}
+
+#[derive(Insertable)]
 #[diesel(table_name = crate::schema::canonical_hazard_entities)]
 pub(super) struct CanonicalHazardEntityRow {
     pub record_key: String,
@@ -374,6 +392,8 @@ pub(super) struct ReferenceEdgeRow {
     pub relation_kind: String,
     pub source_kind: String,
     pub visibility: String,
+    pub source_child_locator: String,
+    pub target_child_locator: String,
 }
 
 #[derive(Insertable)]

@@ -63,6 +63,19 @@ pub fn build_search_fts_projection(
     if let Some(spell) = canonical_spell {
         append_spell_content_fts(spell, &mut projection);
     }
+    if let Some(body) = canonical_body
+        && body.record_key() == &record.identity.key
+    {
+        match body {
+            RecordBody::Journal(journal) => {
+                append_h8_owned_content(&journal.content, &mut projection)
+            }
+            RecordBody::RollTable(table) => {
+                append_h8_owned_content(&table.content, &mut projection)
+            }
+            RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => {}
+        }
+    }
 
     projection
 }
@@ -88,10 +101,13 @@ pub fn build_search_presentation_document_with_content_filter(
     if let Some(spell) = canonical_spell_for_record(record, canonical_body) {
         return canonical_spell_search_document(spell);
     }
-    if matches!(canonical_body, Some(RecordBody::Spell(_))) {
+    if matches!(
+        canonical_body,
+        Some(RecordBody::Spell(_) | RecordBody::Journal(_) | RecordBody::RollTable(_))
+    ) {
         return RecordPresentationDocument {
             record_key: record.identity.key.clone(),
-            kind: atlas_domain::RecordKind::Spell,
+            kind: record.classification.kind,
             title: record.identity.name.clone(),
             identity: Vec::new(),
             badges: Vec::new(),
@@ -511,7 +527,11 @@ fn canonical_creature_for_record<'a>(
         RecordBody::Creature(creature) if creature.identity.record_key == record.identity.key => {
             Some(creature)
         }
-        RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+        RecordBody::Creature(_)
+        | RecordBody::Hazard(_)
+        | RecordBody::Spell(_)
+        | RecordBody::Journal(_)
+        | RecordBody::RollTable(_) => None,
     }
 }
 
@@ -523,7 +543,11 @@ fn canonical_hazard_for_record<'a>(
         RecordBody::Hazard(hazard) if hazard.identity.record_key == record.identity.key => {
             Some(hazard)
         }
-        RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+        RecordBody::Creature(_)
+        | RecordBody::Hazard(_)
+        | RecordBody::Spell(_)
+        | RecordBody::Journal(_)
+        | RecordBody::RollTable(_) => None,
     }
 }
 
@@ -536,7 +560,11 @@ fn append_structured_terms(
 ) {
     let generic_mechanics = (!matches!(
         record.classification.kind,
-        RecordKind::Creature | RecordKind::Hazard | RecordKind::Spell
+        RecordKind::Creature
+            | RecordKind::Hazard
+            | RecordKind::Spell
+            | RecordKind::Journal
+            | RecordKind::RollTable
     ))
     .then_some(&record.mechanics);
     let mut taxonomy = TermCollector::default();
@@ -741,6 +769,54 @@ fn append_hazard_owned_content(hazard: &HazardRecord, projection: &mut RecordFts
         for occurrence in &document.reference_occurrences {
             let target = match &occurrence.target {
                 RichLinkTarget::Record { key, name } => format!("{name}\n{key}"),
+                RichLinkTarget::RecordChild {
+                    key,
+                    name,
+                    child_label,
+                    ..
+                } => format!("{}\n{name}\n{key}", child_label.as_deref().unwrap_or("")),
+                RichLinkTarget::LocalContent { content_key, label } => {
+                    label.clone().unwrap_or_else(|| content_key.clone())
+                }
+                RichLinkTarget::External { target, label } => {
+                    label.clone().unwrap_or_else(|| target.clone())
+                }
+                RichLinkTarget::Unresolved {
+                    target,
+                    fallback_label,
+                } => format!("{fallback_label}\n{target}"),
+            };
+            append_text(&mut projection.references, &target);
+        }
+    }
+}
+
+fn append_h8_owned_content(
+    content: &crate::OwnedRichContent,
+    projection: &mut RecordFtsProjection,
+) {
+    let mut documents = content.documents.iter().collect::<Vec<_>>();
+    documents.sort_by_key(|document| (document.authored_order, document.id.content_key.as_str()));
+    for document in documents {
+        let rendered = crate::render_plain_text(&document.document);
+        let target = match document.source_kind.fts_field() {
+            crate::ContentFtsField::Body => &mut projection.body,
+            crate::ContentFtsField::Facts => &mut projection.facts,
+            crate::ContentFtsField::EmbeddedContent => &mut projection.embedded_content,
+        };
+        append_text(target, &rendered);
+        if let Some(label) = &document.label {
+            append_text(&mut projection.headings, label);
+        }
+        for occurrence in &document.reference_occurrences {
+            let target = match &occurrence.target {
+                RichLinkTarget::Record { key, name } => format!("{name}\n{key}"),
+                RichLinkTarget::RecordChild {
+                    key,
+                    name,
+                    child_label,
+                    ..
+                } => format!("{}\n{name}\n{key}", child_label.as_deref().unwrap_or("")),
                 RichLinkTarget::LocalContent { content_key, label } => {
                     label.clone().unwrap_or_else(|| content_key.clone())
                 }

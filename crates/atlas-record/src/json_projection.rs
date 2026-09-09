@@ -1,4 +1,5 @@
 mod creature;
+mod h8;
 mod hazard;
 mod spell;
 
@@ -24,6 +25,13 @@ pub use creature::{
     CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
     CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillAvailabilityJson,
     CreatureUnmodeledSkillJson, CreatureUseLimitJson,
+};
+pub use h8::{
+    H8ContentJson, H8FactJson, H8PageSourceMetadataJson, H8ProvenanceJson, H8SourceMetadataJson,
+    H8UnsupportedChildJson, H8UnsupportedFieldJson, H8UnsupportedValueJson, JournalJson,
+    JournalPageEntryJson, JournalPageJson, JournalPageTextJson, JournalPageTitleJson,
+    JournalPageVideoJson, RollTableJson, TableResultEntryJson, TableResultJson,
+    TableResultRangeJson,
 };
 pub use hazard::{
     HazardAvailabilityJson, HazardAvailabilityStateJson, HazardContentProvenanceJson,
@@ -366,6 +374,14 @@ impl RecordCanonicalRelationshipJson {
                 .clone()
                 .unwrap_or_else(|| edge.reference_text.clone()),
             target_record_key: target_record_key.to_string(),
+            source_child_locator: edge
+                .source_child
+                .as_ref()
+                .map(crate::encode_content_child_locator),
+            target_child_locator: edge
+                .target_child
+                .as_ref()
+                .map(crate::encode_content_child_locator),
             provenance: RecordRelationshipProvenanceJson {
                 from_record_key: edge.from_record_key.to_string(),
                 to_record_key: edge.to_record_key.to_string(),
@@ -401,6 +417,10 @@ pub struct RecordCanonicalRelationshipJson {
     pub kind: crate::ReferenceRelationKind,
     pub label: String,
     pub target_record_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_child_locator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_child_locator: Option<String>,
     #[serde(skip)]
     pub provenance: RecordRelationshipProvenanceJson,
 }
@@ -466,6 +486,18 @@ pub enum RecordJsonError {
     UnexpectedSpellBody {
         record_key: String,
     },
+    MissingJournalBody {
+        record_key: String,
+    },
+    UnexpectedJournalBody {
+        record_key: String,
+    },
+    MissingRollTableBody {
+        record_key: String,
+    },
+    UnexpectedRollTableBody {
+        record_key: String,
+    },
     EditionLookupSeedMismatch {
         record_key: String,
         record_remaster: bool,
@@ -500,6 +532,22 @@ impl std::fmt::Display for RecordJsonError {
             Self::UnexpectedSpellBody { record_key } => write!(
                 formatter,
                 "retrieved non-spell record `{record_key}` has an unexpected canonical spell body"
+            ),
+            Self::MissingJournalBody { record_key } => write!(
+                formatter,
+                "retrieved journal record `{record_key}` is missing its canonical journal body"
+            ),
+            Self::UnexpectedJournalBody { record_key } => write!(
+                formatter,
+                "retrieved non-journal record `{record_key}` has an unexpected canonical journal body"
+            ),
+            Self::MissingRollTableBody { record_key } => write!(
+                formatter,
+                "retrieved roll-table record `{record_key}` is missing its canonical roll-table body"
+            ),
+            Self::UnexpectedRollTableBody { record_key } => write!(
+                formatter,
+                "retrieved non-roll-table record `{record_key}` has an unexpected canonical roll-table body"
             ),
             Self::EditionLookupSeedMismatch {
                 record_key,
@@ -622,6 +670,20 @@ pub enum RecordPresentationJson {
     },
     Spell {
         spell: SpellJson,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        edition: Option<RecordEditionContextJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        record_relationships: Option<RecordRelationshipLookupJson>,
+    },
+    Journal {
+        journal: JournalJson,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        edition: Option<RecordEditionContextJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        record_relationships: Option<RecordRelationshipLookupJson>,
+    },
+    RollTable {
+        roll_table: RollTableJson,
         #[serde(skip_serializing_if = "Option::is_none")]
         edition: Option<RecordEditionContextJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -845,6 +907,42 @@ pub fn record_json_with_context(
         }
         (_, Some(RecordBody::Spell(_))) => {
             return Err(RecordJsonError::UnexpectedSpellBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (RecordKind::Journal, Some(RecordBody::Journal(journal))) => (
+            RecordPresentationJson::Journal {
+                journal: h8::journal(journal),
+                edition: Some(edition.context_for(record)?),
+                record_relationships: Some(relationships),
+            },
+            Vec::new(),
+        ),
+        (RecordKind::Journal, None) => {
+            return Err(RecordJsonError::MissingJournalBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (_, Some(RecordBody::Journal(_))) => {
+            return Err(RecordJsonError::UnexpectedJournalBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (RecordKind::RollTable, Some(RecordBody::RollTable(table))) => (
+            RecordPresentationJson::RollTable {
+                roll_table: h8::roll_table(table),
+                edition: Some(edition.context_for(record)?),
+                record_relationships: Some(relationships),
+            },
+            Vec::new(),
+        ),
+        (RecordKind::RollTable, None) => {
+            return Err(RecordJsonError::MissingRollTableBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (_, Some(RecordBody::RollTable(_))) => {
+            return Err(RecordJsonError::UnexpectedRollTableBody {
                 record_key: record.identity.key.to_string(),
             });
         }
@@ -1106,6 +1204,16 @@ fn unmigrated_registry(record: &AtlasRecord) -> Result<UnmigratedRegistryJson, R
                 record_key: record.identity.key.to_string(),
             });
         }
+        RecordKind::Journal => {
+            return Err(RecordJsonError::MissingJournalBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        RecordKind::RollTable => {
+            return Err(RecordJsonError::MissingRollTableBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
         RecordKind::Equipment => match record.foundry.record_type {
             FoundryRecordType::Weapon | FoundryRecordType::Ammo => ("weapon_or_ammunition", "H3"),
             FoundryRecordType::Armor | FoundryRecordType::Shield => ("armor_or_shield", "H4"),
@@ -1116,7 +1224,7 @@ fn unmigrated_registry(record: &AtlasRecord) -> Result<UnmigratedRegistryJson, R
         | RecordKind::Affliction
         | RecordKind::Rule
         | RecordKind::CharacterOption => ("rules_content", "H7"),
-        RecordKind::Lore | RecordKind::CampaignFeature => ("journal_or_table_content", "H8"),
+        RecordKind::Lore | RecordKind::CampaignFeature => ("remaining_lore_content", "H8"),
         RecordKind::Character | RecordKind::Companion | RecordKind::Army | RecordKind::Vehicle => {
             ("actor_family", "H9")
         }
@@ -1863,6 +1971,8 @@ mod tests {
             relation_kind: crate::ReferenceRelationKind::Reference,
             source_kind: ContentSourceKind::Description,
             visibility: ContentVisibility::Public,
+            source_child: None,
+            target_child: None,
         };
         let backlink = crate::ReferenceEdge {
             from_record_key: RecordKey::parse("creatures:caller").expect("caller key"),
@@ -1872,6 +1982,8 @@ mod tests {
             relation_kind: crate::ReferenceRelationKind::Embed,
             source_kind: ContentSourceKind::PublicNotes,
             visibility: ContentVisibility::GmOnly,
+            source_child: None,
+            target_child: None,
         };
         let verified = RecordRelationshipLookupJson::verified(
             &record_key,
@@ -1950,6 +2062,8 @@ mod tests {
             relation_kind: crate::ReferenceRelationKind::Reference,
             source_kind: ContentSourceKind::Description,
             visibility: ContentVisibility::Public,
+            source_child: None,
+            target_child: None,
         };
         let error = RecordRelationshipLookupJson::verified(
             &record_key,

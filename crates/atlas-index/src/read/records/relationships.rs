@@ -1,4 +1,4 @@
-use atlas_record::{RecordAlias, ReferenceEdge, RemasterLink};
+use atlas_record::{RecordAlias, ReferenceEdge, RemasterLink, decode_content_child_locator};
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
 use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
@@ -34,9 +34,23 @@ pub(super) fn read_reference_edges(
                 relation_kind: parse_reference_relation_kind(&row.relation_kind)?,
                 source_kind: parse_content_source_kind(&row.source_kind)?,
                 visibility: parse_content_visibility(&row.visibility)?,
+                source_child: parse_child_locator(&row.source_child_locator, "source")?,
+                target_child: parse_child_locator(&row.target_child_locator, "target")?,
             })
         })
         .collect()
+}
+
+fn parse_child_locator(
+    value: &str,
+    side: &str,
+) -> Result<Option<atlas_record::ContentChildLocator>, RecordLoadError> {
+    (!value.is_empty())
+        .then(|| decode_content_child_locator(value))
+        .transpose()
+        .map_err(|_| {
+            RecordLoadError::InvalidData(format!("invalid reference edge {side} child locator"))
+        })
 }
 
 pub(super) fn read_aliases(
@@ -101,6 +115,8 @@ struct ReferenceEdgeRow {
     relation_kind: String,
     source_kind: String,
     visibility: String,
+    source_child_locator: String,
+    target_child_locator: String,
 }
 
 #[derive(Debug, Queryable, Selectable)]

@@ -10,6 +10,7 @@ mod hazard_applicability;
 mod hazard_projection;
 #[cfg(test)]
 mod hazard_tests;
+mod journal;
 mod json_projection;
 mod mechanics;
 pub mod metrics;
@@ -118,6 +119,15 @@ pub use hazard_projection::{
     project_hazard_source_metadata, project_hazard_strike_action_cost,
     project_hazard_weapon_type_consistency,
 };
+pub use journal::{
+    ContentChildIdentity, ContentChildKind, ContentChildLocator, H8ExactSourceObject, H8Fact,
+    H8FieldValue, H8Identity, H8Number, H8PageSourceMetadata, H8Provenance, H8RecordSourceMetadata,
+    H8UnsupportedChild, H8UnsupportedField, InvalidH8Value, JournalPage, JournalPageEntry,
+    JournalPageKind, JournalPageText, JournalPageTitle, JournalPageVideo, JournalRecord,
+    MediaLocator, RollTableRecord, SourceDocumentId, TableResult, TableResultEntry,
+    TableResultKind, TableResultRange, TableResultSourceMetadata, TableResultTarget,
+    decode_content_child_locator, encode_content_child_locator,
+};
 pub use json_projection::{
     CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
     CreatureAvailabilityEvidenceJson, CreatureAvailabilityFieldJson, CreatureAvailabilityJson,
@@ -134,17 +144,20 @@ pub use json_projection::{
     CreatureSpellDefenseJson, CreatureSpellDurationJson, CreatureSpellJson,
     CreatureSpellRitualJson, CreatureSpellSlotJson, CreatureSpellcastingEntryJson,
     CreatureSpellcastingJson, CreatureStrikeJson, CreatureUnmodeledSkillAvailabilityJson,
-    CreatureUnmodeledSkillJson, CreatureUseLimitJson, HazardAvailabilityJson,
+    CreatureUnmodeledSkillJson, CreatureUseLimitJson, H8ContentJson, H8FactJson,
+    H8PageSourceMetadataJson, H8ProvenanceJson, H8SourceMetadataJson, H8UnsupportedChildJson,
+    H8UnsupportedFieldJson, H8UnsupportedValueJson, HazardAvailabilityJson,
     HazardAvailabilityStateJson, HazardContentProvenanceJson, HazardDefenseTerminalFact,
-    HazardOccurrenceProvenanceJson, HazardProvenanceJson, RecordBlockJson,
-    RecordCanonicalRelationshipJson, RecordEditionContextJson, RecordEditionCounterpartJson,
-    RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson, RecordEditionLookup,
-    RecordEditionLookupError, RecordEditionStatusJson, RecordFactJson,
-    RecordFactTerminalPresentation, RecordJson, RecordJsonBase, RecordJsonContext, RecordJsonError,
-    RecordJsonOptions, RecordPresentationJson, RecordRelationshipContextError,
-    RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
-    RecordRelationshipProvenanceJson, RecordSectionJson, SpellAreaJson, SpellCastingJson,
-    SpellClassificationJson, SpellContentJson, SpellDamageAlterationRuleJson,
+    HazardOccurrenceProvenanceJson, HazardProvenanceJson, JournalJson, JournalPageEntryJson,
+    JournalPageJson, JournalPageTextJson, JournalPageTitleJson, JournalPageVideoJson,
+    RecordBlockJson, RecordCanonicalRelationshipJson, RecordEditionContextJson,
+    RecordEditionCounterpartJson, RecordEditionCounterpartLookupJson,
+    RecordEditionCounterpartRoleJson, RecordEditionLookup, RecordEditionLookupError,
+    RecordEditionStatusJson, RecordFactJson, RecordFactTerminalPresentation, RecordJson,
+    RecordJsonBase, RecordJsonContext, RecordJsonError, RecordJsonOptions, RecordPresentationJson,
+    RecordRelationshipContextError, RecordRelationshipDirectionJson, RecordRelationshipLookupJson,
+    RecordRelationshipProvenanceJson, RecordSectionJson, RollTableJson, SpellAreaJson,
+    SpellCastingJson, SpellClassificationJson, SpellContentJson, SpellDamageAlterationRuleJson,
     SpellDamageDiceRuleJson, SpellDamageJson, SpellDamagePatchJson, SpellDamagePatchMemberJson,
     SpellDamagePatchOperationJson, SpellDamagePatchSetJson, SpellDefenseJson, SpellDurationJson,
     SpellEphemeralEffectRuleJson, SpellFactJson, SpellFixedHeighteningJson, SpellFormJson,
@@ -155,7 +168,8 @@ pub use json_projection::{
     SpellRuleJson, SpellRulePredicateJson, SpellRuleSuboptionJson, SpellSaveJson,
     SpellTargetingJson, SpellTextPatchMemberJson, SpellTextPatchOperationJson,
     SpellTextPatchSetJson, SpellUnsupportedFactJson, SpellUnsupportedValueJson,
-    UnmigratedRegistryJson, VerifiedRecordEditionLookup, record_json, record_json_with_context,
+    TableResultEntryJson, TableResultJson, TableResultRangeJson, UnmigratedRegistryJson,
+    VerifiedRecordEditionLookup, record_json, record_json_with_context,
 };
 pub use mechanics::{
     AbilityKind, CanonicalMechanicActivity, CanonicalMechanicsProjection, MechanicActivityFamily,

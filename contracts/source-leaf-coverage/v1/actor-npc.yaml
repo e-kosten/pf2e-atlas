@@ -17,9 +17,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc"
       entry_id: "actor-npc-top-level-ability-str-mod@4cbdaa37"
       record_count: 5492
       occurrence_count: 5492
@@ -55,9 +55,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc"
       entry_id: "actor-npc-top-level-ability-dex-mod@4cbdaa37"
       record_count: 5492
       occurrence_count: 5492
@@ -85,9 +85,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc"
       entry_id: "actor-npc-top-level-ability-con-mod@4cbdaa37"
       record_count: 5492
       occurrence_count: 5492
@@ -112,9 +112,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc"
       entry_id: "actor-npc-top-level-ability-int-mod@4cbdaa37"
       record_count: 5492
       occurrence_count: 5492
@@ -139,9 +139,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc"
       entry_id: "actor-npc-top-level-ability-wis-mod@4cbdaa37"
       record_count: 5492
       occurrence_count: 5492
@@ -170,9 +170,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc"
       entry_id: "actor-npc-top-level-ability-cha-mod@4cbdaa37"
       record_count: 5492
       occurrence_count: 5492
@@ -197,9 +197,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc"
       entry_id: "actor-npc-top-level-skills-base@4cbdaa37"
       record_count: 5492
       occurrence_count: 22296

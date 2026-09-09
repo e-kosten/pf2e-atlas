@@ -18,9 +18,9 @@ use super::models::{
     CanonicalConsumableSpellChildRow, CanonicalCreatureEntityRow, CanonicalCreatureOccurrenceRow,
     CanonicalCreatureRecordRow, CanonicalCreatureRelationshipRow, CanonicalCreatureResourceRow,
     CanonicalHazardEntityRow, CanonicalHazardOccurrenceRow, CanonicalHazardRecordRow,
-    CanonicalHazardRelationshipRow, CanonicalSpellRecordRow, RecordContentExclusionRow,
-    RecordContentRow, ReferenceOccurrenceRow, SpellDamageTypeRow, SpellRecordRow,
-    SpellTraditionRow,
+    CanonicalHazardRelationshipRow, CanonicalJournalRecordRow, CanonicalRollTableRecordRow,
+    CanonicalSpellRecordRow, RecordContentExclusionRow, RecordContentRow, ReferenceOccurrenceRow,
+    SpellDamageTypeRow, SpellRecordRow, SpellTraditionRow,
 };
 
 type HazardContentOwnerColumns = (&'static str, Option<String>, Option<String>, Option<String>);
@@ -44,6 +44,8 @@ pub(super) fn write_canonical_records(
     let mut exclusions = Vec::new();
     let mut references = Vec::new();
     let mut spell_records = Vec::new();
+    let mut journal_records = Vec::new();
+    let mut roll_table_records = Vec::new();
     let mut spell_children_rows = Vec::new();
     let mut spell_query_rows = Vec::new();
     let mut spell_traditions = Vec::new();
@@ -458,6 +460,26 @@ pub(super) fn write_canonical_records(
                     }
                 }));
             }
+            RecordBody::Journal(journal) => {
+                let record_key = journal.identity.record_key.to_string();
+                journal_records.push(CanonicalJournalRecordRow {
+                    record_key: record_key.clone(),
+                    source_id: journal.identity.source_id.as_str().to_string(),
+                    name: journal.identity.name.clone(),
+                    canonical_json: encode(body).map_err(IndexWriteError::WriteFailed)?,
+                });
+                append_h8_content(&record_key, &journal.content, &mut content, &mut references)?;
+            }
+            RecordBody::RollTable(table) => {
+                let record_key = table.identity.record_key.to_string();
+                roll_table_records.push(CanonicalRollTableRecordRow {
+                    record_key: record_key.clone(),
+                    source_id: table.identity.source_id.as_str().to_string(),
+                    name: table.identity.name.clone(),
+                    canonical_json: encode(body).map_err(IndexWriteError::WriteFailed)?,
+                });
+                append_h8_content(&record_key, &table.content, &mut content, &mut references)?;
+            }
         }
     }
 
@@ -556,6 +578,14 @@ pub(super) fn write_canonical_records(
         hazard_relationships
     );
     insert_rows!(crate::schema::canonical_spell_records::table, spell_records);
+    insert_rows!(
+        crate::schema::canonical_journal_records::table,
+        journal_records
+    );
+    insert_rows!(
+        crate::schema::canonical_roll_table_records::table,
+        roll_table_records
+    );
     insert_rows!(crate::schema::spell_records::table, spell_query_rows);
     insert_rows!(crate::schema::spell_traditions::table, spell_traditions);
     insert_rows!(crate::schema::spell_damage_types::table, spell_damage_types);
@@ -636,6 +666,94 @@ fn append_spell_content(
                     .map_err(IndexWriteError::WriteFailed)?,
                 target_kind: target_kind(&occurrence.target).to_string(),
                 target_record_key: target_record(&occurrence.target),
+                target_json: serde_json::to_string(&occurrence.target)
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
+                label: occurrence.label.clone(),
+                relation_kind: occurrence.relation_kind.as_str().to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn append_h8_content(
+    record_key: &str,
+    owned: &atlas_record::OwnedRichContent,
+    content: &mut Vec<RecordContentRow>,
+    references: &mut Vec<ReferenceOccurrenceRow>,
+) -> Result<(), IndexWriteError> {
+    for document in &owned.documents {
+        if document.id.parent_record_key.to_string() != record_key {
+            return Err(IndexWriteError::WriteFailed(format!(
+                "H8 content `{}` does not belong to record `{record_key}`",
+                document.id.content_key.as_str()
+            )));
+        }
+        let (owner_kind, owner_record_key) = match &document.owner {
+            ContentOwner::Record(key) if key.to_string() == record_key => {
+                ("record", Some(record_key.to_string()))
+            }
+            ContentOwner::Child(locator) if locator.parent.to_string() == record_key => {
+                ("child", Some(record_key.to_string()))
+            }
+            _ => {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "H8 content `{}` has an invalid family owner",
+                    document.id.content_key.as_str()
+                )));
+            }
+        };
+        content.push(RecordContentRow {
+            record_key: record_key.to_string(),
+            content_key: document.id.content_key.as_str().to_string(),
+            authored_order: i64::from(document.authored_order),
+            identity_stability: content_stability(document.identity_stability).to_string(),
+            owner_kind: owner_kind.to_string(),
+            owner_record_key: owner_record_key.clone(),
+            owner_entity_id: None,
+            owner_occurrence_id: None,
+            owner_occurrence_authored_order: None,
+            owner_hazard_entity_id: None,
+            owner_hazard_occurrence_id: None,
+            owner_hazard_occurrence_authored_order: None,
+            role: content_role(document.role).to_string(),
+            origin_json: encode(&document.origin).map_err(IndexWriteError::WriteFailed)?,
+            visibility: document.visibility.as_str().to_string(),
+            provenance_json: encode(&document.provenance).map_err(IndexWriteError::WriteFailed)?,
+            source_kind: document.source_kind.as_str().to_string(),
+            contributes_to_search: document.source_kind.default_contributes_to_search(),
+            contributes_to_references: document
+                .source_kind
+                .default_contributes_to_reference_occurrences(),
+            label: document.label.clone(),
+            content_json: encode(&document.document).map_err(IndexWriteError::WriteFailed)?,
+            content_hash: document.content_hash.as_str().to_string(),
+            duplicate_status_json: encode(&document.duplicate_status)
+                .map_err(IndexWriteError::WriteFailed)?,
+            diagnostics_json: encode(&document.diagnostics)
+                .map_err(IndexWriteError::WriteFailed)?,
+        });
+        for occurrence in &document.reference_occurrences {
+            references.push(ReferenceOccurrenceRow {
+                record_key: record_key.to_string(),
+                content_key: document.id.content_key.as_str().to_string(),
+                content_authored_order: i64::from(document.authored_order),
+                occurrence_ordinal: i64::from(occurrence.ordinal),
+                owner_kind: owner_kind.to_string(),
+                owner_record_key: owner_record_key.clone(),
+                owner_entity_id: None,
+                owner_occurrence_id: None,
+                owner_occurrence_authored_order: None,
+                owner_hazard_entity_id: None,
+                owner_hazard_occurrence_id: None,
+                owner_hazard_occurrence_authored_order: None,
+                role: content_role(occurrence.role).to_string(),
+                origin_json: encode(&occurrence.origin).map_err(IndexWriteError::WriteFailed)?,
+                visibility: occurrence.visibility.as_str().to_string(),
+                provenance_json: encode(&occurrence.provenance)
+                    .map_err(IndexWriteError::WriteFailed)?,
+                target_kind: target_kind(&occurrence.target).to_string(),
+                target_record_key: occurrence.target.record_key().map(ToString::to_string),
                 target_json: serde_json::to_string(&occurrence.target)
                     .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
                 label: occurrence.label.clone(),
@@ -769,11 +887,11 @@ fn hazard_content_owner(
             None,
             Some(id.as_str().to_string()),
         )),
-        ContentOwner::CreatureEntity(_) | ContentOwner::CreatureOccurrence(_) => {
-            Err(IndexWriteError::WriteFailed(format!(
-                "hazard record `{record_key}` has a cross-family creature content owner"
-            )))
-        }
+        ContentOwner::CreatureEntity(_)
+        | ContentOwner::CreatureOccurrence(_)
+        | ContentOwner::Child(_) => Err(IndexWriteError::WriteFailed(format!(
+            "hazard record `{record_key}` has a cross-family creature content owner"
+        ))),
     }
 }
 
@@ -875,12 +993,14 @@ fn content_owner(
             None,
             Some(id.as_str().to_string()),
         ),
+        ContentOwner::Child(locator) => ("child", Some(locator.parent.to_string()), None, None),
     }
 }
 
 fn target_kind(target: &RichLinkTarget) -> &'static str {
     match target {
         RichLinkTarget::Record { .. } => "record",
+        RichLinkTarget::RecordChild { .. } => "record_child",
         RichLinkTarget::LocalContent { .. } => "local_content",
         RichLinkTarget::External { .. } => "external",
         RichLinkTarget::Unresolved { .. } => "unresolved",

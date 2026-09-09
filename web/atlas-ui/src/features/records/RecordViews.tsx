@@ -25,7 +25,12 @@ const RECORD_VIEW_WIDTH_SPECS = {
 };
 
 export function RecordView({ route }: RecordViewProps) {
-  const detail = useRecordDetail(route.recordKey);
+  const detail = useRecordDetail(
+    route.recordKey,
+    undefined,
+    undefined,
+    route.childLocator ? { child_locator: route.childLocator } : undefined,
+  );
   return (
     <RecordViewLayout
       primary={
@@ -52,8 +57,8 @@ export function RecordView({ route }: RecordViewProps) {
             detail={detail.data}
             errors={[detail.error]}
             loading={detail.isLoading}
-            onReference={(recordKey) =>
-              navigateToAtlasRoute({ kind: "record", recordKey })
+            onReference={(recordKey, childLocator) =>
+              navigateToAtlasRoute({ kind: "record", recordKey, childLocator })
             }
             stale={detail.isFetching && Boolean(detail.data)}
           />

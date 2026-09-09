@@ -58,11 +58,27 @@ impl AtlasAppService {
             AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
         })?;
         let RecordDetailRequest {
+            child_locator,
             spell_form_id,
             spell_cast_rank,
             reference_outgoing_limit,
             reference_backlink_limit,
         } = request;
+        let child_locator = child_locator
+            .map(|value| {
+                atlas_record::decode_content_child_locator(&value).map_err(|_| {
+                    AppServiceError::invalid_request("child_locator is not a valid opaque locator")
+                })
+            })
+            .transpose()?;
+        if child_locator
+            .as_ref()
+            .is_some_and(|locator| locator.parent != record_key)
+        {
+            return Err(AppServiceError::invalid_request(
+                "child_locator does not belong to the requested parent record",
+            ));
+        }
         let spell_selection = match (spell_form_id, spell_cast_rank) {
             (None, None) => None,
             (Some(form_id), Some(cast_rank)) => Some((
@@ -98,6 +114,44 @@ impl AtlasAppService {
                 return Err(AppServiceError::invalid_request(
                     "spell form selection is only available for spell records",
                 ));
+            }
+            if let Some(locator) = child_locator.as_ref() {
+                let belongs = match &record.body {
+                    Some(atlas_record::RecordBody::Journal(journal)) => journal
+                        .pages
+                        .as_value()
+                        .and_then(atlas_record::H8FieldValue::known)
+                        .is_some_and(|pages| {
+                            pages.iter().any(|page| match page {
+                                atlas_record::JournalPageEntry::Page(page) => {
+                                    &page.locator == locator
+                                }
+                                atlas_record::JournalPageEntry::Unsupported(page) => {
+                                    &page.locator == locator
+                                }
+                            })
+                        }),
+                    Some(atlas_record::RecordBody::RollTable(table)) => table
+                        .results
+                        .as_value()
+                        .and_then(atlas_record::H8FieldValue::known)
+                        .is_some_and(|results| {
+                            results.iter().any(|result| match result {
+                                atlas_record::TableResultEntry::Result(result) => {
+                                    &result.locator == locator
+                                }
+                                atlas_record::TableResultEntry::Unsupported(result) => {
+                                    &result.locator == locator
+                                }
+                            })
+                        }),
+                    _ => false,
+                };
+                if !belongs {
+                    return Err(AppServiceError::invalid_request(
+                        "child_locator does not identify a child of this record",
+                    ));
+                }
             }
             let remaster_lookup = verified_remaster_lookup(retrieval, &record)?;
             let mut detail = record_detail(&record, spell_selection, &remaster_lookup)?;
@@ -136,6 +190,11 @@ mod tests {
         AppErrorCode, HazardSurfaceProvenanceTextView, HazardSurfaceRuleView, RecordDetailRequest,
         RecordSurfaceEditionStatusView, RecordSurfacePresentationView, RecordSurfaceProfileView,
         RecordSurfaceReferenceSectionView, SurfaceUnavailableReasonView,
+    };
+    use atlas_domain::RecordKey;
+    use atlas_record::{
+        ContentChildIdentity, ContentChildKind, ContentChildLocator, SourceDocumentId,
+        encode_content_child_locator,
     };
 
     use crate::test_support::encounter_fixture_worker;
@@ -357,5 +416,52 @@ mod tests {
             .expect_err("spell selection should be rejected for non-spell records")
             .into_app_error();
         assert_eq!(non_spell.code, AppErrorCode::InvalidRequest);
+
+        let malformed_child = worker
+            .record_detail(
+                "actions:testAction1",
+                RecordDetailRequest {
+                    child_locator: Some("not-an-opaque-child-locator".to_string()),
+                    ..RecordDetailRequest::default()
+                },
+            )
+            .expect_err("malformed child locators should fail before retrieval")
+            .into_app_error();
+        assert_eq!(malformed_child.code, AppErrorCode::InvalidRequest);
+
+        let child_id = SourceDocumentId::new("page-id").expect("child source ID");
+        let wrong_parent = encode_content_child_locator(&ContentChildLocator {
+            parent: RecordKey::parse("journals:other").expect("other parent key"),
+            kind: ContentChildKind::JournalPage,
+            identity: ContentChildIdentity::Stable(child_id.clone()),
+        });
+        let wrong_parent = worker
+            .record_detail(
+                "actions:testAction1",
+                RecordDetailRequest {
+                    child_locator: Some(wrong_parent),
+                    ..RecordDetailRequest::default()
+                },
+            )
+            .expect_err("a child locator must bind the requested parent")
+            .into_app_error();
+        assert_eq!(wrong_parent.code, AppErrorCode::InvalidRequest);
+
+        let non_child = encode_content_child_locator(&ContentChildLocator {
+            parent: RecordKey::parse("actions:testAction1").expect("fixture parent key"),
+            kind: ContentChildKind::JournalPage,
+            identity: ContentChildIdentity::Stable(child_id),
+        });
+        let non_child = worker
+            .record_detail(
+                "actions:testAction1",
+                RecordDetailRequest {
+                    child_locator: Some(non_child),
+                    ..RecordDetailRequest::default()
+                },
+            )
+            .expect_err("a locator must identify a child owned by the loaded record")
+            .into_app_error();
+        assert_eq!(non_child.code, AppErrorCode::InvalidRequest);
     }
 }

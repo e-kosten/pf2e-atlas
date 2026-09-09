@@ -2,7 +2,7 @@ schema_version: pf2e-source-leaf-prevalence/v1
 source_contract_version: pf2e-serialized-source/v1
 source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
 source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
 entries:
   - entry_id: "actor-npc-top-level-ability-str-mod@4cbdaa37"
     type_id: "actor--npc--top-level--root--root--root"
@@ -3269,3 +3269,388 @@ entries:
     normalized_path: $.type
     record_count: 190
     occurrence_count: 10
+  - entry_id: "journal-entry--id@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$._id"
+    record_count: 113
+    occurrence_count: 113
+  - entry_id: "journal-entry-name@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.name"
+    record_count: 113
+    occurrence_count: 113
+  - entry_id: "journal-entry-ownership-default@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.ownership.default"
+    record_count: 113
+    occurrence_count: 113
+  - entry_id: "journal-entry-page-pages-id@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[]._id"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-flags-core-sourceid@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].flags.core.sourceId"
+    record_count: 113
+    occurrence_count: 16
+  - entry_id: "journal-entry-page-pages-image@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].image"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-name@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].name"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-sort@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].sort"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-src@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].src"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-system@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].system"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-text-content@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].text.content"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-text-format@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].text.format"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-text-markdown@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].text.markdown"
+    record_count: 113
+    occurrence_count: 79
+  - entry_id: "journal-entry-page-pages-title-level@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].title.level"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-title-show@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].title.show"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-type@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].type"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-video-controls@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].video.controls"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "journal-entry-page-pages-video-volume@4cbdaa37"
+    type_id: "journalentry--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "JournalEntry"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.pages[].video.volume"
+    record_count: 113
+    occurrence_count: 587
+  - entry_id: "roll-table--id@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$._id"
+    record_count: 69
+    occurrence_count: 69
+  - entry_id: "roll-table-description@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.description"
+    record_count: 69
+    occurrence_count: 69
+  - entry_id: "roll-table-displayroll@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.displayRoll"
+    record_count: 69
+    occurrence_count: 69
+  - entry_id: "roll-table-formula@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.formula"
+    record_count: 69
+    occurrence_count: 69
+  - entry_id: "roll-table-img@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.img"
+    record_count: 69
+    occurrence_count: 69
+  - entry_id: "roll-table-name@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.name"
+    record_count: 69
+    occurrence_count: 69
+  - entry_id: "roll-table-ownership-default@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.ownership.default"
+    record_count: 69
+    occurrence_count: 69
+  - entry_id: "roll-table-replacement@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.replacement"
+    record_count: 69
+    occurrence_count: 69
+  - entry_id: "table-result-results-id@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[]._id"
+    record_count: 69
+    occurrence_count: 1465
+  - entry_id: "table-result-results-documentcollection@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[].documentCollection"
+    record_count: 69
+    occurrence_count: 1393
+  - entry_id: "table-result-results-documentid@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[].documentId"
+    record_count: 69
+    occurrence_count: 1465
+  - entry_id: "table-result-results-drawn@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[].drawn"
+    record_count: 69
+    occurrence_count: 1465
+  - entry_id: "table-result-results-img@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[].img"
+    record_count: 69
+    occurrence_count: 1465
+  - entry_id: "table-result-results-range@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[].range[]"
+    record_count: 69
+    occurrence_count: 2930
+  - entry_id: "table-result-results-text@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[].text"
+    record_count: 69
+    occurrence_count: 1465
+  - entry_id: "table-result-results-type@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[].type"
+    record_count: 69
+    occurrence_count: 1465
+  - entry_id: "table-result-results-weight@4cbdaa37"
+    type_id: "rolltable--root--top-level--root--root--root"
+    selector:
+      source_contract_version: "pf2e-serialized-source/v1"
+      document_class: "RollTable"
+      type_discriminator: "*"
+      role: "top_level"
+      parent_context: {}
+    normalized_path: "$.results[].weight"
+    record_count: 69
+    occurrence_count: 1465
