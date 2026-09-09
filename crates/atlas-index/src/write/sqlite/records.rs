@@ -38,6 +38,11 @@ pub(super) fn write_records(
     let mut fts_rows = Vec::new();
     for record in records {
         let record_key = record.identity.key.to_string();
+        let consumable_set = consumable_occurrence_sets.iter().find(|set| {
+            set.occurrences
+                .first()
+                .is_some_and(|occurrence| occurrence.owner_record_key == record.identity.key)
+        });
         let projected_metrics;
         let expected_foundry_type = match record.classification.kind {
             atlas_domain::RecordKind::Creature => Some(atlas_record::FoundryRecordType::Npc),
@@ -234,6 +239,14 @@ pub(super) fn write_records(
             atlas_record::RecordVisibilityReason::GeneratedInstance => "generated_instance",
         };
         record_rows.push(RecordRow {
+            consumable_entity_count: to_i64(
+                consumable_set.map_or(0, |set| set.entities.len()),
+                "records.consumable_entity_count",
+            )?,
+            consumable_occurrence_count: to_i64(
+                consumable_set.map_or(0, |set| set.occurrences.len()),
+                "records.consumable_occurrence_count",
+            )?,
             record_key: record.identity.key.to_string(),
             id: record.identity.id().as_str().to_string(),
             name: record.identity.name.clone(),
@@ -428,6 +441,7 @@ pub(super) fn write_records(
                 canonical_bodies_by_key
                     .get(&record.identity.key.to_string())
                     .copied(),
+                consumable_set,
             );
             fts_rows.push(RecordsFtsRow {
                 record_key: record.identity.key.to_string(),
@@ -539,7 +553,11 @@ pub(super) fn legacy_content_ordinals<'a>(
         .iter()
         .flat_map(|set| &set.occurrences)
         .filter(|occurrence| occurrence.owner_record_key == record.identity.key)
-        .flat_map(|occurrence| &occurrence.authored_content.documents)
+        .flat_map(|occurrence| {
+            occurrence
+                .owned_content()
+                .flat_map(|content| &content.documents)
+        })
         .map(|document| document.authored_order as usize)
         .collect::<std::collections::BTreeSet<_>>();
     let mut ordinal = 0;

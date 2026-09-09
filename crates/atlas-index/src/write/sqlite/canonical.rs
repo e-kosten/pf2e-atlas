@@ -759,7 +759,10 @@ fn append_consumable_occurrence_content(
     references: &mut Vec<ReferenceOccurrenceRow>,
 ) -> Result<(), IndexWriteError> {
     let record_key = occurrence.owner_record_key.to_string();
-    for document in &occurrence.authored_content.documents {
+    for document in occurrence
+        .owned_content()
+        .flat_map(|content| &content.documents)
+    {
         if document.id.parent_record_key != occurrence.owner_record_key
             || document.owner != ContentOwner::ConsumableOccurrence(occurrence.id.clone())
         {
@@ -789,7 +792,7 @@ fn append_consumable_occurrence_content(
             visibility: document.visibility.as_str().to_string(),
             provenance_json: encode(&document.provenance).map_err(IndexWriteError::WriteFailed)?,
             source_kind: document.source_kind.as_str().to_string(),
-            contributes_to_search: document.source_kind.default_contributes_to_search(),
+            contributes_to_search: document.visibility == atlas_record::ContentVisibility::Public,
             contributes_to_references: document
                 .source_kind
                 .default_contributes_to_reference_occurrences(),
@@ -831,7 +834,10 @@ fn append_consumable_occurrence_content(
             });
         }
     }
-    if !occurrence.authored_content.exclusions.is_empty() {
+    if occurrence
+        .owned_content()
+        .any(|content| !content.exclusions.is_empty())
+    {
         return Err(IndexWriteError::WriteFailed(format!(
             "consumable occurrence `{}` has unpersisted content exclusions",
             occurrence.id.as_str()

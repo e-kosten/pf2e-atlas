@@ -290,6 +290,7 @@ dependencies = [
  "atlas-record",
  "atlas-search",
  "axum",
+ "rusqlite",
  "rust-embed",
  "serde_json",
  "sha2",

@@ -527,7 +527,7 @@ pub(crate) fn finalize_consumable_occurrences(
             {
                 *identity = content_identity.map_or(FactValue::Missing, FactValue::Value);
             }
-            let spell_reuse = compare_spell_child(
+            let mut spell_reuse = compare_spell_child(
                 &candidate,
                 &owner_key,
                 loaded,
@@ -535,6 +535,22 @@ pub(crate) fn finalize_consumable_occurrences(
                 &targets,
                 index,
             )?;
+            if let ConsumableSpellReuse::Mismatch {
+                local_evidence: ConsumableLocalSpellEvidence::Child(child),
+                ..
+            } = &mut spell_reuse
+            {
+                for document in &mut child.definition.content.documents {
+                    document.owner = ContentOwner::ConsumableOccurrence(occurrence_id.clone());
+                    document.origin = ContentOrigin::ConsumableEmbeddedField {
+                        nested_source_id: document.provenance.nested_source_id.clone(),
+                        relative_source_path: document.provenance.field_or_pointer_family.clone(),
+                    };
+                    // A retained local mismatch is not a reused canonical target document.
+                    document.duplicate_status = DuplicateContentStatus::Unique;
+                    document.refresh_derived_state();
+                }
+            }
             loaded
                 .facts
                 .consumable_occurrences

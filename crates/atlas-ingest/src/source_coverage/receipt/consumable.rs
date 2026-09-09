@@ -742,11 +742,13 @@ fn capture_leaf(
             &baseline.hydrated.record,
             &[],
             baseline.hydrated.body.as_ref(),
+            Some(&baseline.hydrated.consumable_occurrences),
         );
         let after = atlas_record::build_search_fts_projection(
             &mutation.hydrated.record,
             &[],
             mutation.hydrated.body.as_ref(),
+            Some(&mutation.hydrated.consumable_occurrences),
         );
         if before != after {
             return Err(error(

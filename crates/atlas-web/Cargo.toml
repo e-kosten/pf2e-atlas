@@ -21,4 +21,5 @@ atlas-ingest.workspace = true
 atlas-domain.workspace = true
 atlas-record.workspace = true
 sha2.workspace = true
+rusqlite.workspace = true
 tower = { version = "0.5.2", features = ["util"] }

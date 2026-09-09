@@ -4272,10 +4272,12 @@ mod tests {
                 &record.record,
                 &[],
                 record.body.as_ref(),
+                None,
             );
             let search = atlas_record::build_search_presentation_document_with_content_filter(
                 &record.record,
                 record.body.as_ref(),
+                None,
                 |_| false,
             );
             let embedding = atlas_embedding::render_presentation_document_for_embedding(&search);
@@ -4961,10 +4963,12 @@ mod tests {
                     &record.record,
                     &[],
                     record.body.as_ref(),
+                    None,
                 );
                 let search = atlas_record::build_search_presentation_document_with_content_filter(
                     &record.record,
                     record.body.as_ref(),
+                    None,
                     |_| false,
                 );
                 let embedding =

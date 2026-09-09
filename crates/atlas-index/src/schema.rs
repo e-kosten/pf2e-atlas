@@ -70,6 +70,8 @@ diesel::table! {
         record_role -> Text,
         retrieval_disposition -> Text,
         retrieval_rationale -> Text,
+        consumable_entity_count -> BigInt,
+        consumable_occurrence_count -> BigInt,
     }
 }
 

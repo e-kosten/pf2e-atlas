@@ -293,6 +293,7 @@ fn consumables_round_trip_as_standalone_and_actor_attachments()
     let search_presentation = build_search_presentation_document_with_content_filter(
         &standalone.record,
         standalone.body.as_ref(),
+        None,
         |_| true,
     );
     assert_eq!(search_presentation.title, "Canonical Dose");
@@ -1921,6 +1922,104 @@ fn source_state_mutations_do_not_enter_persisted_consumable_queries_or_fts()
                 before.consumable_occurrences.occurrences[0].state,
                 after.consumable_occurrences.occurrences[0].state,
                 "writer and reader retain changed occurrence state"
+            );
+        }
+    }
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn consumable_parent_counts_reject_total_attachment_deletion_and_preserve_empty_sets()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("h5-parent-set-anchor");
+    fs::create_dir_all(root.join("packs/actors"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{"packs":[{"name":"actors","label":"Actors","type":"Actor","path":"packs/actors"}]}"#,
+    )?;
+    for family in ["npc", "character", "hazard"] {
+        fs::write(
+            root.join(format!("packs/actors/{family}.json")),
+            actor_with_consumable(family, family, "dose", 1),
+        )?;
+        fs::write(
+            root.join(format!("packs/actors/{family}-empty.json")),
+            serde_json::to_vec(
+                &serde_json::json!({"_id":format!("{family}empty"),"name":"Empty actor","type":family,"system":{},"items":[]}),
+            )?,
+        )?;
+    }
+    let artifact = root.join("index.sqlite");
+    build_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: artifact.clone(),
+        manifest_path: None,
+        embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+        embedding_cache_root: None,
+        reuse_embeddings: true,
+        embedding_batch_size: 8,
+    })?;
+    let reader = SqliteIndexReader::open_read_only(&artifact)?;
+    for family in ["npc", "character", "hazard"] {
+        let empty = RecordKey::parse(&format!("actors:{family}empty"))?;
+        assert!(
+            reader.load_hydrated_records_by_key(&[empty])?[0]
+                .consumable_occurrences
+                .occurrences
+                .is_empty()
+        );
+        let key = RecordKey::parse(&format!("actors:{family}"))?;
+        assert_eq!(
+            reader.load_hydrated_records_by_key(std::slice::from_ref(&key))?[0]
+                .consumable_occurrences
+                .occurrences
+                .len(),
+            1
+        );
+        let broken = root.join(format!("deleted-{family}.sqlite"));
+        fs::copy(&artifact, &broken)?;
+        let connection = Connection::open(&broken)?;
+        connection.execute_batch("PRAGMA foreign_keys=OFF")?;
+        for table in ["reference_occurrences", "record_content"] {
+            connection.execute(
+                &format!(
+                    "DELETE FROM {table} WHERE record_key=?1 AND owner_kind='consumable_occurrence'"
+                ),
+                [key.to_string()],
+            )?;
+        }
+        for table in [
+            "canonical_consumable_occurrences",
+            "canonical_consumable_entities",
+        ] {
+            connection.execute(
+                &format!("DELETE FROM {table} WHERE owner_record_key=?1"),
+                [key.to_string()],
+            )?;
+        }
+        drop(connection);
+        atlas_index::test_support::write_bound_test_manifest(&broken)?;
+        let broken_reader = SqliteIndexReader::open_read_only(&broken)?;
+        let structural = broken_reader.validate()?;
+        assert_eq!(structural.status, ValidationStatus::Error);
+        assert!(
+            structural.diagnostics.iter().any(|diagnostic| {
+                diagnostic.key.as_deref()
+                    == Some("canonical_consumable_occurrences.parent_count_anchor")
+            }),
+            "{family}: {structural:?}"
+        );
+        for result in [
+            broken_reader.load_hydrated_records_by_key(std::slice::from_ref(&key)),
+            broken_reader.load_hydrated_records(),
+        ] {
+            let error = result
+                .expect_err("complete attachment deletion is corruption")
+                .to_string();
+            assert!(
+                error.contains("consumable attachment parent counts"),
+                "{family}: {error}"
             );
         }
     }

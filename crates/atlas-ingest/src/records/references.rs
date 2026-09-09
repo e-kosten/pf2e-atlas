@@ -54,8 +54,11 @@ pub(crate) fn resolve_reference_edges(records: &[LoadedSourceRecord]) -> Vec<Ref
     let mut references = Vec::new();
     for loaded in records {
         let record = &loaded.record;
-        let documents =
+        let mut documents =
             owned_content_documents(loaded).unwrap_or_else(|| record_content_documents(record));
+        for occurrence in &loaded.facts.consumable_occurrences.occurrences {
+            documents.extend(occurrence.owned_content().flat_map(owned_documents));
+        }
         for (source_kind, visibility, document) in documents {
             collect_document_reference_edges(
                 record,
@@ -144,7 +147,10 @@ pub(crate) fn resolve_content_references(
         }
 
         for occurrence in &mut loaded.facts.consumable_occurrences.occurrences {
-            for document in &mut occurrence.authored_content.documents {
+            for document in occurrence
+                .owned_content_mut()
+                .flat_map(|content| &mut content.documents)
+            {
                 resolve_document_references(&mut document.document, index);
                 document.refresh_derived_state();
             }
@@ -170,7 +176,11 @@ pub(crate) fn resolve_content_references(
     for document in records
         .iter_mut()
         .flat_map(|loaded| &mut loaded.facts.consumable_occurrences.occurrences)
-        .flat_map(|occurrence| &mut occurrence.authored_content.documents)
+        .flat_map(|occurrence| {
+            occurrence
+                .owned_content_mut()
+                .flat_map(|content| &mut content.documents)
+        })
     {
         if let DuplicateContentStatus::CopiedFromConsumableTarget {
             target_record_key,

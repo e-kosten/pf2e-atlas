@@ -1,3 +1,7 @@
+-- Parent-owned counts distinguish authentic empty attachments from total child-row loss.
+ALTER TABLE records ADD COLUMN consumable_entity_count INTEGER NOT NULL DEFAULT 0 CHECK (consumable_entity_count >= 0);
+ALTER TABLE records ADD COLUMN consumable_occurrence_count INTEGER NOT NULL DEFAULT 0 CHECK (consumable_occurrence_count >= 0);
+
 CREATE TABLE canonical_consumable_records (
   record_key TEXT PRIMARY KEY,
   source_id TEXT NOT NULL,

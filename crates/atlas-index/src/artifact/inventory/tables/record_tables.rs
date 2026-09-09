@@ -56,6 +56,9 @@ pub mod records {
         pub const IS_DEFAULT_VISIBLE: Column = Column::new(TABLE, "is_default_visible");
         pub const VISIBILITY_STATE: Column = Column::new(TABLE, "visibility_state");
         pub const VISIBILITY_REASON: Column = Column::new(TABLE, "visibility_reason");
+        pub const CONSUMABLE_ENTITY_COUNT: Column = Column::new(TABLE, "consumable_entity_count");
+        pub const CONSUMABLE_OCCURRENCE_COUNT: Column =
+            Column::new(TABLE, "consumable_occurrence_count");
         pub const METRIC_COUNT: Column = Column::new(TABLE, "metric_count");
         pub const METRIC_ORDER_SHA256: Column = Column::new(TABLE, "metric_order_sha256");
         pub const RAW_JSON: Column = Column::new(TABLE, "raw_json");
@@ -111,6 +114,8 @@ pub mod records {
         columns::IS_DEFAULT_VISIBLE,
         columns::VISIBILITY_STATE,
         columns::VISIBILITY_REASON,
+        columns::CONSUMABLE_ENTITY_COUNT,
+        columns::CONSUMABLE_OCCURRENCE_COUNT,
         columns::METRIC_COUNT,
         columns::METRIC_ORDER_SHA256,
         columns::RAW_JSON,
