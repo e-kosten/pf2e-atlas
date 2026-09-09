@@ -31,6 +31,17 @@ describe("atlas routes", () => {
     history.replaceState(null, "", "/records/spell%3Aheal");
     expect(currentAtlasRoute()).toEqual({ kind: "record", recordKey: "spell:heal" });
 
+    history.replaceState(
+      null,
+      "",
+      "/records/journal%3Ahero-points?child=v1%7Ej%7Es%7E706172656e74%7E70616765",
+    );
+    expect(currentAtlasRoute()).toEqual({
+      kind: "record",
+      recordKey: "journal:hero-points",
+      childLocator: "v1~j~s~706172656e74~70616765",
+    });
+
     history.replaceState(null, "", "/presentation-mocks");
     expect(currentAtlasRoute()).toEqual({ kind: "presentationMocks" });
 
@@ -96,6 +107,13 @@ describe("atlas routes", () => {
     expect(atlasRoutePath({ kind: "record", recordKey: "spell:heal" })).toBe(
       "/records/spell%3Aheal",
     );
+    expect(
+      atlasRoutePath({
+        kind: "record",
+        recordKey: "journal:hero-points",
+        childLocator: "v1~j~s~706172656e74~70616765",
+      }),
+    ).toBe("/records/journal%3Ahero-points?child=v1~j~s~706172656e74~70616765");
     expect(atlasRoutePath({ kind: "search", selectedRecordKey: "spell:heal" })).toBe(
       "/search/records/spell%3Aheal",
     );

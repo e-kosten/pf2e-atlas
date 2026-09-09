@@ -3,7 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::artifact::inventory::{Column, reference_edges};
 use crate::read::sql::SqlBindValue;
 use atlas_domain::RecordKey;
-use atlas_record::{ContentSourceKind, ContentVisibility, ReferenceRelationKind};
+use atlas_record::{
+    ContentChildLocator, ContentSourceKind, ContentVisibility, ReferenceRelationKind,
+    decode_content_child_locator,
+};
 use diesel::sql_types::{Nullable, Text};
 use diesel::{QueryableByName, RunQueryDsl, SqliteConnection};
 
@@ -27,6 +30,8 @@ pub struct GraphReferenceEdge {
     pub relation_kind: ReferenceRelationKind,
     pub source_kind: ContentSourceKind,
     pub visibility: ContentVisibility,
+    pub source_child: Option<ContentChildLocator>,
+    pub target_child: Option<ContentChildLocator>,
 }
 
 impl SqliteIndexReader {
@@ -75,10 +80,13 @@ pub(crate) fn read_reference_edges_for_seed(
            {relation_kind},
            {source_kind},
            {visibility}
+           , {source_child_locator}
+           , {target_child_locator}
          FROM {table} {alias}
          WHERE {key_column} = ?1
            AND {default_predicate}
-         ORDER BY COALESCE({display_text}, ''), {order_column}, {reference_text}",
+         ORDER BY COALESCE({display_text}, ''), {order_column}, {reference_text},
+           {source_child_locator}, {target_child_locator}",
         table = reference_edges::TABLE.name(),
         from_record_key =
             aliased_reference_column(alias, reference_edges::columns::FROM_RECORD_KEY),
@@ -88,6 +96,10 @@ pub(crate) fn read_reference_edges_for_seed(
         relation_kind = aliased_reference_column(alias, reference_edges::columns::RELATION_KIND),
         source_kind = aliased_reference_column(alias, reference_edges::columns::SOURCE_KIND),
         visibility = aliased_reference_column(alias, reference_edges::columns::VISIBILITY),
+        source_child_locator =
+            aliased_reference_column(alias, reference_edges::columns::SOURCE_CHILD_LOCATOR,),
+        target_child_locator =
+            aliased_reference_column(alias, reference_edges::columns::TARGET_CHILD_LOCATOR,),
         key_column = aliased_reference_column(alias, key_column),
         order_column = aliased_reference_column(alias, order_column),
         default_predicate = default_reference_edge_sql_predicate(alias),
@@ -127,9 +139,18 @@ pub(crate) fn read_reference_edges_for_seed(
                         ))
                     },
                 )?,
+                source_child: parse_child_locator(&row.source_child_locator)?,
+                target_child: parse_child_locator(&row.target_child_locator)?,
             })
         })
         .collect()
+}
+
+fn parse_child_locator(value: &str) -> Result<Option<ContentChildLocator>, RecordLoadError> {
+    (!value.is_empty())
+        .then(|| decode_content_child_locator(value))
+        .transpose()
+        .map_err(|_| RecordLoadError::InvalidData("invalid reference child locator".to_string()))
 }
 
 fn aliased_reference_column(alias: &str, column: Column) -> String {
@@ -201,6 +222,10 @@ struct ReferenceEdgeRow {
     source_kind: String,
     #[diesel(sql_type = Text)]
     visibility: String,
+    #[diesel(sql_type = Text)]
+    source_child_locator: String,
+    #[diesel(sql_type = Text)]
+    target_child_locator: String,
 }
 
 #[derive(QueryableByName)]

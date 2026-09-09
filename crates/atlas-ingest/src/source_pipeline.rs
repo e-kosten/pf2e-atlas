@@ -173,12 +173,26 @@ pub(crate) fn load_foundry_source(
         (
             left.from_record_key.to_string(),
             left.to_record_key.to_string(),
+            left.source_child
+                .as_ref()
+                .map(atlas_record::encode_content_child_locator),
+            left.target_child
+                .as_ref()
+                .map(atlas_record::encode_content_child_locator),
             left.reference_text.as_str(),
             left.source_kind.as_str(),
         )
             .cmp(&(
                 right.from_record_key.to_string(),
                 right.to_record_key.to_string(),
+                right
+                    .source_child
+                    .as_ref()
+                    .map(atlas_record::encode_content_child_locator),
+                right
+                    .target_child
+                    .as_ref()
+                    .map(atlas_record::encode_content_child_locator),
                 right.reference_text.as_str(),
                 right.source_kind.as_str(),
             ))
@@ -186,6 +200,8 @@ pub(crate) fn load_foundry_source(
     source.references.dedup_by(|left, right| {
         left.from_record_key == right.from_record_key
             && left.to_record_key == right.to_record_key
+            && left.source_child == right.source_child
+            && left.target_child == right.target_child
             && left.reference_text == right.reference_text
             && left.source_kind == right.source_kind
     });

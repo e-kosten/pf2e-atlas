@@ -1,0 +1,114 @@
+contract_version: atlas-source-leaf-coverage/v1
+type_id: journalentry--root--top-level--root--root--root
+source_pin:
+  upstream_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+  source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+selector:
+  source_contract_version: pf2e-serialized-source/v1
+  document_class: JournalEntry
+  type_discriminator: "*"
+  role: top_level
+  parent_context: {}
+leaves:
+- normalized_path: $._id
+  leaf_kind: scalar
+  expected_shapes: [string]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    entry_id: journal-entry--id@4cbdaa37
+    record_count: 113
+    occurrence_count: 113
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [journal-entry--id]}
+  fixtures:
+    - {case_id: journal-entry--id, record_key: journals:vx5FGEG34AxI2dow, source_path: packs/journals/archetypes.json, source_file_digest: sha256:0f2f656d8f9e9996de48b60906f9c26b8d5c5d129a0ce4fedb1025943b33ec08, excerpt_digest: sha256:cc033e86043e71f8e50e2a2531450d063abca77c1535ac77805692dfa0376ce1, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($._id)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($._id)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($._id)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($._id)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($._id)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: promoted, rationale: "this semantic text or record identity contributes to the parent record search surface"}
+    cli: {disposition: promoted, rationale: "ordinary terminal detail presents this typed fact without raw-source fallback"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.name
+  leaf_kind: scalar
+  expected_shapes: [string]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    entry_id: journal-entry-name@4cbdaa37
+    record_count: 113
+    occurrence_count: 113
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [journal-entry-name]}
+  fixtures:
+    - {case_id: journal-entry-name, record_key: journals:vx5FGEG34AxI2dow, source_path: packs/journals/archetypes.json, source_file_digest: sha256:0f2f656d8f9e9996de48b60906f9c26b8d5c5d129a0ce4fedb1025943b33ec08, excerpt_digest: sha256:1388e2c4f5d1a76bec3f5b5fb1af2c0932674e6d0b5090768084d6d01fa62fee, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.name)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.name)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.name)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.name)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.name)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: promoted, rationale: "this semantic text or record identity contributes to the parent record search surface"}
+    cli: {disposition: promoted, rationale: "ordinary terminal detail presents this typed fact without raw-source fallback"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: promoted, rationale: "the parent or child UI uses this typed fact without client reconstruction"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review
+- normalized_path: $.ownership.default
+  leaf_kind: scalar
+  expected_shapes: [number]
+  source_prevalence:
+    source_contract_version: pf2e-serialized-source/v1
+    source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+    source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
+    registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
+    inventory_version: pf2e-source-leaf-prevalence/v1
+    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    entry_id: journal-entry-ownership-default@4cbdaa37
+    record_count: 113
+    occurrence_count: 113
+  fixture_prevalence: {record_count: 1, occurrence_count: 1}
+  disposition: promoted
+  reader: {reader_id: source::dto::parse_h8_source, parity_case_ids: [journal-entry-ownership-default]}
+  fixtures:
+    - {case_id: journal-entry-ownership-default, record_key: journals:vx5FGEG34AxI2dow, source_path: packs/journals/archetypes.json, source_file_digest: sha256:0f2f656d8f9e9996de48b60906f9c26b8d5c5d129a0ce4fedb1025943b33ec08, excerpt_digest: sha256:5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9, provenance: pinned_source}
+  final_owners:
+    - {stage: source_dto, destination: "H8 source DTO typed owner ($.ownership.default)"}
+    - {stage: canonical, destination: "RecordBody H8 typed owner ($.ownership.default)"}
+    - {stage: post_projection, destination: "IndexBuildInput.canonical_bodies H8 typed owner ($.ownership.default)"}
+    - {stage: artifact_hydration, destination: "RetrievedRecord.body H8 typed owner ($.ownership.default)"}
+    - {stage: public_surface, destination: "RecordJson H8 typed owner ($.ownership.default)"}
+  surfaces:
+    artifact: {disposition: promoted, rationale: "canonical H8 storage and hydration retain the exact typed fact and source state"}
+    search: {disposition: not_applicable, rationale: "this fact is not search input and H8 search returns only the parent record"}
+    cli: {disposition: not_applicable, rationale: "ordinary terminal output does not expose this source or provenance-only fact"}
+    app: {disposition: promoted, rationale: "the H8 application DTO retains the exact typed fact and source state"}
+    ui: {disposition: not_applicable, rationale: "ordinary UI does not expose this source or provenance-only fact"}
+    runtime: {disposition: not_applicable, rationale: "H8 has no roll, script, media, or encounter execution"}
+  rationale: "The exact H8 source leaf is read from the shared ordered source tree and retained by its typed canonical parent or child owner."
+  owner: atlas-ingest::source::h8
+  acceptance_checkpoint: H8 implementation independent review

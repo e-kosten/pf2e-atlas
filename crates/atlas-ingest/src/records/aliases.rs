@@ -16,7 +16,7 @@ use migrations::migration_rename_pairs;
 use remaster_journal::expand_grouped_alias_text;
 
 use crate::records::references::{record_by_key, reference_pack_and_locator, resolve_record_key};
-use crate::records::{JournalPageFact, LoadedSourceRecord, RecordReferenceIndex};
+use crate::records::{LoadedSourceRecord, RecordReferenceIndex};
 use crate::source::normalize::normalize_text;
 
 pub(crate) fn resolve_record_aliases(
@@ -29,11 +29,13 @@ pub(crate) fn resolve_record_aliases(
         let record = &loaded.record;
         if record.foundry.document_type == FoundryDocumentType::JournalEntry
             && record.identity.normalized_name() == "remaster changes"
+            && let Some(journal) = loaded
+                .facts
+                .canonical_body
+                .as_ref()
+                .and_then(atlas_record::RecordBody::as_journal)
         {
-            aliases.extend(extract_remaster_journal_aliases(
-                &loaded.facts.source_facts.journal_pages,
-                index,
-            ));
+            aliases.extend(extract_remaster_journal_aliases(journal, index));
         }
         aliases.extend(extract_compendium_source_aliases(loaded, index));
     }
@@ -43,11 +45,11 @@ pub(crate) fn resolve_record_aliases(
 }
 
 fn extract_remaster_journal_aliases(
-    pages: &[JournalPageFact],
+    journal: &atlas_record::JournalRecord,
     index: &RecordReferenceIndex,
 ) -> Vec<RecordAlias> {
     let mut aliases = Vec::new();
-    for change in extract_remaster_journal_changes(pages, index) {
+    for change in extract_remaster_journal_changes(journal, index) {
         add_record_alias(
             &mut aliases,
             &change.remaster_record_key,
@@ -231,10 +233,14 @@ pub(crate) fn resolve_remaster_links(
             continue;
         }
 
-        links.extend(extract_remaster_journal_links(
-            &loaded.facts.source_facts.journal_pages,
-            index,
-        ));
+        if let Some(journal) = loaded
+            .facts
+            .canonical_body
+            .as_ref()
+            .and_then(atlas_record::RecordBody::as_journal)
+        {
+            links.extend(extract_remaster_journal_links(journal, index));
+        }
     }
 
     links.extend(extract_migration_remaster_links(source_root, index));
@@ -242,11 +248,11 @@ pub(crate) fn resolve_remaster_links(
 }
 
 fn extract_remaster_journal_links(
-    pages: &[JournalPageFact],
+    journal: &atlas_record::JournalRecord,
     index: &RecordReferenceIndex,
 ) -> Vec<RemasterLink> {
     let mut links = Vec::new();
-    for change in extract_remaster_journal_changes(pages, index) {
+    for change in extract_remaster_journal_changes(journal, index) {
         add_remaster_link(
             &mut links,
             &change.remaster_record_key,

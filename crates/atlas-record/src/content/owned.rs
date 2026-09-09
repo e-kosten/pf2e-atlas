@@ -6,8 +6,8 @@ use super::{
     iter_foundry_links, render_plain_text,
 };
 use crate::{
-    CreatureEntityFamily, CreatureEntityId, CreatureOccurrenceId, HazardEntityFamily,
-    HazardEntityId, HazardOccurrenceId,
+    ContentChildLocator, CreatureEntityFamily, CreatureEntityId, CreatureOccurrenceId,
+    HazardEntityFamily, HazardEntityId, HazardOccurrenceId,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -79,6 +79,7 @@ pub enum ContentOwner {
     CreatureOccurrence(CreatureOccurrenceId),
     HazardEntity(HazardEntityId),
     HazardOccurrence(HazardOccurrenceId),
+    Child(ContentChildLocator),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -107,6 +108,10 @@ pub enum ContentOrigin {
     HazardEmbeddedEntityField {
         family: HazardEntityFamily,
         nested_source_id: Option<String>,
+        relative_source_path: String,
+    },
+    ChildField {
+        locator: ContentChildLocator,
         relative_source_path: String,
     },
     Generated {
@@ -338,6 +343,18 @@ fn hash_link(hasher: &mut Sha256, link: &super::FoundryLink) {
             hash_str(hasher, "record");
             hash_str(hasher, &key.to_string());
             hash_str(hasher, name);
+        }
+        RichLinkTarget::RecordChild {
+            key,
+            name,
+            locator,
+            child_label,
+        } => {
+            hash_str(hasher, "record_child");
+            hash_str(hasher, &key.to_string());
+            hash_str(hasher, name);
+            hash_str(hasher, &crate::encode_content_child_locator(locator));
+            hash_optional_str(hasher, child_label.as_deref());
         }
         RichLinkTarget::LocalContent { content_key, label } => {
             hash_str(hasher, "local_content");

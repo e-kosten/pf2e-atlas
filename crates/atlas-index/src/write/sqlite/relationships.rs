@@ -25,6 +25,16 @@ pub(super) fn write_reference_edges(
             relation_kind: reference.relation_kind.as_str().to_string(),
             source_kind: reference.source_kind.as_str().to_string(),
             visibility: reference.visibility.as_str().to_string(),
+            source_child_locator: reference
+                .source_child
+                .as_ref()
+                .map(atlas_record::encode_content_child_locator)
+                .unwrap_or_default(),
+            target_child_locator: reference
+                .target_child
+                .as_ref()
+                .map(atlas_record::encode_content_child_locator)
+                .unwrap_or_default(),
         })
         .collect::<Vec<_>>();
     for rows in rows.chunks(super::INSERT_BATCH_ROWS) {
@@ -202,7 +212,9 @@ fn foundry_link_display_text(link: &FoundryLink) -> Option<String> {
         .map(|label| render_plain_text(&RichDocument::new(label.clone())))
         .filter(|label| !label.trim().is_empty())
         .or_else(|| match &link.target {
-            RichLinkTarget::Record { name, .. } => Some(name.clone()),
+            RichLinkTarget::Record { name, .. } | RichLinkTarget::RecordChild { name, .. } => {
+                Some(name.clone())
+            }
             RichLinkTarget::LocalContent { label, .. } | RichLinkTarget::External { label, .. } => {
                 label.clone()
             }

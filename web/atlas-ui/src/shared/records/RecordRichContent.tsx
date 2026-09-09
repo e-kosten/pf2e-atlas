@@ -7,7 +7,7 @@ import type {
 } from "../../generated/atlas";
 import { useRecordPreviewRenderer } from "./RecordPreviewContext";
 
-export type ReferenceHandler = (recordKey: string) => void;
+export type ReferenceHandler = (recordKey: string, childLocator?: string) => void;
 
 export function RichContent({
   compact = false,
@@ -149,6 +149,7 @@ function RichInline({
           label={span.label}
           onReference={onReference}
           recordKey={span.record_key}
+          childLocator={span.child_locator}
         />
       );
     case "check":
@@ -159,15 +160,18 @@ function RichInline({
 }
 
 export function RecordReference({
+  childLocator,
   label,
   onReference,
   recordKey,
 }: {
+  childLocator?: string;
   label: string;
   onReference: ReferenceHandler;
   recordKey: string | undefined;
 }) {
-  const renderPreview = useRecordPreviewRenderer();
+  const previewRenderer = useRecordPreviewRenderer();
+  const renderPreview = childLocator ? undefined : previewRenderer;
   if (!recordKey) {
     return <span>{label}</span>;
   }
@@ -175,13 +179,17 @@ export function RecordReference({
     <Typography.Link
       aria-expanded={renderPreview ? open : undefined}
       aria-haspopup={renderPreview ? "dialog" : undefined}
-      href={`/records/${encodeURIComponent(recordKey)}`}
+      href={`/records/${encodeURIComponent(recordKey)}${childLocator ? `?child=${encodeURIComponent(childLocator)}` : ""}`}
       onClick={
         renderPreview
           ? undefined
           : (event) => {
               event.preventDefault();
-              onReference(recordKey);
+              if (childLocator) {
+                onReference(recordKey, childLocator);
+              } else {
+                onReference(recordKey);
+              }
             }
       }
     >

@@ -472,14 +472,20 @@ fn record_surface_foundry_text(node: &FoundryNode) -> String {
 }
 
 fn reference_inline(link: &FoundryLink) -> PresentationInline {
+    let (record_key, child_locator) = match &link.target {
+        RichLinkTarget::Record { key, .. } => (Some(key.clone()), None),
+        RichLinkTarget::RecordChild { key, locator, .. } => (
+            Some(key.clone()),
+            Some(crate::encode_content_child_locator(locator)),
+        ),
+        RichLinkTarget::LocalContent { .. }
+        | RichLinkTarget::External { .. }
+        | RichLinkTarget::Unresolved { .. } => (None, None),
+    };
     PresentationInline::Reference {
         label: link_display_text(link),
-        record_key: match &link.target {
-            RichLinkTarget::Record { key, .. } => Some(key.clone()),
-            RichLinkTarget::LocalContent { .. }
-            | RichLinkTarget::External { .. }
-            | RichLinkTarget::Unresolved { .. } => None,
-        },
+        record_key,
+        child_locator,
         embedded: matches!(link.behavior, FoundryLinkBehavior::Embed { .. }),
     }
 }
@@ -768,6 +774,7 @@ mod tests {
             PresentationInline::Reference {
                 label,
                 record_key: Some(record_key),
+                child_locator: None,
                 embedded: false,
             } if label == "Treat Wounds" && record_key == &target_key
         )));
@@ -776,6 +783,7 @@ mod tests {
             PresentationInline::Reference {
                 label,
                 record_key: Some(record_key),
+                child_locator: None,
                 embedded: true,
             } if label == "embedded treatment" && record_key == &target_key
         )));

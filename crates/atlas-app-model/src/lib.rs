@@ -4,6 +4,7 @@ mod encounter;
 mod encounter_runtime;
 mod error;
 mod filter;
+mod h8_surface;
 mod hazard_surface;
 mod json_integer;
 mod list;
@@ -41,6 +42,7 @@ pub use filter::{
     FilterValueListView, FilterValueOption, MetricComparison, ReferenceSearchDirection,
     RelationshipConstraint,
 };
+pub use h8_surface::*;
 pub use hazard_surface::*;
 pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,

@@ -7,6 +7,7 @@ use crate::content::{
     ContentSourceKind, ContentVisibility, RecordContentDocument, ReferenceRelationKind,
     RichDocument,
 };
+use crate::journal::ContentChildLocator;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AtlasRecord {
@@ -573,6 +574,8 @@ pub struct ReferenceEdge {
     pub relation_kind: ReferenceRelationKind,
     pub source_kind: ContentSourceKind,
     pub visibility: ContentVisibility,
+    pub source_child: Option<ContentChildLocator>,
+    pub target_child: Option<ContentChildLocator>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

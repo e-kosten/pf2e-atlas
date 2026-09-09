@@ -75,6 +75,12 @@ pub enum RichLinkTarget {
         key: RecordKey,
         name: String,
     },
+    RecordChild {
+        key: RecordKey,
+        name: String,
+        locator: crate::ContentChildLocator,
+        child_label: Option<String>,
+    },
     LocalContent {
         content_key: String,
         label: Option<String>,
@@ -92,14 +98,14 @@ pub enum RichLinkTarget {
 impl RichLinkTarget {
     pub fn record_key(&self) -> Option<&RecordKey> {
         match self {
-            Self::Record { key, .. } => Some(key),
+            Self::Record { key, .. } | Self::RecordChild { key, .. } => Some(key),
             Self::LocalContent { .. } | Self::External { .. } | Self::Unresolved { .. } => None,
         }
     }
 
     pub fn display_name(&self) -> Option<&str> {
         match self {
-            Self::Record { name, .. } => Some(name),
+            Self::Record { name, .. } | Self::RecordChild { name, .. } => Some(name),
             Self::LocalContent { label, .. } | Self::External { label, .. } => label.as_deref(),
             Self::Unresolved { fallback_label, .. } => Some(fallback_label),
         }
@@ -260,6 +266,8 @@ pub enum ContentSourceKind {
     EmbeddedGmDescription,
     EmbeddedSpellDescription,
     GeneratedAffliction,
+    JournalPage,
+    TableResult,
 }
 
 impl ContentSourceKind {
@@ -279,6 +287,8 @@ impl ContentSourceKind {
             Self::EmbeddedGmDescription => "embedded_gm_description",
             Self::EmbeddedSpellDescription => "embedded_spell_description",
             Self::GeneratedAffliction => "generated_affliction",
+            Self::JournalPage => "journal_page",
+            Self::TableResult => "table_result",
         }
     }
 
@@ -298,6 +308,8 @@ impl ContentSourceKind {
             "embedded_gm_description" => Some(Self::EmbeddedGmDescription),
             "embedded_spell_description" => Some(Self::EmbeddedSpellDescription),
             "generated_affliction" => Some(Self::GeneratedAffliction),
+            "journal_page" => Some(Self::JournalPage),
+            "table_result" => Some(Self::TableResult),
             _ => None,
         }
     }
@@ -311,11 +323,16 @@ impl ContentSourceKind {
     }
 
     pub const fn contributes_to_default_retrieval(self) -> bool {
-        !self.is_embedded()
+        !matches!(
+            self,
+            Self::EmbeddedItemDescription
+                | Self::EmbeddedGmDescription
+                | Self::EmbeddedSpellDescription
+        )
     }
 
     pub const fn contributes_to_default_backlinks(self) -> bool {
-        !self.is_embedded()
+        self.contributes_to_default_retrieval()
     }
 
     pub const fn fts_field(self) -> ContentFtsField {
@@ -325,7 +342,9 @@ impl ContentSourceKind {
             }
             Self::EmbeddedItemDescription
             | Self::EmbeddedGmDescription
-            | Self::EmbeddedSpellDescription => ContentFtsField::EmbeddedContent,
+            | Self::EmbeddedSpellDescription
+            | Self::JournalPage
+            | Self::TableResult => ContentFtsField::EmbeddedContent,
             _ => ContentFtsField::Body,
         }
     }
@@ -344,6 +363,8 @@ impl ContentSourceKind {
             Self::EmbeddedItemDescription
                 | Self::EmbeddedGmDescription
                 | Self::EmbeddedSpellDescription
+                | Self::JournalPage
+                | Self::TableResult
         )
     }
 }

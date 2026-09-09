@@ -112,6 +112,26 @@ pub(crate) fn record_surface(
             SurfaceUnavailableReasonView::RecordUnavailable,
             "Canonical spell data is unavailable, so the surface fails closed.",
         ),
+        (atlas_domain::RecordKind::Journal, Some(RecordBody::Journal(journal))) => {
+            RecordSurfacePresentationView::Journal {
+                body: Box::new(crate::h8_surface::journal_surface(journal)),
+            }
+        }
+        (atlas_domain::RecordKind::Journal, _) => unavailable_presentation(
+            &metadata.kind,
+            SurfaceUnavailableReasonView::RecordUnavailable,
+            "Canonical journal data is unavailable, so the surface fails closed.",
+        ),
+        (atlas_domain::RecordKind::RollTable, Some(RecordBody::RollTable(table))) => {
+            RecordSurfacePresentationView::RollTable {
+                body: Box::new(crate::h8_surface::roll_table_surface(table)),
+            }
+        }
+        (atlas_domain::RecordKind::RollTable, _) => unavailable_presentation(
+            &metadata.kind,
+            SurfaceUnavailableReasonView::RecordUnavailable,
+            "Canonical roll-table data is unavailable, so the surface fails closed.",
+        ),
         _ => unavailable_presentation(
             &metadata.kind,
             SurfaceUnavailableReasonView::RecordFamilyNotMigrated,
@@ -233,6 +253,16 @@ fn record_metadata(
             &spell.definition.provenance.source_contract_version,
             &spell.definition.provenance.source_system_version,
             &spell.definition.provenance.source_upstream_commit,
+        ),
+        RecordBody::Journal(journal) => (
+            &journal.provenance.source_contract_version,
+            &journal.provenance.source_system_version,
+            &journal.provenance.source_upstream_commit,
+        ),
+        RecordBody::RollTable(table) => (
+            &table.provenance.source_contract_version,
+            &table.provenance.source_system_version,
+            &table.provenance.source_upstream_commit,
         ),
     });
     RecordSurfaceMetadataView {
@@ -3500,10 +3530,12 @@ fn project_content_inline(span: PresentationInline) -> CreatureSurfaceContentInl
         PresentationInline::Reference {
             label,
             record_key,
+            child_locator,
             embedded,
         } => CreatureSurfaceContentInlineView::Reference {
             label,
             record_key: record_key.map(|key| key.to_string()),
+            child_locator,
             embedded,
         },
         PresentationInline::Check {

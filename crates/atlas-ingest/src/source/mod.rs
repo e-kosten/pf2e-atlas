@@ -1,4 +1,7 @@
 pub(crate) mod dto;
+pub(crate) mod h8;
+#[cfg(test)]
+mod h8_tests;
 pub(crate) mod hazard_core;
 #[cfg(test)]
 mod hazard_core_tests;

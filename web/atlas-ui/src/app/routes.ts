@@ -18,7 +18,7 @@ export type AtlasRoute =
   | { kind: "lists" }
   | { kind: "list"; slug: string; selectedRecordKey: string | null }
   | { kind: "listEdit"; slug: string }
-  | { kind: "record"; recordKey: string }
+  | { kind: "record"; recordKey: string; childLocator?: string | null }
   | { kind: "reader"; recordKey: string; previewRecordKey: string | null };
 
 export const ATLAS_ROUTE_CHANGE_EVENT = "atlas-route-change";
@@ -34,7 +34,11 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
 
   const record = pathname.match(/^\/records\/(.+)$/);
   if (record) {
-    return { kind: "record", recordKey: decodeURIComponent(record[1]) };
+    const recordKey = decodeURIComponent(record[1]);
+    const childLocator = new URLSearchParams(search).get("child");
+    return childLocator
+      ? { kind: "record", recordKey, childLocator }
+      : { kind: "record", recordKey };
   }
 
   if (pathname === "/presentation-mocks") {
@@ -132,7 +136,7 @@ export function atlasRoutePath(route: AtlasRoute): string {
     case "listEdit":
       return listEditPath(route.slug);
     case "record":
-      return recordPath(route.recordKey);
+      return recordPath(route.recordKey, route.childLocator);
     case "reader": {
       const path = readerPath(route.recordKey);
       return route.previewRecordKey === null
@@ -195,8 +199,9 @@ export function listEditPath(slug: string): string {
   return `/lists/${encodeURIComponent(slug)}/edit`;
 }
 
-export function recordPath(recordKey: string): string {
-  return `/records/${encodeURIComponent(recordKey)}`;
+export function recordPath(recordKey: string, childLocator?: string | null): string {
+  const path = `/records/${encodeURIComponent(recordKey)}`;
+  return childLocator ? `${path}?child=${encodeURIComponent(childLocator)}` : path;
 }
 
 export function readerPath(recordKey: string): string {

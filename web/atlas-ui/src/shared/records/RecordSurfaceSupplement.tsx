@@ -130,7 +130,7 @@ export function RecordSurfaceReferences({
   loading?: boolean;
   onDisclosureOpen?: () => void;
   onRequestLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
   references: RecordSurfaceReferences | undefined;
 }) {
   if (!references && !onDisclosureOpen) return null;
@@ -190,7 +190,7 @@ function ReferenceDirection({
   recordKey?: string;
   direction: "backlinks" | "outgoing";
   onRequestLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
   section: RecordSurfaceReferenceSection | undefined;
   title: string;
 }) {
@@ -300,6 +300,11 @@ function ReferenceDirection({
         <ul className="record-surface-references__list">
           {section.records.map((record) => (
             <ReferenceRecord
+              childLocator={referenceChildLocator(
+                section,
+                direction,
+                record.record_key,
+              )}
               key={record.record_key}
               onReference={onReference}
               record={record}
@@ -314,22 +319,48 @@ function ReferenceDirection({
 }
 
 function ReferenceRecord({
+  childLocator,
   onReference,
   record,
 }: {
-  onReference: (recordKey: string) => void;
+  childLocator?: string;
+  onReference: (recordKey: string, childLocator?: string) => void;
   record: RecordSurfaceReferenceRecord;
 }) {
   return (
     <li>
       <div className="record-surface-references__record">
-        <Button onClick={() => onReference(record.record_key)} type="link">
+        <Button
+          onClick={() => {
+            if (childLocator) {
+              onReference(record.record_key, childLocator);
+            } else {
+              onReference(record.record_key);
+            }
+          }}
+          type="link"
+        >
           {record.title}
         </Button>
         <Tag>{formatSlug(record.kind)}</Tag>
       </div>
     </li>
   );
+}
+
+function referenceChildLocator(
+  section: AvailableReferenceSection,
+  direction: "backlinks" | "outgoing",
+  recordKey: string,
+) {
+  const edge = section.edges.find((candidate) =>
+    direction === "outgoing"
+      ? candidate.to_record_key === recordKey
+      : candidate.from_record_key === recordKey,
+  );
+  return direction === "outgoing"
+    ? edge?.target_child_locator
+    : edge?.source_child_locator;
 }
 
 function issuePlacementLabel(placement: RecordSurfaceIssuePlacement) {

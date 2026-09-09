@@ -1,8 +1,11 @@
 use atlas_domain::RecordKey;
-use atlas_record::{RichDocument, RichNode, iter_foundry_links, render_plain_text};
+use atlas_record::{
+    FactValue, H8FieldValue, JournalPageEntry, JournalRecord, RichDocument, RichNode,
+    iter_foundry_links, render_plain_text,
+};
 
+use crate::records::RecordReferenceIndex;
 use crate::records::references::{record_by_key, reference_pack_and_locator, resolve_record_key};
-use crate::records::{JournalPageFact, RecordReferenceIndex};
 use crate::source::normalize::normalize_text;
 
 pub(super) struct JournalRemasterChange {
@@ -12,13 +15,26 @@ pub(super) struct JournalRemasterChange {
 }
 
 pub(super) fn extract_remaster_journal_changes(
-    pages: &[JournalPageFact],
+    journal: &JournalRecord,
     index: &RecordReferenceIndex,
 ) -> Vec<JournalRemasterChange> {
     let mut changes = Vec::new();
+    let FactValue::Value(H8FieldValue::Known(pages)) = &journal.pages else {
+        return changes;
+    };
     for page in pages {
-        if page.name == "Remaster Changes" {
-            for list_item in rich_elements(&page.document.nodes, "li") {
+        let JournalPageEntry::Page(page) = page else {
+            continue;
+        };
+        let Some(page_name) = known(&page.name) else {
+            continue;
+        };
+        let Some(document) = known(&page.text).and_then(|text| known(&text.content)) else {
+            continue;
+        };
+        let source_ref = format!("journal:{page_name}");
+        if page_name == "Remaster Changes" {
+            for list_item in rich_elements(&document.nodes, "li") {
                 let targets = resolve_journal_targets(list_item, index);
                 if targets.len() != 1 {
                     continue;
@@ -28,13 +44,13 @@ pub(super) fn extract_remaster_journal_changes(
                     changes.push(JournalRemasterChange {
                         remaster_record_key: targets[0].clone(),
                         legacy_name: alias_text,
-                        source_ref: page.source_ref.clone(),
+                        source_ref: source_ref.clone(),
                     });
                 }
             }
         }
 
-        for row in rich_elements(&page.document.nodes, "tr") {
+        for row in rich_elements(&document.nodes, "tr") {
             let cells = direct_rich_elements(row, &["td", "th"]);
             if cells.len() < 2 {
                 continue;
@@ -63,7 +79,7 @@ pub(super) fn extract_remaster_journal_changes(
                 changes.push(JournalRemasterChange {
                     remaster_record_key: targets[0].clone(),
                     legacy_name: old_name,
-                    source_ref: page.source_ref.clone(),
+                    source_ref: source_ref.clone(),
                 });
                 continue;
             }
@@ -77,13 +93,22 @@ pub(super) fn extract_remaster_journal_changes(
                 changes.push(JournalRemasterChange {
                     remaster_record_key: target.clone(),
                     legacy_name: alias_text.clone(),
-                    source_ref: page.source_ref.clone(),
+                    source_ref: source_ref.clone(),
                 });
             }
         }
     }
 
     changes
+}
+
+fn known<T>(value: &atlas_record::H8Fact<T>) -> Option<&T> {
+    match value {
+        FactValue::Value(H8FieldValue::Known(value)) => Some(value),
+        FactValue::Missing | FactValue::Null | FactValue::Value(H8FieldValue::Unsupported(_)) => {
+            None
+        }
+    }
 }
 
 fn resolve_journal_targets(nodes: &[RichNode], index: &RecordReferenceIndex) -> Vec<RecordKey> {

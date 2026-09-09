@@ -34,7 +34,7 @@ route() {
   lint=false
   persistence=false
 
-  if matches '^(contracts/pf2e-type-registry\.yaml$|contracts/source-leaf-coverage/|crates/atlas-ingest/src/source_coverage/|crates/atlas-ingest/src/source/(hazard_core|hazard_entities)(\.rs|_tests\.rs)$|crates/atlas-record/src/(hazard|hazard_projection)\.rs$|crates/atlas-ingest/tests/source_leaf_(coverage|persistence)\.rs$|crates/atlas-ingest/tests/fixtures/(source-leaf-coverage/|hazards/pinned/)|scripts/validation/(authenticate-pf2e-source|source-leaf-coverage|test-source-leaf-coverage-routing)\.sh$)'; then
+  if matches '^(contracts/pf2e-type-registry\.yaml$|contracts/source-leaf-coverage/|crates/atlas-ingest/src/source_coverage/|crates/atlas-ingest/src/source/(hazard_core|hazard_entities|h8)(\.rs|_tests\.rs)$|crates/atlas-record/src/(hazard|hazard_projection|journal|json_projection/h8)\.rs$|crates/atlas-ingest/tests/source_leaf_(coverage|persistence)\.rs$|crates/atlas-ingest/tests/fixtures/(source-leaf-coverage/|hazards/pinned/)|scripts/validation/(authenticate-pf2e-source|source-leaf-coverage|test-source-leaf-coverage-routing)\.sh$)'; then
     lint=true
   fi
 

@@ -884,7 +884,9 @@ pub fn build_hazard_presentation_document(
                         | crate::ContentSourceKind::StealthDetails
                 ) => {}
             ContentOwner::Record(_) => description_blocks.push(block),
-            ContentOwner::CreatureEntity(_) | ContentOwner::CreatureOccurrence(_) => {}
+            ContentOwner::CreatureEntity(_)
+            | ContentOwner::CreatureOccurrence(_)
+            | ContentOwner::Child(_) => {}
         }
     }
 

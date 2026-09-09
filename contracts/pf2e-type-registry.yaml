@@ -18432,9 +18432,9 @@ entries:
       fixture_keys:
         - "contract:journalentry--root--top-level--root--root--root"
     visibility: "default_visible"
-    product_role: "owned_content"
+    product_role: "record"
     canonical:
-      owner: "atlas-ingest"
+      owner: "atlas-record"
       strategy: "canonical top-level source record; retain registered zero-count type"
     assignment:
       status: "future"
@@ -20008,10 +20008,10 @@ entries:
       count: 69
       fixture_keys:
         - "contract:rolltable--root--top-level--root--root--root"
-    visibility: "hidden"
-    product_role: "container"
+    visibility: "default_visible"
+    product_role: "record"
     canonical:
-      owner: "atlas-ingest"
+      owner: "atlas-record"
       strategy: "canonical top-level source record; retain registered zero-count type"
     assignment:
       status: "future"

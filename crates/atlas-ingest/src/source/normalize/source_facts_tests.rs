@@ -11,7 +11,6 @@ use atlas_record::{
 use serde_json::json;
 
 use super::normalize_record;
-use crate::records::JournalPageSkipReason;
 use crate::source::ManifestPack;
 
 #[test]
@@ -356,7 +355,7 @@ fn rejects_present_unsupported_rarity() {
 }
 
 #[test]
-fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
+fn normalizes_source_facts_and_embedded_content_refs() {
     let raw = json!({
         "_id": "host1",
         "name": "Host Record",
@@ -641,24 +640,6 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
     assert_eq!(
         strike_activity.rolls[0].ability.as_value(),
         Some(&ActivityRollAbility::Strength)
-    );
-
-    assert_eq!(facts.journal_pages.len(), 2);
-    assert_eq!(facts.journal_pages[0].page_id.as_deref(), Some("page1"));
-    assert_eq!(facts.journal_pages[0].normalized_name, "rules");
-    assert_eq!(facts.journal_pages[0].source_ref, "journal:Rules");
-    assert_eq!(
-        render_plain_text(&facts.journal_pages[0].document),
-        "Rules\nPage body."
-    );
-    assert_eq!(facts.skipped_journal_pages.len(), 2);
-    assert_eq!(
-        facts.skipped_journal_pages[0].reason,
-        JournalPageSkipReason::MissingTextContent
-    );
-    assert_eq!(
-        facts.skipped_journal_pages[1].reason,
-        JournalPageSkipReason::EmptyTextContent
     );
 }
 

@@ -6,7 +6,6 @@ pub(crate) mod taxonomy;
 pub(crate) mod variants;
 
 pub(crate) use loaded::{
-    EmbeddedItemContentRef, EmbeddedItemFact, JournalPageFact, JournalPageSkipReason,
-    LoadedSourceRecord, RecordReferenceIndex, SkippedJournalPageFact, SourceConstructionFacts,
-    SourceContentFact, SourceRecordFacts,
+    EmbeddedItemContentRef, EmbeddedItemFact, LoadedSourceRecord, RecordReferenceIndex,
+    SourceConstructionFacts, SourceContentFact, SourceRecordFacts,
 };

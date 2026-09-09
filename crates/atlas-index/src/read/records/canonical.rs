@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ConsumableSpellChild, ContentIdentityStability, ContentRole, FactValue,
-    OwnedRichContent, RecordBody, RichLinkTarget, SpellStandaloneTarget,
+    AtlasRecord, ConsumableSpellChild, ContentIdentityStability, ContentOwner, ContentRole,
+    FactValue, OwnedRichContent, RecordBody, RichLinkTarget, SpellStandaloneTarget,
 };
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
@@ -12,8 +12,8 @@ use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 use crate::artifact::canonical_json;
 use crate::schema::{
     canonical_consumable_spell_children, canonical_creature_records, canonical_hazard_records,
-    canonical_spell_records, record_content, reference_occurrences, spell_damage_types,
-    spell_records, spell_traditions,
+    canonical_journal_records, canonical_roll_table_records, canonical_spell_records,
+    record_content, reference_occurrences, spell_damage_types, spell_records, spell_traditions,
 };
 use crate::spell_query::{
     SpellDamageTypeProjection, SpellQueryProjection, SpellTraditionProjection,
@@ -41,6 +41,26 @@ struct CanonicalHazardRecordRow {
 #[diesel(table_name = canonical_spell_records)]
 #[diesel(check_for_backend(Sqlite))]
 struct CanonicalSpellRow {
+    record_key: String,
+    source_id: String,
+    name: String,
+    canonical_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = canonical_journal_records)]
+#[diesel(check_for_backend(Sqlite))]
+struct CanonicalJournalRow {
+    record_key: String,
+    source_id: String,
+    name: String,
+    canonical_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = canonical_roll_table_records)]
+#[diesel(check_for_backend(Sqlite))]
+struct CanonicalRollTableRow {
     record_key: String,
     source_id: String,
     name: String,
@@ -168,7 +188,23 @@ pub(super) fn read_canonical_record_bodies(
         .order(canonical_spell_records::record_key.asc())
         .load::<CanonicalSpellRow>(connection)
         .map_err(query_failed)?;
-    decode_body_rows(creature_rows, hazard_rows, spell_rows)
+    let journal_rows = canonical_journal_records::table
+        .select(CanonicalJournalRow::as_select())
+        .order(canonical_journal_records::record_key.asc())
+        .load::<CanonicalJournalRow>(connection)
+        .map_err(query_failed)?;
+    let table_rows = canonical_roll_table_records::table
+        .select(CanonicalRollTableRow::as_select())
+        .order(canonical_roll_table_records::record_key.asc())
+        .load::<CanonicalRollTableRow>(connection)
+        .map_err(query_failed)?;
+    decode_body_rows(
+        creature_rows,
+        hazard_rows,
+        spell_rows,
+        journal_rows,
+        table_rows,
+    )
 }
 
 pub(super) fn read_canonical_record_bodies_by_key(
@@ -197,7 +233,25 @@ pub(super) fn read_canonical_record_bodies_by_key(
         .order(canonical_spell_records::record_key.asc())
         .load::<CanonicalSpellRow>(connection)
         .map_err(query_failed)?;
-    decode_body_rows(creature_rows, hazard_rows, spell_rows)
+    let journal_rows = canonical_journal_records::table
+        .filter(canonical_journal_records::record_key.eq_any(&keys))
+        .select(CanonicalJournalRow::as_select())
+        .order(canonical_journal_records::record_key.asc())
+        .load::<CanonicalJournalRow>(connection)
+        .map_err(query_failed)?;
+    let table_rows = canonical_roll_table_records::table
+        .filter(canonical_roll_table_records::record_key.eq_any(&keys))
+        .select(CanonicalRollTableRow::as_select())
+        .order(canonical_roll_table_records::record_key.asc())
+        .load::<CanonicalRollTableRow>(connection)
+        .map_err(query_failed)?;
+    decode_body_rows(
+        creature_rows,
+        hazard_rows,
+        spell_rows,
+        journal_rows,
+        table_rows,
+    )
 }
 
 pub(super) fn read_spell_children(
@@ -417,14 +471,19 @@ pub(super) fn reconcile_spell_query_projections(
     Ok(())
 }
 
-pub(super) fn reconcile_spell_owned_projections(
+pub(super) fn reconcile_canonical_owned_projections(
     connection: &mut SqliteConnection,
     bodies: &BTreeMap<RecordKey, RecordBody>,
     children: &BTreeMap<RecordKey, Vec<ConsumableSpellChild>>,
 ) -> Result<(), RecordLoadError> {
     let mut keys = bodies
         .iter()
-        .filter(|(_, body)| matches!(body, RecordBody::Spell(_)))
+        .filter(|(_, body)| {
+            matches!(
+                body,
+                RecordBody::Spell(_) | RecordBody::Journal(_) | RecordBody::RollTable(_)
+            )
+        })
         .map(|(key, _)| key.to_string())
         .collect::<BTreeSet<_>>();
     keys.extend(children.keys().map(ToString::to_string));
@@ -448,6 +507,20 @@ pub(super) fn reconcile_spell_owned_projections(
             reconcile_owned_content(
                 &key.to_string(),
                 &spell.definition.content,
+                &content_rows,
+                &reference_rows,
+            )?;
+        } else if let RecordBody::Journal(journal) = body {
+            reconcile_owned_content(
+                &key.to_string(),
+                &journal.content,
+                &content_rows,
+                &reference_rows,
+            )?;
+        } else if let RecordBody::RollTable(table) = body {
+            reconcile_owned_content(
+                &key.to_string(),
+                &table.content,
                 &content_rows,
                 &reference_rows,
             )?;
@@ -500,8 +573,17 @@ fn reconcile_owned_content(
             .map_err(RecordLoadError::InvalidData)?;
         let diagnostics_json =
             canonical_json::encode(&document.diagnostics).map_err(RecordLoadError::InvalidData)?;
+        let expected_owner_kind = match &document.owner {
+            ContentOwner::Record(key) if key.to_string() == record_key => "record",
+            ContentOwner::Child(locator) if locator.parent.to_string() == record_key => "child",
+            _ => {
+                return Err(RecordLoadError::InvalidData(format!(
+                    "owned canonical content `{record_key}:{content_key}:{authored_order}` has an invalid owner"
+                )));
+            }
+        };
         if row.identity_stability != content_stability(document.identity_stability)
-            || row.owner_kind != "record"
+            || row.owner_kind != expected_owner_kind
             || row.owner_record_key.as_deref() != Some(record_key)
             || row.owner_entity_id.is_some()
             || row.owner_occurrence_id.is_some()
@@ -556,7 +638,7 @@ fn reconcile_owned_content(
                 canonical_json::encode(&expected.origin).map_err(RecordLoadError::InvalidData)?;
             let provenance_json = canonical_json::encode(&expected.provenance)
                 .map_err(RecordLoadError::InvalidData)?;
-            if actual.owner_kind != "record"
+            if actual.owner_kind != expected_owner_kind
                 || actual.owner_record_key.as_deref() != Some(record_key)
                 || actual.owner_entity_id.is_some()
                 || actual.owner_occurrence_id.is_some()
@@ -603,6 +685,7 @@ fn content_role(value: ContentRole) -> &'static str {
 fn target_kind(target: &RichLinkTarget) -> &'static str {
     match target {
         RichLinkTarget::Record { .. } => "record",
+        RichLinkTarget::RecordChild { .. } => "record_child",
         RichLinkTarget::LocalContent { .. } => "local_content",
         RichLinkTarget::External { .. } => "external",
         RichLinkTarget::Unresolved { .. } => "unresolved",
@@ -658,8 +741,16 @@ fn decode_body_rows(
     creature_rows: Vec<CanonicalCreatureRow>,
     hazard_rows: Vec<CanonicalHazardRecordRow>,
     spell_rows: Vec<CanonicalSpellRow>,
+    journal_rows: Vec<CanonicalJournalRow>,
+    table_rows: Vec<CanonicalRollTableRow>,
 ) -> Result<Vec<RecordBody>, RecordLoadError> {
-    let mut bodies = Vec::with_capacity(creature_rows.len() + hazard_rows.len() + spell_rows.len());
+    let mut bodies = Vec::with_capacity(
+        creature_rows.len()
+            + hazard_rows.len()
+            + spell_rows.len()
+            + journal_rows.len()
+            + table_rows.len(),
+    );
     for row in creature_rows {
         let path = format!(
             "canonical_creature_records[{}].canonical_json",
@@ -703,6 +794,47 @@ fn decode_body_rows(
         if row.source_id != spell.identity.source_id.as_str() || row.name != spell.identity.name {
             return Err(RecordLoadError::InvalidData(format!(
                 "{path}: indexed spell identity columns do not match the canonical spell body"
+            )));
+        }
+        bodies.push(body);
+    }
+    for row in journal_rows {
+        let path = format!(
+            "canonical_journal_records[{}].canonical_json",
+            row.record_key
+        );
+        let body = canonical_json::decode::<RecordBody>(&row.canonical_json, &path)
+            .map_err(RecordLoadError::InvalidData)?;
+        let RecordBody::Journal(journal) = &body else {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: canonical journal table contains a non-journal body"
+            )));
+        };
+        require_key(&path, &row.record_key, &journal.identity.record_key)?;
+        if row.source_id != journal.identity.source_id.as_str() || row.name != journal.identity.name
+        {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: indexed journal identity columns do not match the canonical body"
+            )));
+        }
+        bodies.push(body);
+    }
+    for row in table_rows {
+        let path = format!(
+            "canonical_roll_table_records[{}].canonical_json",
+            row.record_key
+        );
+        let body = canonical_json::decode::<RecordBody>(&row.canonical_json, &path)
+            .map_err(RecordLoadError::InvalidData)?;
+        let RecordBody::RollTable(table) = &body else {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: canonical roll-table table contains a non-roll-table body"
+            )));
+        };
+        require_key(&path, &row.record_key, &table.identity.record_key)?;
+        if row.source_id != table.identity.source_id.as_str() || row.name != table.identity.name {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: indexed roll-table identity columns do not match the canonical body"
             )));
         }
         bodies.push(body);

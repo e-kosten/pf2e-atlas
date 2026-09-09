@@ -895,7 +895,7 @@ pub fn insert_minimal_artifact_rows(
 fn insert_minimal_filter_discovery_rows(
     connection: &Connection,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    const CANONICAL_KINDS_JSON: &str = r#"["creature","character","companion","army","hazard","vehicle","equipment","feat","spell","affliction","rule","character_option","lore","tooling","campaign_feature"]"#;
+    const CANONICAL_KINDS_JSON: &str = r#"["creature","character","companion","army","hazard","vehicle","equipment","feat","spell","affliction","rule","character_option","lore","journal","roll_table","tooling","campaign_feature"]"#;
     let fields = [
         ("record_kind", r#"["--kind"]"#, CANONICAL_KINDS_JSON),
         ("pack_name", r#"["--pack-name"]"#, CANONICAL_KINDS_JSON),

@@ -8,10 +8,13 @@ type RecordReferenceRequest = Pick<
   "reference_backlink_limit" | "reference_outgoing_limit"
 >;
 
+type RecordChildRequest = Pick<RecordDetailRequest, "child_locator">;
+
 export function useRecordDetail(
   recordKey: string | null,
   spellSelection?: SpellFormSelection,
   referenceRequest?: RecordReferenceRequest,
+  childRequest?: RecordChildRequest,
 ) {
   return useQuery({
     queryKey: [
@@ -21,6 +24,9 @@ export function useRecordDetail(
       spellSelection?.castRank ?? null,
       referenceRequest?.reference_outgoing_limit ?? null,
       referenceRequest?.reference_backlink_limit ?? null,
+      ...(childRequest?.child_locator === undefined
+        ? []
+        : [childRequest.child_locator]),
     ],
     queryFn: ({ signal }) => {
       const request: RecordDetailRequest = {
@@ -31,6 +37,7 @@ export function useRecordDetail(
             }
           : {}),
         ...referenceRequest,
+        ...childRequest,
       };
       return getRecordDetail(
         recordKey!,

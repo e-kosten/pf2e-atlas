@@ -19,12 +19,14 @@ pub enum RecordKind {
     Rule,
     CharacterOption,
     Lore,
+    Journal,
+    RollTable,
     Tooling,
     CampaignFeature,
 }
 
 impl RecordKind {
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 17] = [
         Self::Creature,
         Self::Character,
         Self::Companion,
@@ -38,6 +40,8 @@ impl RecordKind {
         Self::Rule,
         Self::CharacterOption,
         Self::Lore,
+        Self::Journal,
+        Self::RollTable,
         Self::Tooling,
         Self::CampaignFeature,
     ];
@@ -57,6 +61,8 @@ impl RecordKind {
             Self::Rule => "rule",
             Self::CharacterOption => "character_option",
             Self::Lore => "lore",
+            Self::Journal => "journal",
+            Self::RollTable => "roll_table",
             Self::Tooling => "tooling",
             Self::CampaignFeature => "campaign_feature",
         }
@@ -77,6 +83,8 @@ impl RecordKind {
             "rule" => Some(Self::Rule),
             "character_option" => Some(Self::CharacterOption),
             "lore" => Some(Self::Lore),
+            "journal" => Some(Self::Journal),
+            "roll_table" => Some(Self::RollTable),
             "tooling" => Some(Self::Tooling),
             "campaign_feature" => Some(Self::CampaignFeature),
             _ => None,
@@ -102,6 +110,8 @@ impl RecordKind {
             "characteroption" | "character option" | "character options" | "charactercreation"
             | "character creation" => Some(Self::CharacterOption),
             "lore" => Some(Self::Lore),
+            "journal" | "journals" | "journal entry" | "journal entries" => Some(Self::Journal),
+            "rolltable" | "roll table" | "roll tables" => Some(Self::RollTable),
             "tooling" | "tool" | "tools" => Some(Self::Tooling),
             "campaignfeature" | "campaign feature" | "campaign features" => {
                 Some(Self::CampaignFeature)

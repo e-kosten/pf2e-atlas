@@ -23,9 +23,15 @@ import {
   type SpellFormSelection,
   SpellSearchCompactSurface,
 } from "./SpellRecordSurface";
+import {
+  JournalDetailSurface,
+  JournalSearchCompactSurface,
+  RollTableDetailSurface,
+  RollTableSearchCompactSurface,
+} from "./H8RecordSurface";
 
 type RecordSurfaceProps = {
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
   onReferencesOpen?: () => void;
   onReferenceLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
   onSpellFormSelection?: (selection: SpellFormSelection) => void;
@@ -137,6 +143,46 @@ export const RecordSurface = memo(function RecordSurface({
         selectionError={spellFormSelectionError}
         selectionLoading={spellFormSelectionLoading}
         selectionUnavailable={spellFormSelectionUnavailable}
+        showTitle={showTitle}
+      />
+    );
+  }
+
+  if (surface.presentation.presentation_type === "journal") {
+    const body = surface.presentation.body;
+    if (surface.profile === "search_compact") {
+      return <JournalSearchCompactSurface body={body} metadata={surface.metadata} />;
+    }
+    return (
+      <JournalDetailSurface
+        body={body}
+        issues={surface.issues}
+        metadata={surface.metadata}
+        onReference={onReference}
+        onReferencesOpen={onReferencesOpen}
+        onReferenceLimit={onReferenceLimit}
+        references={references ?? surface.references}
+        referencesLoading={referenceLoading}
+        showTitle={showTitle}
+      />
+    );
+  }
+
+  if (surface.presentation.presentation_type === "roll_table") {
+    const body = surface.presentation.body;
+    if (surface.profile === "search_compact") {
+      return <RollTableSearchCompactSurface body={body} metadata={surface.metadata} />;
+    }
+    return (
+      <RollTableDetailSurface
+        body={body}
+        issues={surface.issues}
+        metadata={surface.metadata}
+        onReference={onReference}
+        onReferencesOpen={onReferencesOpen}
+        onReferenceLimit={onReferenceLimit}
+        references={references ?? surface.references}
+        referencesLoading={referenceLoading}
         showTitle={showTitle}
       />
     );

@@ -10,8 +10,10 @@ mod diagnostic;
 mod embedded;
 mod hazard;
 mod item;
+mod journal;
 mod npc;
 mod presence;
+mod roll_table;
 mod spell;
 mod value;
 mod version;
@@ -45,7 +47,9 @@ pub(crate) use hazard::{
 pub(crate) use item::{
     EmbeddedRelationshipKindSource, EmbeddedRelationshipSource, EmbeddedStableLocatorSource,
 };
+pub(crate) use journal::{JournalSource, parse_journal_source};
 pub(crate) use npc::parse_npc_source_from_serialized;
+pub(crate) use roll_table::{RollTableSource, parse_roll_table_source};
 pub(crate) use spell::{
     ConsumableSpellChildSource, SpellDocumentSource, SpellItemSource, parse_spell_document_source,
 };

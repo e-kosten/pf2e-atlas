@@ -20,8 +20,10 @@ pub(crate) fn classify_record(document_type: &str, record_type: &str) -> Option<
         ("Item", "ancestry" | "background" | "class" | "heritage") => {
             Some(RecordKind::CharacterOption)
         }
-        ("Item", "deity") | ("JournalEntry", _) | ("JournalEntryPage", _) => Some(RecordKind::Lore),
-        ("Macro", "script") | ("RollTable", _) => Some(RecordKind::Tooling),
+        ("Item", "deity") | ("JournalEntryPage", _) => Some(RecordKind::Lore),
+        ("JournalEntry", _) => Some(RecordKind::Journal),
+        ("RollTable", _) => Some(RecordKind::RollTable),
+        ("Macro", "script") => Some(RecordKind::Tooling),
         ("Item", "campaignFeature") => Some(RecordKind::CampaignFeature),
         _ => None,
     }
@@ -59,9 +61,9 @@ mod tests {
             ("Item", "class", RecordKind::CharacterOption),
             ("Item", "heritage", RecordKind::CharacterOption),
             ("Item", "deity", RecordKind::Lore),
-            ("JournalEntry", "JournalEntry", RecordKind::Lore),
+            ("JournalEntry", "JournalEntry", RecordKind::Journal),
             ("Macro", "script", RecordKind::Tooling),
-            ("RollTable", "RollTable", RecordKind::Tooling),
+            ("RollTable", "RollTable", RecordKind::RollTable),
             ("Item", "campaignFeature", RecordKind::CampaignFeature),
             ("Item", "affliction", RecordKind::Affliction),
             ("Item", "affliction-instance", RecordKind::Affliction),

@@ -202,6 +202,24 @@ diesel::table! {
 }
 
 diesel::table! {
+    canonical_journal_records (record_key) {
+        record_key -> Text,
+        source_id -> Text,
+        name -> Text,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_roll_table_records (record_key) {
+        record_key -> Text,
+        source_id -> Text,
+        name -> Text,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
     canonical_hazard_entities (record_key, entity_id) {
         record_key -> Text,
         entity_id -> Text,
@@ -280,7 +298,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    reference_edges (from_record_key, to_record_key, reference_text, relation_kind, source_kind) {
+    reference_edges (from_record_key, to_record_key, reference_text, relation_kind, source_kind, source_child_locator, target_child_locator) {
         from_record_key -> Text,
         to_record_key -> Text,
         display_text -> Nullable<Text>,
@@ -288,6 +306,8 @@ diesel::table! {
         relation_kind -> Text,
         source_kind -> Text,
         visibility -> Text,
+        source_child_locator -> Text,
+        target_child_locator -> Text,
     }
 }
 
@@ -527,6 +547,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     canonical_hazard_relationships,
     canonical_hazard_records,
     canonical_consumable_spell_children,
+    canonical_journal_records,
+    canonical_roll_table_records,
     canonical_spell_records,
     document_embedding_cache,
     filter_field_catalog,

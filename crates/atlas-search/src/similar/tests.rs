@@ -590,6 +590,8 @@ fn graph_edge(from: &RecordKey, to: &str, visibility: ContentVisibility) -> Grap
         relation_kind: atlas_record::ReferenceRelationKind::Reference,
         source_kind: ContentSourceKind::Description,
         visibility,
+        source_child: None,
+        target_child: None,
     }
 }
 

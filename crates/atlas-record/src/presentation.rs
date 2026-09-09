@@ -162,6 +162,9 @@ pub enum PresentationInline {
         #[serde(skip_serializing_if = "Option::is_none")]
         #[ts(optional, type = "string")]
         record_key: Option<RecordKey>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        child_locator: Option<String>,
         embedded: bool,
     },
     Check {
@@ -338,6 +341,7 @@ mod tests {
                                     RecordKey::parse("actions:TreatWounds")
                                         .expect("record key should parse"),
                                 ),
+                                child_locator: None,
                                 embedded: false,
                             }],
                         },

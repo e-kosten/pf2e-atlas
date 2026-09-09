@@ -15,6 +15,8 @@ pub mod reference_edges {
         pub const RELATION_KIND: Column = Column::new(TABLE, "relation_kind");
         pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
         pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
+        pub const SOURCE_CHILD_LOCATOR: Column = Column::new(TABLE, "source_child_locator");
+        pub const TARGET_CHILD_LOCATOR: Column = Column::new(TABLE, "target_child_locator");
     }
 
     pub const ALL_COLUMNS: &[Column] = &[
@@ -25,6 +27,8 @@ pub mod reference_edges {
         columns::RELATION_KIND,
         columns::SOURCE_KIND,
         columns::VISIBILITY,
+        columns::SOURCE_CHILD_LOCATOR,
+        columns::TARGET_CHILD_LOCATOR,
     ];
 }
 

@@ -10,8 +10,9 @@ use atlas_record::{
     CreatureSkillKind, FactValue, HazardActionType, HazardCapability, HazardEntitySourceIdentity,
     HazardRecord, HazardSourceValue as CanonicalHazardSourceValue, OwnedRichContentDocument,
     PublicationLicense, RecordBody, RecordJson, RecordJsonOptions, RecordPresentationJson,
-    RichDocument, RichLinkTarget, SpellDefinition, SpellFact, SpellRecord, SpellSourceContext,
-    SpellSourceValue, UnsupportedSourceValue, record_json, visit_foundry_links_mut,
+    RetrievedRecord, RichDocument, RichLinkTarget, SpellDefinition, SpellFact, SpellRecord,
+    SpellSourceContext, SpellSourceValue, UnsupportedSourceValue, record_json,
+    visit_foundry_links_mut,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,8 +30,9 @@ use crate::source::dto::{
     HazardSourceField, HazardSourceValue as DtoHazardSourceValue, PF2E_SOURCE_CONTRACT_VERSION,
     PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE, SourceIdentity, SpellDocumentSource,
     SpellItemSource, VersionedHazardSource, VersionedItemSource, VersionedNpcSource,
-    parse_hazard_source, parse_item_source, parse_npc_source, parse_serialized_source_object,
-    parse_spell_document_source, pinned_source_version_metadata,
+    parse_hazard_source, parse_item_source, parse_journal_source, parse_npc_source,
+    parse_roll_table_source, parse_serialized_source_object, parse_spell_document_source,
+    pinned_source_version_metadata,
 };
 use crate::source::normalize::{
     normalize_record, normalize_record_from_source, parse_foundry_content_with_localization,
@@ -70,6 +72,7 @@ const HAZARD_HYDRATION_LEDGER_SOURCES: [&str; 4] = [
 const ITEM_SPELL_READER: &str = "source::dto::parse_spell_document_source";
 const CONSUMABLE_SPELL_CHILD_READER: &str = "source::dto::ConsumableSpellChildSource";
 const SPELL_RAW_PROVENANCE_READER: &str = "AtlasRecord.provenance.raw_json";
+const H8_SOURCE_READER: &str = "source::dto::parse_h8_source";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -383,6 +386,7 @@ enum RegisteredAccessor {
     ActorHazardExact(HazardExactDisposition),
     ItemSpell(SpellLeafProbe),
     ConsumableSpellChild(ConsumableSpellChildLeafProbe),
+    H8Exact,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -512,6 +516,14 @@ fn registration_for(
         && let Some(probe) = consumable_spell_child_leaf_probe(&identity.normalized_path, reader_id)
     {
         Ok(RegisteredAccessor::ConsumableSpellChild(probe))
+    } else if matches!(
+        identity.type_id.as_str(),
+        "journalentry--root--top-level--root--root--root"
+            | "rolltable--root--top-level--root--root--root"
+    ) && identity.selector.role == SourceDocumentRole::TopLevel
+        && reader_id == Some(H8_SOURCE_READER)
+    {
+        Ok(RegisteredAccessor::H8Exact)
     } else {
         Err(error(
             CoverageFailureCode::ReaderNotObserved,
@@ -563,6 +575,7 @@ impl RegisteredAccessor {
             Self::ConsumableSpellChild(probe) => {
                 capture_consumable_spell_child_leaf(identity, fixture, probe, artifact_evidence)
             }
+            Self::H8Exact => capture_h8_exact_leaf(identity, fixture),
         }
     }
 }
@@ -1989,7 +2002,10 @@ impl SpellArtifactHydration {
             record: hydrated.record,
             body: hydrated.body.and_then(|body| match body {
                 RecordBody::Spell(spell) => Some(spell),
-                RecordBody::Creature(_) | RecordBody::Hazard(_) => None,
+                RecordBody::Creature(_)
+                | RecordBody::Hazard(_)
+                | RecordBody::Journal(_)
+                | RecordBody::RollTable(_) => None,
             }),
             child: hydrated.spell_children.into_iter().next(),
         }
@@ -2446,7 +2462,8 @@ fn mutate_grouped_spell_artifact(
         | RegisteredAccessor::ActorHazardTemporaryMaximum
         | RegisteredAccessor::EmbeddedHazardActionType
         | RegisteredAccessor::EmbeddedHazardDamage
-        | RegisteredAccessor::ActorHazardExact(_) => {
+        | RegisteredAccessor::ActorHazardExact(_)
+        | RegisteredAccessor::H8Exact => {
             return Err(error(
                 CoverageFailureCode::InvalidContract,
                 "grouped spell artifact mutation received a non-spell accessor",
@@ -4133,6 +4150,452 @@ fn capture_hazard_exact_leaf(
         "sealed::ActorHazardExactLeaf",
         observations,
     )
+}
+
+fn capture_h8_exact_leaf(
+    identity: SourceLeafIdentity,
+    fixture: ResolvedFixture,
+) -> Result<SourceLeafReceipt, CoverageContractError> {
+    let occurrence = first_exact_hazard_leaf(&fixture, &identity)?;
+    let excerpt = occurrence
+        .value
+        .clone()
+        .unwrap_or_else(|| serde_json::json!({ "state": "missing" }));
+    if digest_serializable(&excerpt)? != fixture.reference.excerpt_digest {
+        return Err(error(
+            CoverageFailureCode::ReceiptProvenanceInvalid,
+            "registered H8 excerpt does not match its declaration digest",
+        ));
+    }
+    let source = occurrence.receipt_value(HazardExactDisposition::Promoted);
+    let mut mutated_raw = fixture.raw.clone();
+    let mutated_value = occurrence.value.as_ref().map_or_else(
+        || Value::String("source-leaf-missing-mutation".to_string()),
+        |value| mutate_h8_leaf_value(&occurrence.pointer, value),
+    );
+    set_json_pointer(&mut mutated_raw, &occurrence.pointer, mutated_value)?;
+    let mutation_occurrence = first_exact_hazard_leaf(
+        &ResolvedFixture {
+            reference: fixture.reference.clone(),
+            serialized: serde_json::to_vec(&mutated_raw)
+                .map_err(|message| error(CoverageFailureCode::InvalidContract, message))?,
+            raw: mutated_raw.clone(),
+        },
+        &identity,
+    )?;
+    let source_mutation = mutation_occurrence.receipt_value(HazardExactDisposition::Promoted);
+    let actual = run_h8_pipeline(&fixture, fixture.raw.clone(), &occurrence.pointer)?;
+    let mutation = run_h8_pipeline(&fixture, mutated_raw, &occurrence.pointer)?;
+    let canonical_destination = format!("RecordBody H8 typed owner ({})", identity.normalized_path);
+    let post_destination = format!(
+        "IndexBuildInput.canonical_bodies H8 typed owner ({})",
+        identity.normalized_path
+    );
+    let hydration_destination = format!(
+        "RetrievedRecord.body H8 typed owner ({})",
+        identity.normalized_path
+    );
+    let public_destination = format!("RecordJson H8 typed owner ({})", identity.normalized_path);
+    let observations = vec![
+        owner_presence_stage(
+            FinalOwnerStage::SourceDto,
+            &format!("H8 source DTO typed owner ({})", identity.normalized_path),
+            "source::dto::parse_h8_source exact ordered tree accessor",
+            &source,
+            &source_mutation,
+            (source.clone(), Some(source_mutation.clone())),
+            (&actual.source_dto_fragment, &mutation.source_dto_fragment),
+        )?,
+        owner_presence_stage(
+            FinalOwnerStage::Canonical,
+            &canonical_destination,
+            "source::h8 canonical field accessor",
+            &source,
+            &source_mutation,
+            (source.clone(), Some(source_mutation.clone())),
+            (&actual.canonical_fragment, &mutation.canonical_fragment),
+        )?,
+        owner_presence_stage(
+            FinalOwnerStage::PostProjection,
+            &post_destination,
+            "index_build_input canonical H8 field accessor",
+            &source,
+            &source_mutation,
+            (source.clone(), Some(source_mutation.clone())),
+            (
+                &actual.post_projection_fragment,
+                &mutation.post_projection_fragment,
+            ),
+        )?,
+        owner_presence_stage(
+            FinalOwnerStage::ArtifactHydration,
+            &hydration_destination,
+            "atlas_index::hydrate_record_parts H8 field accessor",
+            &source,
+            &source_mutation,
+            (source.clone(), Some(source_mutation.clone())),
+            (&actual.hydration_fragment, &mutation.hydration_fragment),
+        )?,
+        owner_presence_stage(
+            FinalOwnerStage::PublicSurface,
+            &public_destination,
+            "atlas_record::record_json H8 field accessor",
+            &source,
+            &source_mutation,
+            (source.clone(), Some(source_mutation.clone())),
+            (&actual.public_fragment, &mutation.public_fragment),
+        )?,
+    ];
+    sealed_receipt(
+        identity,
+        fixture.reference,
+        source,
+        source_mutation,
+        H8_SOURCE_READER,
+        "sealed::H8ExactTypedOwner",
+        observations,
+    )
+}
+
+struct H8Pipeline {
+    source_dto_fragment: String,
+    canonical_fragment: String,
+    post_projection_fragment: String,
+    hydration_fragment: String,
+    public_fragment: String,
+}
+
+fn run_h8_pipeline(
+    fixture: &ResolvedFixture,
+    raw: Value,
+    selected_pointer: &str,
+) -> Result<H8Pipeline, CoverageContractError> {
+    let pack = fixture
+        .reference
+        .record_key
+        .split_once(':')
+        .map(|(pack, _)| pack)
+        .ok_or_else(|| {
+            error(
+                CoverageFailureCode::FixtureNotSourceGrounded,
+                "invalid H8 fixture record key",
+            )
+        })?;
+    let pack_name = PackName::new(pack.to_string()).map_err(|message| {
+        error(
+            CoverageFailureCode::FixtureNotSourceGrounded,
+            message.to_string(),
+        )
+    })?;
+    let document_type = if fixture.reference.source_path.contains("rollable-tables") {
+        "RollTable"
+    } else {
+        "JournalEntry"
+    };
+    let manifest_pack = ManifestPack {
+        name: pack.to_string(),
+        label: "source-leaf H8 fixture".to_string(),
+        document_type: document_type.to_string(),
+        path: fixture
+            .reference
+            .source_path
+            .rsplit_once('/')
+            .map_or("packs", |(parent, _)| parent)
+            .to_string(),
+    };
+    let serialized = serde_json::to_vec(&raw)
+        .map_err(|message| error(CoverageFailureCode::ReaderNotObserved, message))?;
+    let source = parse_serialized_source_object(&serialized)
+        .map_err(|message| error(CoverageFailureCode::ReaderNotObserved, message))?;
+    match document_type {
+        "JournalEntry" => {
+            parse_journal_source(&source)
+                .map_err(|message| error(CoverageFailureCode::ReaderNotObserved, message))?;
+        }
+        "RollTable" => {
+            parse_roll_table_source(&source)
+                .map_err(|message| error(CoverageFailureCode::ReaderNotObserved, message))?;
+        }
+        other => {
+            return Err(error(
+                CoverageFailureCode::FixtureNotSourceGrounded,
+                format!("unsupported H8 fixture document type {other}"),
+            ));
+        }
+    }
+    let source_dto_fragment = serialized_source_pointer(&source, selected_pointer)?;
+    let loaded = normalize_record(
+        &manifest_pack,
+        &pack_name,
+        Path::new(&fixture.reference.source_path),
+        Path::new("."),
+        raw,
+        None,
+    )
+    .map_err(|message| error(CoverageFailureCode::ReaderNotObserved, message))?;
+    let canonical_body = loaded.facts.canonical_body.clone().ok_or_else(|| {
+        error(
+            CoverageFailureCode::CanonicalMismatch,
+            "H8 normalization produced no canonical body",
+        )
+    })?;
+    let canonical_json = h8_record_json(&loaded.record, &canonical_body)?;
+    let canonical_fragment = h8_projection_fragment(&canonical_json, selected_pointer)?;
+    let source_load = SourceLoad {
+        manifest_path: PathBuf::from("static/system.json"),
+        source_signature: PF2E_SOURCE_PINNED_SIGNATURE.to_string(),
+        source_record_count: 1,
+        packs: vec![LoadedPack {
+            name: pack_name,
+            label: manifest_pack.label,
+            document_type: manifest_pack.document_type,
+            declared_path: manifest_pack.path.clone(),
+            resolved_path: PathBuf::from(manifest_pack.path),
+            record_count: 1,
+        }],
+        records: vec![loaded],
+        references: Vec::new(),
+        aliases: Vec::new(),
+        remaster_links: Vec::new(),
+        pending_document_embeddings: Vec::new(),
+        document_embeddings: Vec::new(),
+        document_embedding_tokenization: Default::default(),
+        diagnostics: IngestDiagnostics::default(),
+        skipped_records: Vec::new(),
+        warnings: Vec::new(),
+    };
+    let input = index_build_input(source_load);
+    let post_body = input.canonical_bodies.first().ok_or_else(|| {
+        error(
+            CoverageFailureCode::PostProjectionMismatch,
+            "H8 IndexBuildInput produced no canonical body",
+        )
+    })?;
+    let post_record = input.records.first().ok_or_else(|| {
+        error(
+            CoverageFailureCode::PostProjectionMismatch,
+            "H8 IndexBuildInput produced no record",
+        )
+    })?;
+    let post_json = h8_record_json(post_record, post_body)?;
+    let post_projection_fragment = h8_projection_fragment(&post_json, selected_pointer)?;
+    let bodies = input
+        .canonical_bodies
+        .iter()
+        .cloned()
+        .map(|body| (body.record_key().clone(), body))
+        .collect::<BTreeMap<_, _>>();
+    let hydrated =
+        atlas_index::hydrate_record_parts(input.records.clone(), bodies, BTreeMap::new())
+            .map_err(|message| error(CoverageFailureCode::ArtifactHydrationMismatch, message))?;
+    let hydrated_record = hydrated.first().ok_or_else(|| {
+        error(
+            CoverageFailureCode::ArtifactHydrationMismatch,
+            "H8 hydration produced no record",
+        )
+    })?;
+    let hydration_json = h8_record_json(
+        &hydrated_record.record,
+        hydrated_record.body.as_ref().ok_or_else(|| {
+            error(
+                CoverageFailureCode::ArtifactHydrationMismatch,
+                "H8 hydration produced no canonical body",
+            )
+        })?,
+    )?;
+    let hydration_fragment = h8_projection_fragment(&hydration_json, selected_pointer)?;
+    let public_fragment = hydration_fragment.clone();
+    Ok(H8Pipeline {
+        source_dto_fragment,
+        canonical_fragment,
+        post_projection_fragment,
+        hydration_fragment,
+        public_fragment,
+    })
+}
+
+fn h8_record_json(record: &AtlasRecord, body: &RecordBody) -> Result<Value, CoverageContractError> {
+    let projected = record_json(
+        &RetrievedRecord {
+            record: record.clone(),
+            body: Some(body.clone()),
+            spell_children: Vec::new(),
+        },
+        RecordJsonOptions {
+            detail: DetailLevel::Full,
+            include_source_json: false,
+        },
+    )
+    .map_err(|message| error(CoverageFailureCode::CanonicalMismatch, message))?;
+    serde_json::to_value(projected)
+        .map_err(|message| error(CoverageFailureCode::CanonicalMismatch, message))
+}
+
+fn serialized_source_pointer(
+    root: &crate::source::dto::SerializedSourceObject,
+    pointer: &str,
+) -> Result<String, CoverageContractError> {
+    let mut current: Option<&crate::source::dto::SerializedSourceValue> = None;
+    for segment in pointer.trim_start_matches('/').split('/') {
+        let segment = segment.replace("~1", "/").replace("~0", "~");
+        current = Some(match current {
+            None => match root.member(&segment) {
+                crate::source::dto::SerializedSourceMember::Value(value) => value,
+                crate::source::dto::SerializedSourceMember::Null => {
+                    return Ok("null".to_string());
+                }
+                _ => {
+                    return Err(error(
+                        CoverageFailureCode::DtoMismatch,
+                        format!("H8 DTO pointer {pointer} is missing or duplicated"),
+                    ));
+                }
+            },
+            Some(crate::source::dto::SerializedSourceValue::Object(object)) => {
+                match object.member(&segment) {
+                    crate::source::dto::SerializedSourceMember::Value(value) => value,
+                    crate::source::dto::SerializedSourceMember::Null => {
+                        return Ok("null".to_string());
+                    }
+                    _ => {
+                        return Err(error(
+                            CoverageFailureCode::DtoMismatch,
+                            format!("H8 DTO pointer {pointer} is missing or duplicated"),
+                        ));
+                    }
+                }
+            }
+            Some(crate::source::dto::SerializedSourceValue::Array(values)) => values
+                .get(segment.parse::<usize>().map_err(|_| {
+                    error(
+                        CoverageFailureCode::DtoMismatch,
+                        "invalid H8 DTO array pointer",
+                    )
+                })?)
+                .ok_or_else(|| {
+                    error(
+                        CoverageFailureCode::DtoMismatch,
+                        "H8 DTO array pointer is absent",
+                    )
+                })?,
+            Some(_) => {
+                return Err(error(
+                    CoverageFailureCode::DtoMismatch,
+                    format!("H8 DTO pointer {pointer} traversed a scalar"),
+                ));
+            }
+        });
+    }
+    current.map_or_else(
+        || {
+            Err(error(
+                CoverageFailureCode::DtoMismatch,
+                "empty H8 DTO pointer",
+            ))
+        },
+        |value| Ok(value.compact_json()),
+    )
+}
+
+fn h8_projection_fragment(
+    root: &Value,
+    source_pointer: &str,
+) -> Result<String, CoverageContractError> {
+    let segments = source_pointer
+        .trim_start_matches('/')
+        .split('/')
+        .collect::<Vec<_>>();
+    let family = if root.get("journal").is_some() {
+        "journal"
+    } else {
+        "roll_table"
+    };
+    let pointer = match (family, segments.as_slice()) {
+        (_, ["_id"]) => format!("/{family}/source_id"),
+        (_, ["name"]) => "/name".to_string(),
+        ("journal", ["ownership", "default"]) => "/journal/source_metadata/ownership".to_string(),
+        ("journal", ["pages", index, tail @ ..]) => {
+            let leaf = match tail {
+                ["_id"] => "source_id",
+                ["flags", "core", "sourceId"] => "source_metadata/flags",
+                ["image"] => "image_source",
+                ["name"] => "name",
+                ["sort"] => "sort",
+                ["src"] => "source",
+                ["system"] => "source_system",
+                ["text", "content"] => "text/value/content",
+                ["text", "format"] => "text/value/format",
+                ["text", "markdown"] => "text/value/markdown",
+                ["title", "level"] => "title/value/level",
+                ["title", "show"] => "title/value/show",
+                ["type"] => "page_kind",
+                ["video", "controls" | "volume"] => "video",
+                _ => {
+                    return Err(error(
+                        CoverageFailureCode::CanonicalMismatch,
+                        format!("unmapped Journal owner {source_pointer}"),
+                    ));
+                }
+            };
+            format!("/journal/pages/value/{index}/page/{leaf}")
+        }
+        ("roll_table", ["ownership", "default"]) => {
+            "/roll_table/source_metadata/ownership".to_string()
+        }
+        ("roll_table", ["displayRoll"]) => "/roll_table/display_roll".to_string(),
+        ("roll_table", ["img"]) => "/roll_table/image".to_string(),
+        ("roll_table", [field]) => format!("/roll_table/{field}"),
+        ("roll_table", ["results", index, tail @ ..]) => {
+            let leaf = match tail {
+                ["_id"] => "source_id",
+                ["documentCollection"] => "collection",
+                ["documentId"] => "document_id",
+                ["drawn"] => "drawn",
+                ["img"] => "image",
+                ["range", _] => "range",
+                ["text"] => "text",
+                ["type"] => "result_kind",
+                ["weight"] => "weight",
+                _ => {
+                    return Err(error(
+                        CoverageFailureCode::CanonicalMismatch,
+                        format!("unmapped TableResult owner {source_pointer}"),
+                    ));
+                }
+            };
+            format!("/roll_table/results/value/{index}/result/{leaf}")
+        }
+        _ => {
+            return Err(error(
+                CoverageFailureCode::CanonicalMismatch,
+                format!("unmapped H8 owner {source_pointer}"),
+            ));
+        }
+    };
+    root.pointer(&pointer).map(Value::to_string).ok_or_else(|| {
+        error(
+            CoverageFailureCode::CanonicalMismatch,
+            format!("H8 owner projection {pointer} is absent"),
+        )
+    })
+}
+
+fn mutate_h8_leaf_value(pointer: &str, value: &Value) -> Value {
+    if pointer.ends_with("/type") {
+        let alternate = if pointer.contains("/pages/") {
+            match value.as_str() {
+                Some("image") => "text",
+                _ => "image",
+            }
+        } else {
+            match value.as_str() {
+                Some("text") => "pack",
+                _ => "text",
+            }
+        };
+        return Value::String(alternate.to_string());
+    }
+    mutate_hazard_leaf_value(value)
 }
 
 #[derive(Debug, Clone)]
@@ -8552,7 +9015,8 @@ fn grouped_hazard_leaf_mutation(
         | RegisteredAccessor::ActorNpcAbilityMod(_)
         | RegisteredAccessor::ActorNpcShadowSkillBase
         | RegisteredAccessor::ItemSpell(_)
-        | RegisteredAccessor::ConsumableSpellChild(_) => Ok(None),
+        | RegisteredAccessor::ConsumableSpellChild(_)
+        | RegisteredAccessor::H8Exact => Ok(None),
     }
 }
 
@@ -9398,10 +9862,12 @@ fn creature_body(body: Option<&RecordBody>) -> Result<&CreatureRecord, CoverageC
             CoverageFailureCode::CanonicalMismatch,
             "NPC pipeline produced a hazard body",
         )),
-        Some(RecordBody::Spell(_)) => Err(error(
-            CoverageFailureCode::CanonicalMismatch,
-            "NPC pipeline produced a non-creature canonical body",
-        )),
+        Some(RecordBody::Spell(_) | RecordBody::Journal(_) | RecordBody::RollTable(_)) => {
+            Err(error(
+                CoverageFailureCode::CanonicalMismatch,
+                "NPC pipeline produced a non-creature canonical body",
+            ))
+        }
         None => Err(error(
             CoverageFailureCode::CanonicalMismatch,
             "NPC pipeline produced no canonical creature body",
@@ -10092,12 +10558,16 @@ impl ResolvedFixture {
                     "source_path is not a top-level document in a pinned manifest pack",
                 )
             })?;
-        let raw_discriminator = raw.get("type").and_then(Value::as_str).ok_or_else(|| {
-            error(
-                CoverageFailureCode::FixtureNotSourceGrounded,
-                "pinned fixture has no string type discriminator",
-            )
-        })?;
+        let raw_discriminator = match raw.get("type").and_then(Value::as_str) {
+            Some(value) => value,
+            None if expected_selector.type_discriminator == "*" => "*",
+            None => {
+                return Err(error(
+                    CoverageFailureCode::FixtureNotSourceGrounded,
+                    "pinned fixture has no string type discriminator",
+                ));
+            }
+        };
         let source_id = raw.get("_id").and_then(Value::as_str).ok_or_else(|| {
             error(
                 CoverageFailureCode::FixtureNotSourceGrounded,

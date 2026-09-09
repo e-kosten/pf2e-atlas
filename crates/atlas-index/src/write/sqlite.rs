@@ -453,6 +453,8 @@ mod tests {
                 relation_kind: atlas_record::ReferenceRelationKind::Reference,
                 source_kind: ContentSourceKind::Description,
                 visibility: ContentVisibility::Public,
+                source_child: None,
+                target_child: None,
             })
             .collect::<Vec<_>>();
         let aliases = records

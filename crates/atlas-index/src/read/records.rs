@@ -1,7 +1,7 @@
 use atlas_domain::{RecordKey, RecordKind, SearchFilterNode};
 use atlas_record::{
-    ActorMechanics, AtlasRecord, AtlasRecordSet, FoundryDocumentMechanics, FoundryRecordType,
-    ItemMechanics, RetrievedRecord, SpellRecord,
+    ActorMechanics, AtlasRecord, AtlasRecordSet, FoundryDocumentMechanics, FoundryDocumentType,
+    FoundryRecordType, ItemMechanics, RetrievedRecord, SpellRecord,
 };
 use diesel::SqliteConnection;
 use thiserror::Error;
@@ -128,7 +128,7 @@ impl SqliteIndexReader {
             canonical::reconcile_spell_query_projections(connection, &bodies, None)?;
             let children =
                 canonical::spell_children_by_parent(canonical::read_spell_children(connection)?)?;
-            canonical::reconcile_spell_owned_projections(connection, &bodies, &children)?;
+            canonical::reconcile_canonical_owned_projections(connection, &bodies, &children)?;
             hydrate_record_parts(records, bodies, children)
         })
     }
@@ -146,7 +146,7 @@ impl SqliteIndexReader {
             let children = canonical::spell_children_by_parent(
                 canonical::read_spell_children_by_parent_key(connection, keys)?,
             )?;
-            canonical::reconcile_spell_owned_projections(connection, &bodies, &children)?;
+            canonical::reconcile_canonical_owned_projections(connection, &bodies, &children)?;
             hydrate_record_parts(records, bodies, children)
         })
     }
@@ -225,6 +225,18 @@ pub fn hydrate_record_parts(
             (Some(CanonicalBodyFamily::Spell), Some(atlas_record::RecordBody::Spell(spell))) => {
                 validate_spell_body_owner(&record, spell)?;
             }
+            (
+                Some(CanonicalBodyFamily::Journal),
+                Some(atlas_record::RecordBody::Journal(journal)),
+            ) if journal.identity.record_key == record.identity.key
+                && journal.identity.name == record.identity.name
+                && journal.identity.source_id.as_str() == record.identity.id().as_str() => {}
+            (
+                Some(CanonicalBodyFamily::RollTable),
+                Some(atlas_record::RecordBody::RollTable(table)),
+            ) if table.identity.record_key == record.identity.key
+                && table.identity.name == record.identity.name
+                && table.identity.source_id.as_str() == record.identity.id().as_str() => {}
             (Some(expected), None) => {
                 return Err(RecordLoadError::InvalidData(format!(
                     "canonical {} `{}` is missing its required body",
@@ -238,6 +250,8 @@ pub fn hydrate_record_parts(
                     atlas_record::RecordBody::Creature(_) => "creature",
                     atlas_record::RecordBody::Hazard(_) => "hazard",
                     atlas_record::RecordBody::Spell(_) => "spell",
+                    atlas_record::RecordBody::Journal(_) => "journal",
+                    atlas_record::RecordBody::RollTable(_) => "roll_table",
                 };
                 return Err(RecordLoadError::InvalidData(format!(
                     "record `{}` expects {expected} canonical body but has an unexpected canonical {actual} body",
@@ -278,6 +292,8 @@ enum CanonicalBodyFamily {
     Creature,
     Hazard,
     Spell,
+    Journal,
+    RollTable,
 }
 
 impl CanonicalBodyFamily {
@@ -286,6 +302,8 @@ impl CanonicalBodyFamily {
             Self::Creature => "creature",
             Self::Hazard => "hazard",
             Self::Spell => "spell",
+            Self::Journal => "journal",
+            Self::RollTable => "roll_table",
         }
     }
 }
@@ -293,6 +311,43 @@ impl CanonicalBodyFamily {
 fn expected_canonical_body_family(
     record: &AtlasRecord,
 ) -> Result<Option<CanonicalBodyFamily>, RecordLoadError> {
+    match (record.classification.kind, &record.foundry.document_type) {
+        (RecordKind::Journal, FoundryDocumentType::JournalEntry) => {
+            return Ok(Some(CanonicalBodyFamily::Journal));
+        }
+        (RecordKind::RollTable, FoundryDocumentType::RollTable) => {
+            return Ok(Some(CanonicalBodyFamily::RollTable));
+        }
+        (RecordKind::Journal, actual) => {
+            return Err(RecordLoadError::InvalidData(format!(
+                "journal record `{}` has Foundry document type `{}` instead of `JournalEntry`",
+                record.identity.key,
+                actual.as_str(),
+            )));
+        }
+        (RecordKind::RollTable, actual) => {
+            return Err(RecordLoadError::InvalidData(format!(
+                "roll-table record `{}` has Foundry document type `{}` instead of `RollTable`",
+                record.identity.key,
+                actual.as_str(),
+            )));
+        }
+        (actual, FoundryDocumentType::JournalEntry) => {
+            return Err(RecordLoadError::InvalidData(format!(
+                "Foundry JournalEntry `{}` has record kind `{}` instead of `journal`",
+                record.identity.key,
+                actual.as_str(),
+            )));
+        }
+        (actual, FoundryDocumentType::RollTable) => {
+            return Err(RecordLoadError::InvalidData(format!(
+                "Foundry RollTable `{}` has record kind `{}` instead of `roll_table`",
+                record.identity.key,
+                actual.as_str(),
+            )));
+        }
+        _ => {}
+    }
     match (record.classification.kind, &record.foundry.record_type) {
         (RecordKind::Creature, FoundryRecordType::Npc) => Ok(Some(CanonicalBodyFamily::Creature)),
         (RecordKind::Hazard, FoundryRecordType::Hazard) => Ok(Some(CanonicalBodyFamily::Hazard)),
@@ -359,7 +414,11 @@ fn attach_record_details(
         let key = record.identity.key.to_string();
         if !matches!(
             record.classification.kind,
-            RecordKind::Creature | RecordKind::Hazard | RecordKind::Spell
+            RecordKind::Creature
+                | RecordKind::Hazard
+                | RecordKind::Spell
+                | RecordKind::Journal
+                | RecordKind::RollTable
         ) {
             if let Some(rows) = metrics.get(&key) {
                 record.mechanics.metrics.clone_from(rows);
@@ -392,7 +451,11 @@ fn attach_record_details_by_key(
         let key = record.identity.key.to_string();
         if !matches!(
             record.classification.kind,
-            RecordKind::Creature | RecordKind::Hazard | RecordKind::Spell
+            RecordKind::Creature
+                | RecordKind::Hazard
+                | RecordKind::Spell
+                | RecordKind::Journal
+                | RecordKind::RollTable
         ) {
             if let Some(rows) = metrics.get(&key) {
                 record.mechanics.metrics.clone_from(rows);

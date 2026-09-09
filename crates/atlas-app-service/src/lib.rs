@@ -6,6 +6,7 @@ mod error;
 mod executor;
 mod filter;
 mod filters;
+mod h8_surface;
 mod hazard_surface;
 mod lists;
 mod projection;

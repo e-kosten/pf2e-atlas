@@ -84,6 +84,8 @@ pub(super) fn write_records(
                         RecordBody::Creature(_) => "creature",
                         RecordBody::Hazard(_) => "hazard",
                         RecordBody::Spell(_) => "spell",
+                        RecordBody::Journal(_) => "journal",
+                        RecordBody::RollTable(_) => "roll_table",
                     };
                     return Err(IndexWriteError::WriteFailed(format!(
                         "{} record `{}` has an unexpected {actual} body",
@@ -136,12 +138,71 @@ pub(super) fn write_records(
                 )));
             }
             record.mechanics.metrics.as_slice()
+        } else if matches!(
+            record.classification.kind,
+            atlas_domain::RecordKind::Journal | atlas_domain::RecordKind::RollTable
+        ) {
+            let expected_document_type =
+                if record.classification.kind == atlas_domain::RecordKind::Journal {
+                    atlas_record::FoundryDocumentType::JournalEntry
+                } else {
+                    atlas_record::FoundryDocumentType::RollTable
+                };
+            if record.foundry.document_type != expected_document_type {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "{} record `{}` does not have the expected Foundry document type",
+                    record.classification.kind.as_str(),
+                    record.identity.key
+                )));
+            }
+            let body = canonical_bodies_by_key
+                .get(&record_key)
+                .copied()
+                .ok_or_else(|| {
+                    IndexWriteError::WriteFailed(format!(
+                        "{} record `{}` is missing its required canonical body",
+                        record.classification.kind.as_str(),
+                        record.identity.key
+                    ))
+                })?;
+            let identity_matches = match (record.classification.kind, body) {
+                (atlas_domain::RecordKind::Journal, RecordBody::Journal(journal)) => {
+                    journal.identity.name == record.identity.name
+                        && journal.identity.source_id.as_str() == record.identity.id().as_str()
+                }
+                (atlas_domain::RecordKind::RollTable, RecordBody::RollTable(table)) => {
+                    table.identity.name == record.identity.name
+                        && table.identity.source_id.as_str() == record.identity.id().as_str()
+                }
+                _ => false,
+            };
+            if !identity_matches {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "{} body identity for `{}` does not match its generic record owner",
+                    record.classification.kind.as_str(),
+                    record.identity.key
+                )));
+            }
+            if !matches!(record.mechanics.document, FoundryDocumentMechanics::None)
+                || !record.mechanics.metrics.is_empty()
+            {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical {} `{}` retains forbidden generic mechanics",
+                    record.classification.kind.as_str(),
+                    record.identity.key
+                )));
+            }
+            record.mechanics.metrics.as_slice()
         } else {
             if matches!(
                 record.foundry.record_type,
                 atlas_record::FoundryRecordType::Npc
                     | atlas_record::FoundryRecordType::Hazard
                     | atlas_record::FoundryRecordType::Spell
+            ) || matches!(
+                record.foundry.document_type,
+                atlas_record::FoundryDocumentType::JournalEntry
+                    | atlas_record::FoundryDocumentType::RollTable
             ) {
                 return Err(IndexWriteError::WriteFailed(format!(
                     "record `{}` has a canonical body kind that disagrees with its record kind",

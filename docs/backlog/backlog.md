@@ -76,7 +76,7 @@ The contract preserves all 313 exact type-registry assignments, keeps non-creatu
   Redesign retained derived-tag concepts against record kinds, explicit source axes, typed filters, and Rust artifact ownership. Status: planned.
 
 - [Rust content subdocuments for journal pages and table results](./items/rust-content-subdocuments-journal-table-results.md)
-  Preserve the deferred design question for journal-page and rollable-table-result rich text as child content. Status: deferred.
+  Land the approved H8 Journal/RollTable families with parent-owned addressable children and record-level search. Status: in progress.
 
 - [Rust CLI content output formats](./items/rust-cli-content-output-formats.md)
   Decide which optional non-markdown content formats the Rust CLI should expose for record JSON output. Status: deferred.

@@ -75,6 +75,14 @@ table_inventory!(canonical_spell_records, "canonical_spell_records", [
     RECORD_KEY => "record_key", SOURCE_ID => "source_id", NAME => "name",
     CANONICAL_JSON => "canonical_json"
 ]);
+table_inventory!(canonical_journal_records, "canonical_journal_records", [
+    RECORD_KEY => "record_key", SOURCE_ID => "source_id", NAME => "name",
+    CANONICAL_JSON => "canonical_json"
+]);
+table_inventory!(canonical_roll_table_records, "canonical_roll_table_records", [
+    RECORD_KEY => "record_key", SOURCE_ID => "source_id", NAME => "name",
+    CANONICAL_JSON => "canonical_json"
+]);
 table_inventory!(canonical_consumable_spell_children, "canonical_consumable_spell_children", [
     PARENT_RECORD_KEY => "parent_record_key", CHILD_ID => "child_id",
     AUTHORED_ORDER => "authored_order",

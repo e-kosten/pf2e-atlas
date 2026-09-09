@@ -412,6 +412,229 @@ string_newtype_json!(SpellAreaType, as_str, SpellAreaType::new);
 string_newtype_json!(SpellStatistic, as_str, SpellStatistic::new);
 string_newtype_json!(SpellOverlayId, as_str, SpellOverlayId::new);
 string_newtype_json!(SpellFormId, as_str, SpellFormId::new);
+string_newtype_json!(SourceDocumentId, as_str, SourceDocumentId::new);
+string_newtype_json!(MediaLocator, as_str, MediaLocator::new);
+
+impl CanonicalJson for H8Number {
+    fn to_canonical_json(&self) -> Value {
+        Value::String(self.canonical.clone())
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        Ok(Self {
+            canonical: String::from_canonical_json(value, path)?,
+        })
+    }
+}
+
+struct_json!(H8ExactSourceObject { compact_json });
+
+impl<T: CanonicalJson> CanonicalJson for H8FieldValue<T> {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::Known(value) => tagged("known", Some(value.to_canonical_json())),
+            Self::Unsupported(value) => tagged("unsupported", Some(value.to_canonical_json())),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, Some(value)) if kind == "known" => {
+                T::from_canonical_json(value, path).map(Self::Known)
+            }
+            (kind, Some(value)) if kind == "unsupported" => {
+                UnsupportedSourceValue::from_canonical_json(value, path).map(Self::Unsupported)
+            }
+            (kind, _) => Err(format!("{path}: invalid H8 source value `{kind}`")),
+        }
+    }
+}
+
+unit_enum_json!(ContentChildKind { JournalPage => "journal_page", TableResult => "table_result" });
+unit_enum_json!(JournalPageKind { Text => "text", Image => "image", Pdf => "pdf", Video => "video" });
+unit_enum_json!(TableResultKind { Text => "text", Pack => "pack", Document => "document" });
+
+impl CanonicalJson for ContentChildIdentity {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::Stable(value) => tagged("stable", Some(value.to_canonical_json())),
+            Self::Unstable { source_ordinal } => {
+                tagged("unstable", Some(source_ordinal.to_canonical_json()))
+            }
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, Some(value)) if kind == "stable" => {
+                SourceDocumentId::from_canonical_json(value, path).map(Self::Stable)
+            }
+            (kind, Some(value)) if kind == "unstable" => u32::from_canonical_json(value, path)
+                .map(|source_ordinal| Self::Unstable { source_ordinal }),
+            (kind, _) => Err(format!("{path}: invalid H8 child identity `{kind}`")),
+        }
+    }
+}
+
+struct_json!(ContentChildLocator {
+    parent,
+    kind,
+    identity
+});
+struct_json!(H8UnsupportedField {
+    relative_path,
+    authored_order,
+    value
+});
+struct_json!(H8RecordSourceMetadata {
+    folder,
+    sort,
+    ownership,
+    flags,
+    stats
+});
+struct_json!(H8PageSourceMetadata {
+    ownership,
+    flags,
+    stats
+});
+struct_json!(TableResultSourceMetadata { flags });
+struct_json!(H8Identity {
+    record_key,
+    source_id,
+    name
+});
+struct_json!(H8Provenance {
+    source_path,
+    source_contract_version,
+    source_system_version,
+    source_upstream_commit
+});
+struct_json!(JournalPageTitle { show, level });
+struct_json!(JournalPageText {
+    content,
+    format,
+    markdown
+});
+struct_json!(JournalPageVideo {
+    controls,
+    loop_playback,
+    autoplay,
+    volume,
+    timestamp,
+    width,
+    height
+});
+struct_json!(JournalPage {
+    locator,
+    source_id,
+    source_ordinal,
+    name,
+    page_kind,
+    sort,
+    title,
+    text,
+    source,
+    image_source,
+    image_caption,
+    video,
+    source_system,
+    source_metadata,
+    unsupported_fields
+});
+struct_json!(H8UnsupportedChild {
+    locator,
+    source_id,
+    source_ordinal,
+    exact_source,
+    reason
+});
+
+impl CanonicalJson for JournalPageEntry {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::Page(value) => tagged("page", Some(value.to_canonical_json())),
+            Self::Unsupported(value) => tagged("unsupported", Some(value.to_canonical_json())),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, Some(value)) if kind == "page" => JournalPage::from_canonical_json(value, path)
+                .map(Box::new)
+                .map(Self::Page),
+            (kind, Some(value)) if kind == "unsupported" => {
+                H8UnsupportedChild::from_canonical_json(value, path).map(Self::Unsupported)
+            }
+            (kind, _) => Err(format!("{path}: invalid journal page entry `{kind}`")),
+        }
+    }
+}
+
+struct_json!(JournalRecord {
+    identity,
+    pages,
+    source_metadata,
+    content,
+    unsupported_fields,
+    provenance
+});
+struct_json!(TableResultTarget {
+    collection,
+    document_id
+});
+struct_json!(TableResultRange { first, last });
+struct_json!(TableResult {
+    locator,
+    source_id,
+    source_ordinal,
+    result_kind,
+    text,
+    target,
+    weight,
+    range,
+    drawn,
+    image,
+    source_metadata,
+    unsupported_fields
+});
+
+impl CanonicalJson for TableResultEntry {
+    fn to_canonical_json(&self) -> Value {
+        match self {
+            Self::Result(value) => tagged("result", Some(value.to_canonical_json())),
+            Self::Unsupported(value) => tagged("unsupported", Some(value.to_canonical_json())),
+        }
+    }
+
+    fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
+        match take_tag(value, path)? {
+            (kind, Some(value)) if kind == "result" => {
+                TableResult::from_canonical_json(value, path)
+                    .map(Box::new)
+                    .map(Self::Result)
+            }
+            (kind, Some(value)) if kind == "unsupported" => {
+                H8UnsupportedChild::from_canonical_json(value, path).map(Self::Unsupported)
+            }
+            (kind, _) => Err(format!("{path}: invalid table result entry `{kind}`")),
+        }
+    }
+}
+
+struct_json!(RollTableRecord {
+    identity,
+    description,
+    results,
+    formula,
+    replacement,
+    display_roll,
+    image,
+    source_metadata,
+    content,
+    unsupported_fields,
+    provenance
+});
 
 impl CanonicalJson for CreatureNote {
     fn to_canonical_json(&self) -> Value {
@@ -2002,6 +2225,7 @@ impl CanonicalJson for ContentOwner {
             Self::HazardOccurrence(value) => {
                 tagged("hazard_occurrence", Some(value.to_canonical_json()))
             }
+            Self::Child(value) => tagged("child", Some(value.to_canonical_json())),
         }
     }
     fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
@@ -2021,6 +2245,7 @@ impl CanonicalJson for ContentOwner {
             "hazard_occurrence" => {
                 HazardOccurrenceId::from_canonical_json(value, path).map(Self::HazardOccurrence)
             }
+            "child" => ContentChildLocator::from_canonical_json(value, path).map(Self::Child),
             _ => Err(format!("{path}: invalid content owner `{kind}`")),
         }
     }
@@ -2075,6 +2300,19 @@ impl CanonicalJson for ContentOrigin {
                     ),
                 ])),
             ),
+            Self::ChildField {
+                locator,
+                relative_source_path,
+            } => tagged(
+                "child_field",
+                Some(object_value([
+                    ("locator", locator.to_canonical_json()),
+                    (
+                        "relative_source_path",
+                        relative_source_path.to_canonical_json(),
+                    ),
+                ])),
+            ),
             Self::Generated { source_kind } => tagged(
                 "generated",
                 Some(Value::String(source_kind.as_str().to_string())),
@@ -2119,6 +2357,15 @@ impl CanonicalJson for ContentOrigin {
                     nested_source_id,
                     relative_source_path,
                 })
+            }
+            (kind, Some(value)) if kind == "child_field" => {
+                let mut value = object(value, path)?;
+                let result = Self::ChildField {
+                    locator: field(&mut value, "locator", path)?,
+                    relative_source_path: field(&mut value, "relative_source_path", path)?,
+                };
+                finish(value, path)?;
+                Ok(result)
             }
             (kind, Some(value)) if kind == "generated" => Ok(Self::Generated {
                 source_kind: parse_content_source_kind(
@@ -2461,6 +2708,8 @@ impl CanonicalJson for RecordBody {
             Self::Creature(value) => tagged("creature", Some(value.to_canonical_json())),
             Self::Hazard(value) => tagged("hazard", Some(value.to_canonical_json())),
             Self::Spell(value) => tagged("spell", Some(value.to_canonical_json())),
+            Self::Journal(value) => tagged("journal", Some(value.to_canonical_json())),
+            Self::RollTable(value) => tagged("roll_table", Some(value.to_canonical_json())),
         }
     }
     fn from_canonical_json(value: Value, path: &str) -> Result<Self, String> {
@@ -2473,6 +2722,12 @@ impl CanonicalJson for RecordBody {
             }
             (kind, Some(value)) if kind == "spell" => {
                 SpellRecord::from_canonical_json(value, path).map(Self::Spell)
+            }
+            (kind, Some(value)) if kind == "journal" => {
+                JournalRecord::from_canonical_json(value, path).map(Self::Journal)
+            }
+            (kind, Some(value)) if kind == "roll_table" => {
+                RollTableRecord::from_canonical_json(value, path).map(Self::RollTable)
             }
             (kind, _) => Err(format!("{path}: invalid record body `{kind}`")),
         }
@@ -3125,7 +3380,10 @@ mod tests {
         let mut fixture = spell_fixture();
         let spell = match &mut fixture {
             RecordBody::Spell(spell) => spell,
-            RecordBody::Creature(_) | RecordBody::Hazard(_) => panic!("spell fixture"),
+            RecordBody::Creature(_)
+            | RecordBody::Hazard(_)
+            | RecordBody::Journal(_)
+            | RecordBody::RollTable(_) => panic!("spell fixture"),
         };
         let area_drift = UnsupportedSourceValue {
             shape: UnsupportedSourceShape::String,
@@ -3188,7 +3446,10 @@ mod tests {
     fn consumable_spell_child_codec_preserves_arboreal_wand_identity_and_locator() {
         let definition = match spell_fixture() {
             RecordBody::Spell(spell) => spell.definition,
-            RecordBody::Creature(_) | RecordBody::Hazard(_) => panic!("spell fixture"),
+            RecordBody::Creature(_)
+            | RecordBody::Hazard(_)
+            | RecordBody::Journal(_)
+            | RecordBody::RollTable(_) => panic!("spell fixture"),
         };
         let child = ConsumableSpellChild {
             parent_record_key: RecordKey::parse("equipment-srd:eOtQtVRLeGH39dNx").expect("parent"),
@@ -3236,7 +3497,10 @@ mod tests {
         let mut fixture = spell_fixture();
         let spell = match &mut fixture {
             RecordBody::Spell(spell) => spell,
-            RecordBody::Creature(_) | RecordBody::Hazard(_) => panic!("spell fixture"),
+            RecordBody::Creature(_)
+            | RecordBody::Hazard(_)
+            | RecordBody::Journal(_)
+            | RecordBody::RollTable(_) => panic!("spell fixture"),
         };
         spell.definition.targeting = known(SpellTargeting {
             area: known(SpellAreaValue {
