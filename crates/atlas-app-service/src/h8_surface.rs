@@ -11,7 +11,7 @@ use atlas_record::{
     H8UnsupportedField, JournalPage, JournalPageEntry, JournalPageKind, JournalPageText,
     JournalPageTitle, JournalPageVideo, JournalRecord, RichDocument, RollTableRecord, TableResult,
     TableResultEntry, TableResultKind, UnsupportedSourceReason, UnsupportedSourceShape,
-    UnsupportedSourceValue, encode_content_child_locator, project_record_surface_content,
+    UnsupportedSourceValue, encode_content_child_selector, project_record_surface_content,
 };
 
 pub(crate) fn journal_surface(value: &JournalRecord) -> JournalSurfaceView {
@@ -76,7 +76,7 @@ fn journal_page_entry(value: &JournalPageEntry) -> JournalPageEntryView {
 
 fn journal_page(value: &JournalPage) -> JournalPageView {
     JournalPageView {
-        locator: encode_content_child_locator(&value.locator),
+        locator: encode_content_child_selector(&value.locator),
         identity_stability: identity_stability(&value.locator),
         source_id: fact(&value.source_id, |value| value.as_str().to_string()),
         source_ordinal: value.source_ordinal,
@@ -148,7 +148,7 @@ fn table_result_entry(value: &TableResultEntry) -> TableResultEntryView {
 
 fn table_result(value: &TableResult) -> TableResultView {
     TableResultView {
-        locator: encode_content_child_locator(&value.locator),
+        locator: encode_content_child_selector(&value.locator),
         identity_stability: identity_stability(&value.locator),
         source_id: fact(&value.source_id, |value| value.as_str().to_string()),
         source_ordinal: value.source_ordinal,
@@ -205,8 +205,9 @@ fn provenance(value: &H8Provenance) -> H8ProvenanceView {
 
 fn unsupported_child(value: &H8UnsupportedChild) -> H8UnsupportedChildView {
     H8UnsupportedChildView {
-        locator: encode_content_child_locator(&value.locator),
+        locator: encode_content_child_selector(&value.locator),
         identity_stability: identity_stability(&value.locator),
+        source_id: fact(&value.source_id, |value| value.as_str().to_string()),
         source_ordinal: value.source_ordinal,
         exact_source: value.exact_source.compact_json.clone(),
         reason: value.reason.clone(),

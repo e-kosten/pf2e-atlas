@@ -3,6 +3,7 @@
 mod artifact;
 mod discovery;
 mod embedding_cache;
+mod h8_integrity;
 mod inspect;
 mod metadata;
 mod read;

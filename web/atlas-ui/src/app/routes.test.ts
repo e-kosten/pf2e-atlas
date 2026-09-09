@@ -39,7 +39,7 @@ describe("atlas routes", () => {
     expect(currentAtlasRoute()).toEqual({
       kind: "record",
       recordKey: "journal:hero-points",
-      childLocator: "v1~j~s~706172656e74~70616765",
+      childLocator: "v1~j~s~70616765",
     });
 
     history.replaceState(null, "", "/presentation-mocks");
@@ -111,9 +111,9 @@ describe("atlas routes", () => {
       atlasRoutePath({
         kind: "record",
         recordKey: "journal:hero-points",
-        childLocator: "v1~j~s~706172656e74~70616765",
+        childLocator: "v1~j~s~70616765",
       }),
-    ).toBe("/records/journal%3Ahero-points?child=v1~j~s~706172656e74~70616765");
+    ).toBe("/records/journal%3Ahero-points?child=v1~j~s~70616765");
     expect(atlasRoutePath({ kind: "search", selectedRecordKey: "spell:heal" })).toBe(
       "/search/records/spell%3Aheal",
     );

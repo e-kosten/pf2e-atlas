@@ -14,8 +14,11 @@ import type {
   ResultWindowPage,
 } from "../generated/atlas";
 import {
+  heroPointDeckRecordKey,
   recordDetailFixture as typedRecordDetailFixture,
   recordSummaryFixture,
+  rollTableRecordDetailFixture,
+  rollTableResultOneLocator,
 } from "../test/recordFixtures";
 import { AtlasApp } from "./AtlasApp";
 
@@ -135,6 +138,52 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
   });
+
+  it(
+    "restores a concise RollTable result selection through browser back and forward",
+    async () => {
+      const recordKey = heroPointDeckRecordKey;
+      history.replaceState(null, "", `/records/${encodeURIComponent(recordKey)}`);
+      apiMocks.getRecordDetail.mockResolvedValue(rollTableRecordDetailFixture());
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+
+      fireEvent.click(await screen.findByRole("link", { name: "Open result 1" }));
+      await waitFor(() =>
+        expect(window.location.search).toBe(
+          `?child=${encodeURIComponent(rollTableResultOneLocator)}`,
+        ),
+      );
+      expect(await screen.findByText("Result 1 selected")).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(screen.getByRole("region", { name: "Selected result 1" })).toHaveFocus();
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        recordKey,
+        { child_locator: rollTableResultOneLocator },
+        expect.any(AbortSignal),
+      );
+
+      act(() => history.back());
+      await waitFor(() => expect(window.location.search).toBe(""));
+      expect(
+        await screen.findByRole("link", { name: "Open result 1" }),
+      ).toBeInTheDocument();
+
+      act(() => history.forward());
+      await waitFor(() =>
+        expect(window.location.search).toBe(
+          `?child=${encodeURIComponent(rollTableResultOneLocator)}`,
+        ),
+      );
+      expect(await screen.findByText("Result 1 selected")).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(screen.getByRole("region", { name: "Selected result 1" })).toHaveFocus();
+    },
+    tenSecondTestDeadline,
+  );
 
   it(
     "opens the search side-detail record as a full-page record route",

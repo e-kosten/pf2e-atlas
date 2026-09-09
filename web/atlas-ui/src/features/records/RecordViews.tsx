@@ -91,12 +91,16 @@ export function ReaderView({ route }: ReaderViewProps) {
             detail={detail.data}
             errors={[detail.error]}
             loading={detail.isLoading}
-            onReference={(previewRecordKey) =>
-              navigateToAtlasRoute({
-                kind: "reader",
-                recordKey: route.recordKey,
-                previewRecordKey,
-              })
+            onReference={(previewRecordKey, childLocator) =>
+              navigateToAtlasRoute(
+                childLocator
+                  ? { kind: "record", recordKey: previewRecordKey, childLocator }
+                  : {
+                      kind: "reader",
+                      recordKey: route.recordKey,
+                      previewRecordKey,
+                    },
+              )
             }
             stale={detail.isFetching && Boolean(detail.data)}
           />
@@ -138,12 +142,16 @@ export function ReaderView({ route }: ReaderViewProps) {
             emptyMessage="Select a linked record to preview it."
             errors={[preview.error]}
             loading={route.previewRecordKey ? preview.isLoading : false}
-            onReference={(previewRecordKey) =>
-              navigateToAtlasRoute({
-                kind: "reader",
-                recordKey: route.recordKey,
-                previewRecordKey,
-              })
+            onReference={(previewRecordKey, childLocator) =>
+              navigateToAtlasRoute(
+                childLocator
+                  ? { kind: "record", recordKey: previewRecordKey, childLocator }
+                  : {
+                      kind: "reader",
+                      recordKey: route.recordKey,
+                      previewRecordKey,
+                    },
+              )
             }
             stale={
               Boolean(route.previewRecordKey) &&

@@ -7,7 +7,9 @@ mod support;
 
 use support::json::{ok_data, record_sections};
 use support::path::temp_source_root;
-use support::source::{write_ambiguous_action_source, write_creature_preview_source};
+use support::source::{
+    write_ambiguous_action_source, write_creature_preview_source, write_h8_fts_source,
+};
 
 #[test]
 fn filter_search_reports_pagination_and_random_seed() -> Result<(), Box<dyn std::error::Error>> {
@@ -139,6 +141,66 @@ fn search_preview_prints_kind_metric_facts() -> Result<(), Box<dyn std::error::E
     assert!(record.get("resources").is_none());
     assert!(record.get("strikes").is_none());
     assert!(record_sections(record).is_empty());
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn h8_public_search_returns_title_parent_without_child_match_context()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_source_root("cli-h8-parent-search");
+    write_h8_fts_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--source"])
+        .arg(&root)
+        .args(["--output"])
+        .arg(&index_path)
+        .arg("--no-embeddings")
+        .arg("--json")
+        .output()?;
+    assert!(
+        build_output.status.success(),
+        "fixture artifact build failed: {}",
+        String::from_utf8_lossy(&build_output.stderr)
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["search", "ancestral", "--retrieval", "fts", "--index"])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(
+        output.status.success(),
+        "fixture search failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // The local CLI client traverses AtlasAppService::search_text before this public JSON
+    // projection, so these assertions bind both the app search result and the CLI envelope.
+    let json: Value = serde_json::from_slice(&output.stdout)?;
+    let results = ok_data(&json)["results"]
+        .as_array()
+        .ok_or("H8 search results")?;
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0]["record"]["key"], "journals:journalTitle0001",
+        "the public search policy keeps the direct parent-title match"
+    );
+    for result in results {
+        let key = result["record"]["key"].as_str().ok_or("record key")?;
+        assert!(
+            !key.contains('#'),
+            "search identity must remain parent-only"
+        );
+        assert_eq!(result["match"]["kind"], "ranked");
+        assert_eq!(result["match"]["retrieval"], "fts");
+        let match_object = result["match"].as_object().ok_or("match object")?;
+        assert!(
+            match_object.keys().all(|key| !key.contains("child")),
+            "ordinary CLI search metadata must not fabricate child context"
+        );
+    }
 
     fs::remove_dir_all(root)?;
     Ok(())

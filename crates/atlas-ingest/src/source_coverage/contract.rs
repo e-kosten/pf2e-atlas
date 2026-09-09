@@ -493,12 +493,11 @@ fn lint_leaf(
             shape,
             ExpectedSourceShape::Array | ExpectedSourceShape::Object
         )
-    }) && !is_authenticated_terminal_container(&identity)
-    {
+    }) {
         failures.push(CoverageFailure::for_identity(
             CoverageFailureCode::BroadDeclaration,
             identity.clone(),
-            "object and collection containers are prefixes unless the authenticated prevalence inventory proves an exact terminal container with no descendants",
+            "object and collection containers are prefixes, not exact source leaves; declare independently receipted [] or * members",
         ));
     }
     if leaf.expected_shapes.iter().collect::<BTreeSet<_>>().len() != leaf.expected_shapes.len() {
@@ -756,25 +755,6 @@ fn lint_leaf(
     }
 }
 
-fn is_authenticated_terminal_container(identity: &SourceLeafIdentity) -> bool {
-    let Ok(entries) = accepted_prevalence() else {
-        return false;
-    };
-    let exact = entries.iter().any(|entry| entry.identity() == *identity);
-    exact
-        && !entries.iter().any(|entry| {
-            entry.type_id == identity.type_id
-                && entry.selector == identity.selector
-                && is_descendant_path(&identity.normalized_path, &entry.normalized_path)
-        })
-}
-
-fn is_descendant_path(parent: &str, candidate: &str) -> bool {
-    candidate
-        .strip_prefix(parent)
-        .is_some_and(|suffix| suffix.starts_with('.') || suffix.starts_with("[]"))
-}
-
 fn valid_sha256_digest(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(|digest| {
         digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
@@ -872,7 +852,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: item-action-top-level-name@4cbdaa37
       record_count: 1169
       occurrence_count: 1169

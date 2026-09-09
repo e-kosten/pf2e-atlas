@@ -2,11 +2,16 @@ use std::path::{Path, PathBuf};
 
 use atlas_domain::{PackName, RecordKind};
 use atlas_record::{
-    ContentChildIdentity, FactValue, H8FieldValue, JournalPageEntry, RecordBody, RichLinkTarget,
-    TableResultEntry, iter_foundry_links, render_plain_text,
+    ContentChildIdentity, ContentOrigin, FactValue, H8FieldValue, JournalPageEntry, RecordBody,
+    RichDocument, RichLinkTarget, RichNode, TableResultEntry, iter_foundry_links,
+    render_plain_text,
 };
 
 use super::ManifestPack;
+use super::dto::{
+    SerializedSourceMember, SourcePresence, parse_journal_source, parse_roll_table_source,
+    parse_serialized_source_object,
+};
 use super::normalize::normalize_record_from_source_bytes;
 
 fn normalize(
@@ -147,6 +152,264 @@ fn h8_journal_page_system_distinguishes_empty_known_from_populated_unsupported()
         panic!("populated object must be exact unsupported evidence");
     };
     assert_eq!(populated_system.value, r#"{"member":false,"member":0}"#);
+}
+
+#[test]
+fn h8_journal_container_facts_preserve_four_states_and_duplicate_evidence() {
+    let source = br#"{
+      "_id":"journal1","name":"Journal","pages":[
+        {"_id":"missing","name":"Missing","type":"text"},
+        {"_id":"null","name":"Null","type":"text","image":null,"system":null},
+        {"_id":"empty","name":"Empty","type":"text","image":{},"system":{}},
+        {"_id":"populated","name":"Populated","type":"text",
+         "image":{"caption":"Authored"},"system":{"future":true}},
+        {"_id":"wrong","name":"Wrong shape","type":"text","image":false,"system":0},
+        {"_id":"duplicate-image","name":"Duplicate image","type":"text",
+         "image":{},"image":{"future":1}},
+        {"_id":"duplicate-system","name":"Duplicate system","type":"text",
+         "system":{},"system":{"future":2}}
+      ]
+    }"#;
+    let root = parse_serialized_source_object(source).expect("lossless source tree");
+    let dto = parse_journal_source(&root).expect("journal source DTO");
+    let SourcePresence::Value(dto_pages) = dto.pages else {
+        panic!("journal DTO pages");
+    };
+    assert!(matches!(
+        dto_pages[0].object().expect("missing page").member("image"),
+        SerializedSourceMember::Missing
+    ));
+    assert!(matches!(
+        dto_pages[1].object().expect("null page").member("image"),
+        SerializedSourceMember::Null
+    ));
+    let SerializedSourceMember::Value(empty_image) =
+        dto_pages[2].object().expect("empty page").member("image")
+    else {
+        panic!("empty DTO image object");
+    };
+    assert_eq!(empty_image.compact_json(), "{}");
+    let SerializedSourceMember::Duplicate(duplicate_images) = dto_pages[5]
+        .object()
+        .expect("duplicate image page")
+        .member("image")
+    else {
+        panic!("duplicate DTO image members");
+    };
+    assert_eq!(
+        duplicate_images
+            .iter()
+            .map(|value| value.compact_json())
+            .collect::<Vec<_>>(),
+        vec!["{}".to_string(), r#"{"future":1}"#.to_string()]
+    );
+
+    let loaded = normalize(
+        "JournalEntry",
+        "journals",
+        "packs/journals/container-states.json",
+        source,
+    )
+    .expect("container source states normalize without losing valid siblings");
+
+    let Some(RecordBody::Journal(journal)) = loaded.facts.canonical_body.as_ref() else {
+        panic!("journal body");
+    };
+    let FactValue::Value(H8FieldValue::Known(pages)) = &journal.pages else {
+        panic!("pages");
+    };
+    assert_eq!(pages.len(), 7);
+
+    let JournalPageEntry::Page(missing) = &pages[0] else {
+        panic!("missing page");
+    };
+    assert_eq!(missing.image_source, FactValue::Missing);
+    assert_eq!(missing.source_system, FactValue::Missing);
+
+    let JournalPageEntry::Page(null) = &pages[1] else {
+        panic!("null page");
+    };
+    assert_eq!(null.image_source, FactValue::Null);
+    assert_eq!(null.source_system, FactValue::Null);
+
+    let JournalPageEntry::Page(empty) = &pages[2] else {
+        panic!("empty page");
+    };
+    let FactValue::Value(H8FieldValue::Known(empty_image)) = &empty.image_source else {
+        panic!("empty image must be known");
+    };
+    assert_eq!(empty_image.compact_json, "{}");
+    let FactValue::Value(H8FieldValue::Known(empty_system)) = &empty.source_system else {
+        panic!("empty system must be known");
+    };
+    assert_eq!(empty_system.compact_json, "{}");
+
+    let JournalPageEntry::Page(populated) = &pages[3] else {
+        panic!("populated page");
+    };
+    let FactValue::Value(H8FieldValue::Known(populated_image)) = &populated.image_source else {
+        panic!("populated image object must remain exact");
+    };
+    assert_eq!(populated_image.compact_json, r#"{"caption":"Authored"}"#);
+    let FactValue::Value(H8FieldValue::Unsupported(populated_system)) = &populated.source_system
+    else {
+        panic!("populated system object must be exact unsupported evidence");
+    };
+    assert_eq!(populated_system.value, r#"{"future":true}"#);
+
+    let JournalPageEntry::Page(wrong) = &pages[4] else {
+        panic!("wrong-shape page");
+    };
+    let FactValue::Value(H8FieldValue::Unsupported(wrong_image)) = &wrong.image_source else {
+        panic!("wrong-shape image must be exact unsupported evidence");
+    };
+    assert_eq!(wrong_image.value, "false");
+    let FactValue::Value(H8FieldValue::Unsupported(wrong_system)) = &wrong.source_system else {
+        panic!("wrong-shape system must be exact unsupported evidence");
+    };
+    assert_eq!(wrong_system.value, "0");
+
+    let JournalPageEntry::Unsupported(duplicate_image) = &pages[5] else {
+        panic!("duplicate image localizes to its page");
+    };
+    assert!(
+        duplicate_image
+            .exact_source
+            .compact_json
+            .contains(r#""image":{},"image":{"future":1}"#)
+    );
+    let JournalPageEntry::Unsupported(duplicate_system) = &pages[6] else {
+        panic!("duplicate system localizes to its page");
+    };
+    assert!(
+        duplicate_system
+            .exact_source
+            .compact_json
+            .contains(r#""system":{},"system":{"future":2}"#)
+    );
+}
+
+#[test]
+fn h8_parent_child_containers_preserve_presence_and_reject_malformed_shapes() {
+    for (document_type, pack, container, body_kind) in [
+        ("JournalEntry", "journals", "pages", RecordKind::Journal),
+        (
+            "RollTable",
+            "rollable-tables",
+            "results",
+            RecordKind::RollTable,
+        ),
+    ] {
+        let prefix = if document_type == "JournalEntry" {
+            r#"{"_id":"record1","name":"Record""#
+        } else {
+            r#"{"_id":"record1","name":"Record","formula":"1d1""#
+        };
+        for (case, suffix) in [
+            ("missing", "}".to_string()),
+            ("null", format!(r#","{container}":null}}"#)),
+            ("empty", format!(r#","{container}":[]}}"#)),
+        ] {
+            let source = format!("{prefix}{suffix}");
+            let root = parse_serialized_source_object(source.as_bytes())
+                .expect("lossless parent container source tree");
+            let dto_presence = if document_type == "JournalEntry" {
+                parse_journal_source(&root)
+                    .expect("journal source DTO")
+                    .pages
+            } else {
+                parse_roll_table_source(&root)
+                    .expect("roll table source DTO")
+                    .results
+            };
+            match (case, &dto_presence) {
+                ("missing", SourcePresence::Missing) | ("null", SourcePresence::Null) => {}
+                ("empty", SourcePresence::Value(values)) if values.is_empty() => {}
+                _ => panic!("unexpected {document_type} {case} DTO presence"),
+            }
+            let loaded = normalize(
+                document_type,
+                pack,
+                &format!("packs/{pack}/{case}.json"),
+                source.as_bytes(),
+            )
+            .expect("container source presence normalizes");
+            assert_eq!(loaded.record.classification.kind, body_kind);
+            match (
+                case,
+                loaded
+                    .facts
+                    .canonical_body
+                    .as_ref()
+                    .expect("canonical body"),
+            ) {
+                ("missing", RecordBody::Journal(value)) => {
+                    assert_eq!(value.pages, FactValue::Missing)
+                }
+                ("null", RecordBody::Journal(value)) => {
+                    assert_eq!(value.pages, FactValue::Null)
+                }
+                ("empty", RecordBody::Journal(value)) => {
+                    assert_eq!(
+                        value.pages,
+                        FactValue::Value(H8FieldValue::Known(Vec::new()))
+                    )
+                }
+                ("missing", RecordBody::RollTable(value)) => {
+                    assert_eq!(value.results, FactValue::Missing)
+                }
+                ("null", RecordBody::RollTable(value)) => {
+                    assert_eq!(value.results, FactValue::Null)
+                }
+                ("empty", RecordBody::RollTable(value)) => {
+                    assert_eq!(
+                        value.results,
+                        FactValue::Value(H8FieldValue::Known(Vec::new()))
+                    )
+                }
+                _ => panic!("unexpected H8 container body"),
+            }
+        }
+
+        for (case, suffix, expected) in [
+            (
+                "wrong-shape",
+                format!(r#","{container}":{{}}}}"#),
+                format!("$.{container} must be an array"),
+            ),
+            (
+                "duplicate",
+                format!(r#","{container}":[],"{container}":[]}}"#),
+                format!("$.{container} is duplicated"),
+            ),
+        ] {
+            let source = format!("{prefix}{suffix}");
+            let root = parse_serialized_source_object(source.as_bytes())
+                .expect("lossless malformed parent container source tree");
+            let dto_error = if document_type == "JournalEntry" {
+                parse_journal_source(&root)
+                    .expect_err("journal DTO must reject malformed container")
+            } else {
+                parse_roll_table_source(&root)
+                    .expect_err("roll table DTO must reject malformed container")
+            };
+            assert!(
+                dto_error.contains(&expected),
+                "unexpected {document_type} {case} DTO error: {dto_error}"
+            );
+            let error = normalize(
+                document_type,
+                pack,
+                &format!("packs/{pack}/{case}.json"),
+                source.as_bytes(),
+            )
+            .expect_err("malformed parent container must fail closed");
+            assert!(
+                error.to_string().contains(&expected),
+                "unexpected {document_type} {case} error: {error}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -612,4 +875,170 @@ fn h8_real_loader_resolves_hero_point_result_to_exact_journal_page() {
             && edge.source_child.is_some()
     }));
     std::fs::remove_dir_all(fixture).expect("fixture cleanup");
+}
+
+#[test]
+fn h8_reference_resolution_copies_authoritative_documents_to_all_known_fields() {
+    let journal = normalize(
+        "JournalEntry",
+        "journals",
+        "packs/journals/reference-contract.json",
+        br#"{
+          "_id":"journal1","name":"Journal","pages":[
+            {"_id":"target-page","name":"Target Page","type":"text",
+             "text":{"content":"<p>Target.</p>","format":1}},
+            {"_id":"source-page","name":"Source Page","type":"text",
+             "text":{"content":"<p>@UUID[Compendium.pf2e.journals.JournalEntry.journal1.JournalEntryPage.target-page]{Target Page}</p>","format":1}}
+          ]
+        }"#,
+    )
+    .expect("journal source normalizes");
+    let table = normalize(
+        "RollTable",
+        "rollable-tables",
+        "packs/rollable-tables/reference-contract.json",
+        br#"{
+          "_id":"table1","name":"Table",
+          "description":"<p>@UUID[Compendium.pf2e.journals.JournalEntry.journal1.JournalEntryPage.target-page]{Target Page}</p>",
+          "formula":"1d1","replacement":false,"displayRoll":true,
+          "results":[
+            {"_id":"result-1","type":"text",
+             "text":"<p>@UUID[Compendium.pf2e.journals.JournalEntry.journal1.JournalEntryPage.target-page]{Target Page}</p>",
+             "weight":1,"range":[1,1],"drawn":false}
+          ]
+        }"#,
+    )
+    .expect("roll-table source normalizes");
+    let mut records = vec![journal, table];
+    let Some(RecordBody::Journal(journal)) = records[0].facts.canonical_body.as_mut() else {
+        panic!("journal body");
+    };
+    let mut wrong_page_document = journal.content.documents[1].clone();
+    let wrong_page_locator = match &wrong_page_document.origin {
+        ContentOrigin::ChildField { locator, .. } => locator.clone(),
+        _ => panic!("page content origin"),
+    };
+    wrong_page_document.origin = ContentOrigin::ChildField {
+        locator: wrong_page_locator,
+        relative_source_path: "$.pages[99].text.content".to_string(),
+    };
+    wrong_page_document.document = RichDocument::new(vec![RichNode::Text {
+        text: "Wrong page document".to_string(),
+    }]);
+    wrong_page_document.refresh_derived_state();
+    journal.content.documents.insert(0, wrong_page_document);
+
+    let Some(RecordBody::RollTable(table)) = records[1].facts.canonical_body.as_mut() else {
+        panic!("roll-table body");
+    };
+    let mut wrong_description = table.content.documents[0].clone();
+    wrong_description.origin = ContentOrigin::RecordField {
+        source_kind: wrong_description.source_kind,
+        relative_source_path: "$.wrong-description".to_string(),
+    };
+    wrong_description.document = RichDocument::new(vec![RichNode::Text {
+        text: "Wrong table description".to_string(),
+    }]);
+    wrong_description.refresh_derived_state();
+    let mut wrong_result = table.content.documents[1].clone();
+    let wrong_result_locator = match &wrong_result.origin {
+        ContentOrigin::ChildField { locator, .. } => locator.clone(),
+        _ => panic!("result content origin"),
+    };
+    wrong_result.origin = ContentOrigin::ChildField {
+        locator: wrong_result_locator,
+        relative_source_path: "$.results[99].text".to_string(),
+    };
+    wrong_result.document = RichDocument::new(vec![RichNode::Text {
+        text: "Wrong table result".to_string(),
+    }]);
+    wrong_result.refresh_derived_state();
+    table.content.documents.insert(0, wrong_result);
+    table.content.documents.insert(0, wrong_description);
+
+    let index = crate::records::references::build_record_reference_index(&records);
+    crate::records::references::resolve_content_references(&mut records, &index);
+
+    let target = |document: &atlas_record::RichDocument| {
+        let link = iter_foundry_links(document)
+            .next()
+            .expect("resolved document keeps its authored link");
+        let RichLinkTarget::RecordChild { key, locator, .. } = &link.target else {
+            panic!("known H8 field must receive the resolved child target");
+        };
+        assert_eq!(key.to_string(), "journals:journal1");
+        assert_eq!(locator.parent, *key);
+        assert!(matches!(
+            &locator.identity,
+            ContentChildIdentity::Stable(id) if id.as_str() == "target-page"
+        ));
+    };
+
+    let Some(RecordBody::Journal(journal)) = records[0].facts.canonical_body.as_ref() else {
+        panic!("journal body");
+    };
+    let FactValue::Value(H8FieldValue::Known(pages)) = &journal.pages else {
+        panic!("journal pages");
+    };
+    let page = pages
+        .iter()
+        .filter_map(|entry| match entry {
+            JournalPageEntry::Page(page) => Some(page),
+            JournalPageEntry::Unsupported(_) => None,
+        })
+        .find(|page| {
+            matches!(
+                &page.source_id,
+                FactValue::Value(H8FieldValue::Known(id)) if id.as_str() == "source-page"
+            )
+        })
+        .expect("source page");
+    let FactValue::Value(H8FieldValue::Known(text)) = &page.text else {
+        panic!("page text");
+    };
+    let FactValue::Value(H8FieldValue::Known(document)) = &text.content else {
+        panic!("page content");
+    };
+    target(document);
+
+    let Some(RecordBody::RollTable(table)) = records[1].facts.canonical_body.as_ref() else {
+        panic!("roll-table body");
+    };
+    let FactValue::Value(H8FieldValue::Known(description)) = &table.description else {
+        panic!("table description");
+    };
+    target(description);
+    let FactValue::Value(H8FieldValue::Known(results)) = &table.results else {
+        panic!("table results");
+    };
+    let TableResultEntry::Result(result) = &results[0] else {
+        panic!("table result");
+    };
+    let FactValue::Value(H8FieldValue::Known(text)) = &result.text else {
+        panic!("result text");
+    };
+    target(text);
+    for retained in [
+        "Wrong page document",
+        "Wrong table description",
+        "Wrong table result",
+    ] {
+        assert!(records.iter().any(|record| {
+            record
+                .facts
+                .canonical_body
+                .as_ref()
+                .and_then(|body| match body {
+                    RecordBody::Journal(journal) => Some(&journal.content),
+                    RecordBody::RollTable(table) => Some(&table.content),
+                    _ => None,
+                })
+                .is_some_and(|content| {
+                    content
+                        .documents
+                        .iter()
+                        .any(|document| render_plain_text(&document.document) == retained)
+                })
+        }));
+    }
 }

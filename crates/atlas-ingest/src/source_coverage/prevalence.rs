@@ -13,7 +13,7 @@ use super::{SourceLeafIdentity, SourceLeafSelector};
 
 pub const PF2E_SOURCE_LEAF_PREVALENCE_VERSION: &str = "pf2e-source-leaf-prevalence/v1";
 pub const PF2E_SOURCE_LEAF_PREVALENCE_SHA256: &str =
-    "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc";
+    "da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a";
 
 const PREVALENCE_BYTES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -136,23 +136,31 @@ mod tests {
         "item--melee--embedded--actor--hazard--actor-items",
         "item--consumable--embedded--actor--hazard--actor-items",
     ];
-    const H8_LEDGERS: [&str; 4] = [
+    const H8_LEDGERS: [&str; 2] = [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../contracts/source-leaf-coverage/v1/journal-entry.yaml"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../contracts/source-leaf-coverage/v1/journal-entry-page.yaml"
-        )),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
             "/../../contracts/source-leaf-coverage/v1/roll-table.yaml"
         )),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../contracts/source-leaf-coverage/v1/table-result.yaml"
-        )),
+    ];
+    const H8_CONTAINER_COMPANIONS: [(&str, &str, &str, usize, usize); 2] = [
+        (
+            "journalentry--root--top-level--root--root--root",
+            "$.pages[].image",
+            "journal-entry-page-pages-image@4cbdaa37",
+            113,
+            587,
+        ),
+        (
+            "journalentry--root--top-level--root--root--root",
+            "$.pages[].system",
+            "journal-entry-page-pages-system@4cbdaa37",
+            113,
+            587,
+        ),
     ];
 
     #[test]
@@ -217,9 +225,11 @@ mod tests {
             })
             .map(PrevalenceEntry::identity)
             .collect::<BTreeSet<_>>();
-        let declared_identities = h8_selector_ledgers()
+        let scalar_identities = H8_LEDGERS
             .iter()
-            .flat_map(|ledger| {
+            .flat_map(|source| {
+                let ledger = super::super::parse_source_leaf_ledger(source)
+                    .expect("complete H8 selector ledger parses");
                 ledger
                     .leaves
                     .iter()
@@ -227,25 +237,27 @@ mod tests {
                     .collect::<Vec<_>>()
             })
             .collect::<BTreeSet<_>>();
-        assert_eq!(inventory_identities, declared_identities);
-        assert_eq!(declared_identities.len(), 35);
-    }
+        assert_eq!(scalar_identities.len(), 33);
 
-    fn h8_selector_ledgers() -> Vec<super::super::SourceLeafCoverageLedger> {
-        H8_LEDGERS
-            .chunks_exact(2)
-            .map(|partitions| {
-                let mut ledger = super::super::parse_source_leaf_ledger(partitions[0])
-                    .expect("H8 parent ledger parses");
-                let child = super::super::parse_source_leaf_ledger(partitions[1])
-                    .expect("H8 child ledger parses");
-                assert_eq!(ledger.contract_version, child.contract_version);
-                assert_eq!(ledger.type_id, child.type_id);
-                assert_eq!(ledger.source_pin, child.source_pin);
-                assert_eq!(ledger.selector, child.selector);
-                ledger.leaves.extend(child.leaves);
-                ledger
-            })
-            .collect()
+        assert_eq!(scalar_identities, inventory_identities);
+        assert_eq!(inventory_identities.len(), 33);
+        for (type_id, normalized_path, entry_id, record_count, occurrence_count) in
+            H8_CONTAINER_COMPANIONS
+        {
+            assert_eq!(type_id, "journalentry--root--top-level--root--root--root");
+            assert!(matches!(
+                normalized_path,
+                "$.pages[].image" | "$.pages[].system"
+            ));
+            assert!(entry_id.starts_with("journal-entry-page-pages-"));
+            assert_eq!(record_count, 113);
+            assert_eq!(occurrence_count, 587);
+            assert!(
+                inventory.iter().all(|entry| {
+                    entry.type_id != type_id || entry.normalized_path != normalized_path
+                }),
+                "container companion {normalized_path} must not become a v1 machine leaf"
+            );
+        }
     }
 }

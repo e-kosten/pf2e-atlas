@@ -34,7 +34,7 @@ export function EncounterInspectorPane({
   conditionDefinitions,
   currentTurnParticipantKey,
 }: {
-  onOpenRecordFullPage: (recordKey: string) => void;
+  onOpenRecordFullPage: (recordKey: string, childLocator?: string) => void;
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: number) => void;
   onResetParticipant: (participantKey: string) => void;
@@ -112,7 +112,7 @@ function EncounterParticipantSurface({
 }: {
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
   onRemoveCondition: (participantKey: string, conditionId: number) => void;
   onResetParticipant: (participantKey: string) => void;
   onSpellCast: (participantKey: string, request: EncounterSpellCastRequest) => void;

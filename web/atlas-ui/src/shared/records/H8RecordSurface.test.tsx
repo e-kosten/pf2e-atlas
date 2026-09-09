@@ -9,6 +9,12 @@ import { RecordSurface } from "./RecordSurface";
 
 const missing = { state: "missing" } as const;
 const known = <T,>(value: T): H8FactView<T> => ({ state: "known", value });
+const pageTextLocator = "v1~j~s~706167652d74657874";
+const pageImageLocator = "v1~j~s~706167652d696d616765";
+const resultOneLocator = "v1~t~s~4531636a674171465a497a436a447555";
+const resultTwoLocator = "v1~t~s~726573756c742d74776f";
+const ancestralMightLocator =
+  "v1~j~s~6a6f75726e616c2d706167652d616e6365737472616c2d6d69676874";
 
 describe("H8 record surfaces", () => {
   beforeEach(() => history.replaceState(null, "", "/"));
@@ -27,7 +33,7 @@ describe("H8 record surfaces", () => {
     expect(screen.getByText("Welcome to the deck.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Artwork" }));
     expect(window.location.pathname).toBe("/records/journals%3Ahero-points");
-    expect(window.location.search).toBe("?child=page-image");
+    expect(window.location.search).toBe(`?child=${pageImageLocator}`);
 
     rerender(<RecordSurface onReference={vi.fn()} surface={surface} />);
     expect(screen.getByText("Media metadata only")).toBeInTheDocument();
@@ -38,19 +44,76 @@ describe("H8 record surfaces", () => {
   it("links table results through the parent route and keeps unsupported siblings visible", () => {
     const surface = rollTableSurface();
     const onReference = vi.fn();
-    history.replaceState(null, "", "/records/roll-tables%3Ahero-points");
-    render(<RecordSurface onReference={onReference} surface={surface} />);
+    history.replaceState(null, "", "/records/rollable-tables%3AzgZoI7h0XjjJrrNK");
+    const { rerender } = render(
+      <RecordSurface onReference={onReference} surface={surface} />,
+    );
 
     expect(screen.getByText("Draw a card.")).toBeInTheDocument();
     expect(screen.getByText("Result 2 is unavailable")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Ancestral Might" }));
     expect(onReference).toHaveBeenCalledWith(
       "journals:hero-points",
-      "journal-page-ancestral-might",
+      ancestralMightLocator,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Open result 1" }));
-    expect(window.location.pathname).toBe("/records/roll-tables%3Ahero-points");
-    expect(window.location.search).toBe("?child=result-one");
+    const openResult = screen.getByRole("link", { name: "Open result 1" });
+    expect(openResult).toHaveAttribute(
+      "href",
+      `/records/rollable-tables%3AzgZoI7h0XjjJrrNK?child=${resultOneLocator}`,
+    );
+    fireEvent.click(openResult);
+    expect(window.location.pathname).toBe(
+      "/records/rollable-tables%3AzgZoI7h0XjjJrrNK",
+    );
+    expect(window.location.search).toBe(`?child=${resultOneLocator}`);
+
+    rerender(<RecordSurface onReference={onReference} surface={surface} />);
+    expect(screen.getByText("Result 1 selected")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByLabelText("Selected result 1")).toHaveFocus();
+    expect(screen.queryByRole("link", { name: "Open result 1" })).toBeNull();
+  });
+
+  it("presents every read-only drawn source state without collapsing false", () => {
+    const { rerender } = render(
+      <RecordSurface onReference={vi.fn()} surface={rollTableSurface(known(false))} />,
+    );
+    expect(screen.getByText("Drawn: No")).toBeInTheDocument();
+
+    rerender(
+      <RecordSurface onReference={vi.fn()} surface={rollTableSurface(known(true))} />,
+    );
+    expect(screen.getByText("Drawn: Yes")).toBeInTheDocument();
+
+    rerender(
+      <RecordSurface onReference={vi.fn()} surface={rollTableSurface(missing)} />,
+    );
+    expect(screen.getByText("Drawn: missing")).toBeInTheDocument();
+
+    rerender(
+      <RecordSurface
+        onReference={vi.fn()}
+        surface={rollTableSurface({ state: "null" })}
+      />,
+    );
+    expect(screen.getByText("Drawn: null")).toBeInTheDocument();
+
+    rerender(
+      <RecordSurface
+        onReference={vi.fn()}
+        surface={rollTableSurface({
+          state: "unsupported",
+          value: {
+            shape: "string",
+            exact_value: '"yes"',
+            reason: "source_field_drift",
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Drawn: unsupported")).toBeInTheDocument();
   });
 });
 
@@ -58,7 +121,7 @@ function journalSurface(): RecordSurfaceView {
   const textPage: JournalPageEntryView = {
     entry_type: "page",
     page: {
-      locator: "page-text",
+      locator: pageTextLocator,
       identity_stability: "stable_source_id",
       source_id: known("page-text"),
       source_ordinal: 0,
@@ -87,7 +150,7 @@ function journalSurface(): RecordSurfaceView {
   const imagePage: JournalPageEntryView = {
     entry_type: "page",
     page: {
-      locator: "page-image",
+      locator: pageImageLocator,
       identity_stability: "stable_source_id",
       source_id: known("page-image"),
       source_ordinal: 1,
@@ -118,19 +181,21 @@ function journalSurface(): RecordSurfaceView {
         source_id: "journal-id",
         pages: known([textPage, imagePage]),
         source_metadata: sourceMetadata(),
-        provenance: provenance(),
+        provenance: provenance("packs/journals/hero-points.json"),
       },
     },
   };
 }
 
-function rollTableSurface(): RecordSurfaceView {
+function rollTableSurface(
+  drawn: H8FactView<boolean> = known(false),
+): RecordSurfaceView {
   const result: TableResultEntryView = {
     entry_type: "result",
     result: {
-      locator: "result-one",
+      locator: resultOneLocator,
       identity_stability: "stable_source_id",
-      source_id: known("result-one"),
+      source_id: known("E1cjgAqFZIzCjDuU"),
       source_ordinal: 0,
       result_kind: known("text"),
       text: known([
@@ -142,7 +207,7 @@ function rollTableSurface(): RecordSurfaceView {
               span_type: "reference",
               label: "Ancestral Might",
               record_key: "journals:hero-points",
-              child_locator: "journal-page-ancestral-might",
+              child_locator: ancestralMightLocator,
               embedded: false,
             },
             { span_type: "text", text: "." },
@@ -153,7 +218,7 @@ function rollTableSurface(): RecordSurfaceView {
       document_id: missing,
       weight: known("1"),
       range: known({ first: 1, last: 1 }),
-      drawn: known(false),
+      drawn,
       image: missing,
       source_metadata: { flags: missing },
     },
@@ -161,8 +226,9 @@ function rollTableSurface(): RecordSurfaceView {
   const unsupported: TableResultEntryView = {
     entry_type: "unsupported",
     unsupported: {
-      locator: "result-two",
+      locator: resultTwoLocator,
       identity_stability: "stable_source_id",
+      source_id: known("result-two"),
       source_ordinal: 1,
       exact_source: '{"_id":"result-two","img":"a","img":"b"}',
       reason: "duplicate fixed member `img`",
@@ -170,7 +236,7 @@ function rollTableSurface(): RecordSurfaceView {
   };
   return {
     metadata: {
-      record_key: "roll-tables:hero-points",
+      record_key: "rollable-tables:zgZoI7h0XjjJrrNK",
       title: "Hero Point Deck",
       kind: "roll_table",
       kind_label: "Roll Table",
@@ -192,7 +258,7 @@ function rollTableSurface(): RecordSurfaceView {
         display_roll: known(false),
         image: missing,
         source_metadata: sourceMetadata(),
-        provenance: provenance(),
+        provenance: provenance("packs/rollable-tables/hero-point-deck.json"),
       },
     },
   };
@@ -208,9 +274,9 @@ function sourceMetadata() {
   };
 }
 
-function provenance() {
+function provenance(sourcePath: string) {
   return {
-    source_path: "packs/journals/hero-points.json",
+    source_path: sourcePath,
     source_contract_version: "h8.v1",
     source_system_version: "7.4.0",
     source_upstream_commit: "4cbdaa37",

@@ -124,6 +124,7 @@ pub struct ContentChildLocator {
     pub identity: ContentChildIdentity,
 }
 
+/// Encodes the complete parent-scoped locator used by canonical persistence and machine JSON.
 pub fn encode_content_child_locator(locator: &ContentChildLocator) -> String {
     let kind = match locator.kind {
         ContentChildKind::JournalPage => "j",
@@ -165,6 +166,69 @@ pub fn decode_content_child_locator(value: &str) -> Result<ContentChildLocator, 
         "u" => ContentChildIdentity::Unstable {
             source_ordinal: identity.parse().map_err(|_| InvalidH8Value)?,
         },
+        _ => return Err(InvalidH8Value),
+    };
+    Ok(ContentChildLocator {
+        parent,
+        kind,
+        identity,
+    })
+}
+
+/// Encodes the parent-relative child selector used by record routes and app views.
+///
+/// The route already carries the parent record key, so repeating it inside the opaque
+/// selector adds length without adding an ownership check. The app service reconstructs
+/// the full locator from the authenticated route parent and still verifies that the
+/// resulting child belongs to the loaded canonical body.
+pub fn encode_content_child_selector(locator: &ContentChildLocator) -> String {
+    let kind = match locator.kind {
+        ContentChildKind::JournalPage => "j",
+        ContentChildKind::TableResult => "t",
+    };
+    let (stability, identity) = match &locator.identity {
+        ContentChildIdentity::Stable(id) => ("s", hex(id.as_str().as_bytes())),
+        ContentChildIdentity::Unstable { source_ordinal } => ("u", source_ordinal.to_string()),
+    };
+    format!("v1~{kind}~{stability}~{identity}")
+}
+
+pub fn decode_content_child_selector(
+    parent: RecordKey,
+    value: &str,
+) -> Result<ContentChildLocator, InvalidH8Value> {
+    let mut parts = value.split('~');
+    let (Some("v1"), Some(kind), Some(stability), Some(identity), None) = (
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+        parts.next(),
+    ) else {
+        return Err(InvalidH8Value);
+    };
+    let kind = match kind {
+        "j" => ContentChildKind::JournalPage,
+        "t" => ContentChildKind::TableResult,
+        _ => return Err(InvalidH8Value),
+    };
+    let identity = match stability {
+        "s" => {
+            let bytes = unhex(identity)?;
+            if hex(&bytes) != identity {
+                return Err(InvalidH8Value);
+            }
+            ContentChildIdentity::Stable(SourceDocumentId::new(
+                String::from_utf8(bytes).map_err(|_| InvalidH8Value)?,
+            )?)
+        }
+        "u" => {
+            let source_ordinal: u32 = identity.parse().map_err(|_| InvalidH8Value)?;
+            if source_ordinal.to_string() != identity {
+                return Err(InvalidH8Value);
+            }
+            ContentChildIdentity::Unstable { source_ordinal }
+        }
         _ => return Err(InvalidH8Value),
     };
     Ok(ContentChildLocator {
@@ -360,7 +424,8 @@ mod tests {
 
     use super::{
         ContentChildIdentity, ContentChildKind, ContentChildLocator, SourceDocumentId,
-        decode_content_child_locator, encode_content_child_locator,
+        decode_content_child_locator, decode_content_child_selector, encode_content_child_locator,
+        encode_content_child_selector,
     };
 
     #[test]
@@ -396,6 +461,53 @@ mod tests {
             "v1~j~s~6a6f75726e616c733a6865726f~70616765~extra",
         ] {
             assert!(decode_content_child_locator(value).is_err(), "{value}");
+        }
+    }
+
+    #[test]
+    fn h8_route_child_selectors_omit_the_parent_and_reconstruct_it_from_the_route() {
+        let parent = RecordKey::parse("rollable-tables:hero-points").expect("record key");
+        let locator = ContentChildLocator {
+            parent: parent.clone(),
+            kind: ContentChildKind::TableResult,
+            identity: ContentChildIdentity::Stable(
+                SourceDocumentId::new("E1cjgAqFZIzCjDuU").expect("source ID"),
+            ),
+        };
+
+        let selector = encode_content_child_selector(&locator);
+        assert_eq!(selector, "v1~t~s~4531636a674171465a497a436a447555");
+        assert!(!selector.contains("rollable-tables"));
+        assert_eq!(
+            decode_content_child_selector(parent.clone(), &selector),
+            Ok(locator.clone())
+        );
+        let other_parent = RecordKey::parse("rollable-tables:other").expect("record key");
+        let rebound = decode_content_child_selector(other_parent.clone(), &selector)
+            .expect("selector is bound by its route parent");
+        assert_eq!(rebound.parent, other_parent);
+        assert_eq!(rebound.kind, locator.kind);
+        assert_eq!(rebound.identity, locator.identity);
+    }
+
+    #[test]
+    fn h8_route_child_selectors_reject_full_locators_and_noncanonical_encodings() {
+        let parent = RecordKey::parse("journals:hero-points").expect("record key");
+        for value in [
+            "",
+            "v2~j~s~70616765",
+            "v1~x~s~70616765",
+            "v1~j~x~70616765",
+            "v1~j~s~not-hex",
+            "v1~j~s~7061676A",
+            "v1~j~u~01",
+            "v1~j~s~70616765~extra",
+            "v1~j~s~6a6f75726e616c733a6865726f~70616765",
+        ] {
+            assert!(
+                decode_content_child_selector(parent.clone(), value).is_err(),
+                "{value}"
+            );
         }
     }
 }

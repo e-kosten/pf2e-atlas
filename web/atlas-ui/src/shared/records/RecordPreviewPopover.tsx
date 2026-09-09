@@ -12,7 +12,7 @@ export function RecordPreviewPopover({
   recordKey,
 }: {
   children: PreviewPopoverTrigger;
-  onOpenFullPage: (recordKey: string) => void;
+  onOpenFullPage: (recordKey: string, childLocator?: string) => void;
   recordKey: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -31,7 +31,14 @@ export function RecordPreviewPopover({
             detail={detail.data}
             errors={[detail.error]}
             loading={detail.isLoading || detail.isFetching}
-            onReference={setActiveRecordKey}
+            onReference={(nextRecordKey, childLocator) => {
+              if (childLocator) {
+                setOpen(false);
+                onOpenFullPage(nextRecordKey, childLocator);
+                return;
+              }
+              setActiveRecordKey(nextRecordKey);
+            }}
             showTitle={false}
           />
         </RecordPreviewContext.Provider>

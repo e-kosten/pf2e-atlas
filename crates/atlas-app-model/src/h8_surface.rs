@@ -198,6 +198,7 @@ pub struct TableResultRangeView {
 pub struct H8UnsupportedChildView {
     pub locator: String,
     pub identity_stability: H8IdentityStabilityView,
+    pub source_id: H8FactView<String>,
     pub source_ordinal: u32,
     pub exact_source: String,
     pub reason: String,

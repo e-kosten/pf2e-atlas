@@ -78,7 +78,13 @@ export function SearchView({ workspace }: SearchViewProps) {
             errors={[workspace.detailError]}
             loading={workspace.detailLoading}
             stale={workspace.detailRefreshing}
-            onReference={workspace.selectRecord}
+            onReference={(recordKey, childLocator) => {
+              if (childLocator) {
+                navigateToAtlasRoute({ kind: "record", recordKey, childLocator });
+                return;
+              }
+              workspace.selectRecord(recordKey);
+            }}
           />
         ) : undefined
       }

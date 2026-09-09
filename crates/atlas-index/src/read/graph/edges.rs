@@ -104,7 +104,7 @@ pub(crate) fn read_reference_edges_for_seed(
         order_column = aliased_reference_column(alias, order_column),
         default_predicate = default_reference_edge_sql_predicate(alias),
     );
-    bind_sql_query(sql, &[SqlBindValue::Text(seed.to_string())])
+    let edges = bind_sql_query(sql, &[SqlBindValue::Text(seed.to_string())])
         .load::<ReferenceEdgeRow>(connection)
         .map_err(|error| RecordLoadError::QueryFailed(error.to_string()))?
         .into_iter()
@@ -143,7 +143,33 @@ pub(crate) fn read_reference_edges_for_seed(
                 target_child: parse_child_locator(&row.target_child_locator)?,
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>, RecordLoadError>>()?;
+    let child_parent_keys = edges
+        .iter()
+        .flat_map(|edge| {
+            [edge.source_child.as_ref(), edge.target_child.as_ref()]
+                .into_iter()
+                .flatten()
+                .map(|locator| locator.parent.clone())
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let catalog = crate::read::records::canonical::read_h8_child_catalog_by_key(
+        connection,
+        &child_parent_keys,
+    )?;
+    for edge in &edges {
+        catalog
+            .validate_edge_locators(
+                &edge.from_record_key,
+                edge.source_child.as_ref(),
+                &edge.to_record_key,
+                edge.target_child.as_ref(),
+            )
+            .map_err(RecordLoadError::InvalidData)?;
+    }
+    Ok(edges)
 }
 
 fn parse_child_locator(value: &str) -> Result<Option<ContentChildLocator>, RecordLoadError> {

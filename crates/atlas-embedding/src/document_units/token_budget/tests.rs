@@ -23,8 +23,94 @@ fn child_embedding_sources_are_limited_to_rich_content() {
         ContentSourceKind::DetailsFieldDescription
     ));
     assert!(is_child_embedding_source(ContentSourceKind::PublicNotes));
+    assert!(is_child_embedding_source(ContentSourceKind::JournalPage));
+    assert!(is_child_embedding_source(ContentSourceKind::TableResult));
     assert!(!is_child_embedding_source(ContentSourceKind::Blurb));
     assert!(!is_child_embedding_source(ContentSourceKind::Routine));
+}
+
+#[test]
+fn h8_child_units_materialize_only_when_their_parent_content_overflows() {
+    for (source_kind, label, group_key) in [
+        (
+            ContentSourceKind::JournalPage,
+            "Journal Page",
+            "journal_page:0:content",
+        ),
+        (
+            ContentSourceKind::TableResult,
+            "Table Result",
+            "table_result:0:text",
+        ),
+    ] {
+        let tokenizer = TextEmbeddingTokenizer::whitespace_wordlevel_for_tests(40);
+        let long_chunks = vec![
+            identity_chunk(),
+            rich_chunk(source_kind, group_key, label, 80),
+        ];
+        let long_text = render_embedding_chunks_for_embedding(&long_chunks);
+        let child_key = format!("packs:test#{}", source_kind.as_str());
+        let mut long_pending = vec![PendingDocumentEmbedding {
+            embedding_unit_key: "packs:test#parent".to_string(),
+            record_key: "packs:test".to_string(),
+            unit_kind: EmbeddingUnitKind::Parent,
+            label: None,
+            source_kind: None,
+            ordinal: 0,
+            input_chunks: long_chunks,
+            input_hash: hash_document_embedding_input(&long_text),
+            input_text: long_text,
+            child_candidates: vec![child_candidate(
+                &child_key,
+                source_kind,
+                group_key,
+                label,
+                80,
+            )],
+        }];
+
+        apply_document_embedding_token_budget(&mut long_pending, &tokenizer)
+            .expect("H8 overflow budgeting should succeed");
+
+        let child = long_pending
+            .iter()
+            .find(|entry| entry.embedding_unit_key == child_key)
+            .expect("the impacted H8 child must materialize");
+        assert_eq!(child.record_key, "packs:test");
+        assert_eq!(child.source_kind, Some(source_kind));
+        assert_eq!(child.label.as_deref(), Some(label));
+
+        let short_chunks = vec![
+            identity_chunk(),
+            rich_chunk(source_kind, group_key, label, 4),
+        ];
+        let short_text = render_embedding_chunks_for_embedding(&short_chunks);
+        let mut short_pending = vec![PendingDocumentEmbedding {
+            embedding_unit_key: "packs:test#parent".to_string(),
+            record_key: "packs:test".to_string(),
+            unit_kind: EmbeddingUnitKind::Parent,
+            label: None,
+            source_kind: None,
+            ordinal: 0,
+            input_chunks: short_chunks,
+            input_hash: hash_document_embedding_input(&short_text),
+            input_text: short_text,
+            child_candidates: vec![child_candidate(
+                &child_key,
+                source_kind,
+                group_key,
+                label,
+                4,
+            )],
+        }];
+
+        apply_document_embedding_token_budget(&mut short_pending, &tokenizer)
+            .expect("short H8 budgeting should succeed");
+
+        assert_eq!(short_pending.len(), 1);
+        assert_eq!(short_pending[0].unit_kind, EmbeddingUnitKind::Parent);
+        assert!(short_pending[0].child_candidates.is_empty());
+    }
 }
 
 #[test]

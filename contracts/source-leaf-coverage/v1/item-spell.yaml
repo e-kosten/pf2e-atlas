@@ -20,7 +20,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-id@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -80,7 +80,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-folder@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -140,7 +140,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-image@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -200,7 +200,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-name@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -260,7 +260,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-area-details@4cbdaa37
     record_count: 1716
     occurrence_count: 20
@@ -320,7 +320,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-area-type@4cbdaa37
     record_count: 1716
     occurrence_count: 378
@@ -380,7 +380,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-area-value@4cbdaa37
     record_count: 1716
     occurrence_count: 378
@@ -440,7 +440,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-cost-value@4cbdaa37
     record_count: 1716
     occurrence_count: 112
@@ -500,7 +500,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-counteraction@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -560,7 +560,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-damage-key-applymod@4cbdaa37
     record_count: 1716
     occurrence_count: 504
@@ -622,7 +622,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-damage-key-category@4cbdaa37
     record_count: 1716
     occurrence_count: 22
@@ -684,7 +684,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-damage-formula@4cbdaa37
     record_count: 1716
     occurrence_count: 509
@@ -728,7 +728,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-damage-key-kinds-member@4cbdaa37
     record_count: 1716
     occurrence_count: 515
@@ -790,7 +790,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-damage-key-materials-member@4cbdaa37
     record_count: 1716
     occurrence_count: 4
@@ -852,7 +852,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-damage-key-type@4cbdaa37
     record_count: 1716
     occurrence_count: 509
@@ -914,7 +914,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-defense-passive-statistic@4cbdaa37
     record_count: 1716
     occurrence_count: 11
@@ -974,7 +974,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-defense-save-basic@4cbdaa37
     record_count: 1716
     occurrence_count: 646
@@ -1034,7 +1034,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-defense-save-statistic@4cbdaa37
     record_count: 1716
     occurrence_count: 646
@@ -1094,7 +1094,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-description-gm@4cbdaa37
     record_count: 1716
     occurrence_count: 5
@@ -1154,7 +1154,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-description-value@4cbdaa37
     record_count: 1716
     occurrence_count: 1713
@@ -1214,7 +1214,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-duration-sustained@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -1274,7 +1274,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-duration-value@4cbdaa37
     record_count: 1716
     occurrence_count: 1107
@@ -1334,7 +1334,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-area@4cbdaa37
     record_count: 1716
     occurrence_count: 106
@@ -1394,7 +1394,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-damage-key@4cbdaa37
     record_count: 1716
     occurrence_count: 413
@@ -1456,7 +1456,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-interval@4cbdaa37
     record_count: 1716
     occurrence_count: 392
@@ -1516,7 +1516,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-area-areatype@4cbdaa37
     record_count: 1716
     occurrence_count: 13
@@ -1578,7 +1578,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-area-type@4cbdaa37
     record_count: 1716
     occurrence_count: 31
@@ -1641,7 +1641,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-area-value@4cbdaa37
     record_count: 1716
     occurrence_count: 32
@@ -1703,7 +1703,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-applymod@4cbdaa37
     record_count: 1716
     occurrence_count: 68
@@ -1766,7 +1766,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-category@4cbdaa37
     record_count: 1716
     occurrence_count: 14
@@ -1828,7 +1828,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-formula@4cbdaa37
     record_count: 1716
     occurrence_count: 68
@@ -1890,7 +1890,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-kinds-member@4cbdaa37
     record_count: 1716
     occurrence_count: 13
@@ -1952,7 +1952,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-damage-key-type@4cbdaa37
     record_count: 1716
     occurrence_count: 68
@@ -2014,7 +2014,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-range-value@4cbdaa37
     record_count: 1716
     occurrence_count: 38
@@ -2076,7 +2076,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-target-value@4cbdaa37
     record_count: 1716
     occurrence_count: 86
@@ -2138,7 +2138,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-time-value@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -2200,7 +2200,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-levels-key-traits-value-member@4cbdaa37
     record_count: 1716
     occurrence_count: 2
@@ -2262,7 +2262,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-heightening-type@4cbdaa37
     record_count: 1716
     occurrence_count: 515
@@ -2322,7 +2322,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-rank@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -2364,7 +2364,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-location@4cbdaa37
     record_count: 1716
     occurrence_count: 0
@@ -2406,7 +2406,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-id@4cbdaa37
     record_count: 1716
     occurrence_count: 104
@@ -2468,7 +2468,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-name@4cbdaa37
     record_count: 1716
     occurrence_count: 93
@@ -2530,7 +2530,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-overlaytype@4cbdaa37
     record_count: 1716
     occurrence_count: 158
@@ -2592,7 +2592,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-overlay-sort@4cbdaa37
     record_count: 1716
     occurrence_count: 158
@@ -2657,7 +2657,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-area-areatype@4cbdaa37
     record_count: 1716
     occurrence_count: 8
@@ -2719,7 +2719,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-area-type@4cbdaa37
     record_count: 1716
     occurrence_count: 11
@@ -2782,7 +2782,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-area-value@4cbdaa37
     record_count: 1716
     occurrence_count: 28
@@ -2844,7 +2844,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-damage-key-applymod@4cbdaa37
     record_count: 1716
     occurrence_count: 40
@@ -2907,7 +2907,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-damage-key-category@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -2969,7 +2969,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-damage-key-formula@4cbdaa37
     record_count: 1716
     occurrence_count: 53
@@ -3031,7 +3031,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-damage-key-kinds-member@4cbdaa37
     record_count: 1716
     occurrence_count: 31
@@ -3093,7 +3093,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-damage-key-materials-member@4cbdaa37
     record_count: 1716
     occurrence_count: 3
@@ -3155,7 +3155,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-damage-key-type@4cbdaa37
     record_count: 1716
     occurrence_count: 74
@@ -3217,7 +3217,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-defense-save-basic@4cbdaa37
     record_count: 1716
     occurrence_count: 14
@@ -3279,7 +3279,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-defense-save-statistic@4cbdaa37
     record_count: 1716
     occurrence_count: 14
@@ -3341,7 +3341,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-heightening-area@4cbdaa37
     record_count: 1716
     occurrence_count: 7
@@ -3403,7 +3403,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-heightening-damage-key@4cbdaa37
     record_count: 1716
     occurrence_count: 57
@@ -3465,7 +3465,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-heightening-interval@4cbdaa37
     record_count: 1716
     occurrence_count: 32
@@ -3527,7 +3527,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-heightening-type@4cbdaa37
     record_count: 1716
     occurrence_count: 32
@@ -3589,7 +3589,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-range-value@4cbdaa37
     record_count: 1716
     occurrence_count: 17
@@ -3651,7 +3651,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-target-value@4cbdaa37
     record_count: 1716
     occurrence_count: 21
@@ -3713,7 +3713,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-time-value@4cbdaa37
     record_count: 1716
     occurrence_count: 66
@@ -3775,7 +3775,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-overlays-key-system-traits-value-member@4cbdaa37
     record_count: 1716
     occurrence_count: 124
@@ -3837,7 +3837,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-publication-license@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -3897,7 +3897,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-publication-remaster@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -3957,7 +3957,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-publication-title@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -4017,7 +4017,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-range-value@4cbdaa37
     record_count: 1716
     occurrence_count: 1154
@@ -4077,7 +4077,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-requirements@4cbdaa37
     record_count: 1716
     occurrence_count: 36
@@ -4137,7 +4137,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-ritual-primary-check@4cbdaa37
     record_count: 1716
     occurrence_count: 134
@@ -4197,7 +4197,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-ritual-secondary-casters@4cbdaa37
     record_count: 1716
     occurrence_count: 134
@@ -4257,7 +4257,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-ritual-secondary-checks@4cbdaa37
     record_count: 1716
     occurrence_count: 118
@@ -4317,7 +4317,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-damagetype@4cbdaa37
     record_count: 1716
     occurrence_count: 7
@@ -4378,7 +4378,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-dicenumber@4cbdaa37
     record_count: 1716
     occurrence_count: 7
@@ -4439,7 +4439,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-diesize@4cbdaa37
     record_count: 1716
     occurrence_count: 5
@@ -4500,7 +4500,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-domain@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -4561,7 +4561,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-hideifdisabled@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -4622,7 +4622,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-itemid@4cbdaa37
     record_count: 1716
     occurrence_count: 2
@@ -4683,7 +4683,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-rule-key@4cbdaa37
     record_count: 1716
     occurrence_count: 14
@@ -4753,7 +4753,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-label@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -4814,7 +4814,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-mode@4cbdaa37
     record_count: 1716
     occurrence_count: 5
@@ -4875,7 +4875,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-option@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -4936,7 +4936,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-placement@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -4997,7 +4997,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-predicate-member@4cbdaa37
     record_count: 1716
     occurrence_count: 14
@@ -5058,7 +5058,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-predicate-member-or-member@4cbdaa37
     record_count: 1716
     occurrence_count: 2
@@ -5119,7 +5119,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-property@4cbdaa37
     record_count: 1716
     occurrence_count: 5
@@ -5180,7 +5180,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-selector@4cbdaa37
     record_count: 1716
     occurrence_count: 7
@@ -5241,7 +5241,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-selectors-member@4cbdaa37
     record_count: 1716
     occurrence_count: 4
@@ -5302,7 +5302,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-slug@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -5363,7 +5363,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-suboptions-member-label@4cbdaa37
     record_count: 1716
     occurrence_count: 2
@@ -5424,7 +5424,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-suboptions-member-value@4cbdaa37
     record_count: 1716
     occurrence_count: 2
@@ -5485,7 +5485,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-toggleable@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -5546,7 +5546,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-uuid@4cbdaa37
     record_count: 1716
     occurrence_count: 1
@@ -5607,7 +5607,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-rules-member-value@4cbdaa37
     record_count: 1716
     occurrence_count: 5
@@ -5668,7 +5668,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-target-value@4cbdaa37
     record_count: 1716
     occurrence_count: 860
@@ -5728,7 +5728,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-time-value@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -5788,7 +5788,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-traits-rarity@4cbdaa37
     record_count: 1716
     occurrence_count: 1716
@@ -5848,7 +5848,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-traits-selected-key@4cbdaa37
     record_count: 1716
     occurrence_count: 46
@@ -5910,7 +5910,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-traits-traditions-member@4cbdaa37
     record_count: 1716
     occurrence_count: 2363
@@ -5970,7 +5970,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-system-traits-value-member@4cbdaa37
     record_count: 1716
     occurrence_count: 5983
@@ -6030,7 +6030,7 @@ leaves:
     source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
     registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
     inventory_version: pf2e-source-leaf-prevalence/v1
-    inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+    inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
     entry_id: item-spell-top-level-type@4cbdaa37
     record_count: 1716
     occurrence_count: 1716

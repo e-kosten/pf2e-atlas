@@ -155,8 +155,8 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         }
         detail={
           <RecordPreviewScope
-            onOpenFullPage={(recordKey) =>
-              navigateToAtlasRoute({ kind: "record", recordKey })
+            onOpenFullPage={(recordKey, childLocator) =>
+              navigateToAtlasRoute({ kind: "record", recordKey, childLocator })
             }
           >
             <RecordDetailPane
@@ -172,8 +172,8 @@ export function ListDetailView({ route }: ListDetailViewProps) {
                   ? false
                   : detail.isLoading || detail.isFetching
               }
-              onReference={(recordKey) =>
-                navigateToAtlasRoute({ kind: "record", recordKey })
+              onReference={(recordKey, childLocator) =>
+                navigateToAtlasRoute({ kind: "record", recordKey, childLocator })
               }
             />
           </RecordPreviewScope>

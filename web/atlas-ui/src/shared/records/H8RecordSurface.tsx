@@ -1,4 +1,5 @@
 import { Alert, Button, Card, Descriptions, List, Space, Tag, Typography } from "antd";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import type {
   H8FactView,
   JournalPageEntryView,
@@ -8,7 +9,12 @@ import type {
   RollTableSurfaceView,
   TableResultEntryView,
 } from "../../generated/atlas";
-import { navigateToAtlasRoute } from "../../app/routes";
+import {
+  ATLAS_ROUTE_CHANGE_EVENT,
+  navigateToAtlasRoute,
+  recordPath,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
 import { RecordHeader } from "./CreatureRecordSurface";
 import { RichBlocks, type ReferenceHandler } from "./RecordRichContent";
 import {
@@ -69,7 +75,12 @@ export function JournalDetailSurface({
   showTitle: boolean;
 } & ReferenceProps) {
   const pages = known(body.pages) ?? [];
-  const requested = new URLSearchParams(window.location.search).get("child");
+  const locationSearch = useSyncExternalStore(
+    subscribeToRouteChanges,
+    currentLocationSearch,
+    emptyLocationSearch,
+  );
+  const requested = new URLSearchParams(locationSearch).get("child");
   const selected = pages.find((entry) => entryLocator(entry) === requested) ?? pages[0];
   const recordKey = metadata.record_key;
   return (
@@ -240,8 +251,22 @@ export function RollTableDetailSurface({
   showTitle: boolean;
 } & ReferenceProps) {
   const results = known(body.results) ?? [];
-  const selectedLocator = new URLSearchParams(window.location.search).get("child");
+  const locationSearch = useSyncExternalStore(
+    subscribeToRouteChanges,
+    currentLocationSearch,
+    emptyLocationSearch,
+  );
+  const selectedLocator = new URLSearchParams(locationSearch).get("child");
   const recordKey = metadata.record_key;
+  const selectedResultRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const selected = selectedResultRef.current;
+    if (!selectedLocator || !selected) return;
+    if (typeof selected.scrollIntoView === "function") {
+      selected.scrollIntoView({ block: "nearest" });
+    }
+    selected.focus({ preventScroll: true });
+  }, [selectedLocator]);
   return (
     <article className="record-surface creature-sheet">
       <RecordHeader metadata={metadata} showTitle={showTitle} />
@@ -277,26 +302,42 @@ export function RollTableDetailSurface({
             return (
               <List.Item
                 actions={[
-                  <Button
-                    aria-current={selected ? "page" : undefined}
-                    disabled={!recordKey}
-                    key="open-result"
-                    onClick={() => {
-                      if (recordKey)
+                  selected ? (
+                    <Tag aria-current="page" color="blue" key="selected-result">
+                      Result {resultOrdinal(entry) + 1} selected
+                    </Tag>
+                  ) : (
+                    <Button
+                      disabled={!recordKey}
+                      href={recordKey ? recordPath(recordKey, locator) : undefined}
+                      key="open-result"
+                      onClick={(event) => {
+                        if (!recordKey || !shouldHandleAtlasRouteClick(event)) return;
+                        event.preventDefault();
                         navigateToAtlasRoute({
                           kind: "record",
                           recordKey,
                           childLocator: locator,
                         });
-                    }}
-                    type={selected ? "primary" : "link"}
-                  >
-                    Open result {resultOrdinal(entry) + 1}
-                  </Button>,
+                      }}
+                      type="link"
+                    >
+                      Open result {resultOrdinal(entry) + 1}
+                    </Button>
+                  ),
                 ]}
                 className={selected ? "ant-list-item-selected" : undefined}
               >
-                <TableResultRow entry={entry} onReference={onReference} />
+                <div
+                  aria-label={
+                    selected ? `Selected result ${resultOrdinal(entry) + 1}` : undefined
+                  }
+                  ref={selected ? selectedResultRef : undefined}
+                  role={selected ? "region" : undefined}
+                  tabIndex={selected ? -1 : undefined}
+                >
+                  <TableResultRow entry={entry} onReference={onReference} />
+                </div>
               </List.Item>
             );
           }}
@@ -313,6 +354,23 @@ export function RollTableDetailSurface({
       />
     </article>
   );
+}
+
+function subscribeToRouteChanges(onStoreChange: () => void) {
+  window.addEventListener("popstate", onStoreChange);
+  window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("popstate", onStoreChange);
+    window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onStoreChange);
+  };
+}
+
+function currentLocationSearch() {
+  return window.location.search;
+}
+
+function emptyLocationSearch() {
+  return "";
 }
 
 function TableResultRow({
@@ -341,7 +399,7 @@ function TableResultRow({
         <Tag>{range ? `${range.first}–${range.last}` : factLabel(result.range)}</Tag>
         <Tag>{known(result.result_kind) ?? factLabel(result.result_kind)}</Tag>
         {known(result.weight) ? <span>Weight {known(result.weight)}</span> : null}
-        {known(result.drawn) ? <Tag>Drawn</Tag> : null}
+        <span>Drawn: {booleanLabel(result.drawn)}</span>
       </Space>
       {blocks?.length ? (
         <RichBlocks

@@ -247,6 +247,31 @@ describe("list views", () => {
     tenSecondTestDeadline,
   );
 
+  it("opens typed child references from saved-list detail on the exact parent route", async () => {
+    const childLocator = "v1~j~s~706167652d31";
+    apiMocks.getRecordDetail.mockResolvedValueOnce(
+      recordDetailFixture("actions:testAction1", childLocator),
+    );
+    history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
+    render(
+      <ListDetailView
+        route={{
+          kind: "list",
+          slug: "research",
+          selectedRecordKey: "actions:testAction1",
+        }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+
+    fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
+
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/records/rules%3Anested"),
+    );
+    expect(window.location.search).toBe(`?child=${encodeURIComponent(childLocator)}`);
+  });
+
   it("searches within a saved list through the filter route", async () => {
     render(
       <ListDetailView
@@ -500,7 +525,10 @@ function filterField(id: string, label: string, controlKind: "option" | "range")
   };
 }
 
-function recordDetailFixture(recordKey: string): RecordDetailView {
+function recordDetailFixture(
+  recordKey: string,
+  childLocator?: string,
+): RecordDetailView {
   const detail = typedRecordDetailFixture({
     recordKey,
     title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
@@ -523,6 +551,7 @@ function recordDetailFixture(recordKey: string): RecordDetailView {
                 span_type: "reference",
                 label: "Nested Rule",
                 record_key: "rules:nested",
+                ...(childLocator ? { child_locator: childLocator } : {}),
                 embedded: false,
               },
             ],

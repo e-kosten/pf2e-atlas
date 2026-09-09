@@ -23,7 +23,7 @@ leaves:
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
       registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc"
+      inventory_sha256: "da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a"
       entry_id: "item-melee-embedded-hazard-damage-roll-damage@4cbdaa37"
       record_count: 277
       occurrence_count: 323
@@ -57,7 +57,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: melee-system-attackeffects-custom@4cbdaa37
       record_count: 277
       occurrence_count: 4
@@ -117,7 +117,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: folder-melee-context@4cbdaa37
       record_count: 277
       occurrence_count: 0
@@ -171,7 +171,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: melee-system-attackeffects-value@4cbdaa37
       record_count: 277
       occurrence_count: 51
@@ -231,7 +231,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: melee-system-bonus-value@4cbdaa37
       record_count: 277
       occurrence_count: 277
@@ -293,7 +293,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: melee-system-damagerolls-category@4cbdaa37
       record_count: 277
       occurrence_count: 21
@@ -355,7 +355,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: melee-system-damagerolls-damagetype@4cbdaa37
       record_count: 277
       occurrence_count: 323
@@ -415,7 +415,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: melee-system-weapontype-value@4cbdaa37
       record_count: 277
       occurrence_count: 223
@@ -475,7 +475,7 @@ leaves:
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
       registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: c0db3b181ff0879f879c19a6895c0ada5d7c3830d5d3f7f9dae5d95b9ec856cc
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: melee-system-attack-value@4cbdaa37
       record_count: 277
       occurrence_count: 0

@@ -1,5 +1,6 @@
 import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { navigateToAtlasRoute } from "../../app/routes";
 import type { ResultWindowRow } from "../../generated/atlas";
 import { RecordSurface } from "../../shared/records/RecordSurface";
 import { handleResultKeyboard, useActiveResultScroll } from "./resultKeyboard";
@@ -13,7 +14,13 @@ export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) 
       key: "record",
       render: (_value, row) => (
         <RecordSurface
-          onReference={(recordKey) => workspace.selectRecord(recordKey)}
+          onReference={(recordKey, childLocator) => {
+            if (childLocator) {
+              navigateToAtlasRoute({ kind: "record", recordKey, childLocator });
+              return;
+            }
+            workspace.selectRecord(recordKey);
+          }}
           surface={row.record.surface}
         />
       ),
