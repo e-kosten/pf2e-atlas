@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type {
   ConsumableFactView,
+  ConsumableDefinitionView,
   ConsumableOccurrenceView,
   ConsumableSurfaceView,
   RecordSurfaceView,
@@ -22,8 +23,8 @@ describe("ConsumableRecordSurface", () => {
     expect(within(details).getByText("Held In One Hand")).toBeVisible();
     expect(within(details).getByText("Bulk")).toBeVisible();
     expect(within(details).getByText("0.1")).toBeVisible();
-    expect(within(details).getByText("Quantity")).toBeVisible();
-    expect(within(details).getByText("2")).toBeVisible();
+    expect(screen.getByText("Quantity")).toBeVisible();
+    expect(screen.getByText("2")).toBeVisible();
     expect(within(details).getByText("1 gp · per 1")).toBeVisible();
     expect(screen.queryByText("Container")).not.toBeInTheDocument();
 
@@ -49,7 +50,7 @@ describe("ConsumableRecordSurface", () => {
       occurrence_id: "local-dose",
       name: "Local Dose",
       target: { state: "parent_owned", reason: "no_locator" },
-      definition: consumableBody(),
+      definition: consumableDefinition(),
     });
 
     render(
@@ -67,7 +68,13 @@ describe("ConsumableRecordSurface", () => {
 
     fireEvent.click(screen.getByText("Local Dose"));
     expect(screen.getByText("Embedded definition")).toBeVisible();
-    expect(screen.getAllByText("Quantity 2")).toHaveLength(2);
+    const localOccurrence = screen
+      .getByText("Local Dose")
+      .closest(".ant-collapse-item");
+    if (!(localOccurrence instanceof HTMLElement))
+      throw new Error("local occurrence panel");
+    expect(within(localOccurrence).getAllByText("Quantity")).toHaveLength(1);
+    expect(screen.getAllByText("Embedded definition")).toHaveLength(1);
   });
 
   it("renders the exact structured damage summary without evaluating its formula", () => {
@@ -140,7 +147,7 @@ describe("ConsumableRecordSurface", () => {
       authored_order: 3,
       name: "Dragon Dose",
       target: { state: "parent_owned", reason: "no_locator" },
-      definition: consumableBody(),
+      definition: consumableDefinition(),
       content: [occurrenceContent("dose-1-description", "spells-srd:heal")],
     });
     const second = occurrence({
@@ -148,7 +155,7 @@ describe("ConsumableRecordSurface", () => {
       authored_order: 4,
       name: "Dragon Dose",
       target: { state: "parent_owned", reason: "target_missing" },
-      definition: consumableBody(),
+      definition: consumableDefinition(),
       content: [occurrenceContent("dose-2-description", "spells-srd:harm")],
     });
 
@@ -191,6 +198,24 @@ function standaloneSurface(): RecordSurfaceView {
 
 function consumableBody(): ConsumableSurfaceView {
   return {
+    ...consumableDefinition(),
+    source_state: {
+      quantity: known(2),
+      current_uses: known(1),
+      current_hp: known(1),
+      container_id: { state: "null" },
+      equipped: missing,
+    },
+    spell_child: {
+      child_id: "embedded-heal",
+      target_record_key: "spells-srd:heal",
+    },
+    content: [],
+  };
+}
+
+function consumableDefinition(): ConsumableDefinitionView {
+  return {
     slug: known("arboreal-wand"),
     level: known(4),
     category: known("wand"),
@@ -212,19 +237,7 @@ function consumableBody(): ConsumableSurfaceView {
     maximum_hp: known(1),
     hardness: known(0),
     publication: missing,
-    source_state: {
-      quantity: known(2),
-      current_uses: known(1),
-      current_hp: known(1),
-      container_id: { state: "null" },
-      equipped: missing,
-    },
     damage: missing,
-    spell_child: {
-      child_id: "embedded-heal",
-      target_record_key: "spells-srd:heal",
-    },
-    content: [],
   };
 }
 

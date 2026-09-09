@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use atlas_app_model::{
-    ConsumableDamageView, ConsumableEquippedView, ConsumableFactView, ConsumableMaterialView,
-    ConsumableOccurrenceIdentityStabilityView, ConsumableOccurrenceTargetView,
-    ConsumableOccurrenceView, ConsumablePriceDenominationView, ConsumablePriceView,
-    ConsumablePublicationView, ConsumableSourceStateView, ConsumableSpellChildLinkView,
-    ConsumableSurfaceView, ConsumableTargetReasonView,
+    ConsumableDamageView, ConsumableDefinitionView, ConsumableEquippedView, ConsumableFactView,
+    ConsumableMaterialView, ConsumableOccurrenceIdentityStabilityView,
+    ConsumableOccurrenceTargetView, ConsumableOccurrenceView, ConsumablePriceDenominationView,
+    ConsumablePriceView, ConsumablePublicationView, ConsumableSourceStateView,
+    ConsumableSpellChildLinkView, ConsumableSurfaceView, ConsumableTargetReasonView,
 };
 use atlas_record::{
     ConsumableDefinition, ConsumableEntityTarget, ConsumableFact,
@@ -74,12 +74,7 @@ pub(crate) fn consumable_occurrence_views(
                             }
                         },
                     },
-                    Some(Box::new(consumable_surface(
-                        definition,
-                        &occurrence.state,
-                        None,
-                        occurrence_spell_link(&occurrence.spell_reuse, None),
-                    ))),
+                    Some(Box::new(consumable_definition_surface(definition))),
                 ),
             };
             let target_record_key = match target {
@@ -120,7 +115,59 @@ fn consumable_surface(
     content: Option<&atlas_record::OwnedRichContent>,
     spell_child: Option<ConsumableSpellChildLinkView>,
 ) -> ConsumableSurfaceView {
+    let ConsumableDefinitionView {
+        slug,
+        level,
+        category,
+        rarity,
+        traits,
+        other_tags,
+        usage,
+        base_item,
+        bulk,
+        size,
+        stack_group,
+        material,
+        price,
+        maximum_uses,
+        auto_destroy,
+        maximum_hp,
+        hardness,
+        publication,
+        damage,
+    } = consumable_definition_surface(definition);
     ConsumableSurfaceView {
+        slug,
+        level,
+        category,
+        rarity,
+        traits,
+        other_tags,
+        usage,
+        base_item,
+        bulk,
+        size,
+        stack_group,
+        material,
+        price,
+        maximum_uses,
+        auto_destroy,
+        maximum_hp,
+        hardness,
+        publication,
+        source_state: source_state(state),
+        damage,
+        spell_child,
+        content: content
+            .into_iter()
+            .flat_map(|content| &content.documents)
+            .filter_map(crate::surface::content_view)
+            .collect(),
+    }
+}
+
+fn consumable_definition_surface(definition: &ConsumableDefinition) -> ConsumableDefinitionView {
+    ConsumableDefinitionView {
         slug: fact(&definition.slug, Clone::clone),
         level: integer_fact(&definition.level),
         category: fact(&definition.category, Clone::clone),
@@ -160,18 +207,11 @@ fn consumable_surface(
             license: fact(&value.license, |value| value.as_str().to_string()),
             remaster: fact(&value.remaster, |value| *value),
         }),
-        source_state: source_state(state),
         damage: fact(&definition.damage, |value| ConsumableDamageView {
             formula: fact(&value.formula, Clone::clone),
             category: fact(&value.category, Clone::clone),
             damage_type: fact(&value.damage_type, Clone::clone),
         }),
-        spell_child,
-        content: content
-            .into_iter()
-            .flat_map(|content| &content.documents)
-            .filter_map(crate::surface::content_view)
-            .collect(),
     }
 }
 
@@ -247,5 +287,96 @@ fn occurrence_spell_link(
             target_record_key: target_record_key.map(ToString::to_string),
         }),
         ConsumableSpellReuse::NotPresent | ConsumableSpellReuse::Mismatch { .. } => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use atlas_domain::RecordKey;
+    use atlas_record::{
+        ConsumableDefinition, ConsumableEntity, ConsumableEntityId, ConsumableEntityTarget,
+        ConsumableOccurrence, ConsumableOccurrenceId, ConsumableOccurrenceIdentityStability,
+        ConsumableOccurrenceSet, ConsumableSourceState, ConsumableSpellReuse,
+        ConsumableTargetResolution, FactValue, OwnedRichContent,
+    };
+
+    #[test]
+    fn parent_owned_definition_does_not_repeat_occurrence_state_or_spell_child() {
+        let owner_record_key = RecordKey::parse("actors:torchbearer").expect("owner key");
+        let entity_id = ConsumableEntityId::new("entity-torch").expect("entity ID");
+        let set = ConsumableOccurrenceSet {
+            entities: vec![ConsumableEntity {
+                id: entity_id.clone(),
+                owner_record_key: owner_record_key.clone(),
+                target: ConsumableEntityTarget::ParentOwned {
+                    definition: Box::new(missing_definition()),
+                    resolution: ConsumableTargetResolution::NoLocator,
+                    content_identity: FactValue::Missing,
+                },
+            }],
+            occurrences: vec![ConsumableOccurrence {
+                id: ConsumableOccurrenceId::new("torch").expect("occurrence ID"),
+                source_id: FactValue::Missing,
+                identity_stability: ConsumableOccurrenceIdentityStability::StableSourceIdentity,
+                owner_record_key,
+                entity_id,
+                authored_order: 0,
+                source_path: "items[0]".to_string(),
+                source_sort: FactValue::Missing,
+                source_image: FactValue::Missing,
+                source_folder: FactValue::Missing,
+                contextual_name: "Torch".to_string(),
+                locator: atlas_record::ConsumableLocatorState::Missing,
+                state: ConsumableSourceState {
+                    quantity: FactValue::Value(atlas_record::ConsumableSourceValue::Known(2)),
+                    current_uses: FactValue::Missing,
+                    current_hp: FactValue::Missing,
+                    container_id: FactValue::Null,
+                    equipped: FactValue::Missing,
+                },
+                spell_reuse: ConsumableSpellReuse::NotPresent,
+                authored_content: OwnedRichContent::default(),
+                unsupported_content: Vec::new(),
+            }],
+        };
+
+        let views = super::consumable_occurrence_views(&set).expect("one occurrence");
+        let json = serde_json::to_value(&views[0]).expect("serialize occurrence");
+        assert_eq!(
+            json.pointer("/source_state/quantity/value"),
+            Some(&serde_json::json!(2))
+        );
+        let definition = json
+            .pointer("/definition")
+            .expect("parent-owned definition");
+        assert!(definition.get("source_state").is_none());
+        assert!(definition.get("spell_child").is_none());
+        assert!(definition.get("content").is_none());
+    }
+
+    fn missing_definition() -> ConsumableDefinition {
+        ConsumableDefinition {
+            slug: FactValue::Missing,
+            level: FactValue::Missing,
+            category: FactValue::Missing,
+            rarity: FactValue::Missing,
+            traits: FactValue::Missing,
+            other_tags: FactValue::Missing,
+            base_item: FactValue::Missing,
+            bulk: FactValue::Missing,
+            size: FactValue::Missing,
+            stack_group: FactValue::Missing,
+            material: FactValue::Missing,
+            price: FactValue::Missing,
+            usage: FactValue::Missing,
+            maximum_uses: FactValue::Missing,
+            auto_destroy: FactValue::Missing,
+            maximum_hp: FactValue::Missing,
+            hardness: FactValue::Missing,
+            damage: FactValue::Missing,
+            publication: FactValue::Missing,
+            rules: FactValue::Missing,
+            spell_child_id: FactValue::Missing,
+        }
     }
 }
