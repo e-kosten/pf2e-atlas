@@ -4,7 +4,8 @@ use atlas_domain::{
 };
 
 use crate::artifact::inventory::{
-    Column, Table, actor_records, item_records, record_traits, records, spell_records,
+    Column, Table, actor_records, consumable_query_records, item_records, record_traits, records,
+    spell_records,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,6 +25,7 @@ pub(crate) struct DiscoveryFieldDefinition {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DiscoveryFieldExtractor {
     Column(Column),
+    UnionColumns(&'static [Column]),
     JsonArrayColumn(Column),
     UnionJsonArrayColumns(&'static [Column]),
 }
@@ -61,6 +63,12 @@ impl DiscoveryFieldExtractor {
     fn value_sql(self) -> String {
         match self {
             Self::Column(column) => column_value_sql(column),
+            Self::UnionColumns(columns) => columns
+                .iter()
+                .copied()
+                .map(column_value_sql)
+                .collect::<Vec<_>>()
+                .join(" UNION ALL "),
             Self::JsonArrayColumn(column) => json_array_value_sql(column),
             Self::UnionJsonArrayColumns(columns) => columns
                 .iter()
@@ -103,6 +111,8 @@ fn record_key_column(table: Table) -> Column {
         item_records::columns::RECORD_KEY
     } else if table == spell_records::TABLE {
         spell_records::columns::RECORD_KEY
+    } else if table == consumable_query_records::TABLE {
+        consumable_query_records::columns::RECORD_KEY
     } else {
         records::columns::RECORD_KEY
     }
@@ -173,6 +183,31 @@ const ITEM_KINDS: &[&str] = &["equipment"];
 const DAMAGE_TYPE_COLUMNS: &[Column] = &[
     item_records::columns::DAMAGE_TYPES_JSON,
     spell_records::columns::DAMAGE_TYPES_JSON,
+    consumable_query_records::columns::DAMAGE_TYPES_JSON,
+];
+const USAGE_COLUMNS: &[Column] = &[
+    records::columns::SYSTEM_USAGE,
+    consumable_query_records::columns::USAGE,
+];
+const CATEGORY_COLUMNS: &[Column] = &[
+    records::columns::SYSTEM_CATEGORY,
+    consumable_query_records::columns::CATEGORY,
+];
+const BASE_ITEM_COLUMNS: &[Column] = &[
+    records::columns::SYSTEM_BASE_ITEM,
+    consumable_query_records::columns::BASE_ITEM,
+];
+const HANDS_COLUMNS: &[Column] = &[
+    item_records::columns::HANDS_REQUIREMENT,
+    consumable_query_records::columns::HANDS_REQUIREMENT,
+];
+const PRICE_COLUMNS: &[Column] = &[
+    records::columns::PRICE_CP,
+    consumable_query_records::columns::PRICE_CP,
+];
+const BULK_COLUMNS: &[Column] = &[
+    item_records::columns::BULK_VALUE,
+    consumable_query_records::columns::BULK_VALUE,
 ];
 
 macro_rules! field {
@@ -473,7 +508,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         EnumString,
         Item,
         Enumerable,
-        DiscoveryFieldExtractor::Column(records::columns::SYSTEM_USAGE),
+        DiscoveryFieldExtractor::UnionColumns(USAGE_COLUMNS),
         STRING_OPERATORS,
         [],
         ITEM_KINDS,
@@ -495,7 +530,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         EnumString,
         Item,
         Enumerable,
-        DiscoveryFieldExtractor::Column(records::columns::SYSTEM_CATEGORY),
+        DiscoveryFieldExtractor::UnionColumns(CATEGORY_COLUMNS),
         STRING_OPERATORS,
         [],
         ITEM_KINDS,
@@ -506,7 +541,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         EnumString,
         Item,
         Enumerable,
-        DiscoveryFieldExtractor::Column(records::columns::SYSTEM_BASE_ITEM),
+        DiscoveryFieldExtractor::UnionColumns(BASE_ITEM_COLUMNS),
         STRING_OPERATORS,
         [],
         ITEM_KINDS,
@@ -517,7 +552,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         EnumString,
         Item,
         Enumerable,
-        DiscoveryFieldExtractor::Column(item_records::columns::HANDS_REQUIREMENT),
+        DiscoveryFieldExtractor::UnionColumns(HANDS_COLUMNS),
         STRING_OPERATORS,
         [],
         ITEM_KINDS,
@@ -594,7 +629,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         Number,
         Item,
         NumericStats,
-        DiscoveryFieldExtractor::Column(records::columns::PRICE_CP),
+        DiscoveryFieldExtractor::UnionColumns(PRICE_COLUMNS),
         NUMBER_OPERATORS,
         ["--price", "--min-price", "--max-price"],
         ITEM_KINDS,
@@ -605,7 +640,7 @@ pub(crate) const DISCOVERY_FIELD_DEFINITIONS: &[DiscoveryFieldDefinition] = &[
         Number,
         Item,
         NumericStats,
-        DiscoveryFieldExtractor::Column(item_records::columns::BULK_VALUE),
+        DiscoveryFieldExtractor::UnionColumns(BULK_COLUMNS),
         NUMBER_OPERATORS,
         [],
         ITEM_KINDS,

@@ -1,19 +1,19 @@
 # Rust Standalone and Embedded Consumable Record Family
 
-Status: deferred
-Priority: later
-Owner: unassigned
-Last reviewed: 2026-09-06
+Status: done
+Priority: completed
+Owner: H5 consumable family
+Last reviewed: 2026-09-08
 
 ## Problem
 
-Consumables do not yet have one source-faithful canonical family across standalone Item records and consumables embedded in Actors. Hazard ingest therefore retains Purple Worm Venom from False Door Trap as a safe-content, non-executable unsupported child. Its useful description and references survive, but its inventory, economy, durability, usage, and charge facts cannot be treated as supported consumable behavior.
+Consumables now have one source-faithful canonical family across standalone Item records and consumables embedded in NPCs, Characters, and hazards. Purple Worm Venom from False Door Trap moved from the legacy unsupported-child path into the typed occurrence owner while retaining its content, references, provenance, and authored state.
 
 The hazard remediation deliberately types only common child metadata such as rarity and lineage. It must not become a partial consumable implementation or allow standalone and embedded consumables to drift into separate semantic models.
 
 ## Desired Outcome
 
-Implement one schema-grounded consumable family contract that:
+The landed family contract:
 
 - admits standalone and embedded consumables through the same intrinsic canonical definition while retaining parent-local occurrence context
 - preserves stable source identity, authored order, repeated occurrences, parent association, and diagnosed fallbacks without using names or slugs as identity
@@ -51,7 +51,7 @@ The future cutover must prove that all 20 remain represented exactly once across
 
 ## Constraints
 
-- This item records future work only; the hazard record-presentation remediation does not implement consumables.
+- Character consumables are persisted and hydrated for H9 but are not an H5 public surface.
 - Standalone and embedded forms must not gain competing canonical definitions or compatibility adapters.
 - `_stats.compendiumSource` remains lineage provenance unless a separate authenticated identity decision verifies a canonical target; it is not automatically a record relationship.
 - Unsupported or unclassified populated values remain conspicuous human limitations until explicitly modeled.
@@ -60,8 +60,8 @@ The future cutover must prove that all 20 remain represented exactly once across
 
 ## Related
 
-- [Source-Faithful Contract State](../backlog.md#source-faithful-contract-state)
-- [Rust record presentation mechanics unification](../history/items/rust-record-presentation-mechanics-unification.md)
-- [Canonical entities, occurrences, and projections](../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)
-- [Atomic canonical artifact](../../architecture/decisions/0035-atomic-canonical-artifact.md)
-- [Source-faithful record surfaces](../../architecture/decisions/0036-source-faithful-record-surfaces.md)
+- [Source-Faithful Contract State](../../backlog.md#source-faithful-contract-state)
+- [Rust record presentation mechanics unification](./rust-record-presentation-mechanics-unification.md)
+- [Canonical entities, occurrences, and projections](../../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)
+- [Atomic canonical artifact](../../../architecture/decisions/0035-atomic-canonical-artifact.md)
+- [Source-faithful record surfaces](../../../architecture/decisions/0036-source-faithful-record-surfaces.md)

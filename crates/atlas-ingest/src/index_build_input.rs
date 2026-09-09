@@ -6,10 +6,16 @@ pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
     let mut records = Vec::with_capacity(source.records.len());
     let mut canonical_bodies = Vec::new();
     let mut canonical_spell_children = Vec::new();
+    let mut consumable_occurrence_sets = Vec::new();
     for loaded in source.records {
         records.push(loaded.record);
         canonical_bodies.extend(loaded.facts.canonical_body);
         canonical_spell_children.extend(loaded.facts.canonical_spell_children);
+        if !loaded.facts.consumable_occurrences.entities.is_empty()
+            || !loaded.facts.consumable_occurrences.occurrences.is_empty()
+        {
+            consumable_occurrence_sets.push(loaded.facts.consumable_occurrences);
+        }
     }
     IndexBuildInput {
         source_signature: source.source_signature,
@@ -29,6 +35,7 @@ pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
         records,
         canonical_bodies,
         canonical_spell_children,
+        consumable_occurrence_sets,
         references: source.references,
         aliases: source.aliases,
         remaster_links: source.remaster_links,
@@ -89,7 +96,10 @@ mod tests {
             atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
         )
         .expect_err("late child projection failure must abort the artifact transaction");
-        assert!(error.to_string().contains("UNIQUE constraint failed"));
+        assert!(
+            error.to_string().contains("UNIQUE constraint failed"),
+            "unexpected late writer failure: {error}"
+        );
         assert_eq!(
             std::fs::read(&path).expect("original target remains readable"),
             b"existing artifact"
@@ -169,7 +179,10 @@ mod tests {
                     {
                         Some(spell)
                     }
-                    RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+                    RecordBody::Creature(_)
+                    | RecordBody::Hazard(_)
+                    | RecordBody::Spell(_)
+                    | RecordBody::Consumable(_) => None,
                 })
                 .expect("Heal spell body");
             match mismatch {
@@ -211,7 +224,10 @@ mod tests {
             .iter_mut()
             .find_map(|body| match body {
                 RecordBody::Spell(spell) if spell.identity.record_key == heal_key => Some(spell),
-                RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+                RecordBody::Creature(_)
+                | RecordBody::Hazard(_)
+                | RecordBody::Spell(_)
+                | RecordBody::Consumable(_) => None,
             })
             .expect("Heal canonical spell body");
         let FactValue::Value(SpellSourceValue::Known(classification)) =
@@ -661,7 +677,11 @@ mod tests {
             all.iter()
                 .any(|row| matches!(row.body, Some(RecordBody::Hazard(_))))
         );
-        assert!(reader.validate_canonical_coherence()?.is_empty());
+        let coherence = reader.validate_canonical_coherence()?;
+        assert!(
+            coherence.is_empty(),
+            "unexpected canonical coherence diagnostics: {coherence:#?}"
+        );
 
         let connection = rusqlite::Connection::open(&path)?;
         let (hazards, entities, occurrences, actor_rows): (i64, i64, i64, i64) = (
@@ -871,10 +891,12 @@ mod tests {
             wand.record.foundry.record_type,
             FoundryRecordType::Consumable
         );
-        assert!(wand.body.is_none());
+        let RecordBody::Consumable(wand_body) = wand.body.as_ref().expect("consumable body") else {
+            panic!("consumable dispatch")
+        };
         assert_eq!(wand.spell_children.len(), 1);
         assert_eq!(wand.spell_children[0].child_id.as_str(), "7w37duycMs4YOBeu");
-        assert!(!wand.record.content.documents.is_empty());
+        assert!(!wand_body.content.documents.is_empty());
 
         let references = reader
             .reference_edges_for_seed(&wand_key, atlas_index::ReferenceEdgeDirection::Outgoing)?;
@@ -915,7 +937,7 @@ mod tests {
             .iter_mut()
             .find_map(|body| match body {
                 RecordBody::Hazard(hazard) => Some(hazard),
-                RecordBody::Creature(_) | RecordBody::Spell(_) => None,
+                RecordBody::Creature(_) | RecordBody::Spell(_) | RecordBody::Consumable(_) => None,
             })
             .expect("hazard body");
         let FactValue::Value(atlas_record::HazardSourceValue::Typed(embedded)) =

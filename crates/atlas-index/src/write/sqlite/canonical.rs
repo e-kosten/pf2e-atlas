@@ -1,10 +1,10 @@
 use atlas_record::{
-    AtlasRecord, ConsumableSpellChild, ContentIdentityStability, ContentOwner, ContentRole,
-    CreatureEntityRelationshipKind, CreatureEntityTarget, CreatureOccurrenceParent,
-    CreatureRelationshipExecution, CreatureRelationshipTarget, FactValue,
-    HazardOccurrenceIdentityStability, HazardRecord, HazardRelationshipKind,
-    HazardRelationshipTarget, OccurrenceIdentityStability, RecordBody, RichLinkTarget,
-    SpellStandaloneTarget,
+    AtlasRecord, ConsumableEntityTarget, ConsumableOccurrenceSet, ConsumableSpellChild,
+    ContentIdentityStability, ContentOwner, ContentRole, CreatureEntityRelationshipKind,
+    CreatureEntityTarget, CreatureOccurrenceParent, CreatureRelationshipExecution,
+    CreatureRelationshipTarget, FactValue, HazardOccurrenceIdentityStability, HazardRecord,
+    HazardRelationshipKind, HazardRelationshipTarget, OccurrenceIdentityStability, RecordBody,
+    RichLinkTarget, SpellStandaloneTarget,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -15,12 +15,13 @@ use crate::IndexWriteError;
 use crate::artifact::canonical_json::encode;
 
 use super::models::{
+    CanonicalConsumableEntityRow, CanonicalConsumableOccurrenceRow, CanonicalConsumableRecordRow,
     CanonicalConsumableSpellChildRow, CanonicalCreatureEntityRow, CanonicalCreatureOccurrenceRow,
     CanonicalCreatureRecordRow, CanonicalCreatureRelationshipRow, CanonicalCreatureResourceRow,
     CanonicalHazardEntityRow, CanonicalHazardOccurrenceRow, CanonicalHazardRecordRow,
-    CanonicalHazardRelationshipRow, CanonicalSpellRecordRow, RecordContentExclusionRow,
-    RecordContentRow, ReferenceOccurrenceRow, SpellDamageTypeRow, SpellRecordRow,
-    SpellTraditionRow,
+    CanonicalHazardRelationshipRow, CanonicalSpellRecordRow, ConsumableQueryRecordRow,
+    RecordContentExclusionRow, RecordContentRow, ReferenceOccurrenceRow, SpellDamageTypeRow,
+    SpellRecordRow, SpellTraditionRow,
 };
 
 type HazardContentOwnerColumns = (&'static str, Option<String>, Option<String>, Option<String>);
@@ -30,6 +31,7 @@ pub(super) fn write_canonical_records(
     atlas_records: &[AtlasRecord],
     bodies: &[RecordBody],
     spell_children: &[ConsumableSpellChild],
+    consumable_occurrence_sets: &[ConsumableOccurrenceSet],
 ) -> Result<(), IndexWriteError> {
     let mut records = Vec::new();
     let mut resources = Vec::new();
@@ -48,6 +50,10 @@ pub(super) fn write_canonical_records(
     let mut spell_query_rows = Vec::new();
     let mut spell_traditions = Vec::new();
     let mut spell_damage_types = Vec::new();
+    let mut consumable_records = Vec::new();
+    let mut consumable_entities = Vec::new();
+    let mut consumable_occurrences = Vec::new();
+    let mut consumable_query_records = Vec::new();
 
     for body in bodies {
         match body {
@@ -225,6 +231,8 @@ pub(super) fn write_canonical_records(
                         owner_hazard_entity_id: None,
                         owner_hazard_occurrence_id: None,
                         owner_hazard_occurrence_authored_order: None,
+                        owner_consumable_occurrence_id: None,
+                        owner_consumable_occurrence_authored_order: None,
                         role: content_role(document.role).to_string(),
                         origin_json: encode(&document.origin)
                             .map_err(IndexWriteError::WriteFailed)?,
@@ -259,6 +267,8 @@ pub(super) fn write_canonical_records(
                             owner_hazard_entity_id: None,
                             owner_hazard_occurrence_id: None,
                             owner_hazard_occurrence_authored_order: None,
+                            owner_consumable_occurrence_id: None,
+                            owner_consumable_occurrence_authored_order: None,
                             role: content_role(occurrence.role).to_string(),
                             origin_json: encode(&occurrence.origin)
                                 .map_err(IndexWriteError::WriteFailed)?,
@@ -458,6 +468,65 @@ pub(super) fn write_canonical_records(
                     }
                 }));
             }
+            RecordBody::Consumable(consumable) => {
+                let record_key = consumable.identity.record_key.to_string();
+                consumable_records.push(CanonicalConsumableRecordRow {
+                    record_key: record_key.clone(),
+                    source_id: consumable.identity.source_id.as_str().to_string(),
+                    name: consumable.identity.name.clone(),
+                    canonical_json: encode(body).map_err(IndexWriteError::WriteFailed)?,
+                });
+                let projection =
+                    crate::consumable_query::project_consumable_query(&consumable.definition);
+                consumable_query_records.push(ConsumableQueryRecordRow {
+                    record_key: record_key.clone(),
+                    category: projection.category,
+                    usage: projection.usage,
+                    base_item: projection.base_item,
+                    bulk_value: projection.bulk_value,
+                    hands_requirement: projection.hands_requirement,
+                    price_cp: projection.price_cp,
+                    damage_types_json: serde_json::to_string(&projection.damage_types)
+                        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
+                });
+                append_spell_content(
+                    &record_key,
+                    &consumable.content,
+                    &mut content,
+                    &mut references,
+                )?;
+            }
+        }
+    }
+
+    for set in consumable_occurrence_sets {
+        for entity in &set.entities {
+            let target_record_key = match &entity.target {
+                ConsumableEntityTarget::Resolved { record_key, .. } => Some(record_key.to_string()),
+                ConsumableEntityTarget::ParentOwned { .. } => None,
+            };
+            consumable_entities.push(CanonicalConsumableEntityRow {
+                owner_record_key: entity.owner_record_key.to_string(),
+                entity_id: entity.id.as_str().to_string(),
+                target_record_key,
+                canonical_json: encode(entity).map_err(IndexWriteError::WriteFailed)?,
+            });
+        }
+        for occurrence in &set.occurrences {
+            let occurrence_order = i64::from(occurrence.authored_order);
+            consumable_occurrences.push(CanonicalConsumableOccurrenceRow {
+                owner_record_key: occurrence.owner_record_key.to_string(),
+                occurrence_id: occurrence.id.as_str().to_string(),
+                entity_id: occurrence.entity_id.as_str().to_string(),
+                authored_order: occurrence_order,
+                canonical_json: encode(occurrence).map_err(IndexWriteError::WriteFailed)?,
+            });
+            append_consumable_occurrence_content(
+                occurrence,
+                occurrence_order,
+                &mut content,
+                &mut references,
+            )?;
         }
     }
 
@@ -525,6 +594,23 @@ pub(super) fn write_canonical_records(
             }
         };
     }
+    let mut content_orders = BTreeMap::<(&str, i64), (&str, &str)>::new();
+    for row in &content {
+        if let Some((existing_key, existing_owner)) = content_orders.insert(
+            (&row.record_key, row.authored_order),
+            (&row.content_key, &row.owner_kind),
+        ) {
+            return Err(IndexWriteError::WriteFailed(format!(
+                "record content authored order collision for `{}` at {}: `{}` ({}) and `{}` ({})",
+                row.record_key,
+                row.authored_order,
+                existing_key,
+                existing_owner,
+                row.content_key,
+                row.owner_kind
+            )));
+        }
+    }
     insert_rows!(crate::schema::canonical_creature_records::table, records);
     insert_rows!(
         crate::schema::canonical_creature_resources::table,
@@ -556,6 +642,22 @@ pub(super) fn write_canonical_records(
         hazard_relationships
     );
     insert_rows!(crate::schema::canonical_spell_records::table, spell_records);
+    insert_rows!(
+        crate::schema::canonical_consumable_records::table,
+        consumable_records
+    );
+    insert_rows!(
+        crate::schema::canonical_consumable_entities::table,
+        consumable_entities
+    );
+    insert_rows!(
+        crate::schema::canonical_consumable_occurrences::table,
+        consumable_occurrences
+    );
+    insert_rows!(
+        crate::schema::consumable_query_records::table,
+        consumable_query_records
+    );
     insert_rows!(crate::schema::spell_records::table, spell_query_rows);
     insert_rows!(crate::schema::spell_traditions::table, spell_traditions);
     insert_rows!(crate::schema::spell_damage_types::table, spell_damage_types);
@@ -598,6 +700,8 @@ fn append_spell_content(
             owner_hazard_entity_id: None,
             owner_hazard_occurrence_id: None,
             owner_hazard_occurrence_authored_order: None,
+            owner_consumable_occurrence_id: None,
+            owner_consumable_occurrence_authored_order: None,
             role: content_role(document.role).to_string(),
             origin_json: encode(&document.origin).map_err(IndexWriteError::WriteFailed)?,
             visibility: document.visibility.as_str().to_string(),
@@ -629,6 +733,8 @@ fn append_spell_content(
                 owner_hazard_entity_id: None,
                 owner_hazard_occurrence_id: None,
                 owner_hazard_occurrence_authored_order: None,
+                owner_consumable_occurrence_id: None,
+                owner_consumable_occurrence_authored_order: None,
                 role: content_role(occurrence.role).to_string(),
                 origin_json: encode(&occurrence.origin).map_err(IndexWriteError::WriteFailed)?,
                 visibility: occurrence.visibility.as_str().to_string(),
@@ -642,6 +748,94 @@ fn append_spell_content(
                 relation_kind: occurrence.relation_kind.as_str().to_string(),
             });
         }
+    }
+    Ok(())
+}
+
+fn append_consumable_occurrence_content(
+    occurrence: &atlas_record::ConsumableOccurrence,
+    occurrence_order: i64,
+    content: &mut Vec<RecordContentRow>,
+    references: &mut Vec<ReferenceOccurrenceRow>,
+) -> Result<(), IndexWriteError> {
+    let record_key = occurrence.owner_record_key.to_string();
+    for document in &occurrence.authored_content.documents {
+        if document.id.parent_record_key != occurrence.owner_record_key
+            || document.owner != ContentOwner::ConsumableOccurrence(occurrence.id.clone())
+        {
+            return Err(IndexWriteError::WriteFailed(format!(
+                "consumable content `{}` does not match occurrence `{}` on `{record_key}`",
+                document.id.content_key.as_str(),
+                occurrence.id.as_str()
+            )));
+        }
+        content.push(RecordContentRow {
+            record_key: record_key.clone(),
+            content_key: document.id.content_key.as_str().to_string(),
+            authored_order: i64::from(document.authored_order),
+            identity_stability: content_stability(document.identity_stability).to_string(),
+            owner_kind: "consumable_occurrence".to_string(),
+            owner_record_key: None,
+            owner_entity_id: None,
+            owner_occurrence_id: None,
+            owner_occurrence_authored_order: None,
+            owner_hazard_entity_id: None,
+            owner_hazard_occurrence_id: None,
+            owner_hazard_occurrence_authored_order: None,
+            owner_consumable_occurrence_id: Some(occurrence.id.as_str().to_string()),
+            owner_consumable_occurrence_authored_order: Some(occurrence_order),
+            role: content_role(document.role).to_string(),
+            origin_json: encode(&document.origin).map_err(IndexWriteError::WriteFailed)?,
+            visibility: document.visibility.as_str().to_string(),
+            provenance_json: encode(&document.provenance).map_err(IndexWriteError::WriteFailed)?,
+            source_kind: document.source_kind.as_str().to_string(),
+            contributes_to_search: document.source_kind.default_contributes_to_search(),
+            contributes_to_references: document
+                .source_kind
+                .default_contributes_to_reference_occurrences(),
+            label: document.label.clone(),
+            content_json: encode(&document.document).map_err(IndexWriteError::WriteFailed)?,
+            content_hash: document.content_hash.as_str().to_string(),
+            duplicate_status_json: encode(&document.duplicate_status)
+                .map_err(IndexWriteError::WriteFailed)?,
+            diagnostics_json: encode(&document.diagnostics)
+                .map_err(IndexWriteError::WriteFailed)?,
+        });
+        for reference in &document.reference_occurrences {
+            references.push(ReferenceOccurrenceRow {
+                record_key: record_key.clone(),
+                content_key: document.id.content_key.as_str().to_string(),
+                content_authored_order: i64::from(document.authored_order),
+                occurrence_ordinal: i64::from(reference.ordinal),
+                owner_kind: "consumable_occurrence".to_string(),
+                owner_record_key: None,
+                owner_entity_id: None,
+                owner_occurrence_id: None,
+                owner_occurrence_authored_order: None,
+                owner_hazard_entity_id: None,
+                owner_hazard_occurrence_id: None,
+                owner_hazard_occurrence_authored_order: None,
+                owner_consumable_occurrence_id: Some(occurrence.id.as_str().to_string()),
+                owner_consumable_occurrence_authored_order: Some(occurrence_order),
+                role: content_role(reference.role).to_string(),
+                origin_json: encode(&reference.origin).map_err(IndexWriteError::WriteFailed)?,
+                visibility: reference.visibility.as_str().to_string(),
+                provenance_json: encode(&reference.provenance)
+                    .map_err(IndexWriteError::WriteFailed)?,
+                target_kind: target_kind(&reference.target).to_string(),
+                target_record_key: reference.target.record_key().map(ToString::to_string),
+                target_json: serde_json::to_string(&reference.target)
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
+                label: reference.label.clone(),
+                relation_kind: reference.relation_kind.as_str().to_string(),
+            });
+        }
+    }
+    if !occurrence.authored_content.exclusions.is_empty() {
+        return Err(IndexWriteError::WriteFailed(format!(
+            "consumable occurrence `{}` has unpersisted content exclusions",
+            occurrence.id.as_str()
+        )));
     }
     Ok(())
 }
@@ -697,6 +891,8 @@ fn write_hazard_content(
             owner_hazard_entity_id: owner_hazard_entity_id.clone(),
             owner_hazard_occurrence_id: owner_hazard_occurrence_id.clone(),
             owner_hazard_occurrence_authored_order,
+            owner_consumable_occurrence_id: None,
+            owner_consumable_occurrence_authored_order: None,
             role: content_role(document.role).to_string(),
             origin_json: encode(&document.origin).map_err(IndexWriteError::WriteFailed)?,
             visibility: document.visibility.as_str().to_string(),
@@ -728,6 +924,8 @@ fn write_hazard_content(
                 owner_hazard_entity_id: owner_hazard_entity_id.clone(),
                 owner_hazard_occurrence_id: owner_hazard_occurrence_id.clone(),
                 owner_hazard_occurrence_authored_order,
+                owner_consumable_occurrence_id: None,
+                owner_consumable_occurrence_authored_order: None,
                 role: content_role(occurrence.role).to_string(),
                 origin_json: encode(&occurrence.origin).map_err(IndexWriteError::WriteFailed)?,
                 visibility: occurrence.visibility.as_str().to_string(),
@@ -774,6 +972,9 @@ fn hazard_content_owner(
                 "hazard record `{record_key}` has a cross-family creature content owner"
             )))
         }
+        ContentOwner::ConsumableOccurrence(_) => Err(IndexWriteError::WriteFailed(format!(
+            "hazard record `{record_key}` has a cross-family consumable content owner"
+        ))),
     }
 }
 
@@ -871,6 +1072,12 @@ fn content_owner(
         }
         ContentOwner::HazardOccurrence(id) => (
             "hazard_occurrence",
+            None,
+            None,
+            Some(id.as_str().to_string()),
+        ),
+        ContentOwner::ConsumableOccurrence(id) => (
+            "consumable_occurrence",
             None,
             None,
             Some(id.as_str().to_string()),

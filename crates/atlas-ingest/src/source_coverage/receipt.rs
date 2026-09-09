@@ -59,13 +59,10 @@ const HAZARD_EXACT_PROMOTED_READER: &str = "source::dto::HazardSource::exact_pro
 const HAZARD_EXACT_UNSUPPORTED_READER: &str =
     "source::dto::HazardSource::exact_typed_unsupported_leaf";
 const HAZARD_EXACT_PROVENANCE_READER: &str = "source::dto::HazardSource::exact_provenance_leaf";
-const HAZARD_HYDRATION_LEDGER_SOURCES: [&str; 4] = [
+const HAZARD_HYDRATION_LEDGER_SOURCES: [&str; 3] = [
     include_str!("../../../../contracts/source-leaf-coverage/v1/actor-hazard.yaml"),
     include_str!("../../../../contracts/source-leaf-coverage/v1/item-action-embedded-hazard.yaml"),
     include_str!("../../../../contracts/source-leaf-coverage/v1/item-melee-embedded-hazard.yaml"),
-    include_str!(
-        "../../../../contracts/source-leaf-coverage/v1/item-consumable-embedded-hazard.yaml"
-    ),
 ];
 const ITEM_SPELL_READER: &str = "source::dto::parse_spell_document_source";
 const CONSUMABLE_SPELL_CHILD_READER: &str = "source::dto::ConsumableSpellChildSource";
@@ -1989,7 +1986,7 @@ impl SpellArtifactHydration {
             record: hydrated.record,
             body: hydrated.body.and_then(|body| match body {
                 RecordBody::Spell(spell) => Some(spell),
-                RecordBody::Creature(_) | RecordBody::Hazard(_) => None,
+                RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Consumable(_) => None,
             }),
             child: hydrated.spell_children.into_iter().next(),
         }
@@ -9365,8 +9362,9 @@ fn run_npc_pipeline(
         .into_iter()
         .map(|body| (body.record_key().clone(), body))
         .collect::<BTreeMap<_, _>>();
-    let hydrated = atlas_index::hydrate_record_parts(input.records, bodies, BTreeMap::new())
-        .map_err(|message| error(CoverageFailureCode::ArtifactHydrationMismatch, message))?;
+    let hydrated =
+        atlas_index::hydrate_record_parts(input.records, bodies, BTreeMap::new(), BTreeMap::new())
+            .map_err(|message| error(CoverageFailureCode::ArtifactHydrationMismatch, message))?;
     let hydration = creature_body(hydrated[0].body.as_ref())?.clone();
     let public_surface = record_json(
         &hydrated[0],
@@ -9398,7 +9396,7 @@ fn creature_body(body: Option<&RecordBody>) -> Result<&CreatureRecord, CoverageC
             CoverageFailureCode::CanonicalMismatch,
             "NPC pipeline produced a hazard body",
         )),
-        Some(RecordBody::Spell(_)) => Err(error(
+        Some(RecordBody::Spell(_) | RecordBody::Consumable(_)) => Err(error(
             CoverageFailureCode::CanonicalMismatch,
             "NPC pipeline produced a non-creature canonical body",
         )),
@@ -9987,8 +9985,9 @@ fn run_item_name_pipeline(
         .into_iter()
         .map(|body| (body.record_key().clone(), body))
         .collect::<BTreeMap<_, _>>();
-    let hydrated = atlas_index::hydrate_record_parts(input.records, bodies, BTreeMap::new())
-        .map_err(|message| error(CoverageFailureCode::ArtifactHydrationMismatch, message))?;
+    let hydrated =
+        atlas_index::hydrate_record_parts(input.records, bodies, BTreeMap::new(), BTreeMap::new())
+            .map_err(|message| error(CoverageFailureCode::ArtifactHydrationMismatch, message))?;
     let hydration = hydrated[0].record.identity.name.clone();
     let public = record_json(
         &hydrated[0],
@@ -11411,6 +11410,7 @@ mod tests {
             records: vec![alias_only.persisted_record],
             canonical_bodies: vec![RecordBody::Creature(alias_only.post_projection)],
             canonical_spell_children: Vec::new(),
+            consumable_occurrence_sets: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),

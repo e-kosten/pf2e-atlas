@@ -296,6 +296,7 @@ pub(crate) fn hazard_surface(
         defenses,
         lifecycle,
         activities,
+        consumables: None,
         content,
         relationships: None,
         unavailable_fields: non_empty(unavailable),

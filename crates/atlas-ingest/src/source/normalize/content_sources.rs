@@ -308,7 +308,11 @@ fn collect_embedded_item_content(
     };
     for (index, item) in items.iter().enumerate() {
         let label = string_field(item, "name");
-        let hazard_identity = hazard_identities.and_then(|identities| identities.get(index));
+        let hazard_identity = hazard_identities.and_then(|identities| {
+            identities
+                .iter()
+                .find(|identity| identity.source_ordinal as usize == index)
+        });
         let item_id = hazard_identity
             .map(|identity| identity.occurrence_id.as_str().to_string())
             .unwrap_or_else(|| embedded_item_id(item, index));

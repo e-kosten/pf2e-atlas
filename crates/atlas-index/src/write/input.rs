@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use atlas_domain::PackName;
 use atlas_embedding::{GeneratedDocumentEmbedding, PendingDocumentEmbedding};
 use atlas_record::{
-    AtlasRecord, ConsumableSpellChild, RecordAlias, RecordBody, ReferenceEdge, RemasterLink,
+    AtlasRecord, ConsumableOccurrenceSet, ConsumableSpellChild, RecordAlias, RecordBody,
+    ReferenceEdge, RemasterLink,
 };
 use thiserror::Error;
 
@@ -25,6 +26,7 @@ pub struct IndexBuildInput {
     pub records: Vec<AtlasRecord>,
     pub canonical_bodies: Vec<RecordBody>,
     pub canonical_spell_children: Vec<ConsumableSpellChild>,
+    pub consumable_occurrence_sets: Vec<ConsumableOccurrenceSet>,
     pub references: Vec<ReferenceEdge>,
     pub aliases: Vec<RecordAlias>,
     pub remaster_links: Vec<RemasterLink>,
@@ -72,6 +74,7 @@ mod tests {
             records: Vec::new(),
             canonical_bodies: Vec::new(),
             canonical_spell_children: Vec::new(),
+            consumable_occurrence_sets: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),

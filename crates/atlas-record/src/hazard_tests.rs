@@ -750,6 +750,7 @@ fn hazard_record_json_uses_canonical_source_metadata_for_provenance_and_availabi
         record: atlas_record_for(&benign_hazard),
         body: Some(RecordBody::Hazard(benign_hazard)),
         spell_children: Vec::new(),
+        consumable_occurrences: Default::default(),
     };
     let ordinary = serde_json::to_value(
         record_json(
@@ -850,6 +851,7 @@ fn hazard_record_json_uses_canonical_source_metadata_for_provenance_and_availabi
         record: atlas_record_for(&hazard),
         body: Some(RecordBody::Hazard(hazard)),
         spell_children: Vec::new(),
+        consumable_occurrences: Default::default(),
     };
     let value = serde_json::to_value(
         record_json_with_context(
@@ -966,6 +968,7 @@ fn hazard_record_json_carries_typed_terminal_annotations_without_changing_machin
         record: atlas_record_for(&hazard),
         body: Some(RecordBody::Hazard(hazard)),
         spell_children: Vec::new(),
+        consumable_occurrences: Default::default(),
     };
     let json = record_json(
         &retrieved,

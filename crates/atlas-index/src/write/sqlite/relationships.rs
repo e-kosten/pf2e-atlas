@@ -3,13 +3,16 @@ use diesel::prelude::*;
 
 use crate::IndexWriteError;
 use atlas_record::{
-    AtlasRecord, ContentSourceKind, ContentVisibility, FoundryLink, FoundryLinkBehavior,
-    RecordAlias, ReferenceEdge, ReferenceRelationKind, RemasterLink, RichDocument, RichLinkTarget,
-    iter_foundry_links, render_plain_text,
+    AtlasRecord, ConsumableOccurrenceSet, ContentSourceKind, ContentVisibility, FoundryLink,
+    FoundryLinkBehavior, RecordAlias, ReferenceEdge, ReferenceRelationKind, RemasterLink,
+    RichDocument, RichLinkTarget, iter_foundry_links, render_plain_text,
 };
 
 use super::models::{RecordAliasRow, ReferenceEdgeRow, ReferenceOccurrenceRow, RemasterLinkRow};
-use super::records::allocated_content_keys;
+use super::records::{
+    allocated_content_keys, consumable_occurrence_content_fingerprints,
+    consume_consumable_occurrence_content,
+};
 
 pub(super) fn write_reference_edges(
     connection: &mut SqliteConnection,
@@ -40,8 +43,11 @@ pub(super) fn write_reference_occurrences(
     connection: &mut SqliteConnection,
     records: &[AtlasRecord],
     canonical_record_keys: &std::collections::BTreeSet<String>,
+    consumable_occurrence_sets: &[ConsumableOccurrenceSet],
 ) -> Result<(), IndexWriteError> {
     let mut rows = Vec::new();
+    let mut occurrence_content =
+        consumable_occurrence_content_fingerprints(consumable_occurrence_sets);
     for record in records {
         if canonical_record_keys.contains(&record.identity.key.to_string()) {
             continue;
@@ -54,6 +60,13 @@ pub(super) fn write_reference_occurrences(
         }
         let content_keys = allocated_content_keys(&content_inputs);
         for ((ordinal, content, _), content_key) in content_inputs.into_iter().zip(content_keys) {
+            if consume_consumable_occurrence_content(
+                &mut occurrence_content,
+                &record.identity.key.to_string(),
+                content,
+            ) {
+                continue;
+            }
             if !content.contributes_to_reference_occurrences() {
                 continue;
             }
@@ -104,6 +117,8 @@ fn collect_document_reference_occurrences(
             owner_hazard_entity_id: None,
             owner_hazard_occurrence_id: None,
             owner_hazard_occurrence_authored_order: None,
+            owner_consumable_occurrence_id: None,
+            owner_consumable_occurrence_authored_order: None,
             role: legacy_content_role(source_kind).to_string(),
             origin_json: crate::artifact::canonical_json::encode(
                 &atlas_record::ContentOrigin::RecordField {

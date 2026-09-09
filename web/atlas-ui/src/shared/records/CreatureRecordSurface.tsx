@@ -24,6 +24,7 @@ import {
 } from "./RecordSurfaceSupplement";
 import { formatRank, formatSigned, formatSlug } from "./recordFormatting";
 import { SpellOccurrencePreviewPopover } from "./SpellOccurrencePreviewPopover";
+import { ConsumableOccurrences } from "./ConsumableRecordSurface";
 
 export function CreatureDetailSurface({
   body,
@@ -83,6 +84,7 @@ export function CreatureDetailSurface({
           <ResourcesSection resources={body.resources} />
         </aside>
       </div>
+      <ConsumableOccurrences occurrences={body.consumables} onReference={onReference} />
       <RecordSurfaceIssues issues={issues} />
       <RecordSurfaceReferences
         recordKey={metadata.record_key}

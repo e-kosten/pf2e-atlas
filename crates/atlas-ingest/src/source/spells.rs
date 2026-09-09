@@ -66,7 +66,7 @@ pub(crate) fn finalize_consumable_spell_children(
     Ok(())
 }
 
-fn convert_consumable_spell_child(
+pub(crate) fn convert_consumable_spell_child(
     parent_record_key: RecordKey,
     parent_source_path: &str,
     source: ConsumableSpellChildSource,
@@ -251,6 +251,7 @@ mod tests {
         let index = build_record_reference_index(&records);
         finalize_consumable_spell_children(&mut records, &index).expect("child conversion");
         finalize_spell_owned_content(&mut records);
+        crate::source::owned_content::finalize_consumable_owned_content(&mut records);
         resolve_content_references(&mut records, &index);
 
         let canonical_heal = records[0]
@@ -310,12 +311,18 @@ mod tests {
             "Embedded Heal wording with 30-foot emanation."
         );
 
-        assert_eq!(records[1].record.content.documents.len(), 1);
+        let consumable = records[1]
+            .facts
+            .canonical_body
+            .as_ref()
+            .and_then(RecordBody::as_consumable)
+            .expect("canonical consumable parent");
+        assert_eq!(consumable.content.documents.len(), 1);
         assert_eq!(
-            records[1].record.content.documents[0].source_kind,
+            consumable.content.documents[0].source_kind,
             ContentSourceKind::Description
         );
-        let parent_link = iter_foundry_links(&records[1].record.content.documents[0].document)
+        let parent_link = iter_foundry_links(&consumable.content.documents[0].document)
             .next()
             .expect("separate parent description reference");
         assert_eq!(

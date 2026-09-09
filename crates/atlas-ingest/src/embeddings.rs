@@ -75,6 +75,9 @@ fn canonical_embedding_content_documents(
         RecordBody::Spell(spell) => Some(embedding_content_documents_from_owned(
             &spell.definition.content,
         )),
+        RecordBody::Consumable(consumable) => {
+            Some(embedding_content_documents_from_owned(&consumable.content))
+        }
     }
 }
 
@@ -464,6 +467,39 @@ mod tests {
                 .contains("Damage dice rule: hide if disabled false")
         );
         assert_ne!(changed[0].input_hash, pending[0].input_hash);
+    }
+
+    #[test]
+    fn canonical_consumable_embedding_uses_owned_content_and_ignores_source_state() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/foundry-source/spell-source-contract");
+        let source = crate::source_pipeline::load_foundry_source(&root, None)
+            .expect("portable consumable fixture source");
+        let wand = source
+            .records
+            .iter()
+            .find(|loaded| {
+                loaded.record.identity.key.to_string() == "equipment-srd:eOtQtVRLeGH39dNx"
+            })
+            .expect("Arboreal Wand fixture")
+            .clone();
+
+        let baseline = build_pending_document_embeddings(std::slice::from_ref(&wand), &[], &[]);
+        assert_eq!(baseline.len(), 1);
+        assert!(baseline[0].input_text.contains("Arboreal Wand"));
+        assert!(baseline[0].input_text.contains("indicated rank"));
+
+        let mut state_only = wand.clone();
+        let Some(RecordBody::Consumable(consumable)) = state_only.facts.canonical_body.as_mut()
+        else {
+            panic!("Arboreal Wand canonical consumable");
+        };
+        consumable.source_state.quantity =
+            FactValue::Value(atlas_record::ConsumableSourceValue::Known(999));
+        let state_projection = build_pending_document_embeddings(&[state_only], &[], &[]);
+        assert_eq!(state_projection[0].input_text, baseline[0].input_text);
+        assert_eq!(state_projection[0].input_hash, baseline[0].input_hash);
+        assert!(!state_projection[0].input_text.contains("999"));
     }
 
     #[test]

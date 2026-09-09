@@ -15,8 +15,8 @@ pub use names::{Column, Table};
 pub use tables::{
     TABLE_DOCUMENT_EMBEDDING_CACHE, TABLE_METRIC_VALUE_CATALOG, TABLE_PACKS, TABLE_RECORD_ALIASES,
     TABLE_RECORD_VECTOR_INDEX, TABLE_RECORDS, TABLE_RECORDS_FTS, TABLE_REFERENCE_EDGES,
-    TABLE_REFERENCE_OCCURRENCES, TABLE_REMASTER_LINKS, actor_records, document_embedding_cache,
-    item_records, packs, record_aliases, record_content, record_metrics, record_traits, records,
-    reference_edges, reference_occurrences, remaster_links, required_columns, required_tables,
-    spell_records,
+    TABLE_REFERENCE_OCCURRENCES, TABLE_REMASTER_LINKS, actor_records, consumable_query_records,
+    document_embedding_cache, item_records, packs, record_aliases, record_content, record_metrics,
+    record_traits, records, reference_edges, reference_occurrences, remaster_links,
+    required_columns, required_tables, spell_records,
 };

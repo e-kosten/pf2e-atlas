@@ -127,6 +127,7 @@ fn write_artifact(
             &input.remaster_links,
             &input.canonical_bodies,
             &canonical_record_keys,
+            &input.consumable_occurrence_sets,
         )?;
         artifact_progress("artifact_write", "Writing canonical record artifact");
         write_canonical_records(
@@ -134,6 +135,7 @@ fn write_artifact(
             &input.records,
             &input.canonical_bodies,
             &input.canonical_spell_children,
+            &input.consumable_occurrence_sets,
         )?;
         artifact_progress("artifact_write", "Writing reference edges");
         info!(
@@ -146,7 +148,12 @@ fn write_artifact(
             records = input.records.len(),
             "writing reference occurrences"
         );
-        write_reference_occurrences(connection, &input.records, &canonical_record_keys)?;
+        write_reference_occurrences(
+            connection,
+            &input.records,
+            &canonical_record_keys,
+            &input.consumable_occurrence_sets,
+        )?;
         artifact_progress("artifact_write", "Writing record aliases");
         info!(aliases = input.aliases.len(), "writing record aliases");
         write_record_aliases(connection, &input.aliases)?;
@@ -490,6 +497,7 @@ mod tests {
             records,
             canonical_bodies: Vec::new(),
             canonical_spell_children: Vec::new(),
+            consumable_occurrence_sets: Vec::new(),
             references,
             aliases,
             remaster_links,
@@ -892,6 +900,7 @@ mod tests {
             records: Vec::new(),
             canonical_bodies: Vec::new(),
             canonical_spell_children: Vec::new(),
+            consumable_occurrence_sets: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -940,6 +949,7 @@ mod tests {
             records: Vec::new(),
             canonical_bodies: Vec::new(),
             canonical_spell_children: Vec::new(),
+            consumable_occurrence_sets: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -981,6 +991,7 @@ mod tests {
             records: Vec::new(),
             canonical_bodies: Vec::new(),
             canonical_spell_children: Vec::new(),
+            consumable_occurrence_sets: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -1088,6 +1099,7 @@ mod tests {
             records,
             canonical_bodies,
             canonical_spell_children: Vec::new(),
+            consumable_occurrence_sets: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links,

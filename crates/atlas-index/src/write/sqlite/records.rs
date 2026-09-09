@@ -1,7 +1,7 @@
 use atlas_record::{
-    AtlasRecord, ContentDiagnostic, ContentOrigin, ContentProvenance, DuplicateContentStatus,
-    FoundryDocumentMechanics, ProductRetrievalPolicy, RecordBody, build_search_fts_projection,
-    project_creature_facts, project_hazard_facts,
+    AtlasRecord, ConsumableOccurrenceSet, ContentDiagnostic, ContentOrigin, ContentProvenance,
+    DuplicateContentStatus, FoundryDocumentMechanics, ProductRetrievalPolicy, RecordBody,
+    build_search_fts_projection, project_creature_facts, project_hazard_facts,
 };
 use diesel::SqliteConnection;
 use diesel::prelude::*;
@@ -25,6 +25,7 @@ pub(super) fn write_records(
     remaster_links: &[RemasterLink],
     canonical_bodies: &[RecordBody],
     canonical_record_keys: &std::collections::BTreeSet<String>,
+    consumable_occurrence_sets: &[ConsumableOccurrenceSet],
 ) -> Result<(), IndexWriteError> {
     let retrieval_policy = ProductRetrievalPolicy::from_remaster_links(remaster_links);
     let canonical_bodies_by_key = canonical_bodies_by_key(records, canonical_bodies)?;
@@ -35,6 +36,8 @@ pub(super) fn write_records(
     let mut item_rows = Vec::new();
     let mut metric_rows = Vec::new();
     let mut fts_rows = Vec::new();
+    let mut occurrence_content =
+        consumable_occurrence_content_fingerprints(consumable_occurrence_sets);
     for record in records {
         let record_key = record.identity.key.to_string();
         let projected_metrics;
@@ -84,6 +87,7 @@ pub(super) fn write_records(
                         RecordBody::Creature(_) => "creature",
                         RecordBody::Hazard(_) => "hazard",
                         RecordBody::Spell(_) => "spell",
+                        RecordBody::Consumable(_) => "consumable",
                     };
                     return Err(IndexWriteError::WriteFailed(format!(
                         "{} record `{}` has an unexpected {actual} body",
@@ -136,12 +140,52 @@ pub(super) fn write_records(
                 )));
             }
             record.mechanics.metrics.as_slice()
+        } else if record.classification.kind == atlas_domain::RecordKind::Equipment
+            && record.foundry.record_type == atlas_record::FoundryRecordType::Consumable
+        {
+            let body = canonical_bodies_by_key
+                .get(&record_key)
+                .copied()
+                .ok_or_else(|| {
+                    IndexWriteError::WriteFailed(format!(
+                        "consumable record `{}` is missing its required canonical body",
+                        record.identity.key
+                    ))
+                })?;
+            let Some(consumable) = body.as_consumable() else {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "consumable record `{}` has a non-consumable canonical body",
+                    record.identity.key
+                )));
+            };
+            if consumable.identity.name != record.identity.name
+                || consumable.identity.source_id.as_str() != record.identity.id().as_str()
+            {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "consumable body identity for `{}` does not match its generic record owner",
+                    record.identity.key
+                )));
+            }
+            if !matches!(record.mechanics.document, FoundryDocumentMechanics::None) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical consumable `{}` retains forbidden generic document mechanics",
+                    record.identity.key
+                )));
+            }
+            if !record.mechanics.metrics.is_empty() {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical consumable `{}` retains forbidden generic metrics",
+                    record.identity.key
+                )));
+            }
+            record.mechanics.metrics.as_slice()
         } else {
             if matches!(
                 record.foundry.record_type,
                 atlas_record::FoundryRecordType::Npc
                     | atlas_record::FoundryRecordType::Hazard
                     | atlas_record::FoundryRecordType::Spell
+                    | atlas_record::FoundryRecordType::Consumable
             ) {
                 return Err(IndexWriteError::WriteFailed(format!(
                     "record `{}` has a canonical body kind that disagrees with its record kind",
@@ -268,6 +312,13 @@ pub(super) fn write_records(
             for ((ordinal, content, content_json), content_key) in
                 content_inputs.into_iter().zip(content_keys)
             {
+                if consume_consumable_occurrence_content(
+                    &mut occurrence_content,
+                    &record_key,
+                    content,
+                ) {
+                    continue;
+                }
                 content_rows.push(RecordContentRow {
                     record_key: record.identity.key.to_string(),
                     content_key,
@@ -281,6 +332,8 @@ pub(super) fn write_records(
                     owner_hazard_entity_id: None,
                     owner_hazard_occurrence_id: None,
                     owner_hazard_occurrence_authored_order: None,
+                    owner_consumable_occurrence_id: None,
+                    owner_consumable_occurrence_authored_order: None,
                     role: legacy_content_role(content.source_kind).to_string(),
                     origin_json: crate::artifact::canonical_json::encode(
                         &ContentOrigin::RecordField {
@@ -446,6 +499,50 @@ pub(super) fn write_records(
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
+}
+
+pub(super) type ConsumableContentFingerprints =
+    std::collections::BTreeMap<(String, String, Option<String>, String), usize>;
+
+pub(super) fn consumable_occurrence_content_fingerprints(
+    sets: &[ConsumableOccurrenceSet],
+) -> ConsumableContentFingerprints {
+    let mut fingerprints = ConsumableContentFingerprints::new();
+    for occurrence in sets.iter().flat_map(|set| &set.occurrences) {
+        for document in &occurrence.authored_content.documents {
+            let fingerprint = (
+                occurrence.owner_record_key.to_string(),
+                document.source_kind.as_str().to_string(),
+                document.label.clone(),
+                document.content_hash.as_str().to_string(),
+            );
+            *fingerprints.entry(fingerprint).or_default() += 1;
+        }
+    }
+    fingerprints
+}
+
+pub(super) fn consume_consumable_occurrence_content(
+    fingerprints: &mut ConsumableContentFingerprints,
+    record_key: &str,
+    content: &atlas_record::RecordContentDocument,
+) -> bool {
+    let fingerprint = (
+        record_key.to_string(),
+        content.source_kind.as_str().to_string(),
+        content.label.clone(),
+        atlas_record::ContentHash::for_document(&content.document)
+            .as_str()
+            .to_string(),
+    );
+    let Some(remaining) = fingerprints.get_mut(&fingerprint) else {
+        return false;
+    };
+    if *remaining == 0 {
+        return false;
+    }
+    *remaining -= 1;
+    true
 }
 
 fn canonical_bodies_by_key<'a>(

@@ -2,7 +2,7 @@ schema_version: pf2e-source-leaf-prevalence/v1
 source_contract_version: pf2e-serialized-source/v1
 source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
 source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
 entries:
   - entry_id: "actor-npc-top-level-ability-str-mod@4cbdaa37"
     type_id: "actor--npc--top-level--root--root--root"
@@ -443,20 +443,6 @@ entries:
         relationship_path: Actor.items
     normalized_path: $.folder
     record_count: 277
-    occurrence_count: 0
-  - entry_id: folder-consumable-context@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.folder
-    record_count: 1
     occurrence_count: 0
   - entry_id: actor-items-system-rules-traits@4cbdaa37
     type_id: actor--hazard--top-level--root--root--root
@@ -1119,440 +1105,6 @@ entries:
     normalized_path: $.system.attack.value
     record_count: 277
     occurrence_count: 0
-  - entry_id: consumable-id@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $._id
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-img@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.img
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-name@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.name
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-sort@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.sort
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-type@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.type
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-baseitem@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.baseItem
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-bulk-value@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.bulk.value
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-category@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.category
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-containerid@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.containerId
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-damage@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.damage
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-description-value@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.description.value
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-equipped-carrytype@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.equipped.carryType
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-hardness@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.hardness
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-hp-max@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.hp.max
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-hp-value@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.hp.value
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-level-value@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.level.value
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-material-grade@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.material.grade
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-material-type@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.material.type
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-price-value-gp@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.price.value.gp
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-publication-license@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.publication.license
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-publication-remaster@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.publication.remaster
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-publication-title@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.publication.title
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-quantity@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.quantity
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-size@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.size
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-slug@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.slug
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-traits-rarity@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.traits.rarity
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-traits-value@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.traits.value[]
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-usage-value@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.usage.value
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-uses-autodestroy@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.uses.autoDestroy
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-uses-max@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.uses.max
-    record_count: 1
-    occurrence_count: 1
-  - entry_id: consumable-system-uses-value@4cbdaa37
-    type_id: item--consumable--embedded--actor--hazard--actor-items
-    selector:
-      source_contract_version: pf2e-serialized-source/v1
-      document_class: Item
-      type_discriminator: consumable
-      role: embedded
-      parent_context:
-        document_class: Actor
-        type_discriminator: hazard
-        relationship_path: Actor.items
-    normalized_path: $.system.uses.value
-    record_count: 1
-    occurrence_count: 1
   - entry_id: item-spell-top-level-id@4cbdaa37
     type_id: item--spell--top-level--root--root--root
     selector:
@@ -3269,3 +2821,3083 @@ entries:
     normalized_path: $.type
     record_count: 190
     occurrence_count: 10
+  - entry_id: h5-consumable-standalone-id@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $._id
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-img@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.img
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-name@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.name
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-baseitem@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.baseItem
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-bulk-value@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.bulk.value
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-category@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.category
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-containerid@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.containerId
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-damage@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.damage
+    record_count: 1670
+    occurrence_count: 1594
+  - entry_id: h5-consumable-standalone-system-damage-formula@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.damage.formula
+    record_count: 1670
+    occurrence_count: 76
+  - entry_id: h5-consumable-standalone-system-damage-kind@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.damage.kind
+    record_count: 1670
+    occurrence_count: 76
+  - entry_id: h5-consumable-standalone-system-damage-type@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.damage.type
+    record_count: 1670
+    occurrence_count: 76
+  - entry_id: h5-consumable-standalone-system-description-value@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.description.value
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-hardness@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.hardness
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-hp-max@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.hp.max
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-hp-value@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.hp.value
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-level-value@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.level.value
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-material-effects-member@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.material.effects[]
+    record_count: 1670
+    occurrence_count: 3
+  - entry_id: h5-consumable-standalone-system-material-grade@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.material.grade
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-material-type@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.material.type
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-price-per@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.price.per
+    record_count: 1670
+    occurrence_count: 45
+  - entry_id: h5-consumable-standalone-system-price-value-map-member@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.price.value.*
+    record_count: 1670
+    occurrence_count: 1647
+  - entry_id: h5-consumable-standalone-system-publication-license@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.publication.license
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-publication-remaster@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.publication.remaster
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-publication-title@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.publication.title
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-quantity@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.quantity
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-rules-member-category@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].category
+    record_count: 1670
+    occurrence_count: 13
+  - entry_id: h5-consumable-standalone-system-rules-member-choices-member-label@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].choices[].label
+    record_count: 1670
+    occurrence_count: 7
+  - entry_id: h5-consumable-standalone-system-rules-member-choices-member-value@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].choices[].value
+    record_count: 1670
+    occurrence_count: 7
+  - entry_id: h5-consumable-standalone-system-rules-member-damagecategory@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].damageCategory
+    record_count: 1670
+    occurrence_count: 21
+  - entry_id: h5-consumable-standalone-system-rules-member-damagetype@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].damageType
+    record_count: 1670
+    occurrence_count: 36
+  - entry_id: h5-consumable-standalone-system-rules-member-definition-member@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].definition[]
+    record_count: 1670
+    occurrence_count: 4
+  - entry_id: h5-consumable-standalone-system-rules-member-dicenumber@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].diceNumber
+    record_count: 1670
+    occurrence_count: 18
+  - entry_id: h5-consumable-standalone-system-rules-member-diesize@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].dieSize
+    record_count: 1670
+    occurrence_count: 15
+  - entry_id: h5-consumable-standalone-system-rules-member-domain@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].domain
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-flag@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].flag
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-itemid@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].itemId
+    record_count: 1670
+    occurrence_count: 4
+  - entry_id: h5-consumable-standalone-system-rules-member-key@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].key
+    record_count: 1670
+    occurrence_count: 92
+  - entry_id: h5-consumable-standalone-system-rules-member-label@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].label
+    record_count: 1670
+    occurrence_count: 4
+  - entry_id: h5-consumable-standalone-system-rules-member-mode@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].mode
+    record_count: 1670
+    occurrence_count: 8
+  - entry_id: h5-consumable-standalone-system-rules-member-option@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].option
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-outcome-member@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].outcome[]
+    record_count: 1670
+    occurrence_count: 23
+  - entry_id: h5-consumable-standalone-system-rules-member-override-damagetype@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].override.damageType
+    record_count: 1670
+    occurrence_count: 4
+  - entry_id: h5-consumable-standalone-system-rules-member-predicate-member@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].predicate[]
+    record_count: 1670
+    occurrence_count: 7
+  - entry_id: h5-consumable-standalone-system-rules-member-predicate-member-not@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].predicate[].not
+    record_count: 1670
+    occurrence_count: 2
+  - entry_id: h5-consumable-standalone-system-rules-member-predicate-member-or-member@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].predicate[].or[]
+    record_count: 1670
+    occurrence_count: 4
+  - entry_id: h5-consumable-standalone-system-rules-member-prompt@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].prompt
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-property@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].property
+    record_count: 1670
+    occurrence_count: 8
+  - entry_id: h5-consumable-standalone-system-rules-member-requiresequipped@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].requiresEquipped
+    record_count: 1670
+    occurrence_count: 2
+  - entry_id: h5-consumable-standalone-system-rules-member-selector@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].selector
+    record_count: 1670
+    occurrence_count: 80
+  - entry_id: h5-consumable-standalone-system-rules-member-text@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].text
+    record_count: 1670
+    occurrence_count: 31
+  - entry_id: h5-consumable-standalone-system-rules-member-title@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].title
+    record_count: 1670
+    occurrence_count: 31
+  - entry_id: h5-consumable-standalone-system-rules-member-toggleable@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].toggleable
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-type@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].type
+    record_count: 1670
+    occurrence_count: 6
+  - entry_id: h5-consumable-standalone-system-rules-member-value@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].value
+    record_count: 1670
+    occurrence_count: 36
+  - entry_id: h5-consumable-standalone-system-rules-member-value-animation-intensity@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].value.animation.intensity
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-value-animation-speed@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].value.animation.speed
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-value-animation-type@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].value.animation.type
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-value-color@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].value.color
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-value-dim@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].value.dim
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-rules-member-value-shadows@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.rules[].value.shadows
+    record_count: 1670
+    occurrence_count: 1
+  - entry_id: h5-consumable-standalone-system-size@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.size
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-stackgroup@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.stackGroup
+    record_count: 1670
+    occurrence_count: 78
+  - entry_id: h5-consumable-standalone-system-traits-othertags-member@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.traits.otherTags[]
+    record_count: 1670
+    occurrence_count: 118
+  - entry_id: h5-consumable-standalone-system-traits-rarity@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.traits.rarity
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-traits-value-member@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.traits.value[]
+    record_count: 1670
+    occurrence_count: 5370
+  - entry_id: h5-consumable-standalone-system-usage-value@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.usage.value
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-uses-autodestroy@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.uses.autoDestroy
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-uses-max@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.uses.max
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-system-uses-value@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.system.uses.value
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-standalone-type@4cbdaa37
+    type_id: item--consumable--top-level--root--root--root
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: top_level
+      parent_context:
+        document_class: null
+        type_discriminator: null
+        relationship_path: null
+    normalized_path: $.type
+    record_count: 1670
+    occurrence_count: 1670
+  - entry_id: h5-consumable-npc-id@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $._id
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-stats-compendiumsource@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $._stats.compendiumSource
+    record_count: 1328
+    occurrence_count: 1261
+  - entry_id: h5-consumable-npc-folder@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.folder
+    record_count: 1328
+    occurrence_count: 5
+  - entry_id: h5-consumable-npc-img@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.img
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-name@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.name
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-sort@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.sort
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-baseitem@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.baseItem
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-bulk-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.bulk.value
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-category@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.category
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-containerid@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.containerId
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-damage@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.damage
+    record_count: 1328
+    occurrence_count: 1160
+  - entry_id: h5-consumable-npc-system-damage-formula@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.damage.formula
+    record_count: 1328
+    occurrence_count: 168
+  - entry_id: h5-consumable-npc-system-damage-kind@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.damage.kind
+    record_count: 1328
+    occurrence_count: 168
+  - entry_id: h5-consumable-npc-system-damage-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.damage.type
+    record_count: 1328
+    occurrence_count: 168
+  - entry_id: h5-consumable-npc-system-description-gm@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.description.gm
+    record_count: 1328
+    occurrence_count: 2
+  - entry_id: h5-consumable-npc-system-description-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.description.value
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-equipped-carrytype@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.carryType
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-equipped-handsheld@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.handsHeld
+    record_count: 1328
+    occurrence_count: 819
+  - entry_id: h5-consumable-npc-system-equipped-inslot@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.inSlot
+    record_count: 1328
+    occurrence_count: 5
+  - entry_id: h5-consumable-npc-system-equipped-slot@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.slot
+    record_count: 1328
+    occurrence_count: 2
+  - entry_id: h5-consumable-npc-system-hardness@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.hardness
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-hp-max@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.hp.max
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-hp-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.hp.value
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-level-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.level.value
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-material-grade@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.material.grade
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-material-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.material.type
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-price-per@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.price.per
+    record_count: 1328
+    occurrence_count: 598
+  - entry_id: h5-consumable-npc-system-price-value-map-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.price.value.*
+    record_count: 1328
+    occurrence_count: 1256
+  - entry_id: h5-consumable-npc-system-publication-license@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.license
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-publication-remaster@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.remaster
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-publication-title@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.title
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-quantity@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.quantity
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-rules-member-category@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].category
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-damagetype@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].damageType
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-definition-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].definition[]
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-dicenumber@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].diceNumber
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-diesize@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].dieSize
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-domain@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].domain
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-key@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].key
+    record_count: 1328
+    occurrence_count: 15
+  - entry_id: h5-consumable-npc-system-rules-member-label@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].label
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-mode@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].mode
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-option@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].option
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-outcome-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].outcome[]
+    record_count: 1328
+    occurrence_count: 4
+  - entry_id: h5-consumable-npc-system-rules-member-predicate-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].predicate[]
+    record_count: 1328
+    occurrence_count: 2
+  - entry_id: h5-consumable-npc-system-rules-member-property@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].property
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-selector@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].selector
+    record_count: 1328
+    occurrence_count: 11
+  - entry_id: h5-consumable-npc-system-rules-member-text@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].text
+    record_count: 1328
+    occurrence_count: 10
+  - entry_id: h5-consumable-npc-system-rules-member-title@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].title
+    record_count: 1328
+    occurrence_count: 10
+  - entry_id: h5-consumable-npc-system-rules-member-toggleable@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].toggleable
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value
+    record_count: 1328
+    occurrence_count: 2
+  - entry_id: h5-consumable-npc-system-rules-member-value-animation-intensity@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.animation.intensity
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-value-animation-speed@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.animation.speed
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-value-animation-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.animation.type
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-value-color@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.color
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-value-dim@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.dim
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-rules-member-value-shadows@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.shadows
+    record_count: 1328
+    occurrence_count: 1
+  - entry_id: h5-consumable-npc-system-size@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.size
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-slug@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.slug
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-stackgroup@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.stackGroup
+    record_count: 1328
+    occurrence_count: 605
+  - entry_id: h5-consumable-npc-system-traits-othertags-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.otherTags[]
+    record_count: 1328
+    occurrence_count: 6
+  - entry_id: h5-consumable-npc-system-traits-rarity@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.rarity
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-traits-value-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.value[]
+    record_count: 1328
+    occurrence_count: 2903
+  - entry_id: h5-consumable-npc-system-usage-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.usage.value
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-uses-autodestroy@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.autoDestroy
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-uses-max@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.max
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-system-uses-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.value
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-npc-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--npc--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: npc
+        relationship_path: Actor.items
+    normalized_path: $.type
+    record_count: 1328
+    occurrence_count: 1328
+  - entry_id: h5-consumable-character-id@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $._id
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-stats-compendiumsource@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $._stats.compendiumSource
+    record_count: 496
+    occurrence_count: 491
+  - entry_id: h5-consumable-character-img@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.img
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-name@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.name
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-sort@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.sort
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-baseitem@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.baseItem
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-bulk-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.bulk.value
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-category@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.category
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-containerid@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.containerId
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-damage@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.damage
+    record_count: 496
+    occurrence_count: 405
+  - entry_id: h5-consumable-character-system-damage-formula@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.damage.formula
+    record_count: 496
+    occurrence_count: 91
+  - entry_id: h5-consumable-character-system-damage-kind@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.damage.kind
+    record_count: 496
+    occurrence_count: 91
+  - entry_id: h5-consumable-character-system-damage-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.damage.type
+    record_count: 496
+    occurrence_count: 91
+  - entry_id: h5-consumable-character-system-description-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.description.value
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-equipped-carrytype@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.carryType
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-equipped-handsheld@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.handsHeld
+    record_count: 496
+    occurrence_count: 259
+  - entry_id: h5-consumable-character-system-equipped-inslot@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.inSlot
+    record_count: 496
+    occurrence_count: 8
+  - entry_id: h5-consumable-character-system-hardness@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.hardness
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-hp-max@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.hp.max
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-hp-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.hp.value
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-level-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.level.value
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-material-grade@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.material.grade
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-material-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.material.type
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-price-per@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.price.per
+    record_count: 496
+    occurrence_count: 160
+  - entry_id: h5-consumable-character-system-price-value-map-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.price.value.*
+    record_count: 496
+    occurrence_count: 489
+  - entry_id: h5-consumable-character-system-publication-license@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.license
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-publication-remaster@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.remaster
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-publication-title@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.title
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-quantity@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.quantity
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-rules-member-domain@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].domain
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-key@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].key
+    record_count: 496
+    occurrence_count: 9
+  - entry_id: h5-consumable-character-system-rules-member-label@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].label
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-option@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].option
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-predicate-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].predicate[]
+    record_count: 496
+    occurrence_count: 6
+  - entry_id: h5-consumable-character-system-rules-member-toggleable@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].toggleable
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-value-animation-intensity@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.animation.intensity
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-value-animation-speed@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.animation.speed
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-value-animation-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.animation.type
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-value-color@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.color
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-value-dim@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.dim
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-rules-member-value-shadows@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.rules[].value.shadows
+    record_count: 496
+    occurrence_count: 3
+  - entry_id: h5-consumable-character-system-size@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.size
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-slug@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.slug
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-stackgroup@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.stackGroup
+    record_count: 496
+    occurrence_count: 73
+  - entry_id: h5-consumable-character-system-traits-rarity@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.rarity
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-traits-value-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.value[]
+    record_count: 496
+    occurrence_count: 941
+  - entry_id: h5-consumable-character-system-usage-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.usage.value
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-uses-autodestroy@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.autoDestroy
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-uses-max@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.max
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-system-uses-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.value
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-character-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--character--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: character
+        relationship_path: Actor.items
+    normalized_path: $.type
+    record_count: 496
+    occurrence_count: 496
+  - entry_id: h5-consumable-hazard-id@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $._id
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-img@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.img
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-name@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.name
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-sort@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.sort
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-baseitem@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.baseItem
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-bulk-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.bulk.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-category@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.category
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-containerid@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.containerId
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-damage@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.damage
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-description-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.description.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-equipped-carrytype@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.equipped.carryType
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-hardness@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.hardness
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-hp-max@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.hp.max
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-hp-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.hp.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-level-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.level.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-material-grade@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.material.grade
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-material-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.material.type
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-price-value-map-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.price.value.*
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-publication-license@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.license
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-publication-remaster@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.remaster
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-publication-title@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.publication.title
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-quantity@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.quantity
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-size@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.size
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-slug@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.slug
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-traits-rarity@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.rarity
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-traits-value-member@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.traits.value[]
+    record_count: 1
+    occurrence_count: 4
+  - entry_id: h5-consumable-hazard-system-usage-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.usage.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-uses-autodestroy@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.autoDestroy
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-uses-max@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.max
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-system-uses-value@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.system.uses.value
+    record_count: 1
+    occurrence_count: 1
+  - entry_id: h5-consumable-hazard-type@4cbdaa37
+    type_id: item--consumable--embedded--actor--hazard--actor-items
+    selector:
+      source_contract_version: pf2e-serialized-source/v1
+      document_class: Item
+      type_discriminator: consumable
+      role: embedded
+      parent_context:
+        document_class: Actor
+        type_discriminator: hazard
+        relationship_path: Actor.items
+    normalized_path: $.type
+    record_count: 1
+    occurrence_count: 1

@@ -8,9 +8,80 @@ mod support;
 use support::json::{ok_data, record_sections};
 use support::path::temp_source_root;
 use support::source::{
-    write_ambiguous_action_source, write_creature_preview_source, write_hazard_source,
-    write_record_search_source, write_tooling_collision_source,
+    write_ambiguous_action_source, write_consumable_source, write_creature_preview_source,
+    write_hazard_source, write_record_search_source, write_tooling_collision_source,
 };
+
+#[test]
+fn consumable_record_uses_typed_json_and_terminal_output() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = temp_source_root("cli-consumable-record-contract");
+    write_consumable_source(&root)?;
+    let index_path = root.join("artifact.sqlite");
+    let build_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(["index", "build", "--source"])
+        .arg(&root)
+        .args(["--output"])
+        .arg(&index_path)
+        .args(["--no-embeddings", "--json"])
+        .output()?;
+    assert!(
+        build_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build_output.stderr)
+    );
+
+    let json_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "equipment:cliConsumable0001",
+            "--detail",
+            "full",
+            "--index",
+        ])
+        .arg(&index_path)
+        .arg("--json")
+        .output()?;
+    assert!(json_output.status.success());
+    let json: Value = serde_json::from_slice(&json_output.stdout)?;
+    let record = &ok_data(&json)["record"];
+    assert_eq!(record["presentation_type"], "consumable");
+    assert_eq!(record["body"]["definition"]["category"]["value"], "elixir");
+    assert_eq!(record["body"]["source_state"]["quantity"]["value"], 2);
+    assert_eq!(
+        record["body"]["source_state"]["container_id"]["state"],
+        "null"
+    );
+
+    let text_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "record",
+            "get",
+            "equipment:cliConsumable0001",
+            "--detail",
+            "full",
+            "--index",
+        ])
+        .arg(&index_path)
+        .output()?;
+    assert!(text_output.status.success());
+    let text = String::from_utf8(text_output.stdout)?;
+    for expected in [
+        "Consumable",
+        "Category: elixir",
+        "Usage: held-in-one-hand",
+        "Quantity: 2",
+        "Uses remaining: 1",
+        "A typed consumable fixture.",
+    ] {
+        assert!(text.contains(expected), "missing {expected:?}:\n{text}");
+    }
+    assert!(!text.contains("consume"));
+
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
 
 #[test]
 fn hazard_record_uses_typed_json_text_search_filters_and_provenance()

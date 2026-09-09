@@ -7,6 +7,7 @@ pub enum RecordBody {
     Creature(CreatureRecord),
     Hazard(crate::HazardRecord),
     Spell(crate::SpellRecord),
+    Consumable(crate::ConsumableRecord),
 }
 
 impl RecordBody {
@@ -15,34 +16,35 @@ impl RecordBody {
             Self::Creature(creature) => &creature.identity.record_key,
             Self::Hazard(hazard) => &hazard.identity.record_key,
             Self::Spell(spell) => &spell.identity.record_key,
+            Self::Consumable(consumable) => &consumable.identity.record_key,
         }
     }
 
     pub fn creature(&self) -> Option<&CreatureRecord> {
         match self {
             Self::Creature(creature) => Some(creature),
-            Self::Hazard(_) | Self::Spell(_) => None,
+            Self::Hazard(_) | Self::Spell(_) | Self::Consumable(_) => None,
         }
     }
 
     pub fn creature_mut(&mut self) -> Option<&mut CreatureRecord> {
         match self {
             Self::Creature(creature) => Some(creature),
-            Self::Hazard(_) | Self::Spell(_) => None,
+            Self::Hazard(_) | Self::Spell(_) | Self::Consumable(_) => None,
         }
     }
 
     pub fn into_creature(self) -> Option<CreatureRecord> {
         match self {
             Self::Creature(creature) => Some(creature),
-            Self::Hazard(_) | Self::Spell(_) => None,
+            Self::Hazard(_) | Self::Spell(_) | Self::Consumable(_) => None,
         }
     }
 
     pub fn hazard(&self) -> Option<&crate::HazardRecord> {
         match self {
             Self::Hazard(hazard) => Some(hazard),
-            Self::Creature(_) | Self::Spell(_) => None,
+            Self::Creature(_) | Self::Spell(_) | Self::Consumable(_) => None,
         }
     }
 
@@ -53,14 +55,21 @@ impl RecordBody {
     pub fn as_creature_mut(&mut self) -> Option<&mut CreatureRecord> {
         match self {
             Self::Creature(record) => Some(record),
-            Self::Hazard(_) | Self::Spell(_) => None,
+            Self::Hazard(_) | Self::Spell(_) | Self::Consumable(_) => None,
         }
     }
 
     pub fn as_spell(&self) -> Option<&crate::SpellRecord> {
         match self {
             Self::Spell(record) => Some(record),
-            Self::Creature(_) | Self::Hazard(_) => None,
+            Self::Creature(_) | Self::Hazard(_) | Self::Consumable(_) => None,
+        }
+    }
+
+    pub fn as_consumable(&self) -> Option<&crate::ConsumableRecord> {
+        match self {
+            Self::Consumable(record) => Some(record),
+            Self::Creature(_) | Self::Hazard(_) | Self::Spell(_) => None,
         }
     }
 }

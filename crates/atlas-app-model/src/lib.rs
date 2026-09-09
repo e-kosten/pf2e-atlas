@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod consumable_surface;
 mod encounter;
 mod encounter_runtime;
 mod error;
@@ -13,6 +14,7 @@ mod result_window;
 mod spell_surface;
 mod surface;
 
+pub use consumable_surface::*;
 pub use encounter::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, CreateEncounterRequest, DeleteEncounterView,
@@ -711,6 +713,7 @@ mod tests {
                     defenses: None,
                     lifecycle: None,
                     activities: None,
+                    consumables: None,
                     content: None,
                     relationships: None,
                     unavailable_fields: Some(vec![HazardSurfaceUnavailableView {
@@ -849,6 +852,7 @@ mod tests {
                     lore: None,
                     spellcasting: None,
                     standalone_spells: Some(Vec::new()),
+                    consumables: None,
                     activities: Some(vec![CreatureSurfaceActivityView {
                         occurrence_id: "activity-bite".to_string(),
                         authored_order: 0,

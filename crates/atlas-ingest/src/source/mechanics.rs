@@ -3,8 +3,8 @@ use serde_json::Value;
 use crate::source::normalize::{
     LocalizationResolver, extract_damage_types, extract_disable_skills, extract_sense_types,
     extract_speed_types, normalized_pointer_string, parse_bulk_value,
-    parse_foundry_content_with_localization, parse_hands_requirement, pointer_bool, pointer_string,
-    string_array_at_pointer, typed_collection,
+    parse_foundry_content_with_localization, pointer_bool, pointer_string, string_array_at_pointer,
+    typed_collection,
 };
 use atlas_record::{ActorMechanics, ItemMechanics, render_plain_text};
 
@@ -45,7 +45,10 @@ pub(super) fn extract_item_mechanics(
         price_json,
         price_cp,
         bulk_value: raw.pointer("/system/bulk/value").and_then(parse_bulk_value),
-        hands_requirement: usage.as_deref().and_then(parse_hands_requirement),
+        hands_requirement: usage
+            .as_deref()
+            .and_then(atlas_record::hands_requirement_from_usage)
+            .map(str::to_string),
         damage_types: extract_damage_types(raw),
     }
 }

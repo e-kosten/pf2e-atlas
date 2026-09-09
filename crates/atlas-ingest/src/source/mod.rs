@@ -1,3 +1,4 @@
+pub(crate) mod consumables;
 pub(crate) mod dto;
 pub(crate) mod hazard_core;
 #[cfg(test)]

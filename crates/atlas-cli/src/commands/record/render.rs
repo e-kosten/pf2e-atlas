@@ -58,6 +58,7 @@ pub(super) fn render_record(
             spellcasting,
             rituals,
             equipment,
+            consumables,
             lore,
             content,
             relationships: _,
@@ -93,6 +94,7 @@ pub(super) fn render_record(
                         equipment.as_deref(),
                         lore.as_deref(),
                     );
+                    out.consumable_occurrences(consumables, detail);
                 }
                 if let Some(teaser) = teaser.as_deref() {
                     out.section("Description");
@@ -123,11 +125,13 @@ pub(super) fn render_record(
         RecordPresentationJson::Hazard {
             sections,
             availability,
+            consumables,
             edition,
             record_relationships,
-            ..
+            provenance: _,
         } => {
             out.hazard_sections(sections);
+            out.consumable_occurrences(consumables, detail);
             if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
                 out.relationships(record_relationships.as_ref());
             }
@@ -142,6 +146,19 @@ pub(super) fn render_record(
             record_relationships,
         } => {
             out.spell_record(record, spell, detail);
+            if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
+                out.relationships(record_relationships.as_ref());
+            }
+            if detail == DetailLevel::Full {
+                out.source_and_edition(record, edition.as_ref());
+            }
+        }
+        RecordPresentationJson::Consumable {
+            body,
+            edition,
+            record_relationships,
+        } => {
+            out.consumable(body, detail);
             if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
                 out.relationships(record_relationships.as_ref());
             }
@@ -1518,6 +1535,152 @@ impl Writer {
         }
     }
 
+    fn consumable(&mut self, body: &atlas_record::ConsumableJson, detail: DetailLevel) {
+        self.section("Consumable");
+        self.consumable_definition(&body.definition, 2);
+        self.consumable_source_state(&body.source_state, 2);
+        if matches!(detail, DetailLevel::Description | DetailLevel::Full) {
+            for content in &body.content {
+                self.paragraph(&content.text, 2);
+            }
+        }
+        for unsupported in &body.unsupported_content {
+            self.field(
+                "Description",
+                format!("Unavailable ({})", unsupported.reason),
+                2,
+            );
+        }
+    }
+
+    fn consumable_occurrences(
+        &mut self,
+        occurrences: &[atlas_record::ConsumableOccurrenceJson],
+        detail: DetailLevel,
+    ) {
+        if occurrences.is_empty() {
+            return;
+        }
+        self.section("Consumables");
+        for occurrence in occurrences {
+            self.heading(&occurrence.name, 2);
+            match &occurrence.target {
+                atlas_record::ConsumableOccurrenceTargetJson::Resolved {
+                    record_key,
+                    immutable_mismatches,
+                } => {
+                    self.field("Record", record_key, 4);
+                    if !immutable_mismatches.is_empty() {
+                        self.field("Local source", "differences retained", 4);
+                    }
+                }
+                atlas_record::ConsumableOccurrenceTargetJson::ParentOwned {
+                    definition, ..
+                } => {
+                    self.field("Record", "embedded definition", 4);
+                    if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
+                        self.consumable_definition(definition, 4);
+                    }
+                }
+            }
+            self.consumable_source_state(&occurrence.source_state, 4);
+            match &occurrence.spell_child {
+                atlas_record::ConsumableSpellReuseJson::Reused { target_child_id } => {
+                    self.field("Embedded spell", target_child_id, 4);
+                }
+                atlas_record::ConsumableSpellReuseJson::Mismatch { reason, .. } => {
+                    self.field("Embedded spell", format!("Mismatch ({reason})"), 4);
+                }
+                atlas_record::ConsumableSpellReuseJson::NotPresent => {}
+            }
+            if matches!(detail, DetailLevel::Description | DetailLevel::Full) {
+                for content in &occurrence.content {
+                    self.paragraph(&content.text, 4);
+                }
+            }
+            for unsupported in &occurrence.unsupported_content {
+                self.field(
+                    "Description",
+                    format!("Unavailable ({})", unsupported.reason),
+                    4,
+                );
+            }
+        }
+    }
+
+    fn consumable_definition(
+        &mut self,
+        definition: &atlas_record::ConsumableDefinitionJson,
+        indent: usize,
+    ) {
+        for (label, value) in [
+            (
+                "Category",
+                consumable_fact(&definition.category, Clone::clone),
+            ),
+            ("Usage", consumable_fact(&definition.usage, Clone::clone)),
+            (
+                "Base item",
+                consumable_fact(&definition.base_item, Clone::clone),
+            ),
+            ("Bulk", consumable_fact(&definition.bulk, Clone::clone)),
+            ("Size", consumable_fact(&definition.size, Clone::clone)),
+            (
+                "Maximum uses",
+                consumable_fact(&definition.maximum_uses, ToString::to_string),
+            ),
+            (
+                "Maximum HP",
+                consumable_fact(&definition.maximum_hp, ToString::to_string),
+            ),
+            (
+                "Hardness",
+                consumable_fact(&definition.hardness, ToString::to_string),
+            ),
+        ] {
+            if let Some(value) = value {
+                self.field(label, value, indent);
+            }
+        }
+        if let Some(traits) = consumable_fact(&definition.traits, |values| values.join(", ")) {
+            self.field("Traits", traits, indent);
+        }
+        if let atlas_record::ConsumableSpellChildFactJson::Known(child_id) =
+            &definition.spell_child_id
+        {
+            self.field("Embedded spell", child_id, indent);
+        }
+    }
+
+    fn consumable_source_state(
+        &mut self,
+        state: &atlas_record::ConsumableSourceStateJson,
+        indent: usize,
+    ) {
+        for (label, value) in [
+            (
+                "Quantity",
+                consumable_fact(&state.quantity, ToString::to_string),
+            ),
+            (
+                "Uses remaining",
+                consumable_fact(&state.current_uses, ToString::to_string),
+            ),
+            (
+                "Current HP",
+                consumable_fact(&state.current_hp, ToString::to_string),
+            ),
+            (
+                "Container",
+                consumable_fact(&state.container_id, Clone::clone),
+            ),
+        ] {
+            if let Some(value) = value {
+                self.field(label, value, indent);
+            }
+        }
+    }
+
     fn hazard_defenses(&mut self, section: &atlas_record::RecordSectionJson) {
         let mut armor_class = None;
         let mut hardness = None;
@@ -1630,6 +1793,19 @@ fn spell_fact<T>(value: &SpellFactJson<T>) -> Option<&T> {
     match value {
         SpellFactJson::Known(value) => Some(value),
         SpellFactJson::Missing | SpellFactJson::Null | SpellFactJson::Unsupported(_) => None,
+    }
+}
+
+fn consumable_fact<T>(
+    value: &atlas_record::ConsumableFactJson<T>,
+    render: impl FnOnce(&T) -> String,
+) -> Option<String> {
+    match value {
+        atlas_record::ConsumableFactJson::Known(value) => Some(render(value)),
+        atlas_record::ConsumableFactJson::Unsupported(evidence) => {
+            Some(format!("Unavailable ({})", evidence.reason))
+        }
+        atlas_record::ConsumableFactJson::Missing | atlas_record::ConsumableFactJson::Null => None,
     }
 }
 
@@ -2108,6 +2284,7 @@ pub(super) mod tests {
             record,
             body: Some(RecordBody::Spell(spell)),
             spell_children: Vec::new(),
+            consumable_occurrences: Default::default(),
         };
         record_json(
             &retrieved,
@@ -2192,6 +2369,7 @@ pub(super) mod tests {
             record,
             body: Some(RecordBody::Spell(spell)),
             spell_children: Vec::new(),
+            consumable_occurrences: Default::default(),
         };
         let provenance = record_json_with_context(
             &retrieved,
@@ -3018,6 +3196,7 @@ pub(super) mod tests {
         record.presentation = RecordPresentationJson::Hazard {
             sections,
             availability,
+            consumables: Vec::new(),
             provenance: None,
             edition: None,
             record_relationships: None,
@@ -3953,6 +4132,7 @@ pub(super) mod tests {
                 ),
                 body: None,
                 spell_children: Vec::new(),
+                consumable_occurrences: Default::default(),
             };
             record_json(
                 &source_record,
@@ -4001,6 +4181,7 @@ pub(super) mod tests {
                 }]),
                 movement: None, resources: None,
                 strikes: scan.then(|| vec![strike]), actions: scan.then(|| vec![action]),
+                consumables: Vec::new(),
                 spellcasting: scan.then(|| CreatureSpellcastingJson { entries: vec![CreatureSpellcastingEntryJson {
                     id: "innate-spells".into(), order: 0, label: "Occult Innate Spells".into(), preparation: Some("innate".into()), tradition: Some("occult".into()),
                     attack: Some(19), dc: Some(28), slots: complete.then(|| vec![CreatureSpellSlotJson { rank: 5, maximum: Some(2), serialized_value: Some(2), prepared: Some(vec![atlas_record::CreaturePreparedSpellJson { order: 0, id: Some("dream-message-source-item".into()), name: Some("Dream Message".into()), expended: Some(false), prepared: Some(true) }]) }]), spells: vec![first_spell.clone(), CreatureSpellJson { id: "dream-message-rank-5-second".into(), order: 3, context: CreatureOccurrenceContextJson { slot: Some("slot5:1".into()), ..first_spell.context.clone() }, ..first_spell }],

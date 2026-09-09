@@ -1,9 +1,13 @@
 use std::fs;
 
-use atlas_domain::RecordKey;
+use atlas_domain::{DetailLevel, RecordKey};
 use atlas_index::{ReferenceEdgeDirection, SqliteIndexReader, ValidationStatus};
 use atlas_ingest::{BuildArtifactOptions, analyze_foundry_source, build_artifact};
-use atlas_record::{CreatureMovementMode, RecordBody};
+use atlas_record::{
+    ConsumableEntityTarget, ConsumableFactJson, CreatureMovementMode, DuplicateContentStatus,
+    RecordBody, RecordJsonOptions, RecordPresentationJson,
+    build_search_presentation_document_with_content_filter, record_json,
+};
 use rusqlite::Connection;
 use serde_json::Value;
 
@@ -165,6 +169,422 @@ fn count_raw_reference_candidates(value: &Value) -> usize {
         Value::Object(values) => values.values().map(count_raw_reference_candidates).sum(),
         Value::Null | Value::Bool(_) | Value::Number(_) => 0,
     }
+}
+
+#[test]
+fn consumables_round_trip_as_standalone_and_actor_attachments()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("consumable-round-trip");
+    fs::create_dir_all(root.join("packs/equipment"))?;
+    fs::create_dir_all(root.join("packs/actors"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{"packs":[
+          {"name":"equipment","label":"Equipment","type":"Item","path":"packs/equipment"},
+          {"name":"actors","label":"Actors","type":"Actor","path":"packs/actors"}
+        ]}"#,
+    )?;
+    fs::write(
+        root.join("packs/equipment/dose.json"),
+        consumable_source("doseTarget", "Canonical Dose", 1, None),
+    )?;
+    fs::write(
+        root.join("packs/actors/npc.json"),
+        actor_with_consumable_identity_edges(),
+    )?;
+    fs::write(
+        root.join("packs/actors/character.json"),
+        actor_with_consumable("characterOwner", "character", "characterDose", 2)
+            .replace("A source-faithful dose.", "A character-local override."),
+    )?;
+
+    let output_path = root.join("artifact.sqlite");
+    build_artifact(BuildArtifactOptions {
+        source_root: root.clone(),
+        output_path: output_path.clone(),
+        manifest_path: None,
+        embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+        embedding_cache_root: None,
+        reuse_embeddings: true,
+        embedding_batch_size: 64,
+    })?;
+
+    let reader = SqliteIndexReader::open_read_only(&output_path)?;
+    let validation = reader.validate()?;
+    assert_eq!(
+        validation.status,
+        ValidationStatus::Ok,
+        "unexpected consumable artifact validation result: {validation:?}"
+    );
+    let keys = [
+        "equipment:doseTarget",
+        "actors:npcOwner",
+        "actors:characterOwner",
+    ]
+    .into_iter()
+    .map(RecordKey::parse)
+    .collect::<Result<Vec<_>, _>>()?;
+    let hydrated = reader.load_hydrated_records_by_key(&keys)?;
+    let all_hydrated = reader.load_hydrated_records()?;
+    for requested in &hydrated {
+        assert_eq!(
+            all_hydrated
+                .iter()
+                .find(|candidate| candidate.record.identity.key == requested.record.identity.key),
+            Some(requested),
+            "all-record and requested-key H5 hydration must agree"
+        );
+    }
+    let standalone = hydrated
+        .iter()
+        .find(|record| record.record.identity.key == keys[0])
+        .expect("standalone consumable");
+    assert!(matches!(standalone.body, Some(RecordBody::Consumable(_))));
+    let standalone_consumable = standalone
+        .body
+        .as_ref()
+        .and_then(RecordBody::as_consumable)
+        .expect("standalone consumable body");
+    let damage = standalone_consumable
+        .definition
+        .damage
+        .as_value()
+        .and_then(atlas_record::ConsumableSourceValue::known)
+        .expect("hydrated structured damage");
+    assert_eq!(
+        damage
+            .formula
+            .as_value()
+            .and_then(atlas_record::ConsumableSourceValue::known)
+            .map(String::as_str),
+        Some("1d6")
+    );
+    assert_eq!(
+        damage
+            .damage_type
+            .as_value()
+            .and_then(atlas_record::ConsumableSourceValue::known)
+            .map(String::as_str),
+        Some("acid")
+    );
+    let search_presentation = build_search_presentation_document_with_content_filter(
+        &standalone.record,
+        standalone.body.as_ref(),
+        |_| true,
+    );
+    assert_eq!(search_presentation.title, "Canonical Dose");
+    assert!(
+        serde_json::to_string(&search_presentation)?.contains("source-faithful dose"),
+        "canonical consumable content should drive the search presentation"
+    );
+    let options = RecordJsonOptions {
+        detail: DetailLevel::Standard,
+        include_source_json: false,
+    };
+    let standalone_json = record_json(standalone, options)?;
+    let RecordPresentationJson::Consumable { body, .. } = standalone_json.presentation else {
+        panic!("standalone consumable presentation");
+    };
+    assert!(matches!(
+        body.source_state.quantity,
+        ConsumableFactJson::Known(1)
+    ));
+
+    for (key, expected_quantity) in [(&keys[1], 3_i64), (&keys[2], 2_i64)] {
+        let owner = hydrated
+            .iter()
+            .find(|record| &record.record.identity.key == key)
+            .unwrap_or_else(|| {
+                panic!(
+                    "actor attachment owner {key}; hydrated {:?}",
+                    hydrated
+                        .iter()
+                        .map(|record| record.record.identity.key.to_string())
+                        .collect::<Vec<_>>()
+                )
+            });
+        let expected_occurrences = if key == &keys[1] { 5 } else { 1 };
+        assert_eq!(
+            owner.consumable_occurrences.entities.len(),
+            expected_occurrences
+        );
+        assert_eq!(
+            owner.consumable_occurrences.occurrences.len(),
+            expected_occurrences
+        );
+        let first_occurrence = &owner.consumable_occurrences.occurrences[0];
+        let first_entity = owner
+            .consumable_occurrences
+            .entities
+            .iter()
+            .find(|entity| entity.id == first_occurrence.entity_id)
+            .expect("first occurrence entity");
+        assert!(
+            matches!(
+                first_entity.target,
+                ConsumableEntityTarget::Resolved { ref record_key, .. } if record_key == &keys[0]
+            ),
+            "first target for {key}: {:?}",
+            first_entity.target
+        );
+        assert_eq!(
+            owner.consumable_occurrences.occurrences[0]
+                .state
+                .quantity
+                .as_value()
+                .and_then(atlas_record::ConsumableSourceValue::known),
+            Some(&expected_quantity)
+        );
+    }
+
+    let npc = hydrated
+        .iter()
+        .find(|record| record.record.identity.key == keys[1])
+        .expect("NPC owner");
+    assert!(matches!(
+        &npc.consumable_occurrences.occurrences[0].authored_content.documents[0].duplicate_status,
+        DuplicateContentStatus::CopiedFromConsumableTarget {
+            target_record_key,
+            target_content_key,
+            target_content_hash,
+        } if target_record_key == &keys[0]
+            && target_content_key.as_str() == "description"
+            && target_content_hash == standalone.body.as_ref().and_then(RecordBody::as_consumable)
+                .expect("standalone consumable")
+                .content.documents[0].content_hash.as_str()
+    ));
+    let edge_content = npc
+        .consumable_occurrences
+        .occurrences
+        .iter()
+        .skip(1)
+        .filter_map(|occurrence| occurrence.authored_content.documents.first())
+        .map(|document| atlas_record::render_plain_text(&document.document))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        edge_content,
+        [
+            "Missing ID content.",
+            "First duplicate content.",
+            "Second duplicate content."
+        ]
+    );
+    assert_eq!(
+        npc.consumable_occurrences
+            .occurrences
+            .iter()
+            .map(|occurrence| occurrence.id.as_str())
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        5
+    );
+    let malformed = &npc.consumable_occurrences.occurrences[4];
+    assert!(malformed.authored_content.documents.is_empty());
+    assert_eq!(malformed.unsupported_content.len(), 1);
+    assert_eq!(
+        malformed.unsupported_content[0].value,
+        r#"{"value":"first malformed description","value":"second malformed description"}"#
+    );
+    let npc_json = record_json(npc, options)?;
+    let RecordPresentationJson::Creature { consumables, .. } = npc_json.presentation else {
+        panic!("NPC presentation");
+    };
+    assert_eq!(
+        consumables
+            .iter()
+            .map(|consumable| consumable.name.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "Canonical Dose",
+            "Missing ID Dose",
+            "First Duplicate",
+            "Second Duplicate",
+            "Malformed Description"
+        ]
+    );
+    assert_eq!(consumables[4].content.len(), 0);
+    assert_eq!(consumables[4].unsupported_content.len(), 1);
+
+    let character = hydrated
+        .iter()
+        .find(|record| record.record.identity.key == keys[2])
+        .expect("Character owner");
+    assert!(matches!(
+        character.consumable_occurrences.occurrences[0]
+            .authored_content
+            .documents[0]
+            .duplicate_status,
+        DuplicateContentStatus::Unique
+    ));
+    assert_eq!(
+        atlas_record::render_plain_text(
+            &character.consumable_occurrences.occurrences[0]
+                .authored_content
+                .documents[0]
+                .document
+        ),
+        "A character-local override."
+    );
+    assert!(matches!(
+        record_json(character, options)?.presentation,
+        RecordPresentationJson::Unmigrated { .. }
+    ));
+
+    let connection = Connection::open(&output_path)?;
+    let occurrence_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM canonical_consumable_occurrences",
+        [],
+        |row| row.get(0),
+    )?;
+    let forbidden_generic_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM item_records WHERE record_key='equipment:doseTarget'",
+        [],
+        |row| row.get(0),
+    )?;
+    let (taxonomy_terms, mechanic_terms, body): (String, String, String) = connection.query_row(
+        "SELECT taxonomy_terms, mechanic_terms, body
+         FROM records_fts WHERE record_key='equipment:doseTarget'",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    let occurrence_content_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM record_content
+         WHERE record_key IN ('actors:npcOwner','actors:characterOwner')
+           AND source_kind='embedded_item_description'
+           AND owner_kind='consumable_occurrence'",
+        [],
+        |row| row.get(0),
+    )?;
+    let duplicate_legacy_content_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM record_content
+         WHERE record_key IN ('actors:npcOwner','actors:characterOwner')
+           AND source_kind='embedded_item_description'
+           AND owner_kind<>'consumable_occurrence'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(occurrence_count, 6);
+    assert_eq!(occurrence_content_count, 5);
+    assert_eq!(duplicate_legacy_content_count, 0);
+    assert_eq!(forbidden_generic_count, 0);
+    assert!(taxonomy_terms.contains("other"));
+    assert!(mechanic_terms.contains("held in one hand"));
+    assert!(mechanic_terms.contains("1st level"));
+    assert!(mechanic_terms.contains("1d6"));
+    assert!(mechanic_terms.contains("acid"));
+    assert_eq!(body, "A source-faithful dose.");
+
+    drop(connection);
+    for (name, sql, key, expected) in [
+        (
+            "consumable-body-identity",
+            "UPDATE canonical_consumable_records SET source_id='wrong-source-id'
+             WHERE record_key='equipment:doseTarget'",
+            &keys[0],
+            "indexed consumable identity columns",
+        ),
+        (
+            "consumable-query-projection",
+            "UPDATE consumable_query_records SET category='wrong-category'
+             WHERE record_key='equipment:doseTarget'",
+            &keys[0],
+            "consumable query projection",
+        ),
+        (
+            "consumable-entity-identity",
+            "PRAGMA foreign_keys=OFF;
+             UPDATE canonical_consumable_entities SET entity_id='wrong-entity-id'
+             WHERE owner_record_key='actors:npcOwner'
+               AND entity_id=(SELECT entity_id FROM canonical_consumable_entities
+                              WHERE owner_record_key='actors:npcOwner' LIMIT 1)",
+            &keys[1],
+            "indexed entity identity",
+        ),
+        (
+            "consumable-occurrence-order",
+            "PRAGMA foreign_keys=OFF;
+             UPDATE canonical_consumable_occurrences SET authored_order=99
+             WHERE owner_record_key='actors:npcOwner' AND authored_order=0",
+            &keys[1],
+            "indexed occurrence identity/order",
+        ),
+        (
+            "consumable-content-owner",
+            "PRAGMA foreign_keys=OFF;
+             UPDATE record_content SET owner_consumable_occurrence_id='wrong-occurrence-id'
+             WHERE record_key='actors:npcOwner'
+               AND owner_kind='consumable_occurrence' AND authored_order=0",
+            &keys[1],
+            "does not match its canonical owner",
+        ),
+    ] {
+        let candidate = root.join(format!("{name}.sqlite"));
+        fs::copy(&output_path, &candidate)?;
+        Connection::open(&candidate)?.execute_batch(sql)?;
+        atlas_index::test_support::write_bound_test_manifest(&candidate)?;
+        let error = SqliteIndexReader::open_read_only(&candidate)?
+            .load_hydrated_records_by_key(std::slice::from_ref(key))
+            .expect_err(name)
+            .to_string();
+        assert!(
+            error.contains(expected),
+            "{name}: expected `{expected}`, got `{error}`"
+        );
+    }
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+fn consumable_source(id: &str, name: &str, quantity: i64, lineage: Option<&str>) -> String {
+    let stats = lineage.map_or_else(
+        || "{}".to_string(),
+        |lineage| format!(r#"{{"compendiumSource":"{lineage}"}}"#),
+    );
+    format!(
+        r#"{{
+          "_id":"{id}","name":"{name}","type":"consumable","_stats":{stats},
+          "system":{{
+            "slug":"canonical-dose","level":{{"value":1}},"category":"other",
+            "traits":{{"rarity":"common","value":["consumable"],"otherTags":[]}},
+            "bulk":{{"value":0.1}},"quantity":{quantity},"usage":{{"value":"held-in-one-hand"}},
+            "uses":{{"max":1,"value":1,"autoDestroy":true}},"containerId":null,
+            "hp":{{"max":1,"value":1}},"hardness":0,
+            "price":{{"value":{{"gp":1}},"per":1}},
+            "damage":{{"formula":"1d6","kind":"damage","type":"acid"}},
+            "description":{{"value":"<p>A source-faithful dose.</p>"}},
+            "publication":{{"title":"Fixture Book","license":"ORC","remaster":true}},
+            "rules":[]
+          }}
+        }}"#
+    )
+}
+
+fn actor_with_consumable(id: &str, actor_type: &str, child_id: &str, quantity: i64) -> String {
+    let lineage = "Compendium.pf2e.equipment.Item.doseTarget";
+    let item = consumable_source(child_id, "Canonical Dose", quantity, Some(lineage));
+    format!(
+        r#"{{"_id":"{id}","name":"{id}","type":"{actor_type}","system":{{}},"items":[{item}]}}"#
+    )
+}
+
+fn actor_with_consumable_identity_edges() -> String {
+    let lineage = "Compendium.pf2e.equipment.Item.doseTarget";
+    let resolved = consumable_source("npcDose", "Canonical Dose", 3, Some(lineage));
+    let missing = consumable_source("placeholder", "Missing ID Dose", 1, None)
+        .replacen("\"_id\":\"placeholder\",", "", 1)
+        .replace("A source-faithful dose.", "Missing ID content.");
+    let duplicate_first = consumable_source("duplicateDose", "First Duplicate", 1, None)
+        .replace("A source-faithful dose.", "First duplicate content.");
+    let duplicate_second = consumable_source("duplicateDose", "Second Duplicate", 1, None)
+        .replace("A source-faithful dose.", "Second duplicate content.");
+    let malformed = consumable_source("malformedDose", "Malformed Description", 1, None)
+        .replace(
+            r#""description":{"value":"<p>A source-faithful dose.</p>"}"#,
+            r#""description":{"value":"first malformed description","value":"second malformed description"}"#,
+        );
+    format!(
+        r#"{{"_id":"npcOwner","name":"npcOwner","type":"npc","system":{{}},"items":[{resolved},{missing},{duplicate_first},{duplicate_second},{malformed}]}}"#
+    )
 }
 
 #[test]

@@ -2,8 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ConsumableSpellChild, ContentIdentityStability, ContentRole, FactValue,
-    OwnedRichContent, RecordBody, RichLinkTarget, SpellStandaloneTarget,
+    AtlasRecord, ConsumableEntity, ConsumableOccurrence, ConsumableOccurrenceSet,
+    ConsumableSpellChild, ContentIdentityStability, ContentRole, FactValue, OwnedRichContent,
+    RecordBody, RichLinkTarget, SpellStandaloneTarget,
 };
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
@@ -11,9 +12,10 @@ use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 
 use crate::artifact::canonical_json;
 use crate::schema::{
+    canonical_consumable_entities, canonical_consumable_occurrences, canonical_consumable_records,
     canonical_consumable_spell_children, canonical_creature_records, canonical_hazard_records,
-    canonical_spell_records, record_content, reference_occurrences, spell_damage_types,
-    spell_records, spell_traditions,
+    canonical_spell_records, consumable_query_records, record_content, reference_occurrences,
+    spell_damage_types, spell_records, spell_traditions,
 };
 use crate::spell_query::{
     SpellDamageTypeProjection, SpellQueryProjection, SpellTraditionProjection,
@@ -44,6 +46,37 @@ struct CanonicalSpellRow {
     record_key: String,
     source_id: String,
     name: String,
+    canonical_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = canonical_consumable_records)]
+#[diesel(check_for_backend(Sqlite))]
+struct CanonicalConsumableRow {
+    record_key: String,
+    source_id: String,
+    name: String,
+    canonical_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = canonical_consumable_entities)]
+#[diesel(check_for_backend(Sqlite))]
+struct CanonicalConsumableEntityRow {
+    owner_record_key: String,
+    entity_id: String,
+    target_record_key: Option<String>,
+    canonical_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = canonical_consumable_occurrences)]
+#[diesel(check_for_backend(Sqlite))]
+struct CanonicalConsumableOccurrenceRow {
+    owner_record_key: String,
+    occurrence_id: String,
+    entity_id: String,
+    authored_order: i64,
     canonical_json: String,
 }
 
@@ -80,6 +113,20 @@ struct SpellQueryRow {
 }
 
 #[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = consumable_query_records)]
+#[diesel(check_for_backend(Sqlite))]
+struct ConsumableQueryRow {
+    record_key: String,
+    category: Option<String>,
+    usage: Option<String>,
+    base_item: Option<String>,
+    bulk_value: Option<f64>,
+    hands_requirement: Option<String>,
+    price_cp: Option<i64>,
+    damage_types_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
 #[diesel(table_name = spell_traditions)]
 #[diesel(check_for_backend(Sqlite))]
 struct SpellTraditionRow {
@@ -112,6 +159,11 @@ struct SpellContentRow {
     owner_entity_id: Option<String>,
     owner_occurrence_id: Option<String>,
     owner_occurrence_authored_order: Option<i64>,
+    owner_hazard_entity_id: Option<String>,
+    owner_hazard_occurrence_id: Option<String>,
+    owner_hazard_occurrence_authored_order: Option<i64>,
+    owner_consumable_occurrence_id: Option<String>,
+    owner_consumable_occurrence_authored_order: Option<i64>,
     role: String,
     origin_json: String,
     visibility: String,
@@ -139,6 +191,11 @@ struct SpellReferenceRow {
     owner_entity_id: Option<String>,
     owner_occurrence_id: Option<String>,
     owner_occurrence_authored_order: Option<i64>,
+    owner_hazard_entity_id: Option<String>,
+    owner_hazard_occurrence_id: Option<String>,
+    owner_hazard_occurrence_authored_order: Option<i64>,
+    owner_consumable_occurrence_id: Option<String>,
+    owner_consumable_occurrence_authored_order: Option<i64>,
     role: String,
     origin_json: String,
     visibility: String,
@@ -168,7 +225,12 @@ pub(super) fn read_canonical_record_bodies(
         .order(canonical_spell_records::record_key.asc())
         .load::<CanonicalSpellRow>(connection)
         .map_err(query_failed)?;
-    decode_body_rows(creature_rows, hazard_rows, spell_rows)
+    let consumable_rows = canonical_consumable_records::table
+        .select(CanonicalConsumableRow::as_select())
+        .order(canonical_consumable_records::record_key.asc())
+        .load::<CanonicalConsumableRow>(connection)
+        .map_err(query_failed)?;
+    decode_body_rows(creature_rows, hazard_rows, spell_rows, consumable_rows)
 }
 
 pub(super) fn read_canonical_record_bodies_by_key(
@@ -197,7 +259,150 @@ pub(super) fn read_canonical_record_bodies_by_key(
         .order(canonical_spell_records::record_key.asc())
         .load::<CanonicalSpellRow>(connection)
         .map_err(query_failed)?;
-    decode_body_rows(creature_rows, hazard_rows, spell_rows)
+    let consumable_rows = canonical_consumable_records::table
+        .filter(canonical_consumable_records::record_key.eq_any(&keys))
+        .select(CanonicalConsumableRow::as_select())
+        .order(canonical_consumable_records::record_key.asc())
+        .load::<CanonicalConsumableRow>(connection)
+        .map_err(query_failed)?;
+    decode_body_rows(creature_rows, hazard_rows, spell_rows, consumable_rows)
+}
+
+pub(super) fn read_consumable_occurrences(
+    connection: &mut SqliteConnection,
+    keys: Option<&[RecordKey]>,
+) -> Result<BTreeMap<RecordKey, ConsumableOccurrenceSet>, RecordLoadError> {
+    let entity_rows = if let Some(keys) = keys {
+        canonical_consumable_entities::table
+            .filter(canonical_consumable_entities::owner_record_key.eq_any(key_strings(keys)))
+            .select(CanonicalConsumableEntityRow::as_select())
+            .order((
+                canonical_consumable_entities::owner_record_key.asc(),
+                canonical_consumable_entities::entity_id.asc(),
+            ))
+            .load(connection)
+            .map_err(query_failed)?
+    } else {
+        canonical_consumable_entities::table
+            .select(CanonicalConsumableEntityRow::as_select())
+            .order((
+                canonical_consumable_entities::owner_record_key.asc(),
+                canonical_consumable_entities::entity_id.asc(),
+            ))
+            .load(connection)
+            .map_err(query_failed)?
+    };
+    let occurrence_rows = if let Some(keys) = keys {
+        canonical_consumable_occurrences::table
+            .filter(canonical_consumable_occurrences::owner_record_key.eq_any(key_strings(keys)))
+            .select(CanonicalConsumableOccurrenceRow::as_select())
+            .order((
+                canonical_consumable_occurrences::owner_record_key.asc(),
+                canonical_consumable_occurrences::authored_order.asc(),
+            ))
+            .load(connection)
+            .map_err(query_failed)?
+    } else {
+        canonical_consumable_occurrences::table
+            .select(CanonicalConsumableOccurrenceRow::as_select())
+            .order((
+                canonical_consumable_occurrences::owner_record_key.asc(),
+                canonical_consumable_occurrences::authored_order.asc(),
+            ))
+            .load(connection)
+            .map_err(query_failed)?
+    };
+    let mut grouped = BTreeMap::<RecordKey, ConsumableOccurrenceSet>::new();
+    for row in entity_rows {
+        let path = format!(
+            "canonical_consumable_entities[{}:{}].canonical_json",
+            row.owner_record_key, row.entity_id
+        );
+        let entity = canonical_json::decode::<ConsumableEntity>(&row.canonical_json, &path)
+            .map_err(RecordLoadError::InvalidData)?;
+        if entity.owner_record_key.to_string() != row.owner_record_key
+            || entity.id.as_str() != row.entity_id
+        {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: indexed entity identity does not match canonical entity"
+            )));
+        }
+        let target = match &entity.target {
+            atlas_record::ConsumableEntityTarget::Resolved { record_key, .. } => {
+                Some(record_key.to_string())
+            }
+            atlas_record::ConsumableEntityTarget::ParentOwned { .. } => None,
+        };
+        if target != row.target_record_key {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: indexed target does not match canonical entity"
+            )));
+        }
+        grouped
+            .entry(entity.owner_record_key.clone())
+            .or_default()
+            .entities
+            .push(entity);
+    }
+    for row in occurrence_rows {
+        let path = format!(
+            "canonical_consumable_occurrences[{}:{}].canonical_json",
+            row.owner_record_key, row.occurrence_id
+        );
+        let occurrence = canonical_json::decode::<ConsumableOccurrence>(&row.canonical_json, &path)
+            .map_err(RecordLoadError::InvalidData)?;
+        if occurrence.owner_record_key.to_string() != row.owner_record_key
+            || occurrence.id.as_str() != row.occurrence_id
+            || occurrence.entity_id.as_str() != row.entity_id
+            || i64::from(occurrence.authored_order) != row.authored_order
+        {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: indexed occurrence identity/order does not match canonical occurrence"
+            )));
+        }
+        grouped
+            .entry(occurrence.owner_record_key.clone())
+            .or_default()
+            .occurrences
+            .push(occurrence);
+    }
+    reconcile_consumable_occurrence_content(connection, &grouped)?;
+    Ok(grouped)
+}
+
+fn reconcile_consumable_occurrence_content(
+    connection: &mut SqliteConnection,
+    grouped: &BTreeMap<RecordKey, ConsumableOccurrenceSet>,
+) -> Result<(), RecordLoadError> {
+    let keys = grouped.keys().map(ToString::to_string).collect::<Vec<_>>();
+    if keys.is_empty() {
+        return Ok(());
+    }
+    let content_rows = record_content::table
+        .filter(record_content::record_key.eq_any(&keys))
+        .select(SpellContentRow::as_select())
+        .load::<SpellContentRow>(connection)
+        .map_err(query_failed)?;
+    let reference_rows = reference_occurrences::table
+        .filter(reference_occurrences::record_key.eq_any(&keys))
+        .select(SpellReferenceRow::as_select())
+        .load::<SpellReferenceRow>(connection)
+        .map_err(query_failed)?;
+    for (key, set) in grouped {
+        for occurrence in &set.occurrences {
+            reconcile_owned_content(
+                &key.to_string(),
+                &occurrence.authored_content,
+                &content_rows,
+                &reference_rows,
+                ExpectedContentOwner::ConsumableOccurrence {
+                    id: occurrence.id.as_str(),
+                    authored_order: i64::from(occurrence.authored_order),
+                },
+            )?;
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn read_spell_children(
@@ -417,6 +622,64 @@ pub(super) fn reconcile_spell_query_projections(
     Ok(())
 }
 
+pub(super) fn reconcile_consumable_query_projections(
+    connection: &mut SqliteConnection,
+    bodies: &BTreeMap<RecordKey, RecordBody>,
+    keys: Option<&[RecordKey]>,
+) -> Result<(), RecordLoadError> {
+    let rows = if let Some(keys) = keys {
+        consumable_query_records::table
+            .filter(consumable_query_records::record_key.eq_any(key_strings(keys)))
+            .select(ConsumableQueryRow::as_select())
+            .load::<ConsumableQueryRow>(connection)
+            .map_err(query_failed)?
+    } else {
+        consumable_query_records::table
+            .select(ConsumableQueryRow::as_select())
+            .load::<ConsumableQueryRow>(connection)
+            .map_err(query_failed)?
+    };
+    let mut rows = rows
+        .into_iter()
+        .map(|row| (row.record_key.clone(), row))
+        .collect::<BTreeMap<_, _>>();
+    for (key, body) in bodies {
+        let RecordBody::Consumable(consumable) = body else {
+            continue;
+        };
+        let key_string = key.to_string();
+        let Some(row) = rows.remove(&key_string) else {
+            return Err(RecordLoadError::InvalidData(format!(
+                "canonical consumable `{key}` has no query projection"
+            )));
+        };
+        let expected = crate::consumable_query::project_consumable_query(&consumable.definition);
+        let damage_types = decode_json_list(
+            &row.damage_types_json,
+            &key_string,
+            "consumable_query_records.damage_types_json",
+        )?;
+        if row.category != expected.category
+            || row.usage != expected.usage
+            || row.base_item != expected.base_item
+            || row.bulk_value != expected.bulk_value
+            || row.hands_requirement != expected.hands_requirement
+            || row.price_cp != expected.price_cp
+            || damage_types != expected.damage_types
+        {
+            return Err(RecordLoadError::InvalidData(format!(
+                "consumable query projection for `{key}` does not match its canonical body"
+            )));
+        }
+    }
+    if let Some((key, _)) = rows.into_iter().next() {
+        return Err(RecordLoadError::InvalidData(format!(
+            "consumable query projection `{key}` has no canonical consumable body"
+        )));
+    }
+    Ok(())
+}
+
 pub(super) fn reconcile_spell_owned_projections(
     connection: &mut SqliteConnection,
     bodies: &BTreeMap<RecordKey, RecordBody>,
@@ -450,6 +713,7 @@ pub(super) fn reconcile_spell_owned_projections(
                 &spell.definition.content,
                 &content_rows,
                 &reference_rows,
+                ExpectedContentOwner::Record,
             )?;
         }
     }
@@ -460,6 +724,7 @@ pub(super) fn reconcile_spell_owned_projections(
                 &child.definition.content,
                 &content_rows,
                 &reference_rows,
+                ExpectedContentOwner::Record,
             )?;
         }
     }
@@ -471,6 +736,7 @@ fn reconcile_owned_content(
     owned: &OwnedRichContent,
     rows: &[SpellContentRow],
     references: &[SpellReferenceRow],
+    expected_owner: ExpectedContentOwner<'_>,
 ) -> Result<(), RecordLoadError> {
     for document in &owned.documents {
         let content_key = document.id.content_key.as_str();
@@ -501,11 +767,7 @@ fn reconcile_owned_content(
         let diagnostics_json =
             canonical_json::encode(&document.diagnostics).map_err(RecordLoadError::InvalidData)?;
         if row.identity_stability != content_stability(document.identity_stability)
-            || row.owner_kind != "record"
-            || row.owner_record_key.as_deref() != Some(record_key)
-            || row.owner_entity_id.is_some()
-            || row.owner_occurrence_id.is_some()
-            || row.owner_occurrence_authored_order.is_some()
+            || !expected_owner.matches_content(row, record_key)
             || row.role != content_role(document.role)
             || row.origin_json != origin_json
             || row.visibility != document.visibility.as_str()
@@ -556,11 +818,7 @@ fn reconcile_owned_content(
                 canonical_json::encode(&expected.origin).map_err(RecordLoadError::InvalidData)?;
             let provenance_json = canonical_json::encode(&expected.provenance)
                 .map_err(RecordLoadError::InvalidData)?;
-            if actual.owner_kind != "record"
-                || actual.owner_record_key.as_deref() != Some(record_key)
-                || actual.owner_entity_id.is_some()
-                || actual.owner_occurrence_id.is_some()
-                || actual.owner_occurrence_authored_order.is_some()
+            if !expected_owner.matches_reference(actual, record_key)
                 || actual.role != content_role(expected.role)
                 || actual.origin_json != origin_json
                 || actual.visibility != expected.visibility.as_str()
@@ -578,6 +836,64 @@ fn reconcile_owned_content(
         }
     }
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum ExpectedContentOwner<'a> {
+    Record,
+    ConsumableOccurrence { id: &'a str, authored_order: i64 },
+}
+
+impl ExpectedContentOwner<'_> {
+    fn matches_content(self, row: &SpellContentRow, record_key: &str) -> bool {
+        let common_empty = row.owner_entity_id.is_none()
+            && row.owner_occurrence_id.is_none()
+            && row.owner_occurrence_authored_order.is_none()
+            && row.owner_hazard_entity_id.is_none()
+            && row.owner_hazard_occurrence_id.is_none()
+            && row.owner_hazard_occurrence_authored_order.is_none();
+        match self {
+            Self::Record => {
+                common_empty
+                    && row.owner_kind == "record"
+                    && row.owner_record_key.as_deref() == Some(record_key)
+                    && row.owner_consumable_occurrence_id.is_none()
+                    && row.owner_consumable_occurrence_authored_order.is_none()
+            }
+            Self::ConsumableOccurrence { id, authored_order } => {
+                common_empty
+                    && row.owner_kind == "consumable_occurrence"
+                    && row.owner_record_key.is_none()
+                    && row.owner_consumable_occurrence_id.as_deref() == Some(id)
+                    && row.owner_consumable_occurrence_authored_order == Some(authored_order)
+            }
+        }
+    }
+
+    fn matches_reference(self, row: &SpellReferenceRow, record_key: &str) -> bool {
+        let common_empty = row.owner_entity_id.is_none()
+            && row.owner_occurrence_id.is_none()
+            && row.owner_occurrence_authored_order.is_none()
+            && row.owner_hazard_entity_id.is_none()
+            && row.owner_hazard_occurrence_id.is_none()
+            && row.owner_hazard_occurrence_authored_order.is_none();
+        match self {
+            Self::Record => {
+                common_empty
+                    && row.owner_kind == "record"
+                    && row.owner_record_key.as_deref() == Some(record_key)
+                    && row.owner_consumable_occurrence_id.is_none()
+                    && row.owner_consumable_occurrence_authored_order.is_none()
+            }
+            Self::ConsumableOccurrence { id, authored_order } => {
+                common_empty
+                    && row.owner_kind == "consumable_occurrence"
+                    && row.owner_record_key.is_none()
+                    && row.owner_consumable_occurrence_id.as_deref() == Some(id)
+                    && row.owner_consumable_occurrence_authored_order == Some(authored_order)
+            }
+        }
+    }
 }
 
 fn content_stability(value: ContentIdentityStability) -> &'static str {
@@ -658,8 +974,11 @@ fn decode_body_rows(
     creature_rows: Vec<CanonicalCreatureRow>,
     hazard_rows: Vec<CanonicalHazardRecordRow>,
     spell_rows: Vec<CanonicalSpellRow>,
+    consumable_rows: Vec<CanonicalConsumableRow>,
 ) -> Result<Vec<RecordBody>, RecordLoadError> {
-    let mut bodies = Vec::with_capacity(creature_rows.len() + hazard_rows.len() + spell_rows.len());
+    let mut bodies = Vec::with_capacity(
+        creature_rows.len() + hazard_rows.len() + spell_rows.len() + consumable_rows.len(),
+    );
     for row in creature_rows {
         let path = format!(
             "canonical_creature_records[{}].canonical_json",
@@ -703,6 +1022,28 @@ fn decode_body_rows(
         if row.source_id != spell.identity.source_id.as_str() || row.name != spell.identity.name {
             return Err(RecordLoadError::InvalidData(format!(
                 "{path}: indexed spell identity columns do not match the canonical spell body"
+            )));
+        }
+        bodies.push(body);
+    }
+    for row in consumable_rows {
+        let path = format!(
+            "canonical_consumable_records[{}].canonical_json",
+            row.record_key
+        );
+        let body = canonical_json::decode::<RecordBody>(&row.canonical_json, &path)
+            .map_err(RecordLoadError::InvalidData)?;
+        let RecordBody::Consumable(consumable) = &body else {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: canonical consumable table contains a non-consumable body"
+            )));
+        };
+        require_key(&path, &row.record_key, &consumable.identity.record_key)?;
+        if row.source_id != consumable.identity.source_id.as_str()
+            || row.name != consumable.identity.name
+        {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: indexed consumable identity columns do not match canonical body"
             )));
         }
         bodies.push(body);
