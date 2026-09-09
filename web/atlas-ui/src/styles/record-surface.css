@@ -586,6 +586,10 @@
   min-width: 0;
 }
 
+.h8-journal__layout {
+  grid-template-columns: minmax(220px, 0.55fr) minmax(0, 1.45fr);
+}
+
 .creature-sheet__activity-list {
   display: grid;
   gap: 9px;
@@ -1024,6 +1028,10 @@
   .creature-sheet__reference-source,
   .record-surface-references__directions {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .h8-journal__content {
+    order: -1;
   }
 }
 

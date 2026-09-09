@@ -75,8 +75,11 @@ export function JournalDetailSurface({
   return (
     <article className="record-surface creature-sheet">
       <RecordHeader metadata={metadata} showTitle={showTitle} />
-      <div className="creature-sheet__mechanics-grid">
-        <nav aria-label="Journal pages" className="creature-sheet__mechanics-side">
+      <div className="creature-sheet__mechanics-grid h8-journal__layout">
+        <nav
+          aria-label="Journal pages"
+          className="creature-sheet__mechanics-side h8-journal__navigation"
+        >
           <List
             dataSource={pages}
             locale={{ emptyText: `Pages are ${factLabel(body.pages)}.` }}
@@ -107,7 +110,10 @@ export function JournalDetailSurface({
             size="small"
           />
         </nav>
-        <section aria-live="polite" className="creature-sheet__mechanics-main">
+        <section
+          aria-live="polite"
+          className="creature-sheet__mechanics-main h8-journal__content"
+        >
           {selected ? (
             <JournalPageDetail entry={selected} onReference={onReference} />
           ) : (
