@@ -503,6 +503,123 @@ mod tests {
     }
 
     #[test]
+    fn consumable_source_state_mutations_preserve_fts_and_embedding_text_and_hash() {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/foundry-source/spell-source-contract/packs/equipment/arboreal-wand-rank-4.json");
+        let raw: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(fixture).expect("portable source fixture"))
+                .expect("source JSON");
+        let root = std::env::temp_dir().join(format!(
+            "atlas-h5-source-state-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos(),
+        ));
+        std::fs::create_dir_all(root.join("packs/equipment")).expect("private fixture");
+        std::fs::write(root.join("module.json"),
+            r#"{"packs":[{"name":"equipment-srd","label":"Equipment","type":"Item","path":"packs/equipment"}]}"#,
+        ).expect("module");
+        let load = |raw: &serde_json::Value| {
+            std::fs::write(
+                root.join("packs/equipment/wand.json"),
+                serde_json::to_vec(raw).unwrap(),
+            )
+            .expect("private fixture source");
+            crate::source_pipeline::load_foundry_source(&root, None)
+                .expect("production loader")
+                .records
+                .into_iter()
+                .find(|loaded| {
+                    loaded.record.identity.key.to_string() == "equipment-srd:eOtQtVRLeGH39dNx"
+                })
+                .expect("loaded source consumable")
+        };
+        let baseline = load(&raw);
+        let baseline_fts = atlas_record::build_search_fts_projection(
+            &baseline.record,
+            &[],
+            baseline.facts.canonical_body.as_ref(),
+        );
+        let baseline_embedding =
+            build_pending_document_embeddings(std::slice::from_ref(&baseline), &[], &[]);
+        assert!(!baseline_embedding.is_empty());
+        for (path, value) in [
+            ("/system/quantity", serde_json::json!(991)),
+            ("/system/uses/value", serde_json::json!(992)),
+            ("/system/hp/value", serde_json::json!(993)),
+            (
+                "/system/containerId",
+                serde_json::json!("H5ContainerSentinel"),
+            ),
+            ("/system/equipped/carryType", serde_json::json!("stowed")),
+            ("/system/equipped/handsHeld", serde_json::json!(2)),
+            ("/system/equipped/inSlot", serde_json::json!(true)),
+        ] {
+            let mut mutated = raw.clone();
+            let (parent, field) = path.rsplit_once('/').unwrap();
+            // Some portable fixtures omit an optional parent object.
+            let parent_name = parent.strip_prefix("/system/");
+            if let Some(parent_name) = parent_name
+                && !mutated["system"][parent_name].is_object()
+            {
+                mutated["system"][parent_name] = serde_json::json!({});
+            }
+            mutated.pointer_mut(parent).expect("source parent")[field] = value;
+            let loaded = load(&mutated);
+            assert_ne!(
+                loaded.facts.canonical_body, baseline.facts.canonical_body,
+                "mutation must reach canonical state: {path}"
+            );
+            assert_eq!(
+                atlas_record::build_search_fts_projection(
+                    &loaded.record,
+                    &[],
+                    loaded.facts.canonical_body.as_ref(),
+                ),
+                baseline_fts,
+                "FTS source-state exclusion: {path}"
+            );
+            let embeddings = build_pending_document_embeddings(&[loaded], &[], &[]);
+            assert_eq!(embeddings.len(), baseline_embedding.len());
+            for (actual, expected) in embeddings.iter().zip(&baseline_embedding) {
+                assert_eq!(
+                    actual.input_text, expected.input_text,
+                    "embedding text: {path}"
+                );
+                assert_eq!(
+                    actual.input_hash, expected.input_hash,
+                    "embedding hash: {path}"
+                );
+            }
+        }
+        let mut definition_mutation = raw.clone();
+        definition_mutation["system"]["description"]["value"] =
+            serde_json::json!("<p>H5DefinitionSentinel unique authored mechanics.</p>");
+        let changed = load(&definition_mutation);
+        assert_ne!(
+            atlas_record::build_search_fts_projection(
+                &changed.record,
+                &[],
+                changed.facts.canonical_body.as_ref(),
+            ),
+            baseline_fts,
+            "definition positive control"
+        );
+        let changed_embedding = build_pending_document_embeddings(&[changed], &[], &[]);
+        assert_ne!(
+            changed_embedding[0].input_text,
+            baseline_embedding[0].input_text
+        );
+        assert_ne!(
+            changed_embedding[0].input_hash,
+            baseline_embedding[0].input_hash
+        );
+        std::fs::remove_dir_all(root).expect("dispose private fixture");
+    }
+
+    #[test]
     fn canonical_source_record_builds_stable_search_units_and_remaster_demotion() {
         let mut loaded = canonical_loaded_fixture();
         assert!(loaded.record.mechanics.metrics.is_empty());

@@ -1,7 +1,7 @@
 use atlas_record::{
-    AtlasRecord, ConsumableOccurrenceSet, ContentDiagnostic, ContentOrigin, ContentProvenance,
-    DuplicateContentStatus, FoundryDocumentMechanics, ProductRetrievalPolicy, RecordBody,
-    build_search_fts_projection, project_creature_facts, project_hazard_facts,
+    AtlasRecord, ContentDiagnostic, ContentOrigin, ContentProvenance, DuplicateContentStatus,
+    FoundryDocumentMechanics, ProductRetrievalPolicy, RecordBody, build_search_fts_projection,
+    project_creature_facts, project_hazard_facts,
 };
 use diesel::SqliteConnection;
 use diesel::prelude::*;
@@ -24,8 +24,8 @@ pub(super) fn write_records(
     aliases: &[RecordAlias],
     remaster_links: &[RemasterLink],
     canonical_bodies: &[RecordBody],
+    consumable_occurrence_sets: &[atlas_record::ConsumableOccurrenceSet],
     canonical_record_keys: &std::collections::BTreeSet<String>,
-    consumable_occurrence_sets: &[ConsumableOccurrenceSet],
 ) -> Result<(), IndexWriteError> {
     let retrieval_policy = ProductRetrievalPolicy::from_remaster_links(remaster_links);
     let canonical_bodies_by_key = canonical_bodies_by_key(records, canonical_bodies)?;
@@ -36,8 +36,6 @@ pub(super) fn write_records(
     let mut item_rows = Vec::new();
     let mut metric_rows = Vec::new();
     let mut fts_rows = Vec::new();
-    let mut occurrence_content =
-        consumable_occurrence_content_fingerprints(consumable_occurrence_sets);
     for record in records {
         let record_key = record.identity.key.to_string();
         let projected_metrics;
@@ -303,7 +301,7 @@ pub(super) fn write_records(
         });
         if !canonical_record_keys.contains(&record.identity.key.to_string()) {
             let mut content_inputs = Vec::new();
-            for (ordinal, content) in record.content.documents.iter().enumerate() {
+            for (ordinal, content) in legacy_content_ordinals(record, consumable_occurrence_sets) {
                 let content_json = serde_json::to_string(&content.document)
                     .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
                 content_inputs.push((ordinal, content, content_json));
@@ -312,13 +310,6 @@ pub(super) fn write_records(
             for ((ordinal, content, content_json), content_key) in
                 content_inputs.into_iter().zip(content_keys)
             {
-                if consume_consumable_occurrence_content(
-                    &mut occurrence_content,
-                    &record_key,
-                    content,
-                ) {
-                    continue;
-                }
                 content_rows.push(RecordContentRow {
                     record_key: record.identity.key.to_string(),
                     content_key,
@@ -501,50 +492,6 @@ pub(super) fn write_records(
     Ok(())
 }
 
-pub(super) type ConsumableContentFingerprints =
-    std::collections::BTreeMap<(String, String, Option<String>, String), usize>;
-
-pub(super) fn consumable_occurrence_content_fingerprints(
-    sets: &[ConsumableOccurrenceSet],
-) -> ConsumableContentFingerprints {
-    let mut fingerprints = ConsumableContentFingerprints::new();
-    for occurrence in sets.iter().flat_map(|set| &set.occurrences) {
-        for document in &occurrence.authored_content.documents {
-            let fingerprint = (
-                occurrence.owner_record_key.to_string(),
-                document.source_kind.as_str().to_string(),
-                document.label.clone(),
-                document.content_hash.as_str().to_string(),
-            );
-            *fingerprints.entry(fingerprint).or_default() += 1;
-        }
-    }
-    fingerprints
-}
-
-pub(super) fn consume_consumable_occurrence_content(
-    fingerprints: &mut ConsumableContentFingerprints,
-    record_key: &str,
-    content: &atlas_record::RecordContentDocument,
-) -> bool {
-    let fingerprint = (
-        record_key.to_string(),
-        content.source_kind.as_str().to_string(),
-        content.label.clone(),
-        atlas_record::ContentHash::for_document(&content.document)
-            .as_str()
-            .to_string(),
-    );
-    let Some(remaining) = fingerprints.get_mut(&fingerprint) else {
-        return false;
-    };
-    if *remaining == 0 {
-        return false;
-    }
-    *remaining -= 1;
-    true
-}
-
 fn canonical_bodies_by_key<'a>(
     records: &[AtlasRecord],
     canonical_bodies: &'a [RecordBody],
@@ -580,6 +527,30 @@ fn legacy_content_role(source_kind: atlas_record::ContentSourceKind) -> &'static
         ContentSourceKind::GeneratedAffliction => "generated_narrative",
         _ => "supplemental_rules",
     }
+}
+
+// Occurrence-owned source documents leave holes in the legacy Character view.
+// Preserve those ordinals for both content rows and their reference occurrences.
+pub(super) fn legacy_content_ordinals<'a>(
+    record: &'a AtlasRecord,
+    consumable_occurrence_sets: &[atlas_record::ConsumableOccurrenceSet],
+) -> impl Iterator<Item = (usize, &'a atlas_record::RecordContentDocument)> {
+    let reserved = consumable_occurrence_sets
+        .iter()
+        .flat_map(|set| &set.occurrences)
+        .filter(|occurrence| occurrence.owner_record_key == record.identity.key)
+        .flat_map(|occurrence| &occurrence.authored_content.documents)
+        .map(|document| document.authored_order as usize)
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut ordinal = 0;
+    record.content.documents.iter().map(move |document| {
+        while reserved.contains(&ordinal) {
+            ordinal += 1;
+        }
+        let assigned = ordinal;
+        ordinal += 1;
+        (assigned, document)
+    })
 }
 
 pub(crate) fn allocated_content_keys(

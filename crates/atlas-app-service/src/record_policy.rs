@@ -617,7 +617,7 @@ fn hazard_issues(
     }
 }
 
-fn spell_issues(
+pub(crate) fn spell_issues(
     spell: &atlas_record::SpellRecord,
     selected: &[SpellPresentationIssue],
     issues: &mut Vec<RecordSurfaceIssueView>,

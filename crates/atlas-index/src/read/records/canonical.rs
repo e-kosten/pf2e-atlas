@@ -366,6 +366,37 @@ pub(super) fn read_consumable_occurrences(
             .occurrences
             .push(occurrence);
     }
+    let mut targets = BTreeSet::new();
+    for set in grouped.values() {
+        set.validated_entities()
+            .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?;
+        for entity in &set.entities {
+            if let atlas_record::ConsumableEntityTarget::Resolved { record_key, .. } =
+                &entity.target
+            {
+                targets.insert(record_key.to_string());
+            }
+        }
+    }
+    // Validate targets even when callers requested only the containing actor.
+    let valid_targets =
+        canonical_consumable_records::table
+            .inner_join(crate::schema::records::table.on(
+                crate::schema::records::record_key.eq(canonical_consumable_records::record_key),
+            ))
+            .filter(canonical_consumable_records::record_key.eq_any(&targets))
+            .filter(crate::schema::records::foundry_record_type.eq("consumable"))
+            .filter(crate::schema::records::record_kind.eq("equipment"))
+            .select(canonical_consumable_records::record_key)
+            .load::<String>(connection)
+            .map_err(query_failed)?
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+    if valid_targets != targets {
+        return Err(RecordLoadError::InvalidData(
+            "consumable occurrence graph has a missing or wrong-family resolved target".to_string(),
+        ));
+    }
     reconcile_consumable_occurrence_content(connection, &grouped)?;
     Ok(grouped)
 }
@@ -653,6 +684,26 @@ pub(super) fn reconcile_consumable_query_projections(
                 "canonical consumable `{key}` has no query projection"
             )));
         };
+        use crate::schema::records as r;
+        let legacy_count = r::table
+            .filter(r::record_key.eq(&key_string))
+            .filter(
+                r::system_category
+                    .is_not_null()
+                    .or(r::system_group.is_not_null())
+                    .or(r::system_base_item.is_not_null())
+                    .or(r::system_usage.is_not_null())
+                    .or(r::system_price_json.is_not_null())
+                    .or(r::price_cp.is_not_null()),
+            )
+            .count()
+            .get_result::<i64>(connection)
+            .map_err(query_failed)?;
+        if legacy_count != 0 {
+            return Err(RecordLoadError::InvalidData(format!(
+                "canonical consumable `{key}` has forbidden legacy item query fields"
+            )));
+        }
         let expected = crate::consumable_query::project_consumable_query(&consumable.definition);
         let damage_types = decode_json_list(
             &row.damage_types_json,

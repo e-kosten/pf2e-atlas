@@ -288,14 +288,16 @@ pub(super) fn consumable_json(
     }
 }
 
-pub(super) fn occurrence_json(set: &ConsumableOccurrenceSet) -> Vec<ConsumableOccurrenceJson> {
+pub(super) fn occurrence_json(
+    set: &ConsumableOccurrenceSet,
+) -> Result<Vec<ConsumableOccurrenceJson>, super::RecordJsonError> {
+    let entities = set
+        .validated_entities()
+        .map_err(super::RecordJsonError::InvalidConsumableOccurrences)?;
     set.occurrences
         .iter()
-        .filter_map(|occurrence| {
-            let entity = set
-                .entities
-                .iter()
-                .find(|entity| entity.id == occurrence.entity_id)?;
+        .map(|occurrence| {
+            let entity = entities[&occurrence.entity_id];
             let target = match &entity.target {
                 ConsumableEntityTarget::Resolved {
                     record_key,
@@ -328,7 +330,7 @@ pub(super) fn occurrence_json(set: &ConsumableOccurrenceSet) -> Vec<ConsumableOc
                     },
                 },
             };
-            Some(ConsumableOccurrenceJson {
+            Ok(ConsumableOccurrenceJson {
                 occurrence_id: occurrence.id.as_str().to_string(),
                 source_id: fact(&occurrence.source_id, |value| value.as_str().to_string()),
                 authored_order: occurrence.authored_order,

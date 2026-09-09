@@ -52,7 +52,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($._id)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($._id)
+        destination: RecordJson H5 owner ($._id)
     surfaces:
       artifact:
         disposition: promoted
@@ -168,7 +168,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.name)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.name)
+        destination: RecordJson H5 owner ($.name)
     surfaces:
       artifact:
         disposition: promoted
@@ -231,7 +231,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.baseItem)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.baseItem)
+        destination: RecordJson H5 owner ($.system.baseItem)
     surfaces:
       artifact:
         disposition: promoted
@@ -293,7 +293,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.bulk.value)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.bulk.value)
+        destination: RecordJson H5 owner ($.system.bulk.value)
     surfaces:
       artifact:
         disposition: promoted
@@ -355,7 +355,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.category)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.category)
+        destination: RecordJson H5 owner ($.system.category)
     surfaces:
       artifact:
         disposition: promoted
@@ -417,7 +417,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.containerId)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.containerId)
+        destination: RecordJson H5 owner ($.system.containerId)
     surfaces:
       artifact:
         disposition: promoted
@@ -479,7 +479,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.damage)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.damage)
+        destination: RecordJson H5 owner ($.system.damage)
     surfaces:
       artifact:
         disposition: promoted
@@ -541,7 +541,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.damage.formula)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.damage.formula)
+        destination: RecordJson H5 owner ($.system.damage.formula)
     surfaces:
       artifact:
         disposition: promoted
@@ -603,7 +603,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.damage.kind)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.damage.kind)
+        destination: RecordJson H5 owner ($.system.damage.kind)
     surfaces:
       artifact:
         disposition: promoted
@@ -665,7 +665,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.damage.type)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.damage.type)
+        destination: RecordJson H5 owner ($.system.damage.type)
     surfaces:
       artifact:
         disposition: promoted
@@ -727,7 +727,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.description.value)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.description.value)
+        destination: RecordJson H5 owner ($.system.description.value)
     surfaces:
       artifact:
         disposition: promoted
@@ -789,7 +789,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.hardness)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.hardness)
+        destination: RecordJson H5 owner ($.system.hardness)
     surfaces:
       artifact:
         disposition: promoted
@@ -851,7 +851,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.hp.max)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.hp.max)
+        destination: RecordJson H5 owner ($.system.hp.max)
     surfaces:
       artifact:
         disposition: promoted
@@ -913,7 +913,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.hp.value)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.hp.value)
+        destination: RecordJson H5 owner ($.system.hp.value)
     surfaces:
       artifact:
         disposition: promoted
@@ -975,7 +975,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.level.value)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.level.value)
+        destination: RecordJson H5 owner ($.system.level.value)
     surfaces:
       artifact:
         disposition: promoted
@@ -1037,7 +1037,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.material.effects[])
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.material.effects[])
+        destination: RecordJson H5 owner ($.system.material.effects[])
     surfaces:
       artifact:
         disposition: promoted
@@ -1099,7 +1099,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.material.grade)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.material.grade)
+        destination: RecordJson H5 owner ($.system.material.grade)
     surfaces:
       artifact:
         disposition: promoted
@@ -1161,7 +1161,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.material.type)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.material.type)
+        destination: RecordJson H5 owner ($.system.material.type)
     surfaces:
       artifact:
         disposition: promoted
@@ -1223,7 +1223,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.price.per)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.price.per)
+        destination: RecordJson H5 owner ($.system.price.per)
     surfaces:
       artifact:
         disposition: promoted
@@ -1287,7 +1287,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.price.value.*)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.price.value.*)
+        destination: RecordJson H5 owner ($.system.price.value.*)
     surfaces:
       artifact:
         disposition: promoted
@@ -1349,7 +1349,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.publication.license)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.publication.license)
+        destination: RecordJson H5 owner ($.system.publication.license)
     surfaces:
       artifact:
         disposition: promoted
@@ -1411,7 +1411,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.publication.remaster)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.publication.remaster)
+        destination: RecordJson H5 owner ($.system.publication.remaster)
     surfaces:
       artifact:
         disposition: promoted
@@ -1473,7 +1473,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.publication.title)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.publication.title)
+        destination: RecordJson H5 owner ($.system.publication.title)
     surfaces:
       artifact:
         disposition: promoted
@@ -1535,7 +1535,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.quantity)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.quantity)
+        destination: RecordJson H5 owner ($.system.quantity)
     surfaces:
       artifact:
         disposition: promoted
@@ -3558,7 +3558,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.size)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.size)
+        destination: RecordJson H5 owner ($.system.size)
     surfaces:
       artifact:
         disposition: promoted
@@ -3620,7 +3620,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.stackGroup)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.stackGroup)
+        destination: RecordJson H5 owner ($.system.stackGroup)
     surfaces:
       artifact:
         disposition: promoted
@@ -3682,7 +3682,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.traits.otherTags[])
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.traits.otherTags[])
+        destination: RecordJson H5 owner ($.system.traits.otherTags[])
     surfaces:
       artifact:
         disposition: promoted
@@ -3744,7 +3744,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.traits.rarity)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.traits.rarity)
+        destination: RecordJson H5 owner ($.system.traits.rarity)
     surfaces:
       artifact:
         disposition: promoted
@@ -3806,7 +3806,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.traits.value[])
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.traits.value[])
+        destination: RecordJson H5 owner ($.system.traits.value[])
     surfaces:
       artifact:
         disposition: promoted
@@ -3868,7 +3868,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.usage.value)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.usage.value)
+        destination: RecordJson H5 owner ($.system.usage.value)
     surfaces:
       artifact:
         disposition: promoted
@@ -3930,7 +3930,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.uses.autoDestroy)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.uses.autoDestroy)
+        destination: RecordJson H5 owner ($.system.uses.autoDestroy)
     surfaces:
       artifact:
         disposition: promoted
@@ -3992,7 +3992,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.uses.max)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.uses.max)
+        destination: RecordJson H5 owner ($.system.uses.max)
     surfaces:
       artifact:
         disposition: promoted
@@ -4054,7 +4054,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.system.uses.value)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.system.uses.value)
+        destination: RecordJson H5 owner ($.system.uses.value)
     surfaces:
       artifact:
         disposition: promoted
@@ -4116,7 +4116,7 @@ leaves:
       - stage: artifact_hydration
         destination: RetrievedRecord H5 owner ($.type)
       - stage: public_surface
-        destination: ConsumableSurfaceView H5 owner ($.type)
+        destination: RecordJson H5 owner ($.type)
     surfaces:
       artifact:
         disposition: promoted

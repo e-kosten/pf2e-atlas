@@ -578,6 +578,47 @@ fn h1_bc_hazard_ledgers_are_exact_and_portably_pin_bound() {
 }
 
 #[test]
+fn h5_registered_receipts_execute_all_220_typed_leaf_routes() {
+    let repository = require_pinned_repository();
+    let mut total_leaves = 0;
+    let mut total_receipts = 0;
+    for source in H5_CONSUMABLE_LEDGERS {
+        let ledger = parse_source_leaf_ledger(source).expect("H5 ledger");
+        let (receipts, operations) =
+            atlas_ingest::capture_registered_consumable_source_leaf_receipts(&ledger, &repository)
+                .unwrap_or_else(|error| panic!("{}: {error}", ledger.type_id));
+        let report = evaluate_source_leaf_coverage(&ledger, &receipts);
+        assert!(report.passed, "{}: {:#?}", ledger.type_id, report.failures);
+        assert_eq!(
+            operations.sqlite_builds,
+            operations.source_baselines
+                + operations.compatible_mutations
+                + operations.provenance_mutations
+        );
+        assert_eq!(operations.requested_reads, operations.sqlite_builds);
+        assert!(
+            operations.sqlite_builds < receipts.len(),
+            "H5 receipts must share production artifacts: {operations:?}"
+        );
+        eprintln!(
+            "{}: {} receipts, measured {operations:?}",
+            ledger.type_id,
+            receipts.len()
+        );
+        let mut missing = receipts.clone();
+        missing.pop();
+        assert!(
+            !evaluate_source_leaf_coverage(&ledger, &missing).passed,
+            "missing H5 receipt must fail coverage"
+        );
+        total_leaves += ledger.leaves.len();
+        total_receipts += receipts.len();
+    }
+    assert_eq!(total_leaves, 220);
+    assert!(total_receipts >= 220);
+}
+
+#[test]
 fn h5_consumable_ledgers_cover_all_four_observed_contexts() {
     let repository = require_pinned_repository();
     let mut source_digests = std::collections::BTreeMap::new();

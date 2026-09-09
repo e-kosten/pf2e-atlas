@@ -1,3 +1,8 @@
+mod consumable;
+pub use consumable::{
+    ConsumableArtifactReceiptOperations, capture_registered_consumable_source_leaf_receipts,
+};
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -369,6 +374,7 @@ fn build_spell_artifact_evidence(
 
 #[derive(Debug, Clone, Copy)]
 enum RegisteredAccessor {
+    Consumable,
     ItemActionName,
     ActorNpcAbilityMod(AbilitySlot),
     ActorNpcShadowSkillBase,
@@ -431,7 +437,9 @@ fn registration_for(
     identity: &SourceLeafIdentity,
     reader_id: Option<&str>,
 ) -> Result<RegisteredAccessor, CoverageContractError> {
-    if identity.type_id == "item--action--top-level--root--root--root"
+    if consumable::registered(identity, reader_id) {
+        Ok(RegisteredAccessor::Consumable)
+    } else if identity.type_id == "item--action--top-level--root--root--root"
         && identity.selector.document_class == "Item"
         && identity.selector.type_discriminator == "action"
         && identity.normalized_path == "$.name"
@@ -541,6 +549,7 @@ impl RegisteredAccessor {
         artifact_evidence: Option<&SpellArtifactHydrationEvidence>,
     ) -> Result<SourceLeafReceipt, CoverageContractError> {
         match self {
+            Self::Consumable => consumable::capture_one(identity, fixture, ledger),
             Self::ItemActionName => capture_item_name(identity, fixture),
             Self::ActorNpcAbilityMod(slot) => capture_actor_npc_ability(identity, fixture, slot),
             Self::ActorNpcShadowSkillBase => capture_actor_npc_shadow_skill(identity, fixture),
@@ -2435,7 +2444,8 @@ fn mutate_grouped_spell_artifact(
         RegisteredAccessor::ConsumableSpellChild(probe) => {
             mutate_consumable_spell_child_leaf(mutation_root, probe, case_id)?;
         }
-        RegisteredAccessor::ItemActionName
+        RegisteredAccessor::Consumable
+        | RegisteredAccessor::ItemActionName
         | RegisteredAccessor::ActorNpcAbilityMod(_)
         | RegisteredAccessor::ActorNpcShadowSkillBase
         | RegisteredAccessor::ActorHazardDisable
@@ -2639,6 +2649,14 @@ fn select_pattern_leaf(
     root: &Value,
     pattern: &str,
 ) -> Result<SelectedPatternLeaf, CoverageContractError> {
+    select_pattern_leaf_matching(root, pattern, |_| true)
+}
+
+fn select_pattern_leaf_matching(
+    root: &Value,
+    pattern: &str,
+    accepts: impl Fn(&Value) -> bool,
+) -> Result<SelectedPatternLeaf, CoverageContractError> {
     let suffix = pattern.strip_prefix("$.").ok_or_else(|| {
         error(
             CoverageFailureCode::ReaderNotObserved,
@@ -2663,7 +2681,7 @@ fn select_pattern_leaf(
         }
     }
     let mut steps = Vec::new();
-    let value = select_pattern_value(root, &tokens, &mut steps).ok_or_else(|| {
+    let value = select_pattern_value(root, &tokens, &mut steps, &accepts).ok_or_else(|| {
         error(
             CoverageFailureCode::ReaderNotObserved,
             format!("fixture has no value for mapped spell leaf {pattern}"),
@@ -2710,15 +2728,16 @@ fn select_pattern_value<'a>(
     value: &'a Value,
     tokens: &[PatternToken],
     steps: &mut Vec<SelectedPathStep>,
+    accepts: &impl Fn(&Value) -> bool,
 ) -> Option<&'a Value> {
     let Some((token, rest)) = tokens.split_first() else {
-        return Some(value);
+        return accepts(value).then_some(value);
     };
     match token {
         PatternToken::Key(key) => {
             let next = value.as_object()?.get(key)?;
             steps.push(SelectedPathStep::Key(key.clone()));
-            let selected = select_pattern_value(next, rest, steps);
+            let selected = select_pattern_value(next, rest, steps, accepts);
             if selected.is_none() {
                 steps.pop();
             }
@@ -2727,7 +2746,7 @@ fn select_pattern_value<'a>(
         PatternToken::AnyMapKey => {
             for (key, next) in value.as_object()? {
                 steps.push(SelectedPathStep::Key(key.clone()));
-                if let Some(selected) = select_pattern_value(next, rest, steps) {
+                if let Some(selected) = select_pattern_value(next, rest, steps, accepts) {
                     return Some(selected);
                 }
                 steps.pop();
@@ -2737,7 +2756,7 @@ fn select_pattern_value<'a>(
         PatternToken::AnyArrayIndex => {
             for (index, next) in value.as_array()?.iter().enumerate() {
                 steps.push(SelectedPathStep::Index(index));
-                if let Some(selected) = select_pattern_value(next, rest, steps) {
+                if let Some(selected) = select_pattern_value(next, rest, steps, accepts) {
                     return Some(selected);
                 }
                 steps.pop();
@@ -8549,7 +8568,8 @@ fn grouped_hazard_leaf_mutation(
         | RegisteredAccessor::ActorNpcAbilityMod(_)
         | RegisteredAccessor::ActorNpcShadowSkillBase
         | RegisteredAccessor::ItemSpell(_)
-        | RegisteredAccessor::ConsumableSpellChild(_) => Ok(None),
+        | RegisteredAccessor::ConsumableSpellChild(_)
+        | RegisteredAccessor::Consumable => Ok(None),
     }
 }
 
@@ -10512,6 +10532,29 @@ mod tests {
         SurfaceContract, SurfaceDecision, SurfaceDisposition, evaluate_source_leaf_coverage,
         parse_source_leaf_ledger,
     };
+
+    #[test]
+    fn pattern_selection_preserves_first_member_and_digest_selected_member_identity() {
+        let root = serde_json::json!({"system":{"rules":[
+            {"value":{"nested":"first"}}, {"value":17}, {"value":null}
+        ]}});
+        let first = select_pattern_leaf(&root, "$.system.rules[].value").unwrap();
+        assert!(matches!(first.steps[2], SelectedPathStep::Index(0)));
+        let later = select_pattern_leaf_matching(&root, "$.system.rules[].value", |value| {
+            value == &serde_json::json!(17)
+        })
+        .unwrap();
+        assert!(matches!(later.steps[2], SelectedPathStep::Index(1)));
+        assert_eq!(
+            selected_leaf_from_view(&root, &later).unwrap(),
+            later.source
+        );
+        let null =
+            select_pattern_leaf_matching(&root, "$.system.rules[].value", Value::is_null).unwrap();
+        assert!(matches!(null.steps[2], SelectedPathStep::Index(2)));
+        assert!(matches!(null.source, SourcePresence::Null));
+        assert!(select_pattern_leaf_matching(&root, "$.system.rules[].value", |_| false).is_err());
+    }
 
     #[test]
     fn mapped_spell_probes_fail_closed_if_routed_to_dedicated_accessors() {

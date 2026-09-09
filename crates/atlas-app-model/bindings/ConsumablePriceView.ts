@@ -2,4 +2,4 @@
 import type { ConsumableFactView } from "./ConsumableFactView";
 import type { ConsumablePriceDenominationView } from "./ConsumablePriceDenominationView";
 
-export type ConsumablePriceView = { denominations: ConsumableFactView<Array<ConsumablePriceDenominationView>>, per: ConsumableFactView<number>, };
+export type ConsumablePriceView = { denominations: ConsumableFactView<Array<ConsumablePriceDenominationView>>, per: ConsumableFactView<string>, };

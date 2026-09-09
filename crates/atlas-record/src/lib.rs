@@ -34,10 +34,10 @@ pub use consumable::{
     ConsumableFact, ConsumableIdentity, ConsumableLocalSpellEvidence, ConsumableLocatorState,
     ConsumableMaterial, ConsumableMismatch, ConsumableMismatchValue, ConsumableOccurrence,
     ConsumableOccurrenceId, ConsumableOccurrenceIdentityStability, ConsumableOccurrenceSet,
-    ConsumablePrice, ConsumablePriceDenomination, ConsumableProvenance, ConsumablePublication,
-    ConsumableRecord, ConsumableSourceId, ConsumableSourceState, ConsumableSourceValue,
-    ConsumableSpellMismatchReason, ConsumableSpellReuse, ConsumableTargetResolution,
-    InvalidConsumableId, InvalidConsumableValue,
+    ConsumableOccurrenceSetError, ConsumablePrice, ConsumablePriceDenomination,
+    ConsumableProvenance, ConsumablePublication, ConsumableRecord, ConsumableSourceId,
+    ConsumableSourceState, ConsumableSourceValue, ConsumableSpellMismatchReason,
+    ConsumableSpellReuse, ConsumableTargetResolution, InvalidConsumableId, InvalidConsumableValue,
 };
 pub use content::{
     ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason,

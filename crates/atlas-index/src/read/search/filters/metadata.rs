@@ -11,7 +11,7 @@ use atlas_domain::metadata::{
 use super::FilterCompiler;
 use super::error::FilterCompileError;
 use super::sql_render::{
-    aliased_column, json_array_contains_sql, json_array_empty_sql, record_column,
+    aliased_column, json_array_contains_sql, json_array_empty_sql, price_column, record_column,
     record_key_column, side_table_for_column,
 };
 
@@ -212,7 +212,19 @@ impl FilterCompiler {
                     },
                     r#match,
                 )
-                .map(|sql| format!("({sql})"))
+                .map(|sql| {
+                    if table.name() == consumable_query_records::TABLE.name() {
+                        format!("({sql})")
+                    } else {
+                        let record_key = record_column(records::columns::RECORD_KEY);
+                        let neutral = if matches!(r#match, MetadataSetMatch::IsNull) {
+                            "1"
+                        } else {
+                            "0"
+                        };
+                        format!("(CASE WHEN EXISTS (SELECT 1 FROM canonical_consumable_records cc WHERE cc.record_key = {record_key}) THEN {neutral} ELSE ({sql}) END)")
+                    }
+                })
             })
             .collect::<Result<Vec<_>, _>>()?;
         let joiner = match r#match {
@@ -301,11 +313,7 @@ impl FilterCompiler {
             MetadataNumberField::Level => records::columns::LEVEL,
             MetadataNumberField::SpellRank => spell_records::columns::RANK,
             MetadataNumberField::PriceCp => {
-                return self.with_coalesced_field_sources(
-                    records::columns::PRICE_CP,
-                    consumable_query_records::columns::PRICE_CP,
-                    |compiler, column| compiler.number_operator(column, r#match),
-                );
+                return self.number_operator(&price_column(), r#match);
             }
             MetadataNumberField::BulkValue => {
                 return self.with_coalesced_side_tables(
@@ -387,13 +395,14 @@ impl FilterCompiler {
                 side_source.key()
             ))
         })?;
+        let record_key = record_column(records::columns::RECORD_KEY);
         let expression = format!(
-            "COALESCE({}, (SELECT {} FROM {} cq WHERE {} = {}))",
-            record_column(record_source),
+            "CASE WHEN EXISTS (SELECT 1 FROM canonical_consumable_records cc WHERE cc.record_key = {record_key}) THEN (SELECT {} FROM {} cq WHERE {} = {}) ELSE {} END",
             aliased_column("cq", side_source),
             table.name(),
             aliased_column("cq", record_key_column(table)),
             record_column(records::columns::RECORD_KEY),
+            record_column(record_source),
         );
         compile(self, &expression)
     }
@@ -418,15 +427,13 @@ impl FilterCompiler {
         })?;
         let record_key = record_column(records::columns::RECORD_KEY);
         let expression = format!(
-            "COALESCE((SELECT {} FROM {} i WHERE {} = {}), (SELECT {} FROM {} cq WHERE {} = {}))",
-            aliased_column("i", legacy_source),
-            legacy_table.name(),
-            aliased_column("i", record_key_column(legacy_table)),
-            record_key,
+            "CASE WHEN EXISTS (SELECT 1 FROM canonical_consumable_records cc WHERE cc.record_key = {record_key}) THEN (SELECT {} FROM {} cq WHERE {} = {record_key}) ELSE (SELECT {} FROM {} i WHERE {} = {record_key}) END",
             aliased_column("cq", consumable_source),
             consumable_table.name(),
             aliased_column("cq", record_key_column(consumable_table)),
-            record_key,
+            aliased_column("i", legacy_source),
+            legacy_table.name(),
+            aliased_column("i", record_key_column(legacy_table)),
         );
         compile(self, &expression)
     }

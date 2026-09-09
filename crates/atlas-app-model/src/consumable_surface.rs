@@ -5,9 +5,10 @@ use crate::CreatureSurfaceContentView;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+/// Integer facts use exact decimal strings across JSON and JavaScript.
 pub struct ConsumableSurfaceView {
     pub slug: ConsumableFactView<String>,
-    pub level: ConsumableFactView<i32>,
+    pub level: ConsumableFactView<String>,
     pub category: ConsumableFactView<String>,
     pub rarity: ConsumableFactView<String>,
     pub traits: ConsumableFactView<Vec<String>>,
@@ -19,10 +20,10 @@ pub struct ConsumableSurfaceView {
     pub stack_group: ConsumableFactView<String>,
     pub material: ConsumableFactView<ConsumableMaterialView>,
     pub price: ConsumableFactView<ConsumablePriceView>,
-    pub maximum_uses: ConsumableFactView<i32>,
+    pub maximum_uses: ConsumableFactView<String>,
     pub auto_destroy: ConsumableFactView<bool>,
-    pub maximum_hp: ConsumableFactView<i32>,
-    pub hardness: ConsumableFactView<i32>,
+    pub maximum_hp: ConsumableFactView<String>,
+    pub hardness: ConsumableFactView<String>,
     pub publication: ConsumableFactView<ConsumablePublicationView>,
     pub source_state: ConsumableSourceStateView,
     pub damage: ConsumableFactView<ConsumableDamageView>,
@@ -37,7 +38,7 @@ pub struct ConsumableSurfaceView {
 #[serde(rename_all = "snake_case")]
 pub struct ConsumableDefinitionView {
     pub slug: ConsumableFactView<String>,
-    pub level: ConsumableFactView<i32>,
+    pub level: ConsumableFactView<String>,
     pub category: ConsumableFactView<String>,
     pub rarity: ConsumableFactView<String>,
     pub traits: ConsumableFactView<Vec<String>>,
@@ -49,10 +50,10 @@ pub struct ConsumableDefinitionView {
     pub stack_group: ConsumableFactView<String>,
     pub material: ConsumableFactView<ConsumableMaterialView>,
     pub price: ConsumableFactView<ConsumablePriceView>,
-    pub maximum_uses: ConsumableFactView<i32>,
+    pub maximum_uses: ConsumableFactView<String>,
     pub auto_destroy: ConsumableFactView<bool>,
-    pub maximum_hp: ConsumableFactView<i32>,
-    pub hardness: ConsumableFactView<i32>,
+    pub maximum_hp: ConsumableFactView<String>,
+    pub hardness: ConsumableFactView<String>,
     pub publication: ConsumableFactView<ConsumablePublicationView>,
     pub damage: ConsumableFactView<ConsumableDamageView>,
 }
@@ -64,14 +65,14 @@ pub enum ConsumableFactView<T> {
     Missing,
     Null,
     Known(T),
-    Unsupported,
+    Unsupported { reason: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ConsumablePriceView {
     pub denominations: ConsumableFactView<Vec<ConsumablePriceDenominationView>>,
-    pub per: ConsumableFactView<i32>,
+    pub per: ConsumableFactView<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -94,7 +95,8 @@ pub struct ConsumablePublicationView {
 #[serde(rename_all = "snake_case")]
 pub struct ConsumablePriceDenominationView {
     pub denomination: String,
-    pub amount: i32,
+    // Exact signed decimal integer; JSON numbers cannot preserve all i64 values.
+    pub amount: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -108,9 +110,9 @@ pub struct ConsumableDamageView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ConsumableSourceStateView {
-    pub quantity: ConsumableFactView<i32>,
-    pub current_uses: ConsumableFactView<i32>,
-    pub current_hp: ConsumableFactView<i32>,
+    pub quantity: ConsumableFactView<String>,
+    pub current_uses: ConsumableFactView<String>,
+    pub current_hp: ConsumableFactView<String>,
     pub container_id: ConsumableFactView<String>,
     pub equipped: ConsumableFactView<ConsumableEquippedView>,
 }
@@ -119,13 +121,17 @@ pub struct ConsumableSourceStateView {
 #[serde(rename_all = "snake_case")]
 pub struct ConsumableEquippedView {
     pub carry_type: ConsumableFactView<String>,
-    pub hands_held: ConsumableFactView<i32>,
+    pub hands_held: ConsumableFactView<String>,
     pub in_slot: ConsumableFactView<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ConsumableSpellChildLinkView {
+    pub parent_record_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub occurrence_id: Option<String>,
     pub child_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

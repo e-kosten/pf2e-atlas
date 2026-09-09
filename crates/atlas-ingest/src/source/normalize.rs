@@ -175,7 +175,7 @@ pub(crate) fn normalize_record_from_source(
             .map_err(|error| normalization_error(path, &error.to_string()))
         })
         .transpose()?;
-    let consumable_occurrence_candidates = if manifest_pack.document_type == "Actor" {
+    let mut consumable_occurrence_candidates = if manifest_pack.document_type == "Actor" {
         super::consumables::collect_actor_consumable_candidates(
             &source,
             &record_type,
@@ -381,6 +381,24 @@ pub(crate) fn normalize_record_from_source(
     let hazard_identities = hazard_conversion
         .as_ref()
         .map(|conversion| conversion.embedded_identities.as_slice());
+    for candidate in &mut consumable_occurrence_candidates {
+        let ordinal = candidate.authored_order as usize;
+        let item = raw
+            .get("items")
+            .and_then(Value::as_array)
+            .and_then(|items| items.get(ordinal))
+            .ok_or_else(|| {
+                normalization_error(path, "consumable content identity lost its authored item")
+            })?;
+        candidate.content_source_id = hazard_identities
+            .and_then(|identities| {
+                identities
+                    .iter()
+                    .find(|identity| identity.source_ordinal == candidate.authored_order)
+            })
+            .map(|identity| identity.occurrence_id.as_str().to_string())
+            .unwrap_or_else(|| content_sources::embedded_item_id(item, ordinal));
+    }
     let content_sources = extract_content_sources(&raw, localization, hazard_identities);
     let mut source_facts = SourceRecordFacts {
         slug: normalized_pointer_string(&raw, "/system/slug"),

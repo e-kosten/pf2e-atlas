@@ -59,6 +59,31 @@ pub(crate) fn record_surface(
     remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordSurfaceView {
     let metadata = record_metadata(retrieved, remaster_lookup);
+    let occurrences = &retrieved.consumable_occurrences;
+    let consumables = match occurrences
+        .entities
+        .first()
+        .filter(|entity| entity.owner_record_key != retrieved.record.identity.key)
+        .map_or_else(
+            || crate::consumable_surface::consumable_occurrence_views(occurrences),
+            |_| Err(atlas_record::ConsumableOccurrenceSetError::WrongOwner),
+        ) {
+        Ok(values) => values,
+        Err(_) => {
+            return RecordSurfaceView {
+                presentation: unavailable_presentation(
+                    &metadata.kind,
+                    SurfaceUnavailableReasonView::RecordUnavailable,
+                    "Consumable occurrence data is inconsistent, so the surface fails closed.",
+                ),
+                metadata,
+                profile,
+                issues: None,
+                references: None,
+                encounter: None,
+            };
+        }
+    };
     let mut selected_spell_issues = Vec::new();
     let mut content_issues = Vec::new();
     let presentation = match (&retrieved.record.classification.kind, &retrieved.body) {
@@ -75,9 +100,7 @@ pub(crate) fn record_surface(
                     .then(|| search_teaser(retrieved))
                     .flatten(),
             );
-            body.consumables = crate::consumable_surface::consumable_occurrence_views(
-                &retrieved.consumable_occurrences,
-            );
+            body.consumables = consumables;
             RecordSurfacePresentationView::Creature {
                 body: Box::new(body),
             }
@@ -95,9 +118,7 @@ pub(crate) fn record_surface(
                     .then(|| search_teaser(retrieved))
                     .flatten(),
             );
-            body.consumables = crate::consumable_surface::consumable_occurrence_views(
-                &retrieved.consumable_occurrences,
-            );
+            body.consumables = consumables;
             RecordSurfacePresentationView::Hazard {
                 body: Box::new(body),
             }
@@ -366,6 +387,53 @@ fn verified_edition_counterpart(
         role,
         record_key: counterpart.record.identity.key.to_string(),
         title: counterpart.record.identity.name.clone(),
+    })
+}
+
+/// Project the selected H2 definition only; the containing consumable/actor is
+/// the locator owner, not a replacement standalone Spell record.
+pub(crate) fn consumable_spell_child_surface(
+    parent: &RetrievedRecord,
+    child: &atlas_record::ConsumableSpellChild,
+    selection: Option<(atlas_record::SpellFormId, u8)>,
+    remaster_lookup: &VerifiedRemasterLookup,
+) -> crate::error::AppServiceResult<RecordSurfaceView> {
+    let name = child
+        .name
+        .as_value()
+        .and_then(atlas_record::SpellSourceValue::as_known)
+        .cloned()
+        .unwrap_or_else(|| "Embedded spell".to_string());
+    let spell = atlas_record::SpellRecord {
+        identity: atlas_record::SpellIdentity {
+            record_key: child.parent_record_key.clone(),
+            source_id: atlas_record::SpellSourceId::new(child.child_id.as_str()).map_err(|_| {
+                crate::error::AppServiceError::invalid_request(
+                    "invalid retained Spell child identity",
+                )
+            })?,
+            name: name.clone(),
+        },
+        definition: child.definition.clone(),
+    };
+    let (body, selected, mut issues) = spell_surface(&spell, selection);
+    crate::record_policy::spell_issues(&spell, &selected, &mut issues);
+    let mut metadata = record_metadata(parent, remaster_lookup);
+    metadata.title = name;
+    metadata.kind = "spell".to_string();
+    metadata.kind_label = "Spell".to_string();
+    metadata.level = None;
+    metadata.traits.clear();
+    metadata.rarity = None;
+    Ok(RecordSurfaceView {
+        metadata,
+        profile: RecordSurfaceProfileView::RecordDetail,
+        presentation: RecordSurfacePresentationView::Spell {
+            body: Box::new(body),
+        },
+        issues: (!issues.is_empty()).then_some(issues),
+        references: None,
+        encounter: None,
     })
 }
 
@@ -4121,7 +4189,7 @@ mod tests {
         );
         assert_eq!(
             surface["presentation"]["body"]["source_state"]["current_uses"]["value"],
-            1
+            "1"
         );
         assert_eq!(
             surface["presentation"]["body"]["spell_child"]["target_record_key"],

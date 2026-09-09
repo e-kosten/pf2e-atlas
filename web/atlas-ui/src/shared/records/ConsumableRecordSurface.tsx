@@ -289,14 +289,14 @@ function SpellChildLink({
   child: NonNullable<ConsumableSurfaceView["spell_child"]>;
   onReference?: ReferenceHandler;
 }) {
-  if (!child.target_record_key || !onReference) {
+  if (!onReference) {
     return <Tag>Embedded spell target unavailable</Tag>;
   }
   return (
     <Button
       size="small"
       type="link"
-      onClick={() => onReference(child.target_record_key!)}
+      onClick={() => onReference(child.parent_record_key, child)}
     >
       Open embedded spell
     </Button>
@@ -337,7 +337,7 @@ function text(fact: ConsumableFactView<string>) {
   return fact.state === "known" && fact.value ? formatSlug(fact.value) : undefined;
 }
 
-function integer(fact: ConsumableFactView<number>) {
+function integer(fact: ConsumableFactView<string>) {
   return fact.state === "known" ? String(fact.value) : undefined;
 }
 

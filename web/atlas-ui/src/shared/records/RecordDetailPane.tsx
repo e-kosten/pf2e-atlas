@@ -1,8 +1,12 @@
 import { AtlasApiError } from "../../api/atlasApi";
 import { navigateToAtlasRoute } from "../../app/routes";
-import { Alert, Button, Empty, Skeleton, Space } from "antd";
+import { Alert, Button, ConfigProvider, Empty, Modal, Skeleton, Space } from "antd";
 import { useState } from "react";
-import type { RecordDetailView } from "../../generated/atlas";
+import type {
+  ConsumableSpellChildLinkView,
+  RecordDetailRequest,
+  RecordDetailView,
+} from "../../generated/atlas";
 import { RecordSurface } from "./RecordSurface";
 import type { SpellFormSelection } from "./SpellRecordSurface";
 import { useRecordDetail } from "./useRecordDetail";
@@ -29,6 +33,23 @@ export function RecordDetailPane({
   stale?: boolean;
 }) {
   const recordKey = detail?.surface.metadata.record_key;
+  const [childSelection, setChildSelection] = useState<{
+    owner: string;
+    locator: ConsumableSpellChildLinkView;
+  }>();
+  const selectedChild =
+    childSelection && childSelection.owner === recordKey
+      ? childSelection.locator
+      : undefined;
+  function openReference(target: string, child?: ConsumableSpellChildLinkView) {
+    if (child && recordKey) {
+      setChildSelection({ owner: recordKey, locator: child });
+    } else {
+      setChildSelection(undefined);
+      onReference(target);
+    }
+  }
+
   const [referenceRequest, setReferenceRequest] = useState<{
     recordKey: string;
     outgoingLimit: number;
@@ -117,80 +138,103 @@ export function RecordDetailPane({
       </section>
     );
   return (
-    <section aria-busy={loading || stale} className="detail-panel">
-      {loading ? (
-        <div aria-label={loadingMessage ?? "Loading record"} className="detail-state">
-          <Skeleton active paragraph={{ rows: 8 }} title />
-        </div>
-      ) : detail ? (
-        detail.surface.presentation.presentation_type === "spell" ? (
-          <SelectableSpellDetail
-            detail={detail}
-            onReference={onReference}
-            onReferencesOpen={openReferences}
-            onReferenceLimit={expandReferences}
-            references={loadedReferences ?? detail.surface.references}
-            referencesLoading={
-              referencesRequested &&
-              (referenceDetail.isLoading || referenceDetail.isFetching)
-            }
-            showTitle={showTitle}
+    // Safari can leave rc-motion's enter-start content at height/opacity zero.
+    // Reading a record must not depend on the animation frame queue advancing.
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <section aria-busy={loading || stale} className="detail-panel">
+        <Modal
+          open={Boolean(selectedChild)}
+          title="Embedded spell"
+          footer={null}
+          onCancel={() => setChildSelection(undefined)}
+          destroyOnHidden
+        >
+          {selectedChild ? (
+            <ConsumableChildDetail
+              key={JSON.stringify(selectedChild)}
+              locator={selectedChild}
+              onReference={openReference}
+            />
+          ) : null}
+        </Modal>
+
+        {loading ? (
+          <div aria-label={loadingMessage ?? "Loading record"} className="detail-state">
+            <Skeleton active paragraph={{ rows: 8 }} title />
+          </div>
+        ) : detail ? (
+          detail.surface.presentation.presentation_type === "spell" ? (
+            <SelectableSpellDetail
+              detail={detail}
+              onReference={openReference}
+              onReferencesOpen={openReferences}
+              onReferenceLimit={expandReferences}
+              references={loadedReferences ?? detail.surface.references}
+              referencesLoading={
+                referencesRequested &&
+                (referenceDetail.isLoading || referenceDetail.isFetching)
+              }
+              showTitle={showTitle}
+            />
+          ) : (
+            <RecordSurface
+              onReferencesOpen={openReferences}
+              onReferenceLimit={expandReferences}
+              referenceLoading={
+                referencesRequested &&
+                (referenceDetail.isLoading || referenceDetail.isFetching)
+              }
+              references={loadedReferences ?? detail.surface.references}
+              surface={detail.surface}
+              onReference={openReference}
+              showTitle={showTitle}
+            />
+          )
+        ) : visibleErrors.length ? null : (
+          <Empty
+            className="detail-state"
+            description={emptyMessage ?? "Select a result to inspect it."}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
-        ) : (
-          <RecordSurface
-            onReferencesOpen={openReferences}
-            onReferenceLimit={expandReferences}
-            referenceLoading={
-              referencesRequested &&
-              (referenceDetail.isLoading || referenceDetail.isFetching)
-            }
-            references={loadedReferences ?? detail.surface.references}
-            surface={detail.surface}
-            onReference={onReference}
-            showTitle={showTitle}
+        )}
+        {stale && detail && (
+          <Alert
+            className="detail-state__stale"
+            message="Refreshing this record…"
+            description="Keeping the last valid selection visible."
+            showIcon
+            type="info"
           />
-        )
-      ) : visibleErrors.length ? null : (
-        <Empty
-          className="detail-state"
-          description={emptyMessage ?? "Select a result to inspect it."}
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      )}
-      {stale && detail && (
-        <Alert
-          className="detail-state__stale"
-          message="Refreshing this record…"
-          description="Keeping the last valid selection visible."
-          showIcon
-          type="info"
-        />
-      )}
-      {visibleErrors.map((error, index) => (
-        <Alert
-          className="detail-state__error"
-          description={error.message}
-          key={index}
-          message="Unable to load this record"
-          showIcon
-          type="error"
-        />
-      ))}
-      {referencesRequested && referenceDetail.error ? (
-        <Alert
-          className="detail-state__error"
-          description="Try loading the linked records again."
-          action={<Button onClick={() => void referenceDetail.refetch()}>Retry</Button>}
-          message="Unable to load linked records"
-          showIcon
-          type="error"
-        />
-      ) : null}
-    </section>
+        )}
+        {visibleErrors.map((error, index) => (
+          <Alert
+            className="detail-state__error"
+            description={error.message}
+            key={index}
+            message="Unable to load this record"
+            showIcon
+            type="error"
+          />
+        ))}
+        {referencesRequested && referenceDetail.error ? (
+          <Alert
+            className="detail-state__error"
+            description="Try loading the linked records again."
+            action={
+              <Button onClick={() => void referenceDetail.refetch()}>Retry</Button>
+            }
+            message="Unable to load linked records"
+            showIcon
+            type="error"
+          />
+        ) : null}
+      </section>
+    </ConfigProvider>
   );
 }
 
 function SelectableSpellDetail({
+  childRequest,
   detail,
   onReference,
   onReferencesOpen,
@@ -199,6 +243,10 @@ function SelectableSpellDetail({
   referencesLoading,
   showTitle,
 }: {
+  childRequest?: Pick<
+    RecordDetailRequest,
+    "consumable_child_id" | "consumable_occurrence_id"
+  >;
   detail: RecordDetailView;
   onReference: (recordKey: string) => void;
   onReferencesOpen?: () => void;
@@ -219,6 +267,8 @@ function SelectableSpellDetail({
   const selectedDetail = useRecordDetail(
     recordKey && selection ? recordKey : null,
     selection,
+    undefined,
+    childRequest,
   );
   const selectedResponseSurface = matchingSelectedSpellSurface(
     selectedDetail.data,
@@ -310,4 +360,43 @@ function referenceSectionMatches(
   return section?.state === "not_requested"
     ? limit === 0
     : section?.requested_limit === limit;
+}
+
+function ConsumableChildDetail({
+  locator,
+  onReference,
+}: {
+  locator: ConsumableSpellChildLinkView;
+  onReference: (recordKey: string) => void;
+}) {
+  const request = {
+    consumable_child_id: locator.child_id,
+    consumable_occurrence_id: locator.occurrence_id,
+  };
+  const detail = useRecordDetail(
+    locator.parent_record_key,
+    undefined,
+    undefined,
+    request,
+  );
+  if (detail.isLoading) return <Skeleton active />;
+  if (detail.error)
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="Embedded spell unavailable"
+        description={detail.error.message}
+      />
+    );
+  if (!detail.data) return null;
+  return (
+    <SelectableSpellDetail
+      detail={detail.data}
+      childRequest={request}
+      onReference={onReference}
+      references={undefined}
+      showTitle
+    />
+  );
 }

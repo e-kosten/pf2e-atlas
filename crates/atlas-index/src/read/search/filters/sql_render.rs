@@ -7,6 +7,15 @@ use atlas_domain::NumericMetricOperator;
 pub(super) const RECORDS_ALIAS: &str = "r";
 pub(super) const REFERENCE_EDGES_ALIAS: &str = "re";
 
+/// Filtering and ordering share the canonical consumable price authority.
+pub(super) fn price_column() -> String {
+    let key = record_column(records::columns::RECORD_KEY);
+    let legacy = record_column(records::columns::PRICE_CP);
+    format!(
+        "CASE WHEN EXISTS (SELECT 1 FROM canonical_consumable_records cc WHERE cc.record_key = {key}) THEN (SELECT cq.price_cp FROM consumable_query_records cq WHERE cq.record_key = {key}) ELSE {legacy} END"
+    )
+}
+
 pub(super) fn side_table_for_column(column: Column) -> Option<(&'static str, Table)> {
     match column.table() {
         table if table == actor_records::TABLE => Some(("a", actor_records::TABLE)),

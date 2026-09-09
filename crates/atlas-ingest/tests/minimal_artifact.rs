@@ -192,10 +192,33 @@ fn consumables_round_trip_as_standalone_and_actor_attachments()
         root.join("packs/actors/npc.json"),
         actor_with_consumable_identity_edges(),
     )?;
+    let mut character_source: Value = serde_json::from_str(&actor_with_consumable(
+        "characterOwner",
+        "character",
+        "characterDose",
+        2,
+    ))?;
+    let description =
+        "<p>A character-local override. @UUID[Compendium.pf2e.equipment.Item.doseTarget]{Dose}</p>";
+    character_source["items"][0]["system"]["description"]["value"] =
+        Value::String(description.to_string());
+    let mut sibling = character_source["items"][0].clone();
+    sibling["_id"] = Value::String("nonConsumableSibling".to_string());
+    sibling["type"] = Value::String("equipment".to_string());
+    // The equal nonconsumable comes first: fingerprint suppression would move
+    // its document and leave the actual consumable record-owned.
+    character_source["items"]
+        .as_array_mut()
+        .expect("items")
+        .insert(0, sibling.clone());
+    sibling["_id"] = Value::String("trailingNonConsumableSibling".to_string());
+    character_source["items"]
+        .as_array_mut()
+        .expect("items")
+        .push(sibling);
     fs::write(
         root.join("packs/actors/character.json"),
-        actor_with_consumable("characterOwner", "character", "characterDose", 2)
-            .replace("A source-faithful dose.", "A character-local override."),
+        serde_json::to_vec(&character_source)?,
     )?;
 
     let output_path = root.join("artifact.sqlite");
@@ -423,7 +446,7 @@ fn consumables_round_trip_as_standalone_and_actor_attachments()
                 .documents[0]
                 .document
         ),
-        "A character-local override."
+        "A character-local override. Dose"
     );
     assert!(matches!(
         record_json(character, options)?.presentation,
@@ -465,7 +488,45 @@ fn consumables_round_trip_as_standalone_and_actor_attachments()
     )?;
     assert_eq!(occurrence_count, 6);
     assert_eq!(occurrence_content_count, 5);
-    assert_eq!(duplicate_legacy_content_count, 0);
+    assert_eq!(duplicate_legacy_content_count, 2);
+    let character_reference_owners: Vec<String> = connection.prepare(
+        "SELECT owner_kind FROM reference_occurrences WHERE record_key='actors:characterOwner' ORDER BY owner_kind"
+    )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+    assert_eq!(
+        character_reference_owners,
+        ["consumable_occurrence", "record", "record"]
+    );
+    let character_content_owners: Vec<String> = connection
+        .prepare(
+            "SELECT owner_kind FROM record_content WHERE record_key='actors:characterOwner'
+         AND source_kind='embedded_item_description' ORDER BY authored_order",
+        )?
+        .query_map([], |row| row.get(0))?
+        .collect::<Result<_, _>>()?;
+    assert_eq!(
+        character_content_owners,
+        ["record", "consumable_occurrence", "record"]
+    );
+    let mismatched_reference_ordinals: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM reference_occurrences AS r
+         JOIN record_content AS c ON c.record_key=r.record_key AND c.content_key=r.content_key
+         WHERE r.record_key='actors:characterOwner' AND r.content_authored_order<>c.authored_order",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(mismatched_reference_ordinals, 0);
+    assert_eq!(
+        character.consumable_occurrences.occurrences[0].authored_order,
+        1
+    );
+    assert_eq!(
+        character.consumable_occurrences.occurrences[0]
+            .source_id
+            .as_value()
+            .and_then(atlas_record::ConsumableSourceValue::known)
+            .map(|id| id.as_str()),
+        Some("characterDose")
+    );
     assert_eq!(forbidden_generic_count, 0);
     assert!(taxonomy_terms.contains("other"));
     assert!(mechanic_terms.contains("held in one hand"));
@@ -482,6 +543,36 @@ fn consumables_round_trip_as_standalone_and_actor_attachments()
              WHERE record_key='equipment:doseTarget'",
             &keys[0],
             "indexed consumable identity columns",
+        ),
+        (
+            "consumable-legacy-query",
+            "UPDATE records SET system_usage='held-in-two-hands' WHERE record_key='equipment:doseTarget'",
+            &keys[0],
+            "forbidden legacy item query fields",
+        ),
+        (
+            "consumable-missing-entity",
+            "PRAGMA foreign_keys=OFF; DELETE FROM canonical_consumable_entities WHERE owner_record_key='actors:npcOwner'",
+            &keys[1],
+            "MissingEntity",
+        ),
+        (
+            "consumable-orphan-entity",
+            "PRAGMA foreign_keys=OFF; DELETE FROM canonical_consumable_occurrences WHERE owner_record_key='actors:npcOwner'",
+            &keys[1],
+            "OrphanEntity",
+        ),
+        (
+            "consumable-missing-target",
+            "PRAGMA foreign_keys=OFF; DELETE FROM canonical_consumable_records WHERE record_key='equipment:doseTarget'",
+            &keys[1],
+            "missing or wrong-family resolved target",
+        ),
+        (
+            "consumable-wrong-family-target",
+            "UPDATE records SET foundry_record_type='weapon' WHERE record_key='equipment:doseTarget'",
+            &keys[1],
+            "missing or wrong-family resolved target",
         ),
         (
             "consumable-query-projection",
@@ -1725,6 +1816,114 @@ fn writes_minimal_artifact_that_validate_index_accepts() -> Result<(), Box<dyn s
     assert_eq!(spell_damage_types, "[\"vitality\"]");
 
     drop(connection);
+    fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+#[test]
+fn source_state_mutations_do_not_enter_persisted_consumable_queries_or_fts()
+-> Result<(), Box<dyn std::error::Error>> {
+    let root = fixture_root("h5-state-query-fts");
+    fs::create_dir_all(root.join("packs/equipment"))?;
+    fs::create_dir_all(root.join("packs/actors"))?;
+    fs::write(
+        root.join("module.json"),
+        r#"{"packs":[
+        {"name":"equipment","label":"Equipment","type":"Item","path":"packs/equipment"},
+        {"name":"actors","label":"Actors","type":"Actor","path":"packs/actors"}
+    ]}"#,
+    )?;
+    let mut standalone: Value =
+        serde_json::from_str(&consumable_source("doseTarget", "Canonical Dose", 1, None))?;
+    let mut npc: Value =
+        serde_json::from_str(&actor_with_consumable("npcOwner", "npc", "npcDose", 2))?;
+    let mut captures = Vec::new();
+    for label in ["baseline", "state-mutated"] {
+        if label == "state-mutated" {
+            for item in [&mut standalone, &mut npc["items"][0]] {
+                item["system"]["quantity"] = serde_json::json!(991);
+                item["system"]["uses"]["value"] = serde_json::json!(992);
+                item["system"]["hp"]["value"] = serde_json::json!(993);
+                item["system"]["containerId"] = serde_json::json!("H5ContainerSentinel");
+                item["system"]["equipped"] =
+                    serde_json::json!({"carryType":"stowed","handsHeld":2,"inSlot":true});
+            }
+        }
+        fs::write(
+            root.join("packs/equipment/dose.json"),
+            serde_json::to_vec(&standalone)?,
+        )?;
+        fs::write(
+            root.join("packs/actors/npc.json"),
+            serde_json::to_vec(&npc)?,
+        )?;
+        fs::create_dir_all(root.join(label))?;
+        let path = root.join(label).join("index.sqlite");
+        build_artifact(BuildArtifactOptions {
+            source_root: root.clone(),
+            output_path: path.clone(),
+            manifest_path: None,
+            embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+            embedding_cache_root: None,
+            reuse_embeddings: true,
+            embedding_batch_size: 8,
+        })?;
+        let reader = SqliteIndexReader::open_read_only(&path)?;
+        let hydrated = reader.load_hydrated_records()?;
+        let connection = Connection::open(&path)?;
+        let query: String = connection.query_row(
+            "SELECT json_array(category, usage, base_item, bulk_value, hands_requirement, price_cp, damage_types_json)
+             FROM consumable_query_records WHERE record_key='equipment:doseTarget'", [], |row| row.get(0))?;
+        let fts = connection.prepare(
+            "SELECT json_array(record_key,title,aliases,traits,taxonomy_terms,constraint_terms,mechanic_terms,
+             source_terms,metric_terms,headings,body,facts,reference_terms,embedded_content)
+             FROM records_fts ORDER BY record_key")?
+            .query_map([], |row| row.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
+        captures.push((query, fts, hydrated));
+    }
+    assert_eq!(
+        captures[0].0, captures[1].0,
+        "all dedicated query columns exclude source state"
+    );
+    assert_eq!(
+        captures[0].1, captures[1].1,
+        "every persisted FTS column excludes source and occurrence state"
+    );
+    for key in ["equipment:doseTarget", "actors:npcOwner"] {
+        let before = captures[0]
+            .2
+            .iter()
+            .find(|record| record.record.identity.key.to_string() == key)
+            .unwrap();
+        let after = captures[1]
+            .2
+            .iter()
+            .find(|record| record.record.identity.key.to_string() == key)
+            .unwrap();
+        if key.starts_with("equipment:") {
+            let before = before
+                .body
+                .as_ref()
+                .and_then(RecordBody::as_consumable)
+                .unwrap();
+            let after = after
+                .body
+                .as_ref()
+                .and_then(RecordBody::as_consumable)
+                .unwrap();
+            assert_eq!(before.definition, after.definition);
+            assert_ne!(
+                before.source_state, after.source_state,
+                "writer and reader retain changed state"
+            );
+        } else {
+            assert_ne!(
+                before.consumable_occurrences.occurrences[0].state,
+                after.consumable_occurrences.occurrences[0].state,
+                "writer and reader retain changed occurrence state"
+            );
+        }
+    }
     fs::remove_dir_all(root)?;
     Ok(())
 }

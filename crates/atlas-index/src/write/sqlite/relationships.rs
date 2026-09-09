@@ -3,16 +3,13 @@ use diesel::prelude::*;
 
 use crate::IndexWriteError;
 use atlas_record::{
-    AtlasRecord, ConsumableOccurrenceSet, ContentSourceKind, ContentVisibility, FoundryLink,
-    FoundryLinkBehavior, RecordAlias, ReferenceEdge, ReferenceRelationKind, RemasterLink,
-    RichDocument, RichLinkTarget, iter_foundry_links, render_plain_text,
+    AtlasRecord, ContentSourceKind, ContentVisibility, FoundryLink, FoundryLinkBehavior,
+    RecordAlias, ReferenceEdge, ReferenceRelationKind, RemasterLink, RichDocument, RichLinkTarget,
+    iter_foundry_links, render_plain_text,
 };
 
 use super::models::{RecordAliasRow, ReferenceEdgeRow, ReferenceOccurrenceRow, RemasterLinkRow};
-use super::records::{
-    allocated_content_keys, consumable_occurrence_content_fingerprints,
-    consume_consumable_occurrence_content,
-};
+use super::records::{allocated_content_keys, legacy_content_ordinals};
 
 pub(super) fn write_reference_edges(
     connection: &mut SqliteConnection,
@@ -43,30 +40,21 @@ pub(super) fn write_reference_occurrences(
     connection: &mut SqliteConnection,
     records: &[AtlasRecord],
     canonical_record_keys: &std::collections::BTreeSet<String>,
-    consumable_occurrence_sets: &[ConsumableOccurrenceSet],
+    consumable_occurrence_sets: &[atlas_record::ConsumableOccurrenceSet],
 ) -> Result<(), IndexWriteError> {
     let mut rows = Vec::new();
-    let mut occurrence_content =
-        consumable_occurrence_content_fingerprints(consumable_occurrence_sets);
     for record in records {
         if canonical_record_keys.contains(&record.identity.key.to_string()) {
             continue;
         }
         let mut content_inputs = Vec::new();
-        for (ordinal, content) in record.content.documents.iter().enumerate() {
+        for (ordinal, content) in legacy_content_ordinals(record, consumable_occurrence_sets) {
             let content_json = serde_json::to_string(&content.document)
                 .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
             content_inputs.push((ordinal, content, content_json));
         }
         let content_keys = allocated_content_keys(&content_inputs);
         for ((ordinal, content, _), content_key) in content_inputs.into_iter().zip(content_keys) {
-            if consume_consumable_occurrence_content(
-                &mut occurrence_content,
-                &record.identity.key.to_string(),
-                content,
-            ) {
-                continue;
-            }
             if !content.contributes_to_reference_occurrences() {
                 continue;
             }

@@ -2,4 +2,4 @@
 import type { ConsumableEquippedView } from "./ConsumableEquippedView";
 import type { ConsumableFactView } from "./ConsumableFactView";
 
-export type ConsumableSourceStateView = { quantity: ConsumableFactView<number>, current_uses: ConsumableFactView<number>, current_hp: ConsumableFactView<number>, container_id: ConsumableFactView<string>, equipped: ConsumableFactView<ConsumableEquippedView>, };
+export type ConsumableSourceStateView = { quantity: ConsumableFactView<string>, current_uses: ConsumableFactView<string>, current_hp: ConsumableFactView<string>, container_id: ConsumableFactView<string>, equipped: ConsumableFactView<ConsumableEquippedView>, };
