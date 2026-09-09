@@ -1,5 +1,5 @@
 import { Alert, Button, Card, Descriptions, List, Space, Tag, Typography } from "antd";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type {
   H8FactView,
   JournalPageEntryView,
@@ -7,8 +7,11 @@ import type {
   RecordSurfaceMetadataView,
   RecordSurfaceView,
   RollTableSurfaceView,
+  TableRollView,
+  TableResultView,
   TableResultEntryView,
 } from "../../generated/atlas";
+import { rollTable } from "../../api/atlasApi";
 import {
   ATLAS_ROUTE_CHANGE_EVENT,
   navigateToAtlasRoute,
@@ -258,6 +261,7 @@ export function RollTableDetailSurface({
   );
   const selectedLocator = new URLSearchParams(locationSearch).get("child");
   const recordKey = metadata.record_key;
+  const roll = useTableRoll(recordKey);
   const selectedResultRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const selected = selectedResultRef.current;
@@ -281,6 +285,12 @@ export function RollTableDetailSurface({
           {booleanLabel(body.display_roll)}
         </Descriptions.Item>
       </Descriptions>
+      <TableRollPanel
+        capability={body.roll}
+        onReference={onReference}
+        recordKey={recordKey}
+        request={roll}
+      />
       {known(body.description)?.length ? (
         <section>
           <h3>Description</h3>
@@ -390,7 +400,16 @@ function TableResultRow({
       />
     );
   }
-  const result = entry.result;
+  return <TableResultValue onReference={onReference} result={entry.result} />;
+}
+
+function TableResultValue({
+  onReference,
+  result,
+}: {
+  onReference: ReferenceHandler;
+  result: TableResultView;
+}) {
   const range = known(result.range);
   const blocks = known(result.text);
   return (
@@ -411,10 +430,168 @@ function TableResultRow({
       {known(result.collection) ? (
         <Typography.Text type="secondary">
           {known(result.collection)} ·{" "}
-          {known(result.document_id) ?? "unresolved document"}
+          {known(result.document_id) ?? "unresolved document"} (navigation unavailable)
         </Typography.Text>
       ) : null}
     </div>
+  );
+}
+
+type TableRollRequest =
+  | { state: "idle" }
+  | { state: "pending"; recordKey: string }
+  | { state: "success"; recordKey: string; value: TableRollView }
+  | { state: "error"; recordKey: string; message: string };
+
+function useTableRoll(recordKey: string | undefined) {
+  const [request, setRequest] = useState<TableRollRequest>({ state: "idle" });
+  const active = useRef<{
+    controller: AbortController;
+    id: number;
+    recordKey: string;
+  }>();
+  const nextId = useRef(0);
+
+  useEffect(() => {
+    active.current?.controller.abort();
+    active.current = undefined;
+    return () => active.current?.controller.abort();
+  }, [recordKey]);
+
+  const run = () => {
+    if (!recordKey) return;
+    if (active.current?.recordKey === recordKey) return;
+    active.current?.controller.abort();
+    const controller = new AbortController();
+    const id = ++nextId.current;
+    active.current = { controller, id, recordKey };
+    setRequest({ state: "pending", recordKey });
+    void rollTable(recordKey, controller.signal)
+      .then((value) => {
+        if (active.current?.id !== id) return;
+        active.current = undefined;
+        if (value.table_key !== recordKey) {
+          setRequest({
+            state: "error",
+            recordKey,
+            message: "The table-roll response did not match the current record.",
+          });
+          return;
+        }
+        setRequest({ state: "success", recordKey, value });
+      })
+      .catch((error: unknown) => {
+        if (active.current?.id !== id) return;
+        active.current = undefined;
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setRequest({
+          state: "error",
+          recordKey,
+          message: error instanceof Error ? error.message : "Table roll failed.",
+        });
+      });
+  };
+
+  const currentRequest =
+    request.state !== "idle" && request.recordKey === recordKey
+      ? request
+      : ({ state: "idle" } as const);
+  return { request: currentRequest, run };
+}
+
+function TableRollPanel({
+  capability,
+  onReference,
+  recordKey,
+  request,
+}: {
+  capability: RollTableSurfaceView["roll"];
+  onReference: ReferenceHandler;
+  recordKey: string | undefined;
+  request: ReturnType<typeof useTableRoll>;
+}) {
+  if (capability.state === "unavailable") {
+    return (
+      <Alert
+        description={capability.unavailable.message}
+        message="Roll unavailable"
+        showIcon
+        type="warning"
+      />
+    );
+  }
+  const response = request.request.state === "success" ? request.request.value : null;
+  return (
+    <Card className="h8-roll-table__operation" title="Roll table">
+      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+        <Space wrap>
+          <Tag>{capability.formula}</Tag>
+          <Button
+            disabled={!recordKey || request.request.state === "pending"}
+            loading={request.request.state === "pending"}
+            onClick={request.run}
+            type="primary"
+          >
+            Roll
+          </Button>
+        </Space>
+        {request.request.state === "error" ? (
+          <Alert message={request.request.message} showIcon type="error" />
+        ) : null}
+        {response?.state === "unavailable" ? (
+          <Alert
+            description={response.unavailable.message}
+            message="Roll unavailable"
+            showIcon
+            type="warning"
+          />
+        ) : null}
+        {response?.state === "available" ? (
+          <div aria-live="polite">
+            <Typography.Title level={4}>
+              Rolled {response.total} on {response.formula}
+            </Typography.Title>
+            {response.outcomes.length ? (
+              <List
+                dataSource={response.outcomes}
+                renderItem={(result) => (
+                  <List.Item
+                    actions={[
+                      <Button
+                        disabled={!recordKey}
+                        href={
+                          recordKey ? recordPath(recordKey, result.locator) : undefined
+                        }
+                        key="open-rolled-result"
+                        onClick={(event) => {
+                          if (!recordKey || !shouldHandleAtlasRouteClick(event)) return;
+                          event.preventDefault();
+                          navigateToAtlasRoute({
+                            kind: "record",
+                            recordKey,
+                            childLocator: result.locator,
+                          });
+                        }}
+                        type="link"
+                      >
+                        Open rolled result {result.source_ordinal + 1}
+                      </Button>,
+                    ]}
+                  >
+                    <TableResultValue onReference={onReference} result={result} />
+                  </List.Item>
+                )}
+                size="small"
+              />
+            ) : (
+              <Typography.Paragraph type="secondary">
+                No results match total {response.total}.
+              </Typography.Paragraph>
+            )}
+          </div>
+        ) : null}
+      </Space>
+    </Card>
   );
 }
 

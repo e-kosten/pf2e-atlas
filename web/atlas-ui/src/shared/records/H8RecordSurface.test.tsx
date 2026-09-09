@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type {
   H8FactView,
   JournalPageEntryView,
@@ -6,6 +6,11 @@ import type {
   TableResultEntryView,
 } from "../../generated/atlas";
 import { RecordSurface } from "./RecordSurface";
+import { rollTable } from "../../api/atlasApi";
+
+vi.mock("../../api/atlasApi", () => ({ rollTable: vi.fn() }));
+
+const rollTableMock = vi.mocked(rollTable);
 
 const missing = { state: "missing" } as const;
 const known = <T,>(value: T): H8FactView<T> => ({ state: "known", value });
@@ -17,7 +22,10 @@ const ancestralMightLocator =
   "v1~j~s~6a6f75726e616c2d706167652d616e6365737472616c2d6d69676874";
 
 describe("H8 record surfaces", () => {
-  beforeEach(() => history.replaceState(null, "", "/"));
+  beforeEach(() => {
+    history.replaceState(null, "", "/");
+    rollTableMock.mockReset();
+  });
 
   it("uses the parent journal route for stable page navigation without rendering media", () => {
     const surface = journalSurface();
@@ -114,6 +122,131 @@ describe("H8 record surfaces", () => {
       />,
     );
     expect(screen.getByText("Drawn: unsupported")).toBeInTheDocument();
+  });
+
+  it("rolls displayRoll-false tables from backend capability and opens every ordered outcome", async () => {
+    const surface = rollableTableSurface();
+    if (surface.presentation.presentation_type !== "roll_table") {
+      throw new Error("roll-table fixture");
+    }
+    const result =
+      surface.presentation.body.results.state === "known"
+        ? surface.presentation.body.results.value.find(
+            (entry) => entry.entry_type === "result",
+          )
+        : undefined;
+    if (!result || result.entry_type !== "result") throw new Error("result fixture");
+    rollTableMock.mockResolvedValue({
+      state: "available",
+      table_key: "rollable-tables:zgZoI7h0XjjJrrNK",
+      formula: "1d2",
+      total: 1,
+      outcomes: [result.result],
+    });
+
+    render(<RecordSurface onReference={vi.fn()} surface={surface} />);
+    const button = screen.getByRole("button", { name: "Roll" });
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+
+    await waitFor(() => expect(rollTableMock).toHaveBeenCalledTimes(1));
+    expect(rollTableMock).toHaveBeenCalledWith(
+      "rollable-tables:zgZoI7h0XjjJrrNK",
+      expect.any(AbortSignal),
+    );
+    expect(await screen.findByText("Rolled 1 on 1d2")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Open rolled result 1" });
+    fireEvent.click(link);
+    expect(window.location.search).toBe(`?child=${resultOneLocator}`);
+  });
+
+  it("shows typed roll unavailability without parsing the source formula", () => {
+    const surface = rollTableSurface();
+    if (surface.presentation.presentation_type !== "roll_table") {
+      throw new Error("roll-table fixture");
+    }
+    surface.presentation.body.roll = {
+      state: "unavailable",
+      unavailable: {
+        reason: "unsupported_result",
+        subject: {
+          subject_type: "result",
+          locator: resultTwoLocator,
+          source_ordinal: 1,
+        },
+        message: "Roll is unavailable because result 2 is unsupported.",
+      },
+    };
+
+    render(<RecordSurface onReference={vi.fn()} surface={surface} />);
+    expect(screen.getByText("Roll unavailable")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Roll" })).toBeNull();
+  });
+
+  it("distinguishes a valid result gap from backend operation unavailability", async () => {
+    rollTableMock
+      .mockResolvedValueOnce({
+        state: "available",
+        table_key: "rollable-tables:zgZoI7h0XjjJrrNK",
+        formula: "1d2",
+        total: 2,
+        outcomes: [],
+      })
+      .mockResolvedValueOnce({
+        state: "unavailable",
+        table_key: "rollable-tables:zgZoI7h0XjjJrrNK",
+        unavailable: {
+          reason: "range_unsupported",
+          subject: {
+            subject_type: "result",
+            locator: resultOneLocator,
+            source_ordinal: 0,
+          },
+          message: "Roll is unavailable because result 1 has an unsupported range.",
+        },
+      });
+    render(<RecordSurface onReference={vi.fn()} surface={rollableTableSurface()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Roll" }));
+    expect(await screen.findByText("No results match total 2.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Roll" }));
+    expect(await screen.findByText("Roll unavailable")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Roll is unavailable because result 1 has an unsupported range.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("aborts and discards a pending response when the parent record changes", async () => {
+    let resolveRoll:
+      | ((value: Awaited<ReturnType<typeof rollTable>>) => void)
+      | undefined;
+    rollTableMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRoll = resolve;
+        }),
+    );
+    const first = rollableTableSurface();
+    const second = rollableTableSurface();
+    second.metadata.record_key = "rollable-tables:other";
+    const { rerender } = render(
+      <RecordSurface onReference={vi.fn()} surface={first} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Roll" }));
+    const signal = rollTableMock.mock.calls[0]?.[1];
+    rerender(<RecordSurface onReference={vi.fn()} surface={second} />);
+    expect(signal?.aborted).toBe(true);
+    resolveRoll?.({
+      state: "available",
+      table_key: "rollable-tables:zgZoI7h0XjjJrrNK",
+      formula: "1d2",
+      total: 1,
+      outcomes: [],
+    });
+    await Promise.resolve();
+    expect(screen.queryByText("Rolled 1 on 1d2")).toBeNull();
   });
 });
 
@@ -257,11 +390,44 @@ function rollTableSurface(
         replacement: known(true),
         display_roll: known(false),
         image: missing,
+        roll: {
+          state: "unavailable",
+          unavailable: {
+            reason: "unsupported_result",
+            subject: {
+              subject_type: "result",
+              locator: resultTwoLocator,
+              source_ordinal: 1,
+            },
+            message: "Roll is unavailable because result 2 is unsupported.",
+          },
+        },
         source_metadata: sourceMetadata(),
         provenance: provenance("packs/rollable-tables/hero-point-deck.json"),
       },
     },
   };
+}
+
+function rollableTableSurface(): RecordSurfaceView {
+  const surface = rollTableSurface();
+  if (surface.presentation.presentation_type !== "roll_table") {
+    throw new Error("roll-table fixture");
+  }
+  if (surface.presentation.body.results.state !== "known") {
+    throw new Error("known result fixture");
+  }
+  surface.presentation.body.results = known(
+    surface.presentation.body.results.value.filter(
+      (entry) => entry.entry_type === "result",
+    ),
+  );
+  surface.presentation.body.roll = {
+    state: "available",
+    formula: "1d2",
+    sides: 2,
+  };
+  return surface;
 }
 
 function sourceMetadata() {

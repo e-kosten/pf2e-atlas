@@ -9,6 +9,7 @@ use atlas_app_model::{
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use axum::Json;
+use axum::body::Bytes;
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Path, Query, State};
 use axum::response::IntoResponse;
@@ -406,5 +407,21 @@ pub(crate) async fn record_detail(
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || service.record_detail(&record_key, request)).await?,
+    ))
+}
+
+pub(crate) async fn roll_table(
+    State(state): State<AtlasWebState>,
+    Path(record_key): Path<String>,
+    body: Bytes,
+) -> Result<impl IntoResponse, WebError> {
+    if !body.is_empty() {
+        return Err(WebError::invalid_request_message(
+            "table-roll accepts only the parent record key and no request body",
+        ));
+    }
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.roll_table(&record_key)).await?,
     ))
 }

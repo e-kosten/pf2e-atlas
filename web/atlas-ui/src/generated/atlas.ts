@@ -218,6 +218,11 @@ export type { JournalPageVideoView } from "../../../../crates/atlas-app-model/bi
 export type { JournalPageView } from "../../../../crates/atlas-app-model/bindings/JournalPageView";
 export type { JournalSurfaceView } from "../../../../crates/atlas-app-model/bindings/JournalSurfaceView";
 export type { RollTableSurfaceView } from "../../../../crates/atlas-app-model/bindings/RollTableSurfaceView";
+export type { TableRollCapabilityView } from "../../../../crates/atlas-app-model/bindings/TableRollCapabilityView";
+export type { TableRollSubjectView } from "../../../../crates/atlas-app-model/bindings/TableRollSubjectView";
+export type { TableRollUnavailableReasonView } from "../../../../crates/atlas-app-model/bindings/TableRollUnavailableReasonView";
+export type { TableRollUnavailableView } from "../../../../crates/atlas-app-model/bindings/TableRollUnavailableView";
+export type { TableRollView } from "../../../../crates/atlas-app-model/bindings/TableRollView";
 export type { RuntimeAdjustmentView } from "../../../../crates/atlas-app-model/bindings/RuntimeAdjustmentView";
 export type { RuntimeCapabilityView } from "../../../../crates/atlas-app-model/bindings/RuntimeCapabilityView";
 export type { RuntimeCountSegmentView } from "../../../../crates/atlas-app-model/bindings/RuntimeCountSegmentView";

@@ -3,15 +3,17 @@ use atlas_app_model::{
     H8SourceMetadataView, H8UnsupportedChildView, H8UnsupportedFieldView, H8UnsupportedValueView,
     JournalPageEntryView, JournalPageTextView, JournalPageTitleView, JournalPageVideoView,
     JournalPageView, JournalSurfaceView, RollTableSurfaceView, TableResultEntryView,
-    TableResultRangeView, TableResultSourceMetadataView, TableResultView,
+    TableResultRangeView, TableResultSourceMetadataView, TableResultView, TableRollCapabilityView,
+    TableRollSubjectView, TableRollUnavailableReasonView, TableRollUnavailableView,
 };
 use atlas_record::{
     ContentChildIdentity, ContentChildLocator, FactValue, H8ExactSourceObject, H8Fact,
     H8FieldValue, H8Number, H8Provenance, H8RecordSourceMetadata, H8UnsupportedChild,
     H8UnsupportedField, JournalPage, JournalPageEntry, JournalPageKind, JournalPageText,
     JournalPageTitle, JournalPageVideo, JournalRecord, RichDocument, RollTableRecord, TableResult,
-    TableResultEntry, TableResultKind, UnsupportedSourceReason, UnsupportedSourceShape,
-    UnsupportedSourceValue, encode_content_child_selector, project_record_surface_content,
+    TableResultEntry, TableResultKind, TableRollUnavailable, TableRollUnavailableReason,
+    UnsupportedSourceReason, UnsupportedSourceShape, UnsupportedSourceValue,
+    encode_content_child_selector, project_record_surface_content,
 };
 
 pub(crate) fn journal_surface(value: &JournalRecord) -> JournalSurfaceView {
@@ -47,6 +49,7 @@ pub(crate) fn roll_table_surface(value: &RollTableRecord) -> RollTableSurfaceVie
         replacement: fact(&value.replacement, |value| *value),
         display_roll: fact(&value.display_roll, |value| *value),
         image: fact(&value.image, |value| value.as_str().to_string()),
+        roll: table_roll_capability(value),
         content: value
             .content
             .documents
@@ -146,7 +149,7 @@ fn table_result_entry(value: &TableResultEntry) -> TableResultEntryView {
     }
 }
 
-fn table_result(value: &TableResult) -> TableResultView {
+pub(crate) fn table_result(value: &TableResult) -> TableResultView {
     TableResultView {
         locator: encode_content_child_selector(&value.locator),
         identity_stability: identity_stability(&value.locator),
@@ -177,6 +180,89 @@ fn table_result(value: &TableResult) -> TableResultView {
             .iter()
             .map(unsupported_field)
             .collect(),
+    }
+}
+
+pub(crate) fn table_roll_capability(value: &RollTableRecord) -> TableRollCapabilityView {
+    match value.validate_rollability() {
+        Ok(table) => TableRollCapabilityView::Available {
+            formula: table.normalized_formula(),
+            sides: table.sides().get(),
+        },
+        Err(unavailable) => TableRollCapabilityView::Unavailable {
+            unavailable: table_roll_unavailable(&unavailable),
+        },
+    }
+}
+
+pub(crate) fn table_roll_unavailable(value: &TableRollUnavailable) -> TableRollUnavailableView {
+    let reason = match value.reason {
+        TableRollUnavailableReason::FormulaMissing => {
+            TableRollUnavailableReasonView::FormulaMissing
+        }
+        TableRollUnavailableReason::FormulaNull => TableRollUnavailableReasonView::FormulaNull,
+        TableRollUnavailableReason::FormulaUnsupported => {
+            TableRollUnavailableReasonView::FormulaUnsupported
+        }
+        TableRollUnavailableReason::FormulaInvalid => {
+            TableRollUnavailableReasonView::FormulaInvalid
+        }
+        TableRollUnavailableReason::ResultsMissing => {
+            TableRollUnavailableReasonView::ResultsMissing
+        }
+        TableRollUnavailableReason::ResultsNull => TableRollUnavailableReasonView::ResultsNull,
+        TableRollUnavailableReason::ResultsUnsupported => {
+            TableRollUnavailableReasonView::ResultsUnsupported
+        }
+        TableRollUnavailableReason::UnsupportedResult => {
+            TableRollUnavailableReasonView::UnsupportedResult
+        }
+        TableRollUnavailableReason::RangeMissing => TableRollUnavailableReasonView::RangeMissing,
+        TableRollUnavailableReason::RangeNull => TableRollUnavailableReasonView::RangeNull,
+        TableRollUnavailableReason::RangeUnsupported => {
+            TableRollUnavailableReasonView::RangeUnsupported
+        }
+        TableRollUnavailableReason::RangeOutOfDomain => {
+            TableRollUnavailableReasonView::RangeOutOfDomain
+        }
+    };
+    let subject = match (&value.child_locator, value.source_ordinal) {
+        (Some(locator), Some(source_ordinal)) => TableRollSubjectView::Result {
+            locator: encode_content_child_selector(locator),
+            source_ordinal,
+        },
+        _ => TableRollSubjectView::Table,
+    };
+    TableRollUnavailableView {
+        reason,
+        subject,
+        message: table_roll_unavailable_message(value),
+    }
+}
+
+fn table_roll_unavailable_message(value: &TableRollUnavailable) -> String {
+    let detail = match value.reason {
+        TableRollUnavailableReason::FormulaMissing => "the formula is missing",
+        TableRollUnavailableReason::FormulaNull => "the formula is null",
+        TableRollUnavailableReason::FormulaUnsupported => "the formula is unsupported",
+        TableRollUnavailableReason::FormulaInvalid => "the formula is not an exact 1dN expression",
+        TableRollUnavailableReason::ResultsMissing => "the result collection is missing",
+        TableRollUnavailableReason::ResultsNull => "the result collection is null",
+        TableRollUnavailableReason::ResultsUnsupported => "the result collection is unsupported",
+        TableRollUnavailableReason::UnsupportedResult => "a result is unsupported",
+        TableRollUnavailableReason::RangeMissing => "a result range is missing",
+        TableRollUnavailableReason::RangeNull => "a result range is null",
+        TableRollUnavailableReason::RangeUnsupported => "a result range is unsupported",
+        TableRollUnavailableReason::RangeOutOfDomain => {
+            "a result range falls outside the formula domain"
+        }
+    };
+    match value.source_ordinal {
+        Some(source_ordinal) => format!(
+            "Roll is unavailable because result {} is incomplete or invalid: {detail}.",
+            u64::from(source_ordinal) + 1
+        ),
+        None => format!("Roll is unavailable because {detail}."),
     }
 }
 

@@ -453,6 +453,38 @@ async fn record_and_filter_routes_use_real_router_wiring() {
 }
 
 #[tokio::test]
+async fn table_roll_route_posts_without_an_executable_payload() {
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/records/rollable-tables:hero-points/table-roll",
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["state"], "available");
+    assert_eq!(body["table_key"], "rollable-tables:hero-points");
+    assert_eq!(body["formula"], "1d52");
+    assert_eq!(body["total"], 52);
+    assert_eq!(body["outcomes"][0]["source_ordinal"], 51);
+
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/records/rollable-tables:hero-points/table-roll",
+        Some(json!({ "formula": "1d1", "total": 1, "seed": 7 })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+    assert!(
+        body["message"]
+            .as_str()
+            .expect("message")
+            .contains("no request body")
+    );
+}
+
+#[tokio::test]
 async fn record_route_transports_opaque_spell_form_and_cast_rank_selection() {
     let (status, body) = route_json(
         Method::GET,
@@ -1461,6 +1493,38 @@ impl AtlasWebService for MockService {
             detail.surface.metadata.title = format!("selected:{form_id}:{cast_rank}");
         }
         Ok(detail)
+    }
+
+    fn roll_table(
+        &self,
+        record_key: &str,
+    ) -> Result<atlas_app_model::TableRollView, AppServiceError> {
+        Ok(atlas_app_model::TableRollView::Available {
+            table_key: record_key.to_string(),
+            formula: "1d52".to_string(),
+            total: 52,
+            outcomes: vec![atlas_app_model::TableResultView {
+                locator: "v1~t~s~726573756c742d3532".to_string(),
+                identity_stability: atlas_app_model::H8IdentityStabilityView::StableSourceId,
+                source_id: atlas_app_model::H8FactView::Known("result-52".to_string()),
+                source_ordinal: 51,
+                result_kind: atlas_app_model::H8FactView::Known("text".to_string()),
+                text: atlas_app_model::H8FactView::Known(Vec::new()),
+                collection: atlas_app_model::H8FactView::Missing,
+                document_id: atlas_app_model::H8FactView::Missing,
+                weight: atlas_app_model::H8FactView::Known("1".to_string()),
+                range: atlas_app_model::H8FactView::Known(atlas_app_model::TableResultRangeView {
+                    first: 52,
+                    last: 52,
+                }),
+                drawn: atlas_app_model::H8FactView::Known(false),
+                image: atlas_app_model::H8FactView::Missing,
+                source_metadata: atlas_app_model::TableResultSourceMetadataView {
+                    flags: atlas_app_model::H8FactView::Missing,
+                },
+                unsupported_fields: Vec::new(),
+            }],
+        })
     }
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {

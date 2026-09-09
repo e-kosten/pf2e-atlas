@@ -16,6 +16,7 @@ mod records;
 mod retrieval;
 mod service;
 mod surface;
+mod table_roll;
 mod windows;
 
 #[cfg(test)]

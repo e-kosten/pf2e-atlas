@@ -140,6 +140,7 @@ pub struct RollTableSurfaceView {
     pub replacement: H8FactView<bool>,
     pub display_roll: H8FactView<bool>,
     pub image: H8FactView<String>,
+    pub roll: crate::TableRollCapabilityView,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<CreatureSurfaceContentView>,
     pub source_metadata: H8SourceMetadataView,
