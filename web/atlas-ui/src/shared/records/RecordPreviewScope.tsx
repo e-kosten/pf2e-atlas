@@ -9,7 +9,7 @@ export function RecordPreviewScope({
   onOpenFullPage,
 }: {
   children: React.ReactNode;
-  onOpenFullPage: (recordKey: string) => void;
+  onOpenFullPage: (recordKey: string, childLocator?: string) => void;
 }) {
   const renderPreview = useCallback(
     (recordKey: string, trigger: PreviewPopoverTrigger) => (

@@ -128,7 +128,12 @@ pub(super) fn default_hp(retrieved: &atlas_record::RetrievedRecord) -> (Option<i
                 hit_points.current.typed().copied(),
             );
         }
-        Some(atlas_record::RecordBody::Spell(_)) | None => return (None, None),
+        Some(
+            atlas_record::RecordBody::Spell(_)
+            | atlas_record::RecordBody::Journal(_)
+            | atlas_record::RecordBody::RollTable(_),
+        )
+        | None => return (None, None),
     };
     (maximum.or(current), current.or(maximum))
 }

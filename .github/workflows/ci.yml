@@ -103,6 +103,8 @@ jobs:
             packs/claws-of-the-tyrant-bestiary/2-ashes-for-ozem/chernasardo-ranger.json
             packs/abomination-vaults-bestiary/book-1-ruins-of-gauntlight/volluk-azrinae.json
             packs/feats/ancestry/anadi/anadi-lore.json
+            packs/journals/hero-point-deck.json
+            packs/rollable-tables/hero-point-deck.json
       - name: Authenticate accepted PF2e fixture source
         run: >-
           scripts/validation/authenticate-pf2e-source.sh

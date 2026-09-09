@@ -306,6 +306,20 @@ mod tests {
     }
 
     #[test]
+    fn ranked_app_match_summary_does_not_fabricate_child_context() {
+        let summary = match_summary(&TextSearchMatch::Ranked {
+            retrieval: atlas_search::RetrievalMode::Fts,
+            diagnostics: None,
+        });
+
+        assert_eq!(summary.label, "ranked: fts");
+        assert_eq!(
+            serde_json::to_value(summary).expect("match summary JSON"),
+            serde_json::json!({ "label": "ranked: fts" })
+        );
+    }
+
+    #[test]
     fn failed_result_window_open_does_not_retain_hidden_window() {
         let fixture = fixture_worker();
         let service = &fixture.worker;

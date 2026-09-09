@@ -41,17 +41,21 @@ pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use atlas_domain::{PackName, RecordId, RecordKey, RecordKind, RemasterLinkSource};
+    use atlas_domain::{
+        DetailLevel, PackName, RecordId, RecordKey, RecordKind, RemasterLinkSource,
+    };
     use atlas_embedding::{
         DocumentEmbeddingTokenizationTelemetry, EmbeddingUnitKind, GeneratedDocumentEmbedding,
         PendingDocumentEmbedding,
     };
     use atlas_record::{
-        AliasSource, AtlasRecord, ContentExclusion, ContentExclusionReason, ContentKey,
-        ContentSourceKind, ContentVisibility, FactValue, FoundryDocumentType, FoundryRecordInfo,
-        FoundryRecordType, RecordAlias, RecordBody, RecordClassification, RecordIdentity,
-        RecordProvenance, ReferenceEdge, RemasterLink, SpellChildId, SpellSourceId,
-        SpellSourceValue,
+        AliasSource, AtlasRecord, ContentChildIdentity, ContentChildKind, ContentChildLocator,
+        ContentExclusion, ContentExclusionReason, ContentKey, ContentSourceKind, ContentVisibility,
+        FactValue, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType, H8FieldValue,
+        JournalPageEntry, RecordAlias, RecordBody, RecordClassification, RecordIdentity,
+        RecordJsonOptions, RecordProvenance, ReferenceEdge, RemasterLink, RichLinkTarget,
+        SourceDocumentId, SpellChildId, SpellSourceId, SpellSourceValue,
+        encode_content_child_locator, record_json, visit_foundry_links_mut,
     };
 
     use super::index_build_input;
@@ -62,7 +66,7 @@ mod tests {
     use crate::source::npc_entities::finalize_npc_embedded_entities;
     use crate::source::owned_content::{finalize_hazard_owned_content, finalize_npc_owned_content};
     use crate::source::{LoadedPack, SourceLoad};
-    use serde_json::json;
+    use serde_json::{Value, json};
     use sha2::{Digest, Sha256};
 
     #[test]
@@ -169,7 +173,11 @@ mod tests {
                     {
                         Some(spell)
                     }
-                    RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+                    RecordBody::Creature(_)
+                    | RecordBody::Hazard(_)
+                    | RecordBody::Spell(_)
+                    | RecordBody::Journal(_)
+                    | RecordBody::RollTable(_) => None,
                 })
                 .expect("Heal spell body");
             match mismatch {
@@ -211,7 +219,11 @@ mod tests {
             .iter_mut()
             .find_map(|body| match body {
                 RecordBody::Spell(spell) if spell.identity.record_key == heal_key => Some(spell),
-                RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+                RecordBody::Creature(_)
+                | RecordBody::Hazard(_)
+                | RecordBody::Spell(_)
+                | RecordBody::Journal(_)
+                | RecordBody::RollTable(_) => None,
             })
             .expect("Heal canonical spell body");
         let FactValue::Value(SpellSourceValue::Known(classification)) =
@@ -900,6 +912,667 @@ mod tests {
     }
 
     #[test]
+    fn h8_mixed_artifact_round_trips_journals_tables_and_typed_child_references()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut input = gate_i_combined_fixture_input();
+        let h8 = index_build_input(load_h8_pinned_fixture_source()?);
+        assert!(
+            h8.references
+                .iter()
+                .any(|edge| edge.target_child.is_some() && edge.source_child.is_some()),
+            "the production source pipeline must retain typed child context on graph edges"
+        );
+        input.source_record_count += h8.source_record_count;
+        input.packs.extend(h8.packs);
+        input.records.extend(h8.records);
+        input.canonical_bodies.extend(h8.canonical_bodies);
+        input.references.extend(h8.references);
+        input.aliases.extend(h8.aliases);
+        input.remaster_links.extend(h8.remaster_links);
+        input
+            .pending_document_embeddings
+            .extend(h8.pending_document_embeddings);
+        input.document_embeddings.extend(h8.document_embeddings);
+
+        let valid_bodies = input.canonical_bodies.clone();
+        let valid_references = input.references.clone();
+        let journal_index = input
+            .canonical_bodies
+            .iter()
+            .position(|body| matches!(body, RecordBody::Journal(_)))
+            .expect("H8 fixture journal body");
+        let table_index = input
+            .canonical_bodies
+            .iter()
+            .position(|body| matches!(body, RecordBody::RollTable(_)))
+            .expect("H8 fixture roll-table body");
+        let journal_key = valid_bodies[journal_index].record_key().clone();
+        let table_key = valid_bodies[table_index].record_key().clone();
+
+        let RecordBody::Journal(journal) = &mut input.canonical_bodies[journal_index] else {
+            return Err("located body is not a journal".into());
+        };
+        let FactValue::Value(H8FieldValue::Known(pages)) = &mut journal.pages else {
+            panic!("fixture journal pages")
+        };
+        let JournalPageEntry::Page(first_page) = &mut pages[0] else {
+            panic!("fixture first journal page")
+        };
+        first_page.locator.parent = table_key.clone();
+        assert_h8_write_rejected(&input, "wrong-page-parent", "does not match owning record")?;
+        input.canonical_bodies.clone_from(&valid_bodies);
+
+        let RecordBody::Journal(journal) = &mut input.canonical_bodies[journal_index] else {
+            return Err("located body is not a journal".into());
+        };
+        let FactValue::Value(H8FieldValue::Known(pages)) = &mut journal.pages else {
+            panic!("fixture journal pages")
+        };
+        let JournalPageEntry::Page(first_page) = &mut pages[0] else {
+            panic!("fixture first journal page")
+        };
+        first_page.locator.kind = ContentChildKind::TableResult;
+        assert_h8_write_rejected(&input, "wrong-page-kind", "instead of `JournalPage`")?;
+        input.canonical_bodies.clone_from(&valid_bodies);
+
+        let RecordBody::Journal(journal) = &mut input.canonical_bodies[journal_index] else {
+            return Err("located body is not a journal".into());
+        };
+        let FactValue::Value(H8FieldValue::Known(pages)) = &mut journal.pages else {
+            panic!("fixture journal pages")
+        };
+        let first_locator = match &pages[0] {
+            JournalPageEntry::Page(page) => page.locator.clone(),
+            JournalPageEntry::Unsupported(page) => page.locator.clone(),
+        };
+        match &mut pages[1] {
+            JournalPageEntry::Page(page) => page.locator = first_locator,
+            JournalPageEntry::Unsupported(page) => page.locator = first_locator,
+        }
+        assert_h8_write_rejected(&input, "duplicate-page-locator", "duplicate child locator")?;
+        input.canonical_bodies.clone_from(&valid_bodies);
+
+        let RecordBody::RollTable(table) = &mut input.canonical_bodies[table_index] else {
+            return Err("located body is not a roll table".into());
+        };
+        let mut changed_target_key = false;
+        for document in &mut table.content.documents {
+            visit_foundry_links_mut(&mut document.document, |link| {
+                if !changed_target_key
+                    && let RichLinkTarget::RecordChild { key, .. } = &mut link.target
+                {
+                    *key = table_key.clone();
+                    changed_target_key = true;
+                }
+            });
+        }
+        assert!(changed_target_key, "fixture contains typed child target");
+        assert_h8_write_rejected(
+            &input,
+            "target-key-parent-mismatch",
+            "disagrees with locator parent",
+        )?;
+        input.canonical_bodies.clone_from(&valid_bodies);
+
+        let RecordBody::RollTable(table) = &mut input.canonical_bodies[table_index] else {
+            return Err("located body is not a roll table".into());
+        };
+        let mut changed_missing_target = false;
+        for document in &mut table.content.documents {
+            visit_foundry_links_mut(&mut document.document, |link| {
+                if !changed_missing_target
+                    && let RichLinkTarget::RecordChild { locator, .. } = &mut link.target
+                {
+                    locator.identity = ContentChildIdentity::Stable(
+                        SourceDocumentId::new("missing-page").expect("valid missing source ID"),
+                    );
+                    changed_missing_target = true;
+                }
+            });
+        }
+        assert!(
+            changed_missing_target,
+            "fixture contains typed child target"
+        );
+        assert_h8_write_rejected(
+            &input,
+            "missing-target-locator",
+            "does not identify a canonical child",
+        )?;
+        input.canonical_bodies.clone_from(&valid_bodies);
+
+        let edge = input
+            .references
+            .iter_mut()
+            .find(|edge| edge.source_child.is_some())
+            .expect("fixture child-owned reference edge");
+        edge.source_child.as_mut().expect("source child").parent = journal_key.clone();
+        assert_h8_write_rejected(
+            &input,
+            "edge-source-parent-mismatch",
+            "reference source key",
+        )?;
+        input.canonical_bodies.clone_from(&valid_bodies);
+        input.references.clone_from(&valid_references);
+
+        let path = unique_temp_path("h8-mixed.sqlite");
+        atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            &input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )?;
+        write_test_manifest(&path)?;
+        let reader = atlas_index::SqliteIndexReader::open_read_only(&path)?;
+        let validation = reader.validate()?;
+        assert_eq!(
+            validation.status,
+            atlas_index::ValidationStatus::Ok,
+            "{:#?}",
+            validation.diagnostics
+        );
+        assert!(reader.validate_canonical_coherence()?.is_empty());
+
+        let journal_key = RecordKey::parse("journals:BSp4LUSaOmUyjBko")?;
+        let table_key = RecordKey::parse("rollable-tables:zgZoI7h0XjjJrrNK")?;
+        let requested =
+            reader.load_hydrated_records_by_key(&[journal_key.clone(), table_key.clone()])?;
+        assert_eq!(requested.len(), 2);
+        assert!(
+            requested
+                .iter()
+                .any(|record| { matches!(&record.body, Some(RecordBody::Journal(_))) })
+        );
+        assert!(
+            requested
+                .iter()
+                .any(|record| { matches!(&record.body, Some(RecordBody::RollTable(_))) })
+        );
+        for record in &requested {
+            let json = serde_json::to_value(record_json(
+                record,
+                RecordJsonOptions {
+                    detail: DetailLevel::Full,
+                    include_source_json: false,
+                },
+            )?)?;
+            match record.record.classification.kind {
+                RecordKind::Journal => {
+                    assert_eq!(json["presentation_type"], "journal");
+                    assert_eq!(
+                        json["journal"]["source_metadata"]["folder"]["state"], "missing",
+                        "machine JSON preserves authored Missing independently of omission"
+                    );
+                    assert_eq!(json["journal"]["pages"]["state"], "known");
+                    assert!(
+                        json["journal"]["pages"]["value"]
+                            .as_array()
+                            .is_some_and(|pages| !pages.is_empty())
+                    );
+                    let first_page = &json["journal"]["pages"]["value"][0]["page"];
+                    assert_eq!(
+                        first_page["image_source"]["state"], "known",
+                        "the pinned empty image object survives SQLite codec and hydration"
+                    );
+                    assert_eq!(first_page["image_source"]["value"], "{}");
+                    assert_eq!(
+                        first_page["source_system"]["state"], "known",
+                        "the pinned empty system object survives SQLite codec and hydration"
+                    );
+                    assert_eq!(first_page["source_system"]["value"], "{}");
+                    assert_eq!(
+                        first_page["video"]["state"], "unsupported",
+                        "inactive populated video metadata remains a conspicuous typed fact"
+                    );
+                    assert_eq!(
+                        first_page["video"]["value"]["value"], r#"{"controls":true,"volume":0.5}"#,
+                        "the exact aggregate survives SQLite codec and hydration"
+                    );
+                }
+                RecordKind::RollTable => {
+                    assert_eq!(json["presentation_type"], "roll_table");
+                    assert_eq!(json["roll_table"]["results"]["state"], "known");
+                    assert!(
+                        json["roll_table"]["results"]["value"]
+                            .as_array()
+                            .is_some_and(|results| results.iter().any(|result| {
+                                result["entry_type"] == "result"
+                                    && result["result"]["locator"]
+                                        .as_str()
+                                        .is_some_and(|locator| locator.starts_with("v1~t~s~"))
+                            }))
+                    );
+                    assert_eq!(
+                        json["roll_table"]["results"]["value"][0]["result"]["document_id"]["state"],
+                        "null",
+                        "machine JSON preserves an authored Null child field"
+                    );
+                    let target = &json["roll_table"]["results"]["value"][0]["result"]["text"]["value"]
+                        ["nodes"][0]["link"]["target"];
+                    assert_eq!(target["kind"], "recordChild");
+                    assert_eq!(target["key"], "journals:BSp4LUSaOmUyjBko");
+                    assert_eq!(target["locator"]["parent"], "journals:BSp4LUSaOmUyjBko");
+                    assert_eq!(target["locator"]["kind"], "journal_page");
+                    assert_eq!(target["locator"]["identity"]["kind"], "stable");
+                    assert_eq!(
+                        target["locator"]["identity"]["value"], "quxPxuMub8k6abzN",
+                        "public hydrated result text must retain the typed page target"
+                    );
+                }
+                other => panic!("requested set unexpectedly hydrated {other}"),
+            }
+        }
+        let all = reader.load_hydrated_records()?;
+        for expected in [
+            RecordKind::Creature,
+            RecordKind::Hazard,
+            RecordKind::Spell,
+            RecordKind::Journal,
+            RecordKind::RollTable,
+        ] {
+            assert!(
+                all.iter()
+                    .any(|record| record.record.classification.kind == expected),
+                "missing hydrated {expected} family"
+            );
+        }
+
+        let connection = rusqlite::Connection::open(&path)?;
+        let counts = (
+            connection.query_row(
+                "SELECT COUNT(*) FROM canonical_journal_records",
+                [],
+                |row| row.get::<_, i64>(0),
+            )?,
+            connection.query_row(
+                "SELECT COUNT(*) FROM canonical_roll_table_records",
+                [],
+                |row| row.get::<_, i64>(0),
+            )?,
+            connection.query_row(
+                "SELECT COUNT(*) FROM record_content WHERE owner_kind='child'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )?,
+        );
+        assert_eq!(counts.0, 1);
+        assert_eq!(counts.1, 1);
+        assert!(counts.2 >= 53, "page and result content is parent-owned");
+        let (target_kind, target_json): (String, String) = connection.query_row(
+            "SELECT target_kind,target_json FROM reference_occurrences
+             WHERE record_key=?1 AND target_kind='record_child'
+             AND target_json LIKE '%quxPxuMub8k6abzN%' LIMIT 1",
+            [table_key.to_string()],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        assert_eq!(target_kind, "record_child");
+        assert!(target_json.contains("quxPxuMub8k6abzN"));
+        let (source_child, target_child): (String, String) = connection.query_row(
+            "SELECT source_child_locator,target_child_locator FROM reference_edges
+             WHERE from_record_key=?1 AND to_record_key=?2
+             AND target_child_locator <> '' LIMIT 1",
+            [table_key.to_string(), journal_key.to_string()],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        assert!(source_child.starts_with("v1~t~s~"));
+        assert!(target_child.starts_with("v1~j~s~"));
+        let mut statement = connection.prepare(
+            "SELECT record_key FROM records_fts
+             WHERE records_fts MATCH 'ancestral' ORDER BY record_key",
+        )?;
+        let matching_keys = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(
+            matching_keys,
+            vec![journal_key.to_string(), table_key.to_string()],
+            "page and result content contributes only to each parent record FTS row"
+        );
+        assert!(matching_keys.iter().all(|key| !key.contains("#")));
+        drop(statement);
+        drop(connection);
+
+        let title_match_key = all
+            .iter()
+            .find(|record| record.record.classification.kind == RecordKind::Creature)
+            .map(|record| record.record.identity.key.clone())
+            .expect("mixed fixture creature title-match row");
+        let search_path = copy_for_corruption(&path, "h8-public-search")?;
+        let search_connection = rusqlite::Connection::open(&search_path)?;
+        search_connection.execute(
+            "UPDATE records_fts SET title='Ancestral', aliases='', headings='', body='',
+             facts='', reference_terms='', embedded_content='' WHERE record_key=?1",
+            [title_match_key.to_string()],
+        )?;
+        drop(search_connection);
+        write_test_manifest(&search_path)?;
+        let search_reader = atlas_index::SqliteIndexReader::open_read_only(&search_path)?;
+        let query = atlas_index::FtsQuery::from_tokens(vec!["ancestral".to_string()])
+            .expect("safe H8 FTS query");
+        let hits = search_reader.query_weighted_fts_index(
+            &query,
+            None,
+            10,
+            atlas_index::FtsColumnWeights::default(),
+        )?;
+        assert_eq!(
+            hits.first().map(|hit| &hit.record_key),
+            Some(&title_match_key),
+            "the existing title weight must outrank H8 child-content matches"
+        );
+        let h8_hits = hits
+            .iter()
+            .filter(|hit| hit.record_key == journal_key || hit.record_key == table_key)
+            .collect::<Vec<_>>();
+        assert_eq!(h8_hits.len(), 2);
+        assert!(
+            h8_hits.iter().all(|hit| {
+                !hit.record_key.to_string().contains('#')
+                    && hit.title_alias_texts == vec!["Hero Point Deck".to_string()]
+            }),
+            "public FTS hits retain only parent identity and ordinary title metadata"
+        );
+        drop(search_reader);
+        remove_test_artifact(&search_path)?;
+
+        let wrong_child_parent = copy_for_corruption(&path, "h8-child-parent")?;
+        let connection = rusqlite::Connection::open(&wrong_child_parent)?;
+        let json: String = connection.query_row(
+            "SELECT canonical_json FROM canonical_journal_records WHERE record_key=?1",
+            [journal_key.to_string()],
+            |row| row.get(0),
+        )?;
+        let mut body: Value = serde_json::from_str(&json)?;
+        let parent = body
+            .pointer_mut("/value/pages/value/value/0/value/locator/parent")
+            .expect("first journal page locator parent");
+        assert_eq!(parent.as_str(), Some(journal_key.to_string().as_str()));
+        *parent = Value::String(table_key.to_string());
+        connection.execute(
+            "UPDATE canonical_journal_records SET canonical_json=?1 WHERE record_key=?2",
+            [serde_json::to_string(&body)?, journal_key.to_string()],
+        )?;
+        drop(connection);
+        write_test_manifest(&wrong_child_parent)?;
+        assert_h8_corruption_rejected(
+            &wrong_child_parent,
+            &journal_key,
+            "canonical_h8_records.child_integrity",
+            "does not match owning record",
+        )?;
+        remove_test_artifact(&wrong_child_parent)?;
+
+        let wrong_child_kind = copy_for_corruption(&path, "h8-child-kind")?;
+        let connection = rusqlite::Connection::open(&wrong_child_kind)?;
+        let json: String = connection.query_row(
+            "SELECT canonical_json FROM canonical_journal_records WHERE record_key=?1",
+            [journal_key.to_string()],
+            |row| row.get(0),
+        )?;
+        let mut body: Value = serde_json::from_str(&json)?;
+        let kind = body
+            .pointer_mut("/value/pages/value/value/0/value/locator/kind")
+            .expect("first journal page locator kind");
+        *kind = Value::String("table_result".to_string());
+        connection.execute(
+            "UPDATE canonical_journal_records SET canonical_json=?1 WHERE record_key=?2",
+            [serde_json::to_string(&body)?, journal_key.to_string()],
+        )?;
+        drop(connection);
+        write_test_manifest(&wrong_child_kind)?;
+        assert_h8_corruption_rejected(
+            &wrong_child_kind,
+            &journal_key,
+            "canonical_h8_records.child_integrity",
+            "instead of `JournalPage`",
+        )?;
+        remove_test_artifact(&wrong_child_kind)?;
+
+        let duplicate_child = copy_for_corruption(&path, "h8-duplicate-child")?;
+        let connection = rusqlite::Connection::open(&duplicate_child)?;
+        let json: String = connection.query_row(
+            "SELECT canonical_json FROM canonical_journal_records WHERE record_key=?1",
+            [journal_key.to_string()],
+            |row| row.get(0),
+        )?;
+        let mut body: Value = serde_json::from_str(&json)?;
+        let first_locator = body
+            .pointer("/value/pages/value/value/0/value/locator")
+            .cloned()
+            .expect("first journal page locator");
+        let second_locator = body
+            .pointer_mut("/value/pages/value/value/1/value/locator")
+            .expect("second journal page locator");
+        *second_locator = first_locator;
+        connection.execute(
+            "UPDATE canonical_journal_records SET canonical_json=?1 WHERE record_key=?2",
+            [serde_json::to_string(&body)?, journal_key.to_string()],
+        )?;
+        drop(connection);
+        write_test_manifest(&duplicate_child)?;
+        assert_h8_corruption_rejected(
+            &duplicate_child,
+            &journal_key,
+            "canonical_h8_records.child_integrity",
+            "duplicate child locator",
+        )?;
+        remove_test_artifact(&duplicate_child)?;
+
+        let wrong_target_key = copy_for_corruption(&path, "h8-target-key-parent")?;
+        let connection = rusqlite::Connection::open(&wrong_target_key)?;
+        let json: String = connection.query_row(
+            "SELECT canonical_json FROM canonical_roll_table_records WHERE record_key=?1",
+            [table_key.to_string()],
+            |row| row.get(0),
+        )?;
+        let mut body: Value = serde_json::from_str(&json)?;
+        assert!(mutate_first_record_child(
+            &mut body,
+            Some(&table_key.to_string()),
+            None,
+        ));
+        connection.execute(
+            "UPDATE canonical_roll_table_records SET canonical_json=?1 WHERE record_key=?2",
+            [serde_json::to_string(&body)?, table_key.to_string()],
+        )?;
+        drop(connection);
+        write_test_manifest(&wrong_target_key)?;
+        assert_h8_corruption_rejected(
+            &wrong_target_key,
+            &table_key,
+            "canonical_h8_records.child_integrity",
+            "disagrees with locator parent",
+        )?;
+        remove_test_artifact(&wrong_target_key)?;
+
+        let missing_body_child = copy_for_corruption(&path, "h8-missing-body-child")?;
+        let connection = rusqlite::Connection::open(&missing_body_child)?;
+        let json: String = connection.query_row(
+            "SELECT canonical_json FROM canonical_roll_table_records WHERE record_key=?1",
+            [table_key.to_string()],
+            |row| row.get(0),
+        )?;
+        let mut body: Value = serde_json::from_str(&json)?;
+        assert!(mutate_first_record_child(
+            &mut body,
+            None,
+            Some("missing-page"),
+        ));
+        connection.execute(
+            "UPDATE canonical_roll_table_records SET canonical_json=?1 WHERE record_key=?2",
+            [serde_json::to_string(&body)?, table_key.to_string()],
+        )?;
+        drop(connection);
+        write_test_manifest(&missing_body_child)?;
+        assert_h8_corruption_rejected(
+            &missing_body_child,
+            &table_key,
+            "canonical_h8_records.child_integrity",
+            "does not identify a canonical child",
+        )?;
+        remove_test_artifact(&missing_body_child)?;
+
+        let wrong_edge_source = copy_for_corruption(&path, "h8-edge-source-parent")?;
+        let mut source_locator = atlas_record::decode_content_child_locator(&source_child)
+            .expect("persisted source child locator");
+        source_locator.parent = journal_key.clone();
+        rusqlite::Connection::open(&wrong_edge_source)?.execute(
+            "UPDATE reference_edges SET source_child_locator=?1
+             WHERE from_record_key=?2 AND to_record_key=?3 AND source_child_locator <> ''",
+            [
+                encode_content_child_locator(&source_locator),
+                table_key.to_string(),
+                journal_key.to_string(),
+            ],
+        )?;
+        write_test_manifest(&wrong_edge_source)?;
+        let corrupted_reader = atlas_index::SqliteIndexReader::open_read_only(&wrong_edge_source)?;
+        let report = corrupted_reader.validate()?;
+        assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("reference_edges.child_integrity")
+        }));
+        for error in [
+            corrupted_reader
+                .load_hydrated_records()
+                .expect_err("all-record hydration must reject a reparented source child"),
+            corrupted_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&table_key))
+                .expect_err("requested hydration must reject a reparented source child"),
+        ] {
+            assert!(
+                error.to_string().contains("reference source key"),
+                "{error}"
+            );
+        }
+        let error = corrupted_reader
+            .reference_edges_for_seed(&table_key, atlas_index::ReferenceEdgeDirection::Outgoing)
+            .expect_err("graph hydration must reject a reparented source child");
+        assert!(
+            error.to_string().contains("reference source key"),
+            "{error}"
+        );
+        drop(corrupted_reader);
+        remove_test_artifact(&wrong_edge_source)?;
+
+        let missing_edge_child = copy_for_corruption(&path, "h8-missing-edge-child")?;
+        let missing_locator = encode_content_child_locator(&ContentChildLocator {
+            parent: journal_key.clone(),
+            kind: ContentChildKind::JournalPage,
+            identity: ContentChildIdentity::Stable(
+                SourceDocumentId::new("missing-page").expect("valid missing source ID"),
+            ),
+        });
+        rusqlite::Connection::open(&missing_edge_child)?.execute(
+            "UPDATE reference_edges SET target_child_locator=?1
+             WHERE from_record_key=?2 AND to_record_key=?3 AND target_child_locator <> ''",
+            [
+                missing_locator,
+                table_key.to_string(),
+                journal_key.to_string(),
+            ],
+        )?;
+        write_test_manifest(&missing_edge_child)?;
+        let corrupted_reader = atlas_index::SqliteIndexReader::open_read_only(&missing_edge_child)?;
+        let report = corrupted_reader.validate()?;
+        assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("reference_edges.child_integrity")
+        }));
+        let error = corrupted_reader
+            .load_hydrated_records()
+            .expect_err("all-record hydration must reject a missing target child");
+        assert!(
+            error
+                .to_string()
+                .contains("does not identify a canonical child"),
+            "{error}"
+        );
+        let error = corrupted_reader
+            .reference_edges_for_seed(&table_key, atlas_index::ReferenceEdgeDirection::Outgoing)
+            .expect_err("graph hydration must reject a missing target child");
+        assert!(
+            error
+                .to_string()
+                .contains("does not identify a canonical child"),
+            "{error}"
+        );
+        drop(corrupted_reader);
+        remove_test_artifact(&missing_edge_child)?;
+
+        let wrong_kind = copy_for_corruption(&path, "h8-journal-wrong-kind")?;
+        rusqlite::Connection::open(&wrong_kind)?.execute(
+            "UPDATE records SET record_kind='lore' WHERE record_key=?1",
+            [journal_key.to_string()],
+        )?;
+        write_test_manifest(&wrong_kind)?;
+        let wrong_reader = atlas_index::SqliteIndexReader::open_read_only(&wrong_kind)?;
+        let report = wrong_reader.validate()?;
+        assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("records.canonical_family_mismatch")
+        }));
+        for error in [
+            wrong_reader.load_hydrated_records().unwrap_err(),
+            wrong_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&journal_key))
+                .unwrap_err(),
+        ] {
+            assert!(error.to_string().contains("JournalEntry"), "{error}");
+        }
+        remove_test_artifact(&wrong_kind)?;
+
+        let wrong_table_type = copy_for_corruption(&path, "h8-table-wrong-foundry-type")?;
+        rusqlite::Connection::open(&wrong_table_type)?.execute(
+            "UPDATE records SET foundry_document_type='Macro' WHERE record_key=?1",
+            [table_key.to_string()],
+        )?;
+        write_test_manifest(&wrong_table_type)?;
+        let wrong_reader = atlas_index::SqliteIndexReader::open_read_only(&wrong_table_type)?;
+        let report = wrong_reader.validate()?;
+        assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref() == Some("records.canonical_family_mismatch")
+        }));
+        for error in [
+            wrong_reader.load_hydrated_records().unwrap_err(),
+            wrong_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&table_key))
+                .unwrap_err(),
+        ] {
+            assert!(error.to_string().contains("RollTable"), "{error}");
+        }
+        remove_test_artifact(&wrong_table_type)?;
+
+        let missing_table_body = copy_for_corruption(&path, "h8-table-missing-body")?;
+        rusqlite::Connection::open(&missing_table_body)?.execute(
+            "DELETE FROM canonical_roll_table_records WHERE record_key=?1",
+            [table_key.to_string()],
+        )?;
+        write_test_manifest(&missing_table_body)?;
+        let missing_reader = atlas_index::SqliteIndexReader::open_read_only(&missing_table_body)?;
+        let report = missing_reader.validate()?;
+        assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.key.as_deref()
+                == Some("canonical_roll_table_records.missing_roll_table_body")
+        }));
+        for error in [
+            missing_reader.load_hydrated_records().unwrap_err(),
+            missing_reader
+                .load_hydrated_records_by_key(std::slice::from_ref(&table_key))
+                .unwrap_err(),
+        ] {
+            assert!(
+                error.to_string().contains("missing its required body"),
+                "{error}"
+            );
+        }
+        remove_test_artifact(&missing_table_body)?;
+        remove_test_artifact(&path)?;
+        Ok(())
+    }
+
+    #[test]
     fn hazard_foreign_key_failure_preserves_existing_artifact_atomically()
     -> Result<(), Box<dyn std::error::Error>> {
         let mut input = mixed_canonical_fixture_input();
@@ -915,7 +1588,10 @@ mod tests {
             .iter_mut()
             .find_map(|body| match body {
                 RecordBody::Hazard(hazard) => Some(hazard),
-                RecordBody::Creature(_) | RecordBody::Spell(_) => None,
+                RecordBody::Creature(_)
+                | RecordBody::Spell(_)
+                | RecordBody::Journal(_)
+                | RecordBody::RollTable(_) => None,
             })
             .expect("hazard body");
         let FactValue::Value(atlas_record::HazardSourceValue::Typed(embedded)) =
@@ -1017,6 +1693,88 @@ mod tests {
         Ok(())
     }
 
+    fn assert_h8_corruption_rejected(
+        path: &Path,
+        requested_key: &RecordKey,
+        diagnostic_key: &str,
+        expected_error: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let reader = atlas_index::SqliteIndexReader::open_read_only(path)?;
+        let report = reader.validate()?;
+        assert_eq!(report.status, atlas_index::ValidationStatus::Error);
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.key.as_deref() == Some(diagnostic_key)),
+            "{:#?}",
+            report.diagnostics
+        );
+        for error in [
+            reader
+                .load_hydrated_records()
+                .expect_err("all hydration rejects corruption"),
+            reader
+                .load_hydrated_records_by_key(std::slice::from_ref(requested_key))
+                .expect_err("requested hydration rejects corruption"),
+        ] {
+            assert!(error.to_string().contains(expected_error), "{error}");
+        }
+        Ok(())
+    }
+
+    fn mutate_first_record_child(
+        value: &mut Value,
+        replacement_key: Option<&str>,
+        replacement_identity: Option<&str>,
+    ) -> bool {
+        match value {
+            Value::Object(object) => {
+                if object.get("kind").and_then(Value::as_str) == Some("recordChild") {
+                    if let Some(key) = replacement_key {
+                        object.insert("key".to_string(), Value::String(key.to_string()));
+                    }
+                    if let Some(identity) = replacement_identity
+                        && let Some(Value::Object(locator)) = object.get_mut("locator")
+                        && let Some(Value::Object(child_identity)) = locator.get_mut("identity")
+                    {
+                        child_identity
+                            .insert("value".to_string(), Value::String(identity.to_string()));
+                    }
+                    return true;
+                }
+                object.values_mut().any(|child| {
+                    mutate_first_record_child(child, replacement_key, replacement_identity)
+                })
+            }
+            Value::Array(values) => values.iter_mut().any(|child| {
+                mutate_first_record_child(child, replacement_key, replacement_identity)
+            }),
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => false,
+        }
+    }
+
+    fn assert_h8_write_rejected(
+        input: &atlas_index::IndexBuildInput,
+        label: &str,
+        expected: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = unique_temp_path(&format!("h8-integrity-{label}.sqlite"));
+        let error = atlas_index::IndexArtifactWriter::write(
+            &atlas_index::SqliteIndexWriter::new(path.clone()),
+            input,
+            atlas_embedding::EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("invalid H8 canonical ownership must fail before artifact creation");
+        assert!(error.to_string().contains(expected), "{error}");
+        assert!(
+            !path.exists(),
+            "H8 pre-write validation must not create output"
+        );
+        std::fs::remove_dir_all(path.parent().expect("temporary artifact parent"))?;
+        Ok(())
+    }
+
     #[test]
     fn maps_source_load_to_index_build_input_without_changing_boundaries()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -1048,6 +1806,8 @@ mod tests {
                 relation_kind: atlas_record::ReferenceRelationKind::Reference,
                 source_kind: ContentSourceKind::Description,
                 visibility: ContentVisibility::Public,
+                source_child: None,
+                target_child: None,
             }],
             aliases: vec![RecordAlias {
                 canonical_record_key: source_key.clone(),
@@ -1258,6 +2018,39 @@ mod tests {
             .document_embeddings
             .extend(spell.document_embeddings);
         combined
+    }
+
+    fn load_h8_pinned_fixture_source() -> Result<SourceLoad, Box<dyn std::error::Error>> {
+        let source_root = PathBuf::from(
+            std::env::var_os("PF2E_SOURCE_REPOSITORY")
+                .ok_or("PF2E_SOURCE_REPOSITORY is required for H8 fixture")?,
+        );
+        let fixture_root = unique_temp_path("h8-source")
+            .parent()
+            .expect("fixture parent")
+            .to_path_buf();
+        let journals = fixture_root.join("packs/journals");
+        let tables = fixture_root.join("packs/rollable-tables");
+        std::fs::create_dir_all(&journals)?;
+        std::fs::create_dir_all(&tables)?;
+        std::fs::copy(
+            source_root.join("packs/journals/hero-point-deck.json"),
+            journals.join("hero-point-deck.json"),
+        )?;
+        std::fs::copy(
+            source_root.join("packs/rollable-tables/hero-point-deck.json"),
+            tables.join("hero-point-deck.json"),
+        )?;
+        std::fs::write(
+            fixture_root.join("module.json"),
+            br#"{"packs":[
+              {"name":"journals","label":"Journals","type":"JournalEntry","path":"packs/journals"},
+              {"name":"rollable-tables","label":"Roll Tables","type":"RollTable","path":"packs/rollable-tables"}
+            ]}"#,
+        )?;
+        let source = crate::source_pipeline::load_foundry_source(&fixture_root, None)?;
+        std::fs::remove_dir_all(fixture_root)?;
+        Ok(source)
     }
 
     fn record(pack_name: &str, id: &str, kind: RecordKind) -> AtlasRecord {

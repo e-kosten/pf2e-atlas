@@ -9,8 +9,8 @@ use atlas_app_model::{
 };
 use atlas_record::{
     FactIssueKind, FactPresentationDisposition, FactPresentationRole, FactPresentationState,
-    FactRequirement, HazardSourceMetadataField, HazardSourceMetadataIssueKind, RecordBody,
-    RetrievedRecord, SpellPresentationIssue, SpellPresentationIssuePlacement,
+    FactRequirement, FactValue, HazardSourceMetadataField, HazardSourceMetadataIssueKind,
+    RecordBody, RetrievedRecord, SpellPresentationIssue, SpellPresentationIssuePlacement,
     classify_fact_presentation, merge_spell_presentation_issues, project_hazard_source_metadata,
     project_spell_presentation_issues,
 };
@@ -31,6 +31,12 @@ pub(crate) fn record_surface_issues(
         (RecordSurfacePresentationView::Spell { .. }, Some(RecordBody::Spell(spell))) => {
             spell_issues(spell, selected_spell_issues, &mut issues);
         }
+        (RecordSurfacePresentationView::Journal { .. }, Some(RecordBody::Journal(journal))) => {
+            journal_issues(journal, &mut issues);
+        }
+        (RecordSurfacePresentationView::RollTable { .. }, Some(RecordBody::RollTable(table))) => {
+            roll_table_issues(table, &mut issues);
+        }
         (RecordSurfacePresentationView::Unavailable { .. }, _) => {
             issues.push(RecordSurfaceIssueView {
                 consequence: None,
@@ -45,6 +51,464 @@ pub(crate) fn record_surface_issues(
         _ => {}
     }
     (!issues.is_empty()).then_some(issues)
+}
+
+fn h8_unknown_issues<'a>(
+    fields: &[atlas_record::H8UnsupportedField],
+    children: impl Iterator<Item = &'a atlas_record::H8UnsupportedChild>,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    issues.extend(fields.iter().map(|field| RecordSurfaceIssueView {
+        consequence: Some("The exact authored value is retained in machine provenance but is not presented as a modeled field.".to_string()),
+        fact_id: Some(format!("h8:{}:{}", field.relative_path, field.authored_order)),
+        code: RecordSurfaceIssueCodeView::Unsupported,
+        placement: RecordSurfaceIssuePlacementView::Record,
+        subject: None,
+        fact_label: Some(field.relative_path.clone()),
+        message: "This source field does not yet have an H8 product meaning.".to_string(),
+    }));
+    issues.extend(children.map(|child| RecordSurfaceIssueView {
+        consequence: Some("Valid sibling content remains available.".to_string()),
+        fact_id: Some(format!(
+            "h8-child:{}",
+            atlas_record::encode_content_child_locator(&child.locator)
+        )),
+        code: RecordSurfaceIssueCodeView::Unsupported,
+        placement: RecordSurfaceIssuePlacementView::Record,
+        subject: None,
+        fact_label: Some(format!("Child {}", child.source_ordinal.saturating_add(1))),
+        message: child.reason.clone(),
+    }));
+}
+
+fn journal_issues(journal: &atlas_record::JournalRecord, issues: &mut Vec<RecordSurfaceIssueView>) {
+    required_h8_fact_issue(&journal.pages, "pages", "Journal pages", issues);
+    h8_source_metadata_issues(&journal.source_metadata, "journal", issues);
+    h8_unknown_issues(
+        &journal.unsupported_fields,
+        journal
+            .pages
+            .as_value()
+            .and_then(atlas_record::H8FieldValue::known)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| match entry {
+                atlas_record::JournalPageEntry::Unsupported(value) => Some(value),
+                atlas_record::JournalPageEntry::Page(_) => None,
+            }),
+        issues,
+    );
+    let Some(pages) = journal
+        .pages
+        .as_value()
+        .and_then(atlas_record::H8FieldValue::known)
+    else {
+        return;
+    };
+    for entry in pages {
+        let atlas_record::JournalPageEntry::Page(page) = entry else {
+            continue;
+        };
+        let prefix = format!("page.{}", page.source_ordinal);
+        required_h8_fact_issue(
+            &page.source_id,
+            &format!("{prefix}.source_id"),
+            "Page source ID",
+            issues,
+        );
+        h8_unstable_identity_issue(
+            &page.locator,
+            &page.source_id,
+            &format!("{prefix}.source_id"),
+            "Page source ID",
+            issues,
+        );
+        h8_fact_issue(&page.name, &format!("{prefix}.name"), "Page title", issues);
+        h8_fact_issue(&page.sort, &format!("{prefix}.sort"), "Page sort", issues);
+        h8_fact_issue(
+            &page.source,
+            &format!("{prefix}.src"),
+            "Page media source",
+            issues,
+        );
+        h8_fact_issue(
+            &page.image_caption,
+            &format!("{prefix}.image.caption"),
+            "Image caption",
+            issues,
+        );
+        h8_fact_issue(
+            &page.source_system,
+            &format!("{prefix}.system"),
+            "Page type data",
+            issues,
+        );
+        if let FactValue::Value(atlas_record::H8FieldValue::Known(title)) = &page.title {
+            required_h8_fact_issue(
+                &title.show,
+                &format!("{prefix}.title.show"),
+                "Title visibility",
+                issues,
+            );
+            required_h8_fact_issue(
+                &title.level,
+                &format!("{prefix}.title.level"),
+                "Title level",
+                issues,
+            );
+        } else {
+            h8_fact_issue(
+                &page.title,
+                &format!("{prefix}.title"),
+                "Page title metadata",
+                issues,
+            );
+        }
+        if let FactValue::Value(atlas_record::H8FieldValue::Known(text)) = &page.text {
+            h8_fact_issue(
+                &text.content,
+                &format!("{prefix}.text.content"),
+                "Page content",
+                issues,
+            );
+            h8_fact_issue(
+                &text.format,
+                &format!("{prefix}.text.format"),
+                "Page text format",
+                issues,
+            );
+            h8_fact_issue(
+                &text.markdown,
+                &format!("{prefix}.text.markdown"),
+                "Page Markdown",
+                issues,
+            );
+        } else {
+            h8_fact_issue(&page.text, &format!("{prefix}.text"), "Page text", issues);
+        }
+        if let FactValue::Value(atlas_record::H8FieldValue::Known(video)) = &page.video {
+            h8_fact_issue(
+                &video.controls,
+                &format!("{prefix}.video.controls"),
+                "Video controls",
+                issues,
+            );
+            h8_fact_issue(
+                &video.loop_playback,
+                &format!("{prefix}.video.loop"),
+                "Video loop",
+                issues,
+            );
+            h8_fact_issue(
+                &video.autoplay,
+                &format!("{prefix}.video.autoplay"),
+                "Video autoplay",
+                issues,
+            );
+            h8_fact_issue(
+                &video.volume,
+                &format!("{prefix}.video.volume"),
+                "Video volume",
+                issues,
+            );
+            h8_fact_issue(
+                &video.timestamp,
+                &format!("{prefix}.video.timestamp"),
+                "Video timestamp",
+                issues,
+            );
+            h8_fact_issue(
+                &video.width,
+                &format!("{prefix}.video.width"),
+                "Video width",
+                issues,
+            );
+            h8_fact_issue(
+                &video.height,
+                &format!("{prefix}.video.height"),
+                "Video height",
+                issues,
+            );
+        } else {
+            h8_fact_issue(
+                &page.video,
+                &format!("{prefix}.video"),
+                "Page video",
+                issues,
+            );
+        }
+        h8_fact_issue(
+            &page.source_metadata.ownership,
+            &format!("{prefix}.ownership"),
+            "Page ownership metadata",
+            issues,
+        );
+        h8_fact_issue(
+            &page.source_metadata.flags,
+            &format!("{prefix}.flags"),
+            "Page flags metadata",
+            issues,
+        );
+        h8_fact_issue(
+            &page.source_metadata.stats,
+            &format!("{prefix}._stats"),
+            "Page source statistics",
+            issues,
+        );
+        h8_unknown_issues(&page.unsupported_fields, std::iter::empty(), issues);
+    }
+}
+
+fn roll_table_issues(
+    table: &atlas_record::RollTableRecord,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    required_h8_fact_issue(&table.results, "results", "Table results", issues);
+    h8_fact_issue(
+        &table.description,
+        "description",
+        "Table description",
+        issues,
+    );
+    h8_fact_issue(&table.formula, "formula", "Table formula", issues);
+    h8_fact_issue(
+        &table.replacement,
+        "replacement",
+        "Replacement policy",
+        issues,
+    );
+    h8_fact_issue(
+        &table.display_roll,
+        "display_roll",
+        "Display-roll policy",
+        issues,
+    );
+    h8_fact_issue(&table.image, "img", "Table image", issues);
+    h8_source_metadata_issues(&table.source_metadata, "roll_table", issues);
+    h8_unknown_issues(
+        &table.unsupported_fields,
+        table
+            .results
+            .as_value()
+            .and_then(atlas_record::H8FieldValue::known)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| match entry {
+                atlas_record::TableResultEntry::Unsupported(value) => Some(value),
+                atlas_record::TableResultEntry::Result(_) => None,
+            }),
+        issues,
+    );
+    let Some(results) = table
+        .results
+        .as_value()
+        .and_then(atlas_record::H8FieldValue::known)
+    else {
+        return;
+    };
+    for entry in results {
+        let atlas_record::TableResultEntry::Result(result) = entry else {
+            continue;
+        };
+        let prefix = format!("result.{}", result.source_ordinal);
+        required_h8_fact_issue(
+            &result.source_id,
+            &format!("{prefix}.source_id"),
+            "Result source ID",
+            issues,
+        );
+        h8_unstable_identity_issue(
+            &result.locator,
+            &result.source_id,
+            &format!("{prefix}.source_id"),
+            "Result source ID",
+            issues,
+        );
+        h8_fact_issue(
+            &result.text,
+            &format!("{prefix}.text"),
+            "Result text",
+            issues,
+        );
+        h8_fact_issue(
+            &result.target.collection,
+            &format!("{prefix}.collection"),
+            "Result collection",
+            issues,
+        );
+        h8_fact_issue(
+            &result.target.document_id,
+            &format!("{prefix}.document_id"),
+            "Result document ID",
+            issues,
+        );
+        h8_fact_issue(
+            &result.weight,
+            &format!("{prefix}.weight"),
+            "Result weight",
+            issues,
+        );
+        h8_fact_issue(
+            &result.range,
+            &format!("{prefix}.range"),
+            "Result range",
+            issues,
+        );
+        h8_fact_issue(
+            &result.drawn,
+            &format!("{prefix}.drawn"),
+            "Result drawn state",
+            issues,
+        );
+        h8_fact_issue(
+            &result.image,
+            &format!("{prefix}.img"),
+            "Result image",
+            issues,
+        );
+        h8_fact_issue(
+            &result.source_metadata.flags,
+            &format!("{prefix}.flags"),
+            "Result flags metadata",
+            issues,
+        );
+        h8_unknown_issues(&result.unsupported_fields, std::iter::empty(), issues);
+    }
+}
+
+fn h8_source_metadata_issues(
+    metadata: &atlas_record::H8RecordSourceMetadata,
+    prefix: &str,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    h8_fact_issue(
+        &metadata.folder,
+        &format!("{prefix}.folder"),
+        "Source folder",
+        issues,
+    );
+    h8_fact_issue(
+        &metadata.sort,
+        &format!("{prefix}.sort"),
+        "Source sort",
+        issues,
+    );
+    h8_fact_issue(
+        &metadata.ownership,
+        &format!("{prefix}.ownership"),
+        "Source ownership",
+        issues,
+    );
+    h8_fact_issue(
+        &metadata.flags,
+        &format!("{prefix}.flags"),
+        "Source flags",
+        issues,
+    );
+    h8_fact_issue(
+        &metadata.stats,
+        &format!("{prefix}._stats"),
+        "Source statistics",
+        issues,
+    );
+}
+
+fn required_h8_fact_issue<T>(
+    fact: &atlas_record::H8Fact<T>,
+    fact_id: &str,
+    label: &str,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    match fact {
+        FactValue::Missing => push_h8_issue(
+            issues,
+            RecordSurfaceIssueCodeView::Unavailable,
+            fact_id,
+            label,
+            format!("{label} are missing from the authored record."),
+        ),
+        FactValue::Null => push_h8_issue(
+            issues,
+            RecordSurfaceIssueCodeView::Unavailable,
+            fact_id,
+            label,
+            format!("{label} are null in the authored record."),
+        ),
+        FactValue::Value(atlas_record::H8FieldValue::Unsupported(_)) => push_h8_issue(
+            issues,
+            RecordSurfaceIssueCodeView::Unsupported,
+            fact_id,
+            label,
+            format!("{label} have an unsupported authored value."),
+        ),
+        FactValue::Value(atlas_record::H8FieldValue::Known(_)) => {}
+    }
+}
+
+fn h8_unstable_identity_issue(
+    locator: &atlas_record::ContentChildLocator,
+    source_id: &atlas_record::H8Fact<atlas_record::SourceDocumentId>,
+    fact_id: &str,
+    label: &str,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    if matches!(
+        locator.identity,
+        atlas_record::ContentChildIdentity::Unstable { .. }
+    ) && matches!(
+        source_id,
+        FactValue::Value(atlas_record::H8FieldValue::Known(_))
+    ) {
+        push_h8_issue(
+            issues,
+            RecordSurfaceIssueCodeView::Ambiguous,
+            fact_id,
+            label,
+            format!(
+                "{label} is duplicated within its parent; this child uses an authored-order locator."
+            ),
+        );
+    }
+}
+
+fn h8_fact_issue<T>(
+    fact: &atlas_record::H8Fact<T>,
+    fact_id: &str,
+    label: &str,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    if matches!(
+        fact,
+        FactValue::Value(atlas_record::H8FieldValue::Unsupported(_))
+    ) {
+        push_h8_issue(
+            issues,
+            RecordSurfaceIssueCodeView::Unsupported,
+            fact_id,
+            label,
+            format!("{label} has an unsupported authored value."),
+        );
+    }
+}
+
+fn push_h8_issue(
+    issues: &mut Vec<RecordSurfaceIssueView>,
+    code: RecordSurfaceIssueCodeView,
+    fact_id: &str,
+    label: &str,
+    message: String,
+) {
+    issues.push(RecordSurfaceIssueView {
+        consequence: Some(
+            "The exact authored state remains available in the typed machine response.".to_string(),
+        ),
+        fact_id: Some(format!("h8:{fact_id}")),
+        code,
+        placement: RecordSurfaceIssuePlacementView::Record,
+        subject: None,
+        fact_label: Some(label.to_string()),
+        message,
+    });
 }
 
 fn creature_issues(
@@ -454,19 +918,231 @@ mod tests {
     };
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::{
-        FactValue, RecordBody, SpellClassification, SpellFixedHeighteningLayer, SpellFormId,
-        SpellHeightening, SpellIdentity, SpellKeyedPatch, SpellKeyedPatchMember,
+        ContentChildIdentity, ContentChildKind, ContentChildLocator, FactValue, H8FieldValue,
+        H8Identity, H8PageSourceMetadata, H8Provenance, H8RecordSourceMetadata, H8UnsupportedChild,
+        JournalPage, JournalPageEntry, JournalRecord, OwnedRichContent, RecordBody,
+        RollTableRecord, SourceDocumentId, SpellClassification, SpellFixedHeighteningLayer,
+        SpellFormId, SpellHeightening, SpellIdentity, SpellKeyedPatch, SpellKeyedPatchMember,
         SpellKeyedPatchOperation, SpellOverlay, SpellOverlayId, SpellOverlayType, SpellPatch,
         SpellProvenance, SpellRecord, SpellRollOptionRule, SpellRule, SpellRuleElement,
         SpellRulePredicate, SpellRuleSuboption, SpellSourceId, SpellSourceValue,
         SpellUnsupportedRule, SpellUnsupportedRulePredicate, SpellUnsupportedSourceFact,
-        SpellUnsupportedSourceField, UnsupportedSourceReason, UnsupportedSourceShape,
-        UnsupportedSourceValue,
+        SpellUnsupportedSourceField, TableResultEntry, UnsupportedSourceReason,
+        UnsupportedSourceShape, UnsupportedSourceValue,
     };
     use atlas_search::RemasterLinksResult;
 
     use crate::retrieval::VerifiedRemasterLookup;
     use crate::test_support::encounter_fixture_worker;
+
+    #[test]
+    fn h8_journal_surface_preserves_four_state_metadata_without_fabricated_media() {
+        let key = RecordKey::parse("journals:h8Surface").expect("journal key");
+        let page_id = SourceDocumentId::new("page-system").expect("page source id");
+        let record = h8_fixture(
+            key.clone(),
+            RecordKind::Journal,
+            RecordBody::Journal(JournalRecord {
+                identity: H8Identity {
+                    record_key: key.clone(),
+                    source_id: SourceDocumentId::new("h8-journal").expect("source id"),
+                    name: "H8 Journal".to_string(),
+                },
+                pages: FactValue::Value(H8FieldValue::Known(vec![JournalPageEntry::Page(
+                    Box::new(JournalPage {
+                        locator: atlas_record::ContentChildLocator {
+                            parent: key.clone(),
+                            kind: ContentChildKind::JournalPage,
+                            identity: ContentChildIdentity::Stable(page_id.clone()),
+                        },
+                        source_id: FactValue::Value(H8FieldValue::Known(page_id)),
+                        source_ordinal: 0,
+                        name: FactValue::Value(H8FieldValue::Known("Page".to_string())),
+                        page_kind: FactValue::Missing,
+                        sort: FactValue::Missing,
+                        title: FactValue::Missing,
+                        text: FactValue::Missing,
+                        source: FactValue::Missing,
+                        image_source: FactValue::Missing,
+                        image_caption: FactValue::Missing,
+                        video: FactValue::Missing,
+                        source_system: FactValue::Value(H8FieldValue::Unsupported(
+                            unsupported_value(),
+                        )),
+                        source_metadata: H8PageSourceMetadata {
+                            ownership: FactValue::Missing,
+                            flags: FactValue::Missing,
+                            stats: FactValue::Missing,
+                        },
+                        unsupported_fields: Vec::new(),
+                    }),
+                )])),
+                source_metadata: H8RecordSourceMetadata {
+                    folder: FactValue::Null,
+                    sort: FactValue::Value(H8FieldValue::Known(0)),
+                    ownership: FactValue::Missing,
+                    flags: FactValue::Value(H8FieldValue::Unsupported(unsupported_value())),
+                    stats: FactValue::Missing,
+                },
+                content: OwnedRichContent::default(),
+                unsupported_fields: Vec::new(),
+                provenance: h8_provenance(),
+            }),
+        );
+
+        let surface = surface(&record, None);
+        let RecordSurfacePresentationView::Journal { body } = &surface.presentation else {
+            panic!("journal presentation");
+        };
+        assert!(matches!(
+            body.source_metadata.folder,
+            atlas_app_model::H8FactView::Null
+        ));
+        assert!(matches!(
+            body.source_metadata.sort,
+            atlas_app_model::H8FactView::Known(0)
+        ));
+        assert!(matches!(
+            body.source_metadata.ownership,
+            atlas_app_model::H8FactView::Missing
+        ));
+        assert!(matches!(
+            body.source_metadata.flags,
+            atlas_app_model::H8FactView::Unsupported(_)
+        ));
+        assert!(
+            surface
+                .issues
+                .as_ref()
+                .is_some_and(|issues| issues.iter().any(|issue| {
+                    issue.code == RecordSurfaceIssueCodeView::Unsupported
+                        && issue.fact_id.as_deref() == Some("h8:journal.flags")
+                }))
+        );
+        assert!(surface.issues.as_ref().is_some_and(|issues| {
+            issues.iter().any(|issue| {
+                issue.code == RecordSurfaceIssueCodeView::Unsupported
+                    && issue.fact_id.as_deref() == Some("h8:page.0.system")
+            })
+        }));
+    }
+
+    #[test]
+    fn h8_roll_table_surface_localizes_unsupported_child_and_keeps_siblings_available() {
+        let key = RecordKey::parse("roll-tables:h8Surface").expect("table key");
+        let unsupported_child = |source_ordinal, source_id| {
+            TableResultEntry::Unsupported(H8UnsupportedChild {
+                locator: ContentChildLocator {
+                    parent: key.clone(),
+                    kind: ContentChildKind::TableResult,
+                    identity: ContentChildIdentity::Unstable { source_ordinal },
+                },
+                source_id,
+                source_ordinal,
+                exact_source: atlas_record::H8ExactSourceObject {
+                    compact_json: format!(r#"{{"ordinal":{source_ordinal}}}"#),
+                },
+                reason: "table result has an unsupported identity".to_string(),
+            })
+        };
+        let record = h8_fixture(
+            key.clone(),
+            RecordKind::RollTable,
+            RecordBody::RollTable(RollTableRecord {
+                identity: H8Identity {
+                    record_key: key.clone(),
+                    source_id: SourceDocumentId::new("h8-table").expect("source id"),
+                    name: "H8 Table".to_string(),
+                },
+                description: FactValue::Missing,
+                results: FactValue::Value(H8FieldValue::Known(vec![
+                    unsupported_child(
+                        0,
+                        FactValue::Value(H8FieldValue::Known(
+                            SourceDocumentId::new("broken-result").expect("result id"),
+                        )),
+                    ),
+                    unsupported_child(
+                        1,
+                        FactValue::Value(H8FieldValue::Known(
+                            SourceDocumentId::new("broken-result").expect("duplicate result id"),
+                        )),
+                    ),
+                    unsupported_child(2, FactValue::Missing),
+                    unsupported_child(3, FactValue::Null),
+                    unsupported_child(
+                        4,
+                        FactValue::Value(H8FieldValue::Unsupported(UnsupportedSourceValue {
+                            shape: UnsupportedSourceShape::String,
+                            value: r#"""#.to_string(),
+                            reason: UnsupportedSourceReason::SourceFieldDrift,
+                        })),
+                    ),
+                ])),
+                formula: FactValue::Missing,
+                replacement: FactValue::Missing,
+                display_roll: FactValue::Missing,
+                image: FactValue::Missing,
+                source_metadata: empty_h8_metadata(),
+                content: OwnedRichContent::default(),
+                unsupported_fields: Vec::new(),
+                provenance: h8_provenance(),
+            }),
+        );
+
+        let surface = surface(&record, None);
+        let RecordSurfacePresentationView::RollTable { body } = &surface.presentation else {
+            panic!("roll-table presentation");
+        };
+        let atlas_app_model::H8FactView::Known(results) = &body.results else {
+            panic!("table results");
+        };
+        let unsupported = results
+            .iter()
+            .map(|entry| match entry {
+                atlas_app_model::TableResultEntryView::Unsupported { unsupported } => unsupported,
+                atlas_app_model::TableResultEntryView::Result { .. } => {
+                    panic!("unsupported result")
+                }
+            })
+            .collect::<Vec<_>>();
+        assert!(unsupported.iter().all(|child| {
+            child.identity_stability
+                == atlas_app_model::H8IdentityStabilityView::UnstableAuthoredOrdinal
+        }));
+        assert!(matches!(
+            &unsupported[0].source_id,
+            atlas_app_model::H8FactView::Known(value) if value == "broken-result"
+        ));
+        assert!(matches!(
+            &unsupported[1].source_id,
+            atlas_app_model::H8FactView::Known(value) if value == "broken-result"
+        ));
+        assert!(matches!(
+            &unsupported[2].source_id,
+            atlas_app_model::H8FactView::Missing
+        ));
+        assert!(matches!(
+            &unsupported[3].source_id,
+            atlas_app_model::H8FactView::Null
+        ));
+        assert!(matches!(
+            &unsupported[4].source_id,
+            atlas_app_model::H8FactView::Unsupported(value)
+                if value.shape == "string"
+                    && value.exact_value == r#"""#
+                    && value.reason == "source_field_drift"
+        ));
+        assert!(
+            surface
+                .issues
+                .as_ref()
+                .is_some_and(|issues| issues.iter().any(|issue| {
+                    issue.code == RecordSurfaceIssueCodeView::Unsupported
+                        && issue.message == "table result has an unsupported identity"
+                }))
+        );
+    }
 
     #[test]
     fn spell_expectedness_keeps_optional_absence_quiet_and_unsupported_actionable() {
@@ -789,6 +1465,48 @@ mod tests {
             selection,
             &remaster_lookup,
         )
+    }
+
+    fn h8_fixture(
+        key: RecordKey,
+        kind: RecordKind,
+        body: RecordBody,
+    ) -> atlas_record::RetrievedRecord {
+        let fixture = encounter_fixture_worker();
+        let mut record = fixture
+            .worker
+            .get_records(vec![
+                RecordKey::parse("actions:testAction1").expect("fixture key"),
+            ])
+            .expect("fixture record should load")
+            .pop()
+            .expect("fixture record should exist");
+        record.record.identity.key = key;
+        record.record.identity.name = "H8 Fixture".to_string();
+        record.record.classification.kind = kind;
+        record.record.classification.level = None;
+        record.record.classification.traits.clear();
+        record.body = Some(body);
+        record
+    }
+
+    fn h8_provenance() -> H8Provenance {
+        H8Provenance {
+            source_path: "packs/h8/fixture.json".to_string(),
+            source_contract_version: "pf2e-serialized-source/v1".to_string(),
+            source_system_version: "7.7.0".to_string(),
+            source_upstream_commit: "fixture".to_string(),
+        }
+    }
+
+    fn empty_h8_metadata() -> H8RecordSourceMetadata {
+        H8RecordSourceMetadata {
+            folder: FactValue::Missing,
+            sort: FactValue::Missing,
+            ownership: FactValue::Missing,
+            flags: FactValue::Missing,
+            stats: FactValue::Missing,
+        }
     }
 
     fn spell_fixture(

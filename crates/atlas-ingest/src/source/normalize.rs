@@ -16,7 +16,6 @@ mod content_sources;
 #[cfg(test)]
 mod content_tests;
 mod embedded_items;
-mod journal_pages;
 mod json;
 mod kind;
 mod publication;
@@ -28,7 +27,6 @@ mod time;
 
 use content_sources::extract_content_sources;
 use embedded_items::{attach_embedded_content_refs, extract_embedded_item_facts};
-use journal_pages::extract_journal_page_facts;
 
 #[cfg(test)]
 pub(crate) use content::parse_foundry_content;
@@ -59,6 +57,7 @@ use crate::source::dto::{
     SerializedSourceValue, SourceIdentity, SpellDocumentSource, parse_hazard_source,
     parse_npc_source_from_serialized, parse_spell_document_source, pinned_source_version_metadata,
 };
+use crate::source::h8::{convert_journal, convert_roll_table};
 use crate::source::hazard_core::{HazardCoreConversion, convert_hazard_core};
 use crate::source::mechanics;
 use crate::source::npc_core::{NpcCoreConversion, convert_npc_core};
@@ -116,6 +115,33 @@ pub(crate) fn normalize_record_from_source(
                 ),
             )
         })?;
+    let journal_source = (manifest_pack.document_type == "JournalEntry")
+        .then(|| crate::source::dto::parse_journal_source(&source))
+        .transpose()
+        .map_err(|error| normalization_error(path, &error))?;
+    let roll_table_source = (manifest_pack.document_type == "RollTable")
+        .then(|| crate::source::dto::parse_roll_table_source(&source))
+        .transpose()
+        .map_err(|error| normalization_error(path, &error))?;
+    let h8_conversion = if let Some(journal) = &journal_source {
+        Some(
+            convert_journal(
+                journal,
+                key.clone(),
+                &source_path,
+                name.clone(),
+                localization,
+            )
+            .map_err(|error| normalization_error(path, &error))?,
+        )
+    } else if let Some(table) = &roll_table_source {
+        Some(
+            convert_roll_table(table, key.clone(), &source_path, name.clone(), localization)
+                .map_err(|error| normalization_error(path, &error))?,
+        )
+    } else {
+        None
+    };
     let spell_source = (manifest_pack.document_type == "Item"
         && matches!(record_type.as_str(), "spell" | "consumable"))
     .then(|| {
@@ -140,6 +166,8 @@ pub(crate) fn normalize_record_from_source(
             || hazard_melee_damage_paths
                 .iter()
                 .any(|path| path == object_path)
+            || h8_conversion.is_some()
+                && h8_duplicate_is_retained(&manifest_pack.document_type, object_path, key)
         {
             LegacyDuplicateDisposition::OmitAfterFamilyRetention
         } else {
@@ -189,7 +217,12 @@ pub(crate) fn normalize_record_from_source(
     let canonical_creature = match npc_conversion.as_ref().map(|conversion| &conversion.body) {
         None => None,
         Some(atlas_record::RecordBody::Creature(creature)) => Some(creature),
-        Some(atlas_record::RecordBody::Hazard(_) | atlas_record::RecordBody::Spell(_)) => {
+        Some(
+            atlas_record::RecordBody::Hazard(_)
+            | atlas_record::RecordBody::Spell(_)
+            | atlas_record::RecordBody::Journal(_)
+            | atlas_record::RecordBody::RollTable(_),
+        ) => {
             return Err(normalization_error(
                 path,
                 "NPC conversion did not produce a creature body",
@@ -201,7 +234,10 @@ pub(crate) fn normalize_record_from_source(
             .as_ref()
             .and_then(|conversion| match &conversion.body {
                 atlas_record::RecordBody::Hazard(hazard) => Some(hazard),
-                atlas_record::RecordBody::Creature(_) | atlas_record::RecordBody::Spell(_) => None,
+                atlas_record::RecordBody::Creature(_)
+                | atlas_record::RecordBody::Spell(_)
+                | atlas_record::RecordBody::Journal(_)
+                | atlas_record::RecordBody::RollTable(_) => None,
             });
     let level = if let Some(creature) = canonical_creature {
         creature.level.value.as_value().copied()
@@ -372,10 +408,6 @@ pub(crate) fn normalize_record_from_source(
         &mut source_facts.embedded_items,
         &source_facts.source_content,
     );
-    let (journal_pages, skipped_journal_pages, journal_diagnostics) =
-        extract_journal_page_facts(&raw, &key, localization);
-    source_facts.journal_pages = journal_pages;
-    source_facts.skipped_journal_pages = skipped_journal_pages;
     let folder_id = pointer_string(&raw, "/folder");
     let raw_json = serde_json::to_string(&raw).map_err(|error| {
         normalization_error(path, &format!("raw JSON serialization failed: {error}"))
@@ -467,6 +499,8 @@ pub(crate) fn normalize_record_from_source(
         }) = hazard_conversion
         {
             (Some(body), Vec::new())
+        } else if let Some(h8) = &h8_conversion {
+            (Some(h8.body.clone()), Vec::new())
         } else {
             (None, Vec::new())
         };
@@ -484,7 +518,12 @@ pub(crate) fn normalize_record_from_source(
         content_parse_diagnostics: content_sources
             .diagnostics
             .into_iter()
-            .chain(journal_diagnostics)
+            .chain(
+                h8_conversion
+                    .as_ref()
+                    .into_iter()
+                    .flat_map(|conversion| conversion.content_diagnostics.clone()),
+            )
             .collect(),
         source_facts,
         npc_source,
@@ -573,6 +612,129 @@ fn within_pointer_subtree(path: &str, root: &str) -> bool {
         || path
             .strip_prefix(root)
             .is_some_and(|suffix| suffix.starts_with('/'))
+}
+
+fn h8_duplicate_is_retained(document_type: &str, object_path: &str, key: &str) -> bool {
+    let root_known = match document_type {
+        "JournalEntry" => &[
+            "_id",
+            "name",
+            "pages",
+            "folder",
+            "sort",
+            "ownership",
+            "flags",
+            "_stats",
+        ][..],
+        "RollTable" => &[
+            "_id",
+            "name",
+            "description",
+            "results",
+            "formula",
+            "replacement",
+            "displayRoll",
+            "img",
+            "folder",
+            "sort",
+            "ownership",
+            "flags",
+            "_stats",
+        ][..],
+        _ => return false,
+    };
+    if object_path.is_empty() {
+        return !root_known.contains(&key);
+    }
+    if within_exact_h8_object(object_path, "/ownership")
+        || within_exact_h8_object(object_path, "/flags")
+        || within_exact_h8_object(object_path, "/_stats")
+    {
+        return true;
+    }
+    if !within_pointer_subtree(object_path, "/pages")
+        && !within_pointer_subtree(object_path, "/results")
+    {
+        // A malformed scalar owner or root unsupported-field owner retains the
+        // complete ordered value. Let the family conversion reject or retain
+        // it without the legacy projection selecting a descendant.
+        return true;
+    }
+    if child_collection_object(object_path, "pages") {
+        return !matches!(key, "_id" | "type");
+    }
+    if child_collection_object(object_path, "results") {
+        return !matches!(key, "_id" | "type");
+    }
+    if let Some((collection, member, _)) = h8_child_member_path(object_path) {
+        let known_child_members: &[&str] = match collection {
+            "pages" => &[
+                "_id",
+                "name",
+                "type",
+                "sort",
+                "title",
+                "text",
+                "src",
+                "image",
+                "video",
+                "system",
+                "ownership",
+                "flags",
+                "_stats",
+            ],
+            "results" => &[
+                "_id",
+                "type",
+                "text",
+                "documentCollection",
+                "documentId",
+                "weight",
+                "range",
+                "drawn",
+                "img",
+                "flags",
+            ],
+            _ => return false,
+        };
+        if !known_child_members.contains(&member) {
+            // The child-level unsupported-field owner retains the whole authored value.
+            return true;
+        }
+        // Known child facts either retain a malformed value exactly or the
+        // child-local unsupported owner retains the complete source object.
+        // This includes duplicates below an unknown nested member.
+        return true;
+    }
+    false
+}
+
+fn within_exact_h8_object(path: &str, root: &str) -> bool {
+    path == root
+        || path
+            .strip_prefix(root)
+            .is_some_and(|suffix| suffix.starts_with('/'))
+}
+
+fn h8_child_member_path(path: &str) -> Option<(&str, &str, &str)> {
+    let path = path.strip_prefix('/')?;
+    let (collection, rest) = path.split_once('/')?;
+    if !matches!(collection, "pages" | "results") {
+        return None;
+    }
+    let (ordinal, rest) = rest.split_once('/')?;
+    if !ordinal.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let (member, remainder) = rest.split_once('/').unwrap_or((rest, ""));
+    Some((collection, member, remainder))
+}
+
+fn child_collection_object(path: &str, collection: &str) -> bool {
+    let Some(rest) = path.strip_prefix(&format!("/{collection}/")) else {
+        return false;
+    };
+    !rest.is_empty() && !rest.contains('/') && rest.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 fn hazard_melee_damage_rolls_paths(source: &SerializedSourceObject) -> Vec<String> {

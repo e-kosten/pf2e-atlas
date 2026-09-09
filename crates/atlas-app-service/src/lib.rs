@@ -6,6 +6,7 @@ mod error;
 mod executor;
 mod filter;
 mod filters;
+mod h8_surface;
 mod hazard_surface;
 mod lists;
 mod projection;
@@ -15,6 +16,7 @@ mod records;
 mod retrieval;
 mod service;
 mod surface;
+mod table_roll;
 mod windows;
 
 #[cfg(test)]

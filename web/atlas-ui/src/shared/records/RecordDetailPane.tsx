@@ -24,7 +24,7 @@ export function RecordDetailPane({
   errors?: RecordDetailPaneError[];
   loading: boolean;
   loadingMessage?: string;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
   showTitle?: boolean;
   stale?: boolean;
 }) {
@@ -200,7 +200,7 @@ function SelectableSpellDetail({
   showTitle,
 }: {
   detail: RecordDetailView;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
   onReferencesOpen?: () => void;
   onReferenceLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
   references: RecordDetailView["surface"]["references"];

@@ -495,7 +495,7 @@ pub(super) fn participant_encounter_runtime(
             )))
         }
         RecordBody::Hazard(hazard) => Some(hazard_encounter_runtime(participant, hazard)),
-        RecordBody::Spell(_) => None,
+        RecordBody::Spell(_) | RecordBody::Journal(_) | RecordBody::RollTable(_) => None,
     }
 }
 

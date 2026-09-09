@@ -5,7 +5,7 @@
 contract, document class, type discriminator, role, and parent context. Every
 entry owns one normalized leaf. Lint authenticates that selector against the
 313-entry `contracts/pf2e-type-registry.yaml` contract (SHA-256
-`8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31`)
+`15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367`)
 and accepts only the pinned PF2e source contract, commit, and signature.
 
 `leaf_kind` distinguishes scalar, ordered array-member, identity-retaining
@@ -80,3 +80,13 @@ selector is a child `Item|spell` under the exact `Item|consumable` relationship
 authenticated parent while the child `_id` remains an independently receipted
 local identity. Artifact and public-surface owners remain deferred to their
 later H2 slices rather than being claimed by the ingest receipt.
+
+The two H8 field-ledger files partition the 33 v1-admissible top-level
+JournalEntry and RollTable source leaves across their exact parent selectors.
+Each complete ledger includes its parent fields and every supported scalar
+descendant of its parent-owned `pages` or `results` array. Their receipts read
+the shared ordered source DTO once, select the exact typed H8 canonical owner,
+and repeat that selection after `IndexBuildInput` projection. Child member
+identity/order comes from the containing array; media locators and exact empty
+source containers remain provenance only and are never fetched, rendered,
+ranked, embedded, or executed.

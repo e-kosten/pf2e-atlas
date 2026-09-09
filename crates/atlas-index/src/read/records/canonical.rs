@@ -2,8 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ConsumableSpellChild, ContentIdentityStability, ContentRole, FactValue,
-    OwnedRichContent, RecordBody, RichLinkTarget, SpellStandaloneTarget,
+    AtlasRecord, ConsumableSpellChild, ContentIdentityStability, ContentOwner, ContentRole,
+    FactValue, OwnedRichContent, RecordBody, RichLinkTarget, SpellStandaloneTarget,
+    decode_content_child_locator,
 };
 use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
@@ -12,7 +13,8 @@ use diesel::{Queryable, Selectable, SelectableHelper, SqliteConnection};
 use crate::artifact::canonical_json;
 use crate::schema::{
     canonical_consumable_spell_children, canonical_creature_records, canonical_hazard_records,
-    canonical_spell_records, record_content, reference_occurrences, spell_damage_types,
+    canonical_journal_records, canonical_roll_table_records, canonical_spell_records,
+    record_content, records, reference_edges, reference_occurrences, spell_damage_types,
     spell_records, spell_traditions,
 };
 use crate::spell_query::{
@@ -45,6 +47,36 @@ struct CanonicalSpellRow {
     source_id: String,
     name: String,
     canonical_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = canonical_journal_records)]
+#[diesel(check_for_backend(Sqlite))]
+struct CanonicalJournalRow {
+    record_key: String,
+    source_id: String,
+    name: String,
+    canonical_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = canonical_roll_table_records)]
+#[diesel(check_for_backend(Sqlite))]
+struct CanonicalRollTableRow {
+    record_key: String,
+    source_id: String,
+    name: String,
+    canonical_json: String,
+}
+
+#[derive(Debug, Queryable, Selectable)]
+#[diesel(table_name = reference_edges)]
+#[diesel(check_for_backend(Sqlite))]
+struct H8ReferenceLocatorRow {
+    from_record_key: String,
+    to_record_key: String,
+    source_child_locator: String,
+    target_child_locator: String,
 }
 
 #[derive(Debug, Queryable, Selectable)]
@@ -168,7 +200,25 @@ pub(super) fn read_canonical_record_bodies(
         .order(canonical_spell_records::record_key.asc())
         .load::<CanonicalSpellRow>(connection)
         .map_err(query_failed)?;
-    decode_body_rows(creature_rows, hazard_rows, spell_rows)
+    let journal_rows = canonical_journal_records::table
+        .select(CanonicalJournalRow::as_select())
+        .order(canonical_journal_records::record_key.asc())
+        .load::<CanonicalJournalRow>(connection)
+        .map_err(query_failed)?;
+    let table_rows = canonical_roll_table_records::table
+        .select(CanonicalRollTableRow::as_select())
+        .order(canonical_roll_table_records::record_key.asc())
+        .load::<CanonicalRollTableRow>(connection)
+        .map_err(query_failed)?;
+    let bodies = decode_body_rows(
+        creature_rows,
+        hazard_rows,
+        spell_rows,
+        journal_rows,
+        table_rows,
+    )?;
+    validate_loaded_h8_integrity(connection, &bodies, None)?;
+    Ok(bodies)
 }
 
 pub(super) fn read_canonical_record_bodies_by_key(
@@ -197,7 +247,219 @@ pub(super) fn read_canonical_record_bodies_by_key(
         .order(canonical_spell_records::record_key.asc())
         .load::<CanonicalSpellRow>(connection)
         .map_err(query_failed)?;
-    decode_body_rows(creature_rows, hazard_rows, spell_rows)
+    let journal_rows = canonical_journal_records::table
+        .filter(canonical_journal_records::record_key.eq_any(&keys))
+        .select(CanonicalJournalRow::as_select())
+        .order(canonical_journal_records::record_key.asc())
+        .load::<CanonicalJournalRow>(connection)
+        .map_err(query_failed)?;
+    let table_rows = canonical_roll_table_records::table
+        .filter(canonical_roll_table_records::record_key.eq_any(&keys))
+        .select(CanonicalRollTableRow::as_select())
+        .order(canonical_roll_table_records::record_key.asc())
+        .load::<CanonicalRollTableRow>(connection)
+        .map_err(query_failed)?;
+    let bodies = decode_body_rows(
+        creature_rows,
+        hazard_rows,
+        spell_rows,
+        journal_rows,
+        table_rows,
+    )?;
+    validate_loaded_h8_integrity(connection, &bodies, Some(keys.as_slice()))?;
+    Ok(bodies)
+}
+
+fn validate_loaded_h8_integrity(
+    connection: &mut SqliteConnection,
+    bodies: &[RecordBody],
+    requested_keys: Option<&[String]>,
+) -> Result<(), RecordLoadError> {
+    let loaded_h8_keys = bodies
+        .iter()
+        .filter(|body| matches!(body, RecordBody::Journal(_) | RecordBody::RollTable(_)))
+        .map(|body| body.record_key().clone())
+        .collect::<BTreeSet<_>>();
+    let reference_locators = read_h8_reference_locators(connection, requested_keys)?;
+    let reference_parent_keys = reference_locators
+        .iter()
+        .flat_map(|(_, _, source, target)| [source.as_ref(), target.as_ref()])
+        .flatten()
+        .map(|locator| locator.parent.clone())
+        .collect::<BTreeSet<_>>();
+    let target_keys = crate::h8_integrity::H8ChildCatalog::target_parent_keys(bodies)
+        .union(&reference_parent_keys)
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .difference(&loaded_h8_keys)
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut integrity_bodies = bodies
+        .iter()
+        .filter(|body| matches!(body, RecordBody::Journal(_) | RecordBody::RollTable(_)))
+        .cloned()
+        .collect::<Vec<_>>();
+    if !target_keys.is_empty() {
+        let keys = key_strings(&target_keys);
+        let journal_rows = canonical_journal_records::table
+            .filter(canonical_journal_records::record_key.eq_any(&keys))
+            .select(CanonicalJournalRow::as_select())
+            .order(canonical_journal_records::record_key.asc())
+            .load::<CanonicalJournalRow>(connection)
+            .map_err(query_failed)?;
+        let table_rows = canonical_roll_table_records::table
+            .filter(canonical_roll_table_records::record_key.eq_any(&keys))
+            .select(CanonicalRollTableRow::as_select())
+            .order(canonical_roll_table_records::record_key.asc())
+            .load::<CanonicalRollTableRow>(connection)
+            .map_err(query_failed)?;
+        integrity_bodies.extend(decode_body_rows(
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            journal_rows,
+            table_rows,
+        )?);
+    }
+    let available_h8_keys = integrity_bodies
+        .iter()
+        .map(|body| body.record_key().clone())
+        .collect::<BTreeSet<_>>();
+    validate_required_h8_bodies(
+        connection,
+        requested_keys,
+        &reference_parent_keys,
+        &available_h8_keys,
+    )?;
+    let catalog = crate::h8_integrity::H8ChildCatalog::from_bodies(&integrity_bodies)
+        .map_err(RecordLoadError::InvalidData)?;
+    catalog
+        .validate_body_targets(bodies)
+        .map_err(RecordLoadError::InvalidData)?;
+    for (from, to, source, target) in reference_locators {
+        catalog
+            .validate_edge_locators(&from, source.as_ref(), &to, target.as_ref())
+            .map_err(RecordLoadError::InvalidData)?;
+    }
+    Ok(())
+}
+
+fn validate_required_h8_bodies(
+    connection: &mut SqliteConnection,
+    requested_keys: Option<&[String]>,
+    reference_parent_keys: &BTreeSet<RecordKey>,
+    loaded_h8_keys: &BTreeSet<RecordKey>,
+) -> Result<(), RecordLoadError> {
+    let mut relevant_keys = reference_parent_keys
+        .iter()
+        .map(ToString::to_string)
+        .collect::<BTreeSet<_>>();
+    if let Some(keys) = requested_keys {
+        relevant_keys.extend(keys.iter().cloned());
+    }
+    let mut query = records::table
+        .filter(records::record_kind.eq_any(["journal", "roll_table"]))
+        .select(records::record_key)
+        .into_boxed();
+    if requested_keys.is_some() {
+        query = query.filter(records::record_key.eq_any(relevant_keys));
+    }
+    for key in query
+        .order(records::record_key.asc())
+        .load::<String>(connection)
+        .map_err(query_failed)?
+    {
+        let parsed = RecordKey::parse(&key)
+            .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?;
+        if !loaded_h8_keys.contains(&parsed) {
+            return Err(RecordLoadError::InvalidData(format!(
+                "canonical H8 record `{parsed}` is missing its required body"
+            )));
+        }
+    }
+    Ok(())
+}
+
+type H8ReferenceLocators = (
+    RecordKey,
+    RecordKey,
+    Option<atlas_record::ContentChildLocator>,
+    Option<atlas_record::ContentChildLocator>,
+);
+
+fn read_h8_reference_locators(
+    connection: &mut SqliteConnection,
+    requested_keys: Option<&[String]>,
+) -> Result<Vec<H8ReferenceLocators>, RecordLoadError> {
+    let mut query = reference_edges::table
+        .filter(
+            reference_edges::source_child_locator
+                .ne("")
+                .or(reference_edges::target_child_locator.ne("")),
+        )
+        .select(H8ReferenceLocatorRow::as_select())
+        .into_boxed();
+    if let Some(keys) = requested_keys {
+        query = query.filter(
+            reference_edges::from_record_key
+                .eq_any(keys)
+                .or(reference_edges::to_record_key.eq_any(keys)),
+        );
+    }
+    query
+        .order((
+            reference_edges::from_record_key.asc(),
+            reference_edges::to_record_key.asc(),
+            reference_edges::source_child_locator.asc(),
+            reference_edges::target_child_locator.asc(),
+        ))
+        .load::<H8ReferenceLocatorRow>(connection)
+        .map_err(query_failed)?
+        .into_iter()
+        .map(|row| {
+            Ok((
+                RecordKey::parse(&row.from_record_key)
+                    .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?,
+                RecordKey::parse(&row.to_record_key)
+                    .map_err(|error| RecordLoadError::InvalidData(error.to_string()))?,
+                decode_optional_child_locator(&row.source_child_locator)?,
+                decode_optional_child_locator(&row.target_child_locator)?,
+            ))
+        })
+        .collect()
+}
+
+fn decode_optional_child_locator(
+    value: &str,
+) -> Result<Option<atlas_record::ContentChildLocator>, RecordLoadError> {
+    (!value.is_empty())
+        .then(|| decode_content_child_locator(value))
+        .transpose()
+        .map_err(|_| RecordLoadError::InvalidData("invalid reference child locator".to_string()))
+}
+
+pub(crate) fn read_h8_child_catalog_by_key(
+    connection: &mut SqliteConnection,
+    keys: &[RecordKey],
+) -> Result<crate::h8_integrity::H8ChildCatalog, RecordLoadError> {
+    if keys.is_empty() {
+        return Ok(crate::h8_integrity::H8ChildCatalog::default());
+    }
+    let keys = key_strings(keys);
+    let journal_rows = canonical_journal_records::table
+        .filter(canonical_journal_records::record_key.eq_any(&keys))
+        .select(CanonicalJournalRow::as_select())
+        .order(canonical_journal_records::record_key.asc())
+        .load::<CanonicalJournalRow>(connection)
+        .map_err(query_failed)?;
+    let table_rows = canonical_roll_table_records::table
+        .filter(canonical_roll_table_records::record_key.eq_any(&keys))
+        .select(CanonicalRollTableRow::as_select())
+        .order(canonical_roll_table_records::record_key.asc())
+        .load::<CanonicalRollTableRow>(connection)
+        .map_err(query_failed)?;
+    let bodies = decode_body_rows(Vec::new(), Vec::new(), Vec::new(), journal_rows, table_rows)?;
+    crate::h8_integrity::H8ChildCatalog::from_bodies(&bodies).map_err(RecordLoadError::InvalidData)
 }
 
 pub(super) fn read_spell_children(
@@ -417,14 +679,19 @@ pub(super) fn reconcile_spell_query_projections(
     Ok(())
 }
 
-pub(super) fn reconcile_spell_owned_projections(
+pub(super) fn reconcile_canonical_owned_projections(
     connection: &mut SqliteConnection,
     bodies: &BTreeMap<RecordKey, RecordBody>,
     children: &BTreeMap<RecordKey, Vec<ConsumableSpellChild>>,
 ) -> Result<(), RecordLoadError> {
     let mut keys = bodies
         .iter()
-        .filter(|(_, body)| matches!(body, RecordBody::Spell(_)))
+        .filter(|(_, body)| {
+            matches!(
+                body,
+                RecordBody::Spell(_) | RecordBody::Journal(_) | RecordBody::RollTable(_)
+            )
+        })
         .map(|(key, _)| key.to_string())
         .collect::<BTreeSet<_>>();
     keys.extend(children.keys().map(ToString::to_string));
@@ -448,6 +715,20 @@ pub(super) fn reconcile_spell_owned_projections(
             reconcile_owned_content(
                 &key.to_string(),
                 &spell.definition.content,
+                &content_rows,
+                &reference_rows,
+            )?;
+        } else if let RecordBody::Journal(journal) = body {
+            reconcile_owned_content(
+                &key.to_string(),
+                &journal.content,
+                &content_rows,
+                &reference_rows,
+            )?;
+        } else if let RecordBody::RollTable(table) = body {
+            reconcile_owned_content(
+                &key.to_string(),
+                &table.content,
                 &content_rows,
                 &reference_rows,
             )?;
@@ -500,8 +781,17 @@ fn reconcile_owned_content(
             .map_err(RecordLoadError::InvalidData)?;
         let diagnostics_json =
             canonical_json::encode(&document.diagnostics).map_err(RecordLoadError::InvalidData)?;
+        let expected_owner_kind = match &document.owner {
+            ContentOwner::Record(key) if key.to_string() == record_key => "record",
+            ContentOwner::Child(locator) if locator.parent.to_string() == record_key => "child",
+            _ => {
+                return Err(RecordLoadError::InvalidData(format!(
+                    "owned canonical content `{record_key}:{content_key}:{authored_order}` has an invalid owner"
+                )));
+            }
+        };
         if row.identity_stability != content_stability(document.identity_stability)
-            || row.owner_kind != "record"
+            || row.owner_kind != expected_owner_kind
             || row.owner_record_key.as_deref() != Some(record_key)
             || row.owner_entity_id.is_some()
             || row.owner_occurrence_id.is_some()
@@ -556,7 +846,7 @@ fn reconcile_owned_content(
                 canonical_json::encode(&expected.origin).map_err(RecordLoadError::InvalidData)?;
             let provenance_json = canonical_json::encode(&expected.provenance)
                 .map_err(RecordLoadError::InvalidData)?;
-            if actual.owner_kind != "record"
+            if actual.owner_kind != expected_owner_kind
                 || actual.owner_record_key.as_deref() != Some(record_key)
                 || actual.owner_entity_id.is_some()
                 || actual.owner_occurrence_id.is_some()
@@ -603,6 +893,7 @@ fn content_role(value: ContentRole) -> &'static str {
 fn target_kind(target: &RichLinkTarget) -> &'static str {
     match target {
         RichLinkTarget::Record { .. } => "record",
+        RichLinkTarget::RecordChild { .. } => "record_child",
         RichLinkTarget::LocalContent { .. } => "local_content",
         RichLinkTarget::External { .. } => "external",
         RichLinkTarget::Unresolved { .. } => "unresolved",
@@ -658,8 +949,16 @@ fn decode_body_rows(
     creature_rows: Vec<CanonicalCreatureRow>,
     hazard_rows: Vec<CanonicalHazardRecordRow>,
     spell_rows: Vec<CanonicalSpellRow>,
+    journal_rows: Vec<CanonicalJournalRow>,
+    table_rows: Vec<CanonicalRollTableRow>,
 ) -> Result<Vec<RecordBody>, RecordLoadError> {
-    let mut bodies = Vec::with_capacity(creature_rows.len() + hazard_rows.len() + spell_rows.len());
+    let mut bodies = Vec::with_capacity(
+        creature_rows.len()
+            + hazard_rows.len()
+            + spell_rows.len()
+            + journal_rows.len()
+            + table_rows.len(),
+    );
     for row in creature_rows {
         let path = format!(
             "canonical_creature_records[{}].canonical_json",
@@ -703,6 +1002,47 @@ fn decode_body_rows(
         if row.source_id != spell.identity.source_id.as_str() || row.name != spell.identity.name {
             return Err(RecordLoadError::InvalidData(format!(
                 "{path}: indexed spell identity columns do not match the canonical spell body"
+            )));
+        }
+        bodies.push(body);
+    }
+    for row in journal_rows {
+        let path = format!(
+            "canonical_journal_records[{}].canonical_json",
+            row.record_key
+        );
+        let body = canonical_json::decode::<RecordBody>(&row.canonical_json, &path)
+            .map_err(RecordLoadError::InvalidData)?;
+        let RecordBody::Journal(journal) = &body else {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: canonical journal table contains a non-journal body"
+            )));
+        };
+        require_key(&path, &row.record_key, &journal.identity.record_key)?;
+        if row.source_id != journal.identity.source_id.as_str() || row.name != journal.identity.name
+        {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: indexed journal identity columns do not match the canonical body"
+            )));
+        }
+        bodies.push(body);
+    }
+    for row in table_rows {
+        let path = format!(
+            "canonical_roll_table_records[{}].canonical_json",
+            row.record_key
+        );
+        let body = canonical_json::decode::<RecordBody>(&row.canonical_json, &path)
+            .map_err(RecordLoadError::InvalidData)?;
+        let RecordBody::RollTable(table) = &body else {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: canonical roll-table table contains a non-roll-table body"
+            )));
+        };
+        require_key(&path, &row.record_key, &table.identity.record_key)?;
+        if row.source_id != table.identity.source_id.as_str() || row.name != table.identity.name {
+            return Err(RecordLoadError::InvalidData(format!(
+                "{path}: indexed roll-table identity columns do not match the canonical body"
             )));
         }
         bodies.push(body);

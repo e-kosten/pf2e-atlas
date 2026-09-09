@@ -25,6 +25,14 @@ const HAZARD_LEDGERS: [&str; 4] = [
     include_str!("../../../contracts/source-leaf-coverage/v1/item-consumable-embedded-hazard.yaml"),
 ];
 const HAZARD_FIXTURE_ROOT: &str = "tests/fixtures/hazards/pinned";
+const H8_LEDGERS: [&str; 2] = [
+    include_str!("../../../contracts/source-leaf-coverage/v1/journal-entry.yaml"),
+    include_str!("../../../contracts/source-leaf-coverage/v1/roll-table.yaml"),
+];
+const H8_JOURNAL_COMPANION: &str =
+    include_str!("../../../contracts/source-leaf-coverage/v1/journal-entry-child-dispositions.md");
+const H8_ROLL_TABLE_COMPANION: &str =
+    include_str!("../../../contracts/source-leaf-coverage/v1/roll-table-result-dispositions.md");
 
 #[derive(Debug, Deserialize)]
 struct ActorFixtureManifest {
@@ -592,6 +600,97 @@ fn h1_bc_hazard_pipeline_satisfies_selected_root_and_child_leaf_owners() {
         let report = evaluate_source_leaf_coverage(&ledger, &receipts);
         assert!(report.passed, "{:#?}", report.failures);
         assert_eq!(report.receipt_count, ledger.leaves.len());
+    }
+}
+
+#[test]
+fn h8_ledgers_are_exact_pin_bound_and_observed_by_typed_owners() {
+    let repository = require_pinned_repository();
+    let mut declaration_count = 0;
+    let mut selector_ids = BTreeSet::new();
+    for source in H8_LEDGERS {
+        let ledger = parse_source_leaf_ledger(source).expect("complete H8 selector ledger parses");
+        assert!(selector_ids.insert(ledger.type_id.clone()));
+        assert!(
+            lint_source_leaf_ledger(&ledger).is_empty(),
+            "H8 machine ledger must satisfy the unchanged v1 leaf contract: {:#?}",
+            lint_source_leaf_ledger(&ledger)
+        );
+        let mut receipts = Vec::new();
+        for (leaf_index, leaf) in ledger.leaves.iter().enumerate() {
+            for fixture_index in 0..leaf.fixtures.len() {
+                receipts.push(
+                    capture_registered_source_leaf_receipt(
+                        &ledger,
+                        leaf_index,
+                        fixture_index,
+                        &repository,
+                    )
+                    .expect("pinned H8 production-pipeline receipt"),
+                );
+            }
+        }
+        let report = evaluate_source_leaf_coverage(&ledger, &receipts);
+        assert!(report.passed, "{:#?}", report.failures);
+        assert_eq!(report.receipt_count, ledger.leaves.len());
+        declaration_count += ledger.leaves.len();
+    }
+    assert_eq!(declaration_count, 33);
+    assert_eq!(
+        selector_ids,
+        BTreeSet::from([
+            "journalentry--root--top-level--root--root--root".to_string(),
+            "rolltable--root--top-level--root--root--root".to_string(),
+        ])
+    );
+}
+
+#[test]
+fn h8_container_companions_name_exact_inventory_owners_and_evidence() {
+    for required in [
+        "journalentry--root--top-level--root--root--root",
+        "journalentrypage--text--embedded--journalentry--root--journalentry-pages",
+        "journalentrypage--image--embedded--journalentry--root--journalentry-pages",
+        "journalentrypage--pdf--embedded--journalentry--root--journalentry-pages",
+        "journalentrypage--video--embedded--journalentry--root--journalentry-pages",
+        "relationship_path: JournalEntry.pages",
+        "587 observed",
+        "0 declared",
+        "journal-entry-page-pages-image@4cbdaa37",
+        "JournalPage.image_source: H8Fact<H8ExactSourceObject>",
+        "journal-entry-page-pages-system@4cbdaa37",
+        "JournalPage.source_system: H8Fact<H8ExactSourceObject>",
+        "h8_journal_container_facts_preserve_four_states_and_duplicate_evidence",
+        "h8_parent_child_containers_preserve_presence_and_reject_malformed_shapes",
+        "h8_journal_preserves_four_states_exact_objects_and_local_child_failure",
+        "h8_zero_observed_variants_retain_metadata_without_media_or_roll_execution",
+        "h8_mixed_artifact_round_trips_journals_tables_and_typed_child_references",
+    ] {
+        assert!(
+            H8_JOURNAL_COMPANION.contains(required),
+            "Journal companion is missing `{required}`"
+        );
+    }
+    for required in [
+        "rolltable--root--top-level--root--root--root",
+        "tableresult--text--embedded--rolltable--root--rolltable-results",
+        "tableresult--pack--embedded--rolltable--root--rolltable-results",
+        "tableresult--document--embedded--rolltable--root--rolltable-results",
+        "relationship_path: RollTable.results",
+        "388 observed",
+        "1,077 observed",
+        "0 declared",
+        "33 v1-admissible scalar identities",
+        "two independently observed exact-empty container",
+        "UnsupportedResult",
+        "h8_roll_table_localizes_duplicate_result_image_and_never_selects_a_value",
+        "h8_parent_child_containers_preserve_presence_and_reject_malformed_shapes",
+        "h8_zero_observed_variants_retain_metadata_without_media_or_roll_execution",
+    ] {
+        assert!(
+            H8_ROLL_TABLE_COMPANION.contains(required),
+            "RollTable companion is missing `{required}`"
+        );
     }
 }
 

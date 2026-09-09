@@ -37,6 +37,7 @@ import type {
   SavedListItemMutationView,
   SavedListUpdateView,
   SetEncounterTurnRequest,
+  TableRollView,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
   UpdateEncounterRequest,
@@ -135,6 +136,16 @@ export async function getRecordDetail(
   }
   const suffix = query.size ? `?${query.toString()}` : "";
   return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}${suffix}`, {
+    signal,
+  });
+}
+
+export async function rollTable(
+  recordKey: string,
+  signal?: AbortSignal,
+): Promise<TableRollView> {
+  return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}/table-roll`, {
+    method: "POST",
     signal,
   });
 }

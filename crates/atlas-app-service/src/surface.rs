@@ -112,6 +112,26 @@ pub(crate) fn record_surface(
             SurfaceUnavailableReasonView::RecordUnavailable,
             "Canonical spell data is unavailable, so the surface fails closed.",
         ),
+        (atlas_domain::RecordKind::Journal, Some(RecordBody::Journal(journal))) => {
+            RecordSurfacePresentationView::Journal {
+                body: Box::new(crate::h8_surface::journal_surface(journal)),
+            }
+        }
+        (atlas_domain::RecordKind::Journal, _) => unavailable_presentation(
+            &metadata.kind,
+            SurfaceUnavailableReasonView::RecordUnavailable,
+            "Canonical journal data is unavailable, so the surface fails closed.",
+        ),
+        (atlas_domain::RecordKind::RollTable, Some(RecordBody::RollTable(table))) => {
+            RecordSurfacePresentationView::RollTable {
+                body: Box::new(crate::h8_surface::roll_table_surface(table)),
+            }
+        }
+        (atlas_domain::RecordKind::RollTable, _) => unavailable_presentation(
+            &metadata.kind,
+            SurfaceUnavailableReasonView::RecordUnavailable,
+            "Canonical roll-table data is unavailable, so the surface fails closed.",
+        ),
         _ => unavailable_presentation(
             &metadata.kind,
             SurfaceUnavailableReasonView::RecordFamilyNotMigrated,
@@ -233,6 +253,16 @@ fn record_metadata(
             &spell.definition.provenance.source_contract_version,
             &spell.definition.provenance.source_system_version,
             &spell.definition.provenance.source_upstream_commit,
+        ),
+        RecordBody::Journal(journal) => (
+            &journal.provenance.source_contract_version,
+            &journal.provenance.source_system_version,
+            &journal.provenance.source_upstream_commit,
+        ),
+        RecordBody::RollTable(table) => (
+            &table.provenance.source_contract_version,
+            &table.provenance.source_system_version,
+            &table.provenance.source_upstream_commit,
         ),
     });
     RecordSurfaceMetadataView {
@@ -3500,10 +3530,12 @@ fn project_content_inline(span: PresentationInline) -> CreatureSurfaceContentInl
         PresentationInline::Reference {
             label,
             record_key,
+            child_locator,
             embedded,
         } => CreatureSurfaceContentInlineView::Reference {
             label,
             record_key: record_key.map(|key| key.to_string()),
+            child_locator,
             embedded,
         },
         PresentationInline::Check {
@@ -3713,10 +3745,11 @@ mod tests {
     use atlas_index::SqliteIndexReader;
     use atlas_ingest::{BuildArtifactOptions, build_artifact};
     use atlas_record::{
-        ContentId, ContentIdentityStability, ContentKey, ContentOrigin, ContentOwner,
-        ContentProvenance, ContentRole, ContentSourceKind, ContentVisibility,
-        CreatureActionCapability, CreatureArmorClass, CreatureDefenses, CreatureEmbeddedEntities,
-        CreatureEntity, CreatureEntityFamily, CreatureEntityTarget, CreatureFact, CreatureFamily,
+        ContentChildIdentity, ContentChildKind, ContentChildLocator, ContentId,
+        ContentIdentityStability, ContentKey, ContentOrigin, ContentOwner, ContentProvenance,
+        ContentRole, ContentSourceKind, ContentVisibility, CreatureActionCapability,
+        CreatureArmorClass, CreatureDefenses, CreatureEmbeddedEntities, CreatureEntity,
+        CreatureEntityFamily, CreatureEntityTarget, CreatureFact, CreatureFamily,
         CreatureHitPoints, CreatureIdentity, CreatureIwr, CreatureIwrKind, CreatureLanguages,
         CreatureLegacyAbilities, CreatureNote, CreatureNumber, CreatureOccurrenceParent,
         CreaturePerception, CreatureProvenance, CreatureSave, CreatureSaveKind, CreatureSaves,
@@ -3764,6 +3797,11 @@ mod tests {
         artifact: PathBuf,
     }
 
+    struct TemporaryH8SurfaceArtifact {
+        root: PathBuf,
+        artifact: PathBuf,
+    }
+
     impl TemporarySpellSurfaceArtifact {
         fn new() -> Result<Self, std::io::Error> {
             let nonce = SystemTime::now()
@@ -3783,6 +3821,68 @@ mod tests {
     }
 
     impl Drop for TemporarySpellSurfaceArtifact {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    impl TemporaryH8SurfaceArtifact {
+        fn from_pinned_source() -> Result<Self, Box<dyn std::error::Error>> {
+            Self::from_pinned_source_with_table_mutation(|_| {})
+        }
+
+        fn from_pinned_source_with_table_mutation(
+            mutate: impl FnOnce(&mut serde_json::Value),
+        ) -> Result<Self, Box<dyn std::error::Error>> {
+            let nonce = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time after Unix epoch")
+                .as_nanos();
+            let root = std::env::temp_dir().join(format!(
+                "pf2e-atlas-h8-app-surface-{}-{nonce}",
+                std::process::id()
+            ));
+            let source_root = root.join("source");
+            let artifact = root.join("index.sqlite");
+            let pinned = PathBuf::from(
+                std::env::var_os("PF2E_SOURCE_REPOSITORY")
+                    .ok_or("PF2E_SOURCE_REPOSITORY is required for the H8 app fixture")?,
+            );
+            std::fs::create_dir_all(source_root.join("packs/journals"))?;
+            std::fs::create_dir_all(source_root.join("packs/rollable-tables"))?;
+            std::fs::copy(
+                pinned.join("packs/journals/hero-point-deck.json"),
+                source_root.join("packs/journals/hero-point-deck.json"),
+            )?;
+            let mut table: serde_json::Value = serde_json::from_slice(&std::fs::read(
+                pinned.join("packs/rollable-tables/hero-point-deck.json"),
+            )?)?;
+            mutate(&mut table);
+            std::fs::write(
+                source_root.join("packs/rollable-tables/hero-point-deck.json"),
+                serde_json::to_vec(&table)?,
+            )?;
+            std::fs::write(
+                source_root.join("module.json"),
+                br#"{"packs":[
+                  {"name":"journals","label":"Journals","type":"JournalEntry","path":"packs/journals"},
+                  {"name":"rollable-tables","label":"Roll Tables","type":"RollTable","path":"packs/rollable-tables"}
+                ]}"#,
+            )?;
+            build_artifact(BuildArtifactOptions {
+                source_root,
+                output_path: artifact.clone(),
+                manifest_path: None,
+                embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+                embedding_cache_root: None,
+                reuse_embeddings: true,
+                embedding_batch_size: 8,
+            })?;
+            Ok(Self { root, artifact })
+        }
+    }
+
+    impl Drop for TemporaryH8SurfaceArtifact {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.root);
         }
@@ -8224,6 +8324,184 @@ mod tests {
         }
     }
 
+    #[test]
+    fn h8_real_api_returns_resolved_inline_child_target_and_accepts_its_parent_route()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let artifact = TemporaryH8SurfaceArtifact::from_pinned_source()?;
+        let service_artifact: &'static Path =
+            Box::leak(artifact.artifact.clone().into_boxed_path());
+        let service = crate::test_support::fixture_worker_with_executor(
+            crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+                let reader = SqliteIndexReader::open_read_only(service_artifact)?;
+                Ok((
+                    AtlasRetrievalService::from_prepared_index_without_embeddings(reader),
+                    (),
+                ))
+            }),
+        );
+        let journal_key = RecordKey::parse("journals:BSp4LUSaOmUyjBko")?;
+        let expected_child = atlas_record::encode_content_child_selector(&ContentChildLocator {
+            parent: journal_key.clone(),
+            kind: ContentChildKind::JournalPage,
+            identity: ContentChildIdentity::Stable(
+                atlas_record::SourceDocumentId::new("quxPxuMub8k6abzN")
+                    .expect("pinned Hero Point page ID"),
+            ),
+        });
+        let detail = service.worker.record_detail(
+            "rollable-tables:zgZoI7h0XjjJrrNK",
+            RecordDetailRequest::default(),
+        )?;
+        let atlas_app_model::RecordSurfacePresentationView::RollTable { body } =
+            &detail.surface.presentation
+        else {
+            panic!("Hero Point Deck must use the RollTable app surface");
+        };
+        let atlas_app_model::H8FactView::Known(results) = &body.results else {
+            panic!("Hero Point Deck results must be available");
+        };
+        let result = results
+            .iter()
+            .find_map(|entry| match entry {
+                atlas_app_model::TableResultEntryView::Result { result } => Some(result),
+                atlas_app_model::TableResultEntryView::Unsupported { .. } => None,
+            })
+            .expect("Hero Point Deck has a supported result");
+        let atlas_app_model::H8FactView::Known(blocks) = &result.text else {
+            panic!("Hero Point result text must be available");
+        };
+        assert!(content_has_reference(
+            blocks,
+            "journals:BSp4LUSaOmUyjBko",
+            &expected_child,
+            "Ancestral Might",
+        ));
+
+        let selected = service.worker.record_detail(
+            "journals:BSp4LUSaOmUyjBko",
+            RecordDetailRequest {
+                child_locator: Some(expected_child),
+                ..RecordDetailRequest::default()
+            },
+        )?;
+        assert!(matches!(
+            selected.surface.presentation,
+            atlas_app_model::RecordSurfacePresentationView::Journal { .. }
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn h8_real_api_rolls_complete_pinned_table_with_server_owned_total()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let artifact = TemporaryH8SurfaceArtifact::from_pinned_source()?;
+        let service_artifact: &'static Path =
+            Box::leak(artifact.artifact.clone().into_boxed_path());
+        let service = crate::test_support::fixture_worker_with_executor(
+            crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+                let reader = SqliteIndexReader::open_read_only(service_artifact)?;
+                Ok((
+                    AtlasRetrievalService::from_prepared_index_without_embeddings(reader),
+                    (),
+                ))
+            }),
+        );
+        let table_key = "rollable-tables:zgZoI7h0XjjJrrNK";
+        let detail = service
+            .worker
+            .record_detail(table_key, RecordDetailRequest::default())?;
+        let atlas_app_model::RecordSurfacePresentationView::RollTable { body } =
+            &detail.surface.presentation
+        else {
+            panic!("Hero Point Deck must use the RollTable app surface");
+        };
+        assert_eq!(
+            body.roll,
+            atlas_app_model::TableRollCapabilityView::Available {
+                formula: "1d52".to_string(),
+                sides: 52,
+            }
+        );
+
+        let operation = service.worker.roll_table_with_entropy(table_key, |_| 1)?;
+        let atlas_app_model::TableRollView::Available {
+            table_key: returned_key,
+            formula,
+            total,
+            outcomes,
+        } = operation
+        else {
+            panic!("complete pinned table should be rollable");
+        };
+        assert_eq!(returned_key, table_key);
+        assert_eq!(formula, "1d52");
+        assert_eq!(total, 1);
+        assert_eq!(outcomes.len(), 1);
+        assert_eq!(outcomes[0].source_ordinal, 0);
+        assert!(matches!(
+            outcomes[0].drawn,
+            atlas_app_model::H8FactView::Known(false)
+        ));
+
+        let error = service
+            .worker
+            .roll_table_with_entropy(table_key, |sides| sides.get() + 1)
+            .expect_err("out-of-range entropy must fail closed")
+            .into_app_error();
+        assert_eq!(error.code, atlas_app_model::AppErrorCode::InternalError);
+        let error = service
+            .worker
+            .roll_table_with_entropy("journals:BSp4LUSaOmUyjBko", |_| 1)
+            .expect_err("journal must not admit table roll")
+            .into_app_error();
+        assert_eq!(error.code, atlas_app_model::AppErrorCode::InvalidRequest);
+        Ok(())
+    }
+
+    #[test]
+    fn h8_roll_rejects_incomplete_result_inventory_before_entropy()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let artifact =
+            TemporaryH8SurfaceArtifact::from_pinned_source_with_table_mutation(|table| {
+                table["results"][0]
+                    .as_object_mut()
+                    .expect("pinned first result")
+                    .remove("range");
+            })?;
+        let service_artifact: &'static Path =
+            Box::leak(artifact.artifact.clone().into_boxed_path());
+        let service = crate::test_support::fixture_worker_with_executor(
+            crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+                let reader = SqliteIndexReader::open_read_only(service_artifact)?;
+                Ok((
+                    AtlasRetrievalService::from_prepared_index_without_embeddings(reader),
+                    (),
+                ))
+            }),
+        );
+        let entropy_called = Arc::new(AtomicBool::new(false));
+        let entropy_observer = Arc::clone(&entropy_called);
+        let operation = service.worker.roll_table_with_entropy(
+            "rollable-tables:zgZoI7h0XjjJrrNK",
+            move |_| {
+                entropy_observer.store(true, Ordering::SeqCst);
+                1
+            },
+        )?;
+        let atlas_app_model::TableRollView::Unavailable { unavailable, .. } = operation else {
+            panic!("missing range must make the complete operation unavailable");
+        };
+        assert_eq!(
+            unavailable.reason,
+            atlas_app_model::TableRollUnavailableReasonView::RangeMissing
+        );
+        assert!(!entropy_called.load(Ordering::SeqCst));
+        Ok(())
+    }
+
     fn empty_runtime() -> EncounterRuntimeView {
         EncounterRuntimeView {
             hazard: None,
@@ -8923,6 +9201,77 @@ mod tests {
             tag: "p".to_string(),
             attributes: BTreeMap::new(),
             children,
+        }
+    }
+
+    fn content_has_reference(
+        blocks: &[CreatureSurfaceContentBlockView],
+        expected_record_key: &str,
+        expected_child_locator: &str,
+        expected_label: &str,
+    ) -> bool {
+        blocks.iter().any(|block| match block {
+            CreatureSurfaceContentBlockView::Paragraph { spans } => spans.iter().any(|span| {
+                inline_has_reference(
+                    span,
+                    expected_record_key,
+                    expected_child_locator,
+                    expected_label,
+                )
+            }),
+            CreatureSurfaceContentBlockView::List { items, .. } => items.iter().any(|item| {
+                content_has_reference(
+                    &item.blocks,
+                    expected_record_key,
+                    expected_child_locator,
+                    expected_label,
+                )
+            }),
+            CreatureSurfaceContentBlockView::Table { rows, .. } => rows.iter().any(|row| {
+                row.cells.iter().any(|cell| {
+                    content_has_reference(
+                        cell,
+                        expected_record_key,
+                        expected_child_locator,
+                        expected_label,
+                    )
+                })
+            }),
+            CreatureSurfaceContentBlockView::Heading { .. }
+            | CreatureSurfaceContentBlockView::Divider => false,
+        })
+    }
+
+    fn inline_has_reference(
+        span: &CreatureSurfaceContentInlineView,
+        expected_record_key: &str,
+        expected_child_locator: &str,
+        expected_label: &str,
+    ) -> bool {
+        match span {
+            CreatureSurfaceContentInlineView::Reference {
+                label,
+                record_key,
+                child_locator,
+                ..
+            } => {
+                label == expected_label
+                    && record_key.as_deref() == Some(expected_record_key)
+                    && child_locator.as_deref() == Some(expected_child_locator)
+            }
+            CreatureSurfaceContentInlineView::Strong { spans }
+            | CreatureSurfaceContentInlineView::Emphasis { spans } => spans.iter().any(|span| {
+                inline_has_reference(
+                    span,
+                    expected_record_key,
+                    expected_child_locator,
+                    expected_label,
+                )
+            }),
+            CreatureSurfaceContentInlineView::Text { .. }
+            | CreatureSurfaceContentInlineView::Code { .. }
+            | CreatureSurfaceContentInlineView::Check { .. }
+            | CreatureSurfaceContentInlineView::LineBreak => false,
         }
     }
 

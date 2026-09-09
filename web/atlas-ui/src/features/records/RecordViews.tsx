@@ -25,7 +25,12 @@ const RECORD_VIEW_WIDTH_SPECS = {
 };
 
 export function RecordView({ route }: RecordViewProps) {
-  const detail = useRecordDetail(route.recordKey);
+  const detail = useRecordDetail(
+    route.recordKey,
+    undefined,
+    undefined,
+    route.childLocator ? { child_locator: route.childLocator } : undefined,
+  );
   return (
     <RecordViewLayout
       primary={
@@ -52,8 +57,8 @@ export function RecordView({ route }: RecordViewProps) {
             detail={detail.data}
             errors={[detail.error]}
             loading={detail.isLoading}
-            onReference={(recordKey) =>
-              navigateToAtlasRoute({ kind: "record", recordKey })
+            onReference={(recordKey, childLocator) =>
+              navigateToAtlasRoute({ kind: "record", recordKey, childLocator })
             }
             stale={detail.isFetching && Boolean(detail.data)}
           />
@@ -86,12 +91,16 @@ export function ReaderView({ route }: ReaderViewProps) {
             detail={detail.data}
             errors={[detail.error]}
             loading={detail.isLoading}
-            onReference={(previewRecordKey) =>
-              navigateToAtlasRoute({
-                kind: "reader",
-                recordKey: route.recordKey,
-                previewRecordKey,
-              })
+            onReference={(previewRecordKey, childLocator) =>
+              navigateToAtlasRoute(
+                childLocator
+                  ? { kind: "record", recordKey: previewRecordKey, childLocator }
+                  : {
+                      kind: "reader",
+                      recordKey: route.recordKey,
+                      previewRecordKey,
+                    },
+              )
             }
             stale={detail.isFetching && Boolean(detail.data)}
           />
@@ -133,12 +142,16 @@ export function ReaderView({ route }: ReaderViewProps) {
             emptyMessage="Select a linked record to preview it."
             errors={[preview.error]}
             loading={route.previewRecordKey ? preview.isLoading : false}
-            onReference={(previewRecordKey) =>
-              navigateToAtlasRoute({
-                kind: "reader",
-                recordKey: route.recordKey,
-                previewRecordKey,
-              })
+            onReference={(previewRecordKey, childLocator) =>
+              navigateToAtlasRoute(
+                childLocator
+                  ? { kind: "record", recordKey: previewRecordKey, childLocator }
+                  : {
+                      kind: "reader",
+                      recordKey: route.recordKey,
+                      previewRecordKey,
+                    },
+              )
             }
             stale={
               Boolean(route.previewRecordKey) &&

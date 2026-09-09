@@ -65,8 +65,6 @@ pub(crate) struct SourceRecordFacts {
     pub(crate) source_content: BTreeMap<String, RecordContentDocument>,
     pub(crate) content_sources: Vec<SourceContentFact>,
     pub(crate) embedded_items: Vec<EmbeddedItemFact>,
-    pub(crate) journal_pages: Vec<JournalPageFact>,
-    pub(crate) skipped_journal_pages: Vec<SkippedJournalPageFact>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,38 +105,12 @@ pub(crate) struct EmbeddedItemContentRef {
     pub(crate) local_key: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct JournalPageFact {
-    pub(crate) host_record_key: RecordKey,
-    pub(crate) page_id: Option<String>,
-    pub(crate) name: String,
-    pub(crate) normalized_name: String,
-    pub(crate) ordinal: i64,
-    pub(crate) source_ref: String,
-    pub(crate) document: RichDocument,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SkippedJournalPageFact {
-    pub(crate) host_record_key: RecordKey,
-    pub(crate) page_id: Option<String>,
-    pub(crate) name: String,
-    pub(crate) normalized_name: String,
-    pub(crate) ordinal: i64,
-    pub(crate) reason: JournalPageSkipReason,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum JournalPageSkipReason {
-    MissingTextContent,
-    EmptyTextContent,
-    EmptyParsedDocument,
-}
-
 #[derive(Debug, Clone, Default)]
 pub(crate) struct RecordReferenceIndex {
     pub(crate) by_key: BTreeMap<String, AtlasRecord>,
     pub(crate) by_pack_id: BTreeMap<(String, String), RecordKey>,
     pub(crate) by_pack_name: BTreeMap<(String, String), Vec<RecordKey>>,
     pub(crate) by_name: BTreeMap<String, Vec<RecordKey>>,
+    pub(crate) by_parent_child_id:
+        BTreeMap<(String, String), (atlas_record::ContentChildLocator, Option<String>)>,
 }

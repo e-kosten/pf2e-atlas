@@ -19,6 +19,8 @@ pub(super) fn generated_affliction_edges(
             relation_kind: ReferenceRelationKind::Reference,
             source_kind: ContentSourceKind::GeneratedAffliction,
             visibility: ContentVisibility::Public,
+            source_child: None,
+            target_child: None,
         },
         ReferenceEdge {
             from_record_key: instance_key.clone(),
@@ -28,6 +30,8 @@ pub(super) fn generated_affliction_edges(
             relation_kind: ReferenceRelationKind::Reference,
             source_kind: ContentSourceKind::GeneratedAffliction,
             visibility: ContentVisibility::Public,
+            source_child: None,
+            target_child: None,
         },
         ReferenceEdge {
             from_record_key: canonical_key.clone(),
@@ -40,6 +44,8 @@ pub(super) fn generated_affliction_edges(
             relation_kind: ReferenceRelationKind::Reference,
             source_kind: ContentSourceKind::GeneratedAffliction,
             visibility: ContentVisibility::Public,
+            source_child: None,
+            target_child: None,
         },
     ];
     let relationships = [

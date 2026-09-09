@@ -26,8 +26,8 @@ Checkpoint B approved these decisions as the dependency-ordered implementation c
 
 - [`0033-source-fidelity-and-exhaustive-coverage.md`](./0033-source-fidelity-and-exhaustive-coverage.md): source interpretation uses a pinned serialized-Source boundary and exhaustive zero-unassigned registry, with a truthful default-visible/public-only base and an approved unauthenticated GM-complete target whose exclusions need non-auth rationales.
 - [`0034-canonical-entities-occurrences-and-projections.md`](./0034-canonical-entities-occurrences-and-projections.md): canonical entities own intrinsic facts, occurrences own context, runtime instances own mutable state, and the completed creature cutover carries the canonical body without a second model.
-- [`0035-atomic-canonical-artifact.md`](./0035-atomic-canonical-artifact.md): artifact contract v8/schema v4 stores and completely hydrates canonical creatures, hazards, spells, and consumable spell children without duplicate hydration models or obsolete sparse activity/spellcasting tables.
-- [`0036-source-faithful-record-surfaces.md`](./0036-source-faithful-record-surfaces.md): app-service, CLI, and web consume canonical creature, hazard, and standalone-spell bodies through typed contracts, with generic presentation retained only for families that have not completed their own cutover.
+- [`0035-atomic-canonical-artifact.md`](./0035-atomic-canonical-artifact.md): artifact contract v9/schema v5 stores and completely hydrates canonical creatures, hazards, spells, journals, roll tables, and consumable spell children without duplicate hydration models or obsolete sparse activity/spellcasting tables.
+- [`0036-source-faithful-record-surfaces.md`](./0036-source-faithful-record-surfaces.md): app-service, CLI, and web consume canonical creature, hazard, spell, journal, and roll-table bodies through typed contracts, with generic presentation retained only for families that have not completed their own cutover.
 
 ## Historical ADRs
 

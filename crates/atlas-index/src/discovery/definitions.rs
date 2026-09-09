@@ -157,6 +157,8 @@ pub(crate) const DISCOVERY_ALL_KINDS: &[&str] = &[
     "rule",
     "character_option",
     "lore",
+    "journal",
+    "roll_table",
     "tooling",
     "campaign_feature",
 ];

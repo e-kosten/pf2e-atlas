@@ -83,6 +83,17 @@ fn write_artifact(
     embedding_model: EmbeddingModelId,
 ) -> Result<ArtifactPublicationReceipt, IndexWriteError> {
     let write_started = Instant::now();
+    let h8_children =
+        crate::h8_integrity::H8ChildCatalog::from_bodies(input.canonical_bodies.iter())
+            .map_err(IndexWriteError::WriteFailed)?;
+    h8_children
+        .validate_body_targets(input.canonical_bodies.iter())
+        .map_err(IndexWriteError::WriteFailed)?;
+    for edge in &input.references {
+        h8_children
+            .validate_reference_edge(edge)
+            .map_err(IndexWriteError::WriteFailed)?;
+    }
     artifact_progress("artifact_write", "Preparing artifact output");
     info!(output = %path.display(), "preparing artifact output");
     let output = ArtifactOutput::prepare(path)?;
@@ -453,6 +464,8 @@ mod tests {
                 relation_kind: atlas_record::ReferenceRelationKind::Reference,
                 source_kind: ContentSourceKind::Description,
                 visibility: ContentVisibility::Public,
+                source_child: None,
+                target_child: None,
             })
             .collect::<Vec<_>>();
         let aliases = records

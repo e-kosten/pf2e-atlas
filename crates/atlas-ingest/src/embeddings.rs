@@ -75,6 +75,12 @@ fn canonical_embedding_content_documents(
         RecordBody::Spell(spell) => Some(embedding_content_documents_from_owned(
             &spell.definition.content,
         )),
+        RecordBody::Journal(journal) => {
+            Some(embedding_content_documents_from_owned(&journal.content))
+        }
+        RecordBody::RollTable(table) => {
+            Some(embedding_content_documents_from_owned(&table.content))
+        }
     }
 }
 

@@ -2,14 +2,30 @@ use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ContentOwner, ContentSourceKind, ContentVisibility, DuplicateContentStatus,
-    FoundryLink, FoundryLinkBehavior, RecordBody, RecordContentDocument, ReferenceEdge,
-    ReferenceRelationKind, RichDocument, RichLinkTarget, iter_foundry_links, render_plain_text,
-    visit_foundry_links_mut,
+    AtlasRecord, ContentChildLocator, ContentOrigin, ContentOwner, ContentRole, ContentSourceKind,
+    ContentVisibility, DuplicateContentStatus, FactValue, FoundryLink, FoundryLinkBehavior,
+    H8FieldValue, JournalPageEntry, RecordBody, RecordContentDocument, ReferenceEdge,
+    ReferenceRelationKind, RichDocument, RichLinkTarget, TableResultEntry, iter_foundry_links,
+    render_plain_text, visit_foundry_links_mut,
 };
 
 use crate::records::{LoadedSourceRecord, RecordReferenceIndex};
 use crate::source::normalize::normalize_text;
+
+type ReferenceDedupeKey = (
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    String,
+    String,
+);
+type OwnedDocumentRef<'a> = (
+    ContentSourceKind,
+    ContentVisibility,
+    Option<ContentChildLocator>,
+    &'a RichDocument,
+);
 
 pub(crate) fn build_record_reference_index(records: &[LoadedSourceRecord]) -> RecordReferenceIndex {
     let mut index = RecordReferenceIndex::default();
@@ -40,6 +56,35 @@ pub(crate) fn build_record_reference_index(records: &[LoadedSourceRecord]) -> Re
             ))
             .or_default()
             .push(record.identity.key.clone());
+        if let Some(RecordBody::Journal(journal)) = &loaded.facts.canonical_body
+            && let FactValue::Value(H8FieldValue::Known(pages)) = &journal.pages
+        {
+            for page in pages {
+                let JournalPageEntry::Page(page) = page else {
+                    continue;
+                };
+                let FactValue::Value(H8FieldValue::Known(source_id)) = &page.source_id else {
+                    continue;
+                };
+                if !matches!(
+                    &page.locator.identity,
+                    atlas_record::ContentChildIdentity::Stable(_)
+                ) {
+                    continue;
+                }
+                let label = match &page.name {
+                    FactValue::Value(H8FieldValue::Known(name)) => Some(name.clone()),
+                    _ => None,
+                };
+                index.by_parent_child_id.insert(
+                    (
+                        record.identity.key.to_string(),
+                        source_id.as_str().to_string(),
+                    ),
+                    (page.locator.clone(), label),
+                );
+            }
+        }
         index
             .by_name
             .entry(record.identity.normalized_name())
@@ -56,11 +101,12 @@ pub(crate) fn resolve_reference_edges(records: &[LoadedSourceRecord]) -> Vec<Ref
         let record = &loaded.record;
         let documents =
             owned_content_documents(loaded).unwrap_or_else(|| record_content_documents(record));
-        for (source_kind, visibility, document) in documents {
+        for (source_kind, visibility, source_child, document) in documents {
             collect_document_reference_edges(
                 record,
                 source_kind,
                 visibility,
+                source_child,
                 document,
                 &mut seen,
                 &mut references,
@@ -72,12 +118,26 @@ pub(crate) fn resolve_reference_edges(records: &[LoadedSourceRecord]) -> Vec<Ref
         (
             left.from_record_key.to_string(),
             left.to_record_key.to_string(),
+            left.source_child
+                .as_ref()
+                .map(atlas_record::encode_content_child_locator),
+            left.target_child
+                .as_ref()
+                .map(atlas_record::encode_content_child_locator),
             left.reference_text.as_str(),
             left.source_kind.as_str(),
         )
             .cmp(&(
                 right.from_record_key.to_string(),
                 right.to_record_key.to_string(),
+                right
+                    .source_child
+                    .as_ref()
+                    .map(atlas_record::encode_content_child_locator),
+                right
+                    .target_child
+                    .as_ref()
+                    .map(atlas_record::encode_content_child_locator),
                 right.reference_text.as_str(),
                 right.source_kind.as_str(),
             ))
@@ -101,6 +161,8 @@ pub(crate) fn resolve_content_references(
             Some(RecordBody::Creature(creature)) => Some(&mut creature.content),
             Some(RecordBody::Hazard(hazard)) => Some(&mut hazard.content),
             Some(RecordBody::Spell(spell)) => Some(&mut spell.definition.content),
+            Some(RecordBody::Journal(journal)) => Some(&mut journal.content),
+            Some(RecordBody::RollTable(table)) => Some(&mut table.content),
             None => None,
         };
         if let Some(content) = canonical_content {
@@ -118,6 +180,7 @@ pub(crate) fn resolve_content_references(
                     document: content.document.clone(),
                 })
                 .collect();
+            sync_h8_field_content(loaded.facts.canonical_body.as_mut());
         } else if let Some(RecordBody::Hazard(hazard)) = &mut loaded.facts.canonical_body {
             for content in &mut hazard.content.documents {
                 resolve_document_references(&mut content.document, index);
@@ -144,15 +207,96 @@ pub(crate) fn resolve_content_references(
     }
 }
 
+fn sync_h8_field_content(body: Option<&mut RecordBody>) {
+    match body {
+        Some(RecordBody::Journal(journal)) => {
+            let FactValue::Value(H8FieldValue::Known(pages)) = &mut journal.pages else {
+                return;
+            };
+            for entry in pages {
+                let JournalPageEntry::Page(page) = entry else {
+                    continue;
+                };
+                let expected_path = format!("$.pages[{}].text.content", page.source_ordinal);
+                let Some(document) = journal.content.documents.iter().find(|document| {
+                    document.role == ContentRole::JournalPage
+                        && document.source_kind == ContentSourceKind::JournalPage
+                        && matches!(
+                            &document.owner,
+                            ContentOwner::Child(locator) if locator == &page.locator
+                        )
+                        && matches!(
+                            &document.origin,
+                            ContentOrigin::ChildField {
+                                locator,
+                                relative_source_path,
+                            } if locator == &page.locator && relative_source_path == &expected_path
+                        )
+                }) else {
+                    continue;
+                };
+                if let FactValue::Value(H8FieldValue::Known(text)) = &mut page.text
+                    && matches!(text.content, FactValue::Value(H8FieldValue::Known(_)))
+                {
+                    text.content = FactValue::Value(H8FieldValue::Known(document.document.clone()));
+                }
+            }
+        }
+        Some(RecordBody::RollTable(table)) => {
+            if let Some(document) = table.content.documents.iter().find(|document| {
+                document.role == ContentRole::PrimaryDescription
+                    && document.source_kind == ContentSourceKind::Description
+                    && document.owner == ContentOwner::Record(table.identity.record_key.clone())
+                    && matches!(
+                        &document.origin,
+                        ContentOrigin::RecordField {
+                            source_kind: ContentSourceKind::Description,
+                            relative_source_path,
+                        } if relative_source_path == "$.description"
+                    )
+            }) && matches!(table.description, FactValue::Value(H8FieldValue::Known(_)))
+            {
+                table.description =
+                    FactValue::Value(H8FieldValue::Known(document.document.clone()));
+            }
+            let FactValue::Value(H8FieldValue::Known(results)) = &mut table.results else {
+                return;
+            };
+            for entry in results {
+                let TableResultEntry::Result(result) = entry else {
+                    continue;
+                };
+                let expected_path = format!("$.results[{}].text", result.source_ordinal);
+                let Some(document) = table.content.documents.iter().find(|document| {
+                    document.role == ContentRole::TableResult
+                        && document.source_kind == ContentSourceKind::TableResult
+                        && matches!(
+                            &document.owner,
+                            ContentOwner::Child(locator) if locator == &result.locator
+                        )
+                        && matches!(
+                            &document.origin,
+                            ContentOrigin::ChildField {
+                                locator,
+                                relative_source_path,
+                            } if locator == &result.locator && relative_source_path == &expected_path
+                        )
+                }) else {
+                    continue;
+                };
+                if matches!(result.text, FactValue::Value(H8FieldValue::Known(_))) {
+                    result.text = FactValue::Value(H8FieldValue::Known(document.document.clone()));
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 fn resolve_document_references(document: &mut RichDocument, index: &RecordReferenceIndex) {
     visit_foundry_links_mut(document, |link| {
-        if let Some(record_key) = resolve_foundry_link(link, index)
-            && let Some(record) = record_by_key(index, &record_key)
-        {
-            link.target = RichLinkTarget::Record {
-                key: record_key,
-                name: record.identity.name.clone(),
-            };
+        if let Some(target) = resolve_foundry_target(link, index) {
+            link.target = target;
         }
     });
 }
@@ -161,8 +305,9 @@ fn collect_document_reference_edges(
     record: &AtlasRecord,
     source_kind: ContentSourceKind,
     visibility: ContentVisibility,
+    source_child: Option<ContentChildLocator>,
     document: &RichDocument,
-    seen: &mut BTreeSet<(String, String, String, String)>,
+    seen: &mut BTreeSet<ReferenceDedupeKey>,
     references: &mut Vec<ReferenceEdge>,
 ) {
     for link in iter_foundry_links(document) {
@@ -170,9 +315,19 @@ fn collect_document_reference_edges(
             continue;
         };
         let reference_text = link.source.authored_target.clone();
+        let target_child = match &link.target {
+            RichLinkTarget::RecordChild { locator, .. } => Some(locator.clone()),
+            _ => None,
+        };
         let dedupe_key = (
             record.identity.key.to_string(),
             to_record_key.to_string(),
+            source_child
+                .as_ref()
+                .map(atlas_record::encode_content_child_locator),
+            target_child
+                .as_ref()
+                .map(atlas_record::encode_content_child_locator),
             reference_text.clone(),
             source_kind.as_str().to_string(),
         );
@@ -185,28 +340,35 @@ fn collect_document_reference_edges(
                 relation_kind: reference_relation_kind(link),
                 source_kind,
                 visibility,
+                source_child: source_child.clone(),
+                target_child,
             });
         }
     }
 }
 
-fn record_content_documents(
-    record: &AtlasRecord,
-) -> Vec<(ContentSourceKind, ContentVisibility, &RichDocument)> {
+fn record_content_documents(record: &AtlasRecord) -> Vec<OwnedDocumentRef<'_>> {
     record
         .content
         .default_backlink_documents()
-        .map(|content| (content.source_kind, content.visibility(), &content.document))
+        .map(|content| {
+            (
+                content.source_kind,
+                content.visibility(),
+                None,
+                &content.document,
+            )
+        })
         .collect()
 }
 
-fn owned_content_documents(
-    loaded: &LoadedSourceRecord,
-) -> Option<Vec<(ContentSourceKind, ContentVisibility, &RichDocument)>> {
+fn owned_content_documents(loaded: &LoadedSourceRecord) -> Option<Vec<OwnedDocumentRef<'_>>> {
     let mut documents = match loaded.facts.canonical_body.as_ref() {
         Some(RecordBody::Creature(creature)) => owned_documents(&creature.content),
         Some(RecordBody::Hazard(hazard)) => owned_documents(&hazard.content),
         Some(RecordBody::Spell(spell)) => owned_documents(&spell.definition.content),
+        Some(RecordBody::Journal(journal)) => owned_documents(&journal.content),
+        Some(RecordBody::RollTable(table)) => owned_documents(&table.content),
         None if !loaded.facts.canonical_spell_children.is_empty() => {
             record_content_documents(&loaded.record)
         }
@@ -222,9 +384,7 @@ fn owned_content_documents(
     Some(documents)
 }
 
-fn owned_documents(
-    content: &atlas_record::OwnedRichContent,
-) -> Vec<(ContentSourceKind, ContentVisibility, &RichDocument)> {
+fn owned_documents(content: &atlas_record::OwnedRichContent) -> Vec<OwnedDocumentRef<'_>> {
     content
         .documents
         .iter()
@@ -234,18 +394,69 @@ fn owned_documents(
                 DuplicateContentStatus::CopiedFromCanonicalTarget { .. }
             )
         })
-        .map(|content| (content.source_kind, content.visibility, &content.document))
+        .map(|content| {
+            let source_child = match &content.owner {
+                ContentOwner::Child(locator) => Some(locator.clone()),
+                _ => None,
+            };
+            (
+                content.source_kind,
+                content.visibility,
+                source_child,
+                &content.document,
+            )
+        })
         .collect()
 }
 
-fn resolve_foundry_link(link: &FoundryLink, index: &RecordReferenceIndex) -> Option<RecordKey> {
+fn resolve_foundry_target(
+    link: &FoundryLink,
+    index: &RecordReferenceIndex,
+) -> Option<RichLinkTarget> {
     match &link.target {
-        RichLinkTarget::Record { key, .. } => Some(key.clone()),
+        RichLinkTarget::Record { .. } | RichLinkTarget::RecordChild { .. } => {
+            Some(link.target.clone())
+        }
         RichLinkTarget::LocalContent { .. } => None,
         RichLinkTarget::External { target, .. } | RichLinkTarget::Unresolved { target, .. } => {
+            if let Some((pack_name, parent_id, child_id)) = journal_page_target(target)
+                && let Some(parent_key) = resolve_record_key(Some(&pack_name), &parent_id, index)
+                && let Some(record) = record_by_key(index, &parent_key)
+                && let Some((locator, child_label)) = index
+                    .by_parent_child_id
+                    .get(&(parent_key.to_string(), child_id.to_string()))
+            {
+                return Some(RichLinkTarget::RecordChild {
+                    key: parent_key,
+                    name: record.identity.name.clone(),
+                    locator: locator.clone(),
+                    child_label: child_label.clone(),
+                });
+            }
             let (pack_name, locator) = reference_pack_and_locator(target)?;
-            resolve_record_key(Some(&pack_name), &locator, index)
+            let key = resolve_record_key(Some(&pack_name), &locator, index)?;
+            let record = record_by_key(index, &key)?;
+            Some(RichLinkTarget::Record {
+                key,
+                name: record.identity.name.clone(),
+            })
         }
+    }
+}
+
+fn journal_page_target(raw_target: &str) -> Option<(String, String, &str)> {
+    let parts = raw_target.split('.').collect::<Vec<_>>();
+    match parts.as_slice() {
+        [
+            "Compendium",
+            "pf2e",
+            pack,
+            "JournalEntry",
+            parent,
+            "JournalEntryPage",
+            child,
+        ] => Some(((*pack).to_string(), (*parent).to_string(), child)),
+        _ => None,
     }
 }
 

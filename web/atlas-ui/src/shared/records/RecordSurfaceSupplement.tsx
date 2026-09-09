@@ -14,6 +14,7 @@ type AvailableReferenceSection = Extract<
   { state: "available" }
 >;
 type RecordSurfaceReferenceRecord = AvailableReferenceSection["records"][number];
+type RecordSurfaceReferenceEdge = AvailableReferenceSection["edges"][number];
 
 export function RecordSurfaceIssues({
   issues,
@@ -130,7 +131,7 @@ export function RecordSurfaceReferences({
   loading?: boolean;
   onDisclosureOpen?: () => void;
   onRequestLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
   references: RecordSurfaceReferences | undefined;
 }) {
   if (!references && !onDisclosureOpen) return null;
@@ -190,7 +191,7 @@ function ReferenceDirection({
   recordKey?: string;
   direction: "backlinks" | "outgoing";
   onRequestLimit?: (direction: "backlinks" | "outgoing", limit: number) => void;
-  onReference: (recordKey: string) => void;
+  onReference: (recordKey: string, childLocator?: string) => void;
   section: RecordSurfaceReferenceSection | undefined;
   title: string;
 }) {
@@ -300,6 +301,8 @@ function ReferenceDirection({
         <ul className="record-surface-references__list">
           {section.records.map((record) => (
             <ReferenceRecord
+              direction={direction}
+              edges={referenceEdges(section, direction, record.record_key)}
               key={record.record_key}
               onReference={onReference}
               record={record}
@@ -314,21 +317,71 @@ function ReferenceDirection({
 }
 
 function ReferenceRecord({
+  direction,
+  edges,
   onReference,
   record,
 }: {
-  onReference: (recordKey: string) => void;
+  direction: "backlinks" | "outgoing";
+  edges: RecordSurfaceReferenceEdge[];
+  onReference: (recordKey: string, childLocator?: string) => void;
   record: RecordSurfaceReferenceRecord;
 }) {
+  const childEdges = edges.flatMap((edge, edgeIndex) => {
+    const childLocator =
+      direction === "outgoing" ? edge.target_child_locator : edge.source_child_locator;
+    return childLocator ? [{ childLocator, edge, edgeIndex }] : [];
+  });
+  const exposesParent =
+    edges.length === 0 ||
+    edges.some((edge) =>
+      direction === "outgoing"
+        ? !edge.target_child_locator
+        : !edge.source_child_locator,
+    );
   return (
     <li>
       <div className="record-surface-references__record">
-        <Button onClick={() => onReference(record.record_key)} type="link">
-          {record.title}
-        </Button>
+        {exposesParent ? (
+          <Button onClick={() => onReference(record.record_key)} type="link">
+            {record.title}
+          </Button>
+        ) : (
+          <strong>{record.title}</strong>
+        )}
         <Tag>{formatSlug(record.kind)}</Tag>
       </div>
+      {childEdges.length ? (
+        <ul className="record-surface-references__children">
+          {childEdges.map(({ childLocator, edge, edgeIndex }) => {
+            const label = edge.display_text ?? edge.reference_text;
+            return (
+              <li key={`${childLocator}:${edge.reference_text}:${edgeIndex}`}>
+                <Button
+                  aria-label={`Open ${record.title}: ${label}`}
+                  onClick={() => onReference(record.record_key, childLocator)}
+                  type="link"
+                >
+                  {label}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </li>
+  );
+}
+
+function referenceEdges(
+  section: AvailableReferenceSection,
+  direction: "backlinks" | "outgoing",
+  recordKey: string,
+) {
+  return section.edges.filter((candidate) =>
+    direction === "outgoing"
+      ? candidate.to_record_key === recordKey
+      : candidate.from_record_key === recordKey,
   );
 }
 

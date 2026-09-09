@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use atlas_domain::RecordKey;
 use atlas_record::{
     FactValue, HazardOccurrenceIdentityStability, HazardRelationshipKind, HazardRelationshipTarget,
-    MetricValue, RecordBody, project_creature_facts, project_hazard_facts,
+    MetricValue, RecordBody, decode_content_child_locator, project_creature_facts,
+    project_hazard_facts,
 };
 use rusqlite::Connection;
 use rusqlite::types::ValueRef;
@@ -222,6 +224,112 @@ pub(crate) fn validate_canonical_records(
         }
     }
     validate_hazard_records(connection, &projections, diagnostics)?;
+    if diagnostics.is_empty() {
+        validate_h8_records(
+            connection,
+            "JournalEntry",
+            "canonical_journal_records",
+            "journal",
+            diagnostics,
+        )?;
+    }
+    if diagnostics.is_empty() {
+        validate_h8_records(
+            connection,
+            "RollTable",
+            "canonical_roll_table_records",
+            "roll_table",
+            diagnostics,
+        )?;
+    }
+    if diagnostics.is_empty() {
+        validate_h8_semantic_structure(connection, diagnostics)?;
+    }
+    Ok(())
+}
+
+fn validate_h8_records(
+    connection: &Connection,
+    document_type: &str,
+    table: &str,
+    body_kind: &str,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let expected_keys = text_column(
+        connection,
+        &format!(
+            "SELECT record_key FROM records WHERE foundry_document_type = '{}' ORDER BY record_key",
+            document_type.replace('\'', "''")
+        ),
+    )?;
+    let sql =
+        format!("SELECT record_key,source_id,name,canonical_json FROM {table} ORDER BY record_key");
+    let mut statement = connection.prepare(&sql).map_err(query_failed)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(query_failed)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(query_failed)?;
+    let actual_keys = rows.iter().map(|row| row.0.clone()).collect::<Vec<_>>();
+    if actual_keys != expected_keys {
+        mismatch(
+            diagnostics,
+            &format!("canonical {body_kind} coverage diverges from source records"),
+            &format!("{table}.coverage"),
+            expected_keys.len().to_string(),
+            actual_keys.len().to_string(),
+        );
+        return Ok(());
+    }
+    for (record_key, source_id, name, json) in rows {
+        let path = format!("{table}[{record_key}].canonical_json");
+        let body = match canonical_json::decode::<RecordBody>(&json, &path) {
+            Ok(body) if canonical_json::encode(&body).is_ok_and(|encoded| encoded == json) => body,
+            Ok(_) => {
+                invalid(
+                    diagnostics,
+                    "typed JSON is not in canonical deterministic form",
+                    &path,
+                );
+                continue;
+            }
+            Err(error) => {
+                invalid(diagnostics, &error, &path);
+                continue;
+            }
+        };
+        let identity = match &body {
+            RecordBody::Journal(journal) if body_kind == "journal" => &journal.identity,
+            RecordBody::RollTable(table) if body_kind == "roll_table" => &table.identity,
+            _ => {
+                invalid(
+                    diagnostics,
+                    "canonical H8 table contains the wrong body family",
+                    &path,
+                );
+                continue;
+            }
+        };
+        if identity.record_key.to_string() != record_key
+            || identity.source_id.as_str() != source_id
+            || identity.name != name
+        {
+            mismatch(
+                diagnostics,
+                "canonical H8 identity diverges from its relational row",
+                &record_key,
+                "hydrated identity".to_string(),
+                "relational identity".to_string(),
+            );
+        }
+    }
     Ok(())
 }
 
@@ -338,7 +446,11 @@ pub(super) fn validate_canonical_structure(
                 OR (r.record_kind = 'hazard' AND r.foundry_record_type <> 'hazard')
                 OR (r.record_kind <> 'hazard' AND r.foundry_record_type = 'hazard')
                 OR (r.record_kind = 'spell' AND r.foundry_record_type <> 'spell')
-                OR (r.record_kind <> 'spell' AND r.foundry_record_type = 'spell')",
+                OR (r.record_kind <> 'spell' AND r.foundry_record_type = 'spell')
+                OR (r.record_kind = 'journal' AND r.foundry_document_type <> 'JournalEntry')
+                OR (r.record_kind <> 'journal' AND r.foundry_document_type = 'JournalEntry')
+                OR (r.record_kind = 'roll_table' AND r.foundry_document_type <> 'RollTable')
+                OR (r.record_kind <> 'roll_table' AND r.foundry_document_type = 'RollTable')",
             "canonical record kind and Foundry type must identify the same body family",
         ),
         (
@@ -382,7 +494,9 @@ pub(super) fn validate_canonical_structure(
             "SELECT COUNT(*)
              FROM record_content_exclusions e
              WHERE NOT EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key=e.record_key)
-               AND NOT EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key=e.record_key)",
+               AND NOT EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key=e.record_key)
+               AND NOT EXISTS (SELECT 1 FROM canonical_journal_records j WHERE j.record_key=e.record_key)
+               AND NOT EXISTS (SELECT 1 FROM canonical_roll_table_records t WHERE t.record_key=e.record_key)",
             "content exclusions must belong to a canonical record body",
         ),
         (
@@ -400,6 +514,36 @@ pub(super) fn validate_canonical_structure(
              JOIN records r ON r.record_key = s.record_key
              WHERE r.foundry_record_type <> 'spell' OR r.record_kind <> 'spell'",
             "non-spell records must not have canonical spell bodies",
+        ),
+        (
+            "canonical_journal_records.missing_journal_body",
+            "SELECT COUNT(*) FROM records r
+             LEFT JOIN canonical_journal_records j ON j.record_key = r.record_key
+             WHERE r.record_kind = 'journal' AND r.foundry_document_type = 'JournalEntry'
+               AND j.record_key IS NULL",
+            "every JournalEntry record must have one canonical journal body",
+        ),
+        (
+            "canonical_journal_records.non_journal_body",
+            "SELECT COUNT(*) FROM canonical_journal_records j
+             JOIN records r ON r.record_key = j.record_key
+             WHERE r.record_kind <> 'journal' OR r.foundry_document_type <> 'JournalEntry'",
+            "non-JournalEntry records must not have canonical journal bodies",
+        ),
+        (
+            "canonical_roll_table_records.missing_roll_table_body",
+            "SELECT COUNT(*) FROM records r
+             LEFT JOIN canonical_roll_table_records t ON t.record_key = r.record_key
+             WHERE r.record_kind = 'roll_table' AND r.foundry_document_type = 'RollTable'
+               AND t.record_key IS NULL",
+            "every RollTable record must have one canonical roll-table body",
+        ),
+        (
+            "canonical_roll_table_records.non_roll_table_body",
+            "SELECT COUNT(*) FROM canonical_roll_table_records t
+             JOIN records r ON r.record_key = t.record_key
+             WHERE r.record_kind <> 'roll_table' OR r.foundry_document_type <> 'RollTable'",
+            "non-RollTable records must not have canonical roll-table bodies",
         ),
         (
             "canonical_spell_records.missing_query_projection",
@@ -449,6 +593,89 @@ pub(super) fn validate_canonical_structure(
             );
         }
     }
+    if diagnostics.is_empty() {
+        validate_h8_semantic_structure(connection, diagnostics)?;
+    }
+    Ok(())
+}
+
+fn validate_h8_semantic_structure(
+    connection: &Connection,
+    diagnostics: &mut Vec<ArtifactValidationDiagnostic>,
+) -> Result<(), IndexValidationError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT canonical_json FROM canonical_journal_records
+             UNION ALL
+             SELECT canonical_json FROM canonical_roll_table_records",
+        )
+        .map_err(query_failed)?;
+    let bodies = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(query_failed)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(query_failed)?
+        .into_iter()
+        .map(|json| canonical_json::decode::<RecordBody>(&json, "canonical H8 semantic validation"))
+        .collect::<Result<Vec<_>, _>>();
+    let bodies = match bodies {
+        Ok(bodies) => bodies,
+        Err(error) => {
+            invalid(diagnostics, &error, "canonical_h8_records.child_integrity");
+            return Ok(());
+        }
+    };
+    let catalog = match crate::h8_integrity::H8ChildCatalog::from_bodies(&bodies) {
+        Ok(catalog) => catalog,
+        Err(error) => {
+            invalid(diagnostics, &error, "canonical_h8_records.child_integrity");
+            return Ok(());
+        }
+    };
+    if let Err(error) = catalog.validate_body_targets(&bodies) {
+        invalid(diagnostics, &error, "canonical_h8_records.child_integrity");
+        return Ok(());
+    }
+
+    let mut statement = connection
+        .prepare(
+            "SELECT from_record_key,to_record_key,source_child_locator,target_child_locator
+             FROM reference_edges
+             WHERE source_child_locator <> '' OR target_child_locator <> ''
+             ORDER BY from_record_key,to_record_key,source_child_locator,target_child_locator",
+        )
+        .map_err(query_failed)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(query_failed)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(query_failed)?;
+    for (from, to, source, target) in rows {
+        let parsed = (|| {
+            let from = RecordKey::parse(&from).map_err(|error| error.to_string())?;
+            let to = RecordKey::parse(&to).map_err(|error| error.to_string())?;
+            let source = (!source.is_empty())
+                .then(|| decode_content_child_locator(&source))
+                .transpose()
+                .map_err(|_| "invalid reference source child locator".to_string())?;
+            let target = (!target.is_empty())
+                .then(|| decode_content_child_locator(&target))
+                .transpose()
+                .map_err(|_| "invalid reference target child locator".to_string())?;
+            catalog.validate_edge_locators(&from, source.as_ref(), &to, target.as_ref())
+        })();
+        if let Err(error) = parsed {
+            invalid(diagnostics, &error, "reference_edges.child_integrity");
+            return Ok(());
+        }
+    }
     Ok(())
 }
 
@@ -463,8 +690,10 @@ fn validate_canonical_side_row_ownership(
              FROM actor_records a
              WHERE EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key = a.record_key)
                 OR EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key = a.record_key)
-                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = a.record_key)",
-            "canonical creature, hazard, and spell records must not own generic actor rows",
+                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = a.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_journal_records j WHERE j.record_key = a.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_roll_table_records t WHERE t.record_key = a.record_key)",
+            "canonical records must not own generic actor rows",
         ),
         (
             "item_records.canonical_body_owner",
@@ -472,8 +701,10 @@ fn validate_canonical_side_row_ownership(
              FROM item_records i
              WHERE EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key = i.record_key)
                 OR EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key = i.record_key)
-                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = i.record_key)",
-            "canonical creature, hazard, and spell records must not own generic item rows",
+                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = i.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_journal_records j WHERE j.record_key = i.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_roll_table_records t WHERE t.record_key = i.record_key)",
+            "canonical records must not own generic item rows",
         ),
         (
             "record_metrics.canonical_spell_owner",
@@ -654,6 +885,14 @@ fn reconcile(
                 None,
                 Some(id.as_str().to_string()),
             ),
+            atlas_record::ContentOwner::Child(_) => {
+                invalid(
+                    diagnostics,
+                    "creature content has a cross-family child owner",
+                    record_key,
+                );
+                continue;
+            }
         };
         let owner_order = owner_occurrence.as_deref().and_then(|id| {
             occurrence_order(
@@ -886,7 +1125,8 @@ fn reconcile_hazard(
                 Some(id.as_str().to_string()),
             ),
             atlas_record::ContentOwner::CreatureEntity(_)
-            | atlas_record::ContentOwner::CreatureOccurrence(_) => {
+            | atlas_record::ContentOwner::CreatureOccurrence(_)
+            | atlas_record::ContentOwner::Child(_) => {
                 invalid(
                     diagnostics,
                     "hazard content has a cross-family owner",
@@ -1146,6 +1386,7 @@ fn content_role(value: atlas_record::ContentRole) -> &'static str {
 fn reference_target_kind(value: &atlas_record::RichLinkTarget) -> &'static str {
     match value {
         atlas_record::RichLinkTarget::Record { .. } => "record",
+        atlas_record::RichLinkTarget::RecordChild { .. } => "record_child",
         atlas_record::RichLinkTarget::LocalContent { .. } => "local_content",
         atlas_record::RichLinkTarget::External { .. } => "external",
         atlas_record::RichLinkTarget::Unresolved { .. } => "unresolved",
@@ -1280,11 +1521,11 @@ fn validate_enums(
         ),
         (
             "record_content.owner_kind",
-            "SELECT COUNT(*) FROM record_content WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence')",
+            "SELECT COUNT(*) FROM record_content WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence','child')",
         ),
         (
             "reference_occurrences.owner_kind",
-            "SELECT COUNT(*) FROM reference_occurrences WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence')",
+            "SELECT COUNT(*) FROM reference_occurrences WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence','child')",
         ),
     ] {
         let count: i64 = connection

@@ -22,6 +22,8 @@ pub(super) fn is_child_embedding_source(source_kind: ContentSourceKind) -> bool 
         ContentSourceKind::Description
             | ContentSourceKind::DetailsFieldDescription
             | ContentSourceKind::PublicNotes
+            | ContentSourceKind::JournalPage
+            | ContentSourceKind::TableResult
     )
 }
 

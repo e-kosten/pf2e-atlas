@@ -3,16 +3,17 @@ use atlas_record::{
     CreatureActionCostJson, CreatureAvailabilityFieldJson, CreatureAvailabilityJson,
     CreatureContentJson, CreatureDamageJson, CreatureRollJson, CreatureSpellJson,
     CreatureUnmodeledSkillAvailabilityJson, FactPresentationDisposition, FactPresentationRole,
-    FactPresentationState, FactRequirement, HazardAvailabilityJson, HazardAvailabilityStateJson,
-    HazardDefenseTerminalFact, PresentationContent, PresentationContentBlock, PresentationInline,
-    RecordBlockJson, RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson,
-    RecordEditionStatusJson, RecordFactTerminalPresentation, RecordJson, RecordPresentationJson,
-    RecordRelationshipDirectionJson, RecordRelationshipLookupJson, SpellDamageJson,
+    FactPresentationState, FactRequirement, H8FactJson, HazardAvailabilityJson,
+    HazardAvailabilityStateJson, HazardDefenseTerminalFact, JournalJson, JournalPageEntryJson,
+    PresentationContent, PresentationContentBlock, PresentationInline, RecordBlockJson,
+    RecordEditionCounterpartLookupJson, RecordEditionCounterpartRoleJson, RecordEditionStatusJson,
+    RecordFactTerminalPresentation, RecordJson, RecordPresentationJson,
+    RecordRelationshipDirectionJson, RecordRelationshipLookupJson, RollTableJson, SpellDamageJson,
     SpellDamagePatchJson, SpellDamagePatchOperationJson, SpellFactJson, SpellFormJson,
     SpellFormLabelKind, SpellFormResultJson, SpellHeighteningJson, SpellPatchJson,
     SpellResolvedDefinitionJson, SpellResolvedFieldJson, SpellRuleDetailJson, SpellRuleJson,
-    SpellRulePredicateJson, SpellTextPatchOperationJson, classify_fact_presentation,
-    project_spell_json_presentation_issues,
+    SpellRulePredicateJson, SpellTextPatchOperationJson, TableResultEntryJson,
+    classify_fact_presentation, project_spell_json_presentation_issues,
 };
 
 use crate::terminal::TerminalStyle;
@@ -142,6 +143,32 @@ pub(super) fn render_record(
             record_relationships,
         } => {
             out.spell_record(record, spell, detail);
+            if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
+                out.relationships(record_relationships.as_ref());
+            }
+            if detail == DetailLevel::Full {
+                out.source_and_edition(record, edition.as_ref());
+            }
+        }
+        RecordPresentationJson::Journal {
+            journal,
+            edition,
+            record_relationships,
+        } => {
+            out.journal_record(journal, detail);
+            if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
+                out.relationships(record_relationships.as_ref());
+            }
+            if detail == DetailLevel::Full {
+                out.source_and_edition(record, edition.as_ref());
+            }
+        }
+        RecordPresentationJson::RollTable {
+            roll_table,
+            edition,
+            record_relationships,
+        } => {
+            out.roll_table_record(roll_table, detail);
             if matches!(detail, DetailLevel::Standard | DetailLevel::Full) {
                 out.relationships(record_relationships.as_ref());
             }
@@ -439,6 +466,105 @@ impl Writer {
             for document in &spell.content {
                 self.section(document.label.as_deref().unwrap_or("Description"));
                 self.render_content(&document.document, 2);
+            }
+        }
+    }
+
+    fn journal_record(&mut self, journal: &JournalJson, detail: DetailLevel) {
+        let Some(pages) = h8_fact(&journal.pages) else {
+            self.section("Pages");
+            self.field("Availability", h8_fact_state(&journal.pages), 2);
+            return;
+        };
+        self.section("Pages");
+        for entry in pages {
+            match entry {
+                JournalPageEntryJson::Page { page } => {
+                    let label = h8_fact(&page.name).map_or("Untitled page", String::as_str);
+                    let kind = h8_fact(&page.page_kind).copied().unwrap_or("unknown");
+                    let title = h8_fact(&page.title);
+                    let title_visible = title.and_then(|title| h8_fact(&title.show)).copied();
+                    if title_visible == Some(true) {
+                        self.heading(label, 2);
+                        if let Some(level) = title.and_then(|title| h8_fact(&title.level)) {
+                            self.field("Title level", level.to_string(), 4);
+                        }
+                    } else {
+                        self.field("Page", label, 2);
+                    }
+                    self.field("Type", kind, 4);
+                    if let Some(sort) = h8_fact(&page.sort) {
+                        self.field("Sort", sort.to_string(), 4);
+                    }
+                    if matches!(detail, DetailLevel::Description | DetailLevel::Full)
+                        && let Some(text) = h8_fact(&page.text)
+                        && let Some(document) = h8_fact(&text.content)
+                    {
+                        self.paragraph(&atlas_record::render_plain_text(document), 4);
+                    }
+                    if matches!(kind, "image" | "pdf" | "video") {
+                        self.field("Media", "metadata only; viewing is not supported", 4);
+                    }
+                }
+                JournalPageEntryJson::Unsupported { unsupported } => {
+                    self.bullet(
+                        format!(
+                            "Page {} unavailable: {}",
+                            unsupported.source_ordinal.saturating_add(1),
+                            unsupported.reason
+                        ),
+                        2,
+                    );
+                }
+            }
+        }
+    }
+
+    fn roll_table_record(&mut self, table: &RollTableJson, detail: DetailLevel) {
+        self.optional_section("Table", |out| {
+            if let Some(formula) = h8_fact(&table.formula) {
+                out.field("Formula", formula, 2);
+            }
+            if let Some(replacement) = h8_fact(&table.replacement) {
+                out.field("Replacement", if *replacement { "yes" } else { "no" }, 2);
+            }
+            if let Some(display_roll) = h8_fact(&table.display_roll) {
+                out.field("Display roll", if *display_roll { "yes" } else { "no" }, 2);
+            }
+        });
+        if matches!(detail, DetailLevel::Description | DetailLevel::Full)
+            && let Some(description) = h8_fact(&table.description)
+        {
+            self.section("Description");
+            self.paragraph(&atlas_record::render_plain_text(description), 2);
+        }
+        let Some(results) = h8_fact(&table.results) else {
+            self.section("Results");
+            self.field("Availability", h8_fact_state(&table.results), 2);
+            return;
+        };
+        self.section("Results");
+        for entry in results {
+            match entry {
+                TableResultEntryJson::Result { result } => {
+                    let range = h8_fact(&result.range)
+                        .map(|value| format!("{}–{}", value.first, value.last))
+                        .unwrap_or_else(|| "?".to_string());
+                    let label = h8_fact(&result.text)
+                        .map(atlas_record::render_plain_text)
+                        .filter(|value| !value.trim().is_empty())
+                        .unwrap_or_else(|| "Untitled result".to_string());
+                    self.bullet(format!("{range}: {label}"), 2);
+                    self.field("Drawn", h8_boolean_state(&result.drawn), 4);
+                }
+                TableResultEntryJson::Unsupported { unsupported } => self.bullet(
+                    format!(
+                        "Result {} unavailable: {}",
+                        unsupported.source_ordinal.saturating_add(1),
+                        unsupported.reason
+                    ),
+                    2,
+                ),
             }
         }
     }
@@ -1633,6 +1759,32 @@ fn spell_fact<T>(value: &SpellFactJson<T>) -> Option<&T> {
     }
 }
 
+fn h8_fact<T>(value: &H8FactJson<T>) -> Option<&T> {
+    match value {
+        H8FactJson::Known(value) => Some(value),
+        H8FactJson::Missing | H8FactJson::Null | H8FactJson::Unsupported(_) => None,
+    }
+}
+
+fn h8_fact_state<T>(value: &H8FactJson<T>) -> &'static str {
+    match value {
+        H8FactJson::Missing => "missing",
+        H8FactJson::Null => "null",
+        H8FactJson::Known(_) => "available",
+        H8FactJson::Unsupported(_) => "unsupported",
+    }
+}
+
+fn h8_boolean_state(value: &H8FactJson<bool>) -> &'static str {
+    match value {
+        H8FactJson::Known(true) => "yes",
+        H8FactJson::Known(false) => "no",
+        H8FactJson::Missing => "missing",
+        H8FactJson::Null => "null",
+        H8FactJson::Unsupported(_) => "unsupported",
+    }
+}
+
 fn resolved_spell_fact<T>(value: &SpellResolvedFieldJson<T>) -> Option<&T> {
     match value {
         SpellResolvedFieldJson::Available { value } => spell_fact(value),
@@ -1990,13 +2142,16 @@ pub(super) mod tests {
         CreatureRitualsJson, CreatureSkillJson, CreatureSkillSourceEntryJson,
         CreatureSpellSlotJson, CreatureSpellcastingEntryJson, CreatureSpellcastingJson,
         CreatureStrikeJson, CreatureUnmodeledSkillJson, FoundryDocumentType, FoundryRecordInfo,
-        FoundryRecordType, RecordBody, RecordCanonicalRelationshipJson, RecordClassification,
-        RecordEditionContextJson, RecordEditionCounterpartJson, RecordIdentity, RecordJsonBase,
-        RecordJsonContext, RecordJsonOptions, RecordProvenance, RecordRelationshipProvenanceJson,
-        ReferenceRelationKind, RetrievedRecord, SpellClassification, SpellIdentity,
+        FoundryRecordType, H8FactJson, H8PageSourceMetadataJson, H8ProvenanceJson,
+        H8SourceMetadataJson, JournalJson, JournalPageEntryJson, JournalPageJson,
+        JournalPageTextJson, JournalPageTitleJson, JournalPageVideoJson, RecordBody,
+        RecordCanonicalRelationshipJson, RecordClassification, RecordEditionContextJson,
+        RecordEditionCounterpartJson, RecordIdentity, RecordJsonBase, RecordJsonContext,
+        RecordJsonOptions, RecordProvenance, RecordRelationshipProvenanceJson,
+        ReferenceRelationKind, RetrievedRecord, RollTableJson, SpellClassification, SpellIdentity,
         SpellProvenance, SpellRangeValue, SpellRecord, SpellRitual, SpellSourceId,
-        SpellSourceValue, SpellTargeting, SpellTradition, SpellTrait, record_json,
-        record_json_with_context,
+        SpellSourceValue, SpellTargeting, SpellTradition, SpellTrait, TableResultEntryJson,
+        TableResultJson, TableResultRangeJson, record_json, record_json_with_context,
     };
 
     #[test]
@@ -2053,6 +2208,144 @@ pub(super) mod tests {
             action_cost(&cost("time", None, Some("10 minutes".into()))),
             "10 minutes"
         );
+    }
+
+    #[test]
+    fn h8_terminal_renders_parent_owned_content_without_exposing_media_locators() {
+        let page = JournalPageJson {
+            locator: "opaque-page".to_string(),
+            identity_stability: "stable_source_id",
+            source_id: H8FactJson::Known("page-1".to_string()),
+            source_ordinal: 0,
+            name: H8FactJson::Known("Basic Actions".to_string()),
+            page_kind: H8FactJson::Known("text"),
+            sort: H8FactJson::Known(0),
+            title: H8FactJson::Known(JournalPageTitleJson {
+                show: H8FactJson::Known(true),
+                level: H8FactJson::Known(2),
+            }),
+            text: H8FactJson::Known(JournalPageTextJson {
+                content: H8FactJson::Known(atlas_record::RichDocument::new(vec![
+                    atlas_record::RichNode::Text {
+                        text: "Spend an action.".to_string(),
+                    },
+                ])),
+                format: H8FactJson::Known(1),
+                markdown: H8FactJson::Missing,
+            }),
+            source: H8FactJson::Known("secret-page.webp".to_string()),
+            image_source: H8FactJson::Known("{}".to_string()),
+            image_caption: H8FactJson::Missing,
+            video: H8FactJson::Known(JournalPageVideoJson {
+                controls: H8FactJson::Missing,
+                loop_playback: H8FactJson::Missing,
+                autoplay: H8FactJson::Missing,
+                volume: H8FactJson::Missing,
+                timestamp: H8FactJson::Missing,
+                width: H8FactJson::Missing,
+                height: H8FactJson::Missing,
+            }),
+            source_system: H8FactJson::Missing,
+            source_metadata: H8PageSourceMetadataJson {
+                ownership: H8FactJson::Missing,
+                flags: H8FactJson::Missing,
+                stats: H8FactJson::Missing,
+            },
+            unsupported_fields: Vec::new(),
+        };
+        let journal = JournalJson {
+            source_id: "journal-1".to_string(),
+            pages: H8FactJson::Known(vec![JournalPageEntryJson::Page {
+                page: Box::new(page),
+            }]),
+            source_metadata: h8_source_metadata_json(),
+            unsupported_fields: Vec::new(),
+            provenance: h8_provenance_json(),
+            content: Vec::new(),
+        };
+        let mut journal_writer = Writer::new(100, TerminalStyle::plain());
+        journal_writer.journal_record(&journal, DetailLevel::Full);
+        let journal_text = journal_writer.finish();
+        assert!(journal_text.contains("Basic Actions"));
+        assert!(journal_text.contains("Title level: 2"));
+        assert!(journal_text.contains("Spend an action."));
+        assert!(!journal_text.contains("secret-page.webp"));
+
+        let table = RollTableJson {
+            source_id: "table-1".to_string(),
+            description: H8FactJson::Missing,
+            results: H8FactJson::Known(vec![TableResultEntryJson::Result {
+                result: Box::new(TableResultJson {
+                    locator: "opaque-result".to_string(),
+                    identity_stability: "stable_source_id",
+                    source_id: H8FactJson::Known("result-1".to_string()),
+                    source_ordinal: 0,
+                    result_kind: H8FactJson::Known("text"),
+                    text: H8FactJson::Known(atlas_record::RichDocument::new(vec![
+                        atlas_record::RichNode::Text {
+                            text: "Gain a hero point.".to_string(),
+                        },
+                    ])),
+                    collection: H8FactJson::Null,
+                    document_id: H8FactJson::Null,
+                    weight: H8FactJson::Known("1".to_string()),
+                    range: H8FactJson::Known(TableResultRangeJson { first: 1, last: 1 }),
+                    drawn: H8FactJson::Known(false),
+                    image: H8FactJson::Known("secret-result.webp".to_string()),
+                    flags: H8FactJson::Missing,
+                    unsupported_fields: Vec::new(),
+                }),
+            }]),
+            formula: H8FactJson::Known("1d1".to_string()),
+            replacement: H8FactJson::Known(true),
+            display_roll: H8FactJson::Known(true),
+            image: H8FactJson::Known("secret-table.webp".to_string()),
+            source_metadata: h8_source_metadata_json(),
+            unsupported_fields: Vec::new(),
+            provenance: h8_provenance_json(),
+            content: Vec::new(),
+        };
+        let mut table_writer = Writer::new(100, TerminalStyle::plain());
+        table_writer.roll_table_record(&table, DetailLevel::Full);
+        let table_text = table_writer.finish();
+        assert!(table_text.contains("Formula: 1d1"));
+        assert!(table_text.contains("1–1: Gain a hero point."));
+        assert!(table_text.contains("Drawn: no"));
+        assert!(!table_text.contains("secret-table.webp"));
+        assert!(!table_text.contains("secret-result.webp"));
+    }
+
+    #[test]
+    fn h8_terminal_distinguishes_every_drawn_source_state() {
+        let unsupported = H8FactJson::Unsupported(atlas_record::H8UnsupportedValueJson {
+            shape: "string",
+            value: "\"yes\"".to_string(),
+            reason: "source_field_drift",
+        });
+        assert_eq!(h8_boolean_state(&H8FactJson::Known(true)), "yes");
+        assert_eq!(h8_boolean_state(&H8FactJson::Known(false)), "no");
+        assert_eq!(h8_boolean_state(&H8FactJson::Missing), "missing");
+        assert_eq!(h8_boolean_state(&H8FactJson::Null), "null");
+        assert_eq!(h8_boolean_state(&unsupported), "unsupported");
+    }
+
+    fn h8_source_metadata_json() -> H8SourceMetadataJson {
+        H8SourceMetadataJson {
+            folder: H8FactJson::Missing,
+            sort: H8FactJson::Known(0),
+            ownership: H8FactJson::Missing,
+            flags: H8FactJson::Missing,
+            stats: H8FactJson::Missing,
+        }
+    }
+
+    fn h8_provenance_json() -> H8ProvenanceJson {
+        H8ProvenanceJson {
+            source_path: "packs/h8/fixture.json".to_string(),
+            source_contract_version: "pf2e-serialized-source/v1".to_string(),
+            source_system_version: "7.7.0".to_string(),
+            source_upstream_commit: "fixture".to_string(),
+        }
     }
 
     #[test]
@@ -3799,6 +4092,7 @@ pub(super) mod tests {
                         record_key: Some(
                             atlas_domain::RecordKey::parse("actions:Change-Shape").expect("key"),
                         ),
+                        child_locator: None,
                         embedded: false,
                     },
                     PresentationInline::Text {
@@ -4011,7 +4305,7 @@ pub(super) mod tests {
                 relationships: scan.then(|| vec![CreatureRelationshipJson { source_occurrence_id: "change-shape".into(), kind: "helper" , target: CreatureRelationshipTargetJson::Occurrence { occurrence_id: "claw-occurrence".into() }, source_path: "system.items[1]".into() }]),
                 provenance: (detail == DetailLevel::Full).then_some(provenance),
                 edition: (detail == DetailLevel::Full).then(|| RecordEditionContextJson { status: RecordEditionStatusJson::Legacy, counterpart_lookup: RecordEditionCounterpartLookupJson::Verified { counterparts: vec![RecordEditionCounterpartJson { role: RecordEditionCounterpartRoleJson::RemasteredCounterpart, record_key: "bestiary:Dream-Hag".into(), title: "Dream Hag".into() }] } }),
-                record_relationships: scan.then(|| RecordRelationshipLookupJson::Verified { relationships: vec![RecordCanonicalRelationshipJson { direction: RecordRelationshipDirectionJson::Reference, kind: ReferenceRelationKind::Reference, label: "Dream Message".into(), target_record_key: "spells:Dream-Message".into(), provenance: RecordRelationshipProvenanceJson { from_record_key: "bestiary:Night-Hag".into(), to_record_key: "spells:Dream-Message".into(), source_kind: ContentSourceKind::Description, visibility: ContentVisibility::Public } }] }),
+                record_relationships: scan.then(|| RecordRelationshipLookupJson::Verified { relationships: vec![RecordCanonicalRelationshipJson { direction: RecordRelationshipDirectionJson::Reference, kind: ReferenceRelationKind::Reference, label: "Dream Message".into(), target_record_key: "spells:Dream-Message".into(), source_child_locator: None, target_child_locator: None, provenance: RecordRelationshipProvenanceJson { from_record_key: "bestiary:Night-Hag".into(), to_record_key: "spells:Dream-Message".into(), source_kind: ContentSourceKind::Description, visibility: ContentVisibility::Public } }] }),
                 availability: Vec::new(),
                 unmodeled_skill_availability: if scan { vec![CreatureUnmodeledSkillAvailabilityJson {
                     skill_id: "synthetic-unmodeled-skill".into(),

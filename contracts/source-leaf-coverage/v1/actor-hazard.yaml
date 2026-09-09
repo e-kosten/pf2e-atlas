@@ -17,9 +17,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a"
       entry_id: "actor-hazard-top-level-details-disable@4cbdaa37"
       record_count: 1032
       occurrence_count: 1029
@@ -51,9 +51,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-id@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -111,9 +111,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: effects-actor-context@4cbdaa37
       record_count: 1032
       occurrence_count: 0
@@ -165,9 +165,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: system-creaturetype-actor-context@4cbdaa37
       record_count: 1032
       occurrence_count: 0
@@ -219,9 +219,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: system-statuseffects-actor-context@4cbdaa37
       record_count: 1032
       occurrence_count: 0
@@ -279,9 +279,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: system-saves-savedetail-actor-context@4cbdaa37
       record_count: 1032
       occurrence_count: 0
@@ -339,9 +339,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-id@4cbdaa37
       record_count: 1032
       occurrence_count: 1608
@@ -399,9 +399,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-stats-compendiumsource@4cbdaa37
       record_count: 1032
       occurrence_count: 46
@@ -459,9 +459,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-img@4cbdaa37
       record_count: 1032
       occurrence_count: 1608
@@ -513,9 +513,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-name@4cbdaa37
       record_count: 1032
       occurrence_count: 1608
@@ -573,9 +573,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-sort@4cbdaa37
       record_count: 1032
       occurrence_count: 1608
@@ -633,9 +633,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-description-value@4cbdaa37
       record_count: 1032
       occurrence_count: 1357
@@ -693,9 +693,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-publication-license@4cbdaa37
       record_count: 1032
       occurrence_count: 1608
@@ -753,9 +753,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-publication-remaster@4cbdaa37
       record_count: 1032
       occurrence_count: 1608
@@ -813,9 +813,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-publication-title@4cbdaa37
       record_count: 1032
       occurrence_count: 24
@@ -873,9 +873,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-critical@4cbdaa37
       record_count: 1032
       occurrence_count: 3
@@ -933,9 +933,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-damagetype@4cbdaa37
       record_count: 1032
       occurrence_count: 2
@@ -993,9 +993,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-dicenumber@4cbdaa37
       record_count: 1032
       occurrence_count: 2
@@ -1053,9 +1053,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-diesize@4cbdaa37
       record_count: 1032
       occurrence_count: 2
@@ -1113,9 +1113,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-key@4cbdaa37
       record_count: 1032
       occurrence_count: 49
@@ -1173,9 +1173,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-mode@4cbdaa37
       record_count: 1032
       occurrence_count: 37
@@ -1233,9 +1233,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-outcome@4cbdaa37
       record_count: 1032
       occurrence_count: 3
@@ -1293,9 +1293,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-path@4cbdaa37
       record_count: 1032
       occurrence_count: 3
@@ -1353,9 +1353,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-radius@4cbdaa37
       record_count: 1032
       occurrence_count: 4
@@ -1413,9 +1413,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-selector@4cbdaa37
       record_count: 1032
       occurrence_count: 5
@@ -1473,9 +1473,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-slug@4cbdaa37
       record_count: 1032
       occurrence_count: 4
@@ -1533,9 +1533,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-text@4cbdaa37
       record_count: 1032
       occurrence_count: 2
@@ -1593,9 +1593,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-title@4cbdaa37
       record_count: 1032
       occurrence_count: 1
@@ -1653,9 +1653,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-traits@4cbdaa37
       record_count: 1032
       occurrence_count: 4
@@ -1713,9 +1713,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-type@4cbdaa37
       record_count: 1032
       occurrence_count: 24
@@ -1773,9 +1773,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-type-array-member@4cbdaa37
       record_count: 1032
       occurrence_count: 55
@@ -1834,9 +1834,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-value@4cbdaa37
       record_count: 1032
       occurrence_count: 4
@@ -1894,9 +1894,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-rules-visibility@4cbdaa37
       record_count: 1032
       occurrence_count: 1
@@ -1954,9 +1954,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-slug@4cbdaa37
       record_count: 1032
       occurrence_count: 34
@@ -2014,9 +2014,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-traits-rarity@4cbdaa37
       record_count: 1032
       occurrence_count: 997
@@ -2074,9 +2074,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-system-traits-value@4cbdaa37
       record_count: 1032
       occurrence_count: 1353
@@ -2134,9 +2134,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-items-type@4cbdaa37
       record_count: 1032
       occurrence_count: 1608
@@ -2194,9 +2194,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-name@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -2254,9 +2254,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-prototypetoken-name@4cbdaa37
       record_count: 1032
       occurrence_count: 201
@@ -2314,9 +2314,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-ac-value@4cbdaa37
       record_count: 1032
       occurrence_count: 1002
@@ -2375,9 +2375,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-emitssound@4cbdaa37
       record_count: 1032
       occurrence_count: 795
@@ -2435,9 +2435,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-hardness@4cbdaa37
       record_count: 1032
       occurrence_count: 1027
@@ -2495,9 +2495,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-hashealth@4cbdaa37
       record_count: 1032
       occurrence_count: 403
@@ -2555,9 +2555,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-hp-details@4cbdaa37
       record_count: 1032
       occurrence_count: 91
@@ -2615,9 +2615,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-hp-max@4cbdaa37
       record_count: 1032
       occurrence_count: 1027
@@ -2675,9 +2675,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-hp-temp@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -2735,9 +2735,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-hp-value@4cbdaa37
       record_count: 1032
       occurrence_count: 1027
@@ -2795,9 +2795,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-immunities-type@4cbdaa37
       record_count: 1032
       occurrence_count: 954
@@ -2855,9 +2855,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-resistances-doublevs@4cbdaa37
       record_count: 1032
       occurrence_count: 7
@@ -2915,9 +2915,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-resistances-exceptions@4cbdaa37
       record_count: 1032
       occurrence_count: 26
@@ -2975,9 +2975,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-resistances-type@4cbdaa37
       record_count: 1032
       occurrence_count: 37
@@ -3035,9 +3035,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-resistances-value@4cbdaa37
       record_count: 1032
       occurrence_count: 37
@@ -3095,9 +3095,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-stealth-details@4cbdaa37
       record_count: 1032
       occurrence_count: 865
@@ -3155,9 +3155,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-stealth-value@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -3215,9 +3215,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-weaknesses-type@4cbdaa37
       record_count: 1032
       occurrence_count: 132
@@ -3275,9 +3275,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-attributes-weaknesses-value@4cbdaa37
       record_count: 1032
       occurrence_count: 132
@@ -3335,9 +3335,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-details-description@4cbdaa37
       record_count: 1032
       occurrence_count: 1026
@@ -3395,9 +3395,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-details-iscomplex@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -3455,9 +3455,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-details-level-value@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -3515,9 +3515,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-details-publication-license@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -3575,9 +3575,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-details-publication-remaster@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -3635,9 +3635,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-details-publication-title@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -3695,9 +3695,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-details-reset@4cbdaa37
       record_count: 1032
       occurrence_count: 591
@@ -3755,9 +3755,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-details-routine@4cbdaa37
       record_count: 1032
       occurrence_count: 471
@@ -3821,9 +3821,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-saves-value@4cbdaa37
       record_count: 1032
       occurrence_count: 3062
@@ -3881,9 +3881,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-traits-rarity@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -3941,9 +3941,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-traits-size-value@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -4001,9 +4001,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-system-traits-value@4cbdaa37
       record_count: 1032
       occurrence_count: 1815
@@ -4061,9 +4061,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: actor-type@4cbdaa37
       record_count: 1032
       occurrence_count: 1032
@@ -4120,9 +4120,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a"
       entry_id: "actor-hazard-top-level-image@4cbdaa37"
       record_count: 1032
       occurrence_count: 1032
@@ -4150,9 +4150,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a"
       entry_id: "actor-hazard-top-level-folder@4cbdaa37"
       record_count: 1032
       occurrence_count: 793
@@ -4180,9 +4180,9 @@ leaves:
       source_contract_version: "pf2e-serialized-source/v1"
       source_commit: "4cbdaa37d6c33e9519561bae2c59a23e0288cbce"
       source_signature: "foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a"
-      registry_sha256: "8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31"
+      registry_sha256: "15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367"
       inventory_version: "pf2e-source-leaf-prevalence/v1"
-      inventory_sha256: "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097"
+      inventory_sha256: "da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a"
       entry_id: "actor-hazard-top-level-hp-tempmax@4cbdaa37"
       record_count: 1032
       occurrence_count: 174

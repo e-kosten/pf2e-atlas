@@ -13,7 +13,7 @@ use super::{SourceLeafIdentity, SourceLeafSelector};
 
 pub const PF2E_SOURCE_LEAF_PREVALENCE_VERSION: &str = "pf2e-source-leaf-prevalence/v1";
 pub const PF2E_SOURCE_LEAF_PREVALENCE_SHA256: &str =
-    "070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097";
+    "da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a";
 
 const PREVALENCE_BYTES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -136,6 +136,32 @@ mod tests {
         "item--melee--embedded--actor--hazard--actor-items",
         "item--consumable--embedded--actor--hazard--actor-items",
     ];
+    const H8_LEDGERS: [&str; 2] = [
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/journal-entry.yaml"
+        )),
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../contracts/source-leaf-coverage/v1/roll-table.yaml"
+        )),
+    ];
+    const H8_CONTAINER_COMPANIONS: [(&str, &str, &str, usize, usize); 2] = [
+        (
+            "journalentry--root--top-level--root--root--root",
+            "$.pages[].image",
+            "journal-entry-page-pages-image@4cbdaa37",
+            113,
+            587,
+        ),
+        (
+            "journalentry--root--top-level--root--root--root",
+            "$.pages[].system",
+            "journal-entry-page-pages-system@4cbdaa37",
+            113,
+            587,
+        ),
+    ];
 
     #[test]
     fn accepted_prevalence_is_digest_pin_registry_and_count_bound() {
@@ -183,5 +209,55 @@ mod tests {
 
         assert_eq!(declared, inventory_hazard_identities);
         assert_eq!(declared_hazard_identities.len(), declared.len());
+    }
+
+    #[test]
+    fn h8_ledgers_exactly_partition_the_authenticated_parent_source_inventory() {
+        let inventory = accepted_prevalence().expect("accepted prevalence");
+        let inventory_identities = inventory
+            .iter()
+            .filter(|entry| {
+                matches!(
+                    entry.type_id.as_str(),
+                    "journalentry--root--top-level--root--root--root"
+                        | "rolltable--root--top-level--root--root--root"
+                )
+            })
+            .map(PrevalenceEntry::identity)
+            .collect::<BTreeSet<_>>();
+        let scalar_identities = H8_LEDGERS
+            .iter()
+            .flat_map(|source| {
+                let ledger = super::super::parse_source_leaf_ledger(source)
+                    .expect("complete H8 selector ledger parses");
+                ledger
+                    .leaves
+                    .iter()
+                    .map(|leaf| ledger.identity_for(leaf))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(scalar_identities.len(), 33);
+
+        assert_eq!(scalar_identities, inventory_identities);
+        assert_eq!(inventory_identities.len(), 33);
+        for (type_id, normalized_path, entry_id, record_count, occurrence_count) in
+            H8_CONTAINER_COMPANIONS
+        {
+            assert_eq!(type_id, "journalentry--root--top-level--root--root--root");
+            assert!(matches!(
+                normalized_path,
+                "$.pages[].image" | "$.pages[].system"
+            ));
+            assert!(entry_id.starts_with("journal-entry-page-pages-"));
+            assert_eq!(record_count, 113);
+            assert_eq!(occurrence_count, 587);
+            assert!(
+                inventory.iter().all(|entry| {
+                    entry.type_id != type_id || entry.normalized_path != normalized_path
+                }),
+                "container companion {normalized_path} must not become a v1 machine leaf"
+            );
+        }
     }
 }

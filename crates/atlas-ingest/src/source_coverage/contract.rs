@@ -850,9 +850,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: 15861afd48c9818947b85840c0592949cece3617ddc749e3433decc3ff763367
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: da28392bc5bb47a4d04987f3d028f4ccb59a235bd6c4c1fa5d5a2d78a6a5031a
       entry_id: item-action-top-level-name@4cbdaa37
       record_count: 1169
       occurrence_count: 1169

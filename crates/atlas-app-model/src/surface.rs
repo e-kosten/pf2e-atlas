@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{EncounterRuntimeView, HazardSurfaceView};
+use crate::{EncounterRuntimeView, HazardSurfaceView, JournalSurfaceView, RollTableSurfaceView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -136,6 +136,12 @@ pub struct RecordSurfaceReferenceEdgeView {
     pub to_record_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub source_child_locator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub target_child_locator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub display_text: Option<String>,
     pub reference_text: String,
     pub source: RecordSurfaceReferenceSourceView,
@@ -245,6 +251,8 @@ pub enum RecordSurfacePresentationView {
     Creature { body: Box<CreatureSurfaceView> },
     Hazard { body: Box<HazardSurfaceView> },
     Spell { body: Box<crate::SpellSurfaceView> },
+    Journal { body: Box<JournalSurfaceView> },
+    RollTable { body: Box<RollTableSurfaceView> },
     Unavailable { unavailable: SurfaceUnavailableView },
 }
 
@@ -1192,6 +1200,9 @@ pub enum CreatureSurfaceContentInlineView {
         #[serde(skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         record_key: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        child_locator: Option<String>,
         embedded: bool,
     },
     Check {

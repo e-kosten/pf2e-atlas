@@ -4,6 +4,7 @@ mod encounter;
 mod encounter_runtime;
 mod error;
 mod filter;
+mod h8_surface;
 mod hazard_surface;
 mod json_integer;
 mod list;
@@ -12,6 +13,7 @@ mod record;
 mod result_window;
 mod spell_surface;
 mod surface;
+mod table_roll;
 
 pub use encounter::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
@@ -41,6 +43,7 @@ pub use filter::{
     FilterValueListView, FilterValueOption, MetricComparison, ReferenceSearchDirection,
     RelationshipConstraint,
 };
+pub use h8_surface::*;
 pub use hazard_surface::*;
 pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
@@ -64,6 +67,7 @@ pub use result_window::{
 };
 pub use spell_surface::*;
 pub use surface::*;
+pub use table_roll::*;
 
 #[cfg(test)]
 mod tests {
@@ -1605,6 +1609,7 @@ mod tests {
         RecordDetailRequest::export_all_to(path)
             .expect("RecordDetailRequest bindings should export");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
+        TableRollView::export_all_to(path).expect("TableRollView bindings should export");
         RecordResolutionAmbiguousView::export_all_to(path)
             .expect("RecordResolutionAmbiguousView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");

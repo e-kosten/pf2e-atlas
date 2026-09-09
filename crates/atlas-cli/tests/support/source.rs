@@ -81,6 +81,34 @@ pub fn write_hazard_source(root: &Path) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+pub fn write_h8_fts_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let journals = root.join("packs/journals");
+    fs::create_dir_all(&journals)?;
+    fs::write(
+        root.join("module.json"),
+        r#"{"packs":[{"name":"journals","label":"Journals","type":"JournalEntry","path":"packs/journals"}]}"#,
+    )?;
+    fs::write(
+        journals.join("ancestral-title.json"),
+        r#"{
+          "_id":"journalTitle0001","name":"Ancestral Ledger","pages":[
+            {"_id":"pageTitle0000001","name":"Introduction","type":"text","sort":0,
+             "text":{"content":"<p>A title-ranked journal.</p>","format":1}}
+          ]
+        }"#,
+    )?;
+    fs::write(
+        journals.join("ancestral-child.json"),
+        r#"{
+          "_id":"journalChild0001","name":"Family Notes","pages":[
+            {"_id":"pageChild0000001","name":"Origins","type":"text","sort":0,
+             "text":{"content":"<p>Ancestral traditions are recorded here.</p>","format":1}}
+          ]
+        }"#,
+    )?;
+    Ok(())
+}
+
 pub fn write_ambiguous_action_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     copy_fixture_source("ambiguous-actions", root)
 }
