@@ -7,6 +7,26 @@ use axum::{
 use serde_json::Value;
 use tower::ServiceExt;
 
+// Match the pinned-source receipt owner: hook-local repository variables
+// override Git's -C selection. Remove them only from the external-source child.
+fn clear_pinned_source_git_context(command: &mut std::process::Command) {
+    for variable in [
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_DIR",
+        "GIT_GRAFT_FILE",
+        "GIT_IMPLICIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PREFIX",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_SHALLOW_FILE",
+        "GIT_WORK_TREE",
+    ] {
+        command.env_remove(variable);
+    }
+}
+
 struct FixtureDirectory(std::path::PathBuf);
 
 impl Drop for FixtureDirectory {
@@ -147,7 +167,9 @@ async fn pinned_npc_and_hazard_consumables_cross_production_readers_and_search_s
             "hazard",
         ),
     ] {
-        let output = std::process::Command::new("git")
+        let mut command = std::process::Command::new("git");
+        clear_pinned_source_git_context(&mut command);
+        let output = command
             .arg("-C")
             .arg(&repository)
             .args([
@@ -345,7 +367,9 @@ async fn production_occurrence_child_navigation_distinguishes_reuse_and_retained
     use sha2::{Digest, Sha256};
     let repository = std::env::var_os("PF2E_SOURCE_REPOSITORY")
         .expect("TEST PREREQUISITE: accepted pinned PF2E repository");
-    let output = std::process::Command::new("git").arg("-C").arg(repository)
+    let mut command = std::process::Command::new("git");
+    clear_pinned_source_git_context(&mut command);
+    let output = command.arg("-C").arg(repository)
         .args(["show", &format!("{}:packs/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/nyzuros.json", atlas_ingest::PF2E_SOURCE_PINNED_COMMIT)])
         .output()?;
     assert!(output.status.success());
@@ -651,5 +675,61 @@ async fn production_occurrence_child_navigation_distinguishes_reuse_and_retained
         .uri(format!("/api/records/{owner_key}?consumable_child_id=wrong&consumable_occurrence_id=wrong"))
         .body(Body::empty())?).await?;
     assert_eq!(wrong.status(), StatusCode::BAD_REQUEST);
+    Ok(())
+}
+
+#[test]
+fn pinned_source_reads_ignore_inherited_hook_repository_context()
+-> Result<(), Box<dyn std::error::Error>> {
+    use sha2::{Digest, Sha256};
+    use std::process::Command;
+
+    let repository = std::env::var_os("PF2E_SOURCE_REPOSITORY")
+        .expect("TEST PREREQUISITE: accepted pinned PF2E repository");
+    let mut owning_git = Command::new("git");
+    clear_pinned_source_git_context(&mut owning_git);
+    let owning_git = owning_git
+        .args([
+            "-C",
+            env!("CARGO_MANIFEST_DIR"),
+            "rev-parse",
+            "--absolute-git-dir",
+        ])
+        .output()?;
+    assert!(owning_git.status.success());
+    let owning_git_dir = String::from_utf8(owning_git.stdout)?;
+    let source_object = format!(
+        "{}:packs/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/nyzuros.json",
+        atlas_ingest::PF2E_SOURCE_PINNED_COMMIT
+    );
+    let command = || {
+        let mut command = Command::new("git");
+        command
+            .arg("-C")
+            .arg(&repository)
+            .args(["show", &source_object])
+            .env("GIT_DIR", owning_git_dir.trim())
+            .env("GIT_WORK_TREE", env!("CARGO_MANIFEST_DIR"));
+        command
+    };
+    // Seed child-only overrides, reproducing hook inheritance without touching
+    // the process environment shared by other tests.
+    let unsanitized = command().output()?;
+    assert!(
+        !unsanitized.status.success(),
+        "wrong owning repository must not satisfy the source read"
+    );
+    let mut sanitized = command();
+    clear_pinned_source_git_context(&mut sanitized);
+    let sanitized = sanitized.output()?;
+    assert!(
+        sanitized.status.success(),
+        "{}",
+        String::from_utf8_lossy(&sanitized.stderr)
+    );
+    assert_eq!(
+        format!("{:x}", Sha256::digest(&sanitized.stdout)),
+        "11f4a02fa7f9cea6ce3e14224ea2777e88900b340da5bdfa73ae53e1efe3cba3"
+    );
     Ok(())
 }
