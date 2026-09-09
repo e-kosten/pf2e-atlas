@@ -2,10 +2,11 @@ use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
 use atlas_record::{
-    AtlasRecord, ContentChildLocator, ContentOwner, ContentSourceKind, ContentVisibility,
-    DuplicateContentStatus, FactValue, FoundryLink, FoundryLinkBehavior, H8FieldValue,
-    JournalPageEntry, RecordBody, RecordContentDocument, ReferenceEdge, ReferenceRelationKind,
-    RichDocument, RichLinkTarget, iter_foundry_links, render_plain_text, visit_foundry_links_mut,
+    AtlasRecord, ContentChildLocator, ContentOwner, ContentRole, ContentSourceKind,
+    ContentVisibility, DuplicateContentStatus, FactValue, FoundryLink, FoundryLinkBehavior,
+    H8FieldValue, JournalPageEntry, RecordBody, RecordContentDocument, ReferenceEdge,
+    ReferenceRelationKind, RichDocument, RichLinkTarget, TableResultEntry, iter_foundry_links,
+    render_plain_text, visit_foundry_links_mut,
 };
 
 use crate::records::{LoadedSourceRecord, RecordReferenceIndex};
@@ -179,6 +180,7 @@ pub(crate) fn resolve_content_references(
                     document: content.document.clone(),
                 })
                 .collect();
+            sync_h8_field_content(loaded.facts.canonical_body.as_mut());
         } else if let Some(RecordBody::Hazard(hazard)) = &mut loaded.facts.canonical_body {
             for content in &mut hazard.content.documents {
                 resolve_document_references(&mut content.document, index);
@@ -202,6 +204,66 @@ pub(crate) fn resolve_content_references(
                 }
             }
         }
+    }
+}
+
+fn sync_h8_field_content(body: Option<&mut RecordBody>) {
+    match body {
+        Some(RecordBody::Journal(journal)) => {
+            let FactValue::Value(H8FieldValue::Known(pages)) = &mut journal.pages else {
+                return;
+            };
+            for entry in pages {
+                let JournalPageEntry::Page(page) = entry else {
+                    continue;
+                };
+                let Some(document) = journal.content.documents.iter().find(|document| {
+                    document.role == ContentRole::JournalPage
+                        && matches!(
+                            &document.owner,
+                            ContentOwner::Child(locator) if locator == &page.locator
+                        )
+                }) else {
+                    continue;
+                };
+                if let FactValue::Value(H8FieldValue::Known(text)) = &mut page.text
+                    && matches!(text.content, FactValue::Value(H8FieldValue::Known(_)))
+                {
+                    text.content = FactValue::Value(H8FieldValue::Known(document.document.clone()));
+                }
+            }
+        }
+        Some(RecordBody::RollTable(table)) => {
+            if let Some(document) = table.content.documents.iter().find(|document| {
+                document.role == ContentRole::PrimaryDescription
+                    && document.owner == ContentOwner::Record(table.identity.record_key.clone())
+            }) && matches!(table.description, FactValue::Value(H8FieldValue::Known(_)))
+            {
+                table.description =
+                    FactValue::Value(H8FieldValue::Known(document.document.clone()));
+            }
+            let FactValue::Value(H8FieldValue::Known(results)) = &mut table.results else {
+                return;
+            };
+            for entry in results {
+                let TableResultEntry::Result(result) = entry else {
+                    continue;
+                };
+                let Some(document) = table.content.documents.iter().find(|document| {
+                    document.role == ContentRole::TableResult
+                        && matches!(
+                            &document.owner,
+                            ContentOwner::Child(locator) if locator == &result.locator
+                        )
+                }) else {
+                    continue;
+                };
+                if matches!(result.text, FactValue::Value(H8FieldValue::Known(_))) {
+                    result.text = FactValue::Value(H8FieldValue::Known(document.document.clone()));
+                }
+            }
+        }
+        _ => {}
     }
 }
 

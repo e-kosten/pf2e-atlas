@@ -580,6 +580,30 @@ fn h8_real_loader_resolves_hero_point_result_to_exact_journal_page() {
         &locator.identity,
         ContentChildIdentity::Stable(id) if id.as_str() == "quxPxuMub8k6abzN"
     ));
+    let FactValue::Value(H8FieldValue::Known(results)) = &table_body.results else {
+        panic!("table results");
+    };
+    let result_link = results
+        .iter()
+        .filter_map(|entry| match entry {
+            TableResultEntry::Result(result) => Some(result),
+            TableResultEntry::Unsupported(_) => None,
+        })
+        .filter_map(|result| match &result.text {
+            FactValue::Value(H8FieldValue::Known(document)) => Some(document),
+            _ => None,
+        })
+        .flat_map(iter_foundry_links)
+        .find(|link| link.source.authored_target.contains("quxPxuMub8k6abzN"))
+        .expect("typed table result keeps the resolved Ancestral Might link");
+    assert!(matches!(
+        &result_link.target,
+        RichLinkTarget::RecordChild {
+            key: result_key,
+            locator: result_locator,
+            ..
+        } if result_key == key && result_locator == locator
+    ));
     let edges = crate::records::references::resolve_reference_edges(&records);
     assert!(edges.iter().any(|edge| {
         edge.from_record_key == table.record.identity.key

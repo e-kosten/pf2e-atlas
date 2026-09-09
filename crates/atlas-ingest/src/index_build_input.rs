@@ -1004,6 +1004,17 @@ mod tests {
                         "null",
                         "machine JSON preserves an authored Null child field"
                     );
+                    let target = &json["roll_table"]["results"]["value"][0]["result"]["text"]["value"]
+                        ["nodes"][0]["link"]["target"];
+                    assert_eq!(target["kind"], "recordChild");
+                    assert_eq!(target["key"], "journals:BSp4LUSaOmUyjBko");
+                    assert_eq!(target["locator"]["parent"], "journals:BSp4LUSaOmUyjBko");
+                    assert_eq!(target["locator"]["kind"], "journal_page");
+                    assert_eq!(target["locator"]["identity"]["kind"], "stable");
+                    assert_eq!(
+                        target["locator"]["identity"]["value"], "quxPxuMub8k6abzN",
+                        "public hydrated result text must retain the typed page target"
+                    );
                 }
                 other => panic!("requested set unexpectedly hydrated {other}"),
             }
