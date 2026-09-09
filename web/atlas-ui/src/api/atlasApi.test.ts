@@ -21,6 +21,7 @@ import {
   removeEncounterParticipantCondition,
   removeSavedListItem,
   resetEncounterParticipant,
+  rollTable,
   updateEncounterParticipantCondition,
   updateSavedList,
 } from "./atlasApi";
@@ -87,6 +88,27 @@ describe("atlasApi", () => {
       "/api/records/spells-srd%3Aheal",
       expect.not.objectContaining({ body: expect.anything() }),
     );
+  });
+
+  it("posts a table roll without client formula, total, seed, or body", async () => {
+    const response = {
+      state: "available",
+      table_key: "rollable-tables:hero-points",
+      formula: "1d52",
+      total: 8,
+      outcomes: [],
+    } as const;
+    const fetchMock = mockFetch(response);
+    const signal = new AbortController().signal;
+
+    await expect(rollTable("rollable-tables:hero-points", signal)).resolves.toEqual(
+      response,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/records/rollable-tables%3Ahero-points/table-roll",
+      expect.objectContaining({ method: "POST", signal }),
+    );
+    expect(fetchMock.mock.calls[0]?.[1]).not.toHaveProperty("body");
   });
 
   it("rejects unsafe spell cast ranks before record-detail transport", async () => {

@@ -3828,6 +3828,12 @@ mod tests {
 
     impl TemporaryH8SurfaceArtifact {
         fn from_pinned_source() -> Result<Self, Box<dyn std::error::Error>> {
+            Self::from_pinned_source_with_table_mutation(|_| {})
+        }
+
+        fn from_pinned_source_with_table_mutation(
+            mutate: impl FnOnce(&mut serde_json::Value),
+        ) -> Result<Self, Box<dyn std::error::Error>> {
             let nonce = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("system time after Unix epoch")
@@ -3848,9 +3854,13 @@ mod tests {
                 pinned.join("packs/journals/hero-point-deck.json"),
                 source_root.join("packs/journals/hero-point-deck.json"),
             )?;
-            std::fs::copy(
+            let mut table: serde_json::Value = serde_json::from_slice(&std::fs::read(
                 pinned.join("packs/rollable-tables/hero-point-deck.json"),
+            )?)?;
+            mutate(&mut table);
+            std::fs::write(
                 source_root.join("packs/rollable-tables/hero-point-deck.json"),
+                serde_json::to_vec(&table)?,
             )?;
             std::fs::write(
                 source_root.join("module.json"),
@@ -8378,6 +8388,117 @@ mod tests {
             selected.surface.presentation,
             atlas_app_model::RecordSurfacePresentationView::Journal { .. }
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn h8_real_api_rolls_complete_pinned_table_with_server_owned_total()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let artifact = TemporaryH8SurfaceArtifact::from_pinned_source()?;
+        let service_artifact: &'static Path =
+            Box::leak(artifact.artifact.clone().into_boxed_path());
+        let service = crate::test_support::fixture_worker_with_executor(
+            crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+                let reader = SqliteIndexReader::open_read_only(service_artifact)?;
+                Ok((
+                    AtlasRetrievalService::from_prepared_index_without_embeddings(reader),
+                    (),
+                ))
+            }),
+        );
+        let table_key = "rollable-tables:zgZoI7h0XjjJrrNK";
+        let detail = service
+            .worker
+            .record_detail(table_key, RecordDetailRequest::default())?;
+        let atlas_app_model::RecordSurfacePresentationView::RollTable { body } =
+            &detail.surface.presentation
+        else {
+            panic!("Hero Point Deck must use the RollTable app surface");
+        };
+        assert_eq!(
+            body.roll,
+            atlas_app_model::TableRollCapabilityView::Available {
+                formula: "1d52".to_string(),
+                sides: 52,
+            }
+        );
+
+        let operation = service.worker.roll_table_with_entropy(table_key, |_| 1)?;
+        let atlas_app_model::TableRollView::Available {
+            table_key: returned_key,
+            formula,
+            total,
+            outcomes,
+        } = operation
+        else {
+            panic!("complete pinned table should be rollable");
+        };
+        assert_eq!(returned_key, table_key);
+        assert_eq!(formula, "1d52");
+        assert_eq!(total, 1);
+        assert_eq!(outcomes.len(), 1);
+        assert_eq!(outcomes[0].source_ordinal, 0);
+        assert!(matches!(
+            outcomes[0].drawn,
+            atlas_app_model::H8FactView::Known(false)
+        ));
+
+        let error = service
+            .worker
+            .roll_table_with_entropy(table_key, |sides| sides.get() + 1)
+            .expect_err("out-of-range entropy must fail closed")
+            .into_app_error();
+        assert_eq!(error.code, atlas_app_model::AppErrorCode::InternalError);
+        let error = service
+            .worker
+            .roll_table_with_entropy("journals:BSp4LUSaOmUyjBko", |_| 1)
+            .expect_err("journal must not admit table roll")
+            .into_app_error();
+        assert_eq!(error.code, atlas_app_model::AppErrorCode::InvalidRequest);
+        Ok(())
+    }
+
+    #[test]
+    fn h8_roll_rejects_incomplete_result_inventory_before_entropy()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let artifact =
+            TemporaryH8SurfaceArtifact::from_pinned_source_with_table_mutation(|table| {
+                table["results"][0]
+                    .as_object_mut()
+                    .expect("pinned first result")
+                    .remove("range");
+            })?;
+        let service_artifact: &'static Path =
+            Box::leak(artifact.artifact.clone().into_boxed_path());
+        let service = crate::test_support::fixture_worker_with_executor(
+            crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+                let reader = SqliteIndexReader::open_read_only(service_artifact)?;
+                Ok((
+                    AtlasRetrievalService::from_prepared_index_without_embeddings(reader),
+                    (),
+                ))
+            }),
+        );
+        let entropy_called = Arc::new(AtomicBool::new(false));
+        let entropy_observer = Arc::clone(&entropy_called);
+        let operation = service.worker.roll_table_with_entropy(
+            "rollable-tables:zgZoI7h0XjjJrrNK",
+            move |_| {
+                entropy_observer.store(true, Ordering::SeqCst);
+                1
+            },
+        )?;
+        let atlas_app_model::TableRollView::Unavailable { unavailable, .. } = operation else {
+            panic!("missing range must make the complete operation unavailable");
+        };
+        assert_eq!(
+            unavailable.reason,
+            atlas_app_model::TableRollUnavailableReasonView::RangeMissing
+        );
+        assert!(!entropy_called.load(Ordering::SeqCst));
         Ok(())
     }
 

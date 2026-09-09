@@ -13,6 +13,7 @@ mod record;
 mod result_window;
 mod spell_surface;
 mod surface;
+mod table_roll;
 
 pub use encounter::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
@@ -66,6 +67,7 @@ pub use result_window::{
 };
 pub use spell_surface::*;
 pub use surface::*;
+pub use table_roll::*;
 
 #[cfg(test)]
 mod tests {
@@ -1607,6 +1609,7 @@ mod tests {
         RecordDetailRequest::export_all_to(path)
             .expect("RecordDetailRequest bindings should export");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
+        TableRollView::export_all_to(path).expect("TableRollView bindings should export");
         RecordResolutionAmbiguousView::export_all_to(path)
             .expect("RecordResolutionAmbiguousView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");

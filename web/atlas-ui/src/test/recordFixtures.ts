@@ -308,6 +308,7 @@ export function rollTableRecordDetailFixture(): RecordDetailView {
           replacement: known(false),
           display_roll: known(true),
           image: missing,
+          roll: { state: "available", formula: "1d2", sides: 2 },
           source_metadata: {
             folder: missing,
             sort: known(0),

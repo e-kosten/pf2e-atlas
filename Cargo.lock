@@ -109,6 +109,7 @@ dependencies = [
  "atlas-record",
  "atlas-runtime",
  "atlas-search",
+ "rand 0.9.4",
  "rusqlite",
  "serde",
  "serde_json",

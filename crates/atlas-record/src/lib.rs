@@ -25,6 +25,7 @@ mod presentation_recipe_tests;
 mod reference_policy;
 mod retrieval_policy;
 mod retrieved_record;
+mod roll_table;
 mod spell;
 
 pub use content::{
@@ -226,6 +227,7 @@ pub use retrieval_policy::{
     RetrievalRationale,
 };
 pub use retrieved_record::RetrievedRecord;
+pub use roll_table::{TableRollUnavailable, TableRollUnavailableReason, ValidatedRollTable};
 pub use spell::{
     ConsumableSpellChild, ConsumableSpellLocation, ConsumableSpellSourceContext,
     InvalidSpellIdentity, ResolvedSpellForm, SPELL_RANGE_DERIVATION_RULE, SpellAreaPatch,

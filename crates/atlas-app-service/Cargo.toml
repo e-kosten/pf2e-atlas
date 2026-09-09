@@ -13,6 +13,7 @@ atlas-local-state.workspace = true
 atlas-record.workspace = true
 atlas-runtime.workspace = true
 atlas-search.workspace = true
+rand.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 time.workspace = true

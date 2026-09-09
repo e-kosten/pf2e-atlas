@@ -29,6 +29,10 @@ impl WebError {
         ))
     }
 
+    pub(crate) fn invalid_request_message(message: impl Into<String>) -> Self {
+        Self(AppError::new(AppErrorCode::InvalidRequest, message))
+    }
+
     fn invalid_path(message: impl Into<String>) -> Self {
         Self(AppError::new(AppErrorCode::InvalidRequest, message))
     }

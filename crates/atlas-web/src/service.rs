@@ -12,7 +12,7 @@ use atlas_app_model::{
     RecordDetailView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
     ResetEncounterParticipantRequest, ResultWindowPage, SavedListCreateView, SavedListDetailView,
     SavedListIndexView, SavedListItemMutationView, SavedListUpdateView, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    TableRollView, UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
@@ -79,6 +79,8 @@ pub(crate) trait AtlasWebService: Send + Sync {
         record_key: &str,
         request: RecordDetailRequest,
     ) -> Result<RecordDetailView, AppServiceError>;
+
+    fn roll_table(&self, record_key: &str) -> Result<TableRollView, AppServiceError>;
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
 
@@ -240,6 +242,10 @@ impl AtlasWebService for AtlasAppService {
         request: RecordDetailRequest,
     ) -> Result<RecordDetailView, AppServiceError> {
         self.record_detail(record_key, request)
+    }
+
+    fn roll_table(&self, record_key: &str) -> Result<TableRollView, AppServiceError> {
+        self.roll_table(record_key)
     }
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {

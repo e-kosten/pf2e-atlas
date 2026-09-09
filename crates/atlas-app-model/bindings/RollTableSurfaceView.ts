@@ -6,5 +6,6 @@ import type { H8ProvenanceView } from "./H8ProvenanceView";
 import type { H8SourceMetadataView } from "./H8SourceMetadataView";
 import type { H8UnsupportedFieldView } from "./H8UnsupportedFieldView";
 import type { TableResultEntryView } from "./TableResultEntryView";
+import type { TableRollCapabilityView } from "./TableRollCapabilityView";
 
-export type RollTableSurfaceView = { source_id: string, description: H8FactView<Array<CreatureSurfaceContentBlockView>>, results: H8FactView<Array<TableResultEntryView>>, formula: H8FactView<string>, replacement: H8FactView<boolean>, display_roll: H8FactView<boolean>, image: H8FactView<string>, content?: Array<CreatureSurfaceContentView>, source_metadata: H8SourceMetadataView, unsupported_fields?: Array<H8UnsupportedFieldView>, provenance: H8ProvenanceView, };
+export type RollTableSurfaceView = { source_id: string, description: H8FactView<Array<CreatureSurfaceContentBlockView>>, results: H8FactView<Array<TableResultEntryView>>, formula: H8FactView<string>, replacement: H8FactView<boolean>, display_roll: H8FactView<boolean>, image: H8FactView<string>, roll: TableRollCapabilityView, content?: Array<CreatureSurfaceContentView>, source_metadata: H8SourceMetadataView, unsupported_fields?: Array<H8UnsupportedFieldView>, provenance: H8ProvenanceView, };

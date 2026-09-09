@@ -10,8 +10,8 @@ use crate::handlers::{
     encounter_condition_definitions, encounters, filter_saved_list, mutate_encounter_spell_cast,
     open_result_window, read_result_window_page, readiness, record_detail,
     remove_encounter_participant, remove_encounter_participant_condition, remove_saved_list_item,
-    reorder_encounter_participant, reset_encounter_participant, saved_list, saved_lists,
-    set_encounter_turn, update_encounter, update_encounter_participant,
+    reorder_encounter_participant, reset_encounter_participant, roll_table, saved_list,
+    saved_lists, set_encounter_turn, update_encounter, update_encounter_participant,
     update_encounter_participant_condition, update_saved_list,
 };
 use crate::service::AtlasWebState;
@@ -90,6 +90,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             post(read_result_window_page),
         )
         .route("/api/records/{record_key}", get(record_detail))
+        .route("/api/records/{record_key}/table-roll", post(roll_table))
         .fallback(get(static_asset))
         .with_state(state)
 }
