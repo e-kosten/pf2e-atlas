@@ -34,7 +34,7 @@ describe("atlas routes", () => {
     history.replaceState(
       null,
       "",
-      "/records/journal%3Ahero-points?child=v1%7Ej%7Es%7E706172656e74%7E70616765",
+      "/records/journal%3Ahero-points?child=v1%7Ej%7Es%7E70616765",
     );
     expect(currentAtlasRoute()).toEqual({
       kind: "record",
