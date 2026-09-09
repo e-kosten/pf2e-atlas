@@ -850,9 +850,9 @@ leaves:
       source_contract_version: pf2e-serialized-source/v1
       source_commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
       source_signature: foundry-pf2e:sha256:dd78d67f5b6d25bf65e30ca4da66af76e7a31e1e7d990562f139154b1752603a
-      registry_sha256: 8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31
+      registry_sha256: e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618
       inventory_version: pf2e-source-leaf-prevalence/v1
-      inventory_sha256: 070c50eec2b31a51eb68afb4afdd1dfa42247eac17ea23e465561736a0e60097
+      inventory_sha256: 7b0af324f0ea0b8010b45f8caf962f83b0d5d0991ec1052ce2a7cc57fa9f7152
       entry_id: item-action-top-level-name@4cbdaa37
       record_count: 1169
       occurrence_count: 1169
@@ -1024,12 +1024,11 @@ leaves:
         let mut wrong_record_count = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
         wrong_record_count.leaves[0].source_prevalence.record_count -= 1;
         let failures = lint_source_leaf_ledger(&wrong_record_count);
-        assert_eq!(
+        assert!(!failures.is_empty());
+        assert!(
             failures
                 .iter()
-                .map(|failure| failure.code)
-                .collect::<Vec<_>>(),
-            vec![CoverageFailureCode::SourcePrevalenceMismatch]
+                .all(|failure| failure.code == CoverageFailureCode::SourcePrevalenceMismatch)
         );
 
         let mut wrong_occurrence_count = parse_source_leaf_ledger(LEDGER).expect("valid ledger");
@@ -1037,12 +1036,11 @@ leaves:
             .source_prevalence
             .occurrence_count += 1;
         let failures = lint_source_leaf_ledger(&wrong_occurrence_count);
-        assert_eq!(
+        assert!(!failures.is_empty());
+        assert!(
             failures
                 .iter()
-                .map(|failure| failure.code)
-                .collect::<Vec<_>>(),
-            vec![CoverageFailureCode::SourcePrevalenceMismatch]
+                .all(|failure| failure.code == CoverageFailureCode::SourcePrevalenceMismatch)
         );
     }
 

@@ -71,7 +71,6 @@ impl SerializedSourceObject {
             .collect()
     }
 
-    #[cfg(test)]
     pub(crate) fn compact_json(&self) -> String {
         SerializedSourceValue::Object(self.clone()).compact_json()
     }

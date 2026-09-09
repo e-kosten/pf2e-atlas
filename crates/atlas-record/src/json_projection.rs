@@ -1,3 +1,4 @@
+mod consumable;
 mod creature;
 mod hazard;
 mod spell;
@@ -6,6 +7,15 @@ use std::{collections::BTreeMap, ops::Deref};
 
 use atlas_domain::{DetailLevel, RecordKind};
 use serde::Serialize;
+
+pub use consumable::{
+    ConsumableContentJson, ConsumableDamageJson, ConsumableDefinitionJson,
+    ConsumableEquippedStateJson, ConsumableFactJson, ConsumableJson,
+    ConsumableLocalSpellEvidenceJson, ConsumableOccurrenceJson, ConsumableOccurrenceTargetJson,
+    ConsumablePriceDenominationJson, ConsumablePriceJson, ConsumableProvenanceJson,
+    ConsumablePublicationJson, ConsumableSourceStateJson, ConsumableSpellChildFactJson,
+    ConsumableSpellReuseJson, ConsumableUnsupportedJson,
+};
 
 pub use creature::{
     CreatureAbilitiesJson, CreatureActionCostJson, CreatureActionJson, CreatureArmorClassJson,
@@ -448,6 +458,7 @@ impl std::error::Error for RecordRelationshipContextError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordJsonError {
+    InvalidConsumableOccurrences(crate::ConsumableOccurrenceSetError),
     MissingCreatureBody {
         record_key: String,
     },
@@ -466,6 +477,12 @@ pub enum RecordJsonError {
     UnexpectedSpellBody {
         record_key: String,
     },
+    MissingConsumableBody {
+        record_key: String,
+    },
+    UnexpectedConsumableBody {
+        record_key: String,
+    },
     EditionLookupSeedMismatch {
         record_key: String,
         record_remaster: bool,
@@ -477,6 +494,7 @@ pub enum RecordJsonError {
 impl std::fmt::Display for RecordJsonError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::InvalidConsumableOccurrences(error) => error.fmt(formatter),
             Self::MissingCreatureBody { record_key } => write!(
                 formatter,
                 "retrieved creature record `{record_key}` is missing its canonical creature body"
@@ -500,6 +518,14 @@ impl std::fmt::Display for RecordJsonError {
             Self::UnexpectedSpellBody { record_key } => write!(
                 formatter,
                 "retrieved non-spell record `{record_key}` has an unexpected canonical spell body"
+            ),
+            Self::MissingConsumableBody { record_key } => write!(
+                formatter,
+                "retrieved consumable record `{record_key}` is missing its canonical consumable body"
+            ),
+            Self::UnexpectedConsumableBody { record_key } => write!(
+                formatter,
+                "retrieved non-consumable record `{record_key}` has an unexpected canonical consumable body"
             ),
             Self::EditionLookupSeedMismatch {
                 record_key,
@@ -589,6 +615,8 @@ pub enum RecordPresentationJson {
         rituals: Option<CreatureRitualsJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         equipment: Option<Vec<CreatureEquipmentJson>>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        consumables: Vec<consumable::ConsumableOccurrenceJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         lore: Option<Vec<CreatureLoreJson>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -613,6 +641,8 @@ pub enum RecordPresentationJson {
         sections: Vec<RecordSectionJson>,
         #[serde(skip_serializing_if = "Vec::is_empty")]
         availability: Vec<HazardAvailabilityJson>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        consumables: Vec<consumable::ConsumableOccurrenceJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         provenance: Option<HazardProvenanceJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -622,6 +652,13 @@ pub enum RecordPresentationJson {
     },
     Spell {
         spell: SpellJson,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        edition: Option<RecordEditionContextJson>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        record_relationships: Option<RecordRelationshipLookupJson>,
+    },
+    Consumable {
+        body: Box<ConsumableJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
         edition: Option<RecordEditionContextJson>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -763,6 +800,20 @@ pub fn record_json_with_context(
     context: RecordJsonContext,
 ) -> Result<RecordJson, RecordJsonError> {
     let record = &retrieved.record;
+    retrieved
+        .consumable_occurrences
+        .validated_entities()
+        .map_err(RecordJsonError::InvalidConsumableOccurrences)?;
+    if retrieved
+        .consumable_occurrences
+        .entities
+        .first()
+        .is_some_and(|entity| entity.owner_record_key != record.identity.key)
+    {
+        return Err(RecordJsonError::InvalidConsumableOccurrences(
+            crate::ConsumableOccurrenceSetError::WrongOwner,
+        ));
+    }
     let RecordJsonContext {
         edition,
         relationships,
@@ -771,19 +822,29 @@ pub fn record_json_with_context(
     let (presentation, supplementary_sections) = match (record.classification.kind, &retrieved.body)
     {
         (RecordKind::Creature, Some(RecordBody::Creature(creature))) => (
-            creature::creature_presentation(
-                creature,
-                options.detail,
-                Some(edition.context_for(record)?),
-                Some(relationships),
-                include_provenance_evidence,
-                matches!(options.detail, DetailLevel::Preview | DetailLevel::Standard)
-                    .then(|| record.content.description())
-                    .flatten()
-                    .and_then(|document| {
-                        truncate_words(&render_plain_text(document), DESCRIPTION_PREVIEW_WORDS)
-                    }),
-            ),
+            {
+                let mut presentation = creature::creature_presentation(
+                    creature,
+                    options.detail,
+                    Some(edition.context_for(record)?),
+                    Some(relationships),
+                    include_provenance_evidence,
+                    matches!(options.detail, DetailLevel::Preview | DetailLevel::Standard)
+                        .then(|| record.content.description())
+                        .flatten()
+                        .and_then(|document| {
+                            truncate_words(&render_plain_text(document), DESCRIPTION_PREVIEW_WORDS)
+                        }),
+                );
+                if let RecordPresentationJson::Creature { consumables, .. } = &mut presentation {
+                    *consumables = if options.detail != DetailLevel::Summary {
+                        consumable::occurrence_json(&retrieved.consumable_occurrences)?
+                    } else {
+                        Vec::new()
+                    };
+                }
+                presentation
+            },
             Vec::new(),
         ),
         (RecordKind::Creature, None) => {
@@ -806,6 +867,11 @@ pub fn record_json_with_context(
                     sections: detailed_sections,
                     availability: if options.detail != DetailLevel::Summary {
                         hazard::availability(hazard)
+                    } else {
+                        Vec::new()
+                    },
+                    consumables: if options.detail != DetailLevel::Summary {
+                        consumable::occurrence_json(&retrieved.consumable_occurrences)?
                     } else {
                         Vec::new()
                     },
@@ -845,6 +911,33 @@ pub fn record_json_with_context(
         }
         (_, Some(RecordBody::Spell(_))) => {
             return Err(RecordJsonError::UnexpectedSpellBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (RecordKind::Equipment, Some(RecordBody::Consumable(consumable)))
+            if record.foundry.record_type == crate::FoundryRecordType::Consumable =>
+        {
+            (
+                RecordPresentationJson::Consumable {
+                    body: Box::new(consumable::consumable_json(
+                        consumable,
+                        include_provenance_evidence,
+                    )),
+                    edition: Some(edition.context_for(record)?),
+                    record_relationships: Some(relationships),
+                },
+                Vec::new(),
+            )
+        }
+        (RecordKind::Equipment, None)
+            if record.foundry.record_type == crate::FoundryRecordType::Consumable =>
+        {
+            return Err(RecordJsonError::MissingConsumableBody {
+                record_key: record.identity.key.to_string(),
+            });
+        }
+        (_, Some(RecordBody::Consumable(_))) => {
+            return Err(RecordJsonError::UnexpectedConsumableBody {
                 record_key: record.identity.key.to_string(),
             });
         }
@@ -3068,6 +3161,7 @@ mod tests {
             record: fixture_base_record(),
             body: None,
             spell_children: Vec::new(),
+            consumable_occurrences: Default::default(),
         }
     }
 
@@ -3444,6 +3538,7 @@ mod tests {
             record,
             body: Some(RecordBody::Creature(body)),
             spell_children: Vec::new(),
+            consumable_occurrences: Default::default(),
         }
     }
 

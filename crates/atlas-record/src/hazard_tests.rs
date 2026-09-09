@@ -145,7 +145,9 @@ fn hidden_pit_uses_canonical_hazard_presentation_and_fts() {
     let body = RecordBody::Hazard(hazard.clone());
 
     let presentation =
-        build_search_presentation_document_with_content_filter(&record, Some(&body), |_| true);
+        build_search_presentation_document_with_content_filter(&record, Some(&body), None, |_| {
+            true
+        });
     assert_eq!(presentation.title, "Hidden Pit");
     assert!(has_fact(&presentation, "Detection DC", "18"));
     assert!(has_fact(&presentation, "Armor Class", "10"));
@@ -177,7 +179,7 @@ fn hidden_pit_uses_canonical_hazard_presentation_and_fts() {
     );
     assert!(!has_fact(&presentation, "Detection DC", "109"));
 
-    let fts = build_search_fts_projection(&record, &[], Some(&body));
+    let fts = build_search_fts_projection(&record, &[], Some(&body), None);
     assert!(fts.mechanic_terms.contains("simple hazard"));
     for provenance_only in [
         "systems/pf2e/icons/default-icons/hazard.svg",
@@ -393,6 +395,7 @@ fn hazard_projection_includes_structured_action_and_iwr_details() {
         &atlas_record_for(&hazard),
         &[],
         Some(&RecordBody::Hazard(hazard.clone())),
+        None,
     );
     for expected in [
         "frequency maximum 1",
@@ -750,6 +753,7 @@ fn hazard_record_json_uses_canonical_source_metadata_for_provenance_and_availabi
         record: atlas_record_for(&benign_hazard),
         body: Some(RecordBody::Hazard(benign_hazard)),
         spell_children: Vec::new(),
+        consumable_occurrences: Default::default(),
     };
     let ordinary = serde_json::to_value(
         record_json(
@@ -850,6 +854,7 @@ fn hazard_record_json_uses_canonical_source_metadata_for_provenance_and_availabi
         record: atlas_record_for(&hazard),
         body: Some(RecordBody::Hazard(hazard)),
         spell_children: Vec::new(),
+        consumable_occurrences: Default::default(),
     };
     let value = serde_json::to_value(
         record_json_with_context(
@@ -966,6 +971,7 @@ fn hazard_record_json_carries_typed_terminal_annotations_without_changing_machin
         record: atlas_record_for(&hazard),
         body: Some(RecordBody::Hazard(hazard)),
         spell_children: Vec::new(),
+        consumable_occurrences: Default::default(),
     };
     let json = record_json(
         &retrieved,

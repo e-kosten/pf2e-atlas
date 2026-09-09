@@ -797,6 +797,7 @@ pub(super) fn creature_presentation(
             spellcasting: None,
             rituals: None,
             equipment: None,
+            consumables: Vec::new(),
             lore: None,
             content: None,
             relationships: None,
@@ -1134,6 +1135,7 @@ pub(super) fn creature_presentation(
         equipment: include_scan
             .then(|| equipment(creature, &placement, detail, include_provenance_evidence))
             .flatten(),
+        consumables: Vec::new(),
         lore: include_scan
             .then(|| lore(creature, &placement, detail, include_provenance_evidence))
             .flatten(),
@@ -1443,7 +1445,9 @@ fn content_json(
             ContentOwner::CreatureOccurrence(id) => CreatureContentOwnerJson::Occurrence {
                 occurrence_id: id.as_str().to_string(),
             },
-            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => return None,
+            ContentOwner::HazardEntity(_)
+            | ContentOwner::HazardOccurrence(_)
+            | ContentOwner::ConsumableOccurrence(_) => return None,
         },
         role: content_role(document.role),
         authored_order: document.authored_order,

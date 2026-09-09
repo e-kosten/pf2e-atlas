@@ -76,6 +76,7 @@ pub(crate) fn convert_hazard_embedded_entities(
     let resolved_identities = resolve_identities(owner_record_key, items)?;
     let mut ordered = items
         .iter()
+        .filter(|item| !is_consumable(item))
         .map(|item| {
             let identity = &resolved_identities[item.source_ordinal as usize];
             (item, identity)
@@ -172,8 +173,19 @@ pub(crate) fn convert_hazard_embedded_entities(
             "/items",
         ),
         relationships,
-        resolved_identities,
+        resolved_identities: resolved_identities
+            .into_iter()
+            .filter(|identity| {
+                items
+                    .get(identity.source_ordinal as usize)
+                    .is_some_and(|item| !is_consumable(item))
+            })
+            .collect(),
     })
+}
+
+fn is_consumable(item: &HazardItemSource) -> bool {
+    typed_string(&item.item_type).as_deref() == Some("consumable")
 }
 
 fn empty_conversion(

@@ -66,6 +66,198 @@ fn compiles_boolean_and_basic_record_filters() -> Result<(), Box<dyn std::error:
 }
 
 #[test]
+fn consumable_query_rows_drive_existing_item_filter_axes() -> Result<(), Box<dyn std::error::Error>>
+{
+    let path = temp_db_path("filter-consumable-query");
+    create_valid_artifact_database(&path)?;
+    let connection = Connection::open(&path)?;
+    connection.execute(
+        "UPDATE records
+         SET record_kind='equipment', foundry_record_type='consumable'
+         WHERE record_key='actions:testAction2'",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO canonical_consumable_records (
+           record_key, source_id, name, canonical_json
+         ) VALUES ('actions:testAction2', 'testAction2', 'Test Action 2', '{}')",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO consumable_query_records (
+           record_key, category, usage, base_item, price_cp, bulk_value,
+           hands_requirement, damage_types_json
+         ) VALUES (
+           'actions:testAction2', 'wand', 'held-in-one-hand', 'magic-wand', 1200, 0.1,
+           'one_hand', '[\"spirit\"]'
+         )",
+        [],
+    )?;
+
+    let filter = atlas_domain::SearchFilterNode::all_of(vec![
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::EnumString {
+            field: MetadataEnumStringField::SystemCategory,
+            r#match: MetadataStringMatch::Eq {
+                value: "wand".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::EnumString {
+            field: MetadataEnumStringField::Usage,
+            r#match: MetadataStringMatch::Eq {
+                value: "held-in-one-hand".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::EnumString {
+            field: MetadataEnumStringField::BaseItem,
+            r#match: MetadataStringMatch::Eq {
+                value: "magic-wand".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::EnumString {
+            field: MetadataEnumStringField::Hands,
+            r#match: MetadataStringMatch::Eq {
+                value: "one_hand".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Number {
+            field: MetadataNumberField::PriceCp,
+            r#match: MetadataNumberMatch::Eq { value: 1200.0 },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Number {
+            field: MetadataNumberField::BulkValue,
+            r#match: MetadataNumberMatch::Eq { value: 0.1 },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
+            field: MetadataSetField::DamageTypes,
+            r#match: MetadataSetMatch::Includes {
+                value: "spirit".to_string(),
+            },
+        }),
+    ]);
+
+    let compiled = SqliteEligibleRecordKeyset::new(Some(&filter)).compile()?;
+    assert_eq!(
+        query_eligible_keys(&connection, &compiled)?,
+        vec!["actions:testAction2"]
+    );
+
+    // Competing legacy side rows must not supply canonical hands, bulk, or damage.
+    connection.execute(
+        "INSERT INTO item_records(record_key, bulk_value, hands_requirement, damage_types_json)
+         VALUES ('actions:testAction2', 99, 'two_hands', '[\"fire\"]')",
+        [],
+    )?;
+    let damage_filter = |r#match| {
+        atlas_domain::SearchFilterNode::all_of(vec![
+            atlas_domain::SearchFilterNode::record_kind(RecordKind::Equipment),
+            atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
+                field: MetadataSetField::DamageTypes,
+                r#match,
+            }),
+        ])
+    };
+    let stale_damage = damage_filter(MetadataSetMatch::Includes {
+        value: "fire".to_string(),
+    });
+    assert!(
+        query_eligible_keys(
+            &connection,
+            &SqliteEligibleRecordKeyset::new(Some(&stale_damage)).compile()?
+        )?
+        .is_empty()
+    );
+    connection.execute("UPDATE consumable_query_records SET damage_types_json='[]' WHERE record_key='actions:testAction2'", [])?;
+    let empty_damage = damage_filter(MetadataSetMatch::IsNull);
+    assert_eq!(
+        query_eligible_keys(
+            &connection,
+            &SqliteEligibleRecordKeyset::new(Some(&empty_damage)).compile()?
+        )?,
+        ["actions:testAction2"]
+    );
+    connection.execute("UPDATE consumable_query_records SET damage_types_json='[\"spirit\"]' WHERE record_key='actions:testAction2'", [])?;
+
+    // A competing generic value must not redirect canonical query authority.
+    connection.execute(
+        "UPDATE records SET system_category='stale', system_usage='stale',
+         system_base_item='stale', price_cp=99 WHERE record_key='actions:testAction2'",
+        [],
+    )?;
+    assert_eq!(
+        query_eligible_keys(&connection, &compiled)?,
+        ["actions:testAction2"]
+    );
+    connection.execute(
+        "UPDATE records SET price_cp=CASE record_key WHEN 'actions:testAction1' THEN 100 WHEN 'actions:testAction3' THEN 2000 ELSE price_cp END", [],
+    )?;
+    for (sort, expected) in [
+        (
+            SqliteFilteredRecordSort::PriceAsc,
+            vec![
+                "actions:testAction1",
+                "actions:testAction2",
+                "actions:testAction3",
+            ],
+        ),
+        (
+            SqliteFilteredRecordSort::PriceDesc,
+            vec![
+                "actions:testAction3",
+                "actions:testAction2",
+                "actions:testAction1",
+            ],
+        ),
+    ] {
+        let query = SqliteEligibleRecordKeyset::new(None)
+            .compile()?
+            .into_record_keys_query(sort, None, None);
+        assert_eq!(
+            query_filtered_record_keys(&connection, &query)?,
+            expected,
+            "price ordering must use canonical price despite stale legacy price"
+        );
+    }
+    connection.execute(
+        "UPDATE consumable_query_records SET price_cp=NULL WHERE record_key='actions:testAction2'",
+        [],
+    )?;
+    let query = SqliteEligibleRecordKeyset::new(None)
+        .compile()?
+        .into_record_keys_query(SqliteFilteredRecordSort::PriceAsc, None, None);
+    assert_eq!(
+        query_filtered_record_keys(&connection, &query)?,
+        [
+            "actions:testAction1",
+            "actions:testAction3",
+            "actions:testAction2"
+        ],
+        "canonical unknown price sorts last without a legacy fallback"
+    );
+    connection.execute(
+        "UPDATE consumable_query_records SET price_cp=1200 WHERE record_key='actions:testAction2'",
+        [],
+    )?;
+
+    connection.execute(
+        "UPDATE consumable_query_records SET category=NULL WHERE record_key='actions:testAction2'",
+        [],
+    )?;
+    assert!(query_eligible_keys(&connection, &compiled)?.is_empty());
+    connection.execute(
+        "UPDATE consumable_query_records SET category='wand' WHERE record_key='actions:testAction2'", [],
+    )?;
+
+    connection.execute(
+        "UPDATE consumable_query_records SET hands_requirement=NULL, bulk_value=NULL
+         WHERE record_key='actions:testAction2'",
+        [],
+    )?;
+    assert!(query_eligible_keys(&connection, &compiled)?.is_empty());
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn rejects_empty_boolean_groups_at_compile_boundary() {
     assert_eq!(
         SqliteEligibleRecordKeyset::new(Some(&atlas_domain::SearchFilterNode::any_of(Vec::new())))

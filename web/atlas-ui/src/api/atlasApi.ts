@@ -115,6 +115,12 @@ export async function getRecordDetail(
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
   const query = new URLSearchParams();
+  if (request.consumable_child_id !== undefined) {
+    query.set("consumable_child_id", request.consumable_child_id);
+  }
+  if (request.consumable_occurrence_id !== undefined) {
+    query.set("consumable_occurrence_id", request.consumable_occurrence_id);
+  }
   if (request.spell_form_id !== undefined) {
     query.set("spell_form_id", request.spell_form_id);
   }

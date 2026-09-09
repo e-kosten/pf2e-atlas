@@ -43,7 +43,6 @@ pub(crate) use publication::publication_family;
 pub(crate) use system::{
     extract_damage_types, extract_disable_skills, extract_prerequisites, extract_sense_types,
     extract_speed_types, extract_traits, normalize_price_cp, parse_bulk_value,
-    parse_hands_requirement,
 };
 pub(crate) use text::normalize_text;
 pub(crate) use time::{normalize_activation_time, normalize_time_text};
@@ -57,7 +56,8 @@ use crate::source::dto::parse_serialized_source_object;
 use crate::source::dto::{
     LegacyDuplicateDisposition, SerializedSourceMember, SerializedSourceObject,
     SerializedSourceValue, SourceIdentity, SpellDocumentSource, parse_hazard_source,
-    parse_npc_source_from_serialized, parse_spell_document_source, pinned_source_version_metadata,
+    parse_item_source_from_serialized, parse_npc_source_from_serialized,
+    parse_spell_document_source, pinned_source_version_metadata,
 };
 use crate::source::hazard_core::{HazardCoreConversion, convert_hazard_core};
 use crate::source::mechanics;
@@ -128,8 +128,15 @@ pub(crate) fn normalize_record_from_source(
     .transpose()?
     .flatten();
     let hazard = manifest_pack.document_type == "Actor" && record_type == "hazard";
+    let standalone_consumable =
+        manifest_pack.document_type == "Item" && record_type == "consumable";
     let hazard_melee_damage_paths = if hazard {
         hazard_melee_damage_rolls_paths(&source)
+    } else {
+        Vec::new()
+    };
+    let consumable_item_paths = if manifest_pack.document_type == "Actor" {
+        embedded_consumable_paths(&source)
     } else {
         Vec::new()
     };
@@ -140,15 +147,45 @@ pub(crate) fn normalize_record_from_source(
             || hazard_melee_damage_paths
                 .iter()
                 .any(|path| path == object_path)
+            || consumable_item_paths
+                .iter()
+                .any(|path| consumable_duplicate_is_retained(path, object_path, key))
+            || standalone_consumable && consumable_duplicate_is_retained("", object_path, key)
         {
             LegacyDuplicateDisposition::OmitAfterFamilyRetention
         } else {
             LegacyDuplicateDisposition::Reject
         }
     };
-    let raw = source
+    let mut raw = source
         .to_legacy_json(&mut duplicate_policy)
         .map_err(|error| normalization_error(path, &error.to_string()))?;
+    if manifest_pack.document_type == "Actor" {
+        super::consumables::stabilize_actor_consumable_legacy_ids(&source, &mut raw, &key);
+    }
+    let item_source = (manifest_pack.document_type == "Item" && record_type == "consumable")
+        .then(|| {
+            parse_item_source_from_serialized(
+                pinned_source_version_metadata(),
+                SourceIdentity::new(key.to_string(), source_path.clone()),
+                None,
+                raw.clone(),
+                &source,
+            )
+            .map_err(|error| normalization_error(path, &error.to_string()))
+        })
+        .transpose()?;
+    let mut consumable_occurrence_candidates = if manifest_pack.document_type == "Actor" {
+        super::consumables::collect_actor_consumable_candidates(
+            &source,
+            &record_type,
+            &key,
+            &source_path,
+        )
+        .map_err(|message| normalization_error(path, &message))?
+    } else {
+        Vec::new()
+    };
     let npc_source = if manifest_pack.document_type == "Actor" && record_type == "npc" {
         Some(
             parse_npc_source_from_serialized(
@@ -189,7 +226,11 @@ pub(crate) fn normalize_record_from_source(
     let canonical_creature = match npc_conversion.as_ref().map(|conversion| &conversion.body) {
         None => None,
         Some(atlas_record::RecordBody::Creature(creature)) => Some(creature),
-        Some(atlas_record::RecordBody::Hazard(_) | atlas_record::RecordBody::Spell(_)) => {
+        Some(
+            atlas_record::RecordBody::Hazard(_)
+            | atlas_record::RecordBody::Spell(_)
+            | atlas_record::RecordBody::Consumable(_),
+        ) => {
             return Err(normalization_error(
                 path,
                 "NPC conversion did not produce a creature body",
@@ -201,7 +242,9 @@ pub(crate) fn normalize_record_from_source(
             .as_ref()
             .and_then(|conversion| match &conversion.body {
                 atlas_record::RecordBody::Hazard(hazard) => Some(hazard),
-                atlas_record::RecordBody::Creature(_) | atlas_record::RecordBody::Spell(_) => None,
+                atlas_record::RecordBody::Creature(_)
+                | atlas_record::RecordBody::Spell(_)
+                | atlas_record::RecordBody::Consumable(_) => None,
             });
     let level = if let Some(creature) = canonical_creature {
         creature.level.value.as_value().copied()
@@ -275,7 +318,11 @@ pub(crate) fn normalize_record_from_source(
     let duration = system_duration_value
         .as_deref()
         .and_then(normalize_time_text);
-    let metrics = if hazard_source.is_some() || record_kind == atlas_domain::RecordKind::Spell {
+    let canonical_consumable = item_source.is_some();
+    let metrics = if hazard_source.is_some()
+        || record_kind == atlas_domain::RecordKind::Spell
+        || canonical_consumable
+    {
         Vec::new()
     } else {
         metrics::extract_metrics(&raw, &manifest_pack.document_type, &record_type)
@@ -285,7 +332,8 @@ pub(crate) fn normalize_record_from_source(
         (manifest_pack.document_type == "Actor" && record_type != "npc" && record_type != "hazard")
             .then(|| mechanics::extract_actor_mechanics(&raw, localization));
     let item_data = (manifest_pack.document_type == "Item"
-        && record_kind != atlas_domain::RecordKind::Spell)
+        && record_kind != atlas_domain::RecordKind::Spell
+        && !canonical_consumable)
         .then(|| {
             mechanics::extract_item_mechanics(
                 &raw,
@@ -333,6 +381,24 @@ pub(crate) fn normalize_record_from_source(
     let hazard_identities = hazard_conversion
         .as_ref()
         .map(|conversion| conversion.embedded_identities.as_slice());
+    for candidate in &mut consumable_occurrence_candidates {
+        let ordinal = candidate.authored_order as usize;
+        let item = raw
+            .get("items")
+            .and_then(Value::as_array)
+            .and_then(|items| items.get(ordinal))
+            .ok_or_else(|| {
+                normalization_error(path, "consumable content identity lost its authored item")
+            })?;
+        candidate.content_source_id = hazard_identities
+            .and_then(|identities| {
+                identities
+                    .iter()
+                    .find(|identity| identity.source_ordinal == candidate.authored_order)
+            })
+            .map(|identity| identity.occurrence_id.as_str().to_string())
+            .unwrap_or_else(|| content_sources::embedded_item_id(item, ordinal));
+    }
     let content_sources = extract_content_sources(&raw, localization, hazard_identities);
     let mut source_facts = SourceRecordFacts {
         slug: normalized_pointer_string(&raw, "/system/slug"),
@@ -480,6 +546,16 @@ pub(crate) fn normalize_record_from_source(
             .map_err(|message| normalization_error(path, &message))?,
         );
     }
+    if let Some(source) = item_source.as_ref() {
+        canonical_body = Some(
+            super::consumables::convert_standalone_consumable(
+                record.identity.key.clone(),
+                &record.provenance.source_path,
+                source,
+            )
+            .map_err(|message| normalization_error(path, &message))?,
+        );
+    }
     let facts = SourceConstructionFacts {
         content_parse_diagnostics: content_sources
             .diagnostics
@@ -490,8 +566,11 @@ pub(crate) fn normalize_record_from_source(
         npc_source,
         hazard_source,
         spell_source,
+        item_source,
         canonical_body,
         canonical_spell_children: Vec::new(),
+        consumable_occurrences: atlas_record::ConsumableOccurrenceSet::default(),
+        consumable_occurrence_candidates,
         npc_core_diagnostics,
         npc_embedded_candidates,
         npc_embedded_diagnostics: Vec::new(),
@@ -575,6 +654,48 @@ fn within_pointer_subtree(path: &str, root: &str) -> bool {
             .is_some_and(|suffix| suffix.starts_with('/'))
 }
 
+fn consumable_duplicate_is_retained(root: &str, object_path: &str, key: &str) -> bool {
+    let leaf = format!("{object_path}/{key}");
+    let Some(relative) = leaf.strip_prefix(root) else {
+        return false;
+    };
+    if !root.is_empty() && !relative.starts_with('/') {
+        return false;
+    }
+    let parts = relative
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>();
+    match parts.as_slice() {
+        ["_id"] | ["_stats", "compendiumSource"] | ["flags", "core", "sourceId"] => true,
+        ["system", field, ..] => matches!(
+            *field,
+            "slug"
+                | "level"
+                | "category"
+                | "traits"
+                | "baseItem"
+                | "bulk"
+                | "size"
+                | "stackGroup"
+                | "quantity"
+                | "usage"
+                | "uses"
+                | "containerId"
+                | "equipped"
+                | "hp"
+                | "hardness"
+                | "material"
+                | "price"
+                | "damage"
+                | "publication"
+                | "rules"
+                | "description"
+        ),
+        _ => false,
+    }
+}
+
 fn hazard_melee_damage_rolls_paths(source: &SerializedSourceObject) -> Vec<String> {
     let SerializedSourceMember::Value(SerializedSourceValue::Array(items)) = source.member("items")
     else {
@@ -590,6 +711,25 @@ fn hazard_melee_damage_rolls_paths(source: &SerializedSourceObject) -> Vec<Strin
                 SerializedSourceMember::Value(value) if value.string() == Some("melee")
             )
             .then(|| format!("/items/{source_ordinal}/system/damageRolls"))
+        })
+        .collect()
+}
+
+fn embedded_consumable_paths(source: &SerializedSourceObject) -> Vec<String> {
+    let SerializedSourceMember::Value(SerializedSourceValue::Array(items)) = source.member("items")
+    else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .enumerate()
+        .filter_map(|(source_ordinal, item)| {
+            let item = item.object()?;
+            matches!(
+                item.member("type"),
+                SerializedSourceMember::Value(value) if value.string() == Some("consumable")
+            )
+            .then(|| format!("/items/{source_ordinal}"))
         })
         .collect()
 }
@@ -681,6 +821,66 @@ mod lossless_source_tests {
             br#"{"_id":"c","name":"C","type":"consumable","system":{"spell":{"_id":"s","name":"S","type":"spell","system":{"rules":[]}},"spellbook":{"value":1,"value":2}}}"#,
         );
         assert!(error.contains("duplicate source member at /system/spellbook/value"));
+    }
+
+    #[test]
+    fn actor_normalization_routes_nested_consumable_duplicates_to_h5() {
+        let loaded = normalize_record_from_source_bytes(
+            &actor_pack(),
+            &PackName::new("hazards").expect("pack"),
+            Path::new("packs/hazards/duplicate-consumable.json"),
+            Path::new("."),
+            br#"{"_id":"owner","name":"Owner","type":"hazard","system":{},"items":[{"_id":"dose","name":"Dose","type":"consumable","system":{"uses":{"max":2,"value":1,"value":2}}}]}"#,
+            None,
+        )
+        .expect("the H5 DTO must retain its duplicate before legacy projection");
+        let candidate = loaded
+            .facts
+            .consumable_occurrence_candidates
+            .first()
+            .expect("typed consumable candidate");
+        let item = candidate.source.source.source();
+        let definition = item
+            .consumable
+            .as_ref()
+            .expect("typed consumable definition");
+        let crate::source::dto::ConsumableSourceFact::Unsupported(maximum_uses) =
+            &definition.maximum_uses
+        else {
+            panic!("duplicate resource remains exact unsupported evidence");
+        };
+        let crate::source::dto::ConsumableSourceFact::Unsupported(current_uses) =
+            &definition.current_uses
+        else {
+            panic!("duplicate evidence reaches every affected fact");
+        };
+        assert_eq!(maximum_uses.value, r#"{"max":2,"value":1,"value":2}"#);
+        assert_eq!(current_uses.value, maximum_uses.value);
+    }
+
+    #[test]
+    fn standalone_normalization_routes_consumable_content_duplicates_to_h5() {
+        let loaded = normalize_record_from_source_bytes(
+            &item_pack(),
+            &PackName::new("spells-srd").expect("pack"),
+            Path::new("packs/spells/duplicate-consumable-description.json"),
+            Path::new("."),
+            br#"{"_id":"dose","name":"Dose","type":"consumable","system":{"description":{"value":"first","value":"second"}}}"#,
+            None,
+        )
+        .expect("the H5 DTO must retain its duplicate before legacy projection");
+        let record = loaded
+            .facts
+            .canonical_body
+            .as_ref()
+            .and_then(atlas_record::RecordBody::as_consumable)
+            .expect("typed standalone consumable");
+        assert!(record.content.documents.is_empty());
+        assert_eq!(record.unsupported_content.len(), 1);
+        assert_eq!(
+            record.unsupported_content[0].value,
+            r#"{"value":"first","value":"second"}"#
+        );
     }
 
     #[test]

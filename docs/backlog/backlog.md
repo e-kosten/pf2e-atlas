@@ -14,7 +14,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Source-Faithful Contract State
 
-The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. The integrated record-presentation implementation, product review, and validation are complete for those three canonical families. PR 7 remains draft while every remaining registry family is modeled or receives an explicit human-approved product disposition; later simplification and main-promotion planning follow that modeling milestone. The remaining families are separate required work and are not implied by these cutovers; [standalone and embedded consumables](./items/rust-consumable-record-family.md) are one of the next modeling portfolios.
+The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, standalone-spell, and consumable implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. Consumable occurrences on NPCs, Characters, and hazards also persist and hydrate from the family owner; H5 presents standalone/NPC/Hazard records while Character presentation remains H9 work. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. PR 7 remains draft while every remaining registry family is modeled or receives an explicit human-approved product disposition; later simplification and main-promotion planning follow that modeling milestone. The remaining families are separate required work and are not implied by these cutovers.
 
 The contract preserves all 313 exact type-registry assignments, keeps non-creature priority as a later decision, and retains overflow-only child embeddings. The product remains default-visible/public-only rather than an authentication boundary: typed visibility/provenance is data, and target exclusions require non-auth product rationale.
 
@@ -68,9 +68,6 @@ The contract preserves all 313 exact type-registry assignments, keeps non-creatu
   Standardize accessible labels and form semantics across Ant Design forms and compact editable controls. Status: proposed.
 
 ## Later
-
-- [Rust standalone and embedded consumable record family](./items/rust-consumable-record-family.md)
-  Reconcile consumables under one source-faithful family contract while preserving identity, order, typed inventory/economy/use facts, safe content/references, and the False Door exact-20 minimum regression. Status: deferred.
 
 - [Rust derived-tag runtime and editorial redesign](./items/rust-derived-tag-redesign.md)
   Redesign retained derived-tag concepts against record kinds, explicit source axes, typed filters, and Rust artifact ownership. Status: planned.

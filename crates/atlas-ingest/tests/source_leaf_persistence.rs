@@ -357,8 +357,8 @@ fn real_spell_fixture_round_trips_canonical_body_and_consumable_child()
         .find(|record| record.record.identity.key == wand_key)
         .expect("persisted Arboreal Wand");
     assert!(
-        wand.body.is_none(),
-        "consumables do not acquire a spell body"
+        matches!(wand.body, Some(RecordBody::Consumable(_))),
+        "consumables hydrate their own body without acquiring a spell body"
     );
     assert_eq!(wand.spell_children.len(), 1);
     let child = &wand.spell_children[0];
@@ -636,12 +636,8 @@ fn spell_artifact_reader_rejects_grouped_body_child_and_projection_faults()
                record_key,system_category,system_base_item,system_group,system_usage,
                system_price_json,price_cp,bulk_value,hands_requirement,damage_types_json
              )
-             SELECT 'spells-srd:rfZpqmj0AIIdkVIs',system_category,system_base_item,
-                    system_group,system_usage,system_price_json,price_cp,bulk_value,
-                    hands_requirement,
-                    (SELECT damage_types_json FROM spell_records
-                     WHERE record_key='spells-srd:Popa5umI3H33levx')
-             FROM item_records WHERE record_key='equipment-srd:eOtQtVRLeGH39dNx'",
+             VALUES ('spells-srd:rfZpqmj0AIIdkVIs','wand',NULL,NULL,
+                     'held-in-one-hand','{\"gp\":1}',100,0.1,'one_hand','[]')",
             "item_records.canonical_body_owner",
         ),
         (

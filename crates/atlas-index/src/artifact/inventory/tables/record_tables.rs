@@ -56,6 +56,9 @@ pub mod records {
         pub const IS_DEFAULT_VISIBLE: Column = Column::new(TABLE, "is_default_visible");
         pub const VISIBILITY_STATE: Column = Column::new(TABLE, "visibility_state");
         pub const VISIBILITY_REASON: Column = Column::new(TABLE, "visibility_reason");
+        pub const CONSUMABLE_ENTITY_COUNT: Column = Column::new(TABLE, "consumable_entity_count");
+        pub const CONSUMABLE_OCCURRENCE_COUNT: Column =
+            Column::new(TABLE, "consumable_occurrence_count");
         pub const METRIC_COUNT: Column = Column::new(TABLE, "metric_count");
         pub const METRIC_ORDER_SHA256: Column = Column::new(TABLE, "metric_order_sha256");
         pub const RAW_JSON: Column = Column::new(TABLE, "raw_json");
@@ -111,6 +114,8 @@ pub mod records {
         columns::IS_DEFAULT_VISIBLE,
         columns::VISIBILITY_STATE,
         columns::VISIBILITY_REASON,
+        columns::CONSUMABLE_ENTITY_COUNT,
+        columns::CONSUMABLE_OCCURRENCE_COUNT,
         columns::METRIC_COUNT,
         columns::METRIC_ORDER_SHA256,
         columns::RAW_JSON,
@@ -143,6 +148,10 @@ pub mod record_content {
             Column::new(TABLE, "owner_hazard_occurrence_id");
         pub const OWNER_HAZARD_OCCURRENCE_AUTHORED_ORDER: Column =
             Column::new(TABLE, "owner_hazard_occurrence_authored_order");
+        pub const OWNER_CONSUMABLE_OCCURRENCE_ID: Column =
+            Column::new(TABLE, "owner_consumable_occurrence_id");
+        pub const OWNER_CONSUMABLE_OCCURRENCE_AUTHORED_ORDER: Column =
+            Column::new(TABLE, "owner_consumable_occurrence_authored_order");
         pub const ROLE: Column = Column::new(TABLE, "role");
         pub const ORIGIN_JSON: Column = Column::new(TABLE, "origin_json");
         pub const SOURCE_KIND: Column = Column::new(TABLE, "source_kind");
@@ -171,6 +180,8 @@ pub mod record_content {
         columns::OWNER_HAZARD_ENTITY_ID,
         columns::OWNER_HAZARD_OCCURRENCE_ID,
         columns::OWNER_HAZARD_OCCURRENCE_AUTHORED_ORDER,
+        columns::OWNER_CONSUMABLE_OCCURRENCE_ID,
+        columns::OWNER_CONSUMABLE_OCCURRENCE_AUTHORED_ORDER,
         columns::ROLE,
         columns::ORIGIN_JSON,
         columns::SOURCE_KIND,
@@ -312,5 +323,34 @@ pub mod spell_records {
         columns::RANK,
         columns::RANGE_KIND,
         columns::RANGE_RULE,
+    ];
+}
+
+pub mod consumable_query_records {
+    use super::{Column, Table};
+
+    pub const TABLE: Table = Table::new("consumable_query_records");
+
+    pub mod columns {
+        use super::{Column, TABLE};
+        pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const CATEGORY: Column = Column::new(TABLE, "category");
+        pub const USAGE: Column = Column::new(TABLE, "usage");
+        pub const BASE_ITEM: Column = Column::new(TABLE, "base_item");
+        pub const BULK_VALUE: Column = Column::new(TABLE, "bulk_value");
+        pub const HANDS_REQUIREMENT: Column = Column::new(TABLE, "hands_requirement");
+        pub const PRICE_CP: Column = Column::new(TABLE, "price_cp");
+        pub const DAMAGE_TYPES_JSON: Column = Column::new(TABLE, "damage_types_json");
+    }
+
+    pub const ALL_COLUMNS: &[Column] = &[
+        columns::RECORD_KEY,
+        columns::CATEGORY,
+        columns::USAGE,
+        columns::BASE_ITEM,
+        columns::BULK_VALUE,
+        columns::HANDS_REQUIREMENT,
+        columns::PRICE_CP,
+        columns::DAMAGE_TYPES_JSON,
     ];
 }

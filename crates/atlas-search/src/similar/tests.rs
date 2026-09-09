@@ -359,6 +359,7 @@ impl RecordReadIndex for FakeSimilarIndex {
                         record,
                         body: None,
                         spell_children: Vec::new(),
+                        consumable_occurrences: Default::default(),
                     })
             })
             .collect())
