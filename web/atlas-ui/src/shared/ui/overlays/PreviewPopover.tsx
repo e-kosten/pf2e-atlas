@@ -110,7 +110,7 @@ export function PreviewPopover({
       destroyOnHidden
       onOpenChange={(nextOpen) => changeOpen(nextOpen)}
       open={open}
-      placement={screens.md ? "rightTop" : "bottom"}
+      placement={screens.md ? "right" : "bottom"}
       title={
         <PreviewPopoverCloseContext.Provider value={close}>
           <header className="preview-popover__header">
