@@ -492,7 +492,9 @@ mod tests {
         assert_eq!(value.len() % 2, 0, "hex byte pairs");
         let bytes = value
             .as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|pair| (nibble(pair[0]) << 4) | nibble(pair[1]))
             .collect::<Vec<_>>();
         String::from_utf8(bytes).expect("encoded UTF-8")
