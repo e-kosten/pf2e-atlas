@@ -255,12 +255,13 @@ Brushed by Death
 Infectious Delirium
   Frequency once per minute
   ---
-  Effect Gray Master unleashes a blast of stilted laughter in a emanation,
-  lasting until the beginning of his next turn. Any creature in the area or
-  entering it must succeed at a Will DC 39 save or be overcome with conflicting
-  thoughts, becoming Stupefied 3 (and also Confused for 1 minute on a critical
-  failure). A creature attempts only one save per Infectious Delirium, and a
-  creature that succeeds on its saving throw is temporarily immune for 24 hours.
+  Effect Gray Master unleashes a blast of stilted laughter in a 20-foot
+  emanation, lasting until the beginning of his next turn. Any creature in the
+  area or entering it must succeed at a Will DC 39 save or be overcome with
+  conflicting thoughts, becoming Stupefied 3 (and also Confused for 1 minute on
+  a critical failure). A creature attempts only one save per Infectious
+  Delirium, and a creature that succeeds on its saving throw is temporarily
+  immune for 24 hours.
 
 Sneak Attack
   Gray Master deals 3d6 extra precision damage to creatures who are Off Guard.

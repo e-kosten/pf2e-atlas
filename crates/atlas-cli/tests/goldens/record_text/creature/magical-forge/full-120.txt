@@ -60,7 +60,8 @@ Construct Armor (Hardness 8)
   being damaged by a critical hit, its construct armor breaks, removing the Hardness and reducing its Armor Class to 24.
 
 Fan the Flames
-  The animated furnace opens its door and fans its flames in a cone that deals 5d6[fire] damage (Reflex DC 28 save).
+  The animated furnace opens its door and fans its flames in a 30-foot cone that deals 5d6[fire] damage (Reflex DC 28
+  save).
 
 Swallow Whole
   Large, (2d8+9)[fire], Rupture 15

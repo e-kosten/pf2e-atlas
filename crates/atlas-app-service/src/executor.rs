@@ -14,9 +14,6 @@ use crate::error::{AppServiceError, AppServiceResult};
 const DEFAULT_RETRIEVAL_WORKERS: usize = 2;
 const DEFAULT_RETRIEVAL_QUEUE_CAPACITY: usize = 64;
 
-#[cfg(test)]
-static NO_EMBEDDING_ACQUISITION_COUNT: AtomicU64 = AtomicU64::new(0);
-
 type RetrievalJob = Box<dyn FnOnce(&mut AtlasRetrievalService) + Send + 'static>;
 
 #[derive(Clone)]
@@ -60,22 +57,6 @@ impl RetrievalExecutor {
             #[cfg(test)]
             worker_count,
             queue_capacity,
-        })
-    }
-
-    #[cfg(test)]
-    pub(super) fn start_no_embeddings(options: AtlasRuntimeOptions) -> AppServiceResult<Self> {
-        let (sender, receiver) = mpsc::sync_channel(DEFAULT_RETRIEVAL_QUEUE_CAPACITY);
-        let receiver = Arc::new(Mutex::new(receiver));
-        spawn_retrieval_worker(
-            "atlas-app-retrieval-no-embeddings".to_string(),
-            receiver,
-            move || open_retrieval_service_no_embeddings(options),
-        )?;
-        Ok(Self {
-            sender,
-            worker_count: 1,
-            queue_capacity: DEFAULT_RETRIEVAL_QUEUE_CAPACITY,
         })
     }
 
@@ -218,20 +199,8 @@ fn open_retrieval_service(options: AtlasRuntimeOptions) -> AppServiceResult<Atla
 pub(super) fn open_retrieval_service_no_embeddings(
     options: AtlasRuntimeOptions,
 ) -> AppServiceResult<AtlasRetrievalService> {
-    #[cfg(test)]
-    NO_EMBEDDING_ACQUISITION_COUNT.fetch_add(1, Ordering::Relaxed);
     let runtime = AtlasRuntime::resolve(options)?;
     Ok(runtime.open_retrieval_service_no_embeddings()?)
-}
-
-#[cfg(test)]
-pub(super) fn reset_no_embedding_acquisition_count() {
-    NO_EMBEDDING_ACQUISITION_COUNT.store(0, Ordering::Relaxed);
-}
-
-#[cfg(test)]
-pub(super) fn no_embedding_acquisition_count() -> u64 {
-    NO_EMBEDDING_ACQUISITION_COUNT.load(Ordering::Relaxed)
 }
 
 pub(super) fn open_retrieval_service_for_stored_vectors(
