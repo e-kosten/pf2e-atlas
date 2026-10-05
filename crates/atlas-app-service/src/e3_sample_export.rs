@@ -2369,6 +2369,7 @@ fn creature_surface_body(surface: &RecordSurfaceView) -> &CreatureSurfaceView {
         RecordSurfacePresentationView::Creature { body } => body,
         RecordSurfacePresentationView::Hazard { .. }
         | RecordSurfacePresentationView::Spell { .. }
+        | RecordSurfacePresentationView::Consumable { .. }
         | RecordSurfacePresentationView::Unavailable { .. } => {
             panic!("authentic creature sample should have a creature body")
         }

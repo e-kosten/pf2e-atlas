@@ -70,6 +70,8 @@ diesel::table! {
         record_role -> Text,
         retrieval_disposition -> Text,
         retrieval_rationale -> Text,
+        consumable_entity_count -> BigInt,
+        consumable_occurrence_count -> BigInt,
     }
 }
 
@@ -87,6 +89,8 @@ diesel::table! {
         owner_hazard_entity_id -> Nullable<Text>,
         owner_hazard_occurrence_id -> Nullable<Text>,
         owner_hazard_occurrence_authored_order -> Nullable<BigInt>,
+        owner_consumable_occurrence_id -> Nullable<Text>,
+        owner_consumable_occurrence_authored_order -> Nullable<BigInt>,
         role -> Text,
         origin_json -> Text,
         visibility -> Text,
@@ -224,6 +228,47 @@ diesel::table! {
 }
 
 diesel::table! {
+    canonical_consumable_records (record_key) {
+        record_key -> Text,
+        source_id -> Text,
+        name -> Text,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_consumable_entities (owner_record_key, entity_id) {
+        owner_record_key -> Text,
+        entity_id -> Text,
+        target_record_key -> Nullable<Text>,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
+    canonical_consumable_occurrences (owner_record_key, occurrence_id) {
+        owner_record_key -> Text,
+        occurrence_id -> Text,
+        entity_id -> Text,
+        authored_order -> BigInt,
+        canonical_json -> Text,
+    }
+}
+
+diesel::table! {
+    consumable_query_records (record_key) {
+        record_key -> Text,
+        category -> Nullable<Text>,
+        usage -> Nullable<Text>,
+        base_item -> Nullable<Text>,
+        bulk_value -> Nullable<Double>,
+        hands_requirement -> Nullable<Text>,
+        price_cp -> Nullable<BigInt>,
+        damage_types_json -> Text,
+    }
+}
+
+diesel::table! {
     canonical_hazard_occurrences (record_key, occurrence_id, authored_order) {
         record_key -> Text,
         occurrence_id -> Text,
@@ -305,6 +350,8 @@ diesel::table! {
         owner_hazard_entity_id -> Nullable<Text>,
         owner_hazard_occurrence_id -> Nullable<Text>,
         owner_hazard_occurrence_authored_order -> Nullable<BigInt>,
+        owner_consumable_occurrence_id -> Nullable<Text>,
+        owner_consumable_occurrence_authored_order -> Nullable<BigInt>,
         role -> Text,
         origin_json -> Text,
         visibility -> Text,
@@ -527,7 +574,11 @@ diesel::allow_tables_to_appear_in_same_query!(
     canonical_hazard_relationships,
     canonical_hazard_records,
     canonical_consumable_spell_children,
+    canonical_consumable_records,
+    canonical_consumable_entities,
+    canonical_consumable_occurrences,
     canonical_spell_records,
+    consumable_query_records,
     document_embedding_cache,
     filter_field_catalog,
     filter_numeric_catalog,

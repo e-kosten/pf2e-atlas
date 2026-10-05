@@ -81,6 +81,19 @@ table_inventory!(canonical_consumable_spell_children, "canonical_consumable_spel
     STANDALONE_TARGET_RECORD_KEY => "standalone_target_record_key",
     CANONICAL_JSON => "canonical_json"
 ]);
+table_inventory!(canonical_consumable_records, "canonical_consumable_records", [
+    RECORD_KEY => "record_key", SOURCE_ID => "source_id", NAME => "name",
+    CANONICAL_JSON => "canonical_json"
+]);
+table_inventory!(canonical_consumable_entities, "canonical_consumable_entities", [
+    OWNER_RECORD_KEY => "owner_record_key", ENTITY_ID => "entity_id",
+    TARGET_RECORD_KEY => "target_record_key", CANONICAL_JSON => "canonical_json"
+]);
+table_inventory!(canonical_consumable_occurrences, "canonical_consumable_occurrences", [
+    OWNER_RECORD_KEY => "owner_record_key", OCCURRENCE_ID => "occurrence_id",
+    ENTITY_ID => "entity_id", AUTHORED_ORDER => "authored_order",
+    CANONICAL_JSON => "canonical_json"
+]);
 table_inventory!(spell_traditions, "spell_traditions", [
     RECORD_KEY => "record_key", AUTHORED_ORDER => "authored_order", TRADITION => "tradition"
 ]);

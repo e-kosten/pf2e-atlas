@@ -515,6 +515,7 @@ mod tests {
                             record,
                             body: None,
                             spell_children: Vec::new(),
+                            consumable_occurrences: Default::default(),
                         })
                 })
                 .collect())

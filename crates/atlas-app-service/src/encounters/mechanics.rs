@@ -495,7 +495,7 @@ pub(super) fn participant_encounter_runtime(
             )))
         }
         RecordBody::Hazard(hazard) => Some(hazard_encounter_runtime(participant, hazard)),
-        RecordBody::Spell(_) => None,
+        RecordBody::Spell(_) | RecordBody::Consumable(_) => None,
     }
 }
 
@@ -5175,6 +5175,7 @@ mod tests {
             ),
             body: None,
             spell_children: Vec::new(),
+            consumable_occurrences: Default::default(),
         };
 
         assert!(

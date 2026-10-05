@@ -35,6 +35,12 @@ pub struct RecordDetailView {
 pub struct RecordDetailRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub consumable_child_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub consumable_occurrence_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub spell_form_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional, type = "number")]

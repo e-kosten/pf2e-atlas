@@ -40,6 +40,80 @@ describe("RecordDetailPane", () => {
     expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
   });
 
+  it("inspects a retained mismatch child and preserves its occurrence selector during rank changes", async () => {
+    const parent = recordDetailFixture();
+    const parentKey = parent.surface.metadata.record_key!;
+    if (parent.surface.presentation.presentation_type !== "creature")
+      throw new Error("creature fixture");
+    parent.surface.presentation.body.consumables = [
+      {
+        occurrence_id: "local-dose",
+        authored_order: 3,
+        name: "Local wand",
+        identity_stability: "stable_source_identity",
+        target: {
+          state: "resolved",
+          record_key: "equipment:wand",
+          mismatch_fields: ["system.spell"],
+        },
+        source_state: {
+          quantity: { state: "missing" },
+          current_uses: { state: "missing" },
+          current_hp: { state: "missing" },
+          container_id: { state: "missing" },
+          equipped: { state: "missing" },
+        },
+        spell_child: {
+          parent_record_key: parentKey,
+          occurrence_id: "local-dose",
+          child_id: "retained-child",
+        },
+      },
+    ];
+    vi.mocked(getRecordDetail).mockImplementation((_key, request) => {
+      const child =
+        request?.spell_cast_rank === 5 ? rimeDetail(5, "8d4", [5], 30) : rimeDetail();
+      child.surface.metadata.record_key = parentKey;
+      return Promise.resolve(child);
+    });
+    const navigate = vi.fn();
+    renderWithClient(
+      <RecordDetailPane detail={parent} loading={false} onReference={navigate} />,
+    );
+    fireEvent.click(screen.getByText("Local wand"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open embedded spell" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Embedded spell" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("spinbutton", { name: "Cast rank" }),
+    ).toBeInTheDocument();
+    expect(getRecordDetail).toHaveBeenCalledWith(
+      parentKey,
+      {
+        consumable_child_id: "retained-child",
+        consumable_occurrence_id: "local-dose",
+      },
+      expect.any(AbortSignal),
+    );
+    expect(navigate).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Cast rank" }), {
+      target: { value: "5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(await screen.findByText("8d4 Cold")).toBeInTheDocument();
+    expect(getRecordDetail).toHaveBeenCalledWith(
+      parentKey,
+      {
+        consumable_child_id: "retained-child",
+        consumable_occurrence_id: "local-dose",
+        spell_form_id: "opaque:rime:base",
+        spell_cast_rank: 5,
+      },
+      expect.any(AbortSignal),
+    );
+  });
+
   it("renders an accessible loading state", () => {
     renderWithClient(
       <RecordDetailPane
@@ -165,13 +239,21 @@ describe("RecordDetailPane", () => {
         </QueryClientProvider>,
       );
       fireEvent.click(screen.getByRole("button", { name: "References" }));
+      const queryKey = [
+        "record-detail",
+        "hazards:hidden-pit",
+        null,
+        null,
+        null,
+        null,
+        8,
+        8,
+      ];
       await act(async () => {
-        await client.refetchQueries({
-          queryKey: ["record-detail", "hazards:hidden-pit", null, null, 8, 8],
-          exact: true,
-        });
+        await client.refetchQueries({ queryKey, exact: true });
       });
       await waitFor(() => expect(client.isFetching()).toBe(0));
+      expect(client.getQueryState(queryKey)?.status).toBe("success");
       expect(
         screen.queryByRole("button", { name: "Backlink Hazard" }),
       ).not.toBeInTheDocument();

@@ -5,7 +5,7 @@
 contract, document class, type discriminator, role, and parent context. Every
 entry owns one normalized leaf. Lint authenticates that selector against the
 313-entry `contracts/pf2e-type-registry.yaml` contract (SHA-256
-`8a707bc9810687e9a738840dd267653386b4c0c937f8aa03332b513f30ed2a31`)
+`e62b1d6797a72dd97297b5af05170477871712623fdb89497e6ab2100331d618`)
 and accepts only the pinned PF2e source contract, commit, and signature.
 
 `leaf_kind` distinguishes scalar, ordered array-member, identity-retaining
@@ -43,9 +43,9 @@ pinned source excerpts. Its promoted declarations intentionally fail on the
 current parser/canonical/persistence/public-owner mismatches; B1 owns changing
 those failures to passing product values after independent A1+A2 review.
 
-The four hazard ledgers reconcile the exact populated root/common/rule leaf
-inventory plus the embedded action, melee, and consumable schema boundaries at
-H1-B/C. They distinguish promoted gameplay/content data, exact source-editor
+The three hazard ledgers reconcile the exact populated root/common/rule leaf
+inventory plus the embedded action and melee schema boundaries at H1-B/C. They
+distinguish promoted gameplay/content data, exact source-editor
 provenance, typed-unsupported drift, and declared zero-occurrence contexts.
 Their sealed grouped receipts execute the source DTO, canonical, and
 post-projection owners against byte-identical pinned records. Each receipt
@@ -61,6 +61,19 @@ occurrence counts may be below the registry tuple count; the tuple count still
 authenticates the complete owning record family. Later H1 slices extend these
 already-reconciled ingest leaves to artifact and public owners; they do not
 defer discovery of source-to-canonical disposition until final integration.
+
+The four H5 consumable ledgers own the standalone, NPC, Character, and Hazard
+contexts independently. Their accepted prevalence covers every observed leaf
+outside `system.spell`, whose complete child snapshot remains owned by the H2
+ledger. The H5 context inventories preserve intrinsic definition fields,
+read-only source state, provenance, rich content, and exact unsupported rule
+objects without using an actor occurrence as a fallback definition. Character
+occurrences reach canonical persistence and hydration but deliberately have no
+public presentation until H9. The pinned family census authenticates each
+context's exact normalized path/count/shape digest and checks representative
+rare typed values. Focused mutation receipts and SQLite round trips must then
+establish the independent source, canonical, post-projection, and hydration
+observers.
 `item-spell.yaml` and `consumable-spell-child.yaml` extend the same contract for
 the H2 source boundary. They bind every accepted normalized top-level spell and
 consumable-child leaf or exact keyed/conditional pattern to the ordered spell

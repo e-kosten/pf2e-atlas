@@ -1,14 +1,15 @@
 use atlas_domain::{RecordKind, TimeKind};
 
 use crate::{
-    AtlasRecord, CreatureActionCost, CreatureDamageKind, CreatureNumber, CreatureRecord,
-    CreatureResourceAmount, CreatureSourceScalar, FactValue, HazardRecord, MechanicActivityFamily,
-    MechanicBaseValue, MechanicFact, MechanicSourceFamily, MechanicSurface, PresentationBadge,
-    PresentationBadgeKind, PresentationBlock, PresentationFact, PresentationSection,
-    PresentationSectionKind, RecordBody, RecordContentDocument, RecordPresentationDocument,
-    RichLinkTarget, SpellHeightening, SpellRecord, SpellRule, SpellRulePredicate, SpellSourceValue,
-    build_hazard_presentation_document, build_record_presentation_document_with_content_filter,
-    label_for_row, presentation_recipe::searchable_content_sections, project_creature_facts,
+    AtlasRecord, ConsumableRecord, ConsumableSourceValue, CreatureActionCost, CreatureDamageKind,
+    CreatureNumber, CreatureRecord, CreatureResourceAmount, CreatureSourceScalar, FactValue,
+    HazardRecord, MechanicActivityFamily, MechanicBaseValue, MechanicFact, MechanicSourceFamily,
+    MechanicSurface, PresentationBadge, PresentationBadgeKind, PresentationBlock, PresentationFact,
+    PresentationSection, PresentationSectionKind, RecordBody, RecordContentDocument,
+    RecordPresentationDocument, RichLinkTarget, SpellHeightening, SpellRecord, SpellRule,
+    SpellRulePredicate, SpellSourceValue, build_hazard_presentation_document,
+    build_record_presentation_document_with_content_filter, label_for_row,
+    presentation_recipe::searchable_content_sections, project_creature_facts,
     project_creature_mechanics,
 };
 
@@ -33,13 +34,14 @@ pub fn build_record_fts_projection(
     record: &AtlasRecord,
     aliases: &[String],
 ) -> RecordFtsProjection {
-    build_search_fts_projection(record, aliases, None)
+    build_search_fts_projection(record, aliases, None, None)
 }
 
 pub fn build_search_fts_projection(
     record: &AtlasRecord,
     aliases: &[String],
     canonical_body: Option<&RecordBody>,
+    consumable_occurrences: Option<&crate::ConsumableOccurrenceSet>,
 ) -> RecordFtsProjection {
     let mut projection = RecordFtsProjection {
         title: record.identity.name.clone(),
@@ -50,11 +52,14 @@ pub fn build_search_fts_projection(
     let canonical_creature = canonical_creature_for_record(record, canonical_body);
     let canonical_hazard = canonical_hazard_for_record(record, canonical_body);
     let canonical_spell = canonical_spell_for_record(record, canonical_body);
+    let canonical_consumable = canonical_consumable_for_record(record, canonical_body);
     append_structured_terms(
         record,
         canonical_creature,
         canonical_hazard,
         canonical_spell,
+        canonical_consumable,
+        matches!(canonical_body, Some(RecordBody::Consumable(_))),
         &mut projection,
     );
     if let Some(hazard) = canonical_hazard {
@@ -63,11 +68,54 @@ pub fn build_search_fts_projection(
     if let Some(spell) = canonical_spell {
         append_spell_content_fts(spell, &mut projection);
     }
+    if let Some(consumable) = canonical_consumable {
+        append_owned_content(&consumable.content, &mut projection);
+    }
 
+    if (canonical_creature.is_some() || canonical_hazard.is_some())
+        && let Some(occurrences) = consumable_occurrences
+    {
+        for fact in consumable_occurrence_search_facts(occurrences) {
+            append_text(&mut projection.mechanic_terms, &fact.value);
+        }
+        for occurrence in &occurrences.occurrences {
+            append_owned_content_documents(
+                occurrence.searchable_content_documents(),
+                &mut projection,
+            );
+        }
+    }
     projection
 }
 
 pub fn build_search_presentation_document_with_content_filter(
+    record: &AtlasRecord,
+    canonical_body: Option<&RecordBody>,
+    consumable_occurrences: Option<&crate::ConsumableOccurrenceSet>,
+    include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
+) -> RecordPresentationDocument {
+    let mut document = canonical_search_presentation_document(
+        record,
+        canonical_body,
+        include_supplemental_content,
+    );
+    if (canonical_creature_for_record(record, canonical_body).is_some()
+        || canonical_hazard_for_record(record, canonical_body).is_some())
+        && let Some(occurrences) = consumable_occurrences
+    {
+        let facts = consumable_occurrence_search_facts(occurrences);
+        if !facts.is_empty() {
+            document.sections.push(PresentationSection {
+                kind: PresentationSectionKind::Details,
+                title: "Consumables".to_string(),
+                blocks: vec![PresentationBlock::FactList(facts)],
+            });
+        }
+    }
+    document
+}
+
+fn canonical_search_presentation_document(
     record: &AtlasRecord,
     canonical_body: Option<&RecordBody>,
     include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
@@ -88,7 +136,17 @@ pub fn build_search_presentation_document_with_content_filter(
     if let Some(spell) = canonical_spell_for_record(record, canonical_body) {
         return canonical_spell_search_document(spell);
     }
-    if matches!(canonical_body, Some(RecordBody::Spell(_))) {
+    if let Some(consumable) = canonical_consumable_for_record(record, canonical_body) {
+        return canonical_consumable_search_document(
+            record,
+            consumable,
+            include_supplemental_content,
+        );
+    }
+    if matches!(
+        canonical_body,
+        Some(RecordBody::Spell(_) | RecordBody::Consumable(_))
+    ) {
         return RecordPresentationDocument {
             record_key: record.identity.key.clone(),
             kind: atlas_domain::RecordKind::Spell,
@@ -122,6 +180,150 @@ pub fn build_search_presentation_document_with_content_filter(
     ));
     document.sections = canonical_sections;
     document
+}
+
+// An attachment owns contextual names and local definitions. Resolved definitions
+// remain on their canonical target; current state and mismatch evidence are not search facts.
+fn consumable_occurrence_search_facts(
+    occurrences: &crate::ConsumableOccurrenceSet,
+) -> Vec<PresentationFact> {
+    let mut facts = Vec::new();
+    for occurrence in &occurrences.occurrences {
+        facts.push(presentation_fact(
+            "consumable.name",
+            "Consumable",
+            occurrence.contextual_name.clone(),
+        ));
+        // Validated attachments retain occurrence order; entity storage order is not presentation order.
+        for entity in &occurrences.entities {
+            if entity.id != occurrence.entity_id {
+                continue;
+            }
+            let crate::ConsumableEntityTarget::ParentOwned { definition, .. } = &entity.target
+            else {
+                continue;
+            };
+            if let Some(level) = known_consumable_fact(&definition.level) {
+                facts.push(presentation_fact(
+                    "consumable.level",
+                    "Level",
+                    level.to_string(),
+                ));
+            }
+            for (key, label, fact) in [
+                ("consumable.category", "Category", &definition.category),
+                ("consumable.usage", "Usage", &definition.usage),
+                ("consumable.base_item", "Base item", &definition.base_item),
+            ] {
+                if let Some(value) = known_consumable_fact(fact) {
+                    facts.push(presentation_fact(key, label, value.clone()));
+                }
+            }
+            if let Some(traits) = known_consumable_fact(&definition.traits) {
+                facts.push(presentation_fact(
+                    "consumable.traits",
+                    "Traits",
+                    traits.join(" "),
+                ));
+            }
+            if let Some(damage) = known_consumable_fact(&definition.damage) {
+                for (key, label, fact) in [
+                    ("consumable.damage", "Damage", &damage.formula),
+                    ("consumable.damage_type", "Damage type", &damage.damage_type),
+                    (
+                        "consumable.damage_category",
+                        "Damage category",
+                        &damage.category,
+                    ),
+                ] {
+                    if let Some(value) = known_consumable_fact(fact) {
+                        facts.push(presentation_fact(key, label, value.clone()));
+                    }
+                }
+            }
+        }
+    }
+    facts
+}
+
+fn canonical_consumable_search_document(
+    record: &AtlasRecord,
+    consumable: &ConsumableRecord,
+    include_supplemental_content: impl Fn(&RecordContentDocument) -> bool + Copy,
+) -> RecordPresentationDocument {
+    let mut identity = Vec::new();
+    if let Some(level) = known_consumable_fact(&consumable.definition.level) {
+        identity.push(presentation_fact(
+            "consumable.level",
+            "Level",
+            level.to_string(),
+        ));
+    }
+    if let Some(category) = known_consumable_fact(&consumable.definition.category) {
+        identity.push(presentation_fact(
+            "consumable.category",
+            "Category",
+            category.clone(),
+        ));
+    }
+    if let Some(usage) = known_consumable_fact(&consumable.definition.usage) {
+        identity.push(presentation_fact(
+            "consumable.usage",
+            "Usage",
+            usage.clone(),
+        ));
+    }
+    let badges = known_consumable_fact(&consumable.definition.traits)
+        .into_iter()
+        .flatten()
+        .map(|value| PresentationBadge {
+            kind: PresentationBadgeKind::Trait,
+            label: "Trait".to_string(),
+            value: value.clone(),
+        })
+        .collect();
+    let mut documents = consumable.content.documents.iter().collect::<Vec<_>>();
+    documents.sort_by_key(|document| (document.authored_order, document.id.content_key.as_str()));
+    let blocks = documents
+        .into_iter()
+        .filter(|document| {
+            document.source_kind.default_contributes_to_search()
+                && include_supplemental_content(&RecordContentDocument {
+                    source_kind: document.source_kind,
+                    label: document.label.clone(),
+                    document: document.document.clone(),
+                })
+        })
+        .map(|document| {
+            let mut content = crate::project_presentation_content(&document.document);
+            if let Some(label) = document
+                .label
+                .as_deref()
+                .filter(|label| !label.trim().is_empty())
+            {
+                content.blocks.insert(
+                    0,
+                    crate::PresentationContentBlock::Heading {
+                        level: 3,
+                        text: label.to_string(),
+                    },
+                );
+            }
+            PresentationBlock::Content(content)
+        })
+        .collect::<Vec<_>>();
+    let sections = (!blocks.is_empty())
+        .then(|| PresentationSection::new(PresentationSectionKind::Description, blocks))
+        .into_iter()
+        .collect();
+    RecordPresentationDocument {
+        record_key: record.identity.key.clone(),
+        kind: RecordKind::Equipment,
+        title: consumable.identity.name.clone(),
+        identity,
+        badges,
+        sections,
+    }
 }
 
 fn canonical_spell_search_document(spell: &SpellRecord) -> RecordPresentationDocument {
@@ -511,7 +713,10 @@ fn canonical_creature_for_record<'a>(
         RecordBody::Creature(creature) if creature.identity.record_key == record.identity.key => {
             Some(creature)
         }
-        RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+        RecordBody::Creature(_)
+        | RecordBody::Hazard(_)
+        | RecordBody::Spell(_)
+        | RecordBody::Consumable(_) => None,
     }
 }
 
@@ -523,7 +728,27 @@ fn canonical_hazard_for_record<'a>(
         RecordBody::Hazard(hazard) if hazard.identity.record_key == record.identity.key => {
             Some(hazard)
         }
-        RecordBody::Creature(_) | RecordBody::Hazard(_) | RecordBody::Spell(_) => None,
+        RecordBody::Creature(_)
+        | RecordBody::Hazard(_)
+        | RecordBody::Spell(_)
+        | RecordBody::Consumable(_) => None,
+    }
+}
+
+fn canonical_consumable_for_record<'a>(
+    record: &AtlasRecord,
+    canonical_body: Option<&'a RecordBody>,
+) -> Option<&'a ConsumableRecord> {
+    match canonical_body? {
+        RecordBody::Consumable(consumable)
+            if consumable.identity.record_key == record.identity.key =>
+        {
+            Some(consumable)
+        }
+        RecordBody::Creature(_)
+        | RecordBody::Hazard(_)
+        | RecordBody::Spell(_)
+        | RecordBody::Consumable(_) => None,
     }
 }
 
@@ -532,13 +757,15 @@ fn append_structured_terms(
     canonical_creature: Option<&CreatureRecord>,
     canonical_hazard: Option<&HazardRecord>,
     canonical_spell: Option<&SpellRecord>,
+    canonical_consumable: Option<&ConsumableRecord>,
+    consumable_body_present: bool,
     projection: &mut RecordFtsProjection,
 ) {
     let generic_mechanics = (!matches!(
         record.classification.kind,
         RecordKind::Creature | RecordKind::Hazard | RecordKind::Spell
-    ))
-    .then_some(&record.mechanics);
+    ) && !consumable_body_present)
+        .then_some(&record.mechanics);
     let mut taxonomy = TermCollector::default();
     taxonomy.add_slug(record.classification.kind.as_str());
     taxonomy.add_slug(record.foundry.record_type.as_str());
@@ -547,6 +774,14 @@ fn append_structured_terms(
         taxonomy.add_optional_slug(item.category.as_deref());
         taxonomy.add_optional_slug(item.group.as_deref());
         taxonomy.add_optional_slug(item.base_item.as_deref());
+    }
+    if let Some(consumable) = canonical_consumable {
+        taxonomy.add_optional_slug(
+            known_consumable_fact(&consumable.definition.category).map(String::as_str),
+        );
+        taxonomy.add_optional_slug(
+            known_consumable_fact(&consumable.definition.base_item).map(String::as_str),
+        );
     }
     if let Some(variant) = record.variant.as_ref() {
         taxonomy.add_text(&variant.base_name);
@@ -568,6 +803,7 @@ fn append_structured_terms(
 
     let mut mechanics = TermCollector::default();
     if record.classification.kind != RecordKind::Spell
+        && canonical_consumable.is_none()
         && let Some(level) = record.classification.level
     {
         mechanics.add_text(&format!("level {level}"));
@@ -663,6 +899,25 @@ fn append_structured_terms(
                 .add_optional_text(known_spell_fact(&ritual.secondary_checks).map(String::as_str));
         }
     }
+    if let Some(consumable) = canonical_consumable {
+        let definition = &consumable.definition;
+        if let Some(level) = known_consumable_fact(&definition.level) {
+            mechanics.add_text(&format!("level {level}"));
+            mechanics.add_text(&ordinal_phrase(*level, "level"));
+        }
+        mechanics.add_optional_slug(known_consumable_fact(&definition.usage).map(String::as_str));
+        if let Some(traits) = known_consumable_fact(&definition.traits) {
+            projection.traits = traits.join(" ");
+            mechanics.add_slugs(traits);
+        }
+        if let Some(damage) = known_consumable_fact(&definition.damage) {
+            mechanics.add_optional_text(known_consumable_fact(&damage.formula).map(String::as_str));
+            mechanics
+                .add_optional_slug(known_consumable_fact(&damage.category).map(String::as_str));
+            mechanics
+                .add_optional_slug(known_consumable_fact(&damage.damage_type).map(String::as_str));
+        }
+    }
     mechanics.add_optional_slug(record.classification.rarity.map(|rarity| rarity.as_str()));
     if let Some(duration) = record.timing.duration_time() {
         mechanics.add_text(&duration.text);
@@ -728,7 +983,18 @@ fn append_structured_terms(
 }
 
 fn append_hazard_owned_content(hazard: &HazardRecord, projection: &mut RecordFtsProjection) {
-    let mut documents = hazard.content.documents.iter().collect::<Vec<_>>();
+    append_owned_content(&hazard.content, projection);
+}
+
+fn append_owned_content(content: &crate::OwnedRichContent, projection: &mut RecordFtsProjection) {
+    append_owned_content_documents(content.documents.iter(), projection);
+}
+
+fn append_owned_content_documents<'a>(
+    documents: impl Iterator<Item = &'a crate::OwnedRichContentDocument>,
+    projection: &mut RecordFtsProjection,
+) {
+    let mut documents = documents.collect::<Vec<_>>();
     documents.sort_by_key(|document| (document.authored_order, document.id.content_key.as_str()));
     for document in documents {
         let rendered = crate::render_plain_text(&document.document);
@@ -754,6 +1020,15 @@ fn append_hazard_owned_content(hazard: &HazardRecord, projection: &mut RecordFts
             };
             append_text(&mut projection.references, &target);
         }
+    }
+}
+
+fn known_consumable_fact<T>(fact: &crate::ConsumableFact<T>) -> Option<&T> {
+    match fact {
+        FactValue::Value(ConsumableSourceValue::Known(value)) => Some(value),
+        FactValue::Missing
+        | FactValue::Null
+        | FactValue::Value(ConsumableSourceValue::Unsupported(_)) => None,
     }
 }
 
@@ -1364,7 +1639,7 @@ mod tests {
         );
         spell.definition.content.documents.push(owned.clone());
         let body = RecordBody::Spell(spell);
-        let projection = build_search_fts_projection(&record, &[], Some(&body));
+        let projection = build_search_fts_projection(&record, &[], Some(&body), None);
         assert_eq!(projection.body, "30-foot emanation");
         assert!(projection.references.is_empty());
         let RecordBody::Spell(spell) = body else {
@@ -1400,11 +1675,15 @@ mod tests {
             },
         ));
 
-        let projection = build_search_fts_projection(&record, &[], Some(&body));
+        let projection = build_search_fts_projection(&record, &[], Some(&body), None);
         assert!(!projection.mechanic_terms.contains("legacy-secret"));
         assert!(!projection.taxonomy_terms.contains("legacy-secret"));
-        let presentation =
-            build_search_presentation_document_with_content_filter(&record, Some(&body), |_| true);
+        let presentation = build_search_presentation_document_with_content_filter(
+            &record,
+            Some(&body),
+            None,
+            |_| true,
+        );
         assert_eq!(presentation.title, "Canonical Spell");
         assert!(presentation.sections.is_empty());
     }

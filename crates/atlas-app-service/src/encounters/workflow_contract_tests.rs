@@ -594,6 +594,7 @@ fn spell_fixture_retrieval_service()
         records: vec![record],
         canonical_bodies: vec![body],
         canonical_spell_children: Vec::new(),
+        consumable_occurrence_sets: Vec::new(),
         references: Vec::new(),
         aliases: Vec::new(),
         remaster_links: Vec::new(),

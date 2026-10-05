@@ -240,7 +240,9 @@ pub fn place_creature_content_for_families(
     for (index, document) in creature.content.documents.iter().enumerate() {
         if matches!(
             document.owner,
-            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_)
+            ContentOwner::HazardEntity(_)
+                | ContentOwner::HazardOccurrence(_)
+                | ContentOwner::ConsumableOccurrence(_)
         ) {
             continue;
         }
@@ -260,7 +262,9 @@ pub fn place_creature_content_for_families(
                 .entry(owner.clone())
                 .or_default()
                 .push(index),
-            ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => continue,
+            ContentOwner::HazardEntity(_)
+            | ContentOwner::HazardOccurrence(_)
+            | ContentOwner::ConsumableOccurrence(_) => continue,
         }
         let matches = candidates
             .iter()
@@ -270,7 +274,9 @@ pub fn place_creature_content_for_families(
                 ContentOwner::CreatureEntity(owner) => {
                     matches!(&occurrence.target, CreatureEntityTarget::ActorOwned(target) if target == owner)
                 }
-                ContentOwner::HazardEntity(_) | ContentOwner::HazardOccurrence(_) => false,
+                ContentOwner::HazardEntity(_)
+                | ContentOwner::HazardOccurrence(_)
+                | ContentOwner::ConsumableOccurrence(_) => false,
             })
             .copied()
             .collect::<Vec<_>>();

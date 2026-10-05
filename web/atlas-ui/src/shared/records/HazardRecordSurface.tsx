@@ -28,6 +28,7 @@ import {
   RecordSurfaceReferences,
 } from "./RecordSurfaceSupplement";
 import { formatSigned, formatSlug } from "./recordFormatting";
+import { ConsumableOccurrences } from "./ConsumableRecordSurface";
 
 type RecordSurfaceIssue = NonNullable<RecordSurfaceView["issues"]>[number];
 type RecordSurfaceReferences = NonNullable<RecordSurfaceView["references"]>;
@@ -69,6 +70,7 @@ export function HazardDetailSurface({
       <HazardActivities activities={body.activities} onReference={onReference} />
       <HazardOperation lifecycle={body.lifecycle} onReference={onReference} />
       <HazardGeneralContent body={body} onReference={onReference} />
+      <ConsumableOccurrences occurrences={body.consumables} onReference={onReference} />
       <RecordSurfaceIssues issues={issues} />
       <RecordSurfaceReferences
         recordKey={metadata.record_key}

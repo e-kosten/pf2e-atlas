@@ -43,7 +43,10 @@ pub(crate) use hazard::{
     VersionedHazardSource, parse_hazard_source,
 };
 pub(crate) use item::{
-    EmbeddedRelationshipKindSource, EmbeddedRelationshipSource, EmbeddedStableLocatorSource,
+    ConsumableDamageSource, ConsumableEquippedSource, ConsumableItemSource,
+    ConsumableMaterialSource, ConsumablePriceSource, ConsumablePublicationSource,
+    ConsumableSourceFact, ConsumableUnsupportedSource, EmbeddedRelationshipKindSource,
+    EmbeddedRelationshipSource, EmbeddedStableLocatorSource, parse_item_source_from_serialized,
 };
 pub(crate) use npc::parse_npc_source_from_serialized;
 pub(crate) use spell::{

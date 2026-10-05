@@ -49,6 +49,7 @@ pub(crate) fn build_pending_document_embeddings(
                 document: build_search_presentation_document_with_content_filter(
                     record,
                     loaded.facts.canonical_body.as_ref(),
+                    Some(&loaded.facts.consumable_occurrences),
                     |content| canonical_content.is_none() && content.contributes_to_search(),
                 ),
                 aliases: aliases_by_key
@@ -68,14 +69,41 @@ fn canonical_embedding_content_documents(
     loaded: &LoadedSourceRecord,
 ) -> Option<Vec<DocumentEmbeddingContentSource>> {
     match loaded.facts.canonical_body.as_ref()? {
-        RecordBody::Creature(creature) => {
-            Some(embedding_content_documents_from_owned(&creature.content))
-        }
-        RecordBody::Hazard(hazard) => Some(embedding_content_documents_from_owned(&hazard.content)),
+        RecordBody::Creature(creature) => Some(actor_embedding_content_documents(
+            &creature.content,
+            &loaded.facts.consumable_occurrences,
+        )),
+        RecordBody::Hazard(hazard) => Some(actor_embedding_content_documents(
+            &hazard.content,
+            &loaded.facts.consumable_occurrences,
+        )),
         RecordBody::Spell(spell) => Some(embedding_content_documents_from_owned(
             &spell.definition.content,
         )),
+        RecordBody::Consumable(consumable) => {
+            Some(embedding_content_documents_from_owned(&consumable.content))
+        }
     }
+}
+
+fn actor_embedding_content_documents(
+    content: &OwnedRichContent,
+    consumables: &atlas_record::ConsumableOccurrenceSet,
+) -> Vec<DocumentEmbeddingContentSource> {
+    let mut documents = embedding_content_documents_from_owned(content);
+    for occurrence in &consumables.occurrences {
+        documents.extend(occurrence.searchable_content_documents().map(|document| {
+            DocumentEmbeddingContentSource {
+                source_kind: document.source_kind,
+                label: document
+                    .label
+                    .clone()
+                    .or_else(|| Some(occurrence.contextual_name.clone())),
+                document: document.document.clone(),
+            }
+        }));
+    }
+    documents
 }
 
 fn embedding_content_documents_from_owned(
@@ -464,6 +492,387 @@ mod tests {
                 .contains("Damage dice rule: hide if disabled false")
         );
         assert_ne!(changed[0].input_hash, pending[0].input_hash);
+    }
+
+    #[test]
+    fn canonical_consumable_embedding_uses_owned_content_and_ignores_source_state() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/foundry-source/spell-source-contract");
+        let source = crate::source_pipeline::load_foundry_source(&root, None)
+            .expect("portable consumable fixture source");
+        let wand = source
+            .records
+            .iter()
+            .find(|loaded| {
+                loaded.record.identity.key.to_string() == "equipment-srd:eOtQtVRLeGH39dNx"
+            })
+            .expect("Arboreal Wand fixture")
+            .clone();
+
+        let baseline = build_pending_document_embeddings(std::slice::from_ref(&wand), &[], &[]);
+        assert_eq!(baseline.len(), 1);
+        assert!(baseline[0].input_text.contains("Arboreal Wand"));
+        assert!(baseline[0].input_text.contains("indicated rank"));
+
+        let mut state_only = wand.clone();
+        let Some(RecordBody::Consumable(consumable)) = state_only.facts.canonical_body.as_mut()
+        else {
+            panic!("Arboreal Wand canonical consumable");
+        };
+        consumable.source_state.quantity =
+            FactValue::Value(atlas_record::ConsumableSourceValue::Known(999));
+        let state_projection = build_pending_document_embeddings(&[state_only], &[], &[]);
+        assert_eq!(state_projection[0].input_text, baseline[0].input_text);
+        assert_eq!(state_projection[0].input_hash, baseline[0].input_hash);
+        assert!(!state_projection[0].input_text.contains("999"));
+    }
+
+    #[test]
+    fn consumable_source_state_mutations_preserve_fts_and_embedding_text_and_hash() {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/foundry-source/spell-source-contract/packs/equipment/arboreal-wand-rank-4.json");
+        let raw: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(fixture).expect("portable source fixture"))
+                .expect("source JSON");
+        let root = std::env::temp_dir().join(format!(
+            "atlas-h5-source-state-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos(),
+        ));
+        std::fs::create_dir_all(root.join("packs/equipment")).expect("private fixture");
+        std::fs::write(root.join("module.json"),
+            r#"{"packs":[{"name":"equipment-srd","label":"Equipment","type":"Item","path":"packs/equipment"}]}"#,
+        ).expect("module");
+        let load = |raw: &serde_json::Value| {
+            std::fs::write(
+                root.join("packs/equipment/wand.json"),
+                serde_json::to_vec(raw).unwrap(),
+            )
+            .expect("private fixture source");
+            crate::source_pipeline::load_foundry_source(&root, None)
+                .expect("production loader")
+                .records
+                .into_iter()
+                .find(|loaded| {
+                    loaded.record.identity.key.to_string() == "equipment-srd:eOtQtVRLeGH39dNx"
+                })
+                .expect("loaded source consumable")
+        };
+        let baseline = load(&raw);
+        let baseline_fts = atlas_record::build_search_fts_projection(
+            &baseline.record,
+            &[],
+            baseline.facts.canonical_body.as_ref(),
+            None,
+        );
+        let baseline_embedding =
+            build_pending_document_embeddings(std::slice::from_ref(&baseline), &[], &[]);
+        assert!(!baseline_embedding.is_empty());
+        for (path, value) in [
+            ("/system/quantity", serde_json::json!(991)),
+            ("/system/uses/value", serde_json::json!(992)),
+            ("/system/hp/value", serde_json::json!(993)),
+            (
+                "/system/containerId",
+                serde_json::json!("H5ContainerSentinel"),
+            ),
+            ("/system/equipped/carryType", serde_json::json!("stowed")),
+            ("/system/equipped/handsHeld", serde_json::json!(2)),
+            ("/system/equipped/inSlot", serde_json::json!(true)),
+        ] {
+            let mut mutated = raw.clone();
+            let (parent, field) = path.rsplit_once('/').unwrap();
+            // Some portable fixtures omit an optional parent object.
+            let parent_name = parent.strip_prefix("/system/");
+            if let Some(parent_name) = parent_name
+                && !mutated["system"][parent_name].is_object()
+            {
+                mutated["system"][parent_name] = serde_json::json!({});
+            }
+            mutated.pointer_mut(parent).expect("source parent")[field] = value;
+            let loaded = load(&mutated);
+            assert_ne!(
+                loaded.facts.canonical_body, baseline.facts.canonical_body,
+                "mutation must reach canonical state: {path}"
+            );
+            assert_eq!(
+                atlas_record::build_search_fts_projection(
+                    &loaded.record,
+                    &[],
+                    loaded.facts.canonical_body.as_ref(),
+                    None
+                ),
+                baseline_fts,
+                "FTS source-state exclusion: {path}"
+            );
+            let embeddings = build_pending_document_embeddings(&[loaded], &[], &[]);
+            assert_eq!(embeddings.len(), baseline_embedding.len());
+            for (actual, expected) in embeddings.iter().zip(&baseline_embedding) {
+                assert_eq!(
+                    actual.input_text, expected.input_text,
+                    "embedding text: {path}"
+                );
+                assert_eq!(
+                    actual.input_hash, expected.input_hash,
+                    "embedding hash: {path}"
+                );
+            }
+        }
+        let mut definition_mutation = raw.clone();
+        definition_mutation["system"]["description"]["value"] =
+            serde_json::json!("<p>H5DefinitionSentinel unique authored mechanics.</p>");
+        let changed = load(&definition_mutation);
+        assert_ne!(
+            atlas_record::build_search_fts_projection(
+                &changed.record,
+                &[],
+                changed.facts.canonical_body.as_ref(),
+                None
+            ),
+            baseline_fts,
+            "definition positive control"
+        );
+        let changed_embedding = build_pending_document_embeddings(&[changed], &[], &[]);
+        assert_ne!(
+            changed_embedding[0].input_text,
+            baseline_embedding[0].input_text
+        );
+        assert_ne!(
+            changed_embedding[0].input_hash,
+            baseline_embedding[0].input_hash
+        );
+        std::fs::remove_dir_all(root).expect("dispose private fixture");
+    }
+
+    #[test]
+    fn npc_and_hazard_occurrence_content_and_definitions_reach_search_but_state_does_not()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use atlas_index::{FtsQuery, SqliteIndexReader};
+        let root = std::env::temp_dir().join(format!(
+            "atlas-h5-occurrence-search-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos(),
+        ));
+        std::fs::create_dir_all(root.join("packs/actors"))?;
+        std::fs::write(
+            root.join("module.json"),
+            r#"{"packs":[{"name":"actors","label":"Actors","type":"Actor","path":"packs/actors"}]}"#,
+        )?;
+        let actor = |family: &str| {
+            json!({
+                "_id": family, "name": format!("Owner {family}"), "type": family, "system": {},
+                "items": [{"_id":"dose", "name":"Authored dose", "type":"consumable", "system": {
+                    "level":{"value":1}, "category":"other", "traits":{"value":["consumable"]},
+                    "usage":{"value":"held-in-one-hand"}, "quantity":1, "uses":{"value":1,"max":2},
+                    "hp":{"value":1,"max":2}, "containerId":null,
+                    "equipped":{"carryType":"held","handsHeld":1,"inSlot":false},
+                    "description":{"value":format!("<p>hfive{family}baseline @UUID[Compendium.pf2e.spells.Item.referenceOnly]{{hfive{family}reference}}</p>")}
+                }}]
+            })
+        };
+        let mut captures = Vec::new();
+        for variant in ["baseline", "state", "content", "definition", "name"] {
+            for family in ["npc", "hazard"] {
+                let mut raw = actor(family);
+                let mut second = raw["items"][0].clone();
+                second["_id"] = json!("doseTwo");
+                second["name"] = json!("Ordered second dose");
+                second["system"]["description"]["value"] =
+                    json!(format!("<p>hfive{family}second</p>"));
+                raw["items"].as_array_mut().unwrap().push(second);
+                let item = &mut raw["items"][0];
+                match variant {
+                    "state" => {
+                        item["system"]["quantity"] = json!(991);
+                        item["system"]["uses"]["value"] = json!(992);
+                        item["system"]["hp"]["value"] = json!(993);
+                        item["system"]["containerId"] = json!("hfivecontainerexcluded");
+                        item["system"]["equipped"] =
+                            json!({"carryType":"stowed","handsHeld":2,"inSlot":true});
+                    }
+                    "content" => {
+                        item["system"]["description"]["value"] = json!(format!(
+                            "<p>hfive{family}changed @UUID[Compendium.pf2e.spells.Item.changedReference]{{hfive{family}newreference}}</p>"
+                        ))
+                    }
+                    "definition" => {
+                        item["system"]["category"] = json!(format!("hfive{family}category"))
+                    }
+                    "name" => item["name"] = json!(format!("hfive{family}name")),
+                    _ => {}
+                }
+                std::fs::write(
+                    root.join(format!("packs/actors/{family}.json")),
+                    serde_json::to_vec(&raw)?,
+                )?;
+            }
+            let loaded = crate::source_pipeline::load_foundry_source(&root, None)?.records;
+            let embeddings = build_pending_document_embeddings(&loaded, &[], &[]);
+            if variant == "baseline" {
+                let mut omitted = loaded.clone();
+                for record in &mut omitted {
+                    record.facts.consumable_occurrences = Default::default();
+                }
+                let omitted_embeddings = build_pending_document_embeddings(&omitted, &[], &[]);
+                assert!(
+                    omitted_embeddings
+                        .iter()
+                        .all(|unit| !unit.input_text.contains("hfive")),
+                    "sensitivity: omitted attachment must lose occurrence-only prose/reference tokens"
+                );
+                assert_ne!(embeddings, omitted_embeddings, "old omission is observable");
+            }
+            let artifact = root.join(format!("{variant}.sqlite"));
+            crate::build_artifact(crate::BuildArtifactOptions {
+                source_root: root.clone(),
+                output_path: artifact.clone(),
+                manifest_path: None,
+                embedding_model_id: crate::BuildArtifactOptions::default_embedding_model_id(),
+                embedding_cache_root: None,
+                reuse_embeddings: true,
+                embedding_batch_size: 8,
+            })?;
+            let reader = SqliteIndexReader::open_read_only(&artifact)?;
+            let hydrated = reader.load_hydrated_records()?;
+            let connection = rusqlite::Connection::open(&artifact)?;
+            let fts = connection.prepare("SELECT json_array(record_key,title,aliases,traits,taxonomy_terms,
+                constraint_terms,mechanic_terms,source_terms,metric_terms,headings,body,facts,reference_terms,
+                embedded_content) FROM records_fts ORDER BY record_key")?
+                .query_map([], |row| row.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
+            for family in ["npc", "hazard"] {
+                let key = RecordKey::parse(&format!("actors:{family}"))?;
+                let parent = hydrated
+                    .iter()
+                    .find(|record| record.record.identity.key == key)
+                    .unwrap();
+                assert_eq!(parent.consumable_occurrences.occurrences.len(), 2);
+                let parent_embedding = embeddings
+                    .iter()
+                    .find(|unit| unit.record_key == key.to_string())
+                    .unwrap();
+                let first_token = if variant == "content" {
+                    format!("hfive{family}changed")
+                } else {
+                    format!("hfive{family}baseline")
+                };
+                let second_token = format!("hfive{family}second");
+                assert_eq!(
+                    parent_embedding.input_text.matches(&first_token).count(),
+                    1,
+                    "first occurrence prose exactly once"
+                );
+                assert_eq!(
+                    parent_embedding.input_text.matches(&second_token).count(),
+                    1,
+                    "second occurrence prose exactly once"
+                );
+                assert!(
+                    parent_embedding.input_text.find(&first_token).unwrap()
+                        < parent_embedding.input_text.find(&second_token).unwrap(),
+                    "authored occurrence prose order"
+                );
+                let occurrence = &parent.consumable_occurrences.occurrences[0];
+                assert_eq!(occurrence.searchable_content_documents().count(), 1);
+                assert!(
+                    parent.record.content.documents.iter().all(|content| {
+                        !atlas_record::render_plain_text(&content.document)
+                            .contains(&format!("hfive{family}"))
+                    }),
+                    "generic duplication must not return"
+                );
+                if variant == "state" {
+                    assert_eq!(
+                        occurrence.state.quantity,
+                        FactValue::Value(atlas_record::ConsumableSourceValue::Known(991))
+                    );
+                    assert_eq!(
+                        occurrence.state.current_uses,
+                        FactValue::Value(atlas_record::ConsumableSourceValue::Known(992))
+                    );
+                    assert_eq!(
+                        occurrence.state.current_hp,
+                        FactValue::Value(atlas_record::ConsumableSourceValue::Known(993))
+                    );
+                    assert_eq!(
+                        occurrence.state.container_id,
+                        FactValue::Value(atlas_record::ConsumableSourceValue::Known(
+                            "hfivecontainerexcluded".to_string()
+                        ))
+                    );
+                    let FactValue::Value(atlas_record::ConsumableSourceValue::Known(equipped)) =
+                        &occurrence.state.equipped
+                    else {
+                        panic!("retained equipped state")
+                    };
+                    assert_eq!(
+                        equipped.hands_held,
+                        FactValue::Value(atlas_record::ConsumableSourceValue::Known(2))
+                    );
+                }
+                let tokens = match variant {
+                    "content" => vec![
+                        format!("hfive{family}changed"),
+                        format!("hfive{family}newreference"),
+                    ],
+                    "definition" => vec![format!("hfive{family}category")],
+                    "name" => vec![format!("hfive{family}name")],
+                    _ => vec![
+                        format!("hfive{family}baseline"),
+                        format!("hfive{family}reference"),
+                    ],
+                };
+                for token in tokens {
+                    let query = FtsQuery::from_tokens(vec![token.clone()]).unwrap();
+                    assert_eq!(
+                        reader
+                            .query_fts_candidate_record_keys(&query, std::slice::from_ref(&key))?,
+                        vec![key.clone()],
+                        "production FTS reader: {variant} {token}"
+                    );
+                    assert!(
+                        embeddings
+                            .iter()
+                            .filter(|unit| unit.record_key == key.to_string())
+                            .any(|unit| unit.input_text.contains(&token)),
+                        "semantic input: {variant} {token}"
+                    );
+                }
+            }
+            captures.push((fts, embeddings));
+        }
+        assert_eq!(
+            captures[0], captures[1],
+            "every FTS column and every embedding unit/text/hash excludes state and hands"
+        );
+        for changed in &captures[2..] {
+            assert_ne!(captures[0].0, changed.0, "FTS positive control");
+            for family in ["npc", "hazard"] {
+                let key = format!("actors:{family}");
+                let before = captures[0]
+                    .1
+                    .iter()
+                    .filter(|unit| unit.record_key == key)
+                    .map(|unit| (&unit.input_text, &unit.input_hash))
+                    .collect::<Vec<_>>();
+                let after = changed
+                    .1
+                    .iter()
+                    .filter(|unit| unit.record_key == key)
+                    .map(|unit| (&unit.input_text, &unit.input_hash))
+                    .collect::<Vec<_>>();
+                assert_ne!(
+                    before, after,
+                    "semantic text/hash positive control: {family}"
+                );
+            }
+        }
+        std::fs::remove_dir_all(root)?;
+        Ok(())
     }
 
     #[test]

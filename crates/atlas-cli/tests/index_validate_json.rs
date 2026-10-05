@@ -27,9 +27,9 @@ fn validate_index_json_reports_valid_minimal_contract() -> Result<(), Box<dyn st
     assert_eq!(actual["message"], "artifact metadata is valid");
     assert_eq!(
         actual["artifact_contract_version"],
-        "pf2e-atlas-artifact/v8"
+        "pf2e-atlas-artifact/v9"
     );
-    assert_eq!(actual["schema_version"], "4");
+    assert_eq!(actual["schema_version"], "5");
     assert_eq!(actual["source_signature"], "foundry-pf2e:fixture");
     assert_eq!(actual["embedding_dimensions"], "384");
     fs::remove_file(path)?;
@@ -116,7 +116,7 @@ fn validate_index_json_rejects_manifest_hash_mismatch_before_database_diagnostic
     create_valid_artifact_database_with_override(&path, None)?;
     let connection = Connection::open(&path)?;
     connection.execute(
-        "UPDATE artifact_metadata SET value = '5' WHERE key = 'schema_version'",
+        "UPDATE artifact_metadata SET value = '55' WHERE key = 'schema_version'",
         [],
     )?;
     drop(connection);
@@ -244,20 +244,20 @@ fn validate_index_json_reports_stale_source_signature() -> Result<(), Box<dyn st
 fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_db_path("cli-unsupported-schema");
-    create_valid_artifact_database_with_override(&path, Some(("schema_version", "5")))?;
+    create_valid_artifact_database_with_override(&path, Some(("schema_version", "6")))?;
 
     let output = validate_index(&path)?;
 
     assert_eq!(output.status.code(), Some(3));
     let actual = parse_ok_data(&output)?;
     assert_metadata_failure(&actual, &path, "unsupported_schema_version");
-    assert_eq!(actual["schema_version"], "5");
+    assert_eq!(actual["schema_version"], "6");
     assert_diagnostic(
         &actual,
         "unsupported_schema_version",
         "schema_version",
-        "4",
         "5",
+        "6",
     );
 
     let embeddings_only = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -272,8 +272,8 @@ fn validate_index_json_reports_unsupported_schema_version() -> Result<(), Box<dy
         &embeddings_only_actual,
         "unsupported_schema_version",
         "schema_version",
-        "4",
         "5",
+        "6",
     );
 
     let retrieval = atlas_command()
@@ -313,7 +313,7 @@ fn assert_metadata_failure(value: &serde_json::Value, path: &std::path::Path, co
         value["message"],
         "artifact metadata is incompatible with this runtime"
     );
-    assert_eq!(value["artifact_contract_version"], "pf2e-atlas-artifact/v8");
+    assert_eq!(value["artifact_contract_version"], "pf2e-atlas-artifact/v9");
 }
 
 fn assert_diagnostic(

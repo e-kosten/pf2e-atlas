@@ -51,6 +51,10 @@ pub mod reference_occurrences {
             Column::new(TABLE, "owner_hazard_occurrence_id");
         pub const OWNER_HAZARD_OCCURRENCE_AUTHORED_ORDER: Column =
             Column::new(TABLE, "owner_hazard_occurrence_authored_order");
+        pub const OWNER_CONSUMABLE_OCCURRENCE_ID: Column =
+            Column::new(TABLE, "owner_consumable_occurrence_id");
+        pub const OWNER_CONSUMABLE_OCCURRENCE_AUTHORED_ORDER: Column =
+            Column::new(TABLE, "owner_consumable_occurrence_authored_order");
         pub const ROLE: Column = Column::new(TABLE, "role");
         pub const ORIGIN_JSON: Column = Column::new(TABLE, "origin_json");
         pub const VISIBILITY: Column = Column::new(TABLE, "visibility");
@@ -75,6 +79,8 @@ pub mod reference_occurrences {
         columns::OWNER_HAZARD_ENTITY_ID,
         columns::OWNER_HAZARD_OCCURRENCE_ID,
         columns::OWNER_HAZARD_OCCURRENCE_AUTHORED_ORDER,
+        columns::OWNER_CONSUMABLE_OCCURRENCE_ID,
+        columns::OWNER_CONSUMABLE_OCCURRENCE_AUTHORED_ORDER,
         columns::ROLE,
         columns::ORIGIN_JSON,
         columns::VISIBILITY,

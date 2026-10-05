@@ -9,7 +9,7 @@ use atlas_record::{
 };
 
 use super::models::{RecordAliasRow, ReferenceEdgeRow, ReferenceOccurrenceRow, RemasterLinkRow};
-use super::records::allocated_content_keys;
+use super::records::{allocated_content_keys, legacy_content_ordinals};
 
 pub(super) fn write_reference_edges(
     connection: &mut SqliteConnection,
@@ -40,6 +40,7 @@ pub(super) fn write_reference_occurrences(
     connection: &mut SqliteConnection,
     records: &[AtlasRecord],
     canonical_record_keys: &std::collections::BTreeSet<String>,
+    consumable_occurrence_sets: &[atlas_record::ConsumableOccurrenceSet],
 ) -> Result<(), IndexWriteError> {
     let mut rows = Vec::new();
     for record in records {
@@ -47,7 +48,7 @@ pub(super) fn write_reference_occurrences(
             continue;
         }
         let mut content_inputs = Vec::new();
-        for (ordinal, content) in record.content.documents.iter().enumerate() {
+        for (ordinal, content) in legacy_content_ordinals(record, consumable_occurrence_sets) {
             let content_json = serde_json::to_string(&content.document)
                 .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
             content_inputs.push((ordinal, content, content_json));
@@ -104,6 +105,8 @@ fn collect_document_reference_occurrences(
             owner_hazard_entity_id: None,
             owner_hazard_occurrence_id: None,
             owner_hazard_occurrence_authored_order: None,
+            owner_consumable_occurrence_id: None,
+            owner_consumable_occurrence_authored_order: None,
             role: legacy_content_role(source_kind).to_string(),
             origin_json: crate::artifact::canonical_json::encode(
                 &atlas_record::ContentOrigin::RecordField {

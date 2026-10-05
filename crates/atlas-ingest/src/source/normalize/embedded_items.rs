@@ -26,7 +26,11 @@ pub(super) fn extract_embedded_item_facts(
                 item,
                 host_record_key,
                 index,
-                hazard_identities.and_then(|identities| identities.get(index)),
+                hazard_identities.and_then(|identities| {
+                    identities
+                        .iter()
+                        .find(|identity| identity.source_ordinal as usize == index)
+                }),
             )
         })
         .collect()

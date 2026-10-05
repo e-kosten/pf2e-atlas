@@ -9,6 +9,7 @@ mod relationships;
 mod search;
 
 pub use canonical::{
+    canonical_consumable_entities, canonical_consumable_occurrences, canonical_consumable_records,
     canonical_consumable_spell_children, canonical_creature_entities,
     canonical_creature_occurrences, canonical_creature_records, canonical_creature_relationships,
     canonical_creature_resources, canonical_hazard_entities, canonical_hazard_occurrences,
@@ -22,7 +23,8 @@ pub use embeddings::{document_embedding_cache, record_vector_index};
 pub use identity::{artifact_metadata, packs};
 pub use metrics::{metric_key_catalog, metric_value_catalog, record_metrics};
 pub use record_tables::{
-    actor_records, item_records, record_content, record_traits, records, spell_records,
+    actor_records, consumable_query_records, item_records, record_content, record_traits, records,
+    spell_records,
 };
 pub use relationships::{record_aliases, reference_edges, reference_occurrences, remaster_links};
 pub use search::records_fts;
@@ -54,6 +56,9 @@ pub const REQUIRED_TABLES: &[Table] = &[
     canonical_hazard_relationships::TABLE,
     canonical_spell_records::TABLE,
     canonical_consumable_spell_children::TABLE,
+    canonical_consumable_records::TABLE,
+    canonical_consumable_entities::TABLE,
+    canonical_consumable_occurrences::TABLE,
     spell_traditions::TABLE,
     spell_damage_types::TABLE,
     record_content_exclusions::TABLE,
@@ -71,6 +76,7 @@ pub const REQUIRED_TABLES: &[Table] = &[
     filter_numeric_catalog::TABLE,
     actor_records::TABLE,
     item_records::TABLE,
+    consumable_query_records::TABLE,
     spell_records::TABLE,
     records_fts::TABLE,
     document_embedding_cache::TABLE,
@@ -125,6 +131,18 @@ pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
         canonical_consumable_spell_children::TABLE,
         canonical_consumable_spell_children::ALL_COLUMNS,
     ),
+    (
+        canonical_consumable_records::TABLE,
+        canonical_consumable_records::ALL_COLUMNS,
+    ),
+    (
+        canonical_consumable_entities::TABLE,
+        canonical_consumable_entities::ALL_COLUMNS,
+    ),
+    (
+        canonical_consumable_occurrences::TABLE,
+        canonical_consumable_occurrences::ALL_COLUMNS,
+    ),
     (spell_traditions::TABLE, spell_traditions::ALL_COLUMNS),
     (spell_damage_types::TABLE, spell_damage_types::ALL_COLUMNS),
     (
@@ -163,6 +181,10 @@ pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
     ),
     (actor_records::TABLE, actor_records::ALL_COLUMNS),
     (item_records::TABLE, item_records::ALL_COLUMNS),
+    (
+        consumable_query_records::TABLE,
+        consumable_query_records::ALL_COLUMNS,
+    ),
     (spell_records::TABLE, spell_records::ALL_COLUMNS),
     (records_fts::TABLE, records_fts::ALL_COLUMNS),
     (

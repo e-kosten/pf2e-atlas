@@ -8,10 +8,12 @@ use atlas_app_model::{
     RecordSurfaceIssueView, RecordSurfacePresentationView,
 };
 use atlas_record::{
-    FactIssueKind, FactPresentationDisposition, FactPresentationRole, FactPresentationState,
-    FactRequirement, HazardSourceMetadataField, HazardSourceMetadataIssueKind, RecordBody,
-    RetrievedRecord, SpellPresentationIssue, SpellPresentationIssuePlacement,
-    classify_fact_presentation, merge_spell_presentation_issues, project_hazard_source_metadata,
+    ConsumableDefinition, ConsumableFact, ConsumableOccurrenceSet, ConsumableSourceState,
+    ConsumableSourceValue, FactIssueKind, FactPresentationDisposition, FactPresentationRole,
+    FactPresentationState, FactRequirement, FactValue, HazardSourceMetadataField,
+    HazardSourceMetadataIssueKind, RecordBody, RetrievedRecord, SpellPresentationIssue,
+    SpellPresentationIssuePlacement, UnsupportedSourceValue, classify_fact_presentation,
+    merge_spell_presentation_issues, project_hazard_source_metadata,
     project_spell_presentation_issues,
 };
 
@@ -23,14 +25,26 @@ pub(crate) fn record_surface_issues(
     let mut issues = Vec::new();
     match (presentation, &retrieved.body) {
         (RecordSurfacePresentationView::Creature { body }, Some(RecordBody::Creature(_))) => {
-            creature_issues(body.unavailable_domains.as_ref(), &mut issues)
+            creature_issues(body.unavailable_domains.as_ref(), &mut issues);
+            consumable_occurrence_issues(&retrieved.consumable_occurrences, &mut issues);
         }
         (RecordSurfacePresentationView::Hazard { body }, Some(RecordBody::Hazard(hazard))) => {
             hazard_issues(hazard, body, &mut issues);
+            consumable_occurrence_issues(&retrieved.consumable_occurrences, &mut issues);
         }
         (RecordSurfacePresentationView::Spell { .. }, Some(RecordBody::Spell(spell))) => {
             spell_issues(spell, selected_spell_issues, &mut issues);
         }
+        (
+            RecordSurfacePresentationView::Consumable { .. },
+            Some(RecordBody::Consumable(consumable)),
+        ) => consumable_issues(
+            &consumable.definition,
+            &consumable.source_state,
+            &consumable.unsupported_content,
+            None,
+            &mut issues,
+        ),
         (RecordSurfacePresentationView::Unavailable { .. }, _) => {
             issues.push(RecordSurfaceIssueView {
                 consequence: None,
@@ -45,6 +59,358 @@ pub(crate) fn record_surface_issues(
         _ => {}
     }
     (!issues.is_empty()).then_some(issues)
+}
+
+fn consumable_occurrence_issues(
+    set: &ConsumableOccurrenceSet,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    for occurrence in &set.occurrences {
+        let definition = set
+            .entities
+            .iter()
+            .find(|entity| entity.id == occurrence.entity_id)
+            .and_then(|entity| match &entity.target {
+                atlas_record::ConsumableEntityTarget::Resolved { .. } => None,
+                atlas_record::ConsumableEntityTarget::ParentOwned { definition, .. } => {
+                    Some(definition.as_ref())
+                }
+            });
+        if let Some(definition) = definition {
+            consumable_issues(
+                definition,
+                &occurrence.state,
+                &occurrence.unsupported_content,
+                Some((occurrence.id.as_str(), occurrence.contextual_name.as_str())),
+                issues,
+            );
+        } else {
+            consumable_state_issues(
+                &occurrence.state,
+                Some((occurrence.id.as_str(), occurrence.contextual_name.as_str())),
+                issues,
+            );
+            push_consumable_content_issues(
+                &occurrence.unsupported_content,
+                Some((occurrence.id.as_str(), occurrence.contextual_name.as_str())),
+                issues,
+            );
+        }
+        if let atlas_record::ConsumableSpellReuse::Mismatch { reason, .. } = &occurrence.spell_reuse
+        {
+            issues.push(RecordSurfaceIssueView {
+                consequence: Some(
+                    "The authored embedded spell is retained as source evidence but is not used as a spell presentation."
+                        .to_string(),
+                ),
+                fact_id: Some(format!(
+                    "consumable:{}:spell_child",
+                    occurrence.id.as_str()
+                )),
+                code: RecordSurfaceIssueCodeView::Unavailable,
+                placement: RecordSurfaceIssuePlacementView::Record,
+                subject: Some(RecordSurfaceIssueSubjectView {
+                    label: occurrence.contextual_name.clone(),
+                    target: None,
+                }),
+                fact_label: Some("Embedded spell".to_string()),
+                message: consumable_spell_mismatch_message(*reason).to_string(),
+            });
+        }
+    }
+}
+
+fn consumable_spell_mismatch_message(
+    reason: atlas_record::ConsumableSpellMismatchReason,
+) -> &'static str {
+    match reason {
+        atlas_record::ConsumableSpellMismatchReason::UnresolvedParent => {
+            "The embedded spell cannot be compared because the consumable target is unresolved."
+        }
+        atlas_record::ConsumableSpellMismatchReason::TargetWithoutChild => {
+            "The target consumable has no matching embedded spell."
+        }
+        atlas_record::ConsumableSpellMismatchReason::LocalChildMissing => {
+            "The local consumable has no embedded spell that matches its target."
+        }
+        atlas_record::ConsumableSpellMismatchReason::LocalChildMalformed => {
+            "The local embedded spell has an unsupported source shape."
+        }
+        atlas_record::ConsumableSpellMismatchReason::ChildIdentity => {
+            "The local and target embedded spell identities differ."
+        }
+        atlas_record::ConsumableSpellMismatchReason::SourceContext => {
+            "The local and target embedded spell source contexts differ."
+        }
+        atlas_record::ConsumableSpellMismatchReason::Definition => {
+            "The local and target embedded spell definitions differ."
+        }
+        atlas_record::ConsumableSpellMismatchReason::ContentOrReferences => {
+            "The local and target embedded spell content or references differ."
+        }
+        atlas_record::ConsumableSpellMismatchReason::OverlayOrFormOrder => {
+            "The local and target embedded spell forms or authored order differ."
+        }
+    }
+}
+
+fn consumable_issues(
+    definition: &ConsumableDefinition,
+    state: &ConsumableSourceState,
+    unsupported_content: &[UnsupportedSourceValue],
+    occurrence: Option<(&str, &str)>,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    macro_rules! fact {
+        ($field:ident, $label:literal) => {
+            push_consumable_fact_issue(
+                &definition.$field,
+                concat!("definition.", stringify!($field)),
+                $label,
+                occurrence,
+                issues,
+            );
+        };
+    }
+    fact!(slug, "Slug");
+    fact!(level, "Level");
+    fact!(category, "Category");
+    fact!(rarity, "Rarity");
+    fact!(traits, "Traits");
+    fact!(other_tags, "Other tags");
+    fact!(base_item, "Base item");
+    fact!(bulk, "Bulk");
+    fact!(size, "Size");
+    fact!(stack_group, "Stack group");
+    fact!(material, "Material");
+    fact!(price, "Price");
+    fact!(usage, "Usage");
+    fact!(maximum_uses, "Maximum uses");
+    fact!(auto_destroy, "Auto-destroy");
+    fact!(maximum_hp, "Maximum HP");
+    fact!(hardness, "Hardness");
+    fact!(damage, "Damage");
+    fact!(publication, "Publication");
+    fact!(rules, "Rules");
+    if let FactValue::Value(ConsumableSourceValue::Known(material)) = &definition.material {
+        push_consumable_fact_issue(
+            &material.grade,
+            "definition.material.grade",
+            "Material grade",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &material.material_type,
+            "definition.material.type",
+            "Material type",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &material.effects,
+            "definition.material.effects",
+            "Material effects",
+            occurrence,
+            issues,
+        );
+    }
+    if let FactValue::Value(ConsumableSourceValue::Known(price)) = &definition.price {
+        push_consumable_fact_issue(
+            &price.denominations,
+            "definition.price.denominations",
+            "Price denominations",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &price.per,
+            "definition.price.per",
+            "Price quantity",
+            occurrence,
+            issues,
+        );
+    }
+    if let FactValue::Value(ConsumableSourceValue::Known(publication)) = &definition.publication {
+        push_consumable_fact_issue(
+            &publication.title,
+            "definition.publication.title",
+            "Publication title",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &publication.license,
+            "definition.publication.license",
+            "Publication license",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &publication.remaster,
+            "definition.publication.remaster",
+            "Remaster status",
+            occurrence,
+            issues,
+        );
+    }
+    if let FactValue::Value(ConsumableSourceValue::Known(damage)) = &definition.damage {
+        push_consumable_fact_issue(
+            &damage.formula,
+            "definition.damage.formula",
+            "Damage formula",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &damage.category,
+            "definition.damage.kind",
+            "Damage kind",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &damage.damage_type,
+            "definition.damage.type",
+            "Damage type",
+            occurrence,
+            issues,
+        );
+    }
+    consumable_state_issues(state, occurrence, issues);
+    push_consumable_content_issues(unsupported_content, occurrence, issues);
+}
+
+fn push_consumable_content_issues(
+    unsupported_content: &[UnsupportedSourceValue],
+    occurrence: Option<(&str, &str)>,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    for (ordinal, _) in unsupported_content.iter().enumerate() {
+        let (fact_id, subject) = occurrence.map_or_else(
+            || (format!("consumable:content.unsupported.{ordinal}"), None),
+            |(occurrence_id, occurrence_label)| {
+                (
+                    format!("consumable:{occurrence_id}:content.unsupported.{ordinal}"),
+                    Some(RecordSurfaceIssueSubjectView {
+                        label: occurrence_label.to_string(),
+                        target: None,
+                    }),
+                )
+            },
+        );
+        issues.push(RecordSurfaceIssueView {
+            fact_id: Some(fact_id),
+            code: RecordSurfaceIssueCodeView::Unsupported,
+            placement: RecordSurfaceIssuePlacementView::Record,
+            subject,
+            fact_label: Some("Description".to_string()),
+            message: "Description could not be presented from the authored source value."
+                .to_string(),
+            consequence: Some("The affected consumable description is unavailable.".to_string()),
+        });
+    }
+}
+
+fn consumable_state_issues(
+    state: &ConsumableSourceState,
+    occurrence: Option<(&str, &str)>,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    push_consumable_fact_issue(
+        &state.quantity,
+        "state.quantity",
+        "Quantity",
+        occurrence,
+        issues,
+    );
+    push_consumable_fact_issue(
+        &state.current_uses,
+        "state.current_uses",
+        "Uses remaining",
+        occurrence,
+        issues,
+    );
+    push_consumable_fact_issue(
+        &state.current_hp,
+        "state.current_hp",
+        "Current HP",
+        occurrence,
+        issues,
+    );
+    push_consumable_fact_issue(
+        &state.container_id,
+        "state.container_id",
+        "Container",
+        occurrence,
+        issues,
+    );
+    push_consumable_fact_issue(
+        &state.equipped,
+        "state.equipped",
+        "Equipped state",
+        occurrence,
+        issues,
+    );
+    if let FactValue::Value(ConsumableSourceValue::Known(equipped)) = &state.equipped {
+        push_consumable_fact_issue(
+            &equipped.carry_type,
+            "state.equipped.carry_type",
+            "Carry type",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &equipped.hands_held,
+            "state.equipped.hands_held",
+            "Hands held",
+            occurrence,
+            issues,
+        );
+        push_consumable_fact_issue(
+            &equipped.in_slot,
+            "state.equipped.in_slot",
+            "In slot",
+            occurrence,
+            issues,
+        );
+    }
+}
+
+fn push_consumable_fact_issue<T>(
+    fact: &ConsumableFact<T>,
+    fact_path: &str,
+    label: &str,
+    occurrence: Option<(&str, &str)>,
+    issues: &mut Vec<RecordSurfaceIssueView>,
+) {
+    if !matches!(
+        fact,
+        FactValue::Value(ConsumableSourceValue::Unsupported(_))
+    ) {
+        return;
+    }
+    let (fact_id, subject) = occurrence.map_or_else(
+        || (format!("consumable:{fact_path}"), None),
+        |(occurrence_id, occurrence_label)| {
+            (
+                format!("consumable:{occurrence_id}:{fact_path}"),
+                Some(RecordSurfaceIssueSubjectView {
+                    label: occurrence_label.to_string(),
+                    target: None,
+                }),
+            )
+        },
+    );
+    issues.push(RecordSurfaceIssueView {
+        fact_id: Some(fact_id),
+        code: RecordSurfaceIssueCodeView::Unsupported,
+        placement: RecordSurfaceIssuePlacementView::Record,
+        subject,
+        fact_label: Some(label.to_string()),
+        message: format!("{label} could not be presented from the authored source value."),
+        consequence: Some("The affected consumable fact is unavailable.".to_string()),
+    });
 }
 
 fn creature_issues(
@@ -251,7 +617,7 @@ fn hazard_issues(
     }
 }
 
-fn spell_issues(
+pub(crate) fn spell_issues(
     spell: &atlas_record::SpellRecord,
     selected: &[SpellPresentationIssue],
     issues: &mut Vec<RecordSurfaceIssueView>,
@@ -467,6 +833,36 @@ mod tests {
 
     use crate::retrieval::VerifiedRemasterLookup;
     use crate::test_support::encounter_fixture_worker;
+
+    #[test]
+    fn unsupported_consumable_descriptions_report_each_authored_failure_once() {
+        let unsupported = UnsupportedSourceValue {
+            shape: UnsupportedSourceShape::Object,
+            value: r#"{"value":"first","value":"second"}"#.to_string(),
+            reason: UnsupportedSourceReason::SourceFieldDrift,
+        };
+        let mut issues = Vec::new();
+        super::push_consumable_content_issues(
+            &[unsupported],
+            Some(("occurrence-1", "Malformed Description")),
+            &mut issues,
+        );
+
+        assert_eq!(issues.len(), 1);
+        assert_eq!(
+            issues[0].fact_id.as_deref(),
+            Some("consumable:occurrence-1:content.unsupported.0")
+        );
+        assert_eq!(issues[0].fact_label.as_deref(), Some("Description"));
+        assert_eq!(
+            issues[0]
+                .subject
+                .as_ref()
+                .map(|subject| subject.label.as_str()),
+            Some("Malformed Description")
+        );
+        assert!(!issues[0].message.contains("first"));
+    }
 
     #[test]
     fn spell_expectedness_keeps_optional_absence_quiet_and_unsupported_actionable() {

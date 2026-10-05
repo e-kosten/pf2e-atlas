@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use atlas_domain::{PackName, Rarity};
+use atlas_domain::PackName;
 use atlas_record::{
     ContentOwner, FactValue, FoundryLinkBehavior, FoundryLinkMacroKind, HazardActionCount,
     HazardActionType, HazardAttackMode, HazardCapability, HazardEntityFamily, HazardRuleElement,
@@ -8,12 +8,13 @@ use atlas_record::{
     PF2E_HAZARD_ATTACK_MODE_RULE_ID, PF2E_STRIKE_ACTION_COST_RULE_ID, RecordBody, RichLinkTarget,
     build_hazard_presentation_document, build_search_fts_projection, iter_foundry_links,
     project_hazard_attack_mode, project_hazard_facts, project_hazard_strike_action_cost,
-    project_hazard_weapon_type_consistency, render_plain_text,
+    project_hazard_weapon_type_consistency,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use super::ManifestPack;
+use super::dto::ItemSource;
 use super::normalize::{classify_record, normalize_record, normalize_record_from_source_bytes};
 use super::owned_content::finalize_hazard_owned_content;
 use crate::records::references::{
@@ -308,7 +309,7 @@ fn embedded_lineage_rejects_a_wrong_shaped_compendium_source_at_its_entity_owner
 }
 
 #[test]
-fn false_door_sorts_consumable_first_and_retains_it_as_unsupported_child() {
+fn false_door_routes_consumable_to_h5_without_legacy_hazard_duplication() {
     let loaded = normalize_fixture(
         "agents-of-edgewatch-bestiary",
         "Actor",
@@ -325,56 +326,25 @@ fn false_door_sorts_consumable_first_and_retains_it_as_unsupported_child() {
             .map(|occurrence| (occurrence.id.as_str(), occurrence.family))
             .collect::<Vec<_>>(),
         [
-            ("4XbK3Gnf0R1gkYPJ", HazardEntityFamily::UnsupportedChild),
             ("gzMwqFLG38aJHUIa", HazardEntityFamily::Action),
             ("VeiaoxMMsn7EH0Ri", HazardEntityFamily::Action),
         ]
     );
-    let child_entity = embedded
-        .entities
-        .iter()
-        .find(|entity| entity.id.as_str() == "4XbK3Gnf0R1gkYPJ")
-        .expect("consumable child");
-    let HazardCapability::UnsupportedChild(child) = &child_entity.capability else {
-        panic!("unsupported child")
-    };
-    assert_eq!(child.child_type, "consumable");
-    assert_eq!(
-        child.unsupported_fields.len() + usize::from(child.common.rarity.typed().is_some()),
-        20,
-        "nineteen unsupported inventory/economy leaves plus typed rarity remain retained"
-    );
-    assert_eq!(child.common.rarity.typed(), Some(&Rarity::Common));
-    assert!(matches!(child.common.lineage.value, FactValue::Missing));
-    assert!(project_hazard_strike_action_cost(child_entity).is_none());
-    let unsupported = hazard.unsupported_facts();
-    let identities = unsupported
-        .iter()
-        .map(|fact| fact.value.source_fact_identity())
-        .collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(identities.len(), unsupported.len());
-    assert!(child.unsupported_fields.iter().all(|fact| {
-        fact.value.owner == atlas_record::HazardUnsupportedOwner::Entity(child_entity.id.clone())
-    }));
-    assert!(child.unsupported_fields.iter().any(|field| {
-        matches!(&field.field, HazardUnsupportedField::UnsupportedChildField(path) if path.ends_with("/system/category"))
-            && field.value.exact_json == "\"potion\""
-    }));
     assert!(
-        render_plain_text(child.common.description.typed().expect("description"))
-            .contains("Maximum Duration")
-    );
-    assert_eq!(
-        child
-            .common
-            .traits
-            .typed()
-            .expect("traits")
+        embedded
+            .entities
             .iter()
-            .map(|value| value.as_str())
-            .collect::<Vec<_>>(),
-        ["alchemical", "consumable", "injury", "poison"]
+            .all(|entity| entity.id.as_str() != "4XbK3Gnf0R1gkYPJ"),
+        "the H5 consumable must not remain under the legacy hazard entity owner"
     );
+    let [candidate] = loaded.facts.consumable_occurrence_candidates.as_slice() else {
+        panic!("False Door must retain exactly one H5 consumable candidate")
+    };
+    assert_eq!(candidate.source.source.source().id, "4XbK3Gnf0R1gkYPJ");
+    assert!(matches!(
+        &candidate.source.source,
+        ItemSource::Consumable(_)
+    ));
 }
 
 #[test]
@@ -676,8 +646,12 @@ fn rule_elements_model_known_shapes_and_preserve_unknown_exactly() {
         "{\"key\":\"FutureHazardRule\",\"payload\":{\"amount\":7}}"
     );
     let facts = project_hazard_facts(hazard);
-    let fts =
-        build_search_fts_projection(&loaded.record, &[], loaded.facts.canonical_body.as_ref());
+    let fts = build_search_fts_projection(
+        &loaded.record,
+        &[],
+        loaded.facts.canonical_body.as_ref(),
+        None,
+    );
     assert!(
         facts
             .mechanic_terms

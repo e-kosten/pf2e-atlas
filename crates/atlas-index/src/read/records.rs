@@ -104,6 +104,7 @@ impl SqliteIndexReader {
             let bodies = canonical::read_canonical_record_bodies(connection)?;
             let by_key = canonical::bodies_by_key(bodies.clone())?;
             canonical::reconcile_spell_query_projections(connection, &by_key, None)?;
+            canonical::reconcile_consumable_query_projections(connection, &by_key, None)?;
             Ok(bodies)
         })
     }
@@ -116,6 +117,7 @@ impl SqliteIndexReader {
             let bodies = canonical::read_canonical_record_bodies_by_key(connection, keys)?;
             let by_key = canonical::bodies_by_key(bodies.clone())?;
             canonical::reconcile_spell_query_projections(connection, &by_key, Some(keys))?;
+            canonical::reconcile_consumable_query_projections(connection, &by_key, Some(keys))?;
             Ok(bodies)
         })
     }
@@ -126,10 +128,12 @@ impl SqliteIndexReader {
             let bodies =
                 canonical::bodies_by_key(canonical::read_canonical_record_bodies(connection)?)?;
             canonical::reconcile_spell_query_projections(connection, &bodies, None)?;
+            canonical::reconcile_consumable_query_projections(connection, &bodies, None)?;
             let children =
                 canonical::spell_children_by_parent(canonical::read_spell_children(connection)?)?;
+            let occurrences = canonical::read_consumable_occurrences(connection, None)?;
             canonical::reconcile_spell_owned_projections(connection, &bodies, &children)?;
-            hydrate_record_parts(records, bodies, children)
+            hydrate_record_parts(records, bodies, children, occurrences)
         })
     }
 
@@ -143,11 +147,13 @@ impl SqliteIndexReader {
                 connection, keys,
             )?)?;
             canonical::reconcile_spell_query_projections(connection, &bodies, Some(keys))?;
+            canonical::reconcile_consumable_query_projections(connection, &bodies, Some(keys))?;
             let children = canonical::spell_children_by_parent(
                 canonical::read_spell_children_by_parent_key(connection, keys)?,
             )?;
+            let occurrences = canonical::read_consumable_occurrences(connection, Some(keys))?;
             canonical::reconcile_spell_owned_projections(connection, &bodies, &children)?;
-            hydrate_record_parts(records, bodies, children)
+            hydrate_record_parts(records, bodies, children, occurrences)
         })
     }
 
@@ -213,6 +219,10 @@ pub fn hydrate_record_parts(
         RecordKey,
         Vec<atlas_record::ConsumableSpellChild>,
     >,
+    mut consumable_occurrences: std::collections::BTreeMap<
+        RecordKey,
+        atlas_record::ConsumableOccurrenceSet,
+    >,
 ) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
     let mut hydrated = Vec::with_capacity(records.len());
     for record in records {
@@ -224,6 +234,12 @@ pub fn hydrate_record_parts(
             | (None, None) => {}
             (Some(CanonicalBodyFamily::Spell), Some(atlas_record::RecordBody::Spell(spell))) => {
                 validate_spell_body_owner(&record, spell)?;
+            }
+            (
+                Some(CanonicalBodyFamily::Consumable),
+                Some(atlas_record::RecordBody::Consumable(consumable)),
+            ) => {
+                validate_consumable_body_owner(&record, consumable)?;
             }
             (Some(expected), None) => {
                 return Err(RecordLoadError::InvalidData(format!(
@@ -238,6 +254,7 @@ pub fn hydrate_record_parts(
                     atlas_record::RecordBody::Creature(_) => "creature",
                     atlas_record::RecordBody::Hazard(_) => "hazard",
                     atlas_record::RecordBody::Spell(_) => "spell",
+                    atlas_record::RecordBody::Consumable(_) => "consumable",
                 };
                 return Err(RecordLoadError::InvalidData(format!(
                     "record `{}` expects {expected} canonical body but has an unexpected canonical {actual} body",
@@ -248,9 +265,23 @@ pub fn hydrate_record_parts(
         let children = spell_children
             .remove(&record.identity.key)
             .unwrap_or_default();
+        let occurrences = consumable_occurrences
+            .remove(&record.identity.key)
+            .unwrap_or_default();
         if !children.is_empty() && record.foundry.record_type != FoundryRecordType::Consumable {
             return Err(RecordLoadError::InvalidData(format!(
                 "non-consumable record `{}` has consumable spell children",
+                record.identity.key
+            )));
+        }
+        if (!occurrences.entities.is_empty() || !occurrences.occurrences.is_empty())
+            && !matches!(
+                record.foundry.record_type,
+                FoundryRecordType::Npc | FoundryRecordType::Character | FoundryRecordType::Hazard
+            )
+        {
+            return Err(RecordLoadError::InvalidData(format!(
+                "record `{}` cannot own consumable occurrences",
                 record.identity.key
             )));
         }
@@ -258,6 +289,7 @@ pub fn hydrate_record_parts(
             record,
             body,
             spell_children: children,
+            consumable_occurrences: occurrences,
         });
     }
     if let Some(extra) = bodies.keys().next() {
@@ -270,6 +302,11 @@ pub fn hydrate_record_parts(
             "consumable spell children for `{extra}` have no matching persisted record"
         )));
     }
+    if let Some(extra) = consumable_occurrences.keys().next() {
+        return Err(RecordLoadError::InvalidData(format!(
+            "consumable occurrences for `{extra}` have no matching persisted record"
+        )));
+    }
     Ok(hydrated)
 }
 
@@ -278,6 +315,7 @@ enum CanonicalBodyFamily {
     Creature,
     Hazard,
     Spell,
+    Consumable,
 }
 
 impl CanonicalBodyFamily {
@@ -286,6 +324,7 @@ impl CanonicalBodyFamily {
             Self::Creature => "creature",
             Self::Hazard => "hazard",
             Self::Spell => "spell",
+            Self::Consumable => "consumable",
         }
     }
 }
@@ -297,6 +336,9 @@ fn expected_canonical_body_family(
         (RecordKind::Creature, FoundryRecordType::Npc) => Ok(Some(CanonicalBodyFamily::Creature)),
         (RecordKind::Hazard, FoundryRecordType::Hazard) => Ok(Some(CanonicalBodyFamily::Hazard)),
         (RecordKind::Spell, FoundryRecordType::Spell) => Ok(Some(CanonicalBodyFamily::Spell)),
+        (RecordKind::Equipment, FoundryRecordType::Consumable) => {
+            Ok(Some(CanonicalBodyFamily::Consumable))
+        }
         (RecordKind::Creature, actual) => Err(RecordLoadError::InvalidData(format!(
             "creature record `{}` has Foundry type `{}` instead of `npc`",
             record.identity.key,
@@ -327,8 +369,29 @@ fn expected_canonical_body_family(
             record.identity.key,
             actual.as_str(),
         ))),
+        (actual, FoundryRecordType::Consumable) => Err(RecordLoadError::InvalidData(format!(
+            "Foundry consumable `{}` has record kind `{}` instead of `equipment`",
+            record.identity.key,
+            actual.as_str(),
+        ))),
         _ => Ok(None),
     }
+}
+
+fn validate_consumable_body_owner(
+    record: &AtlasRecord,
+    consumable: &atlas_record::ConsumableRecord,
+) -> Result<(), RecordLoadError> {
+    if consumable.identity.record_key != record.identity.key
+        || consumable.identity.name != record.identity.name
+        || consumable.identity.source_id.as_str() != record.identity.id().as_str()
+    {
+        return Err(RecordLoadError::InvalidData(format!(
+            "consumable body identity for `{}` does not match its generic record owner",
+            record.identity.key
+        )));
+    }
+    Ok(())
 }
 pub(super) fn validate_spell_body_owner(
     record: &AtlasRecord,

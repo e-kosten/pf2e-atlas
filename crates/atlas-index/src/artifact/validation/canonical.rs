@@ -99,11 +99,11 @@ const PROJECTION_TABLES: &[(&str, &str)] = &[
     ),
     (
         "record_content",
-        "record_key,content_key,authored_order,identity_stability,owner_kind,owner_record_key,owner_entity_id,owner_occurrence_id,owner_occurrence_authored_order,owner_hazard_entity_id,owner_hazard_occurrence_id,owner_hazard_occurrence_authored_order,role,origin_json,visibility,provenance_json,source_kind,contributes_to_search,contributes_to_references,label,content_json,content_hash,duplicate_status_json,diagnostics_json",
+        "record_key,content_key,authored_order,identity_stability,owner_kind,owner_record_key,owner_entity_id,owner_occurrence_id,owner_occurrence_authored_order,owner_hazard_entity_id,owner_hazard_occurrence_id,owner_hazard_occurrence_authored_order,owner_consumable_occurrence_id,owner_consumable_occurrence_authored_order,role,origin_json,visibility,provenance_json,source_kind,contributes_to_search,contributes_to_references,label,content_json,content_hash,duplicate_status_json,diagnostics_json",
     ),
     (
         "reference_occurrences",
-        "record_key,content_key,content_authored_order,occurrence_ordinal,owner_kind,owner_record_key,owner_entity_id,owner_occurrence_id,owner_occurrence_authored_order,owner_hazard_entity_id,owner_hazard_occurrence_id,owner_hazard_occurrence_authored_order,role,origin_json,visibility,provenance_json,target_kind,target_record_key,target_json,label,relation_kind",
+        "record_key,content_key,content_authored_order,occurrence_ordinal,owner_kind,owner_record_key,owner_entity_id,owner_occurrence_id,owner_occurrence_authored_order,owner_hazard_entity_id,owner_hazard_occurrence_id,owner_hazard_occurrence_authored_order,owner_consumable_occurrence_id,owner_consumable_occurrence_authored_order,role,origin_json,visibility,provenance_json,target_kind,target_record_key,target_json,label,relation_kind",
     ),
     (
         "record_content_exclusions",
@@ -338,7 +338,8 @@ pub(super) fn validate_canonical_structure(
                 OR (r.record_kind = 'hazard' AND r.foundry_record_type <> 'hazard')
                 OR (r.record_kind <> 'hazard' AND r.foundry_record_type = 'hazard')
                 OR (r.record_kind = 'spell' AND r.foundry_record_type <> 'spell')
-                OR (r.record_kind <> 'spell' AND r.foundry_record_type = 'spell')",
+                OR (r.record_kind <> 'spell' AND r.foundry_record_type = 'spell')
+                OR (r.record_kind <> 'equipment' AND r.foundry_record_type = 'consumable')",
             "canonical record kind and Foundry type must identify the same body family",
         ),
         (
@@ -382,7 +383,8 @@ pub(super) fn validate_canonical_structure(
             "SELECT COUNT(*)
              FROM record_content_exclusions e
              WHERE NOT EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key=e.record_key)
-               AND NOT EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key=e.record_key)",
+               AND NOT EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key=e.record_key)
+               AND NOT EXISTS (SELECT 1 FROM canonical_consumable_records x WHERE x.record_key=e.record_key)",
             "content exclusions must belong to a canonical record body",
         ),
         (
@@ -418,12 +420,70 @@ pub(super) fn validate_canonical_structure(
             "spell query projections must be owned by canonical spell bodies",
         ),
         (
+            "canonical_consumable_records.missing_consumable_body",
+            "SELECT COUNT(*)
+             FROM records r
+             LEFT JOIN canonical_consumable_records c ON c.record_key = r.record_key
+             WHERE r.record_kind = 'equipment'
+               AND r.foundry_record_type = 'consumable'
+               AND c.record_key IS NULL",
+            "every standalone consumable record must have one canonical consumable body",
+        ),
+        (
+            "canonical_consumable_records.non_consumable_body",
+            "SELECT COUNT(*)
+             FROM canonical_consumable_records c
+             JOIN records r ON r.record_key = c.record_key
+             WHERE r.record_kind <> 'equipment' OR r.foundry_record_type <> 'consumable'",
+            "non-consumable records must not have canonical consumable bodies",
+        ),
+        (
+            "canonical_consumable_records.legacy_item_fields",
+            "SELECT COUNT(*) FROM canonical_consumable_records c
+             JOIN records r ON r.record_key=c.record_key
+             WHERE r.system_category IS NOT NULL OR r.system_group IS NOT NULL
+                OR r.system_base_item IS NOT NULL OR r.system_usage IS NOT NULL
+                OR r.system_price_json IS NOT NULL OR r.price_cp IS NOT NULL",
+            "canonical consumables must not have legacy item query fields",
+        ),
+        (
+            "canonical_consumable_records.missing_query_projection",
+            "SELECT COUNT(*)
+             FROM canonical_consumable_records c
+             LEFT JOIN consumable_query_records q ON q.record_key = c.record_key
+             WHERE q.record_key IS NULL",
+            "every canonical consumable body must have one consumable query projection",
+        ),
+        (
+            "consumable_query_records.extra_query_projection",
+            "SELECT COUNT(*)
+             FROM consumable_query_records q
+             LEFT JOIN canonical_consumable_records c ON c.record_key = q.record_key
+             WHERE c.record_key IS NULL",
+            "consumable query projections must be owned by canonical consumable bodies",
+        ),
+        (
             "canonical_consumable_spell_children.non_consumable_parent",
             "SELECT COUNT(*)
              FROM canonical_consumable_spell_children c
              JOIN records r ON r.record_key = c.parent_record_key
              WHERE r.foundry_record_type <> 'consumable'",
             "canonical consumable spell children must belong to consumable records",
+        ),
+        (
+            "canonical_consumable_occurrences.parent_count_anchor",
+            "SELECT COUNT(*) FROM records r
+             WHERE r.consumable_entity_count <> (SELECT COUNT(*) FROM canonical_consumable_entities e WHERE e.owner_record_key=r.record_key)
+                OR r.consumable_occurrence_count <> (SELECT COUNT(*) FROM canonical_consumable_occurrences o WHERE o.owner_record_key=r.record_key)",
+            "parent-owned consumable counts must authenticate each complete attachment, including empty sets",
+        ),
+        (
+            "canonical_consumable_entities.invalid_owner_family",
+            "SELECT COUNT(*)
+             FROM canonical_consumable_entities e
+             JOIN records r ON r.record_key = e.owner_record_key
+             WHERE r.foundry_record_type NOT IN ('npc', 'character', 'hazard')",
+            "consumable occurrences must belong only to NPC, Character, or hazard records",
         ),
         (
             "canonical_consumable_spell_children.non_contiguous_order",
@@ -463,8 +523,9 @@ fn validate_canonical_side_row_ownership(
              FROM actor_records a
              WHERE EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key = a.record_key)
                 OR EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key = a.record_key)
-                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = a.record_key)",
-            "canonical creature, hazard, and spell records must not own generic actor rows",
+                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = a.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_consumable_records x WHERE x.record_key = a.record_key)",
+            "canonical creature, hazard, spell, and consumable records must not own generic actor rows",
         ),
         (
             "item_records.canonical_body_owner",
@@ -472,15 +533,17 @@ fn validate_canonical_side_row_ownership(
              FROM item_records i
              WHERE EXISTS (SELECT 1 FROM canonical_creature_records c WHERE c.record_key = i.record_key)
                 OR EXISTS (SELECT 1 FROM canonical_hazard_records h WHERE h.record_key = i.record_key)
-                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = i.record_key)",
-            "canonical creature, hazard, and spell records must not own generic item rows",
+                OR EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = i.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_consumable_records x WHERE x.record_key = i.record_key)",
+            "canonical creature, hazard, spell, and consumable records must not own generic item rows",
         ),
         (
             "record_metrics.canonical_spell_owner",
             "SELECT COUNT(*)
              FROM record_metrics m
-             WHERE EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = m.record_key)",
-            "canonical spell records must not own generic metric rows",
+             WHERE EXISTS (SELECT 1 FROM canonical_spell_records s WHERE s.record_key = m.record_key)
+                OR EXISTS (SELECT 1 FROM canonical_consumable_records x WHERE x.record_key = m.record_key)",
+            "canonical spell and consumable records must not own generic metric rows",
         ),
     ] {
         let invalid: i64 = connection
@@ -654,6 +717,12 @@ fn reconcile(
                 None,
                 Some(id.as_str().to_string()),
             ),
+            atlas_record::ContentOwner::ConsumableOccurrence(id) => (
+                "consumable_occurrence".to_string(),
+                None,
+                None,
+                Some(id.as_str().to_string()),
+            ),
         };
         let owner_order = owner_occurrence.as_deref().and_then(|id| {
             occurrence_order(
@@ -675,6 +744,8 @@ fn reconcile(
                 owner_entity,
                 owner_occurrence,
                 owner_order,
+                Value::Null,
+                Value::Null,
                 Value::Null,
                 Value::Null,
                 Value::Null,
@@ -710,6 +781,8 @@ fn reconcile(
                     owner_entity,
                     owner_occurrence,
                     owner_order,
+                    Value::Null,
+                    Value::Null,
                     Value::Null,
                     Value::Null,
                     Value::Null,
@@ -886,7 +959,8 @@ fn reconcile_hazard(
                 Some(id.as_str().to_string()),
             ),
             atlas_record::ContentOwner::CreatureEntity(_)
-            | atlas_record::ContentOwner::CreatureOccurrence(_) => {
+            | atlas_record::ContentOwner::CreatureOccurrence(_)
+            | atlas_record::ContentOwner::ConsumableOccurrence(_) => {
                 invalid(
                     diagnostics,
                     "hazard content has a cross-family owner",
@@ -914,6 +988,8 @@ fn reconcile_hazard(
                 owner_entity,
                 owner_occurrence,
                 owner_order,
+                Value::Null,
+                Value::Null,
                 content_role(document.role),
                 canonical_json::encode(&document.origin).unwrap_or_default(),
                 document.visibility.as_str(),
@@ -949,6 +1025,8 @@ fn reconcile_hazard(
                     owner_entity,
                     owner_occurrence,
                     owner_order,
+                    Value::Null,
+                    Value::Null,
                     content_role(occurrence.role),
                     canonical_json::encode(&occurrence.origin).unwrap_or_default(),
                     occurrence.visibility.as_str(),
@@ -1280,11 +1358,11 @@ fn validate_enums(
         ),
         (
             "record_content.owner_kind",
-            "SELECT COUNT(*) FROM record_content WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence')",
+            "SELECT COUNT(*) FROM record_content WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence','consumable_occurrence')",
         ),
         (
             "reference_occurrences.owner_kind",
-            "SELECT COUNT(*) FROM reference_occurrences WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence')",
+            "SELECT COUNT(*) FROM reference_occurrences WHERE owner_kind NOT IN ('record','creature_entity','creature_occurrence','hazard_entity','hazard_occurrence','consumable_occurrence')",
         ),
     ] {
         let count: i64 = connection

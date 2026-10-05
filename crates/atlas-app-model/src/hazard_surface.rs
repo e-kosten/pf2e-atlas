@@ -35,6 +35,9 @@ pub struct HazardSurfaceView {
     pub activities: Option<Vec<HazardSurfaceActivityView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
+    pub consumables: Option<Vec<crate::ConsumableOccurrenceView>>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
     pub content: Option<Vec<CreatureSurfaceContentView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]

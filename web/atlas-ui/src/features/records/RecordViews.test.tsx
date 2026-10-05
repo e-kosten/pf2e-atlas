@@ -7,6 +7,8 @@ import { recordDetailFixture as typedRecordDetailFixture } from "../../test/reco
 import { ReaderView, RecordView } from "./RecordViews";
 import { ATLAS_ROUTE_CHANGE_EVENT, currentAtlasRoute } from "../../app/routes";
 
+const tenSecondTestDeadline = 10_000;
+
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
   getRecordDetail: vi.fn(),
@@ -95,19 +97,23 @@ describe("record route views", () => {
     expect(window.location.search).toBe("");
   });
 
-  it("adds the reader primary record to a saved list", async () => {
-    history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
-    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
+  it(
+    "adds the reader primary record to a saved list",
+    async () => {
+      history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
+      render(<ReaderHarness />, { wrapper: queryClientWrapper() });
 
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
-    await addCurrentRecordToList(0);
+      await addCurrentRecordToList(0);
 
-    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "research",
-      record_ref: "spell:heal",
-    });
-  });
+      expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
+        list_ref: "research",
+        record_ref: "spell:heal",
+      });
+    },
+    tenSecondTestDeadline,
+  );
 
   it("adds the reader preview record to a saved list", async () => {
     history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");

@@ -430,6 +430,9 @@ pub(super) fn provenance(hazard: &HazardRecord) -> HazardProvenanceJson {
                 DuplicateContentStatus::CopiedFromCanonicalTarget { target_record_key } => {
                     Some(target_record_key.to_string())
                 }
+                DuplicateContentStatus::CopiedFromConsumableTarget {
+                    target_record_key, ..
+                } => Some(target_record_key.to_string()),
             },
         })
         .collect();
@@ -583,6 +586,9 @@ fn content_owner(owner: &ContentOwner) -> String {
         ContentOwner::CreatureOccurrence(id) => format!("creature_occurrence:{}", id.as_str()),
         ContentOwner::HazardEntity(id) => format!("hazard_entity:{}", id.as_str()),
         ContentOwner::HazardOccurrence(id) => format!("hazard_occurrence:{}", id.as_str()),
+        ContentOwner::ConsumableOccurrence(id) => {
+            format!("consumable_occurrence:{}", id.as_str())
+        }
     }
 }
 

@@ -6,6 +6,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Rust standalone and embedded consumable record family](./items/rust-consumable-record-family.md)
+  Standalone consumables and NPC/Character/hazard occurrences now use one source-faithful definition/state model with exact target and mismatch evidence, atomic v9/schema-5 persistence, one-way filters, and standalone/NPC/Hazard presentation. Character presentation remains H9 work and item-use execution remains outside this milestone. Status: done.
+
 - [Rust record presentation mechanics unification](./items/rust-record-presentation-mechanics-unification.md)
   Creature, hazard, and standalone-spell records now share typed app-service presentation, source-faithful rich content, encounter composition, reference navigation, and responsive web surfaces. This three-family presentation milestone passed product review and CI on the integration branch; remaining registry-family modeling stays open. Status: done.
 

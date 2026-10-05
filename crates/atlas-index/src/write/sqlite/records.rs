@@ -24,6 +24,7 @@ pub(super) fn write_records(
     aliases: &[RecordAlias],
     remaster_links: &[RemasterLink],
     canonical_bodies: &[RecordBody],
+    consumable_occurrence_sets: &[atlas_record::ConsumableOccurrenceSet],
     canonical_record_keys: &std::collections::BTreeSet<String>,
 ) -> Result<(), IndexWriteError> {
     let retrieval_policy = ProductRetrievalPolicy::from_remaster_links(remaster_links);
@@ -37,6 +38,11 @@ pub(super) fn write_records(
     let mut fts_rows = Vec::new();
     for record in records {
         let record_key = record.identity.key.to_string();
+        let consumable_set = consumable_occurrence_sets.iter().find(|set| {
+            set.occurrences
+                .first()
+                .is_some_and(|occurrence| occurrence.owner_record_key == record.identity.key)
+        });
         let projected_metrics;
         let expected_foundry_type = match record.classification.kind {
             atlas_domain::RecordKind::Creature => Some(atlas_record::FoundryRecordType::Npc),
@@ -84,6 +90,7 @@ pub(super) fn write_records(
                         RecordBody::Creature(_) => "creature",
                         RecordBody::Hazard(_) => "hazard",
                         RecordBody::Spell(_) => "spell",
+                        RecordBody::Consumable(_) => "consumable",
                     };
                     return Err(IndexWriteError::WriteFailed(format!(
                         "{} record `{}` has an unexpected {actual} body",
@@ -136,12 +143,52 @@ pub(super) fn write_records(
                 )));
             }
             record.mechanics.metrics.as_slice()
+        } else if record.classification.kind == atlas_domain::RecordKind::Equipment
+            && record.foundry.record_type == atlas_record::FoundryRecordType::Consumable
+        {
+            let body = canonical_bodies_by_key
+                .get(&record_key)
+                .copied()
+                .ok_or_else(|| {
+                    IndexWriteError::WriteFailed(format!(
+                        "consumable record `{}` is missing its required canonical body",
+                        record.identity.key
+                    ))
+                })?;
+            let Some(consumable) = body.as_consumable() else {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "consumable record `{}` has a non-consumable canonical body",
+                    record.identity.key
+                )));
+            };
+            if consumable.identity.name != record.identity.name
+                || consumable.identity.source_id.as_str() != record.identity.id().as_str()
+            {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "consumable body identity for `{}` does not match its generic record owner",
+                    record.identity.key
+                )));
+            }
+            if !matches!(record.mechanics.document, FoundryDocumentMechanics::None) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical consumable `{}` retains forbidden generic document mechanics",
+                    record.identity.key
+                )));
+            }
+            if !record.mechanics.metrics.is_empty() {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical consumable `{}` retains forbidden generic metrics",
+                    record.identity.key
+                )));
+            }
+            record.mechanics.metrics.as_slice()
         } else {
             if matches!(
                 record.foundry.record_type,
                 atlas_record::FoundryRecordType::Npc
                     | atlas_record::FoundryRecordType::Hazard
                     | atlas_record::FoundryRecordType::Spell
+                    | atlas_record::FoundryRecordType::Consumable
             ) {
                 return Err(IndexWriteError::WriteFailed(format!(
                     "record `{}` has a canonical body kind that disagrees with its record kind",
@@ -192,6 +239,14 @@ pub(super) fn write_records(
             atlas_record::RecordVisibilityReason::GeneratedInstance => "generated_instance",
         };
         record_rows.push(RecordRow {
+            consumable_entity_count: to_i64(
+                consumable_set.map_or(0, |set| set.entities.len()),
+                "records.consumable_entity_count",
+            )?,
+            consumable_occurrence_count: to_i64(
+                consumable_set.map_or(0, |set| set.occurrences.len()),
+                "records.consumable_occurrence_count",
+            )?,
             record_key: record.identity.key.to_string(),
             id: record.identity.id().as_str().to_string(),
             name: record.identity.name.clone(),
@@ -259,7 +314,7 @@ pub(super) fn write_records(
         });
         if !canonical_record_keys.contains(&record.identity.key.to_string()) {
             let mut content_inputs = Vec::new();
-            for (ordinal, content) in record.content.documents.iter().enumerate() {
+            for (ordinal, content) in legacy_content_ordinals(record, consumable_occurrence_sets) {
                 let content_json = serde_json::to_string(&content.document)
                     .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
                 content_inputs.push((ordinal, content, content_json));
@@ -281,6 +336,8 @@ pub(super) fn write_records(
                     owner_hazard_entity_id: None,
                     owner_hazard_occurrence_id: None,
                     owner_hazard_occurrence_authored_order: None,
+                    owner_consumable_occurrence_id: None,
+                    owner_consumable_occurrence_authored_order: None,
                     role: legacy_content_role(content.source_kind).to_string(),
                     origin_json: crate::artifact::canonical_json::encode(
                         &ContentOrigin::RecordField {
@@ -384,6 +441,7 @@ pub(super) fn write_records(
                 canonical_bodies_by_key
                     .get(&record.identity.key.to_string())
                     .copied(),
+                consumable_set,
             );
             fts_rows.push(RecordsFtsRow {
                 record_key: record.identity.key.to_string(),
@@ -483,6 +541,34 @@ fn legacy_content_role(source_kind: atlas_record::ContentSourceKind) -> &'static
         ContentSourceKind::GeneratedAffliction => "generated_narrative",
         _ => "supplemental_rules",
     }
+}
+
+// Occurrence-owned source documents leave holes in the legacy Character view.
+// Preserve those ordinals for both content rows and their reference occurrences.
+pub(super) fn legacy_content_ordinals<'a>(
+    record: &'a AtlasRecord,
+    consumable_occurrence_sets: &[atlas_record::ConsumableOccurrenceSet],
+) -> impl Iterator<Item = (usize, &'a atlas_record::RecordContentDocument)> {
+    let reserved = consumable_occurrence_sets
+        .iter()
+        .flat_map(|set| &set.occurrences)
+        .filter(|occurrence| occurrence.owner_record_key == record.identity.key)
+        .flat_map(|occurrence| {
+            occurrence
+                .owned_content()
+                .flat_map(|content| &content.documents)
+        })
+        .map(|document| document.authored_order as usize)
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut ordinal = 0;
+    record.content.documents.iter().map(move |document| {
+        while reserved.contains(&ordinal) {
+            ordinal += 1;
+        }
+        let assigned = ordinal;
+        ordinal += 1;
+        (assigned, document)
+    })
 }
 
 pub(crate) fn allocated_content_keys(

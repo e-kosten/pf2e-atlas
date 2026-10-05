@@ -55,18 +55,6 @@ pub(crate) fn parse_bulk_value(value: &Value) -> Option<f64> {
     }
 }
 
-pub(crate) fn parse_hands_requirement(usage: &str) -> Option<String> {
-    if usage.contains("held-in-two-hands") {
-        Some("two_hands".to_string())
-    } else if usage.contains("held-in-one-plus-hands") {
-        Some("one_plus_hands".to_string())
-    } else if usage.contains("held-in-one-hand") {
-        Some("one_hand".to_string())
-    } else {
-        None
-    }
-}
-
 pub(crate) fn extract_damage_types(raw: &Value) -> Vec<String> {
     let mut values = Vec::new();
     if let Some(value) = normalized_pointer_string(raw, "/system/damage/damageType") {

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{EncounterRuntimeView, HazardSurfaceView};
+use crate::{ConsumableSurfaceView, EncounterRuntimeView, HazardSurfaceView};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -245,6 +245,7 @@ pub enum RecordSurfacePresentationView {
     Creature { body: Box<CreatureSurfaceView> },
     Hazard { body: Box<HazardSurfaceView> },
     Spell { body: Box<crate::SpellSurfaceView> },
+    Consumable { body: Box<ConsumableSurfaceView> },
     Unavailable { unavailable: SurfaceUnavailableView },
 }
 
@@ -322,6 +323,9 @@ pub struct CreatureSurfaceView {
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub standalone_spells: Option<Vec<CreatureSurfaceSpellView>>,
+    #[serde(skip_serializing_if = "optional_vec_is_empty")]
+    #[ts(optional)]
+    pub consumables: Option<Vec<crate::ConsumableOccurrenceView>>,
     #[serde(skip_serializing_if = "optional_vec_is_empty")]
     #[ts(optional)]
     pub activities: Option<Vec<CreatureSurfaceActivityView>>,

@@ -55,6 +55,39 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             static/system.json
+            packs/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/nyzuros.json
+            packs/abomination-vaults-bestiary/book-2-hands-of-the-devil/jafaki.json
+            packs/agents-of-edgewatch-bestiary/book-3-all-or-nothing/franca-laurentz.json
+            packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+            packs/curtain-call-bestiary/book-1-stage-fright/azarpal.json
+            packs/equipment/antler-arrow.json
+            packs/equipment/blindpepper-bolt.json
+            packs/equipment/candle.json
+            packs/equipment/dragon-throat-scale.json
+            packs/equipment/elemental-ammunition-lesser-cold.json
+            packs/equipment/elemental-ammunition-moderate-fire.json
+            packs/equipment/explosive-ammunition.json
+            packs/equipment/ghost-ammunition.json
+            packs/equipment/jade-cat.json
+            packs/equipment/magnetic-shot-lesser.json
+            packs/equipment/meteor-shot-greater.json
+            packs/equipment/ooze-ammunition-moderate.json
+            packs/equipment/oozepick.json
+            packs/equipment/rounds-rapier-pistol.json
+            packs/equipment/silver-crescent-greater.json
+            packs/equipment/silver-dragons-breath-potion-young.json
+            packs/equipment/sprite-apple-pink.json
+            packs/iconics/droven-level-3.json
+            packs/iconics/seoni-level-5.json
+            packs/kingmaker-bestiary/valerie-level-9.json
+            packs/menace-under-otari-bestiary/kobold-trapmaster-bb.json
+            packs/outlaws-of-alkenstar-bestiary/book-2-cradle-of-quartz/ambrost-mugland.json
+            packs/outlaws-of-alkenstar-bestiary/book-2-cradle-of-quartz/sabora-sharkosa.json
+            packs/pathfinder-npc-core/explorer/torchbearer.json
+            packs/pfs-season-6-bestiary/6-00/averill-quint-5-6.json
+            packs/pfs-season-6-bestiary/6-00/sharkskin.json
+            packs/shades-of-blood-bestiary/book-3-to-blot-out-the-sun/kaba.json
+            packs/sky-kings-tomb-bestiary/book-1-mantle-of-gold/heldin-ulgincamp.json
             packs/pathfinder-bestiary/night-hag.json
             packs/pathfinder-monster-core/giant-rat.json
             packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json
@@ -95,6 +128,39 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             static/system.json
+            packs/abomination-vaults-bestiary/abomination-vaults-hardcover-compilation/nyzuros.json
+            packs/abomination-vaults-bestiary/book-2-hands-of-the-devil/jafaki.json
+            packs/agents-of-edgewatch-bestiary/book-3-all-or-nothing/franca-laurentz.json
+            packs/agents-of-edgewatch-bestiary/book-4-assault-on-hunting-lodge-seven/false-door-trap.json
+            packs/curtain-call-bestiary/book-1-stage-fright/azarpal.json
+            packs/equipment/antler-arrow.json
+            packs/equipment/blindpepper-bolt.json
+            packs/equipment/candle.json
+            packs/equipment/dragon-throat-scale.json
+            packs/equipment/elemental-ammunition-lesser-cold.json
+            packs/equipment/elemental-ammunition-moderate-fire.json
+            packs/equipment/explosive-ammunition.json
+            packs/equipment/ghost-ammunition.json
+            packs/equipment/jade-cat.json
+            packs/equipment/magnetic-shot-lesser.json
+            packs/equipment/meteor-shot-greater.json
+            packs/equipment/ooze-ammunition-moderate.json
+            packs/equipment/oozepick.json
+            packs/equipment/rounds-rapier-pistol.json
+            packs/equipment/silver-crescent-greater.json
+            packs/equipment/silver-dragons-breath-potion-young.json
+            packs/equipment/sprite-apple-pink.json
+            packs/iconics/droven-level-3.json
+            packs/iconics/seoni-level-5.json
+            packs/kingmaker-bestiary/valerie-level-9.json
+            packs/menace-under-otari-bestiary/kobold-trapmaster-bb.json
+            packs/outlaws-of-alkenstar-bestiary/book-2-cradle-of-quartz/ambrost-mugland.json
+            packs/outlaws-of-alkenstar-bestiary/book-2-cradle-of-quartz/sabora-sharkosa.json
+            packs/pathfinder-npc-core/explorer/torchbearer.json
+            packs/pfs-season-6-bestiary/6-00/averill-quint-5-6.json
+            packs/pfs-season-6-bestiary/6-00/sharkskin.json
+            packs/shades-of-blood-bestiary/book-3-to-blot-out-the-sun/kaba.json
+            packs/sky-kings-tomb-bestiary/book-1-mantle-of-gold/heldin-ulgincamp.json
             packs/pathfinder-bestiary/night-hag.json
             packs/pathfinder-monster-core/giant-rat.json
             packs/curtain-call-bestiary/book-2-singer-stalker-skinsaw-man/karumzek-priest-dispel-magic.json

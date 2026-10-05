@@ -157,6 +157,7 @@ mod tests {
                 record: fake_record(key, name),
                 body: None,
                 spell_children: Vec::new(),
+                consumable_occurrences: Default::default(),
             },
         }
     }

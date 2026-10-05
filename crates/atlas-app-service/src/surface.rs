@@ -59,6 +59,31 @@ pub(crate) fn record_surface(
     remaster_lookup: &VerifiedRemasterLookup,
 ) -> RecordSurfaceView {
     let metadata = record_metadata(retrieved, remaster_lookup);
+    let occurrences = &retrieved.consumable_occurrences;
+    let consumables = match occurrences
+        .entities
+        .first()
+        .filter(|entity| entity.owner_record_key != retrieved.record.identity.key)
+        .map_or_else(
+            || crate::consumable_surface::consumable_occurrence_views(occurrences),
+            |_| Err(atlas_record::ConsumableOccurrenceSetError::WrongOwner),
+        ) {
+        Ok(values) => values,
+        Err(_) => {
+            return RecordSurfaceView {
+                presentation: unavailable_presentation(
+                    &metadata.kind,
+                    SurfaceUnavailableReasonView::RecordUnavailable,
+                    "Consumable occurrence data is inconsistent, so the surface fails closed.",
+                ),
+                metadata,
+                profile,
+                issues: None,
+                references: None,
+                encounter: None,
+            };
+        }
+    };
     let mut selected_spell_issues = Vec::new();
     let mut content_issues = Vec::new();
     let presentation = match (&retrieved.record.classification.kind, &retrieved.body) {
@@ -67,15 +92,17 @@ pub(crate) fn record_surface(
             if let Some(runtime) = encounter.as_mut() {
                 compose_encounter_payload(creature, &content_placement, runtime);
             }
+            let mut body = creature_surface_with_placement(
+                creature,
+                profile,
+                &content_placement,
+                (profile == RecordSurfaceProfileView::SearchCompact)
+                    .then(|| search_teaser(retrieved))
+                    .flatten(),
+            );
+            body.consumables = consumables;
             RecordSurfacePresentationView::Creature {
-                body: Box::new(creature_surface_with_placement(
-                    creature,
-                    profile,
-                    &content_placement,
-                    (profile == RecordSurfaceProfileView::SearchCompact)
-                        .then(|| search_teaser(retrieved))
-                        .flatten(),
-                )),
+                body: Box::new(body),
             }
         }
         (atlas_domain::RecordKind::Creature, _) => unavailable_presentation(
@@ -84,14 +111,16 @@ pub(crate) fn record_surface(
             "Canonical creature data is unavailable, so the surface fails closed.",
         ),
         (atlas_domain::RecordKind::Hazard, Some(RecordBody::Hazard(hazard))) => {
+            let mut body = crate::hazard_surface::hazard_surface(
+                hazard,
+                profile,
+                (profile == RecordSurfaceProfileView::SearchCompact)
+                    .then(|| search_teaser(retrieved))
+                    .flatten(),
+            );
+            body.consumables = consumables;
             RecordSurfacePresentationView::Hazard {
-                body: Box::new(crate::hazard_surface::hazard_surface(
-                    hazard,
-                    profile,
-                    (profile == RecordSurfaceProfileView::SearchCompact)
-                        .then(|| search_teaser(retrieved))
-                        .flatten(),
-                )),
+                body: Box::new(body),
             }
         }
         (atlas_domain::RecordKind::Hazard, _) => unavailable_presentation(
@@ -111,6 +140,32 @@ pub(crate) fn record_surface(
             &metadata.kind,
             SurfaceUnavailableReasonView::RecordUnavailable,
             "Canonical spell data is unavailable, so the surface fails closed.",
+        ),
+        (atlas_domain::RecordKind::Equipment, Some(RecordBody::Consumable(consumable)))
+            if retrieved.record.foundry.record_type
+                == atlas_record::FoundryRecordType::Consumable =>
+        {
+            RecordSurfacePresentationView::Consumable {
+                body: Box::new(crate::consumable_surface::standalone_consumable_surface(
+                    consumable,
+                    &retrieved.spell_children,
+                )),
+            }
+        }
+        (atlas_domain::RecordKind::Equipment, _)
+            if retrieved.record.foundry.record_type
+                == atlas_record::FoundryRecordType::Consumable =>
+        {
+            unavailable_presentation(
+                &metadata.kind,
+                SurfaceUnavailableReasonView::RecordUnavailable,
+                "Canonical consumable data is unavailable or does not match its record family.",
+            )
+        }
+        (atlas_domain::RecordKind::Equipment, Some(_)) => unavailable_presentation(
+            &metadata.kind,
+            SurfaceUnavailableReasonView::RecordUnavailable,
+            "Canonical equipment data does not match its record family.",
         ),
         _ => unavailable_presentation(
             &metadata.kind,
@@ -234,6 +289,11 @@ fn record_metadata(
             &spell.definition.provenance.source_system_version,
             &spell.definition.provenance.source_upstream_commit,
         ),
+        RecordBody::Consumable(consumable) => (
+            &consumable.provenance.source_contract_version,
+            &consumable.provenance.source_system_version,
+            &consumable.provenance.source_upstream_commit,
+        ),
     });
     RecordSurfaceMetadataView {
         record_key: Some(record.identity.key.to_string()),
@@ -327,6 +387,53 @@ fn verified_edition_counterpart(
         role,
         record_key: counterpart.record.identity.key.to_string(),
         title: counterpart.record.identity.name.clone(),
+    })
+}
+
+/// Project the selected H2 definition only; the containing consumable/actor is
+/// the locator owner, not a replacement standalone Spell record.
+pub(crate) fn consumable_spell_child_surface(
+    parent: &RetrievedRecord,
+    child: &atlas_record::ConsumableSpellChild,
+    selection: Option<(atlas_record::SpellFormId, u8)>,
+    remaster_lookup: &VerifiedRemasterLookup,
+) -> crate::error::AppServiceResult<RecordSurfaceView> {
+    let name = child
+        .name
+        .as_value()
+        .and_then(atlas_record::SpellSourceValue::as_known)
+        .cloned()
+        .unwrap_or_else(|| "Embedded spell".to_string());
+    let spell = atlas_record::SpellRecord {
+        identity: atlas_record::SpellIdentity {
+            record_key: child.parent_record_key.clone(),
+            source_id: atlas_record::SpellSourceId::new(child.child_id.as_str()).map_err(|_| {
+                crate::error::AppServiceError::invalid_request(
+                    "invalid retained Spell child identity",
+                )
+            })?,
+            name: name.clone(),
+        },
+        definition: child.definition.clone(),
+    };
+    let (body, selected, mut issues) = spell_surface(&spell, selection);
+    crate::record_policy::spell_issues(&spell, &selected, &mut issues);
+    let mut metadata = record_metadata(parent, remaster_lookup);
+    metadata.title = name;
+    metadata.kind = "spell".to_string();
+    metadata.kind_label = "Spell".to_string();
+    metadata.level = None;
+    metadata.traits.clear();
+    metadata.rarity = None;
+    Ok(RecordSurfaceView {
+        metadata,
+        profile: RecordSurfaceProfileView::RecordDetail,
+        presentation: RecordSurfacePresentationView::Spell {
+            body: Box::new(body),
+        },
+        issues: (!issues.is_empty()).then_some(issues),
+        references: None,
+        encounter: None,
     })
 }
 
@@ -1244,6 +1351,7 @@ fn creature_surface_with_placement(
         lore,
         spellcasting,
         standalone_spells,
+        consumables: None,
         activities,
         content: (detail || encounter)
             .then(|| content(creature, activity_content))
@@ -4049,6 +4157,76 @@ mod tests {
     }
 
     #[test]
+    fn source_backed_consumable_uses_the_consumable_app_surface()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let source_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../atlas-ingest/tests/fixtures/foundry-source/spell-source-contract");
+        let artifact = TemporarySpellSurfaceArtifact::new()?;
+        build_artifact(BuildArtifactOptions {
+            source_root,
+            output_path: artifact.artifact.clone(),
+            manifest_path: None,
+            embedding_model_id: BuildArtifactOptions::default_embedding_model_id(),
+            embedding_cache_root: None,
+            reuse_embeddings: true,
+            embedding_batch_size: 8,
+        })?;
+        let retrieval = AtlasRetrievalService::from_prepared_index_without_embeddings(
+            SqliteIndexReader::open_read_only(&artifact.artifact)?,
+        );
+        let wand = retrieve_spell(&retrieval, "equipment-srd:eOtQtVRLeGH39dNx")?;
+        let Some(RecordBody::Consumable(consumable)) = wand.body.as_ref() else {
+            panic!("Arboreal Wand should hydrate as a consumable");
+        };
+        assert_eq!(consumable.identity.name, "Arboreal Wand (Rank 4)");
+
+        let surface = spell_surface_json(&wand);
+        assert_eq!(surface["metadata"]["kind"], "equipment");
+        assert_eq!(surface["presentation"]["presentation_type"], "consumable");
+        assert_eq!(
+            surface["presentation"]["body"]["category"]["state"],
+            "missing"
+        );
+        assert_eq!(
+            surface["presentation"]["body"]["source_state"]["current_uses"]["value"],
+            "1"
+        );
+        assert_eq!(
+            surface["presentation"]["body"]["spell_child"]["target_record_key"],
+            "spells-srd:rfZpqmj0AIIdkVIs"
+        );
+        assert!(
+            !surface["presentation"]["body"]
+                .to_string()
+                .contains("source_upstream_commit"),
+            "the consumable body must not duplicate record-level source provenance"
+        );
+
+        let mut missing = wand.clone();
+        missing.body = None;
+        let missing_surface = spell_surface_json(&missing);
+        assert_eq!(
+            missing_surface["presentation"]["unavailable"]["reason"],
+            "record_unavailable"
+        );
+
+        let mut wrong_subtype = wand.clone();
+        wrong_subtype.record.foundry.record_type = atlas_record::FoundryRecordType::Equipment;
+        let wrong_subtype_surface = spell_surface_json(&wrong_subtype);
+        assert_eq!(
+            wrong_subtype_surface["presentation"]["unavailable"]["reason"],
+            "record_unavailable"
+        );
+        wrong_subtype.body = None;
+        let ordinary_equipment = spell_surface_json(&wrong_subtype);
+        assert_eq!(
+            ordinary_equipment["presentation"]["unavailable"]["reason"],
+            "record_family_not_migrated"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn blazing_content_uses_only_resolved_selection_and_preserves_source()
     -> Result<(), Box<dyn std::error::Error>> {
         // Exact 4cbdaa37 packs/spells/2nd-rank/blazing-blade.json, unchanged.
@@ -4094,10 +4272,12 @@ mod tests {
                 &record.record,
                 &[],
                 record.body.as_ref(),
+                None,
             );
             let search = atlas_record::build_search_presentation_document_with_content_filter(
                 &record.record,
                 record.body.as_ref(),
+                None,
                 |_| false,
             );
             let embedding = atlas_embedding::render_presentation_document_for_embedding(&search);
@@ -4783,10 +4963,12 @@ mod tests {
                     &record.record,
                     &[],
                     record.body.as_ref(),
+                    None,
                 );
                 let search = atlas_record::build_search_presentation_document_with_content_filter(
                     &record.record,
                     record.body.as_ref(),
+                    None,
                     |_| false,
                 );
                 let embedding =
@@ -5104,6 +5286,7 @@ mod tests {
             record,
             body: None,
             spell_children: Vec::new(),
+            consumable_occurrences: Default::default(),
         }
     }
 
@@ -5271,6 +5454,7 @@ mod tests {
             record,
             body: Some(atlas_record::RecordBody::Creature(creature)),
             spell_children: Vec::new(),
+            consumable_occurrences: Default::default(),
         };
 
         let remaster_lookup =

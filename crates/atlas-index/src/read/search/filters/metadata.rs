@@ -1,5 +1,6 @@
 use crate::artifact::inventory::{
-    Column, Table, actor_records, item_records, record_traits, records, spell_records,
+    Column, Table, actor_records, consumable_query_records, item_records, record_traits, records,
+    spell_records,
 };
 use atlas_domain::metadata::{
     MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
@@ -10,7 +11,7 @@ use atlas_domain::metadata::{
 use super::FilterCompiler;
 use super::error::FilterCompileError;
 use super::sql_render::{
-    aliased_column, json_array_contains_sql, json_array_empty_sql, record_column,
+    aliased_column, json_array_contains_sql, json_array_empty_sql, price_column, record_column,
     record_key_column, side_table_for_column,
 };
 
@@ -71,6 +72,10 @@ impl FilterCompiler {
                         (
                             spell_records::TABLE,
                             spell_records::columns::DAMAGE_TYPES_JSON,
+                        ),
+                        (
+                            consumable_query_records::TABLE,
+                            consumable_query_records::columns::DAMAGE_TYPES_JSON,
                         ),
                     ],
                 );
@@ -207,7 +212,19 @@ impl FilterCompiler {
                     },
                     r#match,
                 )
-                .map(|sql| format!("({sql})"))
+                .map(|sql| {
+                    if table.name() == consumable_query_records::TABLE.name() {
+                        format!("({sql})")
+                    } else {
+                        let record_key = record_column(records::columns::RECORD_KEY);
+                        let neutral = if matches!(r#match, MetadataSetMatch::IsNull) {
+                            "1"
+                        } else {
+                            "0"
+                        };
+                        format!("(CASE WHEN EXISTS (SELECT 1 FROM canonical_consumable_records cc WHERE cc.record_key = {record_key}) THEN {neutral} ELSE ({sql}) END)")
+                    }
+                })
             })
             .collect::<Result<Vec<_>, _>>()?;
         let joiner = match r#match {
@@ -227,12 +244,36 @@ impl FilterCompiler {
             MetadataEnumStringField::PackLabel => records::columns::PACK_LABEL,
             MetadataEnumStringField::PublicationCategory => records::columns::PUBLICATION_FAMILY,
             MetadataEnumStringField::Size => actor_records::columns::SIZE,
-            MetadataEnumStringField::Usage => records::columns::SYSTEM_USAGE,
-            MetadataEnumStringField::SystemCategory => records::columns::SYSTEM_CATEGORY,
+            MetadataEnumStringField::Usage => {
+                return self.with_coalesced_field_sources(
+                    records::columns::SYSTEM_USAGE,
+                    consumable_query_records::columns::USAGE,
+                    |compiler, column| compiler.string_operator(column, r#match),
+                );
+            }
+            MetadataEnumStringField::SystemCategory => {
+                return self.with_coalesced_field_sources(
+                    records::columns::SYSTEM_CATEGORY,
+                    consumable_query_records::columns::CATEGORY,
+                    |compiler, column| compiler.string_operator(column, r#match),
+                );
+            }
             MetadataEnumStringField::SystemGroup => records::columns::SYSTEM_GROUP,
             MetadataEnumStringField::FoundryRecordType => records::columns::FOUNDRY_RECORD_TYPE,
-            MetadataEnumStringField::BaseItem => records::columns::SYSTEM_BASE_ITEM,
-            MetadataEnumStringField::Hands => item_records::columns::HANDS_REQUIREMENT,
+            MetadataEnumStringField::BaseItem => {
+                return self.with_coalesced_field_sources(
+                    records::columns::SYSTEM_BASE_ITEM,
+                    consumable_query_records::columns::BASE_ITEM,
+                    |compiler, column| compiler.string_operator(column, r#match),
+                );
+            }
+            MetadataEnumStringField::Hands => {
+                return self.with_coalesced_side_tables(
+                    item_records::columns::HANDS_REQUIREMENT,
+                    consumable_query_records::columns::HANDS_REQUIREMENT,
+                    |compiler, column| compiler.string_operator(column, r#match),
+                );
+            }
             MetadataEnumStringField::SaveType => spell_records::columns::SAVE_TYPE,
             MetadataEnumStringField::AreaType => spell_records::columns::AREA_TYPE,
             MetadataEnumStringField::DurationUnit => records::columns::DURATION_UNIT,
@@ -271,8 +312,16 @@ impl FilterCompiler {
         let column = match field {
             MetadataNumberField::Level => records::columns::LEVEL,
             MetadataNumberField::SpellRank => spell_records::columns::RANK,
-            MetadataNumberField::PriceCp => records::columns::PRICE_CP,
-            MetadataNumberField::BulkValue => item_records::columns::BULK_VALUE,
+            MetadataNumberField::PriceCp => {
+                return self.number_operator(&price_column(), r#match);
+            }
+            MetadataNumberField::BulkValue => {
+                return self.with_coalesced_side_tables(
+                    item_records::columns::BULK_VALUE,
+                    consumable_query_records::columns::BULK_VALUE,
+                    |compiler, column| compiler.number_operator(column, r#match),
+                );
+            }
             MetadataNumberField::ActionCost => records::columns::ACTIVATION_TIME_ACTIONS,
             MetadataNumberField::RangeValue => {
                 return self.with_field_source(
@@ -332,6 +381,61 @@ impl FilterCompiler {
         } else {
             compile(self, &record_column(column))
         }
+    }
+
+    fn with_coalesced_field_sources(
+        &mut self,
+        record_source: Column,
+        side_source: Column,
+        compile: impl FnOnce(&mut Self, &str) -> Result<String, FilterCompileError>,
+    ) -> Result<String, FilterCompileError> {
+        let (_, table) = side_table_for_column(side_source).ok_or_else(|| {
+            FilterCompileError::InvalidValue(format!(
+                "consumable query column `{}` has no side-table owner",
+                side_source.key()
+            ))
+        })?;
+        let record_key = record_column(records::columns::RECORD_KEY);
+        let expression = format!(
+            "CASE WHEN EXISTS (SELECT 1 FROM canonical_consumable_records cc WHERE cc.record_key = {record_key}) THEN (SELECT {} FROM {} cq WHERE {} = {}) ELSE {} END",
+            aliased_column("cq", side_source),
+            table.name(),
+            aliased_column("cq", record_key_column(table)),
+            record_column(records::columns::RECORD_KEY),
+            record_column(record_source),
+        );
+        compile(self, &expression)
+    }
+
+    fn with_coalesced_side_tables(
+        &mut self,
+        legacy_source: Column,
+        consumable_source: Column,
+        compile: impl FnOnce(&mut Self, &str) -> Result<String, FilterCompileError>,
+    ) -> Result<String, FilterCompileError> {
+        let (_, legacy_table) = side_table_for_column(legacy_source).ok_or_else(|| {
+            FilterCompileError::InvalidValue(format!(
+                "legacy item query column `{}` has no side-table owner",
+                legacy_source.key()
+            ))
+        })?;
+        let (_, consumable_table) = side_table_for_column(consumable_source).ok_or_else(|| {
+            FilterCompileError::InvalidValue(format!(
+                "consumable query column `{}` has no side-table owner",
+                consumable_source.key()
+            ))
+        })?;
+        let record_key = record_column(records::columns::RECORD_KEY);
+        let expression = format!(
+            "CASE WHEN EXISTS (SELECT 1 FROM canonical_consumable_records cc WHERE cc.record_key = {record_key}) THEN (SELECT {} FROM {} cq WHERE {} = {record_key}) ELSE (SELECT {} FROM {} i WHERE {} = {record_key}) END",
+            aliased_column("cq", consumable_source),
+            consumable_table.name(),
+            aliased_column("cq", record_key_column(consumable_table)),
+            aliased_column("i", legacy_source),
+            legacy_table.name(),
+            aliased_column("i", record_key_column(legacy_table)),
+        );
+        compile(self, &expression)
     }
 }
 

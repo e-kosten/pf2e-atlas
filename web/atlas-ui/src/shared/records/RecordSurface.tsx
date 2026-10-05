@@ -23,6 +23,10 @@ import {
   type SpellFormSelection,
   SpellSearchCompactSurface,
 } from "./SpellRecordSurface";
+import {
+  ConsumableDetailSurface,
+  ConsumableSearchCompactSurface,
+} from "./ConsumableRecordSurface";
 
 type RecordSurfaceProps = {
   onReference: (recordKey: string) => void;
@@ -137,6 +141,26 @@ export const RecordSurface = memo(function RecordSurface({
         selectionError={spellFormSelectionError}
         selectionLoading={spellFormSelectionLoading}
         selectionUnavailable={spellFormSelectionUnavailable}
+        showTitle={showTitle}
+      />
+    );
+  }
+
+  if (surface.presentation.presentation_type === "consumable") {
+    const body = surface.presentation.body;
+    if (surface.profile === "search_compact") {
+      return <ConsumableSearchCompactSurface body={body} metadata={surface.metadata} />;
+    }
+    return (
+      <ConsumableDetailSurface
+        body={body}
+        issues={surface.issues}
+        metadata={surface.metadata}
+        onReference={onReference}
+        onReferencesOpen={onReferencesOpen}
+        onReferenceLimit={onReferenceLimit}
+        references={references ?? surface.references}
+        referencesLoading={referenceLoading}
         showTitle={showTitle}
       />
     );

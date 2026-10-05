@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 mod artifact;
+mod consumable_query;
 mod discovery;
 mod embedding_cache;
 mod inspect;

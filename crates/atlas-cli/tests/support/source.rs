@@ -81,6 +81,38 @@ pub fn write_hazard_source(root: &Path) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+pub fn write_consumable_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let pack = root.join("packs/equipment");
+    fs::create_dir_all(&pack)?;
+    fs::write(
+        root.join("module.json"),
+        r#"{"packs":[{"name":"equipment","label":"Equipment","type":"Item","path":"packs/equipment"}]}"#,
+    )?;
+    fs::write(
+        pack.join("test-elixir.json"),
+        r#"{
+          "_id": "cliConsumable0001",
+          "name": "Test Elixir",
+          "type": "consumable",
+          "system": {
+            "bulk": { "value": "L" },
+            "category": "elixir",
+            "containerId": null,
+            "description": { "value": "<p>A typed consumable fixture.</p>" },
+            "hardness": 0,
+            "hp": { "max": 1, "value": 1 },
+            "level": { "value": 2 },
+            "price": { "per": 1, "value": { "gp": 3 } },
+            "quantity": 2,
+            "traits": { "otherTags": [], "rarity": "common", "value": ["alchemical", "consumable"] },
+            "usage": { "value": "held-in-one-hand" },
+            "uses": { "autoDestroy": false, "max": 1, "value": 1 }
+          }
+        }"#,
+    )?;
+    Ok(())
+}
+
 pub fn write_ambiguous_action_source(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     copy_fixture_source("ambiguous-actions", root)
 }
