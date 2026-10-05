@@ -32,6 +32,7 @@ Checkpoint B approved these decisions as the dependency-ordered implementation c
 ## Source Discovery
 
 - [`0037-source-schema-discovery.md`](./0037-source-schema-discovery.md): source shape snapshots and diffs replace exhaustive field ownership and receipt enforcement; typed product models retain focused behavior tests.
+- [`0038-parser-only-source-modeling.md`](./0038-parser-only-source-modeling.md): shared source types and byte parsers are developed independently of canonical conversion, storage, metrics and UI, with pending family shapes distinguished from completed typed components.
 
 ## Historical ADRs
 

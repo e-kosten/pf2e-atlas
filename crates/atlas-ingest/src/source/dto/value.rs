@@ -14,7 +14,7 @@ use super::{SourceDiagnostic, SourceDiagnosticKind, SourceIdentity, SourcePresen
 /// promote approved fields into explicit structs instead of querying this tree
 /// through fallback JSON pointers.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum SerializedSourceValue {
+pub enum SerializedSourceValue {
     Null,
     Boolean(bool),
     Number(Number),
@@ -24,7 +24,7 @@ pub(crate) enum SerializedSourceValue {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct SerializedSourceObject {
+pub struct SerializedSourceObject {
     fields: Vec<(String, SerializedSourceValue)>,
 }
 
@@ -42,7 +42,9 @@ impl SerializedSourceObject {
         value.as_object().map(Self::from_map)
     }
 
-    pub(crate) fn fields(&self) -> &[(String, SerializedSourceValue)] {
+    /// Authored members in order, including repeated keys. This is an inspection
+    /// API for pending source shapes and open extensions, not a product fallback.
+    pub fn fields(&self) -> &[(String, SerializedSourceValue)] {
         &self.fields
     }
 
@@ -71,8 +73,7 @@ impl SerializedSourceObject {
             .collect()
     }
 
-    #[cfg(test)]
-    pub(crate) fn compact_json(&self) -> String {
+    pub fn compact_json(&self) -> String {
         SerializedSourceValue::Object(self.clone()).compact_json()
     }
 
@@ -179,7 +180,7 @@ impl SerializedSourceValue {
         }
     }
 
-    pub(crate) fn compact_json(&self) -> String {
+    pub fn compact_json(&self) -> String {
         match self {
             Self::Null => "null".to_string(),
             Self::Boolean(value) => value.to_string(),

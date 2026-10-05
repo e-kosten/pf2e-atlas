@@ -155,6 +155,21 @@ Public readers hydrate canonical Spell bodies and their owned content and refere
 
 `atlas source schema` is the explicit offline source-schema diagnostic. It discovers container and leaf paths, JSON type sets, document/occurrence counts, duplicate object members, and representative examples. Portable snapshots and baseline diffs reveal added/removed paths and type or duplicate-member changes. Strict mode requires a complete baseline and checks that diff; it does not certify model coverage or require per-field ownership/omission decisions. Discovery reuses the duplicate-preserving serialized source tree, fails on unreadable selected packs or malformed documents, and stays outside ordinary ingest and runtime readiness. `atlas source values` uses the same offline scanner to inspect exact normalized paths, with distinct values, occurrence/document counts, missing counts, and bounded concrete source references. Runtime lookup, search, filtering, and presentation consume typed product records. See [ADR 0037](./decisions/0037-source-schema-discovery.md) for the observed-corpus scope and normalization policy.
 
+## Parser-Only Source Modeling
+
+`atlas_ingest::item_source::parse_common_item_source` is an independently callable
+byte parser for the common Item envelope and ItemSystemSource. It reuses the
+ordered serialized tree and existing discriminator/presence vocabulary, accepts
+standalone or actor-embedded context, and returns typed descriptions, traits,
+publication, migration, document metadata, ownership and grant fields. It applies
+no Foundry defaults or product conversion. Family-specific fields, rule elements
+and ActiveEffect payloads are retained with typed modeling pending. Open extension
+values and pending payloads can be inspected through the source tree API; they
+are not semantic runtime fallbacks. Existing artifact ingest continues through
+its current source/conversion paths until the separate integration phase.
+See [ADR 0038](./decisions/0038-parser-only-source-modeling.md) and the
+[source modeling backlog](../backlog/items/rust-source-modeling.md).
+
 ## Content, Search, And Reference Projections
 
 ```mermaid
