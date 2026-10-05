@@ -111,6 +111,22 @@ Validation has three explicit tiers:
 - The ordinary Rust CI job also runs four focused Linux artifact-pair checks.
   They cover first-generation public-reader open, installed-handle retention,
   replacement failure, and digest authentication without building the corpus.
+- CI explicitly runs the CLI rendering golden comparison against its pinned
+  PF2e fixtures. This test builds a bounded no-embedding artifact and compares
+  creature output across five detail levels and three terminal widths, plus
+  unmodeled-skill provenance and verified edition links. Ordinary workspace tests
+  mark it ignored because it requires external fixtures. Run it locally with:
+
+  ```bash
+  PF2E_SOURCE_REPOSITORY=/path/to/pinned/pf2e cargo test -p atlas-cli \
+    --test record_text source_backed_creature_terminal_matrix -- --ignored --exact
+  ```
+
+  The explicit comparison fails if fixtures are absent or their recorded hashes
+  differ. To refresh expected output, add
+  `PF2E_ATLAS_UPDATE_RECORD_TEXT_GOLDENS=1` to that command, inspect every changed
+  golden, and rerun without the update variable. Expected files are regression
+  fixtures; historical agent approval/export packages are not part of the test.
 - `just validate-exhaustive --source <path> --candidate-head <sha>
   --snapshot-root <new-path> --report <new-path>` is the final artifact-integration
   gate.

@@ -76,6 +76,7 @@
         }
       }
     },
+    "spell_provenance": null,
     "edition": {
       "status": "remaster",
       "counterpart_lookup": {

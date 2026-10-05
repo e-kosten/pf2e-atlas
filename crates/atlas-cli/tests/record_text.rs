@@ -3,7 +3,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -11,19 +10,8 @@ mod support;
 
 use support::path::temp_source_root;
 
-const SOURCE_ROOT_ENV: &str = "PF2E_ATLAS_B5_SOURCE_ROOT";
+const SOURCE_ROOT_ENV: &str = "PF2E_SOURCE_REPOSITORY";
 const UPDATE_ENV: &str = "PF2E_ATLAS_UPDATE_RECORD_TEXT_GOLDENS";
-const REMEDIATION_BASE: &str = "f6a2dd92baea814135c74668eea69d32e11e29d2";
-const CLARIFICATION_NOTE_PATH: &str = "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/cli-presentation-audit/2026-09-02-stage-h-b5-cli-product-decision-clarification-note.md";
-const CLARIFICATION_NOTE_SHA256: &str =
-    "91ab3f81f6716e3c4a0b8a921baf508b78d564e7e6453ea1ebee1d6dc77ca5d2";
-const ROUTE_PATH: &str = "/Users/ekosten/.ao/data/worktrees/pathfinder-2e-foundry-mcp/pathfinder-2e-foundry-mcp-60/scratch/plans/2026-09-02-stage-h-pre-b6-creature-cli-routing-final-addendum.md";
-const ROUTE_SHA256: &str = "c91d442157c712401f52fe582e657cb7e0f6e73ba5f80153d380916c6a3a519a";
-const AUDIT_PATH: &str = "/Users/ekosten/.ao/data/handoffs/pathfinder-2e-foundry-mcp/cli-presentation-audit/2026-09-02-non-json-creature-cli-presentation-audit-final.md";
-const AUDIT_SHA256: &str = "94298824b37d96f4e6ce48705b93cf0838d2be4b07575f84f2d3aa28c07b6182";
-const SNAPSHOT_ARTIFACT_CONTRACT: &str = "pf2e-atlas-artifact/v5";
-const SNAPSHOT_ARTIFACT_SCHEMA: &str = "3";
-const SNAPSHOT_MANIFEST_CONTRACT: &str = "pf2e-atlas-artifact-manifest/v3";
 const DETAILS: [&str; 5] = ["summary", "preview", "description", "standard", "full"];
 const WIDTHS: [usize; 3] = [40, 80, 120];
 
@@ -68,166 +56,12 @@ fn creature_golden_manifest_is_complete_and_current() -> Result<(), Box<dyn std:
     Ok(())
 }
 
-#[test]
-fn snapshot_evidence_manifest_is_complete_and_honest() -> Result<(), Box<dyn std::error::Error>> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goldens/record_text");
-    let evidence: Value = serde_json::from_slice(&fs::read(root.join("snapshot-evidence.json"))?)?;
-    assert_eq!(evidence["remediation_base"], REMEDIATION_BASE);
-    assert_eq!(
-        evidence["base_tree"],
-        "c0e52555441cbf15eae9a8395a0c3319cd36fad3"
-    );
-    assert_eq!(evidence["settings"]["matrix_cells"], 135);
-    assert_eq!(
-        evidence["controlling_clarification"]["path"],
-        CLARIFICATION_NOTE_PATH
-    );
-    assert_eq!(
-        evidence["controlling_clarification"]["sha256"],
-        CLARIFICATION_NOTE_SHA256
-    );
-    assert_eq!(evidence["controlling_clarification"]["mode"], "0444");
-    assert_eq!(evidence["controlling_clarification"]["bytes"], 7242);
-    assert_eq!(
-        evidence["controlling_clarification"]["file_type"],
-        "regular"
-    );
-    assert_eq!(evidence["controlling_route"]["path"], ROUTE_PATH);
-    assert_eq!(evidence["controlling_route"]["sha256"], ROUTE_SHA256);
-    assert_eq!(evidence["durable_audit"]["path"], AUDIT_PATH);
-    assert_eq!(evidence["durable_audit"]["sha256"], AUDIT_SHA256);
-    assert_eq!(
-        evidence["bounded_artifact"]["artifact_contract"],
-        SNAPSHOT_ARTIFACT_CONTRACT
-    );
-    assert_eq!(
-        evidence["bounded_artifact"]["artifact_schema"],
-        SNAPSHOT_ARTIFACT_SCHEMA
-    );
-    assert_eq!(
-        evidence["bounded_artifact"]["manifest_contract"],
-        SNAPSHOT_MANIFEST_CONTRACT
-    );
-    assert_eq!(
-        evidence["bounded_artifact"]["manifest_identity"]["artifact_contract_version"],
-        evidence["bounded_artifact"]["artifact_contract"]
-    );
-    assert_eq!(
-        evidence["bounded_artifact"]["manifest_identity"]["schema_version"],
-        evidence["bounded_artifact"]["artifact_schema"]
-    );
-    assert_eq!(
-        evidence["bounded_artifact"]["manifest_identity"]["manifest_version"],
-        evidence["bounded_artifact"]["manifest_contract"]
-    );
-    assert_eq!(
-        evidence["bounded_artifact"]["manifest_identity"]["build"]["artifact_sha256"],
-        evidence["bounded_artifact"]["artifact_sha256"]
-    );
-    for field in ["artifact_sha256", "manifest_sha256"] {
-        let digest = evidence["bounded_artifact"][field]
-            .as_str()
-            .ok_or("bounded artifact digest must be a string")?;
-        assert!(
-            digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()),
-            "bounded artifact {field} must be a SHA-256 hex digest"
-        );
-    }
-    assert_eq!(
-        evidence["verified_edition_lookups"]
-            .as_array()
-            .ok_or("edition evidence must be an array")?
-            .len(),
-        9
-    );
-    assert!(
-        evidence["verified_edition_lookups"]
-            .as_array()
-            .is_some_and(|rows| rows
-                .iter()
-                .all(|row| row["counterpart_lookup"] == "verified"))
-    );
-    let captures = evidence["captures"]
-        .as_array()
-        .ok_or("captures must be an array")?;
-    assert_eq!(captures.len(), 138);
-    for capture in captures {
-        assert_eq!(capture["exit_status"], 0);
-        assert_eq!(capture["stderr_bytes"], 0);
-        assert_eq!(
-            capture["stderr_sha256"],
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        );
-        retained_capture_matches(&root, capture)?;
-    }
-    assert!(captures.iter().any(|capture| {
-        capture["stdout_path"] == "authentic-unmodeled/chernasardo-ranger-provenance.json"
-    }));
-    assert!(captures.iter().any(|capture| {
-        capture["stdout_path"] == "authentic-unmodeled/chernasardo-ranger-full-80.txt"
-    }));
-
-    let first = captures.first().ok_or("at least one retained capture")?;
-    let mut bad_bytes = first.clone();
-    bad_bytes["stdout_bytes"] =
-        Value::from(first["stdout_bytes"].as_u64().ok_or("stdout byte count")? + 1);
-    assert!(retained_capture_matches(&root, &bad_bytes).is_err());
-    let mut bad_hash = first.clone();
-    bad_hash["stdout_sha256"] = Value::String("0".repeat(64));
-    assert!(retained_capture_matches(&root, &bad_hash).is_err());
-    assert!(evidence.get("candidate_commit").is_none());
-    Ok(())
-}
-
-fn retained_capture_matches(root: &Path, capture: &Value) -> Result<(), String> {
-    let relative = capture["stdout_path"]
-        .as_str()
-        .ok_or_else(|| "retained capture needs stdout_path".to_string())?;
-    let bytes = fs::read(root.join(relative))
-        .map_err(|error| format!("failed to read retained capture {relative}: {error}"))?;
-    let expected_bytes = capture["stdout_bytes"]
-        .as_u64()
-        .ok_or_else(|| format!("retained capture {relative} needs stdout_bytes"))?;
-    if bytes.len() as u64 != expected_bytes {
-        return Err(format!("retained capture {relative} byte count differs"));
-    }
-    let expected_hash = capture["stdout_sha256"]
-        .as_str()
-        .ok_or_else(|| format!("retained capture {relative} needs stdout_sha256"))?;
-    if sha256_bytes(&bytes) != expected_hash {
-        return Err(format!("retained capture {relative} hash differs"));
-    }
-    Ok(())
-}
-
 struct CreatureFixture {
     slug: &'static str,
     name: &'static str,
     key: &'static str,
     source_path: &'static str,
     source_sha256: &'static str,
-}
-
-#[derive(Debug, Serialize)]
-struct CaptureEvidence {
-    command: String,
-    width: Option<usize>,
-    profile: Option<String>,
-    color: &'static str,
-    progress: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    stdout_path: Option<String>,
-    stdout_bytes: usize,
-    stdout_sha256: String,
-    stderr_bytes: usize,
-    stderr_sha256: String,
-    exit_status: i32,
-}
-
-struct CapturedOutput {
-    stdout: Vec<u8>,
-    stderr: Vec<u8>,
-    status: i32,
 }
 
 const CREATURES: [CreatureFixture; 9] = [
@@ -308,19 +142,17 @@ const AUTHENTIC_UNMODELED: CreatureFixture = CreatureFixture {
 };
 
 #[test]
+#[ignore = "requires pinned PF2e fixtures; CI runs this comparison explicitly"]
 fn source_backed_creature_terminal_matrix() -> Result<(), Box<dyn std::error::Error>> {
-    let Some(source_root) = source_root() else {
-        eprintln!("skipping source-backed matrix; set {SOURCE_ROOT_ENV} to the PF2e checkout");
-        return Ok(());
-    };
+    let source_root = source_root()
+        .ok_or_else(|| format!("rendering comparison requires {SOURCE_ROOT_ENV} or vendor/pf2e"))?;
     verify_source_identity(&source_root)?;
     let root = temp_source_root("record-text-matrix");
     prepare_bounded_source(&source_root, &root)?;
     let artifact = root.join("artifact.sqlite");
-    let build_capture = build_bounded_artifact(&root, &artifact)?;
+    build_bounded_artifact(&root, &artifact)?;
 
     let update = std::env::var_os(UPDATE_ENV).is_some();
-    let mut captures = Vec::new();
     for creature in &CREATURES {
         let mut normalized_by_detail = Vec::new();
         for detail in DETAILS {
@@ -337,16 +169,6 @@ fn source_backed_creature_terminal_matrix() -> Result<(), Box<dyn std::error::Er
                     );
                 }
                 assert_golden(creature.slug, detail, width, &output, update)?;
-                captures.push(capture_evidence(
-                    &captured,
-                    format!(
-                        "atlas --progress never record get {} --detail {detail} --index $BOUNDED_ARTIFACT",
-                        creature.key
-                    ),
-                    Some(width),
-                    Some(detail),
-                    Some(format!("creature/{}/{detail}-{width}.txt", creature.slug)),
-                ));
                 if detail != "summary" {
                     let overlong = output
                         .lines()
@@ -379,9 +201,8 @@ fn source_backed_creature_terminal_matrix() -> Result<(), Box<dyn std::error::Er
     }
 
     update_matrix_manifest(update)?;
-    let authentic_captures = assert_authentic_unmodeled(&artifact, update)?;
-    captures.extend(authentic_captures);
-    assert_snapshot_evidence(&root, &artifact, &build_capture, &captures, update)?;
+    assert_authentic_unmodeled(&artifact, update)?;
+    assert_verified_editions(&artifact)?;
 
     fs::remove_dir_all(root)?;
     Ok(())
@@ -536,7 +357,7 @@ fn prepare_bounded_source(
 fn build_bounded_artifact(
     source_root: &Path,
     artifact: &Path,
-) -> Result<CaptureEvidence, Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["--progress", "never", "index", "build", "--source"])
         .arg(source_root)
@@ -551,18 +372,7 @@ fn build_bounded_artifact(
         )
         .into());
     }
-    let captured = CapturedOutput {
-        stdout: output.stdout,
-        stderr: output.stderr,
-        status: output.status.code().unwrap_or(-1),
-    };
-    Ok(capture_evidence(
-        &captured,
-        "atlas --progress never index build --source $BOUNDED_SOURCE --output $BOUNDED_ARTIFACT --no-embeddings --json".into(),
-        None,
-        None,
-        None,
-    ))
+    Ok(())
 }
 
 fn capture_record(
@@ -570,7 +380,7 @@ fn capture_record(
     key: &str,
     detail: &str,
     width: usize,
-) -> Result<CapturedOutput, Box<dyn std::error::Error>> {
+) -> Result<std::process::Output, Box<dyn std::error::Error>> {
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
             "--progress",
@@ -601,33 +411,7 @@ fn capture_record(
         )
         .into());
     }
-    Ok(CapturedOutput {
-        stdout: output.stdout,
-        stderr: output.stderr,
-        status: output.status.code().unwrap_or(-1),
-    })
-}
-
-fn capture_evidence(
-    output: &CapturedOutput,
-    command: String,
-    width: Option<usize>,
-    profile: Option<&str>,
-    stdout_path: Option<String>,
-) -> CaptureEvidence {
-    CaptureEvidence {
-        command,
-        width,
-        profile: profile.map(str::to_string),
-        color: "NO_COLOR=1",
-        progress: "never",
-        stdout_path,
-        stdout_bytes: output.stdout.len(),
-        stdout_sha256: sha256_bytes(&output.stdout),
-        stderr_bytes: output.stderr.len(),
-        stderr_sha256: sha256_bytes(&output.stderr),
-        exit_status: output.status,
-    }
+    Ok(output)
 }
 
 fn sha256_bytes(bytes: &[u8]) -> String {
@@ -660,7 +444,7 @@ fn assert_golden(
 fn assert_authentic_unmodeled(
     artifact: &Path,
     update: bool,
-) -> Result<Vec<CaptureEvidence>, Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     let text = capture_record(artifact, AUTHENTIC_UNMODELED.key, "standard", 80)?;
     let text_value = String::from_utf8(text.stdout.clone())?;
     assert!(text_value.contains("Key: acrobatics+13"));
@@ -709,12 +493,7 @@ fn assert_authentic_unmodeled(
         .env("NO_COLOR", "1")
         .env("TERM", "dumb")
         .output()?;
-    let provenance = CapturedOutput {
-        stdout: provenance.stdout,
-        stderr: provenance.stderr,
-        status: provenance.status.code().unwrap_or(-1),
-    };
-    if provenance.status != 0 || !provenance.stderr.is_empty() {
+    if !provenance.status.success() || !provenance.stderr.is_empty() {
         return Err(format!(
             "authentic provenance capture failed: {}",
             String::from_utf8_lossy(&provenance.stderr)
@@ -737,38 +516,7 @@ fn assert_authentic_unmodeled(
     )?;
     update_authentic_manifest(update)?;
 
-    Ok(vec![
-        capture_evidence(
-            &text,
-            format!(
-                "atlas --progress never record get {} --detail standard --index $BOUNDED_ARTIFACT",
-                AUTHENTIC_UNMODELED.key
-            ),
-            Some(80),
-            Some("standard"),
-            Some("authentic-unmodeled/chernasardo-ranger-standard-80.txt".into()),
-        ),
-        capture_evidence(
-            &full,
-            format!(
-                "atlas --progress never record get {} --detail full --index $BOUNDED_ARTIFACT",
-                AUTHENTIC_UNMODELED.key
-            ),
-            Some(80),
-            Some("full"),
-            Some("authentic-unmodeled/chernasardo-ranger-full-80.txt".into()),
-        ),
-        capture_evidence(
-            &provenance,
-            format!(
-                "atlas --progress never record provenance {} --json --index $BOUNDED_ARTIFACT",
-                AUTHENTIC_UNMODELED.key
-            ),
-            Some(80),
-            Some("provenance-json"),
-            Some("authentic-unmodeled/chernasardo-ranger-provenance.json".into()),
-        ),
-    ])
+    Ok(())
 }
 
 fn assert_authentic_golden(
@@ -842,139 +590,7 @@ fn update_matrix_manifest(update: bool) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-fn assert_snapshot_evidence(
-    bounded_root: &Path,
-    artifact: &Path,
-    build_capture: &CaptureEvidence,
-    captures: &[CaptureEvidence],
-    update: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let artifact_manifest_path = artifact
-        .parent()
-        .ok_or("artifact needs parent")?
-        .join("manifest.json");
-    let artifact_bytes = fs::read(artifact)?;
-    let artifact_manifest_bytes = fs::read(&artifact_manifest_path)?;
-    let mut artifact_manifest: Value = serde_json::from_slice(&artifact_manifest_bytes)?;
-    if let Some(root) = artifact_manifest.pointer_mut("/source/root") {
-        *root = Value::String("$BOUNDED_SOURCE".into());
-    }
-    let (edition_lookups, edition_commands) = verified_edition_evidence(artifact)?;
-
-    let golden_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goldens/record_text");
-    let matrix_manifest = fs::read(golden_root.join("manifest.sha256"))?;
-    let authentic_manifest = fs::read(golden_root.join("authentic-unmodeled/manifest.sha256"))?;
-    let source_files = CREATURES
-        .iter()
-        .chain(std::iter::once(&AUTHENTIC_UNMODELED))
-        .map(|creature| {
-            serde_json::json!({
-                "record_key": creature.key,
-                "relative_path": creature.source_path,
-                "sha256": creature.source_sha256,
-            })
-        })
-        .chain(std::iter::once(serde_json::json!({
-            "relative_path": REMASTER_JOURNAL_PATH,
-            "sha256": REMASTER_JOURNAL_SHA256,
-        })))
-        .collect::<Vec<_>>();
-
-    let evidence = serde_json::json!({
-        "format": "pf2e-atlas-cli-text-snapshot-evidence/v1",
-        "remediation_base": REMEDIATION_BASE,
-        "base_tree": "c0e52555441cbf15eae9a8395a0c3319cd36fad3",
-        "accepted_first_parent_ancestry": [
-            "142b4eba993fcf34750d7b8a4b601586a1bf63bd",
-            "329125b414a592d60c5e0bb742e8954b11d7bab1",
-            "fe97ea0c52697c2c3f863746bb24a7d3d0f98afa",
-            "2485a21d60d78a39928ea4f64dccaf2b579d1235",
-            "a124c37179ffd15698485cd530307b1a5af33406",
-            "d595966a11502f6eca0d4580a500e003619f1613",
-            REMEDIATION_BASE,
-        ],
-        "controlling_clarification": {
-            "path": CLARIFICATION_NOTE_PATH,
-            "sha256": CLARIFICATION_NOTE_SHA256,
-            "mode": "0444",
-            "bytes": 7242,
-            "file_type": "regular",
-            "supersession_scope": [
-                "preview_relationships_and_availability_omission",
-                "standard_and_full_opaque_relationship_exclusion",
-                "full_debug_provenance_exclusion",
-                "dedicated_provenance_command_ownership",
-                "natural_profile_headings",
-            ],
-        },
-        "controlling_route": {
-            "path": ROUTE_PATH,
-            "sha256": ROUTE_SHA256,
-            "mode": "0444",
-            "bytes": 29216,
-            "file_type": "regular",
-        },
-        "durable_audit": {
-            "path": AUDIT_PATH,
-            "sha256": AUDIT_SHA256,
-            "mode": "0444",
-            "bytes": 46729,
-            "file_type": "regular",
-        },
-        "pinned_source": {
-            "source_contract": atlas_ingest::PF2E_SOURCE_CONTRACT_VERSION,
-            "upstream_commit": atlas_ingest::PF2E_SOURCE_PINNED_COMMIT,
-            "upstream_signature": atlas_ingest::PF2E_SOURCE_PINNED_SIGNATURE,
-            "files": source_files,
-            "bounded_module_sha256": sha256_bytes(&fs::read(bounded_root.join("module.json"))?),
-        },
-        "bounded_artifact": {
-            "embeddings": false,
-            "artifact_sha256": sha256_bytes(&artifact_bytes),
-            "manifest_sha256": sha256_bytes(&artifact_manifest_bytes),
-            "artifact_contract": atlas_index::ARTIFACT_CONTRACT_VERSION,
-            "artifact_schema": atlas_index::ARTIFACT_SCHEMA_VERSION,
-            "manifest_contract": atlas_index::ARTIFACT_MANIFEST_VERSION,
-            "manifest_identity": artifact_manifest,
-            "build_capture": build_capture,
-        },
-        "settings": {
-            "profiles": DETAILS,
-            "widths": WIDTHS,
-            "color": "NO_COLOR=1",
-            "term": "dumb",
-            "progress": "never",
-            "matrix_cells": 135,
-        },
-        "captures": captures,
-        "edition_verification_commands": edition_commands,
-        "verified_edition_lookups": edition_lookups,
-        "snapshot_hashes": {
-            "matrix_manifest_sha256": sha256_bytes(&matrix_manifest),
-            "authentic_unmodeled_manifest_sha256": sha256_bytes(&authentic_manifest),
-        },
-    });
-    let mut bytes = serde_json::to_vec_pretty(&evidence)?;
-    bytes.push(b'\n');
-    let path = golden_root.join("snapshot-evidence.json");
-    if update {
-        fs::write(path, bytes)?;
-    } else {
-        let expected: Value = serde_json::from_slice(&fs::read(&path)?)?;
-        let mut actual = evidence;
-        actual["bounded_artifact"] = expected["bounded_artifact"].clone();
-        if actual != expected {
-            return Err(format!("snapshot evidence mismatch: {}", path.display()).into());
-        }
-    }
-    Ok(())
-}
-
-fn verified_edition_evidence(
-    artifact: &Path,
-) -> Result<(Vec<Value>, Vec<CaptureEvidence>), Box<dyn std::error::Error>> {
-    let mut lookups = Vec::new();
-    let mut commands = Vec::new();
+fn assert_verified_editions(artifact: &Path) -> Result<(), Box<dyn std::error::Error>> {
     for creature in &CREATURES {
         let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
             .args([
@@ -993,12 +609,7 @@ fn verified_edition_evidence(
             .env("NO_COLOR", "1")
             .env("TERM", "dumb")
             .output()?;
-        let output = CapturedOutput {
-            stdout: output.stdout,
-            stderr: output.stderr,
-            status: output.status.code().unwrap_or(-1),
-        };
-        if output.status != 0 || !output.stderr.is_empty() {
+        if !output.status.success() || !output.stderr.is_empty() {
             return Err(format!("edition verification failed for {}", creature.key).into());
         }
         let json: Value = serde_json::from_slice(&output.stdout)?;
@@ -1009,26 +620,8 @@ fn verified_edition_evidence(
         if state != "verified" {
             return Err(format!("edition lookup was not verified for {}", creature.key).into());
         }
-        lookups.push(serde_json::json!({
-            "record_key": creature.key,
-            "status": edition["status"],
-            "counterpart_lookup": state,
-            "counterpart_count": edition["counterpart_lookup"]["counterparts"]
-                .as_array()
-                .map_or(0, Vec::len),
-        }));
-        commands.push(capture_evidence(
-            &output,
-            format!(
-                "atlas --progress never record get {} --detail full --json --index $BOUNDED_ARTIFACT",
-                creature.key
-            ),
-            Some(80),
-            Some("full-json-edition-verification"),
-            None,
-        ));
     }
-    Ok((lookups, commands))
+    Ok(())
 }
 
 fn normalize_layout(output: &str) -> Vec<String> {

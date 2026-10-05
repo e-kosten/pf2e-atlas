@@ -79,9 +79,9 @@ Construct Armor (Hardness 8)
 
 Fan the Flames
   The animated furnace opens its door
-  and fans its flames in a cone that
-  deals 5d6[fire] damage (Reflex DC 28
-  save).
+  and fans its flames in a 30-foot cone
+  that deals 5d6[fire] damage (Reflex DC
+  28 save).
 
 Swallow Whole
   Large, (2d8+9)[fire], Rupture 15
