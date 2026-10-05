@@ -16,7 +16,7 @@ use atlas_record::{
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 
-const SOURCE_ROOT: &str = "tests/fixtures/source-leaf-coverage/actor-npc/persistence";
+const SOURCE_ROOT: &str = "tests/fixtures/canonical-persistence";
 const RECORD_KEY: &str = "pathfinder-bestiary:WQy7HBUcgDLsfVJd";
 const SOURCE_PATH: &str = "packs/pathfinder-bestiary/night-hag.json";
 const GRAY_MASTER_KEY: &str = "curtain-call-bestiary:1eX4Csnv3psAsfLf";
@@ -713,7 +713,7 @@ fn single_b1_no_embedding_sqlite_build_proves_ability_and_skill_ownership()
     let gray_persistence_bytes = std::fs::read(source_root.join(GRAY_MASTER_PATH))?;
     let gray_excerpt_bytes = std::fs::read(
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/source-leaf-coverage/actor-npc/excerpts/gray-master.json"),
+            .join("tests/fixtures/canonical-persistence/gray-master-excerpt.json"),
     )?;
     assert_eq!(gray_persistence_bytes, gray_excerpt_bytes);
     let gray_excerpt: serde_json::Value = serde_json::from_slice(&gray_excerpt_bytes)?;

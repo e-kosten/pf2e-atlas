@@ -8,6 +8,12 @@ Success uses `{ "status": "ok", "data": ... }`. Command failures use `{ "status"
 
 Exit classes are `0` for success, `1` for a domain miss or partial domain result, `2` for invalid input, and `3` for runtime, index, artifact, or environment failure. Invalid readiness/validation findings may use a successful envelope with `data.valid: false` and exit `3` because the check itself ran.
 
+## Source-schema discovery
+
+`index audit-source-paths --json` returns `data.schema_version: "pf2e-source-schema/v1"`, a source signature, source-selection filters, pack/record/path counts, `complete`, and sorted `paths`. Each path includes its root document/type, JSON type counts, record/occurrence counts, duplicate-member count, and bounded examples. There are no model owners, field dispositions, or completeness-of-model assertions.
+
+`--baseline` accepts either this envelope or its bare `data` object. `source_diff` lists added/removed paths, changed type sets, and changed duplicate-member presence. Counts and examples do not trigger schema drift. `--strict` requires a complete compatible baseline; discovered drift retains the successful envelope and exits with code 3. Output limits apply after comparison and mark omitted paths with `complete: false`; incomplete reports cannot be baselines. This version directly replaces the earlier `pf2e-source-path-inventory/v1` report shape.
+
 ## Record contract
 
 Every record-bearing command serializes the same `atlas_record::RecordJson`. Search, resolve, graph, similar, and list payloads wrap that record; they do not define alternate record DTOs.

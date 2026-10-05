@@ -14,9 +14,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Source-Faithful Contract State
 
-The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. The integrated record-presentation implementation, product review, and validation are complete for those three canonical families. PR 7 remains draft while every remaining registry family is modeled or receives an explicit human-approved product disposition; later simplification and main-promotion planning follow that modeling milestone. The remaining families are separate required work and are not implied by these cutovers; [standalone and embedded consumables](./items/rust-consumable-record-family.md) are one of the next modeling portfolios.
+The source-faithful record contract in [ADRs 0033-0036](../architecture/decisions/README.md) is accepted. Creature, hazard, and standalone-spell implementations have completed their direct cutovers: their canonical bodies are the only hydrated presentation/runtime source, while generic record mechanics remain bounded to families without a canonical body. One-way query metrics and family query tables remain available for filtering and discovery without becoming hydration sources. The integrated record-presentation implementation, product review, and validation are complete for those three canonical families. Remaining family modeling and main-promotion review are separate product decisions; schema discovery does not impose a per-field model-completeness milestone. The remaining families are separate required work and are not implied by these cutovers; [standalone and embedded consumables](./items/rust-consumable-record-family.md) are one of the next modeling portfolios.
 
-The contract preserves all 313 exact type-registry assignments, keeps non-creature priority as a later decision, and retains overflow-only child embeddings. The product remains default-visible/public-only rather than an authentication boundary: typed visibility/provenance is data, and target exclusions require non-auth product rationale.
+Source shape discovery follows [ADR 0037](../architecture/decisions/0037-source-schema-discovery.md), while family priorities remain product decisions and child embeddings remain overflow-only. The product remains default-visible/public-only rather than an authentication boundary: typed visibility/provenance is data, and target exclusions require non-auth product rationale.
 
 ## Now
 
@@ -42,9 +42,6 @@ The contract preserves all 313 exact type-registry assignments, keeps non-creatu
 
 - [Rust CLI typo tolerant discovery](./items/rust-cli-typo-tolerant-discovery.md)
   Track backend-independent typo suggestions, corpus-token dictionaries, and acronym expansion without weakening strict record resolution. Status: proposed.
-
-- [Rust Foundry JSON field audit](./items/rust-foundry-json-field-audit.md)
-  Add an explicit offline audit that inventories Foundry source JSON fields against Rust ingest coverage. Status: active.
 
 - [Rust web UI architecture review](./items/rust-web-ui-architecture-review.md)
   Review the first web UI vertical slice for DTO/API boundaries, state ownership, AntD composition, module layout, and tests before substantial follow-up feature work. Status: proposed.

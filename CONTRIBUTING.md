@@ -389,33 +389,30 @@ atlas setup
 
 Checkpoint B approved the source-faithful contract in ADRs 0033-0036. Implementation remains dependency-ordered; creature, hazard, and spell families now have canonical typed bodies, while later family implementation, deployment, and named task ownership remain separate gates. Contributors changing source interpretation or canonical records must keep these steps in the same bounded task ownership:
 
-1. Refresh the pinned PF2e source identity and regenerate/reconcile the union-derived type registry. Preserve registration-only zero-count entries and exact parent contexts.
-2. Update real-owner source coverage declarations and field-level fixtures. Preserve `Missing | Null | Value` where the pinned contract permits it; zero and false are meaningful values. Empty strings, nulls, and empty collections are scaffolding for path-warning purposes, but the B1 typed boundary still validates their declared presence and shape.
-3. Run focused ingest/record tests. New meaningful unknowns, type drift, parent-context drift, lost assignment, and fixture drift must fail through normal admission or the owning focused fixture rather than fall through raw JSON pointers. Preserve leaf-exact declarations and add a precise mutation test whenever a formerly covered parent could conceal a new or stale child. The relaxed raw-path audit is an optional diagnostic, not a final corpus gate.
+1. Refresh the pinned PF2e source identity when changing the supported source version. Save the old full schema snapshot and inspect the new snapshot diff.
+2. Promote source facts when they improve product behavior. Preserve typed presence, duplicate handling, unsupported values, identity, and ordering in the owning parser and canonical body. Schema discovery does not require a per-field owner or omission ledger.
+3. Run focused ingest, record, and persistence tests for the behavior being changed. Keep source-schema discovery separate from normal admission and runtime readiness.
 4. For artifact changes, land the migration/version, checked-in Diesel schema, writer, complete `atlas-index::read` hydration, validation/inspection, corruption fixtures, and CLI diagnostics as one atomic unit. Small production-code writer/reader tests prove codec, presence, relationship, order, identity, and fault semantics. The current contract is `pf2e-atlas-artifact/v8` with schema `4` and manifest `pf2e-atlas-artifact-manifest/v3`; creature, hazard, and spell hydration must come only from their matching typed `RecordBody` variants.
 5. Run `just verify`; run `just web-ui-verify` for frontend-affecting work. Browser automation proves semantics/accessibility/runtime behavior only; Checkpoint E remains the separate human visual gate.
 6. Search for residual raw-runtime parsing, duplicate source interpretation, partial hydration, fallback adapters, and old/new presentation paths before calling a refactor complete. For creature, hazard, and spell work, also reject generic record-mechanics hydration or presentation; retained generic mechanics must have an explicit non-canonical-family record-kind boundary.
 
-Run the relaxed audit for an aggregate local review:
+Save a complete observed-source schema snapshot (the default emits all paths):
+
+```bash
+atlas index audit-source-paths --source vendor/pf2e --json > previous-schema.json
+```
+
+Inspect changes before a source refresh or check them in CI:
 
 ```bash
 atlas index audit-source-paths \
   --source vendor/pf2e \
-  --limit 1000000 \
-  --json
+  --baseline previous-schema.json \
+  --strict --json
 ```
 
-Run strict mode in CI and before a source refresh. To review a vendored-source update, retain the previous full report and pass it as the baseline; strict mode fails on added, removed, or reclassified meaningful paths until the diff and declarations are reviewed:
+Strict mode requires a baseline and exits with code 3 for added/removed paths, changed JSON type sets, or the appearance/disappearance of duplicate object members. Counts, examples, and ordinary value changes do not cause schema drift. Arrays use `[]`; known keyed maps use `*`; other fields retain literal names. The report inventories both containers and leaves, including nulls, zero, false, empty strings, and empty collections. It observes manifest-declared pack documents and embedded data, not every possible upstream registration or schema. `_folders.json` control files follow the ordinary ingest exclusion.
 
-```bash
-atlas index audit-source-paths \
-  --source vendor/pf2e \
-  --limit 1000000 \
-  --strict \
-  --baseline previous-source-coverage.json \
-  --json
-```
-
-The JSON path list, diagnostics, source diff, disposition summaries, and pinned-base retrieval-predicate inventory are deterministically sorted. `consumed`, `ignored_with_rationale`, `provenance_only`, `deferred`, and `unknown` are distinct outcomes; every row exposes its matched rule, owner family, fixture/checkpoint, and validation contract, every consumed row names its extractor, and every deferred row names an exact future owner and plan. Strict summaries also expose generic deferred matches, unowned recursive matches, and consumed regressions; all three must be zero for a passing corpus audit.
+`--pack-name`, `--document-type`, and `--record-type` select source subsets; baseline selections must match. `--min-records` and `--limit` only filter displayed rows after a complete comparison. Truncated reports are marked `complete: false` and rejected as baselines. An unreadable selected pack, invalid JSON, or ambiguous root identity/discriminator is an error. Snapshot signatures identify observed manifest/record bytes and paths without absolute checkout locations. See [ADR 0037](docs/architecture/decisions/0037-source-schema-discovery.md) and [the pinned baseline](contracts/source-schema/v1/README.md).
 
 Atlas currently has no authentication or viewer authorization boundary and is primarily a GM tool, but the pinned base still contains default-visible/public-only routing and is not GM-complete. The approved target preserves typed visibility, role, source kind, and provenance while removing classification-only suppression of useful authored information across ingest, artifact, search, graph, discovery, metrics, CLI, app, and UI. Any retained exclusion needs a documented non-auth product rationale, fixtures, validation, and audit checkpoint. Do not describe either the base predicates or target metadata as a privacy/security boundary; future authenticated filtering requires a separate approved feature.

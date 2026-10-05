@@ -6,7 +6,7 @@ use atlas_ingest::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, ExhaustiveValidationOptions, IngestDiagnostics,
     SkippedRecord, SourcePathAuditOptions, SourcePathAuditReport, analyze_foundry_source,
-    audit_source_paths, build_artifact, disposition_label, run_exhaustive_validation,
+    audit_source_paths, build_artifact, run_exhaustive_validation,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use serde_json::{Value, json};
@@ -109,7 +109,7 @@ pub(crate) fn run_index_audit_source_paths(
         document_type: options.document_type,
         record_type: options.record_type,
         min_records: options.min_records,
-        limit: Some(options.limit),
+        limit: (options.limit > 0).then_some(options.limit),
         strict: options.strict,
         baseline_report: options.baseline,
     })
@@ -121,7 +121,12 @@ pub(crate) fn run_index_audit_source_paths(
         print_source_path_audit(&report);
     }
 
-    if report.enforcement.passed {
+    if !options.strict
+        || report
+            .source_diff
+            .as_ref()
+            .is_none_or(|diff| diff.change_count() == 0)
+    {
         Ok(ExitCode::SUCCESS)
     } else {
         Ok(ExitCode::from(3))
@@ -130,50 +135,56 @@ pub(crate) fn run_index_audit_source_paths(
 
 fn print_source_path_audit(report: &SourcePathAuditReport) {
     println!(
-        "ok: audited {} records from {} packs in {}",
-        report.record_count, report.pack_count, report.source_root
+        "ok: discovered {} paths in {} records across {} packs ({})",
+        report.path_count, report.record_count, report.pack_count, report.schema_version
     );
     println!(
-        "inventory: policy={} digest={} authoritative_completeness={} mode={:?} passed={} warnings={} violations={}",
-        report.coverage_policy_version,
-        report.coverage_policy_digest,
-        report.authoritative_completeness,
-        report.enforcement.mode,
-        report.enforcement.passed,
-        report.enforcement.aggregate_warning_count,
-        report.enforcement.violation_count
+        "source_signature={} complete={}",
+        report.source_signature, report.complete
     );
-    println!(
-        "paths: showing {} of {} diagnostic leaves with min_records={} unconsumed={} source_diff_changes={}",
-        report.paths.len(),
-        report.path_count,
-        report.filters.min_records,
-        report.summary.unknown_paths,
-        report.summary.source_diff_changes,
-    );
-    for diagnostic in &report.diagnostics {
+    if let Some(diff) = &report.source_diff {
         println!(
-            "warning kind={:?} document_type={} record_type={} path={} occurrences={} expected={} actual={}",
-            diagnostic.kind,
-            diagnostic.document_type,
-            diagnostic.record_type,
-            diagnostic.json_path,
-            diagnostic.occurrence_count,
-            diagnostic.expected_shape,
-            diagnostic.actual_shape,
+            "schema diff: added={} removed={} changed_types={} changed_duplicate_members={}",
+            diff.added_paths.len(),
+            diff.removed_paths.len(),
+            diff.changed_types.len(),
+            diff.changed_duplicate_members.len()
         );
+        for key in &diff.added_paths {
+            println!("+ {}|{} {}", key.document_type, key.record_type, key.path);
+        }
+        for key in &diff.removed_paths {
+            println!("- {}|{} {}", key.document_type, key.record_type, key.path);
+        }
+        for change in &diff.changed_types {
+            println!(
+                "~ {}|{} {} {:?} -> {:?}",
+                change.key.document_type,
+                change.key.record_type,
+                change.key.path,
+                change.before,
+                change.after
+            );
+        }
+        for key in &diff.changed_duplicate_members {
+            println!(
+                "~ {}|{} {} duplicate members changed",
+                key.document_type, key.record_type, key.path
+            );
+        }
     }
     for path in &report.paths {
         println!(
-            "{}|{} {} records={} occurrences={} disposition={} owner={} future_owner={}",
-            path.document_type,
-            path.record_type,
-            path.path,
+            "{}|{} {} records={} occurrences={} types={:?}",
+            path.key.document_type,
+            path.key.record_type,
+            path.key.path,
             path.record_count,
             path.occurrence_count,
-            disposition_label(path.disposition),
-            path.owner,
-            path.future_owner.as_deref().unwrap_or("none"),
+            path.value_types
+                .iter()
+                .map(|value| value.kind.as_str())
+                .collect::<Vec<_>>()
         );
         for example in &path.examples {
             println!(
