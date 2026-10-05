@@ -9,7 +9,7 @@ use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use super::args::SourceValuesOptions;
 use crate::output::{write_json_data, write_json_error};
 
-pub(crate) fn run_index_source_values(options: SourceValuesOptions) -> Result<ExitCode, String> {
+pub(crate) fn run_source_values(options: SourceValuesOptions) -> Result<ExitCode, String> {
     let runtime = match AtlasRuntime::resolve(AtlasRuntimeOptions {
         path_mode: options.selection.path_mode.into(),
         overrides: AtlasPathOverrides {

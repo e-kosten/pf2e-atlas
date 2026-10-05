@@ -9,5 +9,6 @@ pub(crate) mod record;
 pub(crate) mod search;
 pub(crate) mod setup;
 pub(crate) mod similar;
+pub(crate) mod source;
 pub(crate) mod tags;
 pub(crate) mod web;

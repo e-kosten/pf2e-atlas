@@ -5,8 +5,7 @@ use atlas_index::ValidationTarget;
 use atlas_ingest::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, ExhaustiveValidationOptions, IngestDiagnostics,
-    SkippedRecord, SourcePathAuditOptions, SourcePathAuditReport, analyze_foundry_source,
-    audit_source_paths, build_artifact, run_exhaustive_validation,
+    SkippedRecord, build_artifact, run_exhaustive_validation,
 };
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use serde_json::{Value, json};
@@ -14,12 +13,10 @@ use serde_json::{Value, json};
 use crate::output::{format_duration_ms, write_json_data, write_validation_report};
 
 pub(crate) mod args;
-mod source_values;
-pub(crate) use source_values::run_index_source_values;
 
 use args::{
-    AnalyzeIndexOptions, AuditSourcePathsOptions, BuildIndexOptions, CheckIndexOptions,
-    IndexPathOptions, ValidateCorpusOptions, ValidateIndexOptions,
+    BuildIndexOptions, CheckIndexOptions, IndexPathOptions, ValidateCorpusOptions,
+    ValidateIndexOptions,
 };
 
 pub(crate) fn run_index_validate_corpus(
@@ -41,160 +38,6 @@ pub(crate) fn run_index_validate_corpus(
         report.snapshot_reused
     );
     Ok(ExitCode::SUCCESS)
-}
-
-pub(crate) fn run_index_analyze(options: AnalyzeIndexOptions) -> Result<ExitCode, String> {
-    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
-        path_mode: options.path_mode.into(),
-        overrides: AtlasPathOverrides {
-            source_root: options.source,
-            embedding_cache_root: None,
-            index_path: None,
-        },
-    })
-    .map_err(|error| error.to_string())?;
-    let paths = runtime.paths();
-    let report = analyze_foundry_source(&paths.source_root, options.manifest.as_deref())
-        .map_err(|error| error.to_string())?;
-
-    if options.json {
-        write_json_data(&report)?;
-    } else {
-        println!(
-            "ok: analyzed {} records from {} packs in {}",
-            report.record_count, report.pack_count, report.source.root
-        );
-        println!("source signature: {}", report.source.source_signature);
-        println!(
-            "records: source={} generated={} default_visible={} hidden={}",
-            report.loaded_source_record_count,
-            report.generated_record_count,
-            report.default_visible_record_count,
-            report.hidden_record_count
-        );
-        println!(
-            "relationships: references={} aliases={} remaster_links={}",
-            report.relationships.reference_edges,
-            report.relationships.record_aliases,
-            report.relationships.remaster_links
-        );
-        println!(
-            "dropped inline macros: {}",
-            report
-                .diagnostics
-                .get("dropped_inline_macros")
-                .and_then(serde_json::Value::as_array)
-                .map_or(0, Vec::len)
-        );
-    }
-
-    Ok(ExitCode::SUCCESS)
-}
-
-pub(crate) fn run_index_audit_source_paths(
-    options: AuditSourcePathsOptions,
-) -> Result<ExitCode, String> {
-    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
-        path_mode: options.selection.path_mode.into(),
-        overrides: AtlasPathOverrides {
-            source_root: options.selection.source,
-            embedding_cache_root: None,
-            index_path: None,
-        },
-    })
-    .map_err(|error| error.to_string())?;
-    let paths = runtime.paths();
-    let report = audit_source_paths(SourcePathAuditOptions {
-        source_root: paths.source_root.clone(),
-        manifest_path: options.selection.manifest,
-        pack_name: options.selection.pack_name,
-        document_type: options.selection.document_type,
-        record_type: options.selection.record_type,
-        min_records: options.min_records,
-        limit: (options.limit > 0).then_some(options.limit),
-        strict: options.strict,
-        baseline_report: options.baseline,
-    })
-    .map_err(|error| error.to_string())?;
-
-    if options.json {
-        write_json_data(&report)?;
-    } else {
-        print_source_path_audit(&report);
-    }
-
-    if !options.strict
-        || report
-            .source_diff
-            .as_ref()
-            .is_none_or(|diff| diff.change_count() == 0)
-    {
-        Ok(ExitCode::SUCCESS)
-    } else {
-        Ok(ExitCode::from(3))
-    }
-}
-
-fn print_source_path_audit(report: &SourcePathAuditReport) {
-    println!(
-        "ok: discovered {} paths in {} records across {} packs ({})",
-        report.path_count, report.record_count, report.pack_count, report.schema_version
-    );
-    println!(
-        "source_signature={} complete={}",
-        report.source_signature, report.complete
-    );
-    if let Some(diff) = &report.source_diff {
-        println!(
-            "schema diff: added={} removed={} changed_types={} changed_duplicate_members={}",
-            diff.added_paths.len(),
-            diff.removed_paths.len(),
-            diff.changed_types.len(),
-            diff.changed_duplicate_members.len()
-        );
-        for key in &diff.added_paths {
-            println!("+ {}|{} {}", key.document_type, key.record_type, key.path);
-        }
-        for key in &diff.removed_paths {
-            println!("- {}|{} {}", key.document_type, key.record_type, key.path);
-        }
-        for change in &diff.changed_types {
-            println!(
-                "~ {}|{} {} {:?} -> {:?}",
-                change.key.document_type,
-                change.key.record_type,
-                change.key.path,
-                change.before,
-                change.after
-            );
-        }
-        for key in &diff.changed_duplicate_members {
-            println!(
-                "~ {}|{} {} duplicate members changed",
-                key.document_type, key.record_type, key.path
-            );
-        }
-    }
-    for path in &report.paths {
-        println!(
-            "{}|{} {} records={} occurrences={} types={:?}",
-            path.key.document_type,
-            path.key.record_type,
-            path.key.path,
-            path.record_count,
-            path.occurrence_count,
-            path.value_types
-                .iter()
-                .map(|value| value.kind.as_str())
-                .collect::<Vec<_>>()
-        );
-        for example in &path.examples {
-            println!(
-                "  e.g. {} {} = {}",
-                example.record_key, example.source_path, example.value
-            );
-        }
-    }
 }
 
 pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {

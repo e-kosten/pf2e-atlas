@@ -10,13 +10,13 @@ Exit classes are `0` for success, `1` for a domain miss or partial domain result
 
 ## Source-schema discovery
 
-`index audit-source-paths --json` returns `data.schema_version: "pf2e-source-schema/v1"`, a source signature, source-selection filters, pack/record/path counts, `complete`, and sorted `paths`. Each path includes its root document/type, JSON type counts, record/occurrence counts, duplicate-member count, and bounded examples. There are no model owners, field dispositions, or completeness-of-model assertions.
+`source schema --json` returns `data.schema_version: "pf2e-source-schema/v1"`, a source signature, source-selection filters, pack/record/path counts, `complete`, and sorted `paths`. Each path includes its root document/type, JSON type counts, record/occurrence counts, duplicate-member count, and bounded examples. There are no model owners, field dispositions, or completeness-of-model assertions.
 
 `--baseline` accepts either this envelope or its bare `data` object. `source_diff` lists added/removed paths, changed type sets, and changed duplicate-member presence. Counts and examples do not trigger schema drift. `--strict` requires a complete compatible baseline; discovered drift retains the successful envelope and exits with code 3. Output limits apply after comparison and mark omitted paths with `complete: false`; incomplete reports cannot be baselines. This version directly replaces the earlier `pf2e-source-path-inventory/v1` report shape.
 
 ## Source-field value discovery
 
-`index source-values --path '$.system.traits.value[]' --json` returns `data.schema_version: "pf2e-source-values/v1"`, a source signature, source-selection filters, the requested normalized path, pack/record counts, the sample limit, `complete`, and sorted `fields`. Each field is grouped by root document type and record discriminator, with present/missing document counts, total occurrences, duplicate-member and JSON type counts, `distinct_value_count`, `complete`, and `values`.
+`source values --path '$.system.traits.value[]' --json` returns `data.schema_version: "pf2e-source-values/v1"`, a source signature, source-selection filters, the requested normalized path, pack/record counts, the sample limit, `complete`, and sorted `fields`. Each field is grouped by root document type and record discriminator, with present/missing document counts, total occurrences, duplicate-member and JSON type counts, `distinct_value_count`, `complete`, and `values`.
 
 Each value includes complete compact JSON in `value_json`, its `value_type`, document/occurrence counts, and bounded `examples` containing `source_path`, `record_key`, and a concrete RFC 6901 `source_pointer`. Compact JSON retains duplicate members and authored object/array ordering; it is a string so ordinary JSON decoding cannot collapse repeated members. Missing paths are counted separately from explicit null values. An empty array has no member occurrence for a path ending in `[]`.
 
