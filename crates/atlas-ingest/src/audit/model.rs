@@ -14,6 +14,64 @@ pub struct SourcePathAuditOptions {
     pub baseline_report: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct SourceValueDiscoveryOptions {
+    pub source_root: PathBuf,
+    pub manifest_path: Option<PathBuf>,
+    pub filters: SourcePathAuditFilters,
+    /// Exact normalized path copied from the schema inventory.
+    pub path: String,
+    /// Source references retained per distinct value; zero disables samples.
+    pub sample_limit: usize,
+    /// Display limit per document family, applied after complete counting.
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceValueDiscoveryReport {
+    pub schema_version: String,
+    pub source_signature: String,
+    pub filters: SourcePathAuditFilters,
+    pub path: String,
+    pub pack_count: usize,
+    pub record_count: usize,
+    pub sample_limit: usize,
+    pub complete: bool,
+    pub fields: Vec<SourceFieldValueReport>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceFieldValueReport {
+    #[serde(flatten)]
+    pub key: SourceSchemaKey,
+    pub record_count: usize,
+    pub missing_record_count: usize,
+    pub occurrence_count: usize,
+    pub duplicate_member_count: usize,
+    pub value_types: Vec<SourcePathAuditValueType>,
+    pub distinct_value_count: usize,
+    pub complete: bool,
+    pub values: Vec<SourceFieldValue>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceFieldValue {
+    /// Complete compact JSON; preserves duplicate members and authored ordering.
+    pub value_json: String,
+    pub value_type: String,
+    pub record_count: usize,
+    pub occurrence_count: usize,
+    pub examples: Vec<SourceValueReference>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceValueReference {
+    pub source_path: String,
+    pub record_key: String,
+    /// Concrete RFC 6901 pointer; duplicate keys share a pointer.
+    pub source_pointer: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourcePathAuditReport {
@@ -31,7 +89,7 @@ pub struct SourcePathAuditReport {
     pub source_diff: Option<SourcePathAuditDiff>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourcePathAuditFilters {
     pub pack_name: Option<String>,

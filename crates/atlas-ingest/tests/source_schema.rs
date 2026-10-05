@@ -3,7 +3,11 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use atlas_ingest::{SourcePathAuditOptions, SourcePathAuditReport, audit_source_paths};
+use atlas_ingest::{
+    SourcePathAuditFilters, SourcePathAuditOptions, SourcePathAuditReport,
+    SourceValueDiscoveryOptions, SourceValueDiscoveryReport, audit_source_paths,
+    discover_source_values,
+};
 use serde_json::json;
 
 struct SourceFixture(PathBuf);
@@ -51,6 +55,179 @@ impl Drop for SourceFixture {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
     }
+}
+
+fn value_options(source: &SourceFixture, path: &str) -> SourceValueDiscoveryOptions {
+    SourceValueDiscoveryOptions {
+        source_root: source.0.clone(),
+        manifest_path: None,
+        filters: SourcePathAuditFilters {
+            record_type: Some("spell".into()),
+            ..Default::default()
+        },
+        path: path.into(),
+        sample_limit: 2,
+        limit: None,
+    }
+}
+
+fn values(source: &SourceFixture, path: &str) -> SourceValueDiscoveryReport {
+    discover_source_values(value_options(source, path)).expect("value discovery")
+}
+
+#[test]
+fn value_discovery_counts_all_values_and_samples_rare_variants() {
+    let source = SourceFixture::new();
+    source.record("a.json", r#"{"_id":"same","type":"spell","tags":["common","common",null,false,0,"",{},[]],"duplicate":"first","duplicate":null}"#);
+    source.record(
+        "b.json",
+        r#"{"_id":"same","type":"spell","tags":["common","rare"]}"#,
+    );
+    source.record("c.json", r#"{"type":"spell"}"#);
+    source.record("d.json", r#"{"type":"action","tags":["excluded"]}"#);
+    let report = values(&source, "$.tags[]");
+    assert_eq!(report.record_count, 3);
+    assert_eq!(report.fields.len(), 1);
+    let field = &report.fields[0];
+    assert_eq!(field.record_count, 2);
+    assert_eq!(field.missing_record_count, 1);
+    assert_eq!(field.occurrence_count, 10);
+    assert_eq!(field.distinct_value_count, 8);
+    assert!(report.complete);
+    let common = &field.values[0];
+    assert_eq!(common.value_json, "\"common\"");
+    assert_eq!(common.occurrence_count, 3);
+    assert_eq!(
+        common.record_count, 2,
+        "count documents, not IDs or occurrences"
+    );
+    assert_eq!(common.examples.len(), 2);
+    assert_eq!(common.examples[1].source_pointer, "/tags/0");
+    assert_eq!(common.examples[1].source_path, "packs/items/b.json");
+    for expected in ["null", "false", "0", "\"\"", "{}", "[]", "\"rare\""] {
+        let value = field
+            .values
+            .iter()
+            .find(|value| value.value_json == expected)
+            .expect("distinct value");
+        assert_eq!(value.occurrence_count, 1);
+        assert!(!value.examples.is_empty(), "rare values retain references");
+    }
+    let rare = field
+        .values
+        .iter()
+        .find(|value| value.value_json == "\"rare\"")
+        .unwrap();
+    assert_eq!(rare.examples[0].source_path, "packs/items/b.json");
+    assert_eq!(rare.examples[0].source_pointer, "/tags/1");
+    assert_eq!(
+        values(&source, "$.tags[]"),
+        report,
+        "deterministic ordering"
+    );
+
+    let duplicate = values(&source, "$.duplicate");
+    let field = &duplicate.fields[0];
+    assert_eq!((field.record_count, field.missing_record_count), (1, 2));
+    assert_eq!(
+        (field.occurrence_count, field.duplicate_member_count),
+        (2, 2)
+    );
+    assert_eq!(
+        field.distinct_value_count, 2,
+        "duplicate members cannot be collapsed by JSON parsing"
+    );
+
+    let absent = values(&source, "$.absent");
+    assert_eq!(absent.fields[0].missing_record_count, 3);
+    assert!(absent.fields[0].values.is_empty());
+    let mut options = value_options(&source, "$.tags[]");
+    options.limit = Some(1);
+    options.sample_limit = 0;
+    let limited = discover_source_values(options).unwrap();
+    assert!(!limited.complete);
+    assert_eq!(limited.fields[0].distinct_value_count, 8);
+    assert_eq!(limited.fields[0].occurrence_count, 10);
+    assert_eq!(limited.fields[0].values.len(), 1);
+    assert!(limited.fields[0].values[0].examples.is_empty());
+}
+
+#[test]
+fn value_discovery_preserves_long_values_structures_and_concrete_keyed_references() {
+    let source = SourceFixture::new();
+    let prefix = "a".repeat(180);
+    let record = json!({"type":"spell", "system":{"damage": {
+        "id/~": {"formula": format!("{prefix}x")},
+        "another": {"formula": format!("{prefix}y")}
+    }}, "odd.key": [{"x": 1}] })
+    .to_string();
+    source.record("a.json", &record);
+    let path = "$.system.damage.*.formula";
+    let report = values(&source, path);
+    assert_eq!(
+        report.fields[0].distinct_value_count, 2,
+        "untruncated values cannot collide"
+    );
+    let first = &report.fields[0].values[0];
+    assert_eq!(first.value_json, format!("\"{prefix}x\""));
+    assert_eq!(
+        first.examples[0].source_pointer,
+        "/system/damage/id~1~0/formula"
+    );
+    assert!(
+        source
+            .scan()
+            .paths
+            .iter()
+            .any(|field| field.key.path == path)
+    );
+    let punctuated = values(&source, "$[\"odd.key\"][]");
+    assert_eq!(punctuated.fields[0].values[0].value_json, "{\"x\":1}");
+    assert_eq!(
+        punctuated.fields[0].values[0].examples[0].source_pointer,
+        "/odd.key/0"
+    );
+
+    let elsewhere = SourceFixture::new();
+    elsewhere.record("a.json", &record);
+    assert_eq!(
+        values(&elsewhere, path),
+        report,
+        "checkout-independent signature and references"
+    );
+    source.record(
+        "a.json",
+        r#"{"type":"spell","x":{"a":1,"a":2},"y":{"a":2,"a":1}}"#,
+    );
+    assert_eq!(
+        values(&source, "$.x").fields[0].values[0].value_json,
+        "{\"a\":1,\"a\":2}"
+    );
+}
+
+#[test]
+fn value_discovery_keeps_families_and_source_filters_separate_and_propagates_errors() {
+    let source = SourceFixture::new();
+    source.record("a.json", r#"{"type":"spell","x":null}"#);
+    source.record("b.json", r#"{"type":"action","x":1}"#);
+    let mut options = value_options(&source, "$.x");
+    options.filters.record_type = None;
+    let report = discover_source_values(options.clone()).unwrap();
+    assert_eq!(report.fields.len(), 2);
+    assert_eq!(report.fields[0].key.record_type, "action");
+    assert_eq!(report.fields[1].values[0].value_json, "null");
+    options.filters.document_type = Some("Actor".into());
+    let empty = discover_source_values(options.clone()).unwrap();
+    assert_eq!(empty.pack_count, 0);
+    assert!(empty.fields.is_empty());
+    options.filters.document_type = None;
+    options.filters.pack_name = Some("unknown".into());
+    assert_eq!(discover_source_values(options).unwrap().record_count, 0);
+    let mut invalid = value_options(&source, "x");
+    assert!(discover_source_values(invalid.clone()).is_err());
+    invalid.path = "$.x".into();
+    source.record("a.json", "{");
+    assert!(discover_source_values(invalid).is_err());
 }
 
 #[test]

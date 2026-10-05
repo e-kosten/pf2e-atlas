@@ -61,7 +61,7 @@ jobs:
         run: scripts/validation/focused.sh
       - name: Compare pinned source schema
         run: >-
-          cargo run -p atlas-cli -- index audit-source-paths
+          cargo run -p atlas-cli -- source schema
           --source ${{ github.workspace }}/.focused-pf2e
           --baseline contracts/source-schema/v1/pf2e.json --strict --limit 1
       - name: Verify Linux artifact generation lifecycle

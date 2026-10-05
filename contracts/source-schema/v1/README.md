@@ -7,14 +7,14 @@ The snapshot records observed paths, JSON types, document/occurrence counts, dup
 Generate a candidate from a complete checkout at the intended upstream commit:
 
 ```bash
-cargo run -p atlas-cli -- index audit-source-paths \
+cargo run -p atlas-cli -- source schema \
   --source /path/to/pinned-pf2e --json > candidate-schema.json
 ```
 
 Compare before replacing the checked-in snapshot:
 
 ```bash
-cargo run -p atlas-cli -- index audit-source-paths \
+cargo run -p atlas-cli -- source schema \
   --source /path/to/pinned-pf2e \
   --baseline contracts/source-schema/v1/pf2e.json --strict --limit 1
 ```

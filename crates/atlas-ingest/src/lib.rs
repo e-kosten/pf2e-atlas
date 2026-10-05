@@ -22,9 +22,11 @@ pub use artifact_manifest::{
     source_git_commit_if_clean,
 };
 pub use audit::{
-    SourcePathAuditDiff, SourcePathAuditFilters, SourcePathAuditOptions, SourcePathAuditPathReport,
-    SourcePathAuditReport, SourcePathAuditSample, SourcePathAuditValueType, SourceSchemaKey,
-    SourceSchemaTypeChange, audit_source_paths,
+    SourceFieldValue, SourceFieldValueReport, SourcePathAuditDiff, SourcePathAuditFilters,
+    SourcePathAuditOptions, SourcePathAuditPathReport, SourcePathAuditReport,
+    SourcePathAuditSample, SourcePathAuditValueType, SourceSchemaKey, SourceSchemaTypeChange,
+    SourceValueDiscoveryOptions, SourceValueDiscoveryReport, SourceValueReference,
+    audit_source_paths, discover_source_values,
 };
 pub use diagnostics::{DroppedInlineMacroDiagnostic, IngestDiagnostics};
 pub use error::IngestError;
