@@ -1,6 +1,6 @@
 .preview-popover {
   max-width: calc(100vw - 32px);
-  width: 560px;
+  width: 720px;
 }
 
 .preview-popover .ant-popover-inner {
@@ -28,11 +28,12 @@
 }
 
 .preview-popover__content {
-  max-height: min(560px, calc(100vh - 80px));
+  max-height: min(720px, calc(100vh - 80px));
   min-width: min(320px, calc(100vw - 32px));
   overscroll-behavior: contain;
   overflow: auto;
   padding: 12px;
+  scrollbar-gutter: stable;
 }
 
 .preview-popover__trigger {
