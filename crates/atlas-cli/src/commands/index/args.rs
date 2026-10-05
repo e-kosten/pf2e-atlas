@@ -17,6 +17,10 @@ pub(crate) enum IndexCommand {
     Analyze(AnalyzeIndexOptions),
     #[command(about = "Discover Foundry input shapes and compare source-schema snapshots")]
     AuditSourcePaths(AuditSourcePathsOptions),
+    #[command(
+        about = "Inspect values, frequencies, and source references for a Foundry input path"
+    )]
+    SourceValues(SourceValuesOptions),
     #[command(about = "Manually build a Rust SQLite artifact from Foundry source files")]
     Build(BuildIndexOptions),
     #[command(about = "Run a fast artifact readiness check")]
@@ -52,18 +56,8 @@ pub(crate) struct ValidateCorpusOptions {
     after_help = "Examples:\n  atlas index audit-source-paths --record-type npc --min-records 10\n  atlas index audit-source-paths --json > schema.json\n  atlas index audit-source-paths --strict --baseline schema.json --json"
 )]
 pub(crate) struct AuditSourcePathsOptions {
-    #[arg(long, help = "Override the PF2E source checkout path")]
-    pub(crate) source: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
-    pub(crate) path_mode: CliPathMode,
-    #[arg(long, help = "Override the Foundry manifest path")]
-    pub(crate) manifest: Option<PathBuf>,
-    #[arg(long, help = "Only scan one manifest pack name")]
-    pub(crate) pack_name: Option<String>,
-    #[arg(long, help = "Only scan packs with this Foundry document type")]
-    pub(crate) document_type: Option<String>,
-    #[arg(long, help = "Only scan records with this Foundry record type")]
-    pub(crate) record_type: Option<String>,
+    #[command(flatten)]
+    pub(crate) selection: SourceSelectionOptions,
     #[arg(
         long,
         default_value_t = 1,
@@ -178,5 +172,52 @@ pub(crate) struct IndexPathOptions {
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
     #[arg(long, help = "Emit the standard JSON envelope")]
+    pub(crate) json: bool,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct SourceSelectionOptions {
+    #[arg(long, help = "Override the PF2E source checkout path")]
+    pub(crate) source: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(long, help = "Override the Foundry manifest path")]
+    pub(crate) manifest: Option<PathBuf>,
+    #[arg(long, help = "Only scan one manifest pack name")]
+    pub(crate) pack_name: Option<String>,
+    #[arg(long, help = "Only scan packs with this Foundry document type")]
+    pub(crate) document_type: Option<String>,
+    #[arg(long, help = "Only scan records with this Foundry record type")]
+    pub(crate) record_type: Option<String>,
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas index source-values --record-type spell --path '$.system.traits.value[]'\n  atlas index source-values --source vendor/pf2e --record-type npc --path '$.system.attributes.hp.max' --json"
+)]
+pub(crate) struct SourceValuesOptions {
+    #[command(flatten)]
+    pub(crate) selection: SourceSelectionOptions,
+    #[arg(
+        long,
+        help = "Exact normalized path from audit-source-paths; arrays use [] and known keyed maps use *"
+    )]
+    pub(crate) path: String,
+    #[arg(
+        long,
+        default_value_t = 3,
+        help = "Maximum concrete source references per distinct value; 0 disables samples"
+    )]
+    pub(crate) sample_limit: usize,
+    #[arg(
+        long,
+        default_value_t = 0,
+        help = "Maximum distinct values to display per document family; 0 means all. Counts always cover the full scan"
+    )]
+    pub(crate) limit: usize,
+    #[arg(
+        long,
+        help = "Emit the standard JSON envelope with complete untruncated values"
+    )]
     pub(crate) json: bool,
 }

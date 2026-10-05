@@ -14,6 +14,14 @@ Exit classes are `0` for success, `1` for a domain miss or partial domain result
 
 `--baseline` accepts either this envelope or its bare `data` object. `source_diff` lists added/removed paths, changed type sets, and changed duplicate-member presence. Counts and examples do not trigger schema drift. `--strict` requires a complete compatible baseline; discovered drift retains the successful envelope and exits with code 3. Output limits apply after comparison and mark omitted paths with `complete: false`; incomplete reports cannot be baselines. This version directly replaces the earlier `pf2e-source-path-inventory/v1` report shape.
 
+## Source-field value discovery
+
+`index source-values --path '$.system.traits.value[]' --json` returns `data.schema_version: "pf2e-source-values/v1"`, a source signature, source-selection filters, the requested normalized path, pack/record counts, the sample limit, `complete`, and sorted `fields`. Each field is grouped by root document type and record discriminator, with present/missing document counts, total occurrences, duplicate-member and JSON type counts, `distinct_value_count`, `complete`, and `values`.
+
+Each value includes complete compact JSON in `value_json`, its `value_type`, document/occurrence counts, and bounded `examples` containing `source_path`, `record_key`, and a concrete RFC 6901 `source_pointer`. Compact JSON retains duplicate members and authored object/array ordering; it is a string so ordinary JSON decoding cannot collapse repeated members. Missing paths are counted separately from explicit null values. An empty array has no member occurrence for a path ending in `[]`.
+
+Values sort by descending occurrence count, then by serialized value. `--limit` applies per family after full counting; omitted values mark that field and the overall report incomplete. `--sample-limit` bounds examples per value, taking at most one per document; it does not limit value discovery. The default emits all distinct values with up to three references each. Value reports are observations for modeling research, not schema baselines or model-completeness checks. Terminal output abbreviates long values; JSON retains them in full. Invalid path inputs return an `invalid_input` error envelope and exit 2; source/environment failures return `source_discovery_failed` and exit 3.
+
 ## Record contract
 
 Every record-bearing command serializes the same `atlas_record::RecordJson`. Search, resolve, graph, similar, and list payloads wrap that record; they do not define alternate record DTOs.

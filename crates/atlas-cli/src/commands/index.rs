@@ -14,6 +14,8 @@ use serde_json::{Value, json};
 use crate::output::{format_duration_ms, write_json_data, write_validation_report};
 
 pub(crate) mod args;
+mod source_values;
+pub(crate) use source_values::run_index_source_values;
 
 use args::{
     AnalyzeIndexOptions, AuditSourcePathsOptions, BuildIndexOptions, CheckIndexOptions,
@@ -93,9 +95,9 @@ pub(crate) fn run_index_audit_source_paths(
     options: AuditSourcePathsOptions,
 ) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
-        path_mode: options.path_mode.into(),
+        path_mode: options.selection.path_mode.into(),
         overrides: AtlasPathOverrides {
-            source_root: options.source,
+            source_root: options.selection.source,
             embedding_cache_root: None,
             index_path: None,
         },
@@ -104,10 +106,10 @@ pub(crate) fn run_index_audit_source_paths(
     let paths = runtime.paths();
     let report = audit_source_paths(SourcePathAuditOptions {
         source_root: paths.source_root.clone(),
-        manifest_path: options.manifest,
-        pack_name: options.pack_name,
-        document_type: options.document_type,
-        record_type: options.record_type,
+        manifest_path: options.selection.manifest,
+        pack_name: options.selection.pack_name,
+        document_type: options.selection.document_type,
+        record_type: options.selection.record_type,
         min_records: options.min_records,
         limit: (options.limit > 0).then_some(options.limit),
         strict: options.strict,

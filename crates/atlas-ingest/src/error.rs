@@ -2,6 +2,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum IngestError {
+    #[error(
+        "invalid source discovery path `{0}`: copy an exact normalized path starting with $ from audit-source-paths"
+    )]
+    InvalidSourceDiscoveryPath(String),
     #[error("source root is unavailable: {0}")]
     SourceUnavailable(String),
     #[error("source manifest failed to parse: {0}")]

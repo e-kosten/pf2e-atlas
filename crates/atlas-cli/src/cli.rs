@@ -102,6 +102,7 @@ impl Command {
             Self::Index(args) => match &args.command {
                 IndexCommand::Analyze(options) => options.json,
                 IndexCommand::AuditSourcePaths(options) => options.json,
+                IndexCommand::SourceValues(options) => options.json,
                 IndexCommand::Build(options) => options.json,
                 IndexCommand::Check(options) => options.json,
                 IndexCommand::Inspect(options) => options.json,
@@ -157,6 +158,9 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Analyze(options) => commands::index::run_index_analyze(options),
             IndexCommand::AuditSourcePaths(options) => {
                 commands::index::run_index_audit_source_paths(options)
+            }
+            IndexCommand::SourceValues(options) => {
+                commands::index::run_index_source_values(options)
             }
             IndexCommand::Build(options) => commands::index::run_index_build(options),
             IndexCommand::Check(options) => commands::index::run_index_check(options),
