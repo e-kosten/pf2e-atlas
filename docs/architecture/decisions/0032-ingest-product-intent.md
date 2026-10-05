@@ -10,7 +10,7 @@ PF2e Atlas keeps persisted Foundry raw JSON for provenance, parity debugging, an
 
 At the same time, leaving useful source structure in raw JSON pushes interpretation into later consumers. That makes search, CLI output, web presentation, encounter runtime behavior, agent workflows, and future API clients inconsistent or forces each surface to understand Foundry-specific JSON shapes.
 
-Selective promotion does not permit selective discovery. The source-faithful contract separately requires every meaningful path and every document/type/role/parent-context tuple to have an explicit disposition and owner, including registration-only, container, generated, hidden, and provenance-only inputs.
+Selective promotion does not permit selective discovery. Offline source-schema snapshots inventory the observed corpus and reveal changes without requiring a model owner or omission decision for every path. [ADR 0037](./0037-source-schema-discovery.md) defines this diagnostic boundary.
 
 The ingest path therefore needs an explicit product test for promoting source fields into typed Atlas facts.
 

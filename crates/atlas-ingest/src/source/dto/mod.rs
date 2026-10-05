@@ -39,8 +39,8 @@ pub(crate) use hazard::{
     HazardDamageSource, HazardDefensesSource, HazardDetectionSource, HazardEmitsSoundSource,
     HazardFrequencySource, HazardHitPointsSource, HazardItemSource, HazardIwrSource,
     HazardLifecycleSource, HazardPublicationSource, HazardSaveSource, HazardSavesSource,
-    HazardSelfEffectSource, HazardSource, HazardSourceField, HazardSourceValue,
-    VersionedHazardSource, parse_hazard_source,
+    HazardSelfEffectSource, HazardSourceField, HazardSourceValue, VersionedHazardSource,
+    parse_hazard_source,
 };
 pub(crate) use item::{
     EmbeddedRelationshipKindSource, EmbeddedRelationshipSource, EmbeddedStableLocatorSource,

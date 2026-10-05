@@ -8,6 +8,7 @@ use atlas_record::{
     RecordDurationTiming, RecordIdentity, RecordMechanics, RecordProvenance, RecordPublication,
     RecordRequirements, RecordTaxonomy, RecordTiming, RecordVisibility,
 };
+#[cfg(test)]
 use serde_json::Value;
 
 mod content;
@@ -64,6 +65,7 @@ use crate::source::mechanics;
 use crate::source::npc_core::{NpcCoreConversion, convert_npc_core};
 use crate::source::npc_entities::collect_npc_embedded_candidates;
 
+#[cfg(test)]
 pub(crate) fn normalize_record(
     manifest_pack: &ManifestPack,
     pack_name: &PackName,
