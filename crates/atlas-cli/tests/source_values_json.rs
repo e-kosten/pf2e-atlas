@@ -21,9 +21,12 @@ fn source_values_reports_missing_values_counts_and_refs_without_an_artifact()
     )?;
     let command = || {
         let mut cmd = atlas_command();
-        cmd.args(["index", "source-values", "--source"])
-            .arg(&root)
-            .args(["--record-type", "action", "--path", "$.values[]"]);
+        cmd.args(["source", "values", "--source"]).arg(&root).args([
+            "--record-type",
+            "action",
+            "--path",
+            "$.values[]",
+        ]);
         cmd
     };
     let output = command().arg("--json").output()?;
@@ -73,7 +76,7 @@ fn source_values_reports_missing_values_counts_and_refs_without_an_artifact()
 fn source_values_cli_rejects_missing_paths_and_malformed_source()
 -> Result<(), Box<dyn std::error::Error>> {
     let missing_path = atlas_command()
-        .args(["index", "source-values", "--json"])
+        .args(["source", "values", "--json"])
         .output()?;
     assert_eq!(missing_path.status.code(), Some(2));
     assert_eq!(parse_json(&missing_path)?["error"]["code"], "invalid_input");
@@ -81,7 +84,7 @@ fn source_values_cli_rejects_missing_paths_and_malformed_source()
     write_single_action_source(&root)?;
     fs::write(root.join("packs/actions/treat-wounds.json"), "{")?;
     let output = atlas_command()
-        .args(["index", "source-values", "--source"])
+        .args(["source", "values", "--source"])
         .arg(&root)
         .args(["--path", "$.system", "--json"])
         .output()?;
@@ -91,7 +94,7 @@ fn source_values_cli_rejects_missing_paths_and_malformed_source()
         "source_discovery_failed"
     );
     let invalid = atlas_command()
-        .args(["index", "source-values", "--source"])
+        .args(["source", "values", "--source"])
         .arg(&root)
         .args(["--path", "system", "--json"])
         .output()?;

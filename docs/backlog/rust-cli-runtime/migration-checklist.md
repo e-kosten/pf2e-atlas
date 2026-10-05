@@ -62,7 +62,7 @@ cargo build --workspace
 Use Cargo's release profile for ingest and query performance comparisons:
 
 ```bash
-cargo run --release -p atlas-cli -- index analyze --source vendor/pf2e --json
+cargo run --release -p atlas-cli -- source analyze --source vendor/pf2e --json
 ```
 
 For command-surface smoke checks:

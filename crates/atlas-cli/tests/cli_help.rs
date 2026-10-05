@@ -30,20 +30,28 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     ));
     assert!(build_help.contains("Standard users should run `atlas setup` instead."));
 
-    let analyze_help = help_output(&["index", "analyze"])?;
+    let analyze_help = help_output(&["source", "analyze"])?;
     assert!(analyze_help.contains(
-        "atlas index analyze --source vendor/pf2e --manifest vendor/pf2e/static/system.json --json"
+        "atlas source analyze --source vendor/pf2e --manifest vendor/pf2e/static/system.json --json"
     ));
     assert!(analyze_help.contains("Read Foundry pack declarations"));
 
-    let audit_help = help_output(&["index", "audit-source-paths"])?;
-    assert!(audit_help.contains("atlas index audit-source-paths --record-type npc"));
-    let values_help = help_output(&["index", "source-values"])?;
+    let audit_help = help_output(&["source", "schema"])?;
+    assert!(audit_help.contains("atlas source schema --record-type npc"));
+    let values_help = help_output(&["source", "values"])?;
     assert!(values_help.contains("--sample-limit"));
     assert!(values_help.contains("$.system.traits.value[]"));
     assert!(audit_help.contains("--min-records"));
     assert!(audit_help.contains("--strict"));
     assert!(audit_help.contains("--baseline"));
+    let source_help = help_output(&["source"])?;
+    assert!(source_help.contains("schema"));
+    assert!(source_help.contains("values"));
+    assert!(source_help.contains("analyze"));
+    let index_help = help_output(&["index"])?;
+    assert!(!index_help.contains("audit-source-paths"));
+    assert!(!index_help.contains("source-values"));
+    assert!(!index_help.contains("analyze"));
 
     let inspect_help = help_output(&["index", "inspect"])?;
     assert!(inspect_help.contains("atlas index inspect --json"));
@@ -145,6 +153,19 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     assert!(agent_doctor_help.contains("--scope"));
 
     Ok(())
+}
+
+#[test]
+fn source_diagnostics_have_no_legacy_index_aliases() {
+    for command in ["analyze", "audit-source-paths", "source-values"] {
+        let output = support::command::atlas_command()
+            .args(["index", command, "--json"])
+            .output()
+            .expect("legacy command probe");
+        assert_eq!(output.status.code(), Some(2), "index {command}");
+        let envelope: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(envelope["error"]["code"], "invalid_input");
+    }
 }
 
 #[test]
