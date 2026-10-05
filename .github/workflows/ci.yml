@@ -55,6 +55,12 @@ jobs:
           npm --prefix web/atlas-ui run build
       - name: Rust verification
         run: scripts/validation/fast.sh
+      - name: Compare CLI rendering goldens
+        env:
+          PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.focused-pf2e
+        run: >-
+          cargo test -p atlas-cli --test record_text
+          source_backed_creature_terminal_matrix -- --ignored --exact
       - name: Focused ingest and artifact validation
         env:
           PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.focused-pf2e
