@@ -38,6 +38,9 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
 
     let audit_help = help_output(&["index", "audit-source-paths"])?;
     assert!(audit_help.contains("atlas index audit-source-paths --record-type npc"));
+    let values_help = help_output(&["index", "source-values"])?;
+    assert!(values_help.contains("--sample-limit"));
+    assert!(values_help.contains("$.system.traits.value[]"));
     assert!(audit_help.contains("--min-records"));
     assert!(audit_help.contains("--strict"));
     assert!(audit_help.contains("--baseline"));
