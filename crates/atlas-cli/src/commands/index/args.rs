@@ -15,7 +15,7 @@ pub(crate) struct IndexArgs {
 pub(crate) enum IndexCommand {
     #[command(about = "Analyze Foundry source ingest without writing SQLite")]
     Analyze(AnalyzeIndexOptions),
-    #[command(about = "Audit meaningful Foundry source paths against real ingest owners")]
+    #[command(about = "Discover Foundry input shapes and compare source-schema snapshots")]
     AuditSourcePaths(AuditSourcePathsOptions),
     #[command(about = "Manually build a Rust SQLite artifact from Foundry source files")]
     Build(BuildIndexOptions),
@@ -49,7 +49,7 @@ pub(crate) struct ValidateCorpusOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas index audit-source-paths --record-type npc --min-records 10\n  atlas index audit-source-paths --strict --json\n  atlas index audit-source-paths --limit 1000000 --strict --baseline previous-coverage.json --json"
+    after_help = "Examples:\n  atlas index audit-source-paths --record-type npc --min-records 10\n  atlas index audit-source-paths --json > schema.json\n  atlas index audit-source-paths --strict --baseline schema.json --json"
 )]
 pub(crate) struct AuditSourcePathsOptions {
     #[arg(long, help = "Override the PF2E source checkout path")]
@@ -70,16 +70,17 @@ pub(crate) struct AuditSourcePathsOptions {
         help = "Only include paths present on at least this many records"
     )]
     pub(crate) min_records: usize,
-    #[arg(long, default_value_t = 50, help = "Maximum paths to print or emit")]
-    pub(crate) limit: usize,
     #[arg(
         long,
-        help = "Fail with exit 3 on meaningful unknowns, B1 type drift, or reviewed source-baseline differences"
+        default_value_t = 0,
+        help = "Maximum paths to emit; 0 means all paths (required for complete snapshots)"
     )]
+    pub(crate) limit: usize,
+    #[arg(long, help = "Fail with exit 3 on schema changes; requires --baseline")]
     pub(crate) strict: bool,
     #[arg(
         long,
-        help = "Compare with a complete prior audit JSON report and expose added, removed, or reclassified meaningful paths"
+        help = "Compare a complete schema snapshot and expose added/removed paths, JSON type changes, and duplicate-member changes"
     )]
     pub(crate) baseline: Option<PathBuf>,
     #[arg(long, help = "Emit the standard JSON envelope")]

@@ -62,6 +62,6 @@ Hazard detection DC, broken threshold, and the complex-hazard Stealth initiative
 
 Night Hag and the approved fixture corpus must round-trip with stable entity/occurrence order and identity. Runtime final values replace corresponding base display values instead of adding a second unadjusted stat block.
 
-Every H1-H11 future family plan must supply the same field-level ledger and fixture quality before approval; H12 rejects missing ledgers/fixtures and generic or catch-all substitution.
+Future family work uses focused parser, persistence, and presentation tests for its product behavior. Source-schema snapshots reveal observed input changes without requiring field-level ownership ledgers or an exhaustive model-completeness gate; see [ADR 0037](./0037-source-schema-discovery.md).
 
 Direct family cutovers remove old sparse mechanics, orphaned embedded-description lists, fallback presentation, and mixed hydration paths. Creature, hazard, and standalone-spell records now hydrate only through their canonical bodies. Generic record mechanics remain behind record-kind boundaries only for families without a canonical body; no compatibility shim is part of a canonical family path.

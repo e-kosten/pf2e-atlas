@@ -6,6 +6,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Rust Foundry JSON field audit](./items/rust-foundry-json-field-audit.md)
+  Offline source-schema snapshots and diffs replace per-field ownership ledgers and source-leaf receipt enforcement. Status: done.
+
 - [Rust record presentation mechanics unification](./items/rust-record-presentation-mechanics-unification.md)
   Creature, hazard, and standalone-spell records now share typed app-service presentation, source-faithful rich content, encounter composition, reference navigation, and responsive web surfaces. This three-family presentation milestone passed product review and CI on the integration branch; remaining registry-family modeling stays open. Status: done.
 

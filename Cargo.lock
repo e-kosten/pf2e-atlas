@@ -207,7 +207,6 @@ dependencies = [
  "sha2",
  "thiserror",
  "tracing",
- "yaml_serde",
 ]
 
 [[package]]
