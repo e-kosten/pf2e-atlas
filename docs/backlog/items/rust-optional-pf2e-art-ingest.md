@@ -45,5 +45,5 @@ The likely artifact shape is an optional record media table keyed by `record_key
 
 - [Runtime architecture](../../architecture/runtime.md)
 - [Rust artifact contract](../../architecture/artifact-contract.md)
-- [Rust Foundry JSON field audit](./rust-foundry-json-field-audit.md)
+- [Rust Foundry JSON field audit](../history/items/rust-foundry-json-field-audit.md)
 - [Rust CLI content output formats](./rust-cli-content-output-formats.md)

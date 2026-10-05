@@ -44,5 +44,5 @@ One possible stronger model is to keep the unified content-unit table while maki
 ## Related
 
 - [Rust artifact contract](../../architecture/artifact-contract.md)
-- [Rust Foundry JSON field audit](./rust-foundry-json-field-audit.md)
+- [Rust Foundry JSON field audit](../history/items/rust-foundry-json-field-audit.md)
 - [Rust content subdocuments for journal pages and table results](./rust-content-subdocuments-journal-table-results.md)

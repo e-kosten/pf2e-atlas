@@ -12,7 +12,6 @@ mod index_build_input;
 mod records;
 mod report;
 mod source;
-mod source_coverage;
 mod source_pipeline;
 mod validation;
 
@@ -23,13 +22,9 @@ pub use artifact_manifest::{
     source_git_commit_if_clean,
 };
 pub use audit::{
-    RetrievalPredicateInventoryEntry, SourceCoverageDiagnostic, SourceCoverageDiagnosticKind,
-    SourcePathAuditClosureFailure, SourcePathAuditDiff, SourcePathAuditDiffEntry,
-    SourcePathAuditDispositionChange, SourcePathAuditEnforcement, SourcePathAuditFilters,
-    SourcePathAuditMode, SourcePathAuditObservationMismatch, SourcePathAuditOptions,
-    SourcePathAuditPathReport, SourcePathAuditReport, SourcePathAuditSample,
-    SourcePathAuditSummary, SourcePathAuditValueType, SourcePathCoverageDisposition,
-    audit_source_paths, disposition_label,
+    SourcePathAuditDiff, SourcePathAuditFilters, SourcePathAuditOptions, SourcePathAuditPathReport,
+    SourcePathAuditReport, SourcePathAuditSample, SourcePathAuditValueType, SourceSchemaKey,
+    SourceSchemaTypeChange, audit_source_paths,
 };
 pub use diagnostics::{DroppedInlineMacroDiagnostic, IngestDiagnostics};
 pub use error::IngestError;
@@ -51,20 +46,6 @@ pub use source::model::{
     DocumentEmbeddingSectionTruncationReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, DocumentEmbeddingUnitKindTruncationReport,
     EmbeddingTimingReport, SkippedRecord,
-};
-pub use source_coverage::{
-    ATLAS_SOURCE_LEAF_COVERAGE_VERSION, CoverageContractError, CoverageFailure,
-    CoverageFailureCode, CoverageReport, ExpectedSourceShape, FinalOwnerContract, FinalOwnerStage,
-    FixtureContract, FixturePrevalence, FixtureProvenance, MapKeyPolicy,
-    PF2E_SOURCE_LEAF_PREVALENCE_SHA256, PF2E_SOURCE_LEAF_PREVALENCE_VERSION,
-    PF2E_TYPE_REGISTRY_ENTRY_COUNT, PF2E_TYPE_REGISTRY_SHA256, PF2E_TYPE_REGISTRY_VERSION,
-    ReaderContract, SourceDocumentRole, SourceLeafContract, SourceLeafCoverageLedger,
-    SourceLeafDisposition, SourceLeafIdentity, SourceLeafKind, SourceLeafReceipt,
-    SourceLeafSelector, SourceParentContextSelector, SourcePin, SourcePrevalence,
-    SpellArtifactReceiptOperations, SurfaceContract, SurfaceDecision, SurfaceDisposition,
-    capture_registered_source_leaf_receipt, capture_registered_spell_source_leaf_receipts,
-    evaluate_source_leaf_coverage, lint_source_leaf_ledger, lint_source_leaf_ledgers,
-    parse_source_leaf_ledger,
 };
 pub use validation::{
     AssertionInventoryEntry, ExhaustiveValidationOptions, ExhaustiveValidationReport,
