@@ -399,13 +399,13 @@ Checkpoint B approved the source-faithful contract in ADRs 0033-0036. Implementa
 Save a complete observed-source schema snapshot (the default emits all paths):
 
 ```bash
-atlas index audit-source-paths --source vendor/pf2e --json > previous-schema.json
+atlas source schema --source vendor/pf2e --json > previous-schema.json
 ```
 
 Inspect changes before a source refresh or check them in CI:
 
 ```bash
-atlas index audit-source-paths \
+atlas source schema \
   --source vendor/pf2e \
   --baseline previous-schema.json \
   --strict --json
@@ -414,5 +414,19 @@ atlas index audit-source-paths \
 Strict mode requires a baseline and exits with code 3 for added/removed paths, changed JSON type sets, or the appearance/disappearance of duplicate object members. Counts, examples, and ordinary value changes do not cause schema drift. Arrays use `[]`; known keyed maps use `*`; other fields retain literal names. The report inventories both containers and leaves, including nulls, zero, false, empty strings, and empty collections. It observes manifest-declared pack documents and embedded data, not every possible upstream registration or schema. `_folders.json` control files follow the ordinary ingest exclusion.
 
 `--pack-name`, `--document-type`, and `--record-type` select source subsets; baseline selections must match. `--min-records` and `--limit` only filter displayed rows after a complete comparison. Truncated reports are marked `complete: false` and rejected as baselines. An unreadable selected pack, invalid JSON, or ambiguous root identity/discriminator is an error. Snapshot signatures identify observed manifest/record bytes and paths without absolute checkout locations. See [ADR 0037](docs/architecture/decisions/0037-source-schema-discovery.md) and [the pinned baseline](contracts/source-schema/v1/README.md).
+
+Inspect the values at a path before designing or extending a source model:
+
+```bash
+atlas source values --source vendor/pf2e \
+  --record-type spell --path '$.system.traits.value[]' --json
+```
+
+Copy the exact normalized path from `source schema`; this is an inventory lookup, not a JSONPath expression evaluator. Source selection uses the same `--pack-name`, `--document-type`, `--record-type`, and `--manifest` options as the schema scan. Results are grouped by root document family and include present/missing document counts, occurrences, duplicate members, JSON types, and every distinct compact JSON value. Missing means the selected path has no occurrence in the document; an empty array has no `[]` member occurrence. Explicit null is a distinct value.
+
+Values are ordered by descending occurrence count, then by serialized value. `--limit` limits displayed values per family after complete counting; the report retains full counts and marks omitted values with `complete: false`. `--sample-limit` bounds concrete source references per value, taking at most one per document (default 3; 0 disables references), so rare values retain their own examples. References carry source paths, record keys, and RFC 6901 pointers with actual array indices and keyed-map names. Duplicate object keys share a pointer; inspect their source bytes when ambiguous.
+
+JSON output preserves complete values in `value_json`, including duplicate object members and authored member/array ordering. Structurally similar objects with different member ordering remain distinct serialized values; whitespace outside strings is ignored. Terminal previews are capped at 160 characters. Values and counts describe the selected observed corpus, and neither enforce modeling decisions nor enter schema drift comparisons. High-cardinality fields can produce large reports; `--limit` limits display, not scan memory. This command reads source files without requiring or writing an artifact.
+
 
 Atlas currently has no authentication or viewer authorization boundary and is primarily a GM tool, but the pinned base still contains default-visible/public-only routing and is not GM-complete. The approved target preserves typed visibility, role, source kind, and provenance while removing classification-only suppression of useful authored information across ingest, artifact, search, graph, discovery, metrics, CLI, app, and UI. Any retained exclusion needs a documented non-auth product rationale, fixtures, validation, and audit checkpoint. Do not describe either the base predicates or target metadata as a privacy/security boundary; future authenticated filtering requires a separate approved feature.

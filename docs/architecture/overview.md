@@ -101,7 +101,7 @@ flowchart TD
 
 ### CLI
 
-`atlas-cli` is the user and agent command surface. It owns:
+`atlas-cli` is the user and agent command surface. `atlas source schema|values|analyze` investigates Foundry inputs; `atlas index build|check|inspect|validate` manages generated artifacts. It owns:
 
 - command parsing
 - JSON and terminal output
