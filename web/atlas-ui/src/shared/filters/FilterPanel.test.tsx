@@ -1,8 +1,24 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render as renderComponent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { ConfigProvider } from "antd";
+import type { ReactElement } from "react";
 import type { FilterEditorView } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
 import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
 import { FilterPanel } from "./FilterPanel";
+
+function render(ui: ReactElement) {
+  return renderComponent(ui, {
+    // jsdom exposes transition events but does not execute CSS animations.
+    wrapper: ({ children }) => (
+      <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+    ),
+  });
+}
 
 describe("FilterPanel", () => {
   it("renders backend-provided default fields and range metadata", () => {
