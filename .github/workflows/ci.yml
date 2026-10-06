@@ -22,7 +22,28 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
+      - name: Verify runtime lint policy fixture
+        run: scripts/validation/test-runtime-lint-policy.sh
+      - name: Check out accepted PF2e fixture blobs
+        uses: actions/checkout@v5
+        with:
+          repository: foundryvtt/pf2e
+          ref: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          path: .focused-pf2e
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            static/system.json
+            packs
+      - name: Authenticate accepted PF2e fixture source
+        run: >-
+          scripts/validation/authenticate-pf2e-source.sh
+          "$GITHUB_WORKSPACE/.focused-pf2e"
+          4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+          cfac03aed24c62ab9b2d5fa12b13e04e19796a8e
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -33,7 +54,28 @@ jobs:
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run build
       - name: Rust verification
-        run: scripts/verify.sh
+        run: scripts/validation/fast.sh
+      - name: Compare CLI rendering goldens
+        env:
+          PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.focused-pf2e
+        run: >-
+          cargo test -p atlas-cli --test record_text
+          source_backed_creature_terminal_matrix -- --ignored --exact
+      - name: Focused ingest and artifact validation
+        env:
+          PF2E_SOURCE_REPOSITORY: ${{ github.workspace }}/.focused-pf2e
+        run: scripts/validation/focused.sh
+      - name: Compare pinned source schema
+        run: >-
+          cargo run -p atlas-cli -- source schema
+          --source ${{ github.workspace }}/.focused-pf2e
+          --baseline contracts/source-schema/v1/pf2e.json --strict --limit 1
+      - name: Verify Linux artifact generation lifecycle
+        run: |
+          cargo test -p atlas-index artifact::pair_integration_tests::first_generation_materialization_opens_through_bound_public_reader -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::newly_materialized_generation_opens_sqlite_through_installed_handle -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::generation_replacement_during_final_reopen_fails_closed_without_trust -- --exact
+          cargo test -p atlas-index artifact::pair::receipt_tests::final_installed_handle_is_digest_authenticated_before_trust -- --exact
 
   web-ui:
     name: web ui

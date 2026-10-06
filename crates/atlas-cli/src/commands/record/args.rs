@@ -16,8 +16,27 @@ pub(crate) struct RecordArgs {
 pub(crate) enum RecordCommand {
     #[command(about = "Fetch one or more records by canonical record key")]
     Get(RecordGetOptions),
+    #[command(about = "Inspect typed provenance for one exact record")]
+    Provenance(RecordProvenanceOptions),
     #[command(about = "Resolve one or more strict record names or aliases")]
     Resolve(Box<RecordResolveOptions>),
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas record provenance bestiary:Night-Hag\n  atlas record provenance bestiary:Night-Hag --json"
+)]
+pub(crate) struct RecordProvenanceOptions {
+    #[arg(
+        help = "Exact canonical record key in pack:id form; this command does not resolve names"
+    )]
+    pub(crate) key: String,
+    #[arg(long, help = "Override the SQLite artifact path")]
+    pub(crate) index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    pub(crate) json: bool,
 }
 
 #[derive(Debug, Args)]

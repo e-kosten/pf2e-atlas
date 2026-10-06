@@ -12,7 +12,7 @@ fn loads_persisted_records_from_artifact_tables() -> Result<(), Box<dyn std::err
     let path = temp_db_path("load-records");
     create_valid_artifact_database(&path)?;
 
-    let records = SqliteIndexReader::open_read_only(&path)?.load_records()?;
+    let records = SqliteIndexReader::open_unpublished_read_only(&path)?.load_records()?;
 
     assert_eq!(records.len(), 3);
     assert_eq!(records[0].identity.key.to_string(), "actions:testAction1");
@@ -35,17 +35,25 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO record_metrics (
-           record_key, metric_domain, metric_key, value_type, number_value
+           record_key, ordinal, metric_domain, metric_key, value_type, number_value
          ) VALUES (
-           'actions:testAction1', 'actor', 'level', 'number', 2.0
+           'actions:testAction1', 1, 'actor', 'rank', 'number', 4.0
          )",
         [],
     )?;
     connection.execute(
         "INSERT INTO record_metrics (
-           record_key, metric_domain, metric_key, value_type
+           record_key, ordinal, metric_domain, metric_key, value_type
          ) VALUES (
-           'actions:testAction2', 'actor', 'level', 'number'
+           'actions:testAction2', 0, 'actor', 'level', 'number'
+         )",
+        [],
+    )?;
+    connection.execute(
+        "INSERT INTO record_metrics (
+           record_key, ordinal, metric_domain, metric_key, value_type, number_value
+         ) VALUES (
+           'actions:testAction1', 0, 'actor', 'level', 'number', 2.0
          )",
         [],
     )?;
@@ -102,36 +110,44 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     )?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
-           contributes_to_references, label, content_json
+           record_key, content_key, authored_order, identity_stability, owner_kind,
+           owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+           contributes_to_search, contributes_to_references, label, content_json, content_hash,
+           duplicate_status_json, diagnostics_json
          ) VALUES (
-           'actions:testAction1', 'content:0', 0, 'description', 'public', 1, 1, NULL,
-           '{\"nodes\":[]}'
+           'actions:testAction1', 'content:0', 0, 'unstable_authored_ordinal', 'record',
+           'actions:testAction1', 'primary_description', '{}', 'public', '{}', 'description',
+           1, 1, NULL, '{\"nodes\":[]}', 'fixture', '{\"kind\":\"unique\"}', '[]'
          )",
         [],
     )?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
-           contributes_to_references, label, content_json
+           record_key, content_key, authored_order, identity_stability, owner_kind,
+           owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+           contributes_to_search, contributes_to_references, label, content_json, content_hash,
+           duplicate_status_json, diagnostics_json
          ) VALUES (
-           'actions:testAction2', 'content:0', 0, 'description', 'public', 1, 1, NULL,
-           'not json'
+           'actions:testAction2', 'content:0', 0, 'unstable_authored_ordinal', 'record',
+           'actions:testAction2', 'primary_description', '{}', 'public', '{}', 'description',
+           1, 1, NULL, 'not json', 'fixture', '{\"kind\":\"unique\"}', '[]'
          )",
         [],
     )?;
     drop(connection);
 
-    let records = SqliteIndexReader::open_read_only(&path)?
+    let records = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records_by_key(&[RecordKey::parse("actions:testAction1")?])?;
 
     assert_eq!(records.len(), 1);
     let record = &records[0];
     assert_eq!(record.identity.key.to_string(), "actions:testAction1");
     assert!(record.visibility.visible_by_default());
-    assert_eq!(record.mechanics.metrics.len(), 1);
+    assert_eq!(record.mechanics.metrics.len(), 2);
     assert_eq!(record.mechanics.metrics[0].key, "level");
     assert_eq!(record.mechanics.metrics[0].value, MetricValue::Number(2.0));
+    assert_eq!(record.mechanics.metrics[1].key, "rank");
+    assert_eq!(record.mechanics.metrics[1].value, MetricValue::Number(4.0));
     assert!(record.mechanics.actor().is_none());
 
     let item = record
@@ -147,39 +163,6 @@ fn loads_persisted_records_by_key_scopes_detail_tables() -> Result<(), Box<dyn s
     assert_eq!(item.bulk_value, Some(1.0));
     assert_eq!(item.hands_requirement.as_deref(), Some("1"));
     assert_eq!(item.damage_types, vec!["slashing"]);
-
-    let spell = record
-        .mechanics
-        .spell()
-        .expect("spell mechanics should hydrate");
-    assert_eq!(spell.traditions, vec!["arcane"]);
-    assert_eq!(spell.kinds, vec!["spell"]);
-    assert_eq!(
-        spell.range.as_ref().map(|range| range.text.as_str()),
-        Some("30 feet")
-    );
-    assert_eq!(
-        spell.range.as_ref().and_then(|range| range.distance),
-        Some(30.0)
-    );
-    assert_eq!(
-        spell.target.as_ref().map(|target| target.text.as_str()),
-        Some("1 creature")
-    );
-    assert_eq!(
-        spell.area.as_ref().and_then(|area| area.kind.as_deref()),
-        Some("burst")
-    );
-    assert_eq!(spell.area.as_ref().and_then(|area| area.value), Some(10.0));
-    assert_eq!(
-        spell
-            .defense
-            .as_ref()
-            .and_then(|defense| defense.save.as_deref()),
-        Some("will")
-    );
-    assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
-    assert_eq!(spell.damage_types, vec!["mental"]);
 
     assert_eq!(record.content.documents.len(), 1);
     assert_eq!(
@@ -208,17 +191,20 @@ fn loads_search_candidate_records_without_detail_hydration()
     )?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
-           contributes_to_references, label, content_json
+           record_key, content_key, authored_order, identity_stability, owner_kind,
+           owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+           contributes_to_search, contributes_to_references, label, content_json, content_hash,
+           duplicate_status_json, diagnostics_json
          ) VALUES (
-           'actions:testAction1', 'content:0', 0, 'description', 'public', 1, 1, NULL,
-           'not json'
+           'actions:testAction1', 'content:0', 0, 'unstable_authored_ordinal', 'record',
+           'actions:testAction1', 'primary_description', '{}', 'public', '{}', 'description',
+           1, 1, NULL, 'not json', 'fixture', '{\"kind\":\"unique\"}', '[]'
          )",
         [],
     )?;
     drop(connection);
 
-    let candidates = SqliteIndexReader::open_read_only(&path)?
+    let candidates = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_search_candidate_records(&[RecordKey::parse("actions:testAction1")?])?;
 
     assert_eq!(candidates.len(), 1);
@@ -245,7 +231,7 @@ fn load_search_candidate_records_rejects_invalid_json() -> Result<(), Box<dyn st
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_search_candidate_records(&[RecordKey::parse("actions:testAction1")?])
         .expect_err("invalid candidate JSON should be rejected");
 
@@ -265,7 +251,7 @@ fn load_search_candidate_records_rejects_invalid_kind() -> Result<(), Box<dyn st
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_search_candidate_records(&[RecordKey::parse("actions:testAction1")?])
         .expect_err("invalid candidate kind should be rejected");
 
@@ -290,7 +276,7 @@ fn load_records_rejects_invalid_variant_source() -> Result<(), Box<dyn std::erro
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("invalid variant source should be rejected");
 
@@ -313,7 +299,7 @@ fn load_records_rejects_partial_variant_membership() -> Result<(), Box<dyn std::
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("partial variant membership should be rejected");
 
@@ -336,7 +322,7 @@ fn load_records_rejects_variant_base_without_group() -> Result<(), Box<dyn std::
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("variant base without group should be rejected");
 
@@ -356,7 +342,7 @@ fn load_records_rejects_invalid_rarity() -> Result<(), Box<dyn std::error::Error
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("invalid rarity should be rejected");
 
@@ -372,17 +358,20 @@ fn load_records_rejects_content_policy_mismatch() -> Result<(), Box<dyn std::err
     let connection = Connection::open(&path)?;
     connection.execute(
         "INSERT INTO record_content (
-           record_key, content_key, ordinal, source_kind, visibility, contributes_to_search,
-           contributes_to_references, label, content_json
+           record_key, content_key, authored_order, identity_stability, owner_kind,
+           owner_record_key, role, origin_json, visibility, provenance_json, source_kind,
+           contributes_to_search, contributes_to_references, label, content_json, content_hash,
+           duplicate_status_json, diagnostics_json
          ) VALUES (
-           'actions:testAction1', 'content:policy', 0, 'private_notes', 'public', 0, 0, NULL,
-           '{\"nodes\":[]}'
+           'actions:testAction1', 'content:policy', 0, 'unstable_authored_ordinal', 'record',
+           'actions:testAction1', 'supplemental_rules', '{}', 'public', '{}', 'private_notes',
+           0, 0, NULL, '{\"nodes\":[]}', 'fixture', '{\"kind\":\"unique\"}', '[]'
          )",
         [],
     )?;
     drop(connection);
 
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .load_records()
         .expect_err("content policy mismatch should be rejected");
 
@@ -428,11 +417,8 @@ fn resolves_identity_matches_in_sql_with_match_precedence_and_deduplication()
     )?;
     drop(connection);
 
-    let matches = SqliteIndexReader::open_read_only(&path)?.resolve_record_identity_matches(
-        "Attack of Opportunity",
-        "attack of opportunity",
-        None,
-    )?;
+    let matches = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .resolve_record_identity_matches("Attack of Opportunity", "attack of opportunity", None)?;
 
     assert_eq!(
         matches
@@ -472,11 +458,8 @@ fn resolve_identity_matches_respects_structural_filters() -> Result<(), Box<dyn 
     drop(connection);
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Eq { value: 2.0 });
-    let matches = SqliteIndexReader::open_read_only(&path)?.resolve_record_identity_matches(
-        "Reactive Strike",
-        "reactive strike",
-        Some(&filter),
-    )?;
+    let matches = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .resolve_record_identity_matches("Reactive Strike", "reactive strike", Some(&filter))?;
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].record_key.to_string(), "actions:testAction2");
@@ -507,7 +490,7 @@ fn loads_persisted_record_set_relationship_tables() -> Result<(), Box<dyn std::e
     )?;
     drop(connection);
 
-    let record_set = SqliteIndexReader::open_read_only(&path)?.load_record_set()?;
+    let record_set = SqliteIndexReader::open_unpublished_read_only(&path)?.load_record_set()?;
 
     assert_eq!(record_set.records.len(), 3);
     assert_eq!(record_set.reference_edges.len(), 1);

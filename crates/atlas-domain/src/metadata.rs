@@ -9,6 +9,7 @@ pub enum MetadataSetField {
     Traditions,
     SpellKinds,
     DamageTypes,
+    SpellDamageTypes,
     Languages,
     SpeedTypes,
     Senses,
@@ -55,6 +56,7 @@ pub enum MetadataTextStringField {
 #[serde(rename_all = "snake_case")]
 pub enum MetadataNumberField {
     Level,
+    SpellRank,
     PriceCp,
     BulkValue,
     ActionCost,

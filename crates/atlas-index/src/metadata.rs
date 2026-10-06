@@ -323,7 +323,17 @@ fn require_value(
         diagnostics.push(ArtifactValidationDiagnostic {
             code,
             family,
-            message: format!("metadata key `{key}` has an unsupported value"),
+            message: if matches!(
+                key,
+                artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION
+                    | artifact_metadata_keys::SCHEMA_VERSION
+            ) {
+                format!(
+                    "metadata key `{key}` has an unsupported value; rebuild the artifact with `atlas index build` because old artifacts cannot be upgraded in place"
+                )
+            } else {
+                format!("metadata key `{key}` has an unsupported value")
+            },
             key: Some(key.to_string()),
             expected: Some(expected.to_string()),
             actual: Some(actual.to_string()),

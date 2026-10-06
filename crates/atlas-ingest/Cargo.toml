@@ -6,6 +6,9 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
+[features]
+record-round-trip-diagnostic = ["atlas-index/test-support"]
+
 [dependencies]
 atlas-domain.workspace = true
 atlas-embedding.workspace = true
@@ -21,4 +24,5 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+atlas-index = { workspace = true, features = ["test-support"] }
 rusqlite.workspace = true

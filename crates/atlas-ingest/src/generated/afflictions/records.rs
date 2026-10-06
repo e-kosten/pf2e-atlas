@@ -8,6 +8,7 @@ use atlas_record::{
 use serde_json::{Value, json};
 
 use crate::diagnostics::{DERIVED_AFFLICTION_INSTANCES_PACK_LABEL, DERIVED_AFFLICTIONS_PACK_LABEL};
+use crate::generated::afflictions::GeneratedAfflictionRole;
 use crate::generated::afflictions::source_facts::affliction_family_label;
 use crate::generated::afflictions::{AfflictionOccurrence, DerivedAfflictionRecordInput};
 use crate::records::{LoadedSourceRecord, SourceConstructionFacts};
@@ -42,10 +43,9 @@ pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> 
             taxonomy: RecordTaxonomy::default(),
         },
         foundry: FoundryRecordInfo {
-            pack_label: if input.is_default_visible {
-                DERIVED_AFFLICTIONS_PACK_LABEL
-            } else {
-                DERIVED_AFFLICTION_INSTANCES_PACK_LABEL
+            pack_label: match input.role {
+                GeneratedAfflictionRole::Canonical => DERIVED_AFFLICTIONS_PACK_LABEL,
+                GeneratedAfflictionRole::SourceInstance => DERIVED_AFFLICTION_INSTANCES_PACK_LABEL,
             }
             .to_string(),
             document_type: FoundryDocumentType::Item,
@@ -69,18 +69,21 @@ pub(super) fn derived_affliction_record(input: DerivedAfflictionRecordInput) -> 
                 category: Some(affliction_family_label(input.family).to_string()),
                 ..ItemMechanics::default()
             }),
-            spellcasting_entries: Vec::new(),
-            activities: Vec::new(),
         },
         content: RecordContent { documents },
         variant: None,
-        visibility: if input.is_default_visible {
-            RecordVisibility::visible(RecordVisibilityReason::GeneratedCanonical)
-        } else {
-            RecordVisibility::hidden(RecordVisibilityReason::GeneratedInstance)
+        visibility: match input.role {
+            GeneratedAfflictionRole::Canonical => {
+                RecordVisibility::visible(RecordVisibilityReason::GeneratedCanonical)
+            }
+            GeneratedAfflictionRole::SourceInstance => {
+                RecordVisibility::hidden(RecordVisibilityReason::GeneratedInstance)
+            }
         },
     };
-    LoadedSourceRecord::new(record, SourceConstructionFacts::empty())
+    let mut facts = SourceConstructionFacts::empty();
+    facts.generated_affliction_role = Some(input.role);
+    LoadedSourceRecord::new(record, facts)
 }
 
 pub(super) fn build_affliction_instance_raw(
@@ -102,6 +105,7 @@ pub(super) fn build_affliction_instance_raw(
             "_derived".to_string(),
             json!({
                 "kind": "afflictionInstance",
+                "role": GeneratedAfflictionRole::SourceInstance.as_str(),
                 "hostRecordKey": occurrence.host_record.identity.key.to_string(),
                 "sourceRecordKey": occurrence.source_record.as_ref().map(|record| record.identity.key.to_string()),
                 "canonicalRecordKey": canonical_record_key,

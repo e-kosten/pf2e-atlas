@@ -39,9 +39,13 @@ pub(super) fn write_reference_edges(
 pub(super) fn write_reference_occurrences(
     connection: &mut SqliteConnection,
     records: &[AtlasRecord],
+    canonical_record_keys: &std::collections::BTreeSet<String>,
 ) -> Result<(), IndexWriteError> {
     let mut rows = Vec::new();
     for record in records {
+        if canonical_record_keys.contains(&record.identity.key.to_string()) {
+            continue;
+        }
         let mut content_inputs = Vec::new();
         for (ordinal, content) in record.content.documents.iter().enumerate() {
             let content_json = serde_json::to_string(&content.document)
@@ -49,7 +53,7 @@ pub(super) fn write_reference_occurrences(
             content_inputs.push((ordinal, content, content_json));
         }
         let content_keys = allocated_content_keys(&content_inputs);
-        for ((_, content, _), content_key) in content_inputs.into_iter().zip(content_keys) {
+        for ((ordinal, content, _), content_key) in content_inputs.into_iter().zip(content_keys) {
             if !content.contributes_to_reference_occurrences() {
                 continue;
             }
@@ -57,6 +61,7 @@ pub(super) fn write_reference_occurrences(
                 &mut rows,
                 record,
                 &content_key,
+                ordinal as i64,
                 content.source_kind,
                 content.visibility(),
                 &content.document,
@@ -76,6 +81,7 @@ fn collect_document_reference_occurrences(
     rows: &mut Vec<ReferenceOccurrenceRow>,
     record: &AtlasRecord,
     content_key: &str,
+    content_authored_order: i64,
     source_kind: ContentSourceKind,
     visibility: ContentVisibility,
     document: &RichDocument,
@@ -88,12 +94,41 @@ fn collect_document_reference_occurrences(
         rows.push(ReferenceOccurrenceRow {
             record_key: record.identity.key.to_string(),
             content_key: content_key.to_string(),
+            content_authored_order,
             occurrence_ordinal,
-            target_record_key: target_record_key.to_string(),
-            source_kind: source_kind.as_str().to_string(),
+            owner_kind: "record".to_string(),
+            owner_record_key: Some(record.identity.key.to_string()),
+            owner_entity_id: None,
+            owner_occurrence_id: None,
+            owner_occurrence_authored_order: None,
+            owner_hazard_entity_id: None,
+            owner_hazard_occurrence_id: None,
+            owner_hazard_occurrence_authored_order: None,
+            role: legacy_content_role(source_kind).to_string(),
+            origin_json: crate::artifact::canonical_json::encode(
+                &atlas_record::ContentOrigin::RecordField {
+                    source_kind,
+                    relative_source_path: source_kind.as_str().to_string(),
+                },
+            )
+            .map_err(IndexWriteError::WriteFailed)?,
             visibility: visibility.as_str().to_string(),
-            display_text: foundry_link_display_text(link),
-            reference_text: link.source.authored_target.clone(),
+            provenance_json: crate::artifact::canonical_json::encode(
+                &atlas_record::ContentProvenance {
+                    source_record_key: record.identity.key.clone(),
+                    relative_source_path: source_kind.as_str().to_string(),
+                    field_or_pointer_family: source_kind.as_str().to_string(),
+                    nested_source_id: None,
+                    authored_ordinal_or_range: None,
+                    authored_label: None,
+                },
+            )
+            .map_err(IndexWriteError::WriteFailed)?,
+            target_kind: "record".to_string(),
+            target_record_key: Some(target_record_key.to_string()),
+            target_json: serde_json::to_string(&link.target)
+                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?,
+            label: foundry_link_display_text(link),
             relation_kind: foundry_link_relation_kind(link).as_str().to_string(),
         });
         occurrence_ordinal = occurrence_ordinal.checked_add(1).ok_or_else(|| {
@@ -103,6 +138,17 @@ fn collect_document_reference_occurrences(
         })?;
     }
     Ok(())
+}
+
+fn legacy_content_role(source_kind: ContentSourceKind) -> &'static str {
+    match source_kind {
+        ContentSourceKind::Description => "primary_description",
+        ContentSourceKind::Blurb => "summary",
+        ContentSourceKind::EmbeddedItemDescription
+        | ContentSourceKind::EmbeddedSpellDescription => "embedded_capability",
+        ContentSourceKind::GeneratedAffliction => "generated_narrative",
+        _ => "supplemental_rules",
+    }
 }
 
 pub(super) fn write_record_aliases(

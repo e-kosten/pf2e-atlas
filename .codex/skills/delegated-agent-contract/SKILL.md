@@ -1,31 +1,31 @@
 ---
 name: delegated-agent-contract
-description: Use when Codex is spawned as a sub-agent, worker, explorer, validator, or remediation agent for delegated repository work, especially plan-orchestration, plan-validation, architecture-sensitive implementation, refactors, or multi-agent slices. Enforces a complete assignment contract with plan excerpts, architecture rules, ownership boundaries, forbidden shortcuts, validation obligations, and a punt-back protocol when the caller did not provide enough information.
+description: Use when Codex is spawned as a sub-agent, worker, explorer, validator, or remediation agent for delegated repository work, especially architecture-sensitive implementation, refactors, and independent validation. Establishes a concise outcome-scoped brief, autonomous implementation envelope, risk-based validation, and escalation boundary.
 ---
 
 # Delegated Agent Contract
 
-Use this skill before doing delegated work. Treat the caller's prompt as an assignment contract, not as permission to infer missing architecture or completion rules.
+Use this skill before delegated work. Identify the explicitly current brief and compatible corrections; arrival order alone does not make a delayed callback authoritative. Execute autonomously inside the outcome and semantic boundaries; do not turn likely file lists or procedural history into exhaustive permission gates.
 
-## Contract Gate
+## Brief Gate
 
-Before exploring, editing, validating, or running long commands, check whether the caller provided enough information to do the delegated task safely.
+Before material edits or expensive commands, confirm that the brief supplies enough context to preserve the intended outcome.
 
-Required for every delegated task:
+Required when material to the task:
 
 - task type: implementation, remediation, validation, exploration, or cleanup
-- exact scope: plan path, plan section, validation artifact, issue list, or concrete question
-- target state: branch, worktree, commit, diff range, or current checkout to inspect
-- ownership: files, modules, subsystems, or read-only boundaries you own
-- architecture context: relevant docs, ADRs, boundaries, service owners, or explicit statement that none apply
-- forbidden shortcuts: shims, compatibility layers, raw data access, direct parsing, duplicated logic, bypassed services, broad fallbacks, or any slice-specific no-go rules
-- validation: commands, searches, tests, or evidence required before saying done
-- report format: what the caller needs back to integrate or adjudicate the result
+- outcome and accepted base, branch, worktree, commit, diff, or current context
+- governing architectural and source-fidelity invariants
+- non-goals or boundaries that prevent a materially different outcome
+- risk-appropriate validation and applicable final gates
+- escalation conditions and requested handoff shape
 
-If any required item is missing and the gap could affect correctness, architecture, write scope, or validation integrity, do not improvise. Return:
+Likely files and modules may be included for coordination, but they are not an exhaustive permission allowlist. The outcome authorizes mechanically necessary callers, imports, tests, current-behavior docs, generated bindings, formatting, and refactor cleanup. Report those edits; do not request path-by-path or count-only amendments.
+
+If a missing item could materially change the product outcome, architecture, source disposition, acceptance strength, external effects, or expected cost, return:
 
 ```text
-contract incomplete
+brief incomplete
 missing:
 - <missing item>
 needed because:
@@ -34,18 +34,37 @@ smallest useful next prompt:
 - <what the caller should provide>
 ```
 
-Only proceed with a reasonable assumption when the missing detail cannot change the implementation boundary or validation verdict. State the assumption in the final report.
+Proceed with reasonable implementation assumptions when they stay within the outcome and invariants. State material assumptions in the handoff.
+
+## Short Brief And Handoff
+
+Use this reusable structure for ordinary work; omit empty optional lines.
+
+```text
+Task: <implementation | remediation | validation | exploration | cleanup>
+Outcome: <observable completed result>
+Base/context: <current checkout, candidate, plan/issue, or accepted state>
+Invariants: <applicable architecture, source fidelity, behavior, and acceptance that must remain true>
+Non-goals: <materially different outcomes not authorized, when needed>
+Validation: <focused iteration checks and applicable final gates>
+Escalate if: <decision, weakening, external/destructive action, or unexpected cost threshold>
+Handoff: <changed behavior/files, checks/results, baseline failures, reused evidence/limits, risks>
+```
+
+A newer brief or correction supersedes conflicting procedural instructions only when it comes from the user or the decision owner authorized to change that requirement and is explicitly current or names what it supersedes. Acknowledge the current base/candidate and ignore stale callbacks or commands. Do not require authorization shell scripts, checksum packages, publication wrappers, a launcher, or a new task framework for ordinary repository work. Existing semantic requirements and genuine source/artifact/candidate trust-boundary checks still apply.
 
 ## Work Rules
 
-- Validate against the plan and architecture contract, not against a prior completion claim.
-- Stay inside the assigned ownership. Do not edit adjacent modules unless the caller explicitly authorizes the expansion or the fix is impossible without it.
+- Validate against the outcome, actual diff, architecture, and production paths—not a prior completion claim.
+- Complete necessary cross-file consequences inside the outcome without administrative escalation.
 - Do not revert or overwrite other agents' changes.
-- Do not add transitional shims, adapters, broad fallbacks, compatibility layers, or mixed old/new paths unless the caller explicitly says the plan allows them.
+- Do not add transitional shims, adapters, broad fallbacks, compatibility layers, or mixed old/new paths unless the brief explicitly requires an incremental strategy.
 - Do not bypass shared services, boundary facades, lint-enforced owners, or architecture docs to make a slice pass locally.
 - Do not duplicate shared interaction, routing, parsing, indexing, or projection logic in a feature controller when the plan or docs identify a shared owner.
-- Do not treat build/test success as plan completion unless those checks prove the assigned contract items.
-- If the task reveals a consequential architecture decision, scope expansion, or conflict with the plan, stop and punt back instead of patching around it.
+- Do not treat build/test success as completion unless those checks prove the outcome and invariants.
+- Escalate product or architecture choices, source-disposition changes, acceptance weakening, destructive/external actions, work beyond the non-goals, or substantial unexpected cost. Do not escalate file-count changes or ordinary implementation choices.
+- Preserve source/artifact integrity and candidate provenance where those identities are actually consumed. Do not replicate authorization metadata at ordinary coordination boundaries.
+- Follow the repository model-selection policy in `AGENTS.md`; never claim an unverified model.
 
 ## Implementation And Remediation
 
@@ -55,8 +74,10 @@ For code-changing delegated work:
 - Identify the intended owner for each behavior before choosing files to modify.
 - Prefer direct end-state replacement over bridge code or compatibility seams.
 - Add or update tests for the assigned behavior unless the caller explicitly scoped the task as docs-only or validation-only.
-- Run the requested validation or explain exactly why it could not run.
-- If validation fails for an ordinary slice-local reason, fix it inside scope. If it fails because the contract is wrong or incomplete, punt back.
+- Use focused validation during edits and ordinary slice handoff. Run full repository gates only when this handoff owns the integrated/final candidate or an existing repository trigger requires them; do not repeat unchanged full-gate evidence.
+- Reuse validation evidence only when its relevant source, toolchain, candidate, generator, and policy inputs are unchanged; disclose the reuse and its limitations.
+- Use embedding/full semantic-artifact validation at final artifact or end-to-end gates when those inputs changed, not for routine UI, docs, or unit loops.
+- If validation fails for an ordinary outcome-local reason, fix it. Distinguish pre-existing baseline failures from candidate regressions, report both, and never silently waive them.
 
 Final report:
 
@@ -67,12 +88,14 @@ changed files:
 - <path>
 validation:
 - <command/search/test>: <result>
-plan coverage:
+outcome coverage:
 - <item>: satisfied | partial | not addressed
 architecture compliance:
 - <boundary/rule>: preserved | violated | unproven
-shortcuts avoided:
-- <notable forbidden shortcut checked>
+evidence reuse:
+- <reused evidence and limitation, or "none">
+baseline failures:
+- <pre-existing failure and disposition, or "none observed">
 remaining risks:
 - <risk or "none known">
 ```
@@ -81,11 +104,15 @@ remaining risks:
 
 For delegated validation:
 
-- Build a checklist from the assigned plan items and architecture rules.
-- Inspect source, tests, docs, generated artifacts, and git/worktree state as relevant.
+- Build a risk-based checklist from the outcome and architecture rules.
+- Inspect the actual diff, production paths, source, tests, docs, generated artifacts, and git/worktree state as relevant.
 - Prefer concrete evidence: file references, commands, searches, test names, lint rules, or commit state.
-- Report every missing, partial, contradictory, unproven, or shortcut-looking item.
-- Mark uncertainty as a gap unless you can resolve it locally within scope.
+- Use adversarial, mutation, rollback, identity, and residue checks where they target plausible failures.
+- Batch related findings so remediation can address the boundary coherently.
+- Report every material missing, partial, contradictory, unproven, silently waived, or shortcut-looking item.
+- Separate baseline failures from new regressions; neither disappears from the report.
+- Reuse evidence only for unchanged relevant inputs and state the limitation.
+- Mark material uncertainty as a gap unless you can resolve it locally.
 - Do not fix issues unless the caller explicitly asks for remediation.
 
 Final report:
@@ -98,6 +125,8 @@ evidence:
 - <file, command, search, or test>
 gaps:
 - <missing, partial, contradicted, or unproven item>
+baseline failures:
+- <pre-existing failure and disposition, or "none observed">
 architecture concerns:
 - <shortcut, owner drift, shim, boundary bypass, or "none found">
 recommended follow-up:
@@ -111,4 +140,4 @@ For delegated exploration:
 - Answer the bounded question only.
 - Cite concrete files or docs.
 - Do not make code changes unless the caller explicitly asks.
-- If the question cannot be answered without broader context, return `contract incomplete` with the missing context.
+- If the question cannot be answered without broader context, return `brief incomplete` with the missing context.

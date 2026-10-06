@@ -34,7 +34,8 @@ pub(crate) fn run_graph_links(options: GraphLinksOptions) -> Result<ExitCode, St
             GraphCommandOutcome::Exit(code) => return Ok(code),
         },
     };
-    let data = graph_links_data(&result, options.detail);
+    let data =
+        graph_links_data(&service, &result, options.detail).map_err(|error| error.message)?;
     if options.json {
         write_json_data(data)?;
     } else {

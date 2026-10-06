@@ -13,11 +13,37 @@ use super::{
 use crate::{ArtifactValidationFamily, SqliteIndexReader, ValidationCode, ValidationStatus};
 
 #[test]
+fn contract_v7_is_rejected_even_with_current_schema() -> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_db_path("ux8-old-contract");
+    create_valid_artifact_database_with_override(
+        &path,
+        artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,
+        "pf2e-atlas-artifact/v7",
+    )?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
+    assert_eq!(report.status, ValidationStatus::Error);
+    assert_eq!(report.code, ValidationCode::UnsupportedContractVersion);
+    assert_eq!(crate::ARTIFACT_SCHEMA_VERSION, "4");
+    assert_eq!(
+        crate::ARTIFACT_MANIFEST_VERSION,
+        "pf2e-atlas-artifact-manifest/v3"
+    );
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.expected.as_deref() == Some("pf2e-atlas-artifact/v8"))
+    );
+    fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
 fn reports_valid_artifact_metadata() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("valid");
     create_valid_artifact_database(&path)?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     assert_eq!(report.code, ValidationCode::Ok);
@@ -44,7 +70,7 @@ fn reports_legacy_metadata_without_accepting_it_as_contract()
     )?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::MissingArtifactMetadata);
@@ -58,7 +84,7 @@ fn reports_missing_required_metadata_key() -> Result<(), Box<dyn std::error::Err
     let path = temp_db_path("missing-key");
     create_valid_artifact_database_without(&path, artifact_metadata_keys::EMBEDDING_DTYPE)?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::MissingRequiredMetadata);
@@ -79,7 +105,7 @@ fn reports_stale_source_signature() -> Result<(), Box<dyn std::error::Error>> {
         "stale:fixture",
     )?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::StaleSourceSignature);
@@ -97,7 +123,7 @@ fn reports_embedding_mismatch() -> Result<(), Box<dyn std::error::Error>> {
         "unknown/model",
     )?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
@@ -115,10 +141,10 @@ fn reports_embedding_unit_policy_mismatch() -> Result<(), Box<dyn std::error::Er
     create_valid_artifact_database_with_override(
         &path,
         artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
-        "legacy-child-sections/v0",
+        "coverage-driven-rich-content/v1",
     )?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::EmbeddingMismatch);
@@ -144,7 +170,7 @@ fn accepts_known_non_default_embedding_metadata() -> Result<(), Box<dyn std::err
     insert_minimal_artifact_rows(&connection)?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Ok);
     assert_eq!(report.code, ValidationCode::Ok);
@@ -161,7 +187,7 @@ fn reports_unsupported_schema_version() -> Result<(), Box<dyn std::error::Error>
         "999",
     )?;
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::UnsupportedSchemaVersion);
@@ -178,10 +204,12 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
     connection.execute("DROP TABLE item_records", [])?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
-    assert_eq!(report.code, ValidationCode::ArtifactContractViolation);
+    assert_eq!(report.code, ValidationCode::UnsupportedSchemaVersion);
+    assert!(report.message.contains("`atlas setup`"));
+    assert!(report.message.contains("`atlas index build`"));
     assert_eq!(report.diagnostics.len(), 1);
     assert_eq!(
         report.diagnostics[0].family,
@@ -191,7 +219,93 @@ fn reports_missing_required_artifact_table() -> Result<(), Box<dyn std::error::E
         report.diagnostics[0].key.as_deref(),
         Some("table:item_records")
     );
+    assert_eq!(
+        report.diagnostics[0].code,
+        ValidationCode::UnsupportedSchemaVersion
+    );
+    assert!(
+        report.diagnostics[0]
+            .message
+            .contains("cannot be upgraded in place")
+    );
+    assert!(report.diagnostics[0].message.contains("`atlas setup`"));
+    assert!(
+        report.diagnostics[0]
+            .message
+            .contains("`atlas index build`")
+    );
     fs::remove_file(path)?;
+    Ok(())
+}
+
+#[test]
+fn incomplete_current_layouts_fail_with_actionable_rebuild_guidance()
+-> Result<(), Box<dyn std::error::Error>> {
+    let cases = [
+        (
+            "missing-metric-ordinal",
+            "ALTER TABLE record_metrics RENAME COLUMN ordinal TO legacy_ordinal",
+            "column:record_metrics.ordinal",
+            "required artifact column `record_metrics.ordinal` is missing",
+        ),
+        (
+            "missing-visibility-state",
+            "ALTER TABLE records RENAME COLUMN visibility_state TO legacy_visibility_state",
+            "column:records.visibility_state",
+            "required artifact column `records.visibility_state` is missing",
+        ),
+        (
+            "missing-visibility-reason",
+            "ALTER TABLE records RENAME COLUMN visibility_reason TO legacy_visibility_reason",
+            "column:records.visibility_reason",
+            "required artifact column `records.visibility_reason` is missing",
+        ),
+    ];
+
+    for (name, mutation, key, fact) in cases {
+        let path = temp_db_path(name);
+        create_valid_artifact_database(&path)?;
+        let connection = Connection::open(&path)?;
+        connection.execute_batch(mutation)?;
+        drop(connection);
+
+        let reader = SqliteIndexReader::open_unpublished_read_only(&path)?;
+        let report = reader.validate()?;
+        assert_eq!(report.status, ValidationStatus::Error, "{name}: {report:?}");
+        assert_eq!(
+            report.code,
+            ValidationCode::UnsupportedSchemaVersion,
+            "{name}: {report:?}"
+        );
+        assert!(
+            report.message.contains("`atlas setup`"),
+            "{name}: {report:?}"
+        );
+        assert!(
+            report.message.contains("`atlas index build`"),
+            "{name}: {report:?}"
+        );
+        assert_eq!(report.diagnostics.len(), 1, "{name}: {report:?}");
+        let diagnostic = &report.diagnostics[0];
+        assert_eq!(diagnostic.code, ValidationCode::UnsupportedSchemaVersion);
+        assert_eq!(diagnostic.family, ArtifactValidationFamily::Schema);
+        assert_eq!(diagnostic.key.as_deref(), Some(key));
+        assert!(diagnostic.message.contains(fact), "{name}: {diagnostic:?}");
+        assert!(diagnostic.message.contains("cannot be upgraded in place"));
+        assert!(diagnostic.message.contains("`atlas setup`"));
+        assert!(diagnostic.message.contains("`atlas index build`"));
+
+        let fast_report = reader.check()?;
+        if key.starts_with("table:") {
+            assert_eq!(
+                fast_report.code,
+                ValidationCode::UnsupportedSchemaVersion,
+                "{name}: {fast_report:?}"
+            );
+            assert_eq!(fast_report.diagnostics[0].key.as_deref(), Some(key));
+        }
+        fs::remove_file(path)?;
+    }
     Ok(())
 }
 
@@ -206,7 +320,7 @@ fn reports_fts_rows_for_hidden_records() -> Result<(), Box<dyn std::error::Error
     )?;
     drop(connection);
 
-    let report = SqliteIndexReader::open_read_only(&path)?.validate()?;
+    let report = SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
 
     assert_eq!(report.status, ValidationStatus::Error);
     assert_eq!(report.code, ValidationCode::ArtifactContractViolation);

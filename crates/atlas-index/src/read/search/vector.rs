@@ -19,11 +19,9 @@ pub(crate) use validation::{
 
 impl SqliteIndexReader {
     pub fn validate_vector_index(&self) -> Result<ArtifactValidationReport, IndexValidationError> {
-        validate_vector_index_connection(
-            self.path().display().to_string(),
-            self.validate()?,
-            &self.validation_connection()?,
-        )
+        let validation = self.validate()?;
+        let connection = self.validation_connection()?;
+        validate_vector_index_connection(self.path().display().to_string(), validation, &connection)
     }
 
     pub fn vector_validation_report(&self) -> ArtifactValidationReport {

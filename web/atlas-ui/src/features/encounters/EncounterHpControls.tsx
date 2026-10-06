@@ -11,6 +11,9 @@ import {
   displayNumber,
   evaluateHpFormula,
   healChanges,
+  participantCurrentHp,
+  participantMaximumHp,
+  participantTemporaryHp,
 } from "./participantEdits";
 
 export function EncounterHpControls({
@@ -35,16 +38,16 @@ export function EncounterHpControls({
   const hpInput =
     hpDraft?.participantKey === current.participant_key
       ? hpDraft.value
-      : (current.current_hp?.toString() ?? "");
+      : (participantCurrentHp(current)?.toString() ?? "");
   const tempHpInput =
     tempHpDraft?.participantKey === current.participant_key
       ? tempHpDraft.value
-      : (current.temporary_hp?.toString() ?? "");
+      : (participantTemporaryHp(current)?.toString() ?? "");
   const amount =
     amountDraft?.participantKey === current.participant_key ? amountDraft.value : null;
-  const currentHp = asNumber(current.current_hp);
-  const maxHp = asNumber(current.max_hp);
-  const temporaryHp = asNumber(current.temporary_hp);
+  const currentHp = asNumber(participantCurrentHp(current));
+  const maxHp = asNumber(participantMaximumHp(current));
+  const temporaryHp = asNumber(participantTemporaryHp(current));
   const missingHp = Math.max(0, maxHp - currentHp);
   const hpMeterTotal = Math.max(maxHp, currentHp + missingHp + temporaryHp);
   const hpPercent =
@@ -69,7 +72,7 @@ export function EncounterHpControls({
     if (hp !== null) {
       const clampedHp = clampCurrentHp(current, hp);
       onUpdate({
-        current_hp: BigInt(clampedHp),
+        current_hp: clampedHp,
         defeated: clampedHp === 0 ? true : current.defeated,
       });
       setHpDraft({
@@ -82,7 +85,7 @@ export function EncounterHpControls({
     const temporaryHp = evaluateHpFormula(tempHpInput);
     if (temporaryHp !== null) {
       onUpdate({
-        temporary_hp: BigInt(temporaryHp),
+        temporary_hp: temporaryHp,
       });
       setTempHpDraft({
         participantKey: current.participant_key,
@@ -244,8 +247,8 @@ export function EncounterHpControls({
 }
 
 function hpLabel(participant: EncounterParticipantView): string {
-  const current = displayNumber(participant.current_hp);
-  const max = displayNumber(participant.max_hp);
-  const temporaryHp = asNumber(participant.temporary_hp);
+  const current = displayNumber(participantCurrentHp(participant));
+  const max = displayNumber(participantMaximumHp(participant));
+  const temporaryHp = asNumber(participantTemporaryHp(participant));
   return `${current}/${max}${temporaryHp > 0 ? ` +${temporaryHp}` : ""}`;
 }

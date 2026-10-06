@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "antd";
+import { Button, message } from "antd";
 import { Edit2 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -7,9 +7,11 @@ import {
   deleteEncounter,
   getEncounter,
   getEncounterConditionDefinitions,
+  mutateEncounterSpellCast,
   removeEncounterParticipant,
   removeEncounterParticipantCondition,
   reorderEncounterParticipant,
+  resetEncounterParticipant,
   setEncounterTurn,
   updateEncounter,
   updateEncounterParticipant,
@@ -17,6 +19,10 @@ import {
 } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
+  EncounterParticipantPreservedDomainView,
+  EncounterParticipantResetDomainView,
+  EncounterParticipantResetResultView,
+  EncounterSpellCastRequest,
   EncounterSummaryView,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
@@ -25,9 +31,8 @@ import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
 import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
+import { useConfirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
 
 type EncounterDetailViewProps = {
   route: Extract<AtlasRoute, { kind: "encounter" }>;
@@ -41,11 +46,12 @@ const ENCOUNTER_WIDTH_SPECS = {
 
 export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   const queryClient = useQueryClient();
+  const { confirmationModal, confirmDangerAction } = useConfirmDangerAction();
+  const [messageApi, messageContext] = message.useMessage();
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
-  const recordPreview = useRecordPreview();
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -100,7 +106,19 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         encounter_ref: route.slug,
         ...(participantKey ? { participant_key: participantKey } : {}),
       }),
-    onSuccess: invalidateEncounter,
+    onSuccess: async (result) => {
+      const currentParticipantKey = result.current_turn_participant_key;
+      if (
+        currentParticipantKey &&
+        result.participants.some(
+          (participant) => participant.participant_key === currentParticipantKey,
+        )
+      ) {
+        setSelectedParticipantKey(currentParticipantKey);
+      }
+      queryClient.setQueryData(["encounter", route.slug], result);
+      await queryClient.invalidateQueries({ queryKey: ["encounters"] });
+    },
   });
   const addCondition = useMutation({
     mutationFn: (request: AddEncounterParticipantConditionRequest) =>
@@ -120,13 +138,46 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
     onSuccess: invalidateEncounter,
   });
   const removeCondition = useMutation({
-    mutationFn: (request: { participantKey: string; conditionId: bigint }) =>
+    mutationFn: (request: { participantKey: string; conditionId: number }) =>
       removeEncounterParticipantCondition(
         route.slug,
         request.participantKey,
         request.conditionId,
       ),
     onSuccess: invalidateEncounter,
+  });
+  const mutateSpellCast = useMutation({
+    mutationFn: (request: {
+      participantKey: string;
+      spellCast: EncounterSpellCastRequest;
+    }) =>
+      mutateEncounterSpellCast(route.slug, request.participantKey, request.spellCast),
+    onSuccess: invalidateEncounter,
+    onError: (error) => {
+      messageApi.error({
+        content: `Spell update failed: ${mutationErrorMessage(error)}`,
+        duration: 0,
+      });
+    },
+  });
+  const resetParticipant = useMutation({
+    mutationFn: (participantKey: string) =>
+      resetEncounterParticipant(route.slug, participantKey, {
+        confirmation: "reset_participant",
+      }),
+    onSuccess: async (result) => {
+      messageApi.success({
+        content: resetResultMessage(result),
+        duration: 4,
+      });
+      await invalidateEncounter();
+    },
+    onError: (error) => {
+      messageApi.error({
+        content: `Creature reset failed: ${mutationErrorMessage(error)}`,
+        duration: 0,
+      });
+    },
   });
   const encounterSummary = encounter.data?.encounter ?? null;
   const updateEncounterStatus = (status: EncounterSummaryView["status"]) => {
@@ -145,6 +196,8 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
 
   return (
     <>
+      {messageContext}
+      {confirmationModal}
       <section className="encounter-detail-header">
         <div>
           <h2>{encounterSummary?.name ?? route.slug}</h2>
@@ -185,7 +238,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             }
             onSelect={(participantKey) => {
               setSelectedParticipantKey(participantKey);
-              recordPreview.close();
             }}
             onReorder={(participantKey, targetParticipantKey, placement) =>
               reorderParticipant.mutate({
@@ -204,13 +256,17 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         results={
           <EncounterInspectorPane
             onAddCondition={(request) => addCondition.mutate(request)}
-            onCloseRecordPreview={recordPreview.close}
             onOpenRecordFullPage={(recordKey) =>
               navigateToAtlasRoute({ kind: "record", recordKey })
             }
-            onReference={recordPreview.open}
             onRemoveCondition={(participantKey, conditionId) =>
               removeCondition.mutate({ participantKey, conditionId })
+            }
+            onResetParticipant={(participantKey) =>
+              resetParticipant.mutate(participantKey)
+            }
+            onSpellCast={(participantKey, spellCast) =>
+              mutateSpellCast.mutate({ participantKey, spellCast })
             }
             onUpdate={(participant) => updateParticipant.mutate(participant)}
             onUpdateCondition={(participantKey, condition) =>
@@ -219,10 +275,9 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             participant={selected}
             participants={encounter.data?.participants ?? []}
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
-            previewAnchor={recordPreview.anchor}
-            previewDetail={recordPreview.detail}
-            previewLoading={recordPreview.loading}
-            previewRecordKey={recordPreview.recordKey}
+            currentTurnParticipantKey={
+              encounter.data?.current_turn_participant_key ?? null
+            }
           />
         }
         labels={{ filter: "Roster", results: "Participant" }}
@@ -263,4 +318,50 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
       )}
     </>
   );
+}
+
+function resetResultMessage(result: EncounterParticipantResetResultView): string {
+  const reset = result.reset_domains.map(resetDomainLabel).join(", ");
+  const preserved = result.preserved_domains.map(preservedDomainLabel).join(", ");
+  const kind = result.participant.participant_kind === "hazard" ? "Hazard" : "Creature";
+  return `${kind} reset. Restored ${reset}; preserved ${preserved}.`;
+}
+
+function mutationErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "appError" in error) {
+    const appError = error.appError;
+    if (
+      appError &&
+      typeof appError === "object" &&
+      "message" in appError &&
+      typeof appError.message === "string"
+    ) {
+      return appError.message;
+    }
+  }
+  return error instanceof Error ? error.message : "Try again or reload the encounter.";
+}
+
+function resetDomainLabel(domain: EncounterParticipantResetDomainView): string {
+  const labels: Record<EncounterParticipantResetDomainView, string> = {
+    hit_points: "HP",
+    defeated: "defeated state",
+    conditions: "conditions",
+    initiative_turn_state: "turn state",
+    variant_adjustments: "variant",
+    action_budget: "actions",
+    spell_resources: "spell resources",
+    hazard_state: "hazard state",
+  };
+  return labels[domain];
+}
+
+function preservedDomainLabel(domain: EncounterParticipantPreservedDomainView): string {
+  const labels: Record<EncounterParticipantPreservedDomainView, string> = {
+    display_name: "name",
+    notes: "notes",
+    visibility: "visibility",
+    side: "side",
+  };
+  return labels[domain];
 }

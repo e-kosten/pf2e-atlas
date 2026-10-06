@@ -13,6 +13,7 @@ use crate::commands::record::args::{RecordArgs, RecordCommand};
 use crate::commands::search::args::SearchOptions;
 use crate::commands::setup::args::SetupArgs;
 use crate::commands::similar::args::SimilarOptions;
+use crate::commands::source::args::{SourceArgs, SourceCommand};
 use crate::commands::tags::args::{TagsArgs, TagsCommand};
 use crate::commands::web::args::WebArgs;
 use crate::{commands, output, progress};
@@ -45,8 +46,10 @@ pub(crate) struct Cli {
 pub(crate) enum Command {
     #[command(about = "Install, repair, or check local Atlas runtime data")]
     Setup(SetupArgs),
-    #[command(about = "Build, validate, inspect, and analyze Atlas indexes")]
+    #[command(about = "Build, check, inspect, and validate Atlas index artifacts")]
     Index(IndexArgs),
+    #[command(about = "Inspect Foundry source schemas, values, and ingest analysis")]
+    Source(SourceArgs),
     #[command(about = "Fetch and resolve Atlas records")]
     Record(RecordArgs),
     #[command(about = "Retrieve local record reference graph context")]
@@ -100,15 +103,20 @@ impl Command {
         match self {
             Self::Setup(args) => args.paths.json,
             Self::Index(args) => match &args.command {
-                IndexCommand::Analyze(options) => options.json,
-                IndexCommand::AuditSourcePaths(options) => options.json,
                 IndexCommand::Build(options) => options.json,
                 IndexCommand::Check(options) => options.json,
                 IndexCommand::Inspect(options) => options.json,
                 IndexCommand::Validate(options) => options.json,
+                IndexCommand::ValidateCorpus(_) => false,
+            },
+            Self::Source(args) => match &args.command {
+                SourceCommand::Analyze(options) => options.json,
+                SourceCommand::Schema(options) => options.json,
+                SourceCommand::Values(options) => options.json,
             },
             Self::Record(args) => match &args.command {
                 RecordCommand::Get(options) => options.json,
+                RecordCommand::Provenance(options) => options.json,
                 RecordCommand::Resolve(options) => options.json,
             },
             Self::Graph(args) => match &args.command {
@@ -152,17 +160,22 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
         Command::Setup(args) => commands::setup::run_setup(args),
         Command::Index(index) => match index.command {
-            IndexCommand::Analyze(options) => commands::index::run_index_analyze(options),
-            IndexCommand::AuditSourcePaths(options) => {
-                commands::index::run_index_audit_source_paths(options)
-            }
             IndexCommand::Build(options) => commands::index::run_index_build(options),
             IndexCommand::Check(options) => commands::index::run_index_check(options),
             IndexCommand::Inspect(options) => commands::index::run_index_inspect(options),
             IndexCommand::Validate(options) => commands::index::run_index_validate(options),
+            IndexCommand::ValidateCorpus(options) => {
+                commands::index::run_index_validate_corpus(options)
+            }
+        },
+        Command::Source(source) => match source.command {
+            SourceCommand::Analyze(options) => commands::source::run_source_analyze(options),
+            SourceCommand::Schema(options) => commands::source::run_source_schema(options),
+            SourceCommand::Values(options) => commands::source::run_source_values(options),
         },
         Command::Record(record) => match record.command {
             RecordCommand::Get(options) => commands::record::run_record_get(options),
+            RecordCommand::Provenance(options) => commands::record::run_record_provenance(options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
         },
         Command::Graph(graph) => match graph.command {

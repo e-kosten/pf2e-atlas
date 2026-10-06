@@ -2,6 +2,9 @@ use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use atlas_app_model::AppErrorCode;
 use atlas_runtime::{AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::AtlasRetrievalService;
@@ -115,20 +118,18 @@ impl RetrievalExecutor {
     }
 
     #[cfg(test)]
-    fn from_test_fixture_factory(
+    pub(super) fn from_test_fixture_factory<Guard>(
         worker_count: usize,
         queue_capacity: usize,
-        open_fixture: impl Fn() -> Result<
-            (
-                AtlasRetrievalService,
-                atlas_search::test_support::FixtureArtifact,
-            ),
-            Box<dyn std::error::Error>,
-        > + Send
+        open_fixture: impl Fn() -> Result<(AtlasRetrievalService, Guard), Box<dyn std::error::Error>>
+        + Send
         + Sync
         + Copy
         + 'static,
-    ) -> Self {
+    ) -> Self
+    where
+        Guard: Send + 'static,
+    {
         let worker_count = worker_count.max(1);
         let (sender, receiver) = mpsc::sync_channel(queue_capacity);
         let receiver = Arc::new(Mutex::new(receiver));
@@ -272,6 +273,25 @@ mod tests {
         let executor = RetrievalExecutor::from_fixture_workers(0, 16);
 
         assert_eq!(executor.worker_count(), 1);
+    }
+
+    #[test]
+    fn one_persistent_worker_serves_multiple_requests_from_one_acquisition() {
+        static ACQUISITIONS: AtomicU64 = AtomicU64::new(0);
+
+        ACQUISITIONS.store(0, Ordering::Relaxed);
+        let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+            ACQUISITIONS.fetch_add(1, Ordering::Relaxed);
+            atlas_search::test_support::minimal_fixture_retrieval_service_without_embeddings()
+        });
+
+        for _ in 0..9 {
+            executor
+                .submit(|_| Ok(()))
+                .expect("request should complete");
+        }
+
+        assert_eq!(ACQUISITIONS.load(Ordering::Relaxed), 1);
     }
 
     #[test]

@@ -1,30 +1,29 @@
-use std::collections::BTreeMap;
-
 use atlas_app_model::{
-    AppErrorCode, EncounterDetailView, EncounterParticipantConditionView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, ReorderEncounterParticipantPlacementView,
+    AppErrorCode, EncounterDetailView, EncounterParticipantKindView,
+    EncounterParticipantResetAvailabilityView, EncounterParticipantResetUnavailableReasonView,
+    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
+    EncounterParticipantView, EncounterStatusView, EncounterSummaryView, RecordSurfaceProfileView,
+    ReorderEncounterParticipantPlacementView, SurfaceUnavailableReasonView,
 };
 use atlas_local_state::{
-    Encounter, EncounterParticipant, EncounterParticipantCondition, EncounterStatus,
-    ParticipantKind, ParticipantSide, ParticipantVariant, ReorderPlacement,
+    Encounter, EncounterParticipant, EncounterStatus, ParticipantKind, ParticipantSide,
+    ParticipantVariant, ReorderPlacement,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::projection::record_summary;
 use crate::service::AtlasAppService;
-use crate::surfaces::encounter_participant_surface;
+use crate::surface::{record_surface, unavailable_participant_surface};
 
-use super::hydration::hydrate_participant_records;
-use super::mechanics::{participant_runtime_block, participant_stat_block};
+use super::hydration::{HydratedParticipantRecords, hydrate_participant_records};
+use super::mechanics::{manual_encounter_runtime, participant_encounter_runtime};
+use super::spells::{attach_spell_cast_availability, participant_spell_cast_context};
 
 pub(super) fn encounter_detail_view(
     service: &AtlasAppService,
     encounter: Encounter,
     participants: Vec<EncounterParticipant>,
 ) -> AppServiceResult<EncounterDetailView> {
-    let records_by_key = hydrate_participant_records(service, &participants)?;
+    let hydrated_records = hydrate_participant_records(service, &participants)?;
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
     let note = encounter.note.clone();
@@ -34,8 +33,8 @@ pub(super) fn encounter_detail_view(
         current_turn_participant_key,
         participants: participants
             .into_iter()
-            .map(|participant| participant_view(participant, &records_by_key))
-            .collect(),
+            .map(|participant| participant_view(service, participant, &hydrated_records))
+            .collect::<AppServiceResult<Vec<_>>>()?,
     })
 }
 
@@ -57,23 +56,20 @@ pub(super) fn encounter_summary(
 }
 
 pub(super) fn participant_view(
+    service: &AtlasAppService,
     participant: EncounterParticipant,
-    records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
-) -> EncounterParticipantView {
-    let record_detail = participant
+    hydrated_records: &HydratedParticipantRecords,
+) -> AppServiceResult<EncounterParticipantView> {
+    let retrieved = participant
         .record_key
         .as_ref()
-        .and_then(|key| records_by_key.get(key));
-    let record = record_detail.map(record_summary);
-    let stat_block = record_detail
-        .and_then(|record| participant_stat_block(&participant, record))
-        .or_else(|| {
-            (participant.participant_kind == ParticipantKind::Pc)
-                .then(|| participant_runtime_block(&participant))
-        });
+        .and_then(|key| hydrated_records.records_by_key.get(key));
+    let encounter_runtime = retrieved
+        .and_then(|retrieved| participant_encounter_runtime(&participant, retrieved))
+        .unwrap_or_else(|| manual_encounter_runtime(&participant));
     let status = if participant.participant_kind == ParticipantKind::Pc {
         EncounterParticipantStatusView::Manual
-    } else if record.is_some() {
+    } else if retrieved.is_some() {
         EncounterParticipantStatusView::Active
     } else {
         EncounterParticipantStatusView::Unresolved
@@ -82,7 +78,56 @@ pub(super) fn participant_view(
         .note
         .as_ref()
         .map(|note| note.chars().take(40).collect::<String>().trim().to_string());
-    let mut view = EncounterParticipantView {
+    let reset_available = service
+        .local_state_store()?
+        .encounters()
+        .participant_reset_available(&participant.participant_key)?;
+    let mut surface = if let Some(retrieved) = retrieved {
+        let remaster_lookup = hydrated_records
+            .remaster_lookups_by_key
+            .get(&retrieved.record.identity.key.to_string())
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::InternalError,
+                    format!(
+                        "canonical encounter record `{}` is missing its authenticated remaster lookup",
+                        retrieved.record.identity.key
+                    ),
+                )
+            })?;
+        record_surface(
+            retrieved,
+            RecordSurfaceProfileView::EncounterParticipant,
+            Some(encounter_runtime),
+            None,
+            remaster_lookup,
+        )
+    } else {
+        let reason = if participant.participant_kind == ParticipantKind::Pc {
+            SurfaceUnavailableReasonView::ManualParticipant
+        } else {
+            SurfaceUnavailableReasonView::RecordUnavailable
+        };
+        let kind = match participant.participant_kind {
+            ParticipantKind::Creature => "creature",
+            ParticipantKind::Hazard => "hazard",
+            ParticipantKind::Pc => "character",
+        }
+        .to_string();
+        unavailable_participant_surface(
+            participant.record_key.clone(),
+            participant.display_name.clone(),
+            kind,
+            RecordSurfaceProfileView::EncounterParticipant,
+            reason,
+            encounter_runtime,
+        )
+    };
+    if let (Some(retrieved), Some(runtime)) = (retrieved, surface.encounter.as_mut()) {
+        let spell_context = participant_spell_cast_context(service, &participant, retrieved)?;
+        attach_spell_cast_availability(&participant, &spell_context, runtime);
+    }
+    Ok(EncounterParticipantView {
         participant_key: participant.participant_key,
         record_key: participant.record_key,
         participant_kind: participant_kind(participant.participant_kind),
@@ -93,29 +138,17 @@ pub(super) fn participant_view(
         side: participant_side_view(participant.side),
         initiative: participant.initiative,
         initiative_order: participant.initiative_order,
-        max_hp: participant.max_hp,
-        current_hp: participant.current_hp,
-        temporary_hp: participant.temporary_hp,
         defeated: participant.defeated,
         hidden: participant.hidden,
         note: participant.note,
         note_hint: note_hint.filter(|value| !value.is_empty()),
-        conditions: participant
-            .conditions
-            .into_iter()
-            .map(condition_view)
-            .collect(),
-        stat_block,
-        surface: None,
-        record,
-    };
-    view.surface = match participant_kind(participant.participant_kind) {
-        EncounterParticipantKindView::Creature | EncounterParticipantKindView::Pc => {
-            encounter_participant_surface(&view, record_detail, view.stat_block.as_ref())
-        }
-        EncounterParticipantKindView::Hazard => None,
-    };
-    view
+        reset: EncounterParticipantResetAvailabilityView {
+            available: reset_available,
+            unavailable_reason: (!reset_available)
+                .then_some(EncounterParticipantResetUnavailableReasonView::MissingCreationBaseline),
+        },
+        record_view: surface,
+    })
 }
 
 pub(super) fn encounter_not_found(encounter_ref: &str) -> AppServiceError {
@@ -178,20 +211,6 @@ pub(super) fn reorder_placement(
     match placement {
         ReorderEncounterParticipantPlacementView::Before => ReorderPlacement::Before,
         ReorderEncounterParticipantPlacementView::After => ReorderPlacement::After,
-    }
-}
-
-fn condition_view(condition: EncounterParticipantCondition) -> EncounterParticipantConditionView {
-    EncounterParticipantConditionView {
-        condition_id: condition.condition_id,
-        condition_key: condition.condition_key,
-        name: condition.name,
-        value: condition.value,
-        source_participant_key: condition.source_participant_key,
-        duration_rounds: condition.duration_rounds,
-        note: condition.note,
-        created_at: condition.created_at,
-        updated_at: condition.updated_at,
     }
 }
 

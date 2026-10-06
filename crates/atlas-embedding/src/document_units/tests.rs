@@ -17,11 +17,14 @@ use crate::document_units::{
     DocumentEmbeddingRecordTruncationCoverage, DocumentEmbeddingSectionTruncation,
     DocumentEmbeddingSource, DocumentEmbeddingTruncationExample,
     DocumentEmbeddingUnitKindTruncation, PendingDocumentEmbedding, ReusableDocumentEmbedding,
-    build_document_embedding_units, generate_document_embeddings_with_reuse_using,
+    apply_document_embedding_token_budget, build_document_embedding_units,
+    generate_document_embeddings_with_reuse_using,
     generate_document_embeddings_with_reuse_using_batch,
 };
 use crate::error::EmbeddingError;
-use crate::tokenization::{EmbeddingInputTokenization, EmbeddingSectionTruncation};
+use crate::tokenization::{
+    EmbeddingInputTokenization, EmbeddingSectionTruncation, TextEmbeddingTokenizer,
+};
 use crate::unit_kind::EmbeddingUnitKind;
 
 #[test]
@@ -79,6 +82,104 @@ fn content_documents_build_child_candidates() {
             .iter()
             .any(|entry| entry.embedding_unit_key == "packs:visible1#heading_section:1")
     );
+}
+
+#[test]
+fn owned_content_units_keep_deterministic_order_hashes_and_mechanics_priority() {
+    let source = DocumentEmbeddingSource {
+        record_key: "packs:canonical".to_string(),
+        record_name: "Canonical Creature".to_string(),
+        document: RecordPresentationDocument {
+            record_key: RecordKey::parse("packs:canonical").expect("fixture key is valid"),
+            kind: RecordKind::Creature,
+            title: "Canonical Creature".to_string(),
+            identity: Vec::new(),
+            badges: Vec::new(),
+            sections: vec![
+                PresentationSection::new(
+                    PresentationSectionKind::Defense,
+                    vec![PresentationBlock::FactList(vec![PresentationFact {
+                        key: "ac".to_string(),
+                        label: "AC".to_string(),
+                        value: "31".to_string(),
+                    }])],
+                ),
+                PresentationSection::new(
+                    PresentationSectionKind::Offense,
+                    vec![PresentationBlock::FactList(vec![PresentationFact {
+                        key: "activity".to_string(),
+                        label: "Strike".to_string(),
+                        value: "Canonical Jaws +24".to_string(),
+                    }])],
+                ),
+            ],
+        },
+        aliases: vec!["Alpha Alias".to_string(), "Zeta Alias".to_string()],
+        content_documents: vec![
+            DocumentEmbeddingContentSource {
+                source_kind: atlas_record::ContentSourceKind::Description,
+                label: Some("Description".to_string()),
+                document: RichDocument::new(vec![
+                    html_element("h2", vec![text_node("First Section")]),
+                    paragraph_with_repeated_word("first", 120),
+                    html_element("h2", vec![text_node("Second Section")]),
+                    paragraph_with_repeated_word("second", 120),
+                ]),
+            },
+            DocumentEmbeddingContentSource {
+                source_kind: atlas_record::ContentSourceKind::PublicNotes,
+                label: Some("Public Notes".to_string()),
+                document: RichDocument::new(vec![
+                    html_element("h2", vec![text_node("Third Section")]),
+                    paragraph_with_repeated_word("third", 120),
+                ]),
+            },
+        ],
+    };
+
+    let mut first = build_document_embedding_units(std::slice::from_ref(&source));
+    let mut second = build_document_embedding_units(&[source]);
+    assert!(
+        first[0]
+            .input_text
+            .starts_with("Name: Canonical Creature\nAC: 31\nStrike: Canonical Jaws +24")
+    );
+    assert!(
+        first[0]
+            .input_text
+            .ends_with("Aliases: Alpha Alias, Zeta Alias")
+    );
+    let tokenizer = TextEmbeddingTokenizer::whitespace_wordlevel_for_tests(55);
+    apply_document_embedding_token_budget(&mut first, &tokenizer).expect("first unit set budgets");
+    apply_document_embedding_token_budget(&mut second, &tokenizer)
+        .expect("second unit set budgets");
+
+    assert_eq!(first, second);
+    assert_eq!(
+        first
+            .iter()
+            .map(|unit| unit.embedding_unit_key.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "packs:canonical#parent",
+            "packs:canonical#heading_section:1",
+            "packs:canonical#heading_section:2",
+            "packs:canonical#heading_section:3",
+        ]
+    );
+    assert_eq!(
+        first.iter().map(|unit| unit.ordinal).collect::<Vec<_>>(),
+        vec![0, 1, 2, 3]
+    );
+    for unit in &first {
+        assert_eq!(
+            unit.input_hash,
+            hash_document_embedding_input(&unit.input_text)
+        );
+        assert!(unit.input_text.contains("Name: Canonical Creature"));
+    }
+    assert!(first[0].input_text.contains("AC: 31"));
+    assert!(first[0].input_text.contains("Strike: Canonical Jaws +24"));
 }
 
 #[test]
@@ -579,4 +680,36 @@ fn test_document(key: &str, name: &str) -> RecordPresentationDocument {
             ),
         ],
     }
+}
+
+#[test]
+fn template_distance_reaches_embedding_text_and_semantic_hash_without_mutating_content() {
+    let template = RichDocument::new(vec![RichNode::Foundry {
+        node: atlas_record::FoundryNode::Template {
+            label: None,
+            shape: Some("emanation".into()),
+            options: BTreeMap::from([("distance".into(), "30".into())]),
+        },
+    }]);
+    let structural_hash = atlas_record::ContentHash::for_document(&template);
+    let source = |document| DocumentEmbeddingSource {
+        record_key: "packs:template".into(),
+        record_name: "Template".into(),
+        document: test_document("packs:template", "Template"),
+        aliases: Vec::new(),
+        content_documents: vec![DocumentEmbeddingContentSource {
+            source_kind: atlas_record::ContentSourceKind::Description,
+            label: Some("Description".into()),
+            document,
+        }],
+    };
+    let rendered = build_document_embedding_units(&[source(template.clone())]);
+    let historical =
+        build_document_embedding_units(&[source(RichDocument::new(vec![text_node("emanation")]))]);
+    assert!(rendered[0].input_text.contains("30-foot emanation"));
+    assert_ne!(rendered[0].input_hash, historical[0].input_hash);
+    assert_eq!(
+        atlas_record::ContentHash::for_document(&template),
+        structural_hash
+    );
 }

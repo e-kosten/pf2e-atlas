@@ -57,6 +57,12 @@ CREATE TABLE records (
   variant_source TEXT NOT NULL,
   source_path TEXT NOT NULL,
   is_default_visible INTEGER NOT NULL CHECK (is_default_visible IN (0, 1)),
+  visibility_state TEXT NOT NULL DEFAULT 'visible'
+    CHECK (visibility_state IN ('visible', 'hidden')),
+  visibility_reason TEXT NOT NULL DEFAULT 'source_record'
+    CHECK (visibility_reason IN ('source_record', 'generated_canonical', 'generated_instance')),
+  metric_count INTEGER NOT NULL DEFAULT 0 CHECK (metric_count >= 0),
+  metric_order_sha256 TEXT NOT NULL DEFAULT '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
   raw_json TEXT NOT NULL
 );
 
@@ -131,6 +137,7 @@ CREATE TABLE remaster_links (
 
 CREATE TABLE record_metrics (
   record_key TEXT NOT NULL,
+  ordinal INTEGER NOT NULL DEFAULT 9223372036854775807 CHECK (ordinal >= 0),
   metric_domain TEXT NOT NULL CHECK (metric_domain IN ('actor', 'item')),
   metric_key TEXT NOT NULL,
   value_type TEXT NOT NULL CHECK (value_type IN ('number', 'text', 'boolean')),
@@ -138,6 +145,7 @@ CREATE TABLE record_metrics (
   text_value TEXT,
   bool_value INTEGER CHECK (bool_value IN (0, 1)),
   PRIMARY KEY (record_key, metric_domain, metric_key),
+  UNIQUE (record_key, ordinal),
   FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
 );
 
@@ -257,7 +265,7 @@ CREATE TABLE spell_records (
   area_value REAL,
   save_type TEXT,
   sustained INTEGER NOT NULL CHECK (sustained IN (0, 1)),
-  basic_save INTEGER NOT NULL CHECK (basic_save IN (0, 1)),
+  basic_save INTEGER CHECK (basic_save IN (0, 1)),
   damage_types_json TEXT NOT NULL,
   FOREIGN KEY (record_key) REFERENCES records(record_key) ON DELETE CASCADE
 );

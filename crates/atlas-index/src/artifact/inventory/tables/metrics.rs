@@ -9,6 +9,7 @@ pub mod record_metrics {
         use super::{Column, TABLE};
 
         pub const RECORD_KEY: Column = Column::new(TABLE, "record_key");
+        pub const ORDINAL: Column = Column::new(TABLE, "ordinal");
         pub const METRIC_DOMAIN: Column = Column::new(TABLE, "metric_domain");
         pub const METRIC_KEY: Column = Column::new(TABLE, "metric_key");
         pub const VALUE_TYPE: Column = Column::new(TABLE, "value_type");
@@ -19,6 +20,7 @@ pub mod record_metrics {
 
     pub const ALL_COLUMNS: &[Column] = &[
         columns::RECORD_KEY,
+        columns::ORDINAL,
         columns::METRIC_DOMAIN,
         columns::METRIC_KEY,
         columns::VALUE_TYPE,

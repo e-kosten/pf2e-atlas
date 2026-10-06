@@ -33,7 +33,7 @@ This checklist tracks the current Rust runtime state and open follow-up work.
 - [ ] [Rust creature level filtering](../items/rust-creature-level-filtering.md).
 - [ ] [Rust CLI kind preview facts](../items/rust-cli-kind-preview-facts.md).
 - [ ] [Rust CLI typo tolerant discovery](../items/rust-cli-typo-tolerant-discovery.md).
-- [ ] [Rust Foundry JSON field audit](../items/rust-foundry-json-field-audit.md).
+- [x] [Rust Foundry JSON field audit](../history/items/rust-foundry-json-field-audit.md), completed as source-schema discovery and diffs.
 - [ ] [Rust content subdocuments for journal pages and table results](../items/rust-content-subdocuments-journal-table-results.md).
 - [ ] [Rust side data and metric source fact convergence](../items/rust-side-data-metric-source-fact-convergence.md).
 - [ ] [Rust graph context deeper local graph](../items/rust-graph-context-deeper-local-graph.md).
@@ -62,7 +62,7 @@ cargo build --workspace
 Use Cargo's release profile for ingest and query performance comparisons:
 
 ```bash
-cargo run --release -p atlas-cli -- index analyze --source vendor/pf2e --json
+cargo run --release -p atlas-cli -- source analyze --source vendor/pf2e --json
 ```
 
 For command-surface smoke checks:

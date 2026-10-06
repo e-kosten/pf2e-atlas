@@ -5,6 +5,8 @@ Priority: soon
 Owner: unassigned
 Last reviewed: 2026-05-17
 
+A7 candidate disposition: **retained**. D1-D3 own source-faithful parity and named improvements; broader evidence-backed tuning remains open after those gates.
+
 ## Problem
 
 The Phase 6 Rust search runtime should land the retrieval architecture first: FTS, vector retrieval, default hybrid RRF, weighted RRF plumbing, and exact identity handling. Full live-index quality fixtures, parity reports, default weights, and retrieval windows should be tuned after that baseline is measurable rather than guessed during initial implementation.
@@ -49,5 +51,5 @@ Phase 6 should centralize FTS weights in code so this item can tune them cleanly
 
 ## Related
 
-- [Rust Phase 6 Search Runtime Plan](../../../scratch/plans/2026-05-17-rust-phase-6-search-runtime.md)
+- [ADR 0024: Rust search retrieval and fusion controls](../../architecture/decisions/0024-rust-search-retrieval-and-fusion-controls.md)
 - [Rust CLI runtime migration research](../rust-cli-runtime/README.md)

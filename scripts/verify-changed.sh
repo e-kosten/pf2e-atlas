@@ -78,10 +78,10 @@ cd "$REPO_ROOT"
 
 case "$mode" in
   staged)
-    git diff --cached --name-only --relative --diff-filter=ACDMRTUXB >"$paths_file"
+    git diff --cached --no-renames --name-only --relative --diff-filter=ACDMRTUXB >"$paths_file"
     ;;
   range)
-    git diff --name-only --relative "$range" >"$paths_file"
+    git diff --no-renames --name-only --relative --diff-filter=ACDMRTUXB "$range" >"$paths_file"
     ;;
   all)
     : >"$paths_file"
@@ -157,14 +157,11 @@ if [ "$rust_touched" -eq 1 ]; then
     fi
   else
     run_check "cargo fmt" cargo fmt --check
-    run_check "broad clippy" cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-    run_check "strict runtime clippy" cargo clippy --workspace --lib --bins -- -D warnings \
-      -D clippy::unwrap_used \
-      -D clippy::expect_used \
-      -D clippy::panic \
-      -D clippy::unimplemented \
-      -D clippy::todo \
-      -D clippy::unreachable
+    run_check "runtime clippy" cargo clippy --workspace --lib --bins -- \
+      -D warnings -D clippy::dbg_macro -D clippy::unwrap_used -D clippy::expect_used \
+      -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable
+    run_check "test clippy" cargo clippy --workspace --tests --benches --examples -- \
+      -D warnings -D clippy::dbg_macro
   fi
 fi
 

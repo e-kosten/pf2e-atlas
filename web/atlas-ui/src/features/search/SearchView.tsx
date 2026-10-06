@@ -1,3 +1,4 @@
+import { Input } from "antd";
 import { ExternalLink } from "lucide-react";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterPanel } from "../../shared/filters/FilterPanel";
@@ -20,12 +21,36 @@ type SearchViewProps = {
 export function SearchView({ workspace }: SearchViewProps) {
   return (
     <WorkspaceLayout
+      responsiveSearch
+      searchControls={
+        <div className="search-workspace__query">
+          <Input.Search
+            aria-label="Search records"
+            value={workspace.search.query}
+            onChange={(event) =>
+              workspace.setSearch({
+                ...workspace.search,
+                query: event.target.value,
+                mode: event.target.value.trim() ? "text_search" : "browse",
+              })
+            }
+          />
+        </div>
+      }
+      activeFilterCount={
+        workspace.search.filterClauses.length +
+        Number(
+          Boolean(
+            workspace.search.relationship || workspace.search.relationshipInvalid,
+          ),
+        )
+      }
       filter={<FilterPanel workspace={workspace} />}
       results={<ResultTable workspace={workspace} />}
       resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}
       selectedRecordKey={workspace.selectedRecordKey}
       detailHeaderActions={
-        workspace.selectedRecordKey ? (
+        workspace.selectedRecordKey && workspace.recordDetail ? (
           <>
             <AddToListButton recordKey={workspace.selectedRecordKey} />
             <PaneIconLink
@@ -47,11 +72,15 @@ export function SearchView({ workspace }: SearchViewProps) {
         ) : null
       }
       detail={
-        <RecordDetailPane
-          detail={workspace.recordDetail}
-          loading={workspace.detailLoading}
-          onReference={workspace.selectRecord}
-        />
+        workspace.selectedRecordKey ? (
+          <RecordDetailPane
+            detail={workspace.recordDetail}
+            errors={[workspace.detailError]}
+            loading={workspace.detailLoading}
+            stale={workspace.detailRefreshing}
+            onReference={workspace.selectRecord}
+          />
+        ) : undefined
       }
     />
   );

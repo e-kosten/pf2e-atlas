@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned  
 Last reviewed: 2026-05-17
 
+A7 candidate disposition: **subsumed** by B6, which derives metrics, facets, FTS facts, and display facts from one canonical interpretation. Checkpoint B is not yet approved.
+
 ## Problem
 
 Rust ingest projects some overlapping Foundry facts into both stable side tables and open metric rows. Examples include speed and sense source data, spell range and area values, and hazard disable facts. These projections serve different runtime contracts, but their extraction should not drift into separate raw JSON parsers for the same source fields.
@@ -45,5 +47,5 @@ The cleanup should preserve the different runtime roles:
 
 ## Related
 
-- [Rust Embedded Source Entities And Promotions](../../../scratch/plans/2026-05-17-rust-embedded-source-entities-and-promotions.md)
 - [Rust artifact contract](../../architecture/artifact-contract.md)
+- [ADR 0034 candidate: Canonical entities, occurrences, runtime instances, and projections](../../architecture/decisions/0034-canonical-entities-occurrences-and-projections.md)

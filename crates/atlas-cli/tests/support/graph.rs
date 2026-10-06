@@ -5,6 +5,8 @@ use std::path::Path;
 use rusqlite::Connection;
 use serde_json::Value;
 
+use super::db::refresh_bound_test_manifest;
+
 pub fn insert_graph_edges(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
     for (from, to, display, reference, source_kind, visibility) in [
@@ -67,6 +69,8 @@ pub fn insert_graph_edges(path: &Path) -> Result<(), Box<dyn std::error::Error>>
             visibility,
         )?;
     }
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }
 
@@ -108,6 +112,8 @@ pub fn insert_variant_group(path: &Path) -> Result<(), Box<dyn std::error::Error
             (label, level, record_key),
         )?;
     }
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }
 
@@ -125,11 +131,18 @@ pub fn insert_second_variant_group(path: &Path) -> Result<(), Box<dyn std::error
          WHERE record_key = 'actions:testAction3'",
         [],
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }
 
 pub fn insert_remaster_link(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
+    connection.execute(
+        "UPDATE records SET publication_remaster = 1
+         WHERE record_key = 'actions:testAction2'",
+        [],
+    )?;
     connection.execute(
         "INSERT INTO remaster_links (
            remaster_record_key, legacy_record_key, source_kind, source_ref
@@ -141,6 +154,8 @@ pub fn insert_remaster_link(path: &Path) -> Result<(), Box<dyn std::error::Error
             "test migration",
         ),
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }
 
@@ -175,9 +190,20 @@ pub fn set_record_visibility(
     visible: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
+    let (is_default_visible, disposition, rationale) = if visible {
+        (1_i64, "ordinary", "source_record")
+    } else {
+        (0_i64, "direct_only", "canonical_edition_duplicate")
+    };
     connection.execute(
-        "UPDATE records SET is_default_visible = ?1 WHERE record_key = ?2",
-        (if visible { 1_i64 } else { 0_i64 }, record_key),
+        "UPDATE records
+         SET is_default_visible = ?1,
+             retrieval_disposition = ?2,
+             retrieval_rationale = ?3
+         WHERE record_key = ?4",
+        (is_default_visible, disposition, rationale, record_key),
     )?;
+    drop(connection);
+    refresh_bound_test_manifest(path)?;
     Ok(())
 }

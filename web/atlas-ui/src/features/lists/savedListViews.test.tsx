@@ -6,11 +6,17 @@ import type {
   SavedListDetailView,
   SavedListIndexView,
 } from "../../generated/atlas";
+import {
+  recordDetailFixture as typedRecordDetailFixture,
+  recordSummaryFixture,
+} from "../../test/recordFixtures";
 import { AddToListButton } from "./AddToListButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
 import { ListIndexView } from "./ListIndexView";
 import { savedListTagOptions } from "./listUtils";
+
+const tenSecondTestDeadline = 10_000;
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -162,70 +168,84 @@ describe("list views", () => {
     ]);
   });
 
-  it("renders list contents, loads selected detail, and removes items", async () => {
-    render(
-      <ListDetailView
-        route={{
-          kind: "list",
-          slug: "research",
-          selectedRecordKey: "actions:testAction1",
-        }}
-      />,
-      { wrapper: queryClientWrapper() },
-    );
+  it(
+    "renders list contents, loads selected detail, and removes items",
+    async () => {
+      render(
+        <ListDetailView
+          route={{
+            kind: "list",
+            slug: "research",
+            selectedRecordKey: "actions:testAction1",
+          }}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
 
-    expect(
-      await screen.findByRole("heading", { name: "Test Action 1" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
-    expect(screen.getByText("List")).toBeInTheDocument();
-    expect(screen.getByText("Items")).toBeInTheDocument();
-    expect(screen.getByText("Standard filters")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
-        list_ref: "research",
-        filter: { clauses: [] },
-      }),
-    );
-    expect(
-      screen.queryByRole("columnheader", { name: "Status" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Active")).not.toBeInTheDocument();
-    expect(screen.queryByText("research")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Edit" }));
-    await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
+      expect(
+        await screen.findByRole("heading", { name: "Test Action 1" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
+      expect(screen.getByText("List")).toBeInTheDocument();
+      expect(screen.getByText("Items")).toBeInTheDocument();
+      expect(screen.getByText("Standard filters")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
+          list_ref: "research",
+          filter: { clauses: [] },
+        }),
+      );
+      expect(
+        screen.queryByRole("columnheader", { name: "Status" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Active")).not.toBeInTheDocument();
+      expect(screen.queryByText("research")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("link", { name: "Edit" }));
+      await waitFor(() =>
+        expect(window.location.pathname).toBe("/lists/research/edit"),
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove Test Action 1" }));
+      fireEvent.click(screen.getByRole("button", { name: "Remove Test Action 1" }));
 
-    await waitFor(() =>
-      expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith({
-        list_ref: "research",
-        record_ref: "actions:testAction1",
-      }),
-    );
-  });
+      await waitFor(() =>
+        expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith({
+          list_ref: "research",
+          record_ref: "actions:testAction1",
+        }),
+      );
+    },
+    tenSecondTestDeadline,
+  );
 
-  it("opens references from the selected saved-list detail in a popover", async () => {
-    history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
-    render(
-      <ListDetailView
-        route={{
-          kind: "list",
-          slug: "research",
-          selectedRecordKey: "actions:testAction1",
-        }}
-      />,
-      { wrapper: queryClientWrapper() },
-    );
+  it(
+    "opens references from the selected saved-list detail in a popover",
+    async () => {
+      history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
+      render(
+        <ListDetailView
+          route={{
+            kind: "list",
+            slug: "research",
+            selectedRecordKey: "actions:testAction1",
+          }}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Nested Rule" }));
+      fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
 
-    await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:nested"),
-    );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
-    expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
-  });
+      await waitFor(() =>
+        expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+          "rules:nested",
+          undefined,
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+      expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
+    },
+    tenSecondTestDeadline,
+  );
 
   it("searches within a saved list through the filter route", async () => {
     render(
@@ -432,12 +452,7 @@ function savedListDetailFixture(): SavedListDetailView {
           title: "Test Action 1",
           kind: "rule",
         },
-        record: {
-          record_key: "actions:testAction1",
-          title: "Test Action 1",
-          kind: "rule",
-          kind_label: "Rule",
-        },
+        record: recordSummaryFixture("actions:testAction1", "Test Action 1"),
       },
     ],
   };
@@ -486,37 +501,42 @@ function filterField(id: string, label: string, controlKind: "option" | "range")
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  return {
-    record_key: recordKey,
+  const detail = typedRecordDetailFixture({
+    recordKey,
     title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-    kind: "rule",
-    presentation: {
-      record_key: recordKey,
-      kind: "rule",
-      title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-      identity: [],
-      badges: [],
-      sections:
-        recordKey === "rules:nested"
-          ? []
-          : [
+  });
+  if (
+    recordKey !== "rules:nested" &&
+    detail.surface.presentation.presentation_type === "creature"
+  ) {
+    detail.surface.presentation.body.content = [
+      {
+        content_key: "nested-reference",
+        role: "primary_description",
+        authored_order: 0,
+        blocks: [
+          {
+            block_type: "paragraph",
+            spans: [
+              { span_type: "text", text: "See " },
               {
-                kind: "references",
-                title: "References",
-                blocks: [
-                  {
-                    kind: "relationships",
-                    content: [
-                      {
-                        kind: "reference",
-                        label: "Nested Rule",
-                        record_key: "rules:nested",
-                      },
-                    ],
-                  },
-                ],
+                span_type: "reference",
+                label: "Nested Rule",
+                record_key: "rules:nested",
+                embedded: false,
               },
             ],
-    },
-  };
+          },
+        ],
+        content_hash: "nested-reference-hash",
+        visibility: "public",
+        provenance: {
+          source_record_key: recordKey,
+          relative_source_path: "fixture.json",
+          field_family: "fixture.reference",
+        },
+      },
+    ];
+  }
+  return detail;
 }

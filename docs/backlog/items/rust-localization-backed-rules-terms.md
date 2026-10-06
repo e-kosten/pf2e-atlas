@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-06-07
 
+A7 candidate disposition: **retained** and assigned to the future H7 rules-content planning portfolio. It is not part of creature implementation and requires its own plan and approval.
+
 ## Problem
 
 PF2e source localization contains reusable rules vocabulary such as trait labels, trait descriptions, and NPC ability glossary entries. Atlas now resolves `@Localize[...]` macros during ingest and preserves localization key context inside `RichDocument`, but it does not persist selected localization-backed vocabulary as canonical product concepts.

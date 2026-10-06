@@ -4,9 +4,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::metadata::{
-    MetadataEnumStringField, MetadataNumberField, MetadataNumberMatch, MetadataPredicate,
-    MetadataSetField, MetadataSetMatch, MetadataStringMatch, MetadataTextMatch,
-    MetadataTextStringField, NumericMetricOperator,
+    MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
+    MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
+    MetadataStringMatch, MetadataTextMatch, MetadataTextStringField, NumericMetricOperator,
 };
 use crate::{RecordKey, RecordKind};
 
@@ -198,6 +198,17 @@ pub struct SimpleSearchFilter {
     pub rarities: Vec<String>,
     pub publication_titles: Vec<String>,
     pub level: Option<NumericMatch>,
+    pub spell_rank: Option<NumericMatch>,
+    pub spell_traditions: Vec<String>,
+    pub spell_range_texts: Vec<String>,
+    pub spell_target_texts: Vec<String>,
+    pub spell_area_types: Vec<String>,
+    pub spell_save_types: Vec<String>,
+    pub spell_sustained: Option<bool>,
+    pub spell_basic_save: Option<bool>,
+    pub spell_damage_types: Vec<String>,
+    /// Numeric feet derived only by the named PF2e spell-range rule.
+    pub spell_range_feet: Option<NumericMatch>,
     pub price_cp: Option<NumericMatch>,
     pub traits_all: Vec<String>,
     pub traits_any: Vec<String>,
@@ -209,6 +220,16 @@ pub struct SimpleSearchFilter {
 impl SimpleSearchFilter {
     pub fn into_filter_node(self) -> Result<Option<SearchFilterNode>, SimpleSearchFilterError> {
         let mut children = Vec::new();
+        let has_spell_filter = self.spell_rank.is_some()
+            || !self.spell_traditions.is_empty()
+            || !self.spell_range_texts.is_empty()
+            || !self.spell_target_texts.is_empty()
+            || !self.spell_area_types.is_empty()
+            || !self.spell_save_types.is_empty()
+            || self.spell_sustained.is_some()
+            || self.spell_basic_save.is_some()
+            || !self.spell_damage_types.is_empty()
+            || self.spell_range_feet.is_some();
 
         push_optional_group(
             &mut children,
@@ -217,6 +238,9 @@ impl SimpleSearchFilter {
                 .map(SearchFilterNode::record_kind)
                 .collect(),
         );
+        if has_spell_filter {
+            children.push(SearchFilterNode::record_kind(RecordKind::Spell));
+        }
         push_enum_string_filter(
             &mut children,
             MetadataEnumStringField::PackName,
@@ -240,6 +264,59 @@ impl SimpleSearchFilter {
         if let Some(level) = self.level {
             validate_numeric_match(level, "level")?;
             children.push(SearchFilterNode::level(level));
+        }
+        if let Some(rank) = self.spell_rank {
+            validate_numeric_match(rank, "spell_rank")?;
+            children.push(metadata_number_filter(MetadataNumberField::SpellRank, rank));
+        }
+        push_set_filter(
+            &mut children,
+            MetadataSetField::Traditions,
+            self.spell_traditions,
+        );
+        push_text_string_filter(
+            &mut children,
+            MetadataTextStringField::RangeText,
+            self.spell_range_texts,
+        );
+        push_text_string_filter(
+            &mut children,
+            MetadataTextStringField::TargetText,
+            self.spell_target_texts,
+        );
+        push_enum_string_filter(
+            &mut children,
+            MetadataEnumStringField::AreaType,
+            self.spell_area_types,
+        );
+        push_enum_string_filter(
+            &mut children,
+            MetadataEnumStringField::SaveType,
+            self.spell_save_types,
+        );
+        if let Some(value) = self.spell_sustained {
+            children.push(metadata_boolean_filter(
+                MetadataBooleanField::Sustained,
+                value,
+            ));
+        }
+        if let Some(value) = self.spell_basic_save {
+            children.push(metadata_boolean_filter(
+                MetadataBooleanField::BasicSave,
+                value,
+            ));
+        }
+        push_set_filter(
+            &mut children,
+            MetadataSetField::SpellDamageTypes,
+            self.spell_damage_types,
+        );
+        if let Some(range) = self.spell_range_feet {
+            validate_numeric_match(range, "spell_range_feet")?;
+            children.push(metadata_number_filter(
+                MetadataNumberField::RangeValue,
+                range,
+            ));
         }
         if let Some(price_cp) = self.price_cp {
             validate_numeric_match(price_cp, "price_cp")?;
@@ -359,6 +436,39 @@ fn trait_filter(value: String) -> SearchFilterNode {
     SearchFilterNode::metadata(MetadataPredicate::Set {
         field: MetadataSetField::Traits,
         r#match: MetadataSetMatch::Includes { value },
+    })
+}
+
+fn push_set_filter(
+    children: &mut Vec<SearchFilterNode>,
+    field: MetadataSetField,
+    values: Vec<String>,
+) {
+    push_optional_group(
+        children,
+        values
+            .into_iter()
+            .map(|value| {
+                SearchFilterNode::metadata(MetadataPredicate::Set {
+                    field,
+                    r#match: MetadataSetMatch::Includes { value },
+                })
+            })
+            .collect(),
+    );
+}
+
+fn metadata_number_filter(field: MetadataNumberField, value: NumericMatch) -> SearchFilterNode {
+    SearchFilterNode::metadata(MetadataPredicate::Number {
+        field,
+        r#match: value.into(),
+    })
+}
+
+fn metadata_boolean_filter(field: MetadataBooleanField, value: bool) -> SearchFilterNode {
+    SearchFilterNode::metadata(MetadataPredicate::Boolean {
+        field,
+        r#match: MetadataBooleanMatch::Eq { value },
     })
 }
 
@@ -666,6 +776,53 @@ mod tests {
                 SearchFilterNode::links_to(RecordKey::parse("spells:fireball").unwrap()),
                 SearchFilterNode::metric("ac.value", MetricMatch::Gte { value: 18.0 }),
             ]))
+        );
+    }
+
+    #[test]
+    fn simple_filter_lowers_named_spell_fields_without_reusing_generic_level() {
+        let filter = SimpleSearchFilter {
+            spell_rank: Some(NumericMatch::Eq { value: 7.0 }),
+            spell_traditions: vec!["divine".to_string()],
+            spell_range_texts: vec!["20 feet".to_string()],
+            spell_target_texts: vec!["1 creature".to_string()],
+            spell_area_types: vec!["burst".to_string()],
+            spell_save_types: vec!["reflex".to_string()],
+            spell_sustained: Some(false),
+            spell_basic_save: Some(true),
+            spell_damage_types: vec!["force".to_string()],
+            spell_range_feet: Some(NumericMatch::Lte { value: 30.0 }),
+            ..SimpleSearchFilter::default()
+        }
+        .into_filter_node()
+        .expect("spell convenience fields lower")
+        .expect("spell convenience filter exists");
+
+        let SearchFilterNode::AllOf { children } = filter else {
+            panic!("spell fields should combine with all_of")
+        };
+        assert_eq!(children.len(), 11);
+        assert!(children.contains(&SearchFilterNode::record_kind(RecordKind::Spell)));
+        assert!(
+            children.contains(&SearchFilterNode::metadata(MetadataPredicate::Number {
+                field: MetadataNumberField::SpellRank,
+                r#match: MetadataNumberMatch::Eq { value: 7.0 },
+            }))
+        );
+        assert!(
+            children.contains(&SearchFilterNode::metadata(MetadataPredicate::Number {
+                field: MetadataNumberField::RangeValue,
+                r#match: MetadataNumberMatch::Lte { value: 30.0 },
+            }))
+        );
+        assert!(!children.contains(&SearchFilterNode::level(NumericMatch::Eq { value: 7.0 })));
+        assert!(
+            children.contains(&SearchFilterNode::metadata(MetadataPredicate::Set {
+                field: MetadataSetField::SpellDamageTypes,
+                r#match: MetadataSetMatch::Includes {
+                    value: "force".to_string(),
+                },
+            }))
         );
     }
 

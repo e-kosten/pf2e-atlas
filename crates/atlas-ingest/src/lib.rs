@@ -13,6 +13,7 @@ mod records;
 mod report;
 mod source;
 mod source_pipeline;
+mod validation;
 
 pub use artifact_manifest::{
     ADJACENT_ARTIFACT_MANIFEST_PATH, ARTIFACT_MANIFEST_VERSION, ArtifactManifest,
@@ -21,8 +22,11 @@ pub use artifact_manifest::{
     source_git_commit_if_clean,
 };
 pub use audit::{
+    SourceFieldValue, SourceFieldValueReport, SourcePathAuditDiff, SourcePathAuditFilters,
     SourcePathAuditOptions, SourcePathAuditPathReport, SourcePathAuditReport,
-    SourcePathAuditSample, SourcePathAuditValueType, SourcePathCoverageStatus, audit_source_paths,
+    SourcePathAuditSample, SourcePathAuditValueType, SourceSchemaKey, SourceSchemaTypeChange,
+    SourceValueDiscoveryOptions, SourceValueDiscoveryReport, SourceValueReference,
+    audit_source_paths, discover_source_values,
 };
 pub use diagnostics::{DroppedInlineMacroDiagnostic, IngestDiagnostics};
 pub use error::IngestError;
@@ -31,11 +35,25 @@ pub use report::{
     SourceAnalysisRelationshipReport, SourceAnalysisReport, SourceAnalysisSourceReport,
     SourceAnalysisTextReport, analyze_foundry_source,
 };
+pub use source::dto::item_common as item_source;
+pub use source::dto::item_physical as physical_item_source;
+pub use source::dto::{
+    ActorType, FullItemSource, ItemSource, ItemType, NpcSource, PF2E_SOURCE_CONTRACT_VERSION,
+    PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE, PF2E_SOURCE_PINNED_SYSTEM_ID,
+    PF2E_SOURCE_PINNED_SYSTEM_VERSION, SourceDiagnostic, SourceDiagnosticKind, SourceIdentity,
+    SourceParentContext, SourcePresence, SourceVersionMetadata, VersionedItemSource,
+    VersionedNpcSource, parse_item_source, parse_npc_source, pinned_source_version_metadata,
+    validate_pinned_source_version,
+};
 pub use source::model::{
     BuildArtifactOptions, BuildArtifactReport, DocumentEmbeddingRecordTruncationCoverageReport,
     DocumentEmbeddingSectionTruncationReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, DocumentEmbeddingUnitKindTruncationReport,
     EmbeddingTimingReport, SkippedRecord,
+};
+pub use validation::{
+    AssertionInventoryEntry, ExhaustiveValidationOptions, ExhaustiveValidationReport,
+    run_exhaustive_validation,
 };
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {

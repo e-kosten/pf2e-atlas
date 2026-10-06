@@ -50,6 +50,7 @@ pub struct EncounterParticipant {
     pub record_key: Option<String>,
     pub participant_kind: ParticipantKind,
     pub participant_variant: ParticipantVariant,
+    pub hazard_state: ParticipantHazardState,
     pub position: i64,
     pub display_name: String,
     pub record_title_snapshot: Option<String>,
@@ -74,6 +75,29 @@ pub enum ParticipantVariant {
     Normal,
     Elite,
     Weak,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ParticipantHazardState {
+    Active,
+    Disabled,
+}
+
+impl ParticipantHazardState {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Active => "active",
+            Self::Disabled => "disabled",
+        }
+    }
+
+    pub(crate) fn from_str(value: &str) -> Self {
+        match value {
+            "disabled" => Self::Disabled,
+            _ => Self::Active,
+        }
+    }
 }
 
 impl ParticipantVariant {
@@ -172,6 +196,83 @@ pub struct EncounterWithParticipants {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncounterParticipantSpellState {
+    pub initialized: bool,
+    pub resources: Vec<EncounterSpellResource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncounterSpellResource {
+    pub target: EncounterSpellResourceTarget,
+    pub maximum: i64,
+    pub initial_remaining: i64,
+    pub remaining: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EncounterSpellResourceTarget {
+    PreparedSlot {
+        entry_id: String,
+        spell_occurrence_id: String,
+        rank: i64,
+        slot_id: String,
+    },
+    SpontaneousPool {
+        entry_id: String,
+        rank: i64,
+    },
+    InnateUse {
+        entry_id: Option<String>,
+        spell_occurrence_id: String,
+    },
+    FocusPool {
+        resource_id: String,
+    },
+}
+
+impl EncounterSpellResourceTarget {
+    pub(crate) fn kind(&self) -> &'static str {
+        match self {
+            Self::PreparedSlot { .. } => "prepared_slot",
+            Self::SpontaneousPool { .. } => "spontaneous_pool",
+            Self::InnateUse { .. } => "innate_use",
+            Self::FocusPool { .. } => "focus_pool",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EncounterSpellResourceOperation {
+    CastOne,
+    RestoreOne,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncounterSpellResourceMutation {
+    pub before: EncounterSpellResource,
+    pub after: EncounterSpellResource,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncounterParticipantReset {
+    pub participant: EncounterParticipant,
+    pub cleared_current_turn: bool,
+    pub reset_domains: Vec<EncounterParticipantResetDomain>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EncounterParticipantResetDomain {
+    HitPoints,
+    Defeated,
+    Conditions,
+    InitiativeTurnState,
+    VariantAdjustments,
+    ActionBudget,
+    SpellResources,
+    HazardState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewEncounter {
     pub slug: String,
     pub name: String,
@@ -210,6 +311,7 @@ pub struct UpdateEncounterParticipant {
     pub display_name: String,
     pub side: ParticipantSide,
     pub participant_variant: ParticipantVariant,
+    pub hazard_state: ParticipantHazardState,
     pub initiative: Option<i64>,
     pub max_hp: Option<i64>,
     pub current_hp: Option<i64>,

@@ -1,0 +1,134 @@
+Gray Master
+  Type: creature · Pack: Curtain Call
+  Key:
+       curtain-call-bestiary:1eX4Csnv3psAsfLf
+
+Classification
+  Level: 20
+  Rarity: unique
+  Traits: incorporeal, undead, unholy
+  Size: med
+  Source: Pathfinder #206: Bring the
+          House Down
+
+Defenses
+  AC: 43
+  HP: current 280; maximum 280;
+      temporary 0; void healing
+  Fortitude: 28
+  Reflex: 37
+  Will: 34
+  Immunities: death-effects, disease,
+              paralyzed, poison,
+              unconscious, confused
+  Resistances: all-damage 15 (except
+               force, ghost-touch,
+               vitality)
+
+Awareness and abilities
+  Perception: +34; greater-darkvision
+  Initiative: perception
+  Languages: common, diabolic
+  Abilities: Str -5, Dex +7, Con +0, Int
+             +6, Wis +6, Cha +7
+  Acrobatics: +35
+  Deception: +36
+  Intimidation: +38
+  Society: +34
+  Stealth: +37
+  Thievery: +35
+  Norgorber Lore: +34
+  Vyre Lore: +36
+
+Movement
+  land: 0 feet
+  fly: 30 feet
+
+Strikes
+  - Bite — [1 action]
+    Traits: agile, finesse, magical
+    Attack: attack +37
+    Damage: 4d10+10 piercing
+
+Activities
+  - Glide Aside — [reaction]
+    Traits: move
+    Category: defensive
+  - Ignore Gauntlet Traps — passive
+    Category: defensive
+  - Power of the Trap — passive
+    Category: defensive
+  - Scry Trap — [reaction]
+    Traits: divine
+    Category: defensive
+    Frequency: 1 per minute
+  - Void Healing — passive
+    Category: defensive
+  - Brushed by Death — [2 actions]
+    Category: offensive
+  - Infectious Delirium — [1 action]
+    Traits: divine, emotion, fear,
+            mental
+    Category: offensive
+    Frequency: 1 per minute
+  - Sneak Attack — passive
+    Category: offensive
+  - Wrath of the Trap — [2 actions]
+    Traits: divine
+    Category: offensive
+    Frequency: 1 per round
+
+Spellcasting
+  - Occult Innate Spells — innate ·
+    occult
+    Attack: +33
+    DC: 41
+    Rank 9
+      - Seize Soul — [2 actions]
+        Traits: concentrate, manipulate,
+                unholy
+        Cost: item worth at least the
+              target's level x 100 gp
+        Target: 1 creature that died
+                within the last minute
+        Range: 30 feet
+        Time: 2
+      - Possession — [2 actions]
+        Traits: concentrate,
+                incapacitation,
+                manipulate, mental,
+                possession
+        Target: 1 living creature
+        Range: 30 feet
+        Time: 2
+    Rank 8
+      - Disappearance — [2 actions]
+        Traits: illusion, manipulate,
+                subtle
+        Target: 1 creature
+        Range: touch
+        Time: 2
+    Rank 10
+      - Collective Transposition — [2
+        actions]
+        Traits: concentrate, manipulate,
+                teleportation
+        Target: up to 2 creatures
+        Time: 2
+      - Truespeech (Constant) — [2
+        actions]
+        Traits: concentrate, manipulate
+        Target: 1 creature
+        Range: touch
+        Time: 2
+    Rank 5
+      - Scouting Eye (At Will) — 1
+        minute
+        Traits: concentrate, manipulate,
+                scrying
+        Range: see text
+        Time: 1 minute
+
+Lore
+  - Norgorber Lore — +34
+  - Vyre Lore — +36

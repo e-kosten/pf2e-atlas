@@ -81,6 +81,10 @@ Fetch records by keys (generally retrieved from other results and queries):
 ```bash
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
 atlas record get equipment-srd:s1vB3HdXjMigYAnY
+atlas record get hazards:BHq5wpQU8hQEke8D --detail full
+atlas record get spells-srd:rfZpqmj0AIIdkVIs --detail full
+atlas record provenance hazards:BHq5wpQU8hQEke8D --json
+atlas record provenance spells-srd:rfZpqmj0AIIdkVIs --json
 ```
 
 Explore available filters and nearby record context:
@@ -177,19 +181,30 @@ Example:
 atlas index validate --json
 ```
 
-## Contributor Index Commands
+## Source Inspection And Index Management
 
-Standard users should run `atlas setup`. Manual index commands remain available for development and diagnostics:
+`atlas source` inspects Foundry inputs for data modeling. `atlas index` builds, checks, inspects, and validates generated artifacts. Use `atlas setup` to prepare or repair the local runtime.
 
 ```bash
-cargo run -p atlas-cli -- index analyze --json
+atlas source schema --source vendor/pf2e --json
+atlas source values --source vendor/pf2e \
+  --record-type spell --path '$.system.traits.value[]' --json
+atlas source analyze --source vendor/pf2e --json
+```
+
+Schema discovery reports observed input shapes and can compare a previous snapshot with `--baseline`. Value discovery shows distinct serialized values, frequencies, missing counts, and bounded source references. Analysis reports how ingest interprets the source without writing an artifact.
+
+Manual source and index commands are also available from a local checkout:
+
+```bash
+cargo run -p atlas-cli -- source analyze --json
 cargo run -p atlas-cli -- index build --no-embeddings --json
 ```
 
 Use Cargo's release profile for ingest or search performance measurements:
 
 ```bash
-cargo run --release -p atlas-cli -- index analyze --source vendor/pf2e --json
+cargo run --release -p atlas-cli -- source analyze --source vendor/pf2e --json
 ```
 
 For source installation from a local checkout, install Rust 1.95 or newer and run:

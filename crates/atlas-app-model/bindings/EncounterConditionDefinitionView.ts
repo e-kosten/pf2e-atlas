@@ -3,4 +3,4 @@ import type { EncounterConditionApplicabilityView } from "./EncounterConditionAp
 import type { EncounterConditionAutomationLevelView } from "./EncounterConditionAutomationLevelView";
 import type { EncounterConditionCategoryView } from "./EncounterConditionCategoryView";
 
-export type EncounterConditionDefinitionView = { condition_ref: string, name: string, automation_level: EncounterConditionAutomationLevelView, applies_to: Array<EncounterConditionApplicabilityView>, categories: Array<EncounterConditionCategoryView>, has_value: boolean, default_value?: bigint, };
+export type EncounterConditionDefinitionView = { condition_ref: string, name: string, automation_level: EncounterConditionAutomationLevelView, applies_to: Array<EncounterConditionApplicabilityView>, categories: Array<EncounterConditionCategoryView>, has_value: boolean, default_value?: number, };

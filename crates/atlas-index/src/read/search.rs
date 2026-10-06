@@ -1,5 +1,5 @@
 use atlas_domain::{RecordKey, RecordKind, SearchFilterNode};
-use atlas_record::{AtlasRecord, AtlasRecordSet, FoundryRecordType};
+use atlas_record::{AtlasRecordSet, FoundryRecordType, RetrievedRecord};
 
 pub(crate) mod filters;
 pub(crate) mod fts;
@@ -12,7 +12,10 @@ use crate::{
 };
 
 pub trait RecordReadIndex {
-    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<AtlasRecord>, RecordLoadError>;
+    fn load_records_by_key(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<RetrievedRecord>, RecordLoadError>;
 
     fn load_record_set(&self) -> Result<AtlasRecordSet, RecordLoadError>;
 
@@ -108,8 +111,11 @@ pub enum RecordIdentityMatchKind {
 }
 
 impl RecordReadIndex for SqliteIndexReader {
-    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<AtlasRecord>, RecordLoadError> {
-        SqliteIndexReader::load_records_by_key(self, keys)
+    fn load_records_by_key(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
+        SqliteIndexReader::load_hydrated_records_by_key(self, keys)
     }
 
     fn load_record_set(&self) -> Result<AtlasRecordSet, RecordLoadError> {

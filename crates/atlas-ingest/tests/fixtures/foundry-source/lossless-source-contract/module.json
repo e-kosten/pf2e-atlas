@@ -1,0 +1,16 @@
+{
+  "packs": [
+    {
+      "name": "lossless-hazards",
+      "label": "Lossless Hazards",
+      "type": "Actor",
+      "path": "packs/hazards"
+    },
+    {
+      "name": "lossless-spells",
+      "label": "Lossless Spells",
+      "type": "Item",
+      "path": "packs/spells"
+    }
+  ]
+}

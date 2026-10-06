@@ -1,0 +1,14 @@
+{
+  "_id": "type-drift-npc",
+  "name": "Type Drift NPC",
+  "type": "npc",
+  "system": {},
+  "items": [
+    {
+      "_id": "drifted-action",
+      "name": "Drifted Action",
+      "type": "action",
+      "system": "prepared data replaced serialized source"
+    }
+  ]
+}

@@ -5,6 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-05-28
 
+A7 candidate disposition: **subsumed** by the A7 artifact/content contract and C1 atomic artifact unit, including stable content/occurrence identity, owner integrity, and deterministic typed JSON. Checkpoint B is not yet approved.
+
 ## Problem
 
 The SQLite artifact intentionally normalizes many Foundry facts into typed columns and relation tables, but it also stores several normalized JSON projections. The most important rich-content example is `record_content.content_json`, which stores canonical `RichDocument` payloads for description, blurb, supplemental, embedded, and generated content rows.
@@ -42,5 +44,5 @@ One possible stronger model is to keep the unified content-unit table while maki
 ## Related
 
 - [Rust artifact contract](../../architecture/artifact-contract.md)
-- [Rust Foundry JSON field audit](./rust-foundry-json-field-audit.md)
+- [Rust Foundry JSON field audit](../history/items/rust-foundry-json-field-audit.md)
 - [Rust content subdocuments for journal pages and table results](./rust-content-subdocuments-journal-table-results.md)

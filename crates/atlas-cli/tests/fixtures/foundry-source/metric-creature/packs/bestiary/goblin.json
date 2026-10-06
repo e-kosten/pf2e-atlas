@@ -33,13 +33,13 @@
     },
     "saves": {
       "fortitude": {
-        "mod": 5
+        "value": 5
       },
       "reflex": {
-        "mod": 8
+        "value": 8
       },
       "will": {
-        "mod": 4
+        "value": 4
       }
     },
     "description": {

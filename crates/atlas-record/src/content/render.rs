@@ -269,21 +269,29 @@ pub(crate) fn link_display_text(link: &FoundryLink) -> String {
         .unwrap_or_else(|| reference_display_fallback(&link.source.authored_target))
 }
 
-fn foundry_node_display_text(node: &FoundryNode) -> String {
+pub(crate) fn foundry_node_display_text(node: &FoundryNode) -> String {
     match node {
         FoundryNode::Check {
-            label, statistic, ..
-        } => label_text(label)
-            .or_else(|| statistic.clone())
-            .unwrap_or_default(),
+            label,
+            statistic,
+            options,
+        } => check_display_text(
+            label,
+            statistic.as_deref(),
+            options.get("dc").map(String::as_str),
+        ),
         FoundryNode::Damage { label, formula, .. } => {
             label_text(label).unwrap_or_else(|| formula.clone())
         }
         FoundryNode::InlineCommand {
             label, arguments, ..
         } => label_text(label).unwrap_or_else(|| arguments.clone()),
-        FoundryNode::Template { label, shape, .. } => label_text(label)
-            .or_else(|| shape.clone())
+        FoundryNode::Template {
+            label,
+            shape,
+            options,
+        } => label_text(label)
+            .or_else(|| template_display_text(shape.as_deref(), options))
             .unwrap_or_default(),
         FoundryNode::ActionGlyph { action } => action.clone(),
         FoundryNode::Trait { label, traits } => {
@@ -307,6 +315,51 @@ fn foundry_node_display_text(node: &FoundryNode) -> String {
             .or_else(|| body.clone())
             .unwrap_or_else(|| name.clone()),
     }
+}
+
+fn template_display_text(
+    shape: Option<&str>,
+    options: &std::collections::BTreeMap<String, String>,
+) -> Option<String> {
+    let shape = shape.filter(|shape| matches!(*shape, "burst" | "cone" | "emanation" | "line"))?;
+    let Some(distance) = options.get("distance") else {
+        return Some(shape.to_string());
+    };
+    if distance.is_empty() || !distance.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Some(shape.to_string());
+    }
+    let Ok(distance) = distance.parse::<u32>() else {
+        return Some(shape.to_string());
+    };
+    if distance == 0 {
+        return Some(shape.to_string());
+    }
+    Some(format!("{distance}-foot {shape}"))
+}
+
+fn check_display_text(
+    label: &Option<Vec<RichNode>>,
+    statistic: Option<&str>,
+    difficulty_class: Option<&str>,
+) -> String {
+    let base = label_text(label).or_else(|| statistic.map(capitalize_first));
+    match (
+        base,
+        difficulty_class.filter(|value| !value.trim().is_empty()),
+    ) {
+        (Some(base), Some(dc)) => format!("{base} DC {dc}"),
+        (Some(base), None) => base,
+        (None, Some(dc)) => format!("DC {dc}"),
+        (None, None) => String::new(),
+    }
+}
+
+fn capitalize_first(value: &str) -> String {
+    let mut characters = value.chars();
+    let Some(first) = characters.next() else {
+        return String::new();
+    };
+    first.to_uppercase().chain(characters).collect()
 }
 
 fn label_text(label: &Option<Vec<RichNode>>) -> Option<String> {
@@ -385,4 +438,107 @@ fn trim_trailing_blank_lines(mut output: String) -> String {
         output.pop();
     }
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::*;
+
+    #[test]
+    fn check_display_preserves_structured_dc_across_plain_and_markdown_renderers() {
+        let check = |statistic: Option<&str>, dc: Option<&str>, label: Option<&str>| {
+            let mut options = BTreeMap::from([("traits".to_string(), "secret".to_string())]);
+            if let Some(dc) = dc {
+                options.insert("dc".to_string(), dc.to_string());
+            }
+            RichNode::Foundry {
+                node: FoundryNode::Check {
+                    statistic: statistic.map(str::to_string),
+                    options,
+                    label: label.map(|text| {
+                        vec![RichNode::Text {
+                            text: text.to_string(),
+                        }]
+                    }),
+                },
+            }
+        };
+        let document = RichDocument::new(vec![
+            check(Some("fortitude"), Some("28"), None),
+            RichNode::Text {
+                text: " / ".to_string(),
+            },
+            check(Some("reflex"), None, None),
+            RichNode::Text {
+                text: " / ".to_string(),
+            },
+            check(Some("will"), Some("30"), Some("Custom save")),
+            RichNode::Text {
+                text: " / ".to_string(),
+            },
+            check(None, Some("20"), None),
+        ]);
+        let expected = "Fortitude DC 28 / Reflex / Custom save DC 30 / DC 20";
+
+        assert_eq!(render_plain_text(&document), expected);
+        assert_eq!(render_markdown_like(&document), expected);
+    }
+
+    #[test]
+    fn template_display_uses_typed_shape_and_distance_without_overriding_labels() {
+        let template = |shape: Option<&str>, distance: Option<&str>, label: Option<&str>| {
+            let mut options = BTreeMap::new();
+            if let Some(distance) = distance {
+                options.insert("distance".to_string(), distance.to_string());
+            }
+            RichDocument::new(vec![RichNode::Foundry {
+                node: FoundryNode::Template {
+                    shape: shape.map(str::to_string),
+                    options,
+                    label: label.map(|text| {
+                        vec![RichNode::Text {
+                            text: text.to_string(),
+                        }]
+                    }),
+                },
+            }])
+        };
+
+        let document = template(Some("emanation"), Some("30"), None);
+        let authored = document.clone();
+        let hash = crate::ContentHash::for_document(&document);
+        assert_eq!(
+            crate::render_presentation_content_plain_text(&crate::project_presentation_content(
+                &document
+            )),
+            "30-foot emanation"
+        );
+        assert_eq!(document, authored);
+        assert_eq!(crate::ContentHash::for_document(&document), hash);
+        for render in [render_plain_text, render_markdown_like] {
+            assert_eq!(
+                render(&template(Some("emanation"), Some("30"), None)),
+                "30-foot emanation"
+            );
+            assert_eq!(render(&template(Some("burst"), None, None)), "burst");
+            assert_eq!(
+                render(&template(Some("emanation"), Some("many"), None)),
+                "emanation"
+            );
+            assert_eq!(
+                render(&template(Some("future-shape"), Some("30"), None)),
+                ""
+            );
+            assert_eq!(
+                render(&template(
+                    Some("emanation"),
+                    Some("30"),
+                    Some("Nearby allies")
+                )),
+                "Nearby allies"
+            );
+        }
+    }
 }

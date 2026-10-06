@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 use atlas_app_model::AppErrorCode;
 use atlas_domain::DetailLevel;
-use atlas_record::{RecordJsonOptions, record_json};
+use atlas_record::RecordJsonOptions;
 use atlas_search::{
     RecordResolutionResult, SimilarRecordRefResult, SimilarRecordResult, SimilarScoreWeights,
 };
@@ -13,7 +13,9 @@ use crate::client::{
     AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
 };
 use crate::commands::filters::build_filter;
-use crate::commands::record::{detail_outputs_description, print_record_for_detail};
+use crate::commands::record::{
+    context::project_record, detail_outputs_description, print_record_for_detail,
+};
 use crate::output::{write_json_data, write_json_error, write_json_error_data};
 
 pub(crate) mod args;
@@ -110,7 +112,8 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
             return Ok(ExitCode::from(1));
         }
         Ok(SimilarRecordRefResult::ResolutionAmbiguous(matches)) => {
-            let ambiguity = ambiguous_seed_resolution(&options.record_ref, &matches);
+            let ambiguity = ambiguous_seed_resolution(&client, &options.record_ref, &matches)
+                .map_err(|error| error.message)?;
             if options.json {
                 write_json_error_data(
                     "record_resolution_ambiguous",
@@ -129,7 +132,14 @@ pub(crate) fn run_similar(options: SimilarOptions) -> Result<ExitCode, String> {
         }
         Err(error) => return Err(error.message),
     };
-    let data = similar_data(&result, options.detail, options.include_raw, filter_value);
+    let data = similar_data(
+        &client,
+        &result,
+        options.detail,
+        options.include_raw,
+        filter_value,
+    )
+    .map_err(|error| error.message)?;
     if options.json {
         write_json_data(data)?;
     } else {
@@ -230,31 +240,34 @@ impl AmbiguousSeedResolution {
 }
 
 fn ambiguous_seed_resolution(
+    client: &impl AtlasClient,
     record_ref: &str,
     matches: &[RecordResolutionResult],
-) -> AmbiguousSeedResolution {
+) -> Result<AmbiguousSeedResolution, atlas_app_model::AppError> {
     let record_options = RecordJsonOptions {
         detail: DetailLevel::Summary,
         include_source_json: false,
     };
-    AmbiguousSeedResolution {
+    Ok(AmbiguousSeedResolution {
         result: AmbiguousSeedResult {
             query: record_ref.to_string(),
             alternatives: matches
                 .iter()
                 .take(5)
-                .map(|resolution| ResolutionAlternativeJson {
-                    record: record_json(&resolution.record, record_options),
-                    resolution: ResolutionJson {
-                        query: resolution.query.clone(),
-                        normalized_query: resolution.normalized_query.clone(),
-                        match_kind: resolution.match_kind.as_str(),
-                        matched_text: resolution.matched_text.clone(),
-                    },
+                .map(|resolution| {
+                    Ok(ResolutionAlternativeJson {
+                        record: project_record(client, &resolution.record, record_options)?,
+                        resolution: ResolutionJson {
+                            query: resolution.query.clone(),
+                            normalized_query: resolution.normalized_query.clone(),
+                            match_kind: resolution.match_kind.as_str(),
+                            matched_text: resolution.matched_text.clone(),
+                        },
+                    })
                 })
-                .collect(),
+                .collect::<Result<Vec<_>, atlas_app_model::AppError>>()?,
         },
-    }
+    })
 }
 
 impl std::fmt::Display for AmbiguousSeedResolution {
@@ -264,48 +277,51 @@ impl std::fmt::Display for AmbiguousSeedResolution {
 }
 
 fn similar_data(
+    client: &impl AtlasClient,
     result: &SimilarRecordResult,
     detail: DetailLevel,
     include_raw: bool,
     filter: Option<Value>,
-) -> SimilarData {
+) -> Result<SimilarData, atlas_app_model::AppError> {
     let options = RecordJsonOptions {
         detail,
         include_source_json: include_raw,
     };
-    SimilarData {
+    Ok(SimilarData {
         detail: detail.to_string(),
-        seed: record_json(&result.seed, options),
+        seed: project_record(client, &result.seed, options)?,
         filter,
         results: result
             .records
             .iter()
-            .map(|record| SimilarResultJson {
-                record: record_json(&record.record, options),
-                similarity: SimilarityJson {
-                    score: record.score,
-                    semantic: SimilarSemanticJson {
-                        unit_kind: record.semantic.unit_kind.clone(),
-                        label: record.semantic.label.clone(),
-                        distance: record.semantic.distance,
-                        rank_distance: record.semantic.rank_distance,
+            .map(|record| {
+                Ok(SimilarResultJson {
+                    record: project_record(client, &record.record, options)?,
+                    similarity: SimilarityJson {
+                        score: record.score,
+                        semantic: SimilarSemanticJson {
+                            unit_kind: record.semantic.unit_kind.clone(),
+                            label: record.semantic.label.clone(),
+                            distance: record.semantic.distance,
+                            rank_distance: record.semantic.rank_distance,
+                        },
+                        graph: SimilarGraphJson {
+                            shared_references: record
+                                .graph
+                                .shared_references
+                                .iter()
+                                .map(|reference| SimilarSharedReferenceJson {
+                                    key: reference.key.to_string(),
+                                    name: reference.name.clone(),
+                                })
+                                .collect(),
+                            shared_traits: record.graph.shared_traits.clone(),
+                        },
                     },
-                    graph: SimilarGraphJson {
-                        shared_references: record
-                            .graph
-                            .shared_references
-                            .iter()
-                            .map(|reference| SimilarSharedReferenceJson {
-                                key: reference.key.to_string(),
-                                name: reference.name.clone(),
-                            })
-                            .collect(),
-                        shared_traits: record.graph.shared_traits.clone(),
-                    },
-                },
+                })
             })
-            .collect(),
-    }
+            .collect::<Result<Vec<_>, atlas_app_model::AppError>>()?,
+    })
 }
 
 fn print_similar(data: &SimilarData, detail: DetailLevel, explain: bool) {

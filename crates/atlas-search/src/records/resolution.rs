@@ -3,7 +3,7 @@ use atlas_index::{
     FilterCompileError, FilterReadIndex, FilteredRecordSort, IdentityReadIndex,
     RecordIdentityMatch, RecordIdentityMatchKind, RecordLoadError, RecordReadIndex,
 };
-use atlas_record::{AtlasRecord, RecordAlias};
+use atlas_record::{AtlasRecord, RecordAlias, RetrievedRecord};
 
 use crate::SearchError;
 use crate::query::normalize_record_query;
@@ -31,37 +31,18 @@ where
     let mut record_set = index
         .load_record_set()
         .map_err(SearchError::from_record_load)?;
-    record_set
-        .records
-        .retain(|record| record.visibility.visible_by_default());
-    let default_visible_keys = record_set
-        .records
-        .iter()
-        .map(|record| record.identity.key.clone())
+    let allowed = index
+        .list_filtered_record_keys(filter, None, FilteredRecordSort::RecordKey, u32::MAX, 0)
+        .map_err(SearchError::from_filter)?
+        .record_keys
+        .into_iter()
         .collect::<std::collections::BTreeSet<_>>();
     record_set
+        .records
+        .retain(|record| allowed.contains(&record.identity.key));
+    record_set
         .aliases
-        .retain(|alias| default_visible_keys.contains(&alias.canonical_record_key));
-    if let Some(filter) = filter {
-        let allowed = index
-            .list_filtered_record_keys(
-                Some(filter),
-                None,
-                FilteredRecordSort::RecordKey,
-                u32::MAX,
-                0,
-            )
-            .map_err(SearchError::from_filter)?
-            .record_keys
-            .into_iter()
-            .collect::<std::collections::BTreeSet<_>>();
-        record_set
-            .records
-            .retain(|record| allowed.contains(&record.identity.key));
-        record_set
-            .aliases
-            .retain(|alias| allowed.contains(&alias.canonical_record_key));
-    }
+        .retain(|alias| allowed.contains(&alias.canonical_record_key));
 
     let mut matches = resolution_matches_for_kind(
         query,
@@ -98,7 +79,7 @@ where
         );
     }
 
-    Ok(matches)
+    hydrate_fallback_matches(index, matches)
 }
 
 fn resolve_record_with_index<I>(
@@ -137,7 +118,7 @@ where
         .load_records_by_key(&record_keys)
         .map_err(SearchError::from_record_load)?
         .into_iter()
-        .map(|record| (record.identity.key.clone(), record))
+        .map(|record| (record.record.identity.key.clone(), record))
         .collect::<std::collections::BTreeMap<_, _>>();
     let mut matches = identity_matches
         .into_iter()
@@ -151,9 +132,28 @@ where
             ))
         })
         .collect::<Vec<_>>();
-    matches.sort_by(|left, right| left.record.identity.key.cmp(&right.record.identity.key));
-    matches.dedup_by(|left, right| left.record.identity.key == right.record.identity.key);
+    matches.sort_by(|left, right| {
+        left.record
+            .record
+            .identity
+            .key
+            .cmp(&right.record.record.identity.key)
+    });
+    matches.dedup_by(|left, right| {
+        left.record.record.identity.key == right.record.record.identity.key
+    });
     Ok(matches)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ResolutionMatchCandidate {
+    query: String,
+    normalized_query: String,
+    match_kind: RecordResolutionMatchKind,
+    matched_text: String,
+    alias_source: Option<String>,
+    alias_source_ref: Option<String>,
+    record_key: atlas_domain::RecordKey,
 }
 
 fn resolution_matches_for_kind(
@@ -162,7 +162,7 @@ fn resolution_matches_for_kind(
     kind: RecordResolutionMatchKind,
     records: &[AtlasRecord],
     aliases: &[RecordAlias],
-) -> Vec<RecordResolutionResult> {
+) -> Vec<ResolutionMatchCandidate> {
     let mut matches = Vec::new();
     match kind {
         RecordResolutionMatchKind::Name => {
@@ -253,8 +253,8 @@ fn resolution_matches_for_kind(
             );
         }
     }
-    matches.sort_by(|left, right| left.record.identity.key.cmp(&right.record.identity.key));
-    matches.dedup_by(|left, right| left.record.identity.key == right.record.identity.key);
+    matches.sort_by(|left, right| left.record_key.cmp(&right.record_key));
+    matches.dedup_by(|left, right| left.record_key == right.record_key);
     matches
 }
 
@@ -265,23 +265,62 @@ fn resolution_result(
     matched_text: String,
     alias: Option<&RecordAlias>,
     record: &AtlasRecord,
-) -> RecordResolutionResult {
-    RecordResolutionResult {
+) -> ResolutionMatchCandidate {
+    ResolutionMatchCandidate {
         query: query.to_string(),
         normalized_query: normalized_query.to_string(),
         match_kind,
         matched_text,
         alias_source: alias.map(|alias| alias.source.as_str().to_string()),
         alias_source_ref: alias.map(|alias| alias.source_ref.clone()),
-        record: record.clone(),
+        record_key: record.identity.key.clone(),
     }
+}
+
+fn hydrate_fallback_matches<I>(
+    index: &I,
+    candidates: Vec<ResolutionMatchCandidate>,
+) -> Result<Vec<RecordResolutionResult>, SearchError>
+where
+    I: RecordReadIndex + ?Sized,
+{
+    let keys = candidates
+        .iter()
+        .map(|candidate| candidate.record_key.clone())
+        .collect::<Vec<_>>();
+    let mut records = index
+        .load_records_by_key(&keys)
+        .map_err(SearchError::from_record_load)?
+        .into_iter()
+        .map(|record| (record.record.identity.key.clone(), record))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    candidates
+        .into_iter()
+        .map(|candidate| {
+            let record = records.remove(&candidate.record_key).ok_or_else(|| {
+                SearchError::from_record_load(RecordLoadError::InvalidData(format!(
+                    "resolved record `{}` was not found during canonical hydration",
+                    candidate.record_key
+                )))
+            })?;
+            Ok(RecordResolutionResult {
+                query: candidate.query,
+                normalized_query: candidate.normalized_query,
+                match_kind: candidate.match_kind,
+                matched_text: candidate.matched_text,
+                alias_source: candidate.alias_source,
+                alias_source_ref: candidate.alias_source_ref,
+                record,
+            })
+        })
+        .collect()
 }
 
 fn resolution_result_from_identity(
     query: &str,
     normalized_query: &str,
     identity: RecordIdentityMatch,
-    record: &AtlasRecord,
+    record: &RetrievedRecord,
 ) -> RecordResolutionResult {
     RecordResolutionResult {
         query: query.to_string(),
@@ -328,7 +367,7 @@ mod tests {
         );
 
         assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].record.identity.key, record.identity.key);
+        assert_eq!(matches[0].record_key, record.identity.key);
     }
 
     fn fake_alias(record_key: &RecordKey, alias_text: &str, source_ref: &str) -> RecordAlias {

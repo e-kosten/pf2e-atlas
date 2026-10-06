@@ -2,14 +2,19 @@ use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AppErrorCode, CreateEncounterRequest,
     DeleteEncounterView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantView, EncounterUpdateView, ReorderEncounterParticipantRequest,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
+    EncounterParticipantPreservedDomainView, EncounterParticipantResetConfirmationView,
+    EncounterParticipantResetDomainView, EncounterParticipantResetResultView,
+    EncounterParticipantView, EncounterSpellCastOperationView, EncounterSpellCastRequest,
+    EncounterSpellCastResultView, EncounterSpellSpendTargetView, EncounterUpdateView,
+    ReorderEncounterParticipantRequest, ResetEncounterParticipantRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest,
 };
 use atlas_domain::RecordKind;
 use atlas_local_state::{
     AddEncounterParticipant, AddEncounterParticipantCondition, EncounterParticipantCondition,
-    EncounterStatus, NewEncounter, ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
+    EncounterParticipantResetDomain, EncounterSpellResourceOperation, EncounterStatus,
+    NewEncounter, ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
     UpdateEncounter as LocalUpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition, derive_slug,
 };
@@ -19,12 +24,15 @@ use crate::error::{AppServiceError, AppServiceResult};
 use crate::service::AtlasAppService;
 
 use super::conditions::{condition_catalog, modeled_condition_by_ref};
-use super::hydration::{default_hp, hydrate_participant_records, resolve_record_ref};
-use super::mechanics::variant_hp_adjustment_delta;
+use super::hydration::{
+    default_hp, hydrate_participant_records, resolve_record_ref, resolve_retrieved_record_ref,
+};
+use super::mechanics::{canonical_creature_level, variant_hp_adjustment_delta};
 use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
     participant_side, participant_variant, participant_view, reorder_placement,
 };
+use super::spells::{initial_spell_resources, local_target, participant_spell_cast_context};
 use super::turns::{next_turn, next_turn_after_removed};
 
 const MAX_ADD_QUANTITY: u32 = 50;
@@ -134,7 +142,8 @@ impl AtlasAppService {
                 "quantity must be between 1 and {MAX_ADD_QUANTITY}"
             )));
         }
-        let record = resolve_record_ref(self, &request.record_ref)?;
+        let retrieved = resolve_retrieved_record_ref(self, &request.record_ref)?;
+        let record = &retrieved.record;
         let participant_kind = match record.classification.kind {
             RecordKind::Creature => ParticipantKind::Creature,
             RecordKind::Hazard => ParticipantKind::Hazard,
@@ -149,7 +158,8 @@ impl AtlasAppService {
         } else {
             ParticipantSide::Enemy
         };
-        let (max_hp, current_hp) = default_hp(&record);
+        let (max_hp, current_hp) = default_hp(&retrieved);
+        let spell_resources = initial_spell_resources(&retrieved);
         let store = self.local_state_store()?;
         for index in 0..request.quantity {
             let display_name = if request.quantity == 1 {
@@ -157,7 +167,7 @@ impl AtlasAppService {
             } else {
                 format!("{} {}", record.identity.name, index + 1)
             };
-            store.encounters().add_participant(
+            store.encounters().add_participant_with_spell_resources(
                 &request.encounter_ref,
                 AddEncounterParticipant {
                     record_key: Some(record.identity.key.clone()),
@@ -172,6 +182,7 @@ impl AtlasAppService {
                     temporary_hp: 0,
                     note: None,
                 },
+                &spell_resources,
             )?;
         }
         self.encounter(&request.encounter_ref)
@@ -234,8 +245,8 @@ impl AtlasAppService {
             let level = existing
                 .record_key
                 .as_ref()
-                .and_then(|key| records_by_key.get(key))
-                .and_then(|record| record.classification.level);
+                .and_then(|key| records_by_key.records_by_key.get(key))
+                .and_then(canonical_creature_level);
             let hp_delta =
                 variant_hp_adjustment_delta(existing.participant_variant, new_variant, level);
             current_hp = current_hp.map(|value| (value + hp_delta).max(0));
@@ -248,6 +259,21 @@ impl AtlasAppService {
                 display_name: request.display_name,
                 side: participant_side(request.side),
                 participant_variant: new_variant,
+                hazard_state: match request.hazard_state {
+                    Some(atlas_app_model::EncounterRuntimeHazardStateView::Active)
+                        if existing.participant_kind
+                            == atlas_local_state::ParticipantKind::Hazard =>
+                    {
+                        atlas_local_state::ParticipantHazardState::Active
+                    }
+                    Some(atlas_app_model::EncounterRuntimeHazardStateView::Disabled)
+                        if existing.participant_kind
+                            == atlas_local_state::ParticipantKind::Hazard =>
+                    {
+                        atlas_local_state::ParticipantHazardState::Disabled
+                    }
+                    _ => existing.hazard_state,
+                },
                 initiative: request.initiative,
                 max_hp: request.max_hp,
                 current_hp,
@@ -266,7 +292,7 @@ impl AtlasAppService {
                 )
             })?;
         let records_by_key = hydrate_participant_records(self, std::slice::from_ref(&participant))?;
-        Ok(participant_view(participant, &records_by_key))
+        participant_view(self, participant, &records_by_key)
     }
 
     pub fn reorder_encounter_participant(
@@ -427,6 +453,183 @@ impl AtlasAppService {
             }
         }
         self.encounter(&request.encounter_ref)
+    }
+
+    pub fn mutate_encounter_spell_cast(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: EncounterSpellCastRequest,
+    ) -> AppServiceResult<EncounterSpellCastResultView> {
+        let detail = self
+            .local_state_store()?
+            .encounters()
+            .get_with_participants(encounter_ref)?
+            .ok_or_else(|| encounter_not_found(encounter_ref))?;
+        let participant = detail
+            .participants
+            .into_iter()
+            .find(|participant| participant.participant_key == participant_key)
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::EncounterParticipantNotFound,
+                    format!(
+                        "encounter participant `{participant_key}` was not found in encounter `{encounter_ref}`"
+                    ),
+                )
+            })?;
+        let hydrated = hydrate_participant_records(self, std::slice::from_ref(&participant))?;
+        let retrieved = participant
+            .record_key
+            .as_ref()
+            .and_then(|key| hydrated.records_by_key.get(key))
+            .ok_or_else(|| {
+                AppServiceError::invalid_request(
+                    "spell casting requires a resolved canonical creature participant",
+                )
+            })?;
+        let context = participant_spell_cast_context(self, &participant, retrieved)?;
+        let expected = context
+            .expected_target(&request.spell_occurrence_id)
+            .ok_or_else(|| {
+                AppServiceError::invalid_request(format!(
+                    "spell occurrence `{}` has no source-backed cast state",
+                    request.spell_occurrence_id
+                ))
+            })?;
+        if request.spend_target != expected {
+            return Err(AppServiceError::invalid_request(
+                "spell spend target does not match the canonical occurrence ownership",
+            ));
+        }
+        if participant.defeated && request.operation == EncounterSpellCastOperationView::CastOne {
+            return Err(AppServiceError::invalid_request(
+                "defeated encounter participants cannot cast spells",
+            ));
+        }
+        let before = context.availability_for_id(&participant, &request.spell_occurrence_id);
+        match &request.spend_target {
+            EncounterSpellSpendTargetView::AtWill => {
+                if request.operation == EncounterSpellCastOperationView::RestoreOne {
+                    return Err(AppServiceError::invalid_request(
+                        "at-will spells do not have tracked availability to restore",
+                    ));
+                }
+            }
+            target => {
+                let target =
+                    local_target(target, &request.spell_occurrence_id).ok_or_else(|| {
+                        AppServiceError::invalid_request(
+                            "spell spend target identity is incomplete or inconsistent",
+                        )
+                    })?;
+                self.local_state_store()?
+                    .encounters()
+                    .mutate_spell_resource(
+                        participant_key,
+                        &target,
+                        match request.operation {
+                            EncounterSpellCastOperationView::CastOne => {
+                                EncounterSpellResourceOperation::CastOne
+                            }
+                            EncounterSpellCastOperationView::RestoreOne => {
+                                EncounterSpellResourceOperation::RestoreOne
+                            }
+                        },
+                    )?;
+            }
+        }
+        let after_context = participant_spell_cast_context(self, &participant, retrieved)?;
+        let after = after_context.availability_for_id(&participant, &request.spell_occurrence_id);
+        let participant_view = self
+            .encounter(encounter_ref)?
+            .participants
+            .into_iter()
+            .find(|candidate| candidate.participant_key == participant_key)
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::EncounterParticipantNotFound,
+                    format!("encounter participant `{participant_key}` was not found"),
+                )
+            })?;
+        Ok(EncounterSpellCastResultView {
+            operation: request.operation,
+            participant_key: participant_key.to_string(),
+            spell_occurrence_id: request.spell_occurrence_id,
+            before,
+            after,
+            participant: participant_view,
+        })
+    }
+
+    pub fn reset_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: ResetEncounterParticipantRequest,
+    ) -> AppServiceResult<EncounterParticipantResetResultView> {
+        let EncounterParticipantResetConfirmationView::ResetParticipant = request.confirmation;
+        ensure_participant_in_encounter(self, encounter_ref, participant_key)?;
+        let reset = self
+            .local_state_store()?
+            .encounters()
+            .reset_participant(participant_key)?;
+        let participant = self
+            .encounter(encounter_ref)?
+            .participants
+            .into_iter()
+            .find(|candidate| candidate.participant_key == participant_key)
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::EncounterParticipantNotFound,
+                    format!("encounter participant `{participant_key}` was not found"),
+                )
+            })?;
+        Ok(EncounterParticipantResetResultView {
+            participant_key: reset.participant.participant_key,
+            reset_domains: reset
+                .reset_domains
+                .into_iter()
+                .map(reset_domain_view)
+                .collect(),
+            preserved_domains: vec![
+                EncounterParticipantPreservedDomainView::DisplayName,
+                EncounterParticipantPreservedDomainView::Notes,
+                EncounterParticipantPreservedDomainView::Visibility,
+                EncounterParticipantPreservedDomainView::Side,
+            ],
+            cleared_current_turn: reset.cleared_current_turn,
+            participant,
+        })
+    }
+}
+
+fn reset_domain_view(
+    domain: EncounterParticipantResetDomain,
+) -> EncounterParticipantResetDomainView {
+    match domain {
+        EncounterParticipantResetDomain::HitPoints => {
+            EncounterParticipantResetDomainView::HitPoints
+        }
+        EncounterParticipantResetDomain::Defeated => EncounterParticipantResetDomainView::Defeated,
+        EncounterParticipantResetDomain::Conditions => {
+            EncounterParticipantResetDomainView::Conditions
+        }
+        EncounterParticipantResetDomain::InitiativeTurnState => {
+            EncounterParticipantResetDomainView::InitiativeTurnState
+        }
+        EncounterParticipantResetDomain::VariantAdjustments => {
+            EncounterParticipantResetDomainView::VariantAdjustments
+        }
+        EncounterParticipantResetDomain::ActionBudget => {
+            EncounterParticipantResetDomainView::ActionBudget
+        }
+        EncounterParticipantResetDomain::SpellResources => {
+            EncounterParticipantResetDomainView::SpellResources
+        }
+        EncounterParticipantResetDomain::HazardState => {
+            EncounterParticipantResetDomainView::HazardState
+        }
     }
 }
 

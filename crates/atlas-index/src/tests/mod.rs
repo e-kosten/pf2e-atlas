@@ -18,7 +18,9 @@ mod validation;
 mod vector;
 mod vector_query;
 
-fn create_valid_artifact_database(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn create_valid_artifact_database(
+    path: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     let connection = Connection::open(path)?;
     create_minimal_artifact_schema(&connection)?;
     insert_artifact_metadata(&connection, None)?;

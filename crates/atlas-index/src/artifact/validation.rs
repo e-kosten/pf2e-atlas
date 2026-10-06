@@ -12,7 +12,6 @@ use crate::{
     IndexValidationError, ValidationCode, ValidationStatus, metadata, sql,
 };
 
-mod content;
 mod discovery;
 mod embeddings;
 mod fts;
@@ -20,7 +19,7 @@ mod metrics;
 mod relationships;
 mod schema;
 
-use content::validate_content_json;
+use canonical::validate_canonical_structure;
 use discovery::validate_filter_discovery_catalogs;
 use embeddings::validate_document_embedding_cache;
 use fts::validate_fts_coverage;
@@ -31,10 +30,17 @@ use schema::{
     validate_required_columns, validate_required_tables,
 };
 
+#[cfg(test)]
+thread_local! {
+    static STRUCTURAL_GLOBAL_VALIDATION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 pub(crate) fn validate_artifact_coherence(
     connection: &Connection,
     metadata: &BTreeMap<String, String>,
 ) -> Result<Vec<ArtifactValidationDiagnostic>, IndexValidationError> {
+    #[cfg(test)]
+    STRUCTURAL_GLOBAL_VALIDATION_COUNT.set(STRUCTURAL_GLOBAL_VALIDATION_COUNT.get() + 1);
     let mut diagnostics = Vec::new();
     validate_required_tables(connection, &mut diagnostics)?;
     if !diagnostics.is_empty() {
@@ -48,15 +54,28 @@ pub(crate) fn validate_artifact_coherence(
 
     validate_record_counts(connection, metadata, &mut diagnostics)?;
     validate_foreign_keys(connection, &mut diagnostics)?;
+    if !diagnostics.is_empty() {
+        return Ok(diagnostics);
+    }
     validate_boolean_columns(connection, &mut diagnostics)?;
     validate_metric_values(connection, &mut diagnostics)?;
-    validate_content_json(connection, &mut diagnostics)?;
+    validate_canonical_structure(connection, &mut diagnostics)?;
     validate_fts_coverage(connection, &mut diagnostics)?;
     validate_document_embedding_cache(connection, metadata, &mut diagnostics)?;
     validate_relationships(connection, &mut diagnostics)?;
     validate_metric_catalogs(connection, &mut diagnostics)?;
     validate_filter_discovery_catalogs(connection, &mut diagnostics)?;
     Ok(diagnostics)
+}
+
+#[cfg(test)]
+pub(crate) fn reset_structural_global_validation_count() {
+    STRUCTURAL_GLOBAL_VALIDATION_COUNT.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn structural_global_validation_count() -> usize {
+    STRUCTURAL_GLOBAL_VALIDATION_COUNT.get()
 }
 
 pub(crate) fn validate_index_connection(
@@ -97,7 +116,7 @@ pub(crate) fn check_index_connection(
             let table_name = table.name();
             match sql::table_exists(connection, table_name) {
                 Ok(true) => None,
-                Ok(false) => Some(Ok(artifact_validation_diagnostic(
+                Ok(false) => Some(Ok(artifact_rebuild_required_diagnostic(
                     ArtifactValidationFamily::Schema,
                     format!("required artifact table `{table_name}` is missing"),
                     Some(format!("table:{table_name}")),
@@ -251,3 +270,23 @@ pub(crate) fn artifact_validation_diagnostic_with_code(
         actual,
     }
 }
+
+pub(crate) fn artifact_rebuild_required_diagnostic(
+    family: ArtifactValidationFamily,
+    fact: String,
+    key: Option<String>,
+    expected: Option<String>,
+    actual: Option<String>,
+) -> ArtifactValidationDiagnostic {
+    artifact_validation_diagnostic_with_code(
+        family,
+        format!(
+            "{fact}; this unreleased v2 artifact cannot be upgraded in place: run `atlas setup` to repair the configured installation or `atlas index build` to rebuild an explicitly selected artifact"
+        ),
+        key,
+        expected,
+        actual,
+        ValidationCode::UnsupportedSchemaVersion,
+    )
+}
+pub(crate) mod canonical;

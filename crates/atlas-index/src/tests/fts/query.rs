@@ -24,7 +24,7 @@ fn ranked_query_respects_structured_filters() -> Result<(), Box<dyn std::error::
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?.query_weighted_fts_index(
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?.query_weighted_fts_index(
         &query,
         Some(&filter),
         10,
@@ -77,7 +77,7 @@ fn ranked_query_applies_structured_filters_to_or_fallback() -> Result<(), Box<dy
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?.query_weighted_fts_index(
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?.query_weighted_fts_index(
         &query,
         Some(&filter),
         10,
@@ -149,12 +149,8 @@ fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn s
 
     let title_query = FtsQuery::from_tokens(vec!["attack".to_string(), "opportunity".to_string()])
         .expect("query");
-    let title_hits = SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(
-        &title_query,
-        None,
-        None,
-        10,
-    )?;
+    let title_hits = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .query_precision_fts_index(&title_query, None, None, 10)?;
     assert!(title_hits.iter().any(|hit| {
         hit.record_key.to_string() == "actions:testAction1"
             && hit.lane == FtsSearchLane::TitleAlias
@@ -166,7 +162,7 @@ fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn s
 
     let facet_query =
         FtsQuery::from_tokens(vec!["fire".to_string(), "dragon".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?.query_precision_fts_index(
         &facet_query,
         None,
         None,
@@ -191,12 +187,8 @@ fn precision_query_returns_title_alias_and_facet_lanes() -> Result<(), Box<dyn s
     );
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 3.0 });
-    let filtered_hits = SqliteIndexReader::open_read_only(&path)?.query_precision_fts_index(
-        &facet_query,
-        Some(&filter),
-        None,
-        10,
-    )?;
+    let filtered_hits = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .query_precision_fts_index(&facet_query, Some(&filter), None, 10)?;
     assert!(filtered_hits.is_empty());
     fs::remove_file(path)?;
     Ok(())
@@ -250,7 +242,7 @@ fn precision_query_applies_global_limit_after_lane_merge() -> Result<(), Box<dyn
 
     let query =
         FtsQuery::from_tokens(vec!["fire".to_string(), "dragon".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?
         .query_precision_fts_index(&query, None, None, 1)?;
 
     assert_eq!(hits.len(), 1);
@@ -308,7 +300,7 @@ fn precision_query_applies_limit_after_record_deduplication()
 
     let query =
         FtsQuery::from_tokens(vec!["fire".to_string(), "dragon".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?
         .query_precision_fts_index(&query, None, None, 3)?;
 
     assert_eq!(
@@ -329,7 +321,7 @@ fn precision_query_zero_limit_returns_no_hits() -> Result<(), Box<dyn std::error
     super::create_valid_artifact_database(&path)?;
 
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?
         .query_precision_fts_index(&query, None, None, 0)?;
 
     assert!(hits.is_empty());
@@ -344,13 +336,14 @@ fn candidate_key_query_is_bounded_to_supplied_candidates() -> Result<(), Box<dyn
     super::create_valid_artifact_database(&path)?;
 
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_candidate_record_keys(
-        &query,
-        &[
-            RecordKey::parse("actions:testAction1")?,
-            RecordKey::parse("actions:missing")?,
-        ],
-    )?;
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .query_fts_candidate_record_keys(
+            &query,
+            &[
+                RecordKey::parse("actions:testAction1")?,
+                RecordKey::parse("actions:missing")?,
+            ],
+        )?;
 
     assert_eq!(
         hits.iter().map(|hit| hit.to_string()).collect::<Vec<_>>(),
@@ -367,8 +360,8 @@ fn candidate_key_query_returns_empty_for_empty_candidates() -> Result<(), Box<dy
     super::create_valid_artifact_database(&path)?;
 
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits =
-        SqliteIndexReader::open_read_only(&path)?.query_fts_candidate_record_keys(&query, &[])?;
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .query_fts_candidate_record_keys(&query, &[])?;
 
     assert!(hits.is_empty());
     fs::remove_file(path)?;
@@ -403,13 +396,14 @@ fn candidate_key_query_uses_or_matching_for_multiple_tokens()
 
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_candidate_record_keys(
-        &query,
-        &[
-            RecordKey::parse("actions:testAction2")?,
-            RecordKey::parse("actions:testAction3")?,
-        ],
-    )?;
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .query_fts_candidate_record_keys(
+            &query,
+            &[
+                RecordKey::parse("actions:testAction2")?,
+                RecordKey::parse("actions:testAction3")?,
+            ],
+        )?;
 
     assert_eq!(
         hits.iter().map(|hit| hit.to_string()).collect::<Vec<_>>(),
@@ -438,7 +432,7 @@ fn record_key_query_respects_structured_filters_order_and_limit()
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
     let query = FtsQuery::from_tokens(vec!["action".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_record_keys(
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?.query_fts_record_keys(
         &query,
         Some(&filter),
         1,
@@ -480,7 +474,8 @@ fn record_key_query_uses_or_matching_for_multiple_tokens() -> Result<(), Box<dyn
 
     let query =
         FtsQuery::from_tokens(vec!["alpha".to_string(), "beta".to_string()]).expect("query");
-    let hits = SqliteIndexReader::open_read_only(&path)?.query_fts_record_keys(&query, None, 3)?;
+    let hits = SqliteIndexReader::open_unpublished_read_only(&path)?
+        .query_fts_record_keys(&query, None, 3)?;
 
     assert_eq!(
         hits.iter().map(|hit| hit.to_string()).collect::<Vec<_>>(),
@@ -526,7 +521,7 @@ fn ranked_query_reports_invalid_record_keys_from_matching_fts_rows()
     drop(connection);
 
     let query = FtsQuery::from_tokens(vec!["needle".to_string()]).expect("query");
-    let error = SqliteIndexReader::open_read_only(&path)?
+    let error = SqliteIndexReader::open_unpublished_read_only(&path)?
         .query_weighted_fts_index(&query, None, 10, FtsColumnWeights::default())
         .expect_err("invalid record key should fail FTS query");
 

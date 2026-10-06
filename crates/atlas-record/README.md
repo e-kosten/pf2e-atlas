@@ -7,7 +7,7 @@ This crate defines what an interpreted PF2E Atlas record is after ingest has int
 ## Owns
 
 - `AtlasRecord` and its identity, classification, Foundry, provenance, publication, mechanics, content, variant, and visibility sections.
-- `RichDocument` and rich-content traversal/rendering.
+- `RichDocument`, rich-content traversal/rendering, and the structured heading/paragraph/list/table/divider presentation projection used by app surfaces. Foundry Check display, including a structured DC, is shared across text and structured projections.
 - Content source and visibility semantics.
 - Record presentation documents.
 - FTS and section-tree projections from normalized content.

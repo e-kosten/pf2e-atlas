@@ -1,0 +1,165 @@
+Balor
+  Type: creature · Pack: Bestiary 1
+  Key:
+       pathfinder-bestiary:9vNYtJZiseCEf4wt
+
+Classification
+  Level: 20
+  Rarity: common
+  Traits: chaotic, demon, evil, fiend,
+          unholy
+  Size: lg
+  Source: Pathfinder Bestiary
+
+Defenses
+  AC: 45
+  HP: current 480; maximum 480;
+      temporary 0
+  Fortitude: 39
+  Reflex: 35
+  Will: 34
+  All saves: +1 status to all saves vs.
+             magic
+  Immunities: fire
+  Weaknesses: cold 20, cold-iron 20,
+              holy 20
+
+Awareness and abilities
+  Perception: +36; darkvision
+  Initiative: perception
+  Languages: chthonian, draconic,
+             empyrean
+  Abilities: Str +9, Dex +7, Con +9, Int
+             +6, Wis +6, Cha +8
+  Acrobatics: +35
+  Athletics: +37
+  Deception: +36
+  Diplomacy: +32
+  Intimidation: +38
+  Religion: +32
+  Society: +32
+  Stealth: +33
+
+Movement
+  land: 35 feet
+  fly: 70 feet
+
+Resources
+  Focus: maximum 1
+
+Strikes
+  - Vorpal Cold Iron Silver Longsword
+    — [1 action]
+    Traits: evil, magical, reach-10,
+            unholy, versatile-p
+    Attack: attack +40
+    Damage: 4d8+17 slashing
+  - Cold Iron Silver Flame Whip — [1
+    action]
+    Traits: disarm, evil, fire, magical,
+            reach-20, trip, unholy
+    Attack effects: improved-grab,
+                    whip-reposition
+    Attack: attack +40
+    Damage: 4d6+17 fire
+
+Activities
+  - Telepathy 100 feet — passive
+    Traits: aura, magical
+    Category: interaction
+  - Constant Spells — passive
+    Category: interaction
+  - +1 Status to All Saves vs. Magic —
+    passive
+    Category: defensive
+  - Attack of Opportunity (Special) —
+    [reaction]
+    Category: defensive
+  - Aura of Flame — passive
+    Traits: aura, divine, fire
+    Category: defensive
+  - Death Throes — passive
+    Traits: death, divine, fire
+    Category: defensive
+  - Dimensional Dervish — passive
+    Category: offensive
+  - Dispelling Strike — [free action]
+    Category: offensive
+    Frequency: 1 per round
+  - Infuse Weapons — passive
+    Traits: divine
+    Category: offensive
+  - Lifedrinker — [free action]
+    Traits: divine, healing
+    Category: offensive
+  - Whip Reposition — passive
+    Category: offensive
+  - Improved Grab — [free action]
+    Category: offensive
+
+Spellcasting
+  - Divine Innate Spells — innate ·
+    divine
+    Attack: +36
+    DC: 44
+    Rank 10
+      - Divine Decree — [2 actions]
+        Traits: concentrate, manipulate,
+                sanctified
+        Range: 40 feet
+        Time: 2
+        Damage: 7d10 spirit damage
+      - Dimension Door — [2 actions]
+        Traits: concentrate, manipulate,
+                teleportation
+        Range: 120 feet
+        Time: 2
+    Rank 6
+      - Dominate (At Will) — [2
+        actions]
+        Traits: concentrate,
+                incapacitation,
+                manipulate, mental
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+      - True Seeing (Constant) — [2
+        actions]
+        Traits: concentrate, manipulate,
+                revelation
+        Time: 2
+    Rank 5
+      - Dimension Door (At Will) — [1
+        action]
+        Traits: concentrate, manipulate,
+                teleportation
+        Range: 120 feet
+        Time: 1
+    Rank 8
+      - Dispel Magic (At Will) — [2
+        actions]
+        Traits: concentrate, manipulate
+        Target: 1 spell effect or
+                unattended magic item
+        Range: 120 feet
+        Time: 2
+    Rank 1
+      - Telekinetic Projectile — [2
+        actions]
+        Traits: attack, cantrip,
+                concentrate, manipulate
+        Target: 1 creature
+        Range: 30 feet
+        Time: 2
+        Damage: 1d6 untyped damage
+  - Abyssal Pact — 1 day
+    Time: 1 day
+
+Rituals
+  Actor DC: 44
+
+Data availability
+  Unsupported capability
+    Key: weapon
+    The source supplied an unsupported
+    creature capability.

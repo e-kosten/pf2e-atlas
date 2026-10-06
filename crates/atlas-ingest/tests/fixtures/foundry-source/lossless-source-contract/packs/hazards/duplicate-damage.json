@@ -1,0 +1,35 @@
+{
+  "_id": "losslessHazard",
+  "name": "Lossless Hazard",
+  "type": "hazard",
+  "items": [
+    {
+      "_id": "losslessStrike",
+      "name": "Lossless Strike",
+      "type": "melee",
+      "sort": 0,
+      "system": {
+        "damageRolls": {
+          "zeta-damage": {
+            "damage": "1d6",
+            "damageType": "fire"
+          },
+          "alpha-damage": {
+            "damage": "1d4",
+            "damageType": "electricity"
+          },
+          "zeta-damage": {
+            "damage": "2d6",
+            "damageType": "cold",
+            "mystery": {
+              "enabled": false,
+              "empty": {},
+              "values": [0, null]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "system": {}
+}

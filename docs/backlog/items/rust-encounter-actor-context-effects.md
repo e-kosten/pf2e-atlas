@@ -35,5 +35,5 @@ The end state should let the encounter runner answer questions such as:
 ## Related
 
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
-- [Rust record presentation mechanics unification](./rust-record-presentation-mechanics-unification.md)
+- [Rust record presentation mechanics unification](../history/items/rust-record-presentation-mechanics-unification.md)
 - [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)

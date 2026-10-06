@@ -5,12 +5,30 @@ use ts_rs::TS;
 #[serde(rename_all = "snake_case")]
 pub struct BasicSearchFilter {
     pub clauses: Vec<FilterClause>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub relationship: Option<RelationshipConstraint>,
 }
 
 impl BasicSearchFilter {
     pub fn is_empty(&self) -> bool {
-        self.clauses.is_empty()
+        self.clauses.is_empty() && self.relationship.is_none()
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct RelationshipConstraint {
+    pub direction: ReferenceSearchDirection,
+    pub record_key: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum ReferenceSearchDirection {
+    Incoming,
+    Outgoing,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

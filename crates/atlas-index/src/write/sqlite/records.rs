@@ -1,4 +1,8 @@
-use atlas_record::{AtlasRecord, build_record_fts_projection};
+use atlas_record::{
+    AtlasRecord, ContentDiagnostic, ContentOrigin, ContentProvenance, DuplicateContentStatus,
+    FoundryDocumentMechanics, ProductRetrievalPolicy, RecordBody, build_search_fts_projection,
+    project_creature_facts, project_hazard_facts,
+};
 use diesel::SqliteConnection;
 use diesel::prelude::*;
 use sha2::{Digest, Sha256};
@@ -9,10 +13,9 @@ use super::labels::{
 };
 use super::models::{
     ActorRecordRow, ItemRecordRow, RecordContentRow, RecordMetricRow, RecordRow, RecordTraitRow,
-    RecordsFtsRow, SpellRecordRow,
+    RecordsFtsRow,
 };
 use crate::IndexWriteError;
-use crate::write::visibility::RetrievalVisibility;
 use atlas_record::{RecordAlias, RemasterLink};
 
 pub(super) fn write_records(
@@ -20,18 +23,144 @@ pub(super) fn write_records(
     records: &[AtlasRecord],
     aliases: &[RecordAlias],
     remaster_links: &[RemasterLink],
+    canonical_bodies: &[RecordBody],
+    canonical_record_keys: &std::collections::BTreeSet<String>,
 ) -> Result<(), IndexWriteError> {
-    let retrieval_visibility = RetrievalVisibility::from_remaster_links(remaster_links);
+    let retrieval_policy = ProductRetrievalPolicy::from_remaster_links(remaster_links);
+    let canonical_bodies_by_key = canonical_bodies_by_key(records, canonical_bodies)?;
     let mut record_rows = Vec::new();
     let mut content_rows = Vec::new();
     let mut trait_rows = Vec::new();
     let mut actor_rows = Vec::new();
     let mut item_rows = Vec::new();
-    let mut spell_rows = Vec::new();
     let mut metric_rows = Vec::new();
     let mut fts_rows = Vec::new();
     for record in records {
-        let is_default_visible = retrieval_visibility.is_default_visible(record);
+        let record_key = record.identity.key.to_string();
+        let projected_metrics;
+        let expected_foundry_type = match record.classification.kind {
+            atlas_domain::RecordKind::Creature => Some(atlas_record::FoundryRecordType::Npc),
+            atlas_domain::RecordKind::Hazard => Some(atlas_record::FoundryRecordType::Hazard),
+            _ => None,
+        };
+        let persisted_metrics = if let Some(expected_foundry_type) = expected_foundry_type {
+            if record.foundry.record_type != expected_foundry_type {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "{} record `{}` does not have the expected Foundry body kind",
+                    record.classification.kind.as_str(),
+                    record.identity.key
+                )));
+            }
+            if !matches!(record.mechanics.document, FoundryDocumentMechanics::None) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical record `{}` retains forbidden generic document mechanics",
+                    record.identity.key
+                )));
+            }
+            if !record.mechanics.metrics.is_empty() {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical record `{}` retains forbidden generic metrics",
+                    record.identity.key
+                )));
+            }
+            let body = canonical_bodies_by_key
+                .get(&record_key)
+                .copied()
+                .ok_or_else(|| {
+                    IndexWriteError::WriteFailed(format!(
+                        "canonical record `{}` is missing its required canonical body",
+                        record.identity.key
+                    ))
+                })?;
+            projected_metrics = match (record.classification.kind, body) {
+                (atlas_domain::RecordKind::Creature, RecordBody::Creature(creature)) => {
+                    project_creature_facts(creature).metrics
+                }
+                (atlas_domain::RecordKind::Hazard, RecordBody::Hazard(hazard)) => {
+                    project_hazard_facts(hazard).metrics
+                }
+                (expected, actual) => {
+                    let actual = match actual {
+                        RecordBody::Creature(_) => "creature",
+                        RecordBody::Hazard(_) => "hazard",
+                        RecordBody::Spell(_) => "spell",
+                    };
+                    return Err(IndexWriteError::WriteFailed(format!(
+                        "{} record `{}` has an unexpected {actual} body",
+                        expected.as_str(),
+                        record.identity.key
+                    )));
+                }
+            };
+            projected_metrics.as_slice()
+        } else if record.classification.kind == atlas_domain::RecordKind::Spell {
+            if record.foundry.record_type != atlas_record::FoundryRecordType::Spell {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "spell record `{}` does not have the spell body kind",
+                    record.identity.key
+                )));
+            }
+            let body = canonical_bodies_by_key
+                .get(&record_key)
+                .copied()
+                .ok_or_else(|| {
+                    IndexWriteError::WriteFailed(format!(
+                        "spell record `{}` is missing its required canonical body",
+                        record.identity.key
+                    ))
+                })?;
+            let Some(spell) = body.as_spell() else {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "spell record `{}` has a non-spell canonical body",
+                    record.identity.key
+                )));
+            };
+            if spell.identity.name != record.identity.name
+                || spell.identity.source_id.as_str() != record.identity.id().as_str()
+            {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "spell body identity for `{}` does not match its generic record owner",
+                    record.identity.key
+                )));
+            }
+            if !matches!(record.mechanics.document, FoundryDocumentMechanics::None) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical spell `{}` retains forbidden generic document mechanics",
+                    record.identity.key
+                )));
+            }
+            if !record.mechanics.metrics.is_empty() {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "canonical spell `{}` retains forbidden generic metrics",
+                    record.identity.key
+                )));
+            }
+            record.mechanics.metrics.as_slice()
+        } else {
+            if matches!(
+                record.foundry.record_type,
+                atlas_record::FoundryRecordType::Npc
+                    | atlas_record::FoundryRecordType::Hazard
+                    | atlas_record::FoundryRecordType::Spell
+            ) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "record `{}` has a canonical body kind that disagrees with its record kind",
+                    record.identity.key
+                )));
+            }
+            if canonical_bodies_by_key.contains_key(&record_key) {
+                return Err(IndexWriteError::WriteFailed(format!(
+                    "noncanonical record `{}` has an unexpected canonical body",
+                    record.identity.key
+                )));
+            }
+            record.mechanics.metrics.as_slice()
+        };
+        let retrieval = retrieval_policy.decision(record);
+        let record_role = retrieval.role.as_str();
+        let retrieval_disposition = retrieval.disposition.as_str();
+        let retrieval_rationale = retrieval.rationale.as_str();
+        let is_default_visible = retrieval.disposition.is_ordinary();
         let traits_json = serde_json::to_string(&record.classification.traits)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
         let prerequisites_json = serde_json::to_string(&record.requirements.prerequisites)
@@ -49,6 +178,19 @@ pub(super) fn write_records(
         let system_time_value = record.timing.activation_time_value().map(str::to_string);
         let system_duration_value = record.timing.duration_value_text().map(str::to_string);
         let item_mechanics = record.mechanics.item();
+        let metric_order_sha256 =
+            crate::read::records::children::metric_order_digest(persisted_metrics)
+                .map_err(IndexWriteError::WriteFailed)?;
+        let visibility_state = if record.visibility.visible_by_default() {
+            "visible"
+        } else {
+            "hidden"
+        };
+        let visibility_reason = match record.visibility.reason() {
+            atlas_record::RecordVisibilityReason::SourceRecord => "source_record",
+            atlas_record::RecordVisibilityReason::GeneratedCanonical => "generated_canonical",
+            atlas_record::RecordVisibilityReason::GeneratedInstance => "generated_instance",
+        };
         record_rows.push(RecordRow {
             record_key: record.identity.key.to_string(),
             id: record.identity.id().as_str().to_string(),
@@ -106,29 +248,76 @@ pub(super) fn write_records(
                 .to_string(),
             source_path: record.provenance.source_path.clone(),
             is_default_visible,
+            visibility_state: visibility_state.to_string(),
+            visibility_reason: visibility_reason.to_string(),
+            metric_count: to_i64(persisted_metrics.len(), "records.metric_count")?,
+            metric_order_sha256,
             raw_json: record.provenance.raw_json.clone().unwrap_or_default(),
+            record_role: record_role.to_string(),
+            retrieval_disposition: retrieval_disposition.to_string(),
+            retrieval_rationale: retrieval_rationale.to_string(),
         });
-        let mut content_inputs = Vec::new();
-        for (ordinal, content) in record.content.documents.iter().enumerate() {
-            let content_json = serde_json::to_string(&content.document)
-                .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-            content_inputs.push((ordinal, content, content_json));
-        }
-        let content_keys = allocated_content_keys(&content_inputs);
-        for ((ordinal, content, content_json), content_key) in
-            content_inputs.into_iter().zip(content_keys)
-        {
-            content_rows.push(RecordContentRow {
-                record_key: record.identity.key.to_string(),
-                content_key,
-                ordinal: to_i64(ordinal, "record_content.ordinal")?,
-                source_kind: content.source_kind.as_str().to_string(),
-                visibility: content.visibility().as_str().to_string(),
-                contributes_to_search: content.contributes_to_search(),
-                contributes_to_references: content.contributes_to_reference_occurrences(),
-                label: content.label.clone(),
-                content_json,
-            });
+        if !canonical_record_keys.contains(&record.identity.key.to_string()) {
+            let mut content_inputs = Vec::new();
+            for (ordinal, content) in record.content.documents.iter().enumerate() {
+                let content_json = serde_json::to_string(&content.document)
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+                content_inputs.push((ordinal, content, content_json));
+            }
+            let content_keys = allocated_content_keys(&content_inputs);
+            for ((ordinal, content, content_json), content_key) in
+                content_inputs.into_iter().zip(content_keys)
+            {
+                content_rows.push(RecordContentRow {
+                    record_key: record.identity.key.to_string(),
+                    content_key,
+                    authored_order: to_i64(ordinal, "record_content.authored_order")?,
+                    identity_stability: "unstable_authored_ordinal".to_string(),
+                    owner_kind: "record".to_string(),
+                    owner_record_key: Some(record.identity.key.to_string()),
+                    owner_entity_id: None,
+                    owner_occurrence_id: None,
+                    owner_occurrence_authored_order: None,
+                    owner_hazard_entity_id: None,
+                    owner_hazard_occurrence_id: None,
+                    owner_hazard_occurrence_authored_order: None,
+                    role: legacy_content_role(content.source_kind).to_string(),
+                    origin_json: crate::artifact::canonical_json::encode(
+                        &ContentOrigin::RecordField {
+                            source_kind: content.source_kind,
+                            relative_source_path: content.source_kind.as_str().to_string(),
+                        },
+                    )
+                    .map_err(IndexWriteError::WriteFailed)?,
+                    source_kind: content.source_kind.as_str().to_string(),
+                    visibility: content.visibility().as_str().to_string(),
+                    provenance_json: crate::artifact::canonical_json::encode(&ContentProvenance {
+                        source_record_key: record.identity.key.clone(),
+                        relative_source_path: content.source_kind.as_str().to_string(),
+                        field_or_pointer_family: content.source_kind.as_str().to_string(),
+                        nested_source_id: None,
+                        authored_ordinal_or_range: Some(ordinal.to_string()),
+                        authored_label: content.label.clone(),
+                    })
+                    .map_err(IndexWriteError::WriteFailed)?,
+                    contributes_to_search: content.contributes_to_search(),
+                    contributes_to_references: content.contributes_to_reference_occurrences(),
+                    label: content.label.clone(),
+                    content_json,
+                    content_hash: atlas_record::ContentHash::for_document(&content.document)
+                        .as_str()
+                        .to_string(),
+                    duplicate_status_json: crate::artifact::canonical_json::encode(
+                        &DuplicateContentStatus::Unique,
+                    )
+                    .map_err(IndexWriteError::WriteFailed)?,
+                    diagnostics_json: crate::artifact::canonical_json::encode(&Vec::<
+                        ContentDiagnostic,
+                    >::new(
+                    ))
+                    .map_err(IndexWriteError::WriteFailed)?,
+                });
+            }
         }
         for trait_value in &record.classification.traits {
             trait_rows.push(RecordTraitRow {
@@ -136,7 +325,9 @@ pub(super) fn write_records(
                 trait_value: trait_value.clone(),
             });
         }
-        if let Some(actor_data) = record.mechanics.actor() {
+        if !canonical_record_keys.contains(&record_key)
+            && let Some(actor_data) = record.mechanics.actor()
+        {
             actor_rows.push(ActorRecordRow {
                 record_key: record.identity.key.to_string(),
                 size: actor_data.size.clone(),
@@ -151,7 +342,9 @@ pub(super) fn write_records(
                 is_complex: actor_data.is_complex,
             });
         }
-        if let Some(item_data) = record.mechanics.item() {
+        if !canonical_record_keys.contains(&record_key)
+            && let Some(item_data) = record.mechanics.item()
+        {
             item_rows.push(ItemRecordRow {
                 record_key: record.identity.key.to_string(),
                 system_category: item_data.category.clone(),
@@ -165,28 +358,12 @@ pub(super) fn write_records(
                 damage_types_json: json_array(&item_data.damage_types)?,
             });
         }
-        if let Some(spell_data) = record.mechanics.spell() {
-            let defense = spell_data.defense.as_ref();
-            spell_rows.push(SpellRecordRow {
-                record_key: record.identity.key.to_string(),
-                traditions_json: json_array(&spell_data.traditions)?,
-                spell_kinds_json: json_array(&spell_data.kinds)?,
-                range_text: spell_data.range.as_ref().map(|range| range.text.clone()),
-                range_value: spell_data.range.as_ref().and_then(|range| range.distance),
-                target_text: spell_data.target.as_ref().map(|target| target.text.clone()),
-                area_type: spell_data.area.as_ref().and_then(|area| area.kind.clone()),
-                area_value: spell_data.area.as_ref().and_then(|area| area.value),
-                save_type: defense.and_then(|defense| defense.save.clone()),
-                sustained: spell_data.sustained,
-                basic_save: defense.is_some_and(|defense| defense.basic),
-                damage_types_json: json_array(&spell_data.damage_types)?,
-            });
-        }
-        for metric in &record.mechanics.metrics {
+        for (ordinal, metric) in persisted_metrics.iter().enumerate() {
             let (value_type, number_value, text_value, bool_value) =
                 metric_value_parts(&metric.value);
             metric_rows.push(RecordMetricRow {
                 record_key: record.identity.key.to_string(),
+                ordinal: to_i64(ordinal, "record_metrics.ordinal")?,
                 metric_domain: metric_domain_label(metric.domain).to_string(),
                 metric_key: metric.key.clone(),
                 value_type: value_type.to_string(),
@@ -201,7 +378,13 @@ pub(super) fn write_records(
                 .filter(|alias| alias.canonical_record_key == record.identity.key)
                 .map(|alias| alias.alias_text.clone())
                 .collect::<Vec<_>>();
-            let fts = build_record_fts_projection(record, &record_aliases);
+            let fts = build_search_fts_projection(
+                record,
+                &record_aliases,
+                canonical_bodies_by_key
+                    .get(&record.identity.key.to_string())
+                    .copied(),
+            );
             fts_rows.push(RecordsFtsRow {
                 record_key: record.identity.key.to_string(),
                 title: Some(fts.title),
@@ -250,12 +433,6 @@ pub(super) fn write_records(
             .execute(connection)
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
-    for rows in spell_rows.chunks(super::INSERT_BATCH_ROWS) {
-        diesel::insert_into(crate::schema::spell_records::table)
-            .values(rows)
-            .execute(connection)
-            .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
-    }
     for rows in metric_rows.chunks(super::INSERT_BATCH_ROWS) {
         diesel::insert_into(crate::schema::record_metrics::table)
             .values(rows)
@@ -269,6 +446,43 @@ pub(super) fn write_records(
             .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
     }
     Ok(())
+}
+
+fn canonical_bodies_by_key<'a>(
+    records: &[AtlasRecord],
+    canonical_bodies: &'a [RecordBody],
+) -> Result<std::collections::BTreeMap<String, &'a RecordBody>, IndexWriteError> {
+    let record_keys = records
+        .iter()
+        .map(|record| record.identity.key.to_string())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut bodies = std::collections::BTreeMap::new();
+    for body in canonical_bodies {
+        let key = body.record_key().to_string();
+        if !record_keys.contains(&key) {
+            return Err(IndexWriteError::WriteFailed(format!(
+                "canonical body `{key}` has no matching record"
+            )));
+        }
+        if bodies.insert(key.clone(), body).is_some() {
+            return Err(IndexWriteError::WriteFailed(format!(
+                "record `{key}` has multiple canonical bodies"
+            )));
+        }
+    }
+    Ok(bodies)
+}
+
+fn legacy_content_role(source_kind: atlas_record::ContentSourceKind) -> &'static str {
+    use atlas_record::ContentSourceKind;
+    match source_kind {
+        ContentSourceKind::Description => "primary_description",
+        ContentSourceKind::Blurb => "summary",
+        ContentSourceKind::EmbeddedItemDescription
+        | ContentSourceKind::EmbeddedSpellDescription => "embedded_capability",
+        ContentSourceKind::GeneratedAffliction => "generated_narrative",
+        _ => "supplemental_rules",
+    }
 }
 
 pub(crate) fn allocated_content_keys(

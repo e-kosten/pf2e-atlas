@@ -1,4 +1,4 @@
 interface:
   display_name: "Delegated Agent Contract"
-  short_description: "Require explicit subagent contracts"
-  default_prompt: "Use $delegated-agent-contract to check a delegated implementation, validation, remediation, or exploration assignment before doing work."
+  short_description: "Run outcome-scoped delegated work"
+  default_prompt: "Use $delegated-agent-contract to establish the outcome, invariants, non-goals, validation, and escalation boundary, then work autonomously inside that brief."

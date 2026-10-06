@@ -9,7 +9,7 @@ use rusqlite::Connection;
 use crate::sql::{count_rows, count_sql, table_columns, table_exists};
 use crate::{
     ArtifactValidationDiagnostic, ArtifactValidationFamily, IndexValidationError,
-    artifact::validation::artifact_validation_diagnostic,
+    artifact::validation::{artifact_rebuild_required_diagnostic, artifact_validation_diagnostic},
 };
 
 pub(super) fn validate_required_tables(
@@ -19,7 +19,7 @@ pub(super) fn validate_required_tables(
     for table in required_tables() {
         let table_name = table.name();
         if !table_exists(connection, table_name)? {
-            diagnostics.push(artifact_validation_diagnostic(
+            diagnostics.push(artifact_rebuild_required_diagnostic(
                 ArtifactValidationFamily::Schema,
                 format!("required artifact table `{table_name}` is missing"),
                 Some(format!("table:{table_name}")),
@@ -41,7 +41,7 @@ pub(super) fn validate_required_columns(
         for column in *columns {
             let column_name = column.name();
             if !present_columns.contains_key(column_name) {
-                diagnostics.push(artifact_validation_diagnostic(
+                diagnostics.push(artifact_rebuild_required_diagnostic(
                     ArtifactValidationFamily::Schema,
                     format!("required artifact column `{table_name}.{column_name}` is missing"),
                     Some(format!("column:{table_name}.{column_name}")),

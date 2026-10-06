@@ -21,8 +21,7 @@ import {
 } from "../../shared/filters/searchState";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
-import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
+import { RecordPreviewScope } from "../../shared/records/RecordPreviewScope";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { ListInfoPane } from "./ListInfoPane";
@@ -48,7 +47,6 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const lists = useSavedLists();
   const [filters, setFilters] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
-  const recordPreview = useRecordPreview();
   const activeFilters = useDebouncedSearchFilters(filters);
   const filterToken = useMemo(
     () => encodeSearchExecutionState(activeFilters),
@@ -156,38 +154,31 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           ) : null
         }
         detail={
-          <RecordDetailPane
-            detail={selectedItem?.status === "unresolved" ? undefined : detail.data}
-            emptyMessage={
-              selectedItem?.status === "unresolved"
-                ? "This saved record is unresolved."
-                : undefined
+          <RecordPreviewScope
+            onOpenFullPage={(recordKey) =>
+              navigateToAtlasRoute({ kind: "record", recordKey })
             }
-            errors={[list.error, detail.error, removeItem.error, recordPreview.error]}
-            loading={
-              selectedItem?.status === "unresolved"
-                ? false
-                : detail.isLoading || detail.isFetching
-            }
-            onReference={recordPreview.open}
-          />
+          >
+            <RecordDetailPane
+              detail={selectedItem?.status === "unresolved" ? undefined : detail.data}
+              emptyMessage={
+                selectedItem?.status === "unresolved"
+                  ? "This saved record is unresolved."
+                  : undefined
+              }
+              errors={[list.error, detail.error, removeItem.error]}
+              loading={
+                selectedItem?.status === "unresolved"
+                  ? false
+                  : detail.isLoading || detail.isFetching
+              }
+              onReference={(recordKey) =>
+                navigateToAtlasRoute({ kind: "record", recordKey })
+              }
+            />
+          </RecordPreviewScope>
         }
       />
-      {recordPreview.recordKey ? (
-        <RecordPreviewPopover
-          anchor={recordPreview.anchor}
-          detail={recordPreview.detail}
-          loading={recordPreview.loading}
-          onClose={recordPreview.close}
-          onOpenFullPage={() =>
-            navigateToAtlasRoute({
-              kind: "record",
-              recordKey: recordPreview.recordKey!,
-            })
-          }
-          onReference={recordPreview.open}
-        />
-      ) : null}
     </>
   );
 }

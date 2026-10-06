@@ -8,10 +8,10 @@ use atlas_index::{
     SearchCandidateRecord, VariantReadIndex, VectorQueryError, VectorReadIndex, VectorSearchHit,
 };
 use atlas_record::{
-    AtlasRecordSet, ContentSourceKind, ContentVisibility, FoundryDocumentType, FoundryRecordInfo,
-    FoundryRecordType, RecordClassification, RecordContent, RecordIdentity, RecordMechanics,
-    RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
-    RecordVisibility, RecordVisibilityReason,
+    AtlasRecord, AtlasRecordSet, ContentSourceKind, ContentVisibility, FoundryDocumentType,
+    FoundryRecordInfo, FoundryRecordType, RecordClassification, RecordContent, RecordIdentity,
+    RecordMechanics, RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy,
+    RecordTiming, RecordVisibility, RecordVisibilityReason, RetrievedRecord,
 };
 
 #[test]
@@ -120,11 +120,11 @@ fn similar_records_candidate_window_never_drops_below_result_limit() {
 
     assert_eq!(result.records.len(), 2);
     assert_eq!(
-        result.records[0].record.identity.key.to_string(),
+        result.records[0].record.record.identity.key.to_string(),
         "actions:plain"
     );
     assert_eq!(
-        result.records[1].record.identity.key.to_string(),
+        result.records[1].record.record.identity.key.to_string(),
         "actions:graph"
     );
 }
@@ -282,13 +282,26 @@ fn similar_records_uses_seed_embedding_and_reranks_with_graph_evidence() {
 
     assert_eq!(result.records.len(), 2);
     assert_eq!(
-        result.records[0].record.identity.key.to_string(),
+        result.records[0].record.record.identity.key.to_string(),
         "actions:graph"
     );
-    assert_eq!(result.records[0].graph.shared_references.len(), 1);
+    assert_eq!(result.records[0].graph.shared_references.len(), 3);
+    assert_eq!(
+        result.records[0]
+            .graph
+            .shared_references
+            .iter()
+            .map(|reference| reference.name.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "Shared Reference",
+            "Shared GM Reference",
+            "Shared Private Reference"
+        ]
+    );
     assert_eq!(result.records[0].graph.shared_traits, vec!["auditory"]);
     assert_eq!(
-        result.records[1].record.identity.key.to_string(),
+        result.records[1].record.record.identity.key.to_string(),
         "actions:plain"
     );
 }
@@ -315,6 +328,8 @@ impl FakeSimilarIndex {
                 fake_record("actions:plain", "Plain Action", &[]),
                 fake_record("actions:graph", "Graph Action", &["auditory"]),
                 fake_record("actions:reference", "Shared Reference", &[]),
+                fake_record("actions:reference-gm", "Shared GM Reference", &[]),
+                fake_record("actions:reference-private", "Shared Private Reference", &[]),
             ],
             expect_filter: false,
         }
@@ -329,7 +344,10 @@ impl FakeSimilarIndex {
 }
 
 impl RecordReadIndex for FakeSimilarIndex {
-    fn load_records_by_key(&self, keys: &[RecordKey]) -> Result<Vec<AtlasRecord>, RecordLoadError> {
+    fn load_records_by_key(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<RetrievedRecord>, RecordLoadError> {
         Ok(keys
             .iter()
             .filter_map(|key| {
@@ -337,6 +355,11 @@ impl RecordReadIndex for FakeSimilarIndex {
                     .iter()
                     .find(|record| record.identity.key == *key)
                     .cloned()
+                    .map(|record| RetrievedRecord {
+                        record,
+                        body: None,
+                        spell_children: Vec::new(),
+                    })
             })
             .collect())
     }
@@ -355,7 +378,7 @@ impl RecordReadIndex for FakeSimilarIndex {
         Ok(self
             .load_records_by_key(keys)?
             .into_iter()
-            .map(search_candidate_from_record)
+            .map(|record| search_candidate_from_record(record.record))
             .collect())
     }
 }
@@ -466,7 +489,15 @@ impl ReferenceReadIndex for FakeSimilarIndex {
             "candidate reference evidence should use the batch reader"
         );
         if seed_text == "actions:seed" {
-            Ok(vec![graph_edge(seed, "actions:reference")])
+            Ok(vec![
+                graph_edge(seed, "actions:reference", ContentVisibility::Public),
+                graph_edge(seed, "actions:reference-gm", ContentVisibility::GmOnly),
+                graph_edge(
+                    seed,
+                    "actions:reference-private",
+                    ContentVisibility::Private,
+                ),
+            ])
         } else {
             Ok(Vec::new())
         }
@@ -482,7 +513,10 @@ impl ReferenceReadIndex for FakeSimilarIndex {
             .map(|record| {
                 let targets = if record.to_string() == "actions:graph" {
                     BTreeSet::from([
-                        RecordKey::parse("actions:reference").expect("fixture key should parse")
+                        RecordKey::parse("actions:reference").expect("fixture key should parse"),
+                        RecordKey::parse("actions:reference-gm").expect("fixture key should parse"),
+                        RecordKey::parse("actions:reference-private")
+                            .expect("fixture key should parse"),
                     ])
                 } else {
                     BTreeSet::new()
@@ -547,7 +581,7 @@ fn vector_hit(record_key: &str, distance: f64) -> VectorSearchHit {
     }
 }
 
-fn graph_edge(from: &RecordKey, to: &str) -> GraphReferenceEdge {
+fn graph_edge(from: &RecordKey, to: &str, visibility: ContentVisibility) -> GraphReferenceEdge {
     GraphReferenceEdge {
         from_record_key: from.clone(),
         to_record_key: RecordKey::parse(to).expect("fixture key should parse"),
@@ -555,7 +589,7 @@ fn graph_edge(from: &RecordKey, to: &str) -> GraphReferenceEdge {
         reference_text: "fixture".to_string(),
         relation_kind: atlas_record::ReferenceRelationKind::Reference,
         source_kind: ContentSourceKind::Description,
-        visibility: ContentVisibility::Public,
+        visibility,
     }
 }
 

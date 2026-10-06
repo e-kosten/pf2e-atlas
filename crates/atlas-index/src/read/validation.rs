@@ -7,10 +7,8 @@ use crate::{
 
 impl SqliteIndexReader {
     pub fn validate(&self) -> Result<ArtifactValidationReport, IndexValidationError> {
-        validate_index_connection(
-            self.path().display().to_string(),
-            &self.validation_connection()?,
-        )
+        let connection = self.validation_connection()?;
+        validate_index_connection(self.path().display().to_string(), &connection)
     }
 
     pub fn validate_report(&self) -> ArtifactValidationReport {
@@ -21,10 +19,8 @@ impl SqliteIndexReader {
     }
 
     pub fn check(&self) -> Result<ArtifactValidationReport, IndexValidationError> {
-        check_index_connection(
-            self.path().display().to_string(),
-            &self.validation_connection()?,
-        )
+        let connection = self.validation_connection()?;
+        check_index_connection(self.path().display().to_string(), &connection)
     }
 
     pub fn check_report(&self) -> ArtifactValidationReport {
@@ -68,9 +64,10 @@ impl SqliteIndexReader {
     pub fn validate_embedding_readiness(
         &self,
     ) -> Result<ArtifactValidationReport, IndexValidationError> {
+        let connection = self.validation_connection()?;
         vector::validate_embedding_readiness_connection(
             self.path().display().to_string(),
-            &self.validation_connection()?,
+            &connection,
         )
     }
 
@@ -108,12 +105,30 @@ impl SqliteIndexReader {
         }
     }
 
+    #[doc(hidden)]
+    pub fn inspect_with_validation_report(
+        &self,
+        validation: ArtifactValidationReport,
+    ) -> Result<IndexInspectionReport, IndexValidationError> {
+        self.validate_generation_binding()?;
+        let connection = self.validation_connection()?;
+        let inspection = inspect::inspect_index_connection(
+            self.path().display().to_string(),
+            validation,
+            &connection,
+        )?;
+        drop(connection);
+        self.validate_generation_binding()?;
+        Ok(inspection)
+    }
+
     pub fn inspect(&self) -> Result<IndexInspectionReport, IndexValidationError> {
-        let validation = self.validate()?;
+        let validation = self.check()?;
+        let connection = self.validation_connection()?;
         inspect::inspect_index_connection(
             self.path().display().to_string(),
             validation,
-            &self.validation_connection()?,
+            &connection,
         )
     }
 }

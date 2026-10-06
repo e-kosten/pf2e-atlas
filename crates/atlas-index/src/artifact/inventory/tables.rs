@@ -8,6 +8,13 @@ mod record_tables;
 mod relationships;
 mod search;
 
+pub use canonical::{
+    canonical_consumable_spell_children, canonical_creature_entities,
+    canonical_creature_occurrences, canonical_creature_records, canonical_creature_relationships,
+    canonical_creature_resources, canonical_hazard_entities, canonical_hazard_occurrences,
+    canonical_hazard_records, canonical_hazard_relationships, canonical_spell_records,
+    record_content_exclusions, spell_damage_types, spell_traditions,
+};
 pub use discovery::{
     filter_field_catalog, filter_numeric_catalog, filter_sample_catalog, filter_value_catalog,
 };
@@ -36,6 +43,20 @@ pub const REQUIRED_TABLES: &[Table] = &[
     packs::TABLE,
     records::TABLE,
     record_content::TABLE,
+    canonical_creature_records::TABLE,
+    canonical_creature_resources::TABLE,
+    canonical_creature_entities::TABLE,
+    canonical_creature_occurrences::TABLE,
+    canonical_creature_relationships::TABLE,
+    canonical_hazard_records::TABLE,
+    canonical_hazard_entities::TABLE,
+    canonical_hazard_occurrences::TABLE,
+    canonical_hazard_relationships::TABLE,
+    canonical_spell_records::TABLE,
+    canonical_consumable_spell_children::TABLE,
+    spell_traditions::TABLE,
+    spell_damage_types::TABLE,
+    record_content_exclusions::TABLE,
     record_traits::TABLE,
     reference_edges::TABLE,
     reference_occurrences::TABLE,
@@ -60,6 +81,56 @@ pub const REQUIRED_COLUMNS: &[(Table, &[Column])] = &[
     (packs::TABLE, packs::ALL_COLUMNS),
     (records::TABLE, records::ALL_COLUMNS),
     (record_content::TABLE, record_content::ALL_COLUMNS),
+    (
+        canonical_creature_records::TABLE,
+        canonical_creature_records::ALL_COLUMNS,
+    ),
+    (
+        canonical_creature_resources::TABLE,
+        canonical_creature_resources::ALL_COLUMNS,
+    ),
+    (
+        canonical_creature_entities::TABLE,
+        canonical_creature_entities::ALL_COLUMNS,
+    ),
+    (
+        canonical_creature_occurrences::TABLE,
+        canonical_creature_occurrences::ALL_COLUMNS,
+    ),
+    (
+        canonical_creature_relationships::TABLE,
+        canonical_creature_relationships::ALL_COLUMNS,
+    ),
+    (
+        canonical_hazard_records::TABLE,
+        canonical_hazard_records::ALL_COLUMNS,
+    ),
+    (
+        canonical_hazard_entities::TABLE,
+        canonical_hazard_entities::ALL_COLUMNS,
+    ),
+    (
+        canonical_hazard_occurrences::TABLE,
+        canonical_hazard_occurrences::ALL_COLUMNS,
+    ),
+    (
+        canonical_hazard_relationships::TABLE,
+        canonical_hazard_relationships::ALL_COLUMNS,
+    ),
+    (
+        canonical_spell_records::TABLE,
+        canonical_spell_records::ALL_COLUMNS,
+    ),
+    (
+        canonical_consumable_spell_children::TABLE,
+        canonical_consumable_spell_children::ALL_COLUMNS,
+    ),
+    (spell_traditions::TABLE, spell_traditions::ALL_COLUMNS),
+    (spell_damage_types::TABLE, spell_damage_types::ALL_COLUMNS),
+    (
+        record_content_exclusions::TABLE,
+        record_content_exclusions::ALL_COLUMNS,
+    ),
     (record_traits::TABLE, record_traits::ALL_COLUMNS),
     (reference_edges::TABLE, reference_edges::ALL_COLUMNS),
     (
@@ -107,3 +178,4 @@ pub fn required_tables() -> &'static [Table] {
 pub fn required_columns() -> &'static [(Table, &'static [Column])] {
     REQUIRED_COLUMNS
 }
+mod canonical;

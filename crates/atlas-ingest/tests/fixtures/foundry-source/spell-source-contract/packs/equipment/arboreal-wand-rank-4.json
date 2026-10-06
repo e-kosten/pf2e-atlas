@@ -1,0 +1,26 @@
+{
+  "_id": "eOtQtVRLeGH39dNx",
+  "name": "Arboreal Wand (Rank 4)",
+  "type": "consumable",
+  "system": {
+    "description": { "value": "<p>You cast @UUID[Compendium.pf2e.spells-srd.Item.Heal] at the indicated rank.</p>" },
+    "spell": {
+      "_id": "7w37duycMs4YOBeu",
+      "flags": { "core": { "sourceId": "Compendium.pf2e.spells-srd.Item.rfZpqmj0AIIdkVIs" } },
+      "img": "icons/magic/life/cross-worn-green.webp",
+      "name": "Heal",
+      "sort": 133500000,
+      "system": {
+        "damage": { "0": { "applyMod": false, "category": null, "formula": "1d8", "kinds": ["damage", "healing"], "materials": [], "type": "vitality" } },
+        "level": { "value": 1 },
+        "location": { "heightenedLevel": 4, "value": null },
+        "publication": { "license": "ORC", "remaster": true, "title": "Pathfinder Player Core" },
+        "rules": [],
+        "slug": "heal",
+        "traits": { "rarity": "common", "traditions": ["divine", "primal"], "value": ["healing", "manipulate", "vitality"] }
+      },
+      "type": "spell"
+    },
+    "uses": { "autoDestroy": false, "max": 1, "value": 1 }
+  }
+}

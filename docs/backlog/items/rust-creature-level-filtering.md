@@ -5,6 +5,8 @@ Priority: soon
 Owner: unassigned
 Last reviewed: 2026-05-18
 
+A7 candidate disposition: **subsumed** by B3 canonical level, B6 metric/facet convergence, and D1 discovery/search parity. Checkpoint B is not yet approved.
+
 ## Problem
 
 The Rust Atlas CLI accepts shared level convenience filters such as `--level`, `--min-level`, and `--max-level`, but creature records currently do not participate correctly in those predicates. A common query such as `atlas search --kind creature --max-level 8` can return zero records even though creature level is a core Pathfinder lookup dimension.

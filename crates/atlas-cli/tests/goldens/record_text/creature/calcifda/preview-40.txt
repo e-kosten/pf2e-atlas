@@ -1,0 +1,82 @@
+Calcifda
+  Type: creature · Pack: Quest for the
+  Frozen Flame
+  Key:
+       quest-for-the-frozen-flame-bestiary:kxO7gXbpcmY1pi7p
+
+Classification
+  Level: 10
+  Rarity: unique
+  Traits: earth, evil, fey, lawful
+  Size: med
+  Source: Pathfinder #177: Burning
+          Tundra
+
+Defenses
+  AC: 31
+  HP: current 140; maximum 140;
+      temporary 0
+  Shield: Hardness 0; BT 0; HP 0; AC
+          bonus +2
+  Fortitude: 19
+  Reflex: 17
+  Will: 23
+  Immunities: paralyzed, petrified,
+              visual
+  Resistances: physical 10 (except
+               adamantine)
+  Weaknesses: cold-iron 5
+
+Awareness and abilities
+  Perception: +21; gemsight
+  Initiative: perception
+  Languages: aklo, cyclops, fey, hallit,
+             jotun, petran
+  Abilities: Str +5, Dex +4, Con +5, Int
+             +7, Wis +5, Cha +3
+  Athletics: +19
+  Nature: +19
+  Occultism: +21
+  Gem Lore: +21
+
+Movement
+  land: 25 feet
+  burrow: 25 feet
+
+Strikes
+  - Claw — [1 action]
+
+Activities
+  - Gemsight — passive
+  - Light Sickness — passive
+  - Coal Curse — passive
+  - Earth Glide — passive
+  - Gem Gaze — [1 action]
+  - Lashing Stone — [1 action]
+  - Steady Spellcasting — passive
+
+Spellcasting
+  - Occult Innate Spells — innate ·
+    divine
+    Rank 5
+      - Wall of Stone — [3 actions]
+    Rank 4
+      - Clairvoyance — 1 minute
+      - Read Omens — 10 minutes
+      - Shape Stone — [2 actions]
+    Rank 3
+      - Clairaudience — 1 minute
+      - Earthbind — [2 actions]
+    Rank 2
+      - Augury — 10 minutes
+      - Undetectable Alignment — 1
+        minute
+    Rank 1
+      - Know Direction — [2 actions]
+      - Read Aura — 1 minute
+
+Equipment
+  - Aeon Stone (Pearlescent Pyramid)
+
+Lore
+  - Gem Lore — +21

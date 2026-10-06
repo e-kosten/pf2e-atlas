@@ -37,7 +37,8 @@ export function AppShell({
 }: AppShellProps) {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const readiness = workspace.readiness.data;
-  const status = readiness?.status ?? "blocked";
+  const status =
+    readiness?.status ?? (workspace.readiness.isLoading ? "checking" : "unavailable");
   const nextColorScheme = cycleColorScheme(colorScheme);
   const colorSchemeTitle = `Color: ${colorScheme}. Click for ${nextColorScheme}.`;
   const colorSchemeIcon =
@@ -83,7 +84,6 @@ export function AppShell({
         <Menu
           aria-label="Atlas views"
           className="topbar__nav"
-          disabledOverflow
           items={navItems}
           mode="horizontal"
           onClick={onNavClick}

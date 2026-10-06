@@ -15,11 +15,30 @@ pub struct IndexInspectionReport {
     pub validation: crate::ArtifactValidationReport,
     pub tables: BTreeMap<String, usize>,
     pub records: RecordCoverageReport,
+    pub canonical: CanonicalCoverageReport,
     pub text: TextCoverageReport,
     pub taxonomy: TaxonomyCoverageReport,
     pub variants: VariantCoverageReport,
     pub relationships: RelationshipCoverageReport,
     pub metrics: MetricCoverageReport,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CanonicalCoverageReport {
+    pub creature_records: usize,
+    pub resources: usize,
+    pub entities: usize,
+    pub occurrences: usize,
+    pub creature_relationships: usize,
+    pub hazard_records: usize,
+    pub hazard_entities: usize,
+    pub hazard_occurrences: usize,
+    pub hazard_relationships: usize,
+    pub owned_content: usize,
+    pub total_content: usize,
+    pub content_exclusions: usize,
+    pub records_by_role: BTreeMap<String, usize>,
+    pub records_by_retrieval_disposition: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -115,11 +134,42 @@ pub(crate) fn inspect_index_connection(
         validation,
         tables: inspect_tables(connection)?,
         records: inspect_records(connection)?,
+        canonical: inspect_canonical(connection)?,
         text: inspect_text(connection)?,
         taxonomy: inspect_taxonomy(connection)?,
         variants: inspect_variants(connection)?,
         relationships: inspect_relationships(connection)?,
         metrics: inspect_metrics(connection)?,
+    })
+}
+
+fn inspect_canonical(
+    connection: &Connection,
+) -> Result<CanonicalCoverageReport, IndexValidationError> {
+    Ok(CanonicalCoverageReport {
+        creature_records: count_rows(connection, "canonical_creature_records")?,
+        resources: count_rows(connection, "canonical_creature_resources")?,
+        entities: count_rows(connection, "canonical_creature_entities")?,
+        occurrences: count_rows(connection, "canonical_creature_occurrences")?,
+        creature_relationships: count_rows(connection, "canonical_creature_relationships")?,
+        hazard_records: count_rows(connection, "canonical_hazard_records")?,
+        hazard_entities: count_rows(connection, "canonical_hazard_entities")?,
+        hazard_occurrences: count_rows(connection, "canonical_hazard_occurrences")?,
+        hazard_relationships: count_rows(connection, "canonical_hazard_relationships")?,
+        owned_content: count_sql(
+            connection,
+            "SELECT COUNT(*) FROM record_content AS content WHERE EXISTS (SELECT 1 FROM canonical_creature_records AS creature WHERE creature.record_key = content.record_key) OR EXISTS (SELECT 1 FROM canonical_hazard_records AS hazard WHERE hazard.record_key = content.record_key)",
+        )?,
+        total_content: count_rows(connection, "record_content")?,
+        content_exclusions: count_rows(connection, "record_content_exclusions")?,
+        records_by_role: count_grouped(
+            connection,
+            "SELECT record_role AS group_key, COUNT(*) AS row_count FROM records GROUP BY record_role",
+        )?,
+        records_by_retrieval_disposition: count_grouped(
+            connection,
+            "SELECT retrieval_disposition AS group_key, COUNT(*) AS row_count FROM records GROUP BY retrieval_disposition",
+        )?,
     })
 }
 
@@ -302,4 +352,33 @@ fn count_grouped(
         counts.insert(key, value);
     }
     Ok(counts)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_owned_content_excludes_non_creature_content_while_total_remains_explicit() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(crate::artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL)
+            .unwrap();
+        connection
+            .execute_batch("PRAGMA foreign_keys=OFF;")
+            .unwrap();
+        connection.execute(
+            "INSERT INTO canonical_creature_records(record_key,source_id,name,family,canonical_json) VALUES ('npc:one','one','One','npc','{}')",
+            [],
+        ).unwrap();
+        for (record_key, order) in [("npc:one", 0_i64), ("item:one", 0_i64)] {
+            connection.execute(
+                "INSERT INTO record_content(record_key,content_key,authored_order,identity_stability,owner_kind,owner_record_key,role,origin_json,visibility,provenance_json,source_kind,contributes_to_search,contributes_to_references,content_json,content_hash,duplicate_status_json,diagnostics_json) VALUES (?1,'description',?2,'stable_source_identity','record',?1,'primary_description','{}','public','{}','description',1,1,'{}','hash','{}','[]')",
+                (record_key, order),
+            ).unwrap();
+        }
+        let report = inspect_canonical(&connection).unwrap();
+        assert_eq!(report.owned_content, 1);
+        assert_eq!(report.total_content, 2);
+    }
 }

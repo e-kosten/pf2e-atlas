@@ -68,6 +68,24 @@ pub fn label_for_row(row: &MetricRow) -> MetricDisplayLabel {
         })
 }
 
+pub fn normalize_metric_key_segment(value: &str) -> String {
+    let mut output = String::new();
+    let mut last_was_separator = false;
+    for character in value.trim().to_lowercase().chars() {
+        if character.is_ascii_alphanumeric() {
+            output.push(character);
+            last_was_separator = false;
+        } else if !last_was_separator && !output.is_empty() {
+            output.push('_');
+            last_was_separator = true;
+        }
+    }
+    while output.ends_with('_') {
+        output.pop();
+    }
+    output
+}
+
 pub(crate) fn match_pattern(pattern: MetricKeyPattern, key: &str) -> Option<Vec<MetricCapture>> {
     let key_segments = key.split('.').collect::<Vec<_>>();
     if key_segments.len() != pattern.segments.len() {

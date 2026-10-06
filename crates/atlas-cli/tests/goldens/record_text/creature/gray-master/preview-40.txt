@@ -1,0 +1,80 @@
+Gray Master
+  Type: creature · Pack: Curtain Call
+  Key:
+       curtain-call-bestiary:1eX4Csnv3psAsfLf
+
+Classification
+  Level: 20
+  Rarity: unique
+  Traits: incorporeal, undead, unholy
+  Size: med
+  Source: Pathfinder #206: Bring the
+          House Down
+
+Defenses
+  AC: 43
+  HP: current 280; maximum 280;
+      temporary 0; void healing
+  Fortitude: 28
+  Reflex: 37
+  Will: 34
+  Immunities: death-effects, disease,
+              paralyzed, poison,
+              unconscious, confused
+  Resistances: all-damage 15 (except
+               force, ghost-touch,
+               vitality)
+
+Awareness and abilities
+  Perception: +34; greater-darkvision
+  Initiative: perception
+  Languages: common, diabolic
+  Abilities: Str -5, Dex +7, Con +0, Int
+             +6, Wis +6, Cha +7
+  Acrobatics: +35
+  Deception: +36
+  Intimidation: +38
+  Society: +34
+  Stealth: +37
+  Thievery: +35
+  Norgorber Lore: +34
+  Vyre Lore: +36
+
+Movement
+  land: 0 feet
+  fly: 30 feet
+
+Strikes
+  - Bite — [1 action]
+
+Activities
+  - Glide Aside — [reaction]
+  - Ignore Gauntlet Traps — passive
+  - Power of the Trap — passive
+  - Scry Trap — [reaction]
+  - Void Healing — passive
+  - Brushed by Death — [2 actions]
+  - Infectious Delirium — [1 action]
+  - Sneak Attack — passive
+  - Wrath of the Trap — [2 actions]
+
+Spellcasting
+  - Occult Innate Spells — innate ·
+    occult
+    Rank 9
+      - Seize Soul — [2 actions]
+      - Possession — [2 actions]
+    Rank 8
+      - Disappearance — [2 actions]
+    Rank 10
+      - Collective Transposition — [2
+        actions]
+      - Truespeech (Constant) — [2
+        actions]
+    Rank 5
+      - Scouting Eye (At Will) — 1
+        minute
+
+Lore
+  - Norgorber Lore — +34
+  - Vyre Lore — +36

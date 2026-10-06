@@ -2,9 +2,11 @@ use std::path::Path;
 
 use atlas_domain::{PackName, Rarity, RecordKind};
 use atlas_record::{
-    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, DamageEffectKind,
-    FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordType, ItemTypeMechanics,
-    MechanicActivityUsage, render_plain_text,
+    ActivationTimeSourceField, ActivityRollAbility, ContentSourceKind, CreatureDamageKind,
+    CreatureMovementMode, CreatureResourceAmount, CreatureSourceAlliance,
+    CreatureUnsupportedSourceField, FactValue, FoundryDocumentMechanics, FoundryDocumentType,
+    FoundryRecordType, PresentationBlock, RecordBody, build_search_fts_projection,
+    build_search_presentation_document_with_content_filter, render_plain_text,
 };
 use serde_json::json;
 
@@ -24,11 +26,15 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
             "details": {
                 "level": { "value": 5 },
                 "languages": { "value": ["common", "draconic"] },
+                "alliance": "party",
                 "publication": { "title": "Bestiary Fixture", "remaster": true },
                 "disable": "<p>DC 22 Athletics</p>",
                 "isComplex": true
             },
             "attributes": {
+                "adjustment": "elite",
+                "hardness": {"value": 5},
+                "shield": {"ac": 2, "brokenThreshold": 4, "hardness": 3, "max": 8, "value": 6},
                 "speed": { "otherSpeeds": [{ "type": "fly" }] },
                 "immunities": [{ "type": "fire" }],
                 "resistances": [{ "type": "cold" }],
@@ -37,6 +43,13 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
             "perception": {
                 "senses": [{ "type": "darkvision" }]
             },
+            "initiative": {"statistic": "perception"},
+            "abilities": {
+                "str": {"mod": 3, "value": 16}, "dex": {"mod": 2, "value": 14},
+                "con": {"mod": 1, "value": 12}, "int": {"mod": 0, "value": 10},
+                "wis": {"mod": -1, "value": 8}, "cha": {"mod": -2, "value": 6}
+            },
+            "resources": {"focus": {"max": 1, "maxx": 2, "value": 1}},
             "traits": {
                 "rarity": "rare",
                 "size": { "value": "lg" },
@@ -45,6 +58,7 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
             "slug": "fixture-creature"
         }
     });
+    let expected_source_envelope = raw.clone();
 
     let loaded = normalize_record(
         &manifest_pack("Actor"),
@@ -74,22 +88,162 @@ fn normalizes_actor_record_into_nested_atlas_record_shape() {
     assert_eq!(record.provenance.source_path, "packs/bestiary/actor.json");
     assert!(record.provenance.raw_json.is_some());
 
-    let FoundryDocumentMechanics::Actor(actor) = &record.mechanics.document else {
-        panic!("actor mechanics should be nested under record mechanics");
+    assert_eq!(
+        record.mechanics.document,
+        FoundryDocumentMechanics::None,
+        "creatures must not retain a generic actor-mechanics projection"
+    );
+
+    let creature = loaded
+        .facts
+        .canonical_body
+        .as_ref()
+        .and_then(RecordBody::creature)
+        .expect("NPC canonical body");
+    assert_eq!(creature.level.value, FactValue::Value(5));
+    let CreatureSourceAlliance::Named(alliance) = creature
+        .source_alliance
+        .value
+        .as_value()
+        .expect("source alliance")
+    else {
+        panic!("party should remain an intrinsic source alliance");
     };
-    assert_eq!(actor.size.as_deref(), Some("lg"));
-    assert_eq!(actor.languages, vec!["common", "draconic"]);
-    assert_eq!(actor.speed_types, vec!["fly", "land"]);
-    assert_eq!(actor.senses, vec!["darkvision"]);
-    assert_eq!(actor.immunities, vec!["fire"]);
-    assert_eq!(actor.resistances, vec!["cold"]);
-    assert_eq!(actor.weaknesses, vec!["holy"]);
-    assert_eq!(actor.disable_text.as_deref(), Some("DC 22 Athletics"));
-    assert!(actor.is_complex);
+    assert_eq!(alliance.as_str(), "party");
+    assert_eq!(
+        creature
+            .legacy_abilities
+            .value
+            .as_value()
+            .expect("legacy abilities")
+            .strength,
+        FactValue::Value(3)
+    );
+    let defenses = creature.defenses.value.as_value().expect("defenses");
+    assert_eq!(defenses.hardness, FactValue::Value(5));
+    assert_eq!(
+        defenses
+            .shield
+            .as_value()
+            .expect("shield")
+            .serialized_hit_points,
+        FactValue::Value(6)
+    );
+    assert_eq!(
+        creature
+            .movement
+            .value
+            .as_value()
+            .expect("canonical movement")[0]
+            .mode,
+        CreatureMovementMode::Fly
+    );
+    let focus = &creature.resources.value.as_value().expect("resources")[0];
+    assert_eq!(
+        focus.maximum,
+        FactValue::Value(CreatureResourceAmount::Integer(1))
+    );
+    assert_eq!(
+        focus.source_drift.as_value().expect("maxx drift")[0].field,
+        CreatureUnsupportedSourceField::ResourceMaximumDrift
+    );
+    assert_eq!(loaded.facts.npc_core_diagnostics.len(), 1);
+    let npc_source = loaded
+        .facts
+        .npc_source
+        .as_ref()
+        .expect("full versioned NPC Source envelope");
+    assert_eq!(npc_source.raw_json_for_audit(), &expected_source_envelope);
 }
 
 #[test]
-fn normalizes_spell_item_into_nested_item_and_spell_shape() {
+fn npc_canonical_facts_drive_display_and_fts_without_a_generic_metric_carrier() {
+    let raw = json!({
+        "_id": "actor-facts",
+        "name": "Fact Convergence Creature",
+        "type": "npc",
+        "system": {
+            "attributes": {
+                "ac": {"value": 28},
+                "hp": {"value": 170, "max": 170},
+                "speed": {
+                    "value": 25,
+                    "otherSpeeds": [{"type": "fly", "value": 40}]
+                },
+                "resistances": [{"type": "mental", "value": 10}]
+            },
+            "details": {
+                "level": {"value": 9},
+                "languages": {"value": ["aklo", "common"]},
+                "publication": {"title": "Pathfinder Bestiary"}
+            },
+            "perception": {
+                "mod": 18,
+                "senses": [{"type": "scent", "range": 60}]
+            },
+            "saves": {
+                "fortitude": {"value": 19},
+                "reflex": {"value": 17},
+                "will": {"value": 18}
+            },
+            "skills": {"arcana": {"base": 18}},
+            "traits": {
+                "rarity": "common",
+                "size": {"value": "med"},
+                "value": ["fiend"]
+            }
+        },
+        "items": []
+    });
+
+    let loaded = normalize_record(
+        &manifest_pack("Actor"),
+        &PackName::new("bestiary".to_string()).expect("pack name"),
+        Path::new("packs/bestiary/fact-convergence.json"),
+        Path::new("."),
+        raw,
+        None,
+    )
+    .expect("NPC normalizes");
+    let record = &loaded.record;
+
+    assert!(record.mechanics.metrics.is_empty());
+    assert!(record.mechanics.actor().is_none());
+
+    let canonical_body = loaded
+        .facts
+        .canonical_body
+        .as_ref()
+        .expect("canonical body");
+    let presentation = build_search_presentation_document_with_content_filter(
+        record,
+        Some(canonical_body),
+        |_| true,
+    );
+    assert!(presentation.sections.iter().any(|section| {
+        section.blocks.iter().any(|block| {
+            matches!(
+                block,
+                PresentationBlock::FactList(facts)
+                    if facts.iter().any(|fact| {
+                        fact.label == "Arcana" && fact.value == "18"
+                    })
+            )
+        })
+    }));
+    let fts = build_search_fts_projection(record, &[], Some(canonical_body));
+    assert!(fts.metric_terms.contains("Arcana"));
+    assert!(fts.mechanic_terms.contains("AC 28"));
+    assert!(fts.mechanic_terms.contains("Max HP 170"));
+    assert!(fts.mechanic_terms.contains("Perception 18"));
+    assert!(fts.mechanic_terms.contains("Fortitude 19"));
+    assert!(fts.mechanic_terms.contains("Arcana 18"));
+    assert!(fts.mechanic_terms.contains("Land Speed 25"));
+    assert!(fts.mechanic_terms.contains("Fly Speed 40"));
+}
+
+#[test]
+fn normalizes_spell_into_canonical_body_without_generic_mechanics() {
     let raw = json!({
         "_id": "spell1",
         "name": "Fixture Spell",
@@ -161,46 +315,15 @@ fn normalizes_spell_item_into_nested_item_and_spell_shape() {
         "Spell body."
     );
 
-    let item = record
-        .mechanics
-        .item()
-        .expect("item mechanics should exist");
-    assert_eq!(item.category.as_deref(), Some("spell"));
-    assert_eq!(item.base_item.as_deref(), Some("wand"));
-    assert_eq!(item.group.as_deref(), Some("attack"));
-    assert_eq!(item.usage.as_deref(), Some("held-in-one-hand"));
-    assert_eq!(item.price_json.as_deref(), Some(r#"{"gp":2}"#));
-    assert_eq!(item.hands_requirement.as_deref(), Some("one_hand"));
-    assert_eq!(item.damage_types, vec!["fire"]);
-
-    let Some(ItemTypeMechanics::Spell(spell)) = item.foundry_type.as_ref() else {
-        panic!("spell item should carry spell mechanics");
+    assert!(record.mechanics.metrics.is_empty());
+    assert!(matches!(
+        record.mechanics.document,
+        FoundryDocumentMechanics::None
+    ));
+    let Some(RecordBody::Spell(spell)) = loaded.facts.canonical_body.as_ref() else {
+        panic!("spell must use its canonical body");
     };
-    assert_eq!(spell.traditions, vec!["arcane", "primal"]);
-    assert_eq!(spell.kinds, vec!["cantrip"]);
-    assert_eq!(
-        spell.range.as_ref().map(|range| range.text.as_str()),
-        Some("30 feet")
-    );
-    assert_eq!(
-        spell.target.as_ref().map(|target| target.text.as_str()),
-        Some("1 creature")
-    );
-    assert_eq!(
-        spell.area.as_ref().and_then(|area| area.kind.as_deref()),
-        Some("burst")
-    );
-    assert_eq!(spell.area.as_ref().and_then(|area| area.value), Some(10.0));
-    assert_eq!(
-        spell
-            .defense
-            .as_ref()
-            .and_then(|defense| defense.save.as_deref()),
-        Some("reflex")
-    );
-    assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
-    assert!(spell.sustained);
-    assert_eq!(spell.damage_types, vec!["fire"]);
+    assert_eq!(spell.identity.name, "Fixture Spell");
 }
 
 #[test]
@@ -251,6 +374,7 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
                     "publication": { "remaster": false },
                     "traits": { "value": ["disease"] },
                     "description": {
+                        "gm": "<p>GM instruction for @UUID[Compendium.pf2e.afflictions.Item.ghoul-fever].</p>",
                         "value": "<p><strong>Saving Throw</strong> Fortitude</p><p><strong>Stage 1</strong> Sickened</p>"
                     }
                 }
@@ -381,6 +505,13 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
         None,
     )
     .expect("record normalizes");
+    let mut loaded_records = vec![loaded];
+    let reference_index = crate::records::references::build_record_reference_index(&loaded_records);
+    crate::source::npc_entities::finalize_npc_embedded_entities(
+        &mut loaded_records,
+        &reference_index,
+    );
+    let loaded = &loaded_records[0];
 
     let facts = &loaded.facts.source_facts;
     assert_eq!(facts.slug.as_deref(), Some("host-record"));
@@ -398,98 +529,119 @@ fn normalizes_source_facts_embedded_content_refs_and_journal_pages() {
     assert_eq!(affliction.traits, vec!["disease"]);
     assert_eq!(affliction.slug.as_deref(), Some("ghoul-fever"));
     assert!(affliction.raw_provenance.is_some());
-    assert_eq!(affliction.content_refs.len(), 1);
+    assert_eq!(affliction.content_refs.len(), 2);
     assert_eq!(
         affliction.content_refs[0].source_kind,
         ContentSourceKind::EmbeddedItemDescription
     );
     assert_eq!(
         affliction.content_refs[0].local_key,
-        "#item:bite1:description"
+        "item:bite1:description"
+    );
+    assert_eq!(
+        affliction.content_refs[1].source_kind,
+        ContentSourceKind::EmbeddedGmDescription
+    );
+    assert_eq!(
+        affliction.content_refs[1].local_key,
+        "item:bite1:gm-description"
     );
     let affliction_content = facts
         .source_content
-        .get("#item:bite1:description")
+        .get("item:bite1:description")
         .expect("embedded description is source content");
     assert_eq!(
         render_plain_text(&affliction_content.document),
         "Saving Throw Fortitude\nStage 1 Sickened"
     );
+    assert_eq!(
+        facts
+            .source_content
+            .get("item:bite1:gm-description")
+            .map(|content| render_plain_text(&content.document))
+            .as_deref(),
+        Some("GM instruction for ghoul fever.")
+    );
 
     let spell = &facts.embedded_items[1];
     assert_eq!(
         spell.content_refs[0].local_key,
-        "#item:spell1:spell-description"
+        "item:spell1:spell-description"
     );
     assert_eq!(
         facts
             .source_content
-            .get("#item:spell1:spell-description")
+            .get("item:spell1:spell-description")
             .map(|content| render_plain_text(&content.document))
             .as_deref(),
         Some("Nested spell text.")
     );
-    assert_eq!(loaded.record.mechanics.spellcasting_entries.len(), 1);
-    assert_eq!(
-        loaded.record.mechanics.spellcasting_entries[0].entry_id,
-        "casting1"
-    );
-    assert_eq!(loaded.record.mechanics.activities.len(), 2);
-    let spell_activity = loaded
-        .record
-        .mechanics
-        .activities
+    let creature = loaded
+        .facts
+        .canonical_body
+        .as_ref()
+        .and_then(RecordBody::creature)
+        .expect("canonical creature");
+    let embedded = creature
+        .embedded_entities
+        .value
+        .as_value()
+        .expect("embedded entities");
+    let canonical_spell = embedded
+        .occurrences
         .iter()
-        .find(|activity| activity.activity_id == "spell1")
-        .expect("spell activity should project");
-    assert_eq!(spell_activity.damage[0].formula, "1d4");
+        .find(|occurrence| occurrence.id.as_str().ends_with(":spell1"))
+        .expect("spell occurrence");
+    let atlas_record::CreatureCapability::Spell(canonical_spell) = &canonical_spell.capability
+    else {
+        panic!("spell capability")
+    };
     assert_eq!(
-        spell_activity.damage[0].damage_type.as_deref(),
+        canonical_spell.unsupported_notes.len(),
+        2,
+        "{:#?}",
+        canonical_spell.unsupported_notes
+    );
+    let spell_damage = canonical_spell.damage.as_value().expect("spell damage");
+    assert_eq!(
+        spell_damage[0].formula.as_value().map(String::as_str),
+        Some("1d4")
+    );
+    assert_eq!(
+        spell_damage[0].damage_type.as_value().map(String::as_str),
         Some("void")
     );
     assert_eq!(
-        spell_activity.damage[0].effect_kind,
-        DamageEffectKind::DamageOrHealing
+        spell_damage[0].kinds.as_value(),
+        Some(&vec![
+            CreatureDamageKind::Damage,
+            CreatureDamageKind::Healing
+        ])
     );
-    assert_eq!(spell_activity.modes.len(), 2);
-    assert_eq!(spell_activity.modes[0].mode_id, "living");
-    assert_eq!(spell_activity.modes[0].label, "Staged Spell (Healing)");
-    assert_eq!(spell_activity.modes[0].target.as_deref(), Some("1 ally"));
-    assert_eq!(spell_activity.modes[0].range.as_deref(), Some("30 feet"));
-    assert_eq!(spell_activity.modes[0].time.as_deref(), Some("2"));
-    assert_eq!(spell_activity.modes[0].damage[0].formula, "1d4+4");
-    assert_eq!(
-        spell_activity.modes[0].damage[0].effect_kind,
-        DamageEffectKind::Healing
-    );
-    assert_eq!(spell_activity.modes[1].mode_id, "undead");
-    assert_eq!(
-        spell_activity.modes[1].damage[0].effect_kind,
-        DamageEffectKind::Damage
-    );
-    assert_eq!(spell_activity.usage, MechanicActivityUsage::Limited);
-    assert_eq!(spell_activity.rolls.len(), 2);
-    assert_eq!(spell_activity.rolls[0].base_value, 14);
-    assert_eq!(spell_activity.rolls[1].base_value, 23);
-    let strike_activity = loaded
-        .record
-        .mechanics
-        .activities
+    let strike_activity = embedded
+        .occurrences
         .iter()
-        .find(|activity| activity.activity_id == "claw1")
-        .expect("strike activity should project");
-    assert_eq!(strike_activity.damage[0].formula, "1d6+2");
+        .find(|occurrence| occurrence.id.as_str().ends_with(":claw1"))
+        .expect("strike occurrence");
+    let atlas_record::CreatureCapability::Strike(strike_activity) = &strike_activity.capability
+    else {
+        panic!("strike capability")
+    };
+    let strike_damage = strike_activity.damage.as_value().expect("strike damage");
     assert_eq!(
-        strike_activity.damage[0].damage_type.as_deref(),
+        strike_damage[0].formula.as_value().map(String::as_str),
+        Some("1d6+2")
+    );
+    assert_eq!(
+        strike_damage[0].damage_type.as_value().map(String::as_str),
         Some("slashing")
     );
-    assert_eq!(
-        strike_activity.damage[0].ability,
-        Some(ActivityRollAbility::Strength)
-    );
-    assert_eq!(strike_activity.usage, MechanicActivityUsage::Unlimited);
     assert_eq!(strike_activity.rolls.len(), 1);
-    assert_eq!(strike_activity.rolls[0].base_value, 12);
+    assert_eq!(strike_activity.rolls[0].value.as_value(), Some(&12));
+    assert_eq!(
+        strike_activity.rolls[0].ability.as_value(),
+        Some(&ActivityRollAbility::Strength)
+    );
 
     assert_eq!(facts.journal_pages.len(), 2);
     assert_eq!(facts.journal_pages[0].page_id.as_deref(), Some("page1"));

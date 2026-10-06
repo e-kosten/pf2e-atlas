@@ -6,7 +6,7 @@ use serde_json::Value;
 
 mod support;
 
-use support::db::{create_valid_artifact_database, ok_data};
+use support::db::{create_valid_artifact_database, ok_data, refresh_bound_test_manifest};
 
 #[test]
 fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::Error>> {
@@ -129,6 +129,10 @@ fn lists_create_add_show_remove_and_delete() -> Result<(), Box<dyn std::error::E
     );
     assert_eq!(show_data["items"][0]["record"]["name"], "Test Action 1");
     assert_eq!(show_data["items"][0]["record"]["kind"], "rule");
+    assert_eq!(
+        show_data["items"][0]["record"]["presentation_type"],
+        "unmigrated"
+    );
     assert!(show_data["items"][0]["record"].get("record_key").is_none());
 
     let ls_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -278,6 +282,7 @@ fn lists_show_preserves_unresolved_items_after_artifact_change()
         [],
     )?;
     drop(connection);
+    refresh_bound_test_manifest(&index_path)?;
 
     let show_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["lists", "show", "stale-research", "--index"])
@@ -358,6 +363,7 @@ fn lists_add_rejects_miss_and_ambiguity_without_inserting() -> Result<(), Box<dy
         [],
     )?;
     drop(connection);
+    refresh_bound_test_manifest(&index_path)?;
 
     let ambiguous_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -698,6 +704,7 @@ fn lists_json_setup_failures_return_domain_exit_without_extra_stderr()
     let connection = Connection::open(&hydration_index_path)?;
     connection.execute("DROP TABLE records", [])?;
     drop(connection);
+    refresh_bound_test_manifest(&hydration_index_path)?;
 
     let hydration_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["lists", "show", "broken-artifact", "--index"])

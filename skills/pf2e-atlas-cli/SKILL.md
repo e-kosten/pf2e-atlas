@@ -51,6 +51,15 @@ Use `record get` when you already have a canonical `pack:id` record key:
 atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail description
 ```
 
+Use `record provenance` only when you need the typed diagnostic trail for an
+exact canonical key. It reports source facts, occurrence identity, content
+ownership, edition lookup state, and exact references without exposing raw
+source JSON. Add `--json` for the standard machine-readable envelope:
+
+```bash
+atlas record provenance bestiary:Night-Hag --json
+```
+
 Use `record resolve` when you need one record from a strict name or verified alias. A verified alias is an alias already confirmed by the user, returned by a previous Atlas result, or known from canonical PF2E naming/remaster context; do not guess aliases just to make strict resolution pass:
 
 ```bash
@@ -73,10 +82,12 @@ atlas search "low level healing spell" --kind spell --detail preview
 atlas search --kind equipment --rarity uncommon --detail preview
 ```
 
-Translate clear structured constraints into filters instead of leaving them only in the text query. For example, "low-level" usually means `--max-level`, "level 3" means `--level 3`, "uncommon" means `--rarity uncommon`, "cheap" or a price ceiling means `--max-price`, and known traits should use `--trait` or `--any-trait`. Keep the remaining query text focused on the concept that cannot be expressed structurally:
+Translate clear structured constraints into filters instead of leaving them only in the text query. For example, spell rank uses `--spell-rank`, traditions use `--tradition`, exact authored spell ranges use `--spell-range-text`, "uncommon" means `--rarity uncommon`, "cheap" or a price ceiling means `--max-price`, and known traits should use `--trait` or `--any-trait`. Keep the remaining query text focused on the concept that cannot be expressed structurally:
 
 ```bash
-atlas search "healing spell" --kind spell --max-level 2 --detail preview --limit 8
+atlas search "healing spell" --kind spell --spell-rank 1 --tradition divine --detail preview --limit 8
+atlas search --kind spell --spell-save reflex --spell-basic-save true --spell-damage-type fire --limit 8
+atlas search --kind spell --spell-range-text "30 feet" --limit 8
 atlas search "protect an ally" --kind feat --trait champion --detail preview --limit 8
 ```
 
@@ -110,7 +121,46 @@ atlas similar "Dirge of Doom" --kind spell --json
 atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --explain
 ```
 
-For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when the descriptive text is needed to judge fit. After identifying likely records, use `--detail standard --json` when you need the normal structured record context. Use `--detail full --include-raw --json` only when raw source metadata is directly relevant.
+For early research, prefer human-readable output with `--detail preview` or `--detail description` instead of JSON. Preview is best for scanning candidate result sets; description is best when complete authored content without mechanics is needed to judge fit. Standard adds complete mechanics and a teaser. Full adds rich content plus concise source and edition context, while field-level and ownership diagnostics live under `record provenance`. Use `--include-raw` only when raw source is directly relevant; it is an independent JSON-only opt-in and does not require `--detail full`.
+
+Every record-bearing JSON result uses the same tagged `RecordJson`. Inspect
+`presentation_type` first. For `creature`, read direct typed fields:
+`defenses`, `perception`, `languages`, `skills`, `movement`, `resources`,
+`strikes`, `actions`, `spellcasting.entries`, and `spellcasting.spells`.
+Use the typed nested values directly: IWR amounts and exceptions live in
+`defenses`, skill notes and variants in `skills`, maximum and serialized
+provenance in `resources`, action costs and frequencies in activities, and
+rank, location, use, slot, and parent-entry context in spellcasting. Do not
+treat labels as typed identity or infer missing parent relationships from
+prose.
+For `spell`, read typed classification, casting, targeting, defense, damage,
+duration, heightening, ritual, forms, and content directly. `targeting.range`
+retains the original authored text; numeric `--spell-range-feet` is a bounded
+filter-only derivative and is never an ordinary display value. Form `id`
+values are opaque: use the backend-provided label/order and the typed
+available or unavailable result instead of parsing the identifier. Source,
+image, license, unsupported-value, and exact source-context evidence belongs
+under `record provenance`, not ordinary spell presentation.
+`supplementary_sections` carries rich prose and relationships, not duplicate
+creature mechanics. For `hazard`, read the typed `sections` produced from the
+canonical hazard body; they preserve authored lifecycle and action content and
+derive detection DC and broken threshold only through the guarded hazard
+projection. Missing, null, and unsupported hazard facts appear in
+`availability`, while exact source, occurrence, content-owner, license, and
+unsupported-value evidence is available through `record provenance`. Never
+infer a trigger or other mechanic from prose. Families other than creature,
+hazard, and spell may
+temporarily report `presentation_type: "unmigrated"` with an explicit
+`migration.plan_id`; use their `sections` only until that named family-specific
+contract lands.
+
+Check field presence before reading detail-dependent entity data. `summary`
+and `description` omit creature mechanics fields, and `preview` omits activity
+`rolls`, `damage`, and `modes`. Empty objects or arrays are meaningful only
+when their section is included at the requested detail and is intentionally
+known to have no members; they are not placeholders for omitted hydration.
+Source-missing facts are omitted even when the requested detail includes the
+surrounding creature scan surface.
 
 Use one Atlas process for a batch when you have multiple exact keys or strict names. `record get` accepts multiple canonical keys, and `record resolve` accepts multiple strict names or verified aliases:
 
@@ -199,7 +249,7 @@ Filter discovery defaults to human-readable output for scanning. Add `--json` wh
 
 The Rust query model is based on record kinds, metadata fields, traits, references, metrics, and canonical filter JSON. Use discovered field ids and values with `atlas search`, `atlas record resolve`, or `--filter-json`.
 
-Prefer convenience filters when they express the query clearly: `--kind`, `--pack-name`, `--pack-label`, `--rarity`, `--publication-title`, `--level`, `--min-level`, `--max-level`, `--price`, `--min-price`, `--max-price`, `--trait`, `--any-trait`, `--references`, `--referenced-by`, and `--metric`. Use `--filter-json` for canonical filter trees that cannot be expressed cleanly with convenience flags, and do not combine `--filter-json` with convenience filters in the same command.
+Prefer convenience filters when they express the query clearly: `--kind`, `--pack-name`, `--pack-label`, `--rarity`, `--publication-title`, `--level`, `--min-level`, `--max-level`, `--price`, `--min-price`, `--max-price`, `--trait`, `--any-trait`, `--references`, `--referenced-by`, `--metric`, `--spell-rank`, `--tradition`, `--spell-range-text`, `--spell-target`, `--spell-area`, `--spell-save`, `--spell-sustained`, `--spell-basic-save`, `--spell-damage-type`, and `--spell-range-feet`. Spell range text is exact authored text. The numeric feet flag is the named bounded query derivative; do not use it as a substitute for authored display text. Use `--filter-json` for canonical filter trees that cannot be expressed cleanly with convenience flags, and do not combine `--filter-json` with convenience filters in the same command.
 
 Discover metric keys before constructing metric predicates unless the exact key is already known. Prefer `--metric-query` for natural metric terms like "save", "armor", "speed", "perception", or "hp"; use `--metric-label`, `--metric-prefix`, or `--metric` when you already know the label, prefix, or key:
 

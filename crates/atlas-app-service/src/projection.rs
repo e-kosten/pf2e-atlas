@@ -1,13 +1,12 @@
 use atlas_app_model::{
-    RecordBadgeView, RecordDetailView, RecordSummaryView, RecordSurfaceProfileView,
-    ResultMatchSummary, SearchPageView,
+    RecordDetailView, RecordSummaryView, RecordSurfaceProfileView, ResultMatchSummary,
+    SearchPageView,
 };
-use atlas_domain::RecordKind;
-use atlas_record::{AtlasRecord, build_record_presentation_document};
+use atlas_record::RetrievedRecord;
 use atlas_search::SearchPageInfo;
 
 use crate::AppServiceResult;
-use crate::surfaces::record_surface;
+use crate::retrieval::VerifiedRemasterLookup;
 
 pub(crate) fn search_page_view(page: SearchPageInfo) -> SearchPageView {
     SearchPageView {
@@ -20,56 +19,34 @@ pub(crate) fn search_page_view(page: SearchPageInfo) -> SearchPageView {
     }
 }
 
-pub(crate) fn record_summary(record: &AtlasRecord) -> RecordSummaryView {
+pub(crate) fn record_summary(
+    record: &RetrievedRecord,
+    remaster_lookup: &VerifiedRemasterLookup,
+) -> RecordSummaryView {
     RecordSummaryView {
-        record_key: record.identity.key.to_string(),
-        title: record.identity.name.clone(),
-        kind: record.classification.kind.as_str().to_string(),
-        kind_label: kind_label(record.classification.kind.as_str()),
-        level_label: record.classification.level.map(|level| level.to_string()),
-        rarity: record
-            .classification
-            .rarity
-            .as_ref()
-            .map(|rarity| rarity.as_str().to_string()),
-        traits: record
-            .classification
-            .traits
-            .iter()
-            .map(|value| RecordBadgeView {
-                kind: "trait".to_string(),
-                label: value.clone(),
-                value: value.clone(),
-            })
-            .collect(),
-        taxonomy: record
-            .classification
-            .taxonomy
-            .inferred_groups
-            .iter()
-            .map(|value| RecordBadgeView {
-                kind: "taxonomy".to_string(),
-                label: value.clone(),
-                value: value.clone(),
-            })
-            .collect(),
-        publication: record.publication.title.clone(),
-        pack: Some(record.foundry.pack_label.clone()),
-        preview: None,
-        surface: None,
+        surface: crate::surface::record_surface(
+            record,
+            RecordSurfaceProfileView::SearchCompact,
+            None,
+            None,
+            remaster_lookup,
+        ),
     }
 }
 
-pub(crate) fn record_detail(record: &AtlasRecord) -> AppServiceResult<RecordDetailView> {
-    let presentation = build_record_presentation_document(record);
-    let surface = (record.classification.kind == RecordKind::Creature)
-        .then(|| record_surface(record, RecordSurfaceProfileView::RecordDetail));
+pub(crate) fn record_detail(
+    record: &RetrievedRecord,
+    spell_selection: Option<(atlas_record::SpellFormId, u8)>,
+    remaster_lookup: &VerifiedRemasterLookup,
+) -> AppServiceResult<RecordDetailView> {
     Ok(RecordDetailView {
-        record_key: record.identity.key.to_string(),
-        title: record.identity.name.clone(),
-        kind: record.classification.kind.as_str().to_string(),
-        presentation,
-        surface,
+        surface: crate::surface::record_surface(
+            record,
+            RecordSurfaceProfileView::RecordDetail,
+            None,
+            spell_selection,
+            remaster_lookup,
+        ),
     })
 }
 

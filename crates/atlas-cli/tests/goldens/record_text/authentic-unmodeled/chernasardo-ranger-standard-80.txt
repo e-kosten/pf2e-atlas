@@ -1,0 +1,73 @@
+Chernasardo Ranger
+  Type: creature · Pack: Claws of the Tyrant
+  Key: claws-of-the-tyrant-bestiary:0mllbU5aBEcVUj3E
+
+Classification
+  Level: 7
+  Rarity: uncommon
+  Traits: humanoid
+  Size: med
+  Source: Pathfinder Claws of the Tyrant
+
+Defenses
+  AC: 25
+  HP: current 115; maximum 115; temporary 0
+  Fortitude: 15
+  Reflex: 18
+  Will: 13
+
+Awareness and abilities
+  Perception: +18
+  Initiative: perception
+  Languages: common
+  Abilities: Str +3, Dex +6, Con +2, Int +3, Wis +4, Cha +2
+  Acrobatics: +13
+  Athletics: +12
+  Medicine: +15
+  Nature: +16
+  Stealth: +17
+  Survival: +17
+  Forest Lore: +13
+
+Movement
+  land: 25 feet
+
+Strikes
+  - Dagger — [1 action]
+    Traits: agile, finesse, versatile-s
+    Attack: attack +18
+    Damage: 1d4+9 piercing
+  - Shortsword — [1 action]
+    Traits: agile, finesse, magical, versatile-s
+    Attack: attack +19
+    Damage: 1d6+10 piercing
+  - Shortbow — [1 action]
+    Traits: deadly-d8, propulsive, range-increment-60, reload-0
+    Attack: attack +18
+    Damage: 1d6+9 piercing
+
+Activities
+  - Double Shot — [1 action]
+    Category: offensive
+  - Quick Draw — [1 action]
+    Category: offensive
+
+Equipment
+  - Snare Kit (Specialist)
+    Level: 3
+    Usage: held-in-one-hand
+    Quantity: 1
+
+Lore
+  - Forest Lore — +13
+
+Data availability
+  Unmodeled skill entry
+    Key: acrobatics+13
+    The source supplied an unrecognized skill key.
+  Unsupported capability
+    Key: consumable
+    The source supplied an unsupported creature capability.
+  Unsupported capability
+    Key: weapon
+    The source supplied an unsupported creature capability.

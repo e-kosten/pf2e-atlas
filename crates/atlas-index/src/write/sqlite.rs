@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
-use crate::{IndexArtifactWriter, IndexBuildInput};
+use crate::{ArtifactPublicationReceipt, IndexArtifactWriter, IndexBuildInput};
 use atlas_embedding::EmbeddingModelId;
+use diesel::connection::SimpleConnection;
 use diesel::{Connection, SqliteConnection};
 use tracing::info;
 
@@ -18,6 +20,7 @@ mod relationships;
 mod schema;
 mod vector_index;
 
+use canonical::write_canonical_records;
 use discovery_catalogs::write_discovery_catalogs;
 use embeddings::write_document_embedding_cache;
 use metadata::write_artifact_metadata;
@@ -36,11 +39,22 @@ const INSERT_BATCH_ROWS: usize = 16;
 
 pub struct SqliteIndexWriter {
     path: PathBuf,
+    publication_target: PathBuf,
 }
 
 impl SqliteIndexWriter {
     pub fn new(path: PathBuf) -> Self {
-        Self { path }
+        Self {
+            publication_target: path.clone(),
+            path,
+        }
+    }
+
+    pub fn new_for_publication(path: PathBuf, publication_target: PathBuf) -> Self {
+        Self {
+            path,
+            publication_target,
+        }
     }
 }
 
@@ -57,16 +71,18 @@ impl IndexArtifactWriter for SqliteIndexWriter {
         &self,
         input: &IndexBuildInput,
         embedding_model: EmbeddingModelId,
-    ) -> Result<(), IndexWriteError> {
-        write_artifact(&self.path, input, embedding_model)
+    ) -> Result<ArtifactPublicationReceipt, IndexWriteError> {
+        write_artifact(&self.path, &self.publication_target, input, embedding_model)
     }
 }
 
 fn write_artifact(
     path: &Path,
+    publication_target: &Path,
     input: &IndexBuildInput,
     embedding_model: EmbeddingModelId,
-) -> Result<(), IndexWriteError> {
+) -> Result<ArtifactPublicationReceipt, IndexWriteError> {
+    let write_started = Instant::now();
     artifact_progress("artifact_write", "Preparing artifact output");
     info!(output = %path.display(), "preparing artifact output");
     let output = ArtifactOutput::prepare(path)?;
@@ -79,7 +95,13 @@ fn write_artifact(
     let database_url = sqlite_database_url(output.temp_path())?;
     let mut connection = SqliteConnection::establish(&database_url)
         .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))?;
+    enable_writer_foreign_keys(&mut connection)?;
     connection.transaction::<_, IndexWriteError, _>(|connection| {
+        let canonical_record_keys = input
+            .canonical_bodies
+            .iter()
+            .map(|body| body.record_key().to_string())
+            .collect::<std::collections::BTreeSet<_>>();
         artifact_progress("artifact_write", "Creating artifact schema");
         info!("creating artifact schema");
         schema::create_artifact_schema(connection)?;
@@ -103,6 +125,15 @@ fn write_artifact(
             &input.records,
             &input.aliases,
             &input.remaster_links,
+            &input.canonical_bodies,
+            &canonical_record_keys,
+        )?;
+        artifact_progress("artifact_write", "Writing canonical record artifact");
+        write_canonical_records(
+            connection,
+            &input.records,
+            &input.canonical_bodies,
+            &input.canonical_spell_children,
         )?;
         artifact_progress("artifact_write", "Writing reference edges");
         info!(
@@ -115,7 +146,7 @@ fn write_artifact(
             records = input.records.len(),
             "writing reference occurrences"
         );
-        write_reference_occurrences(connection, &input.records)?;
+        write_reference_occurrences(connection, &input.records, &canonical_record_keys)?;
         artifact_progress("artifact_write", "Writing record aliases");
         info!(aliases = input.aliases.len(), "writing record aliases");
         write_record_aliases(connection, &input.aliases)?;
@@ -151,9 +182,23 @@ fn write_artifact(
     })?;
     drop(connection);
 
-    artifact_progress("artifact_write", "Publishing artifact");
-    info!("publishing artifact");
-    output.commit()
+    artifact_progress("artifact_write", "Sealing candidate artifact");
+    output.commit()?;
+    let write_ms = write_started.elapsed().as_millis();
+    artifact_progress("artifact_write", "Validating complete candidate artifact");
+    match ArtifactPublicationReceipt::issue(path, publication_target, write_ms) {
+        Ok(receipt) => Ok(receipt),
+        Err(error) => {
+            let _ = output::remove_sqlite_files(path);
+            Err(error)
+        }
+    }
+}
+
+fn enable_writer_foreign_keys(connection: &mut SqliteConnection) -> Result<(), IndexWriteError> {
+    connection
+        .batch_execute("PRAGMA foreign_keys = ON")
+        .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
 }
 
 fn artifact_progress(phase: &'static str, message: &'static str) {
@@ -163,6 +208,7 @@ fn artifact_progress(phase: &'static str, message: &'static str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use diesel::Connection as _;
     use std::collections::BTreeMap;
     use std::ffi::OsString;
     use std::fs;
@@ -174,20 +220,215 @@ mod tests {
     };
     use atlas_embedding::EmbeddingModelId;
     use atlas_record::{
-        ActivationTimeSourceField, AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility,
-        DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo,
-        FoundryRecordType, ItemMechanics, ItemTypeMechanics, MetricRow, MetricValue,
+        ActivationTimeSourceField, ActorMechanics, AliasSource, AtlasRecord, ContentSourceKind,
+        ContentVisibility, DurationTimeSourceField, FoundryDocumentMechanics, FoundryDocumentType,
+        FoundryRecordInfo, FoundryRecordType, ItemMechanics, MetricRow, MetricValue,
         NormalizedTime, RecordActivationTiming, RecordAlias, RecordClassification, RecordContent,
         RecordContentDocument, RecordDurationTiming, RecordIdentity, RecordMechanics,
         RecordProvenance, RecordPublication, RecordRequirements, RecordTaxonomy, RecordTiming,
         RecordVariantMembership, RecordVisibility, RecordVisibilityReason, ReferenceEdge,
-        RemasterLink, RichDocument, RichNode, SpellArea, SpellDefense, SpellMechanics, SpellRange,
-        SpellTarget, VariantSource,
+        RemasterLink, RichDocument, RichNode, VariantSource,
     };
     use rusqlite::Connection;
 
     use crate::{IndexBuildPack, ValidationStatus};
     use output::{move_existing_sqlite_files, remove_sqlite_files, sqlite_paths};
+
+    #[test]
+    fn writer_connection_enforces_foreign_keys_before_transactions() {
+        let mut connection = SqliteConnection::establish(":memory:").unwrap();
+        enable_writer_foreign_keys(&mut connection).unwrap();
+        connection
+            .batch_execute(
+                "CREATE TABLE parent(id INTEGER PRIMARY KEY);\
+                 CREATE TABLE child(parent_id INTEGER NOT NULL REFERENCES parent(id));",
+            )
+            .unwrap();
+
+        let error = connection
+            .transaction::<_, IndexWriteError, _>(|connection| {
+                connection
+                    .batch_execute("INSERT INTO child(parent_id) VALUES (99)")
+                    .map_err(|error| IndexWriteError::WriteFailed(error.to_string()))
+            })
+            .expect_err("foreign-key violations must abort the writer transaction");
+
+        assert!(error.to_string().contains("FOREIGN KEY constraint failed"));
+    }
+
+    #[test]
+    fn writer_rejects_creature_generic_document_mechanics() {
+        let target_path = unique_temp_path("creature-generic-mechanics.sqlite");
+        let pack_name = PackName::new("bestiary").expect("pack parses");
+        let mut record = fixture_record(&pack_name, "testCreature", "Test Creature");
+        record.classification.kind = RecordKind::Creature;
+        record.foundry.document_type = FoundryDocumentType::Actor;
+        record.foundry.record_type = FoundryRecordType::Npc;
+        record.mechanics.document = FoundryDocumentMechanics::Actor(ActorMechanics::default());
+
+        let error = write_fixture_records(&target_path, vec![record], Vec::new())
+            .expect_err("creature generic mechanics must fail closed");
+
+        assert!(
+            error
+                .to_string()
+                .contains("retains forbidden generic document mechanics")
+        );
+    }
+
+    #[test]
+    fn writer_rejects_creature_generic_metrics() {
+        let target_path = unique_temp_path("creature-generic-metrics.sqlite");
+        let pack_name = PackName::new("bestiary").expect("pack parses");
+        let mut record = fixture_record(&pack_name, "testCreature", "Test Creature");
+        record.classification.kind = RecordKind::Creature;
+        record.foundry.document_type = FoundryDocumentType::Actor;
+        record.foundry.record_type = FoundryRecordType::Npc;
+        record.mechanics.document = FoundryDocumentMechanics::None;
+
+        let error = write_fixture_records(&target_path, vec![record], Vec::new())
+            .expect_err("creature generic metrics must fail closed");
+
+        assert!(
+            error
+                .to_string()
+                .contains("retains forbidden generic metrics")
+        );
+    }
+
+    #[test]
+    fn writer_derives_creature_metrics_from_the_matching_canonical_body()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let target_path = unique_temp_path("canonical-creature-metrics.sqlite");
+        let pack_name = PackName::new("bestiary")?;
+        let mut record = fixture_record(&pack_name, "testCreature", "Test Creature");
+        record.classification.kind = RecordKind::Creature;
+        record.classification.level = None;
+        record.classification.rarity = None;
+        record.classification.traits.clear();
+        record.foundry.document_type = FoundryDocumentType::Actor;
+        record.foundry.record_type = FoundryRecordType::Npc;
+        record.mechanics = RecordMechanics::default();
+        let body = fixture_creature_body(&record, 22, 80, 15);
+
+        write_fixture_records_with_canonical_bodies(
+            &target_path,
+            vec![record],
+            vec![body],
+            Vec::new(),
+        )?;
+
+        let connection = Connection::open(&target_path)?;
+        let mut statement = connection.prepare(
+            "SELECT metric_key,number_value FROM record_metrics
+             WHERE record_key='bestiary:testCreature' ORDER BY ordinal",
+        )?;
+        let actual = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(
+            actual,
+            vec![
+                ("perception.mod".to_string(), 15.0),
+                ("ac.value".to_string(), 22.0),
+                ("hp.value".to_string(), 80.0),
+                ("hp.max".to_string(), 80.0),
+            ]
+        );
+        let summary: (i64, String) = connection.query_row(
+            "SELECT metric_count,metric_order_sha256 FROM records
+             WHERE record_key='bestiary:testCreature'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let atlas_record::RecordBody::Creature(creature) = fixture_creature_body(
+            &fixture_record(&pack_name, "testCreature", "Test Creature"),
+            22,
+            80,
+            15,
+        ) else {
+            panic!("creature body")
+        };
+        let projected = atlas_record::project_creature_facts(&creature).metrics;
+        assert_eq!(summary.0, i64::try_from(projected.len())?);
+        assert_eq!(
+            summary.1,
+            crate::read::records::children::metric_order_digest(&projected)?
+        );
+        drop(statement);
+        drop(connection);
+        let _ = fs::remove_file(&target_path);
+        Ok(())
+    }
+
+    #[test]
+    fn writer_preserves_non_creature_generic_metrics() -> Result<(), Box<dyn std::error::Error>> {
+        let target_path = unique_temp_path("non-creature-generic-metrics.sqlite");
+        let pack_name = PackName::new("actions")?;
+        let record = fixture_record(&pack_name, "testAction", "Test Action");
+
+        write_fixture_records(&target_path, vec![record], Vec::new())?;
+
+        let connection = Connection::open(&target_path)?;
+        let actual: Vec<(String, f64)> = {
+            let mut statement = connection.prepare(
+                "SELECT metric_key,number_value FROM record_metrics
+                 WHERE record_key='actions:testAction' ORDER BY ordinal",
+            )?;
+            statement
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        assert_eq!(
+            actual,
+            vec![
+                ("level.value".to_string(), 1.0),
+                ("rank.value".to_string(), 2.0),
+            ]
+        );
+        drop(connection);
+        let _ = fs::remove_file(&target_path);
+        Ok(())
+    }
+
+    #[test]
+    fn writer_rejects_missing_or_unexpected_canonical_creature_bodies() {
+        let pack_name = PackName::new("bestiary").expect("pack parses");
+        let mut creature = fixture_record(&pack_name, "testCreature", "Test Creature");
+        creature.classification.kind = RecordKind::Creature;
+        creature.foundry.document_type = FoundryDocumentType::Actor;
+        creature.foundry.record_type = FoundryRecordType::Npc;
+        creature.mechanics = RecordMechanics::default();
+        let missing_path = unique_temp_path("missing-canonical-creature.sqlite");
+        let missing = write_fixture_records(&missing_path, vec![creature.clone()], Vec::new())
+            .expect_err("a creature must have a matching canonical body");
+        assert!(
+            missing
+                .to_string()
+                .contains("is missing its required canonical body")
+        );
+
+        let mut non_creature = creature.clone();
+        non_creature.classification.kind = RecordKind::Rule;
+        non_creature.foundry.document_type = FoundryDocumentType::Item;
+        non_creature.foundry.record_type = FoundryRecordType::Action;
+        let body = fixture_creature_body(&creature, 22, 80, 15);
+        let unexpected_path = unique_temp_path("unexpected-canonical-creature.sqlite");
+        let unexpected = write_fixture_records_with_canonical_bodies(
+            &unexpected_path,
+            vec![non_creature],
+            vec![body],
+            Vec::new(),
+        )
+        .expect_err("a non-creature must not have a canonical creature body");
+        assert!(
+            unexpected
+                .to_string()
+                .contains("has an unexpected canonical body")
+        );
+    }
 
     #[test]
     fn writes_valid_artifact_through_diesel_writer() -> Result<(), Box<dyn std::error::Error>> {
@@ -247,6 +488,8 @@ mod tests {
                 record_count: records_len,
             }],
             records,
+            canonical_bodies: Vec::new(),
+            canonical_spell_children: Vec::new(),
             references,
             aliases,
             remaster_links,
@@ -257,7 +500,7 @@ mod tests {
         SqliteIndexWriter::new(target_path.clone())
             .write(&input, EmbeddingModelId::BgeSmallEnV15)
             .expect("writer should produce a valid artifact");
-        let reader = crate::SqliteIndexReader::open_read_only(&target_path)?;
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?;
         let validation = reader.validate()?;
         assert_eq!(validation.status, ValidationStatus::Ok, "{validation:?}");
         let record_set = reader.load_record_set()?;
@@ -299,6 +542,13 @@ mod tests {
             loaded.provenance.raw_json.as_deref(),
             Some(r#"{"fixture":true}"#)
         );
+        assert!(loaded.visibility.visible_by_default());
+        assert_eq!(
+            loaded.visibility.reason(),
+            RecordVisibilityReason::SourceRecord
+        );
+        assert_eq!(loaded.mechanics.metrics[0].key, "level.value");
+        assert_eq!(loaded.mechanics.metrics[1].key, "rank.value");
         assert!(loaded.content.description().is_some());
         assert!(loaded.content.blurb().is_some());
         assert!(
@@ -314,27 +564,47 @@ mod tests {
             .expect("item mechanics should round trip");
         assert_eq!(item.price_json.as_deref(), Some(r#"{"gp":1}"#));
         assert_eq!(item.price_cp, Some(100));
-        let spell = loaded
-            .mechanics
-            .spell()
-            .expect("spell mechanics should round trip");
-        assert_eq!(spell.traditions, vec!["arcane"]);
-        assert_eq!(spell.kinds, vec!["spell"]);
-        assert_eq!(
-            spell.range.as_ref().map(|range| range.text.as_str()),
-            Some("30 feet")
-        );
-        assert_eq!(
-            spell.target.as_ref().map(|target| target.text.as_str()),
-            Some("1 creature")
-        );
-        assert_eq!(
-            spell.area.as_ref().and_then(|area| area.kind.as_deref()),
-            Some("burst")
-        );
-        assert!(spell.defense.as_ref().is_some_and(|defense| defense.basic));
-
         let connection = Connection::open(&target_path)?;
+        let independent_visibility: (String, String, String, String, String, i64) = connection
+            .query_row(
+                "SELECT visibility_state,visibility_reason,record_role,retrieval_disposition,
+                        retrieval_rationale,is_default_visible
+                 FROM records WHERE record_key='actions:testAction00'",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                    ))
+                },
+            )?;
+        assert_eq!(
+            independent_visibility,
+            (
+                "visible".to_string(),
+                "source_record".to_string(),
+                "source".to_string(),
+                "direct_only".to_string(),
+                "canonical_edition_duplicate".to_string(),
+                0,
+            )
+        );
+        let duplicate_metric_ordinal = connection.execute(
+            "INSERT INTO record_metrics (
+                 record_key,ordinal,metric_domain,metric_key,value_type,number_value
+             ) VALUES ('actions:testAction00',0,'item','duplicate.metric','number',1)",
+            [],
+        );
+        assert!(
+            duplicate_metric_ordinal
+                .expect_err("duplicate metric ordinal must be rejected")
+                .to_string()
+                .contains("record_metrics.record_key, record_metrics.ordinal")
+        );
         let metric_count: i64 = connection.query_row(
             "SELECT COUNT(*) FROM metric_key_catalog WHERE metric_key = 'level.value'",
             [],
@@ -359,6 +629,258 @@ mod tests {
     }
 
     #[test]
+    fn visibility_and_retrieval_policy_round_trip_independently_with_exact_170_regression()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let target_path = unique_temp_path("visibility-policy-170.sqlite");
+        let pack_name = PackName::new("actions")?;
+        let mut records = Vec::new();
+        for index in 0..150 {
+            let mut record = fixture_record(
+                &pack_name,
+                &format!("tooling{index:03}"),
+                &format!("Tooling {index:03}"),
+            );
+            record.classification.kind = RecordKind::Tooling;
+            records.push(record);
+        }
+        let mut remaster_links = Vec::new();
+        for index in 0..20 {
+            let legacy = fixture_record(
+                &pack_name,
+                &format!("legacy{index:03}"),
+                &format!("Legacy {index:03}"),
+            );
+            let remaster = fixture_record(
+                &pack_name,
+                &format!("remaster{index:03}"),
+                &format!("Remaster {index:03}"),
+            );
+            remaster_links.push(RemasterLink {
+                remaster_record_key: remaster.identity.key.clone(),
+                legacy_record_key: legacy.identity.key.clone(),
+                source: atlas_domain::RemasterLinkSource::Migration,
+                source_ref: "focused exact-170 fixture".to_string(),
+            });
+            records.extend([legacy, remaster]);
+        }
+        write_fixture_records(&target_path, records, remaster_links)?;
+
+        let connection = Connection::open(&target_path)?;
+        let visible_source_but_not_default: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM records WHERE visibility_state='visible' AND visibility_reason='source_record' AND is_default_visible=0",
+            [],
+            |row| row.get(0),
+        )?;
+        let inspection_only: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM records WHERE retrieval_disposition='inspection_only' AND retrieval_rationale='tooling_no_addressable_product_meaning'",
+            [],
+            |row| row.get(0),
+        )?;
+        let direct_only: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM records WHERE retrieval_disposition='direct_only' AND retrieval_rationale='canonical_edition_duplicate'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(visible_source_but_not_default, 170);
+        assert_eq!(inspection_only, 150);
+        assert_eq!(direct_only, 20);
+        drop(connection);
+
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&target_path)?;
+        let full = reader.load_record_set()?.records;
+        assert_eq!(full.len(), 190);
+        assert_eq!(
+            full.iter()
+                .filter(|record| record.visibility.visible_by_default()
+                    && record.visibility.reason() == RecordVisibilityReason::SourceRecord)
+                .count(),
+            190
+        );
+        let non_default_keys = full
+            .iter()
+            .filter(|record| {
+                record.classification.kind == RecordKind::Tooling
+                    || record.identity.id().as_str().starts_with("legacy")
+            })
+            .map(|record| record.identity.key.clone())
+            .collect::<Vec<_>>();
+        let by_key = reader.load_records_by_key(&non_default_keys)?;
+        assert_eq!(by_key.len(), 170);
+        assert!(by_key.iter().all(|record| {
+            record.visibility.visible_by_default()
+                && record.visibility.reason() == RecordVisibilityReason::SourceRecord
+        }));
+        let validation = reader.validate()?;
+        assert_eq!(validation.status, ValidationStatus::Ok, "{validation:?}");
+
+        let _ = fs::remove_file(&target_path);
+        Ok(())
+    }
+
+    #[test]
+    fn visibility_and_retrieval_policy_mutations_have_typed_independent_diagnostics()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let base_path = unique_temp_path("visibility-policy-mutation-base.sqlite");
+        let pack_name = PackName::new("actions")?;
+        write_fixture_records(
+            &base_path,
+            vec![fixture_record(&pack_name, "testAction00", "Test Action 00")],
+            Vec::new(),
+        )?;
+
+        for (name, sql, expected_key) in [
+            (
+                "unknown-visibility-state",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET visibility_state='unknown'",
+                "records.visibility_state",
+            ),
+            (
+                "unknown-visibility-reason",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET visibility_reason='unknown'",
+                "records.visibility_reason",
+            ),
+            (
+                "unknown-record-role",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET record_role='unknown'",
+                "records.record_role",
+            ),
+            (
+                "unknown-retrieval-disposition",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET retrieval_disposition='unknown'",
+                "records.retrieval_disposition",
+            ),
+            (
+                "unknown-retrieval-rationale",
+                "PRAGMA ignore_check_constraints=ON; UPDATE records SET retrieval_rationale='unknown'",
+                "records.retrieval_rationale",
+            ),
+            (
+                "impossible-policy-tuple",
+                "UPDATE records SET record_role='source',retrieval_disposition='direct_only',retrieval_rationale='source_record',is_default_visible=0; DELETE FROM records_fts",
+                "records.retrieval_policy_tuple",
+            ),
+            (
+                "derived-boolean-divergence",
+                "UPDATE records SET is_default_visible=0",
+                "records.retrieval_policy",
+            ),
+            (
+                "visibility-policy-cross-contract",
+                "UPDATE records SET visibility_reason='generated_canonical'",
+                "records.visibility_role_coherence",
+            ),
+        ] {
+            assert_data_mutation_rejected(&base_path, name, sql, expected_key)?;
+        }
+
+        let visibility_path = unique_temp_path("visibility-only-mutation.sqlite");
+        fs::copy(&base_path, &visibility_path)?;
+        let connection = Connection::open(&visibility_path)?;
+        connection.execute("UPDATE records SET visibility_state='hidden'", [])?;
+        drop(connection);
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&visibility_path)?;
+        let record = reader
+            .load_records_by_key(&[RecordKey::parse("actions:testAction00")?])?
+            .pop()
+            .expect("visibility-only fixture hydrates");
+        assert!(!record.visibility.visible_by_default());
+        let connection = Connection::open(&visibility_path)?;
+        let policy: (String, String, String, i64) = connection.query_row(
+            "SELECT record_role,retrieval_disposition,retrieval_rationale,is_default_visible FROM records",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
+        assert_eq!(
+            policy,
+            (
+                "source".to_string(),
+                "ordinary".to_string(),
+                "source_record".to_string(),
+                1,
+            )
+        );
+        drop(connection);
+        assert_eq!(reader.validate()?.status, ValidationStatus::Ok);
+
+        let policy_path = unique_temp_path("policy-only-mutation.sqlite");
+        fs::copy(&base_path, &policy_path)?;
+        let connection = Connection::open(&policy_path)?;
+        connection.execute_batch(
+            "UPDATE records SET retrieval_disposition='inspection_only',retrieval_rationale='tooling_no_addressable_product_meaning',is_default_visible=0; DELETE FROM records_fts",
+        )?;
+        drop(connection);
+        let reader = crate::SqliteIndexReader::open_unpublished_read_only(&policy_path)?;
+        let record = reader
+            .load_records_by_key(&[RecordKey::parse("actions:testAction00")?])?
+            .pop()
+            .expect("policy-only fixture hydrates");
+        assert!(record.visibility.visible_by_default());
+        assert_eq!(
+            record.visibility.reason(),
+            RecordVisibilityReason::SourceRecord
+        );
+        let connection = Connection::open(&policy_path)?;
+        let policy: (String, String, String, i64) = connection.query_row(
+            "SELECT record_role,retrieval_disposition,retrieval_rationale,is_default_visible FROM records",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
+        assert_eq!(
+            policy,
+            (
+                "source".to_string(),
+                "inspection_only".to_string(),
+                "tooling_no_addressable_product_meaning".to_string(),
+                0,
+            )
+        );
+        drop(connection);
+        let report = reader.validate()?;
+        assert_eq!(report.status, ValidationStatus::Error, "{report:?}");
+        assert_eq!(
+            report.code,
+            crate::ValidationCode::ArtifactContractViolation,
+            "{report:?}"
+        );
+        for expected_key in [
+            "metric_key_catalog.stale_keys",
+            "filter_field_catalog.stale_rows",
+        ] {
+            assert!(
+                report
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.key.as_deref() == Some(expected_key)),
+                "expected catalog diagnostic `{expected_key}`, got {report:?}"
+            );
+        }
+        let visibility_policy_keys = [
+            "records.visibility_state",
+            "records.visibility_reason",
+            "records.record_role",
+            "records.retrieval_disposition",
+            "records.retrieval_rationale",
+            "records.retrieval_policy",
+            "records.retrieval_policy_tuple",
+            "records.visibility_role_coherence",
+        ];
+        assert!(
+            report.diagnostics.iter().all(|diagnostic| {
+                diagnostic
+                    .key
+                    .as_deref()
+                    .is_none_or(|key| !visibility_policy_keys.contains(&key))
+            }),
+            "policy-only mutation must not produce a visibility/policy diagnostic: {report:?}"
+        );
+
+        let _ = fs::remove_file(base_path);
+        let _ = fs::remove_file(visibility_path);
+        let _ = fs::remove_file(policy_path);
+        Ok(())
+    }
+
+    #[test]
     fn failed_artifact_write_preserves_existing_target_and_cleans_temp()
     -> Result<(), Box<dyn std::error::Error>> {
         let target_path = unique_temp_path("failed-artifact-write.sqlite");
@@ -368,6 +890,8 @@ mod tests {
             source_record_count: 1,
             packs: Vec::new(),
             records: Vec::new(),
+            canonical_bodies: Vec::new(),
+            canonical_spell_children: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -375,8 +899,13 @@ mod tests {
             document_embeddings: Vec::new(),
         };
 
-        let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)
-            .expect_err("invalid input should fail before publish");
+        let error = write_artifact(
+            &target_path,
+            &target_path,
+            &input,
+            EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("invalid input should fail before publish");
 
         assert!(matches!(error, IndexWriteError::InvalidInput(_)));
         assert_eq!(fs::read(&target_path)?, b"existing artifact");
@@ -409,6 +938,8 @@ mod tests {
             source_record_count: 0,
             packs: Vec::new(),
             records: Vec::new(),
+            canonical_bodies: Vec::new(),
+            canonical_spell_children: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -416,8 +947,13 @@ mod tests {
             document_embeddings: Vec::new(),
         };
 
-        let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)
-            .expect_err("non-UTF-8 database path should be rejected");
+        let error = write_artifact(
+            &target_path,
+            &target_path,
+            &input,
+            EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("non-UTF-8 database path should be rejected");
 
         assert!(matches!(error, IndexWriteError::WriteFailed(_)));
         assert!(error.to_string().contains("not valid UTF-8"));
@@ -443,6 +979,8 @@ mod tests {
                 record_count: 0,
             }],
             records: Vec::new(),
+            canonical_bodies: Vec::new(),
+            canonical_spell_children: Vec::new(),
             references: Vec::new(),
             aliases: Vec::new(),
             remaster_links: Vec::new(),
@@ -450,8 +988,13 @@ mod tests {
             document_embeddings: Vec::new(),
         };
 
-        let error = write_artifact(&target_path, &input, EmbeddingModelId::BgeSmallEnV15)
-            .expect_err("non-UTF-8 pack path should be rejected");
+        let error = write_artifact(
+            &target_path,
+            &target_path,
+            &input,
+            EmbeddingModelId::BgeSmallEnV15,
+        )
+        .expect_err("non-UTF-8 pack path should be rejected");
 
         assert!(matches!(error, IndexWriteError::WriteFailed(_)));
         assert!(error.to_string().contains("pack resolved path"));
@@ -492,6 +1035,173 @@ mod tests {
             "atlas-index-{name}-{}-{timestamp}",
             std::process::id()
         ))
+    }
+
+    fn write_fixture_records(
+        target_path: &Path,
+        records: Vec<AtlasRecord>,
+        remaster_links: Vec<RemasterLink>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        write_fixture_records_with_canonical_bodies(
+            target_path,
+            records,
+            Vec::new(),
+            remaster_links,
+        )
+    }
+
+    fn write_fixture_records_with_canonical_bodies(
+        target_path: &Path,
+        records: Vec<AtlasRecord>,
+        canonical_bodies: Vec<atlas_record::RecordBody>,
+        remaster_links: Vec<RemasterLink>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut pack_counts = BTreeMap::<String, usize>::new();
+        for record in &records {
+            *pack_counts
+                .entry(record.identity.pack().as_str().to_string())
+                .or_default() += 1;
+        }
+        let packs = pack_counts
+            .into_iter()
+            .map(|(name, record_count)| {
+                let pack_name = PackName::new(name.as_str()).expect("fixture pack name parses");
+                let document_type = records
+                    .iter()
+                    .find(|record| record.identity.pack().as_str() == name)
+                    .map(|record| record.foundry.document_type.as_str())
+                    .unwrap_or("Item");
+                IndexBuildPack {
+                    name: pack_name,
+                    label: name.clone(),
+                    document_type: document_type.to_string(),
+                    declared_path: format!("packs/{name}"),
+                    resolved_path: Path::new("packs").join(&name),
+                    record_count,
+                }
+            })
+            .collect::<Vec<_>>();
+        let input = IndexBuildInput {
+            source_signature: "foundry-pf2e:focused-fixture".to_string(),
+            source_record_count: records.len(),
+            packs,
+            records,
+            canonical_bodies,
+            canonical_spell_children: Vec::new(),
+            references: Vec::new(),
+            aliases: Vec::new(),
+            remaster_links,
+            pending_document_embeddings: Vec::new(),
+            document_embeddings: Vec::new(),
+        };
+        SqliteIndexWriter::new(target_path.to_path_buf())
+            .write(&input, EmbeddingModelId::BgeSmallEnV15)?;
+        Ok(())
+    }
+
+    fn fixture_creature_body(
+        record: &AtlasRecord,
+        armor_class: i64,
+        hit_points: i64,
+        perception: i64,
+    ) -> atlas_record::RecordBody {
+        use atlas_record::{CreatureFact, CreatureSourceField, FactValue};
+
+        macro_rules! missing {
+            ($field:expr) => {
+                CreatureFact::source(FactValue::Missing, $field)
+            };
+        }
+
+        atlas_record::RecordBody::Creature(atlas_record::CreatureRecord {
+            identity: atlas_record::CreatureIdentity {
+                record_key: record.identity.key.clone(),
+                source_id: atlas_record::CreatureSourceId::new(record.identity.id().as_str())
+                    .expect("fixture source ID"),
+                name: record.identity.name.clone(),
+                family: atlas_record::CreatureFamily::Npc,
+            },
+            level: missing!(CreatureSourceField::Level),
+            rarity: missing!(CreatureSourceField::Rarity),
+            traits: missing!(CreatureSourceField::Traits),
+            size: missing!(CreatureSourceField::Size),
+            publication: missing!(CreatureSourceField::Publication),
+            adjustment: missing!(CreatureSourceField::Adjustment),
+            source_alliance: missing!(CreatureSourceField::SourceAlliance),
+            perception: CreatureFact::source(
+                FactValue::Value(atlas_record::CreaturePerception {
+                    modifier: FactValue::Value(perception),
+                    details: FactValue::Missing,
+                    has_vision: FactValue::Missing,
+                    senses: FactValue::Value(Vec::new()),
+                }),
+                CreatureSourceField::Perception,
+            ),
+            initiative: missing!(CreatureSourceField::Initiative),
+            languages: missing!(CreatureSourceField::Languages),
+            skills: missing!(CreatureSourceField::Skills),
+            legacy_abilities: missing!(CreatureSourceField::LegacyAbilities),
+            defenses: CreatureFact::source(
+                FactValue::Value(atlas_record::CreatureDefenses {
+                    armor_class: FactValue::Value(atlas_record::CreatureArmorClass {
+                        value: FactValue::Value(armor_class),
+                        details: FactValue::Missing,
+                    }),
+                    hit_points: FactValue::Value(atlas_record::CreatureHitPoints {
+                        value: FactValue::Value(atlas_record::CreatureNumber::Integer(hit_points)),
+                        maximum: FactValue::Value(hit_points),
+                        temporary: FactValue::Missing,
+                        temporary_maximum: FactValue::Missing,
+                        details: FactValue::Missing,
+                    }),
+                    hardness: FactValue::Missing,
+                    shield: FactValue::Missing,
+                    saves: FactValue::Missing,
+                    all_saves_note: FactValue::Missing,
+                    immunities: FactValue::Missing,
+                    resistances: FactValue::Missing,
+                    weaknesses: FactValue::Missing,
+                }),
+                CreatureSourceField::Defenses,
+            ),
+            movement: missing!(CreatureSourceField::Movement),
+            resources: missing!(CreatureSourceField::Resources),
+            embedded_entities: missing!(CreatureSourceField::EmbeddedEntities),
+            content: atlas_record::OwnedRichContent::default(),
+            provenance: atlas_record::CreatureProvenance {
+                source_path: record.provenance.source_path.clone(),
+                source_contract_version: "fixture".to_string(),
+                source_system_version: "fixture".to_string(),
+                source_upstream_commit: "fixture".to_string(),
+            },
+        })
+    }
+
+    fn assert_data_mutation_rejected(
+        base_path: &Path,
+        name: &str,
+        sql: &str,
+        expected_key: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let path = unique_temp_path(&format!("data-mutation-{name}.sqlite"));
+        fs::copy(base_path, &path)?;
+        let connection = Connection::open(&path)?;
+        connection.execute_batch(sql)?;
+        drop(connection);
+
+        let report = crate::SqliteIndexReader::open_unpublished_read_only(&path)?.validate()?;
+        assert_eq!(report.status, ValidationStatus::Error, "{name}: {report:?}");
+        assert!(
+            report.diagnostics.iter().any(|diagnostic| {
+                diagnostic.family == crate::ArtifactValidationFamily::Data
+                    && diagnostic.key.as_deref() == Some(expected_key)
+                    && diagnostic.expected.is_some()
+                    && diagnostic.actual.is_some()
+            }),
+            "{name}: expected typed diagnostic `{expected_key}`, got {report:?}"
+        );
+        let _ = fs::remove_file(path);
+        Ok(())
     }
 
     #[cfg(unix)]
@@ -564,33 +1274,19 @@ mod tests {
                 }),
             },
             mechanics: RecordMechanics {
-                metrics: vec![MetricRow {
-                    domain: MetricDomain::Item,
-                    key: "level.value".to_string(),
-                    value: MetricValue::Number(1.0),
-                }],
+                metrics: vec![
+                    MetricRow {
+                        domain: MetricDomain::Item,
+                        key: "level.value".to_string(),
+                        value: MetricValue::Number(1.0),
+                    },
+                    MetricRow {
+                        domain: MetricDomain::Item,
+                        key: "rank.value".to_string(),
+                        value: MetricValue::Number(2.0),
+                    },
+                ],
                 document: FoundryDocumentMechanics::Item(ItemMechanics {
-                    foundry_type: Some(ItemTypeMechanics::Spell(SpellMechanics {
-                        traditions: vec!["arcane".to_string()],
-                        kinds: vec!["spell".to_string()],
-                        range: Some(SpellRange {
-                            text: "30 feet".to_string(),
-                            distance: Some(30.0),
-                        }),
-                        target: Some(SpellTarget {
-                            text: "1 creature".to_string(),
-                        }),
-                        area: Some(SpellArea {
-                            kind: Some("burst".to_string()),
-                            value: Some(10.0),
-                        }),
-                        defense: Some(SpellDefense {
-                            save: Some("will".to_string()),
-                            basic: true,
-                        }),
-                        sustained: true,
-                        damage_types: vec!["mental".to_string()],
-                    })),
                     category: Some("spell".to_string()),
                     base_item: Some("test-base".to_string()),
                     group: Some("test-group".to_string()),
@@ -601,8 +1297,6 @@ mod tests {
                     hands_requirement: Some("1".to_string()),
                     damage_types: vec!["mental".to_string()],
                 }),
-                spellcasting_entries: Vec::new(),
-                activities: Vec::new(),
             },
             content: RecordContent {
                 documents: vec![
@@ -645,3 +1339,4 @@ mod tests {
         }])
     }
 }
+mod canonical;

@@ -29,6 +29,14 @@ Batch exact keys in one process:
 atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --detail standard --json
 ```
 
+Without `--json`, canonical hazards and spells use a scan-first terminal view.
+Hazard defenses are grouped as AC, HP, nonzero temporary HP, Hardness, BT, and
+saves; Strike mode and action cost appear only from their typed projections.
+Spell rank and traits appear once, and damage, heightening, and unnamed forms
+use semantic labels rather than authored map keys or opaque form IDs. Optional
+missing, null, and known-empty sections are omitted. Use `record provenance`
+when exact component identities, source paths, or authored keys are required.
+
 ## Handle An Ambiguous Name
 
 Ask for alternatives, inspect their keys and context, then fetch the chosen
@@ -190,6 +198,48 @@ Most JSON commands return a shared envelope:
 - top-level command, runtime, or input failures are under `error`
 - batch commands can have per-record failures inside `data.results[].error`
 - artifact validation can return `status: "ok"` with `data.valid: false`
+
+Every record-bearing result uses one tagged record contract. Check
+`presentation_type` before reading entity fields. Creature records expose
+`defenses`, `perception`, `languages`, `skills`, `movement`, `resources`,
+`strikes`, `actions`, and separate `spellcasting.entries` and
+`spellcasting.spells` directly. Read IWR amounts and exceptions from
+`defenses`, skill notes and variants from `skills`, resource maxima and
+serialized provenance from `resources`, action costs and frequencies from
+`actions`, and rank, use, slot, and parent-entry context from spellcasting.
+Rich prose and relationships live under
+`supplementary_sections`; do not search generic sections for creature
+mechanics. A non-creature `presentation_type: "unmigrated"` payload names its
+temporary H-family registry assignment in `migration` and retains generic fact
+`sections` until that family contract lands.
+
+Use `atlas record provenance <hazard-key> --json` for exact hazard source
+metadata. Its command envelope exposes tagged facts at
+`data.hazard_provenance.source_metadata[]`; the corresponding hazard
+`RecordJson` field is `provenance.source_metadata[]`. Each fact preserves its
+presence state, typed or unsupported support state, exact value, stable entity
+identity and order when applicable, and `provenance.relativeSourcePath`.
+Malformed facts can also produce one localized availability issue, but are not
+duplicated in `unsupported_fields`. Ordinary record JSON omits this explicit
+provenance, and valid, consistent, zero, or empty source-only values stay quiet.
+
+Detail-dependent fields are absent when that detail level does not hydrate
+them. In particular, `summary` and `description` omit the creature mechanics
+fields, while `preview` omits activity `rolls`, `damage`, and `modes`. Empty
+objects or arrays are meaningful only inside a section that is included and
+known to have no members, so check field presence before reading entity data.
+Source-missing concepts are omitted even at a detail level that otherwise
+includes creature scan facts.
+
+Raw source is always an independent explicit opt-in. It is omitted without
+`--include-raw`, and it may be requested with any supported detail level:
+
+```bash
+atlas record get pathfinder-bestiary:WQy7HBUcgDLsfVJd --detail preview --include-raw --json
+```
+
+Do not require `--detail full` merely to use `--include-raw`; choose `full`
+only when full source metadata and hydration are useful.
 
 For agent workflows, check the top-level `status`, inspect `error` when
 present, and inspect per-result errors before trusting batch output.

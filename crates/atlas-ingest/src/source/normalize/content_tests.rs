@@ -50,7 +50,7 @@ fn parses_lists_tables_rolls_and_macro_signals() {
     assert_eq!(parsed.document.nodes.len(), 2);
     assert_eq!(
         render_plain_text(&parsed.document),
-        "fortitude 2d6\nTreasure\nLevel |\n1 |"
+        "Fortitude DC 21 2d6\nTreasure\nLevel |\n1 |"
     );
     assert!(parsed.diagnostics.dropped_macros.is_empty());
 }
@@ -81,7 +81,36 @@ fn preserves_template_macros_and_reports_unknown_tags() {
 
     assert_eq!(parsed.diagnostics.unsupported_tags, vec!["aside"]);
     assert!(parsed.diagnostics.dropped_macros.is_empty());
-    assert_eq!(render_plain_text(&parsed.document), "burst");
+    assert_eq!(render_plain_text(&parsed.document), "10-foot burst");
+    let RichNode::HtmlElement { children, .. } = &parsed.document.nodes[0] else {
+        panic!("retained aside element");
+    };
+    assert!(matches!(
+        &children[0],
+        RichNode::Foundry { node: FoundryNode::Template { shape, options, label } }
+            if shape.as_deref() == Some("burst")
+                && options.get("distance").map(String::as_str) == Some("10")
+                && label.is_none()
+    ));
+}
+
+#[test]
+fn preserves_unknown_constructs_and_diagnoses_meaningful_attributes() {
+    let parsed = parse_foundry_content(
+        "<aside data-unknown-rule=\"yes\" onclick=\"unsafe()\">@Mystery[alpha|mode:beta]</aside>",
+    );
+
+    assert_eq!(parsed.diagnostics.unsupported_tags, vec!["aside"]);
+    assert_eq!(parsed.diagnostics.unknown_macros, vec!["mystery"]);
+    assert_eq!(parsed.diagnostics.unsupported_attributes.len(), 2);
+    assert_eq!(render_plain_text(&parsed.document), "alpha|mode:beta");
+    assert!(matches!(
+        &parsed.document.nodes[0],
+        RichNode::HtmlElement { attributes, children, .. }
+            if attributes.contains_key("data-unknown-rule")
+                && attributes.contains_key("onclick")
+                && matches!(children[0], RichNode::Foundry { .. })
+    ));
 }
 
 #[test]

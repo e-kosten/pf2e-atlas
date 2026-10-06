@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
 use atlas_index::FtsSearchHit;
-use atlas_record::AtlasRecord;
+use atlas_record::RetrievedRecord;
 
 use crate::fusion::{FusedRankedHit, FusionOptions, TextSearchExplain, identity_explain};
 use crate::page::SearchPageInfo;
@@ -29,7 +29,7 @@ pub struct TextSearchDiagnostics {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TextSearchRecord {
-    pub record: AtlasRecord,
+    pub record: RetrievedRecord,
     pub match_info: TextSearchMatch,
 }
 
@@ -121,7 +121,7 @@ pub(super) fn candidate_keys(
 ) -> Vec<RecordKey> {
     let mut keys = identity_matches
         .iter()
-        .map(|identity| identity.record.identity.key.clone())
+        .map(|identity| identity.record.record.identity.key.clone())
         .collect::<BTreeSet<_>>();
     keys.extend(fts_hits.iter().map(|hit| hit.record_key.clone()));
     keys.extend(vector_hits.iter().map(|hit| hit.record_key.clone()));

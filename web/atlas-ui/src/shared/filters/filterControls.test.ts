@@ -456,3 +456,18 @@ function field(
     supports_counts: control.kind !== "range",
   };
 }
+
+it("clear all includes the exact relationship constraint and malformed URL state", async () => {
+  const { clearAllFilters, hasActiveFilters } = await import("./filterControls");
+  const { DEFAULT_SEARCH_STATE } = await import("./searchState");
+  const state = {
+    ...DEFAULT_SEARCH_STATE,
+    relationship: { direction: "incoming" as const, record_key: "spells:exact" },
+    relationshipInvalid: true,
+  };
+  expect(hasActiveFilters(state)).toBe(true);
+  const cleared = clearAllFilters(state);
+  expect(cleared.relationship).toBeUndefined();
+  expect(cleared.relationshipInvalid).toBeUndefined();
+  expect(hasActiveFilters(cleared)).toBe(false);
+});

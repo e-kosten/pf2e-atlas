@@ -1,5 +1,5 @@
 use atlas_index::{FilterReadIndex, FilteredRecordKeyPage, RecordReadIndex};
-use atlas_record::AtlasRecord;
+use atlas_record::RetrievedRecord;
 
 use crate::{AtlasRetrievalService, SearchError};
 
@@ -9,14 +9,17 @@ use super::{
 };
 
 impl RecordRetrieval for AtlasRetrievalService {
-    fn get_records(&self, request: GetRecordsRequest<'_>) -> Result<Vec<AtlasRecord>, SearchError> {
+    fn get_records(
+        &self,
+        request: GetRecordsRequest<'_>,
+    ) -> Result<Vec<RetrievedRecord>, SearchError> {
         get_records(self.index.as_ref(), request)
     }
 
     fn get_record(
         &self,
         request: GetRecordRequest<'_>,
-    ) -> Result<Option<AtlasRecord>, SearchError> {
+    ) -> Result<Option<RetrievedRecord>, SearchError> {
         Ok(self
             .get_records(GetRecordsRequest {
                 record_keys: std::slice::from_ref(request.record_key),
@@ -43,7 +46,7 @@ impl RecordRetrieval for AtlasRetrievalService {
 fn get_records<I>(
     index: &I,
     request: GetRecordsRequest<'_>,
-) -> Result<Vec<AtlasRecord>, SearchError>
+) -> Result<Vec<RetrievedRecord>, SearchError>
 where
     I: RecordReadIndex + ?Sized,
 {

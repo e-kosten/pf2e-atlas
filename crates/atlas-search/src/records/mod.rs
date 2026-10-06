@@ -2,7 +2,7 @@ mod get;
 pub(crate) mod resolution;
 mod types;
 
-use atlas_record::AtlasRecord;
+use atlas_record::RetrievedRecord;
 
 use crate::SearchError;
 
@@ -13,10 +13,15 @@ pub use types::{
 };
 
 pub trait RecordRetrieval {
-    fn get_records(&self, request: GetRecordsRequest<'_>) -> Result<Vec<AtlasRecord>, SearchError>;
+    fn get_records(
+        &self,
+        request: GetRecordsRequest<'_>,
+    ) -> Result<Vec<RetrievedRecord>, SearchError>;
 
-    fn get_record(&self, request: GetRecordRequest<'_>)
-    -> Result<Option<AtlasRecord>, SearchError>;
+    fn get_record(
+        &self,
+        request: GetRecordRequest<'_>,
+    ) -> Result<Option<RetrievedRecord>, SearchError>;
 
     fn list_records(
         &self,
@@ -41,7 +46,7 @@ pub trait RecordRetrieval {
         })?;
         Ok(match matches.len() {
             0 => RecordRefResolutionResult::Miss,
-            1 => RecordRefResolutionResult::Key(matches[0].record.identity.key.clone()),
+            1 => RecordRefResolutionResult::Key(matches[0].record.record.identity.key.clone()),
             _ => RecordRefResolutionResult::Ambiguous(matches),
         })
     }
@@ -52,7 +57,7 @@ mod tests {
     use atlas_domain::{RecordKey, RecordKind};
     use atlas_record::{
         AtlasRecord, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
-        RecordClassification, RecordIdentity, RecordProvenance,
+        RecordClassification, RecordIdentity, RecordProvenance, RetrievedRecord,
     };
 
     use super::*;
@@ -65,14 +70,14 @@ mod tests {
         fn get_records(
             &self,
             _request: GetRecordsRequest<'_>,
-        ) -> Result<Vec<AtlasRecord>, SearchError> {
+        ) -> Result<Vec<RetrievedRecord>, SearchError> {
             unimplemented!("record-ref resolution does not load records by key")
         }
 
         fn get_record(
             &self,
             _request: GetRecordRequest<'_>,
-        ) -> Result<Option<AtlasRecord>, SearchError> {
+        ) -> Result<Option<RetrievedRecord>, SearchError> {
             unimplemented!("record-ref resolution does not load records by key")
         }
 
@@ -148,7 +153,11 @@ mod tests {
             matched_text: name.to_string(),
             alias_source: None,
             alias_source_ref: None,
-            record: fake_record(key, name),
+            record: RetrievedRecord {
+                record: fake_record(key, name),
+                body: None,
+                spell_children: Vec::new(),
+            },
         }
     }
 

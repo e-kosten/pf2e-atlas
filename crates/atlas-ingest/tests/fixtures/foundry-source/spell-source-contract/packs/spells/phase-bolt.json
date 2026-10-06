@@ -1,0 +1,12 @@
+{
+  "_id": "5gophZ4AOKW4VW27",
+  "name": "Phase Bolt",
+  "type": "spell",
+  "system": {
+    "level": { "value": 1 },
+    "rules": [
+      { "key": "EphemeralEffect", "predicate": ["item:slug:phase-bolt"], "selectors": ["spell-attack-roll"], "uuid": "Compendium.pf2e.spell-effects.Item.Spell Effect: Phase Bolt" }
+    ],
+    "traits": { "rarity": "common", "traditions": ["arcane", "occult"], "value": ["attack", "cantrip", "concentrate", "manipulate"] }
+  }
+}

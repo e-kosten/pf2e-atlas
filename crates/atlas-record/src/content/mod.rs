@@ -3,13 +3,24 @@ use std::collections::BTreeMap;
 use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
+mod owned;
 mod render;
 mod search_projection;
 mod section_tree;
 mod traversal;
 
+pub use owned::{
+    ContentDiagnostic, ContentDiagnosticKind, ContentExclusion, ContentExclusionReason,
+    ContentHash, ContentId, ContentIdentityStability, ContentKey, ContentOrigin, ContentOwner,
+    ContentProvenance, ContentReferenceOccurrence, ContentRole, ContentSemanticInputHash,
+    DuplicateContentStatus, InvalidContentKey, OwnedRichContent, OwnedRichContentDocument,
+};
+pub(crate) use render::foundry_node_display_text;
 pub use render::{render_markdown_like, render_plain_text};
-pub use search_projection::{RecordFtsProjection, build_record_fts_projection};
+pub use search_projection::{
+    RecordFtsProjection, build_record_fts_projection, build_search_fts_projection,
+    build_search_presentation_document_with_content_filter,
+};
 pub use section_tree::{ContentSectionNode, ContentSectionOrigin, build_content_section_tree};
 pub use traversal::{FoundryLinkIter, iter_foundry_links, visit_foundry_links_mut};
 
@@ -246,6 +257,7 @@ pub enum ContentSourceKind {
     GmNotes,
     PrivateNotes,
     EmbeddedItemDescription,
+    EmbeddedGmDescription,
     EmbeddedSpellDescription,
     GeneratedAffliction,
 }
@@ -264,6 +276,7 @@ impl ContentSourceKind {
             Self::GmNotes => "gm_notes",
             Self::PrivateNotes => "private_notes",
             Self::EmbeddedItemDescription => "embedded_item_description",
+            Self::EmbeddedGmDescription => "embedded_gm_description",
             Self::EmbeddedSpellDescription => "embedded_spell_description",
             Self::GeneratedAffliction => "generated_affliction",
         }
@@ -282,6 +295,7 @@ impl ContentSourceKind {
             "gm_notes" => Some(Self::GmNotes),
             "private_notes" => Some(Self::PrivateNotes),
             "embedded_item_description" => Some(Self::EmbeddedItemDescription),
+            "embedded_gm_description" => Some(Self::EmbeddedGmDescription),
             "embedded_spell_description" => Some(Self::EmbeddedSpellDescription),
             "generated_affliction" => Some(Self::GeneratedAffliction),
             _ => None,
@@ -290,29 +304,18 @@ impl ContentSourceKind {
 
     pub const fn default_visibility(self) -> ContentVisibility {
         match self {
-            Self::GmNotes => ContentVisibility::GmOnly,
+            Self::GmNotes | Self::EmbeddedGmDescription => ContentVisibility::GmOnly,
             Self::PrivateNotes => ContentVisibility::Private,
             _ => ContentVisibility::Public,
         }
     }
 
     pub const fn contributes_to_default_retrieval(self) -> bool {
-        match self.default_visibility() {
-            ContentVisibility::Public => true,
-            ContentVisibility::GmOnly
-            | ContentVisibility::Private
-            | ContentVisibility::Internal => false,
-        }
+        !self.is_embedded()
     }
 
     pub const fn contributes_to_default_backlinks(self) -> bool {
-        match self {
-            Self::EmbeddedItemDescription
-            | Self::EmbeddedSpellDescription
-            | Self::GmNotes
-            | Self::PrivateNotes => false,
-            _ => self.contributes_to_default_retrieval(),
-        }
+        !self.is_embedded()
     }
 
     pub const fn fts_field(self) -> ContentFtsField {
@@ -320,9 +323,9 @@ impl ContentSourceKind {
             Self::Disable | Self::Routine | Self::Reset | Self::StealthDetails => {
                 ContentFtsField::Facts
             }
-            Self::EmbeddedItemDescription | Self::EmbeddedSpellDescription => {
-                ContentFtsField::EmbeddedContent
-            }
+            Self::EmbeddedItemDescription
+            | Self::EmbeddedGmDescription
+            | Self::EmbeddedSpellDescription => ContentFtsField::EmbeddedContent,
             _ => ContentFtsField::Body,
         }
     }
@@ -332,13 +335,15 @@ impl ContentSourceKind {
     }
 
     pub const fn default_contributes_to_reference_occurrences(self) -> bool {
-        self.contributes_to_default_retrieval()
+        true
     }
 
     pub const fn is_embedded(self) -> bool {
         matches!(
             self,
-            Self::EmbeddedItemDescription | Self::EmbeddedSpellDescription
+            Self::EmbeddedItemDescription
+                | Self::EmbeddedGmDescription
+                | Self::EmbeddedSpellDescription
         )
     }
 }
@@ -348,6 +353,7 @@ impl ContentSourceKind {
 pub enum ContentVisibility {
     Public,
     GmOnly,
+    Owner,
     Private,
     Internal,
 }
@@ -357,6 +363,7 @@ impl ContentVisibility {
         match self {
             Self::Public => "public",
             Self::GmOnly => "gm_only",
+            Self::Owner => "owner",
             Self::Private => "private",
             Self::Internal => "internal",
         }
@@ -366,6 +373,7 @@ impl ContentVisibility {
         match value {
             "public" => Some(Self::Public),
             "gm_only" => Some(Self::GmOnly),
+            "owner" => Some(Self::Owner),
             "private" => Some(Self::Private),
             "internal" => Some(Self::Internal),
             _ => None,
@@ -447,7 +455,15 @@ mod tests {
             ContentSourceKind::GmNotes.default_visibility(),
             ContentVisibility::GmOnly
         );
-        assert!(!ContentSourceKind::PrivateNotes.contributes_to_default_retrieval());
+        assert_eq!(
+            ContentSourceKind::EmbeddedGmDescription.default_visibility(),
+            ContentVisibility::GmOnly
+        );
+        assert!(ContentSourceKind::EmbeddedGmDescription.is_embedded());
+        assert!(ContentSourceKind::PrivateNotes.contributes_to_default_retrieval());
+        assert!(ContentSourceKind::GmNotes.default_contributes_to_search());
+        assert!(ContentSourceKind::PrivateNotes.contributes_to_default_backlinks());
+        assert!(!ContentSourceKind::EmbeddedGmDescription.default_contributes_to_search());
         assert!(!ContentSourceKind::EmbeddedItemDescription.contributes_to_default_backlinks());
         assert!(
             ContentSourceKind::EmbeddedItemDescription

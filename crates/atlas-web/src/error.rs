@@ -1,7 +1,7 @@
 use atlas_app_model::{AppError, AppErrorCode};
 use atlas_app_service::AppServiceError;
 use axum::Json;
-use axum::extract::rejection::JsonRejection;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
@@ -19,6 +19,13 @@ impl WebError {
         Self(AppError::new(
             AppErrorCode::InvalidRequest,
             format!("invalid JSON request body: {error}"),
+        ))
+    }
+
+    pub(crate) fn invalid_query(error: QueryRejection) -> Self {
+        Self(AppError::new(
+            AppErrorCode::InvalidRequest,
+            format!("invalid query parameters: {error}"),
         ))
     }
 

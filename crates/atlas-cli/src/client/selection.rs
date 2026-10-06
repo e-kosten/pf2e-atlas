@@ -36,7 +36,7 @@ impl AtlasClient for AtlasClientHandle {
     fn get_records(
         &self,
         record_keys: Vec<atlas_domain::RecordKey>,
-    ) -> super::ClientResult<Vec<atlas_record::AtlasRecord>> {
+    ) -> super::ClientResult<Vec<atlas_record::RetrievedRecord>> {
         match self {
             Self::Local(client) => client.get_records(record_keys),
             Self::Http(client) => client.get_records(record_keys),

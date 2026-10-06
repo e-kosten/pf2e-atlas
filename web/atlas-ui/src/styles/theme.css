@@ -19,7 +19,6 @@
   --shadow:
     0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12),
     0 9px 28px 8px rgba(0, 0, 0, 0.05);
-  --overlay-backdrop: rgba(0, 0, 0, 0.45);
   --hp-current: #52c41a;
   --hp-bloodied: #faad14;
   --hp-critical: #ff4d4f;
@@ -56,4 +55,10 @@
   --control-height: 34px;
   --panel-gap: 14px;
   --panel-padding: 14px;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible,
+.atlas-app .ant-collapse .ant-collapse-header:focus {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
 }

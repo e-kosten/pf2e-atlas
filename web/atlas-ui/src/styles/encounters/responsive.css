@@ -5,10 +5,17 @@
 }
 
 @media (max-width: 900px) {
+  .encounter-participant-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .encounter-participant-strip__state {
+    grid-column: 1 / -1;
+  }
+
   .encounter-form-grid,
   .encounter-hp-grid,
-  .encounter-add-condition__row,
-  .encounter-condition-row {
+  .encounter-add-condition__row {
     grid-template-columns: 1fr;
   }
 
@@ -23,5 +30,15 @@
 
   .encounter-hp-actions .ant-btn {
     flex: 1 1 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .encounter-participant-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .encounter-participant-strip__state {
+    grid-column: auto;
   }
 }

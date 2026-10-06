@@ -1,7 +1,9 @@
 use std::fs;
 
 use atlas_domain::metadata::{
-    MetadataNumberField, MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
+    MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
+    MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
+    MetadataStringMatch, MetadataTextMatch, MetadataTextStringField,
 };
 use atlas_domain::{MetricMatch, NumericMatch, RecordKey, RecordKind};
 use rusqlite::types::Value;
@@ -17,12 +19,16 @@ use crate::read::sql::SqlBindValue;
 use crate::{FilteredRecordSort, FtsQuery, SqliteIndexReader};
 
 #[test]
-fn compiles_empty_filter_to_default_visible_keyset() -> Result<(), Box<dyn std::error::Error>> {
+fn compiles_empty_filter_to_ordinary_retrieval_keyset() -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_db_path("filter-empty");
     create_valid_artifact_database(&path)?;
     let connection = Connection::open(&path)?;
     connection.execute(
-        "UPDATE records SET is_default_visible = 0 WHERE record_key = 'actions:testAction3'",
+        "UPDATE records
+         SET retrieval_disposition = 'direct_only',
+             retrieval_rationale = 'canonical_edition_duplicate',
+             is_default_visible = 0
+         WHERE record_key = 'actions:testAction3'",
         [],
     )?;
 
@@ -157,16 +163,21 @@ fn shared_sqlite_keyset_applies_same_filter_to_lookup_fts_identity_and_vector()
              WHEN 'actions:testAction2' THEN 2
              ELSE 3
          END,
-         is_default_visible = CASE record_key
-             WHEN 'actions:testAction3' THEN 0
-             ELSE 1
-         END",
+         retrieval_disposition = CASE record_key
+             WHEN 'actions:testAction3' THEN 'direct_only'
+             ELSE 'ordinary'
+         END,
+         retrieval_rationale = CASE record_key
+             WHEN 'actions:testAction3' THEN 'canonical_edition_duplicate'
+             ELSE 'source_record'
+         END,
+         is_default_visible = CASE record_key WHEN 'actions:testAction3' THEN 0 ELSE 1 END",
         [],
     )?;
     drop(connection);
 
     let filter = atlas_domain::SearchFilterNode::level(NumericMatch::Gte { value: 2.0 });
-    let reader = SqliteIndexReader::open_read_only(&path)?;
+    let reader = SqliteIndexReader::open_unpublished_read_only(&path)?;
     let filtered_keys = reader.list_filtered_record_keys(
         Some(&filter),
         None,
@@ -248,10 +259,13 @@ fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std
     )?;
     connection.execute(
         "INSERT INTO spell_records (
-              record_key, traditions_json, spell_kinds_json, range_text, area_type, sustained,
-              basic_save, damage_types_json
+              record_key, traditions_json, spell_kinds_json, range_text, range_value,
+              range_kind, range_rule, target_text, area_type, area_value, save_type, sustained,
+              basic_save, damage_types_json, rank
             )
-            VALUES ('actions:testAction1', '[\"primal\"]', '[\"focus\"]', '30 feet', 'burst', 0, 1, '[\"vitality\"]')",
+            VALUES ('actions:testAction1', '[\"primal\"]', '[\"focus\"]', '30 feet', 30,
+                    'distance', 'pf2e-spell-range/6.12.4-v1', '1 ally', 'burst', 10,
+                    'reflex', 0, 1, '[\"vitality\"]', 3)",
         [],
     )?;
 
@@ -262,6 +276,52 @@ fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std
             r#match: MetadataSetMatch::Includes {
                 value: "healing".to_string(),
             },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Number {
+            field: MetadataNumberField::SpellRank,
+            r#match: MetadataNumberMatch::Eq { value: 3.0 },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Text {
+            field: MetadataTextStringField::RangeText,
+            r#match: MetadataTextMatch::Eq {
+                value: "30 feet".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Text {
+            field: MetadataTextStringField::TargetText,
+            r#match: MetadataTextMatch::Eq {
+                value: "1 ally".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::EnumString {
+            field: MetadataEnumStringField::AreaType,
+            r#match: MetadataStringMatch::Eq {
+                value: "burst".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::EnumString {
+            field: MetadataEnumStringField::SaveType,
+            r#match: MetadataStringMatch::Eq {
+                value: "reflex".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Boolean {
+            field: MetadataBooleanField::Sustained,
+            r#match: MetadataBooleanMatch::Eq { value: false },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Boolean {
+            field: MetadataBooleanField::BasicSave,
+            r#match: MetadataBooleanMatch::Eq { value: true },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
+            field: MetadataSetField::DamageTypes,
+            r#match: MetadataSetMatch::Includes {
+                value: "vitality".to_string(),
+            },
+        }),
+        atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Number {
+            field: MetadataNumberField::RangeValue,
+            r#match: MetadataNumberMatch::Lte { value: 30.0 },
         }),
         atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Set {
             field: MetadataSetField::Traditions,
@@ -275,6 +335,16 @@ fn compiles_reference_trait_metric_and_spell_filters() -> Result<(), Box<dyn std
     let keys = query_eligible_keys(&connection, &compiled)?;
 
     assert_eq!(keys, vec!["actions:testAction1"]);
+    connection.execute(
+        "UPDATE spell_records SET range_rule='untrusted-first-number' WHERE record_key='actions:testAction1'",
+        [],
+    )?;
+    let range_only = atlas_domain::SearchFilterNode::metadata(MetadataPredicate::Number {
+        field: MetadataNumberField::RangeValue,
+        r#match: MetadataNumberMatch::Lte { value: 30.0 },
+    });
+    let compiled_range = SqliteEligibleRecordKeyset::new(Some(&range_only)).compile()?;
+    assert!(query_eligible_keys(&connection, &compiled_range)?.is_empty());
     fs::remove_file(path)?;
     Ok(())
 }

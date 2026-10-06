@@ -6,12 +6,14 @@ use atlas_app_model::{
     AppReadinessView, CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView,
     DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     EncounterConditionCatalogView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantView, EncounterUpdateView, FilterEditorView, FilterSavedListRequest,
-    FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ResultWindowPage,
-    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-    SavedListUpdateView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    EncounterParticipantResetResultView, EncounterParticipantView, EncounterSpellCastRequest,
+    EncounterSpellCastResultView, EncounterUpdateView, FilterEditorView, FilterSavedListRequest,
+    FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailRequest,
+    RecordDetailView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
+    ResetEncounterParticipantRequest, ResultWindowPage, SavedListCreateView, SavedListDetailView,
+    SavedListIndexView, SavedListItemMutationView, SavedListUpdateView, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_service::{AppServiceError, AtlasAppService};
 use tokio::sync::Semaphore;
@@ -72,7 +74,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: ReadResultWindowPageRequest,
     ) -> Result<ResultWindowPage, AppServiceError>;
 
-    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
+    fn record_detail(
+        &self,
+        record_key: &str,
+        request: RecordDetailRequest,
+    ) -> Result<RecordDetailView, AppServiceError>;
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
 
@@ -148,6 +154,20 @@ pub(crate) trait AtlasWebService: Send + Sync {
         condition_id: i64,
     ) -> Result<EncounterDetailView, AppServiceError>;
 
+    fn mutate_encounter_spell_cast(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: EncounterSpellCastRequest,
+    ) -> Result<EncounterSpellCastResultView, AppServiceError>;
+
+    fn reset_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: ResetEncounterParticipantRequest,
+    ) -> Result<EncounterParticipantResetResultView, AppServiceError>;
+
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
 
     fn saved_list(&self, list_ref: &str) -> Result<SavedListDetailView, AppServiceError>;
@@ -214,8 +234,12 @@ impl AtlasWebService for AtlasAppService {
         self.read_result_window_page(window_id, request)
     }
 
-    fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
-        self.record_detail(record_key)
+    fn record_detail(
+        &self,
+        record_key: &str,
+        request: RecordDetailRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        self.record_detail(record_key, request)
     }
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
@@ -322,6 +346,24 @@ impl AtlasWebService for AtlasAppService {
         condition_id: i64,
     ) -> Result<EncounterDetailView, AppServiceError> {
         self.remove_encounter_participant_condition(encounter_ref, participant_key, condition_id)
+    }
+
+    fn mutate_encounter_spell_cast(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: EncounterSpellCastRequest,
+    ) -> Result<EncounterSpellCastResultView, AppServiceError> {
+        self.mutate_encounter_spell_cast(encounter_ref, participant_key, request)
+    }
+
+    fn reset_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: ResetEncounterParticipantRequest,
+    ) -> Result<EncounterParticipantResetResultView, AppServiceError> {
+        self.reset_encounter_participant(encounter_ref, participant_key, request)
     }
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {

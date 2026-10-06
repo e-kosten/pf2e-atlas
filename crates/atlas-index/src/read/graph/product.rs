@@ -138,7 +138,7 @@ fn variant_groups_by_base_name(
         .filter(
             sql::<Bool>("LOWER(TRIM(variant_base_name)) = ").bind::<Text, _>(normalized_base_name),
         )
-        .filter(records::is_default_visible.eq(true))
+        .filter(records::retrieval_disposition.eq("ordinary"))
         .select(records::variant_group_key)
         .distinct()
         .order(records::variant_group_key.asc())
@@ -168,7 +168,7 @@ fn variant_group_by_key(
         ))
         .into_boxed();
     if !include_hidden {
-        query = query.filter(records::is_default_visible.eq(true));
+        query = query.filter(records::retrieval_disposition.eq("ordinary"));
     }
     let record_keys = query
         .load::<String>(connection)

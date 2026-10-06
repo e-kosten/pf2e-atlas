@@ -75,6 +75,10 @@ impl FilterCompiler {
                     ],
                 );
             }
+            MetadataSetField::SpellDamageTypes => SetStorage::JsonSideTable {
+                table: spell_records::TABLE,
+                column: spell_records::columns::DAMAGE_TYPES_JSON,
+            },
             MetadataSetField::Languages => SetStorage::JsonSideTable {
                 table: actor_records::TABLE,
                 column: actor_records::columns::LANGUAGES_JSON,
@@ -266,10 +270,23 @@ impl FilterCompiler {
     ) -> Result<String, FilterCompileError> {
         let column = match field {
             MetadataNumberField::Level => records::columns::LEVEL,
+            MetadataNumberField::SpellRank => spell_records::columns::RANK,
             MetadataNumberField::PriceCp => records::columns::PRICE_CP,
             MetadataNumberField::BulkValue => item_records::columns::BULK_VALUE,
             MetadataNumberField::ActionCost => records::columns::ACTIVATION_TIME_ACTIONS,
-            MetadataNumberField::RangeValue => spell_records::columns::RANGE_VALUE,
+            MetadataNumberField::RangeValue => {
+                return self.with_field_source(
+                    spell_records::columns::RANGE_VALUE,
+                    |compiler, column| {
+                        let numeric = compiler.number_operator(column, r#match)?;
+                        let rule = compiler.text(atlas_record::SPELL_RANGE_DERIVATION_RULE);
+                        Ok(format!(
+                            "{} = {rule} AND ({numeric})",
+                            aliased_column("s", spell_records::columns::RANGE_RULE)
+                        ))
+                    },
+                );
+            }
             MetadataNumberField::AreaValue => spell_records::columns::AREA_VALUE,
             MetadataNumberField::Hands => {
                 return Err(FilterCompileError::Unsupported {
