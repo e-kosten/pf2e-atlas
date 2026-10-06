@@ -18,4 +18,7 @@ fn completions_generate_bash_script() {
     assert!(stdout.contains("record"));
     assert!(stdout.contains("search"));
     assert!(stdout.contains("setup"));
+    for name in ["analyze", "audit-source-paths", "inspect"] {
+        assert!(!stdout.contains(name));
+    }
 }

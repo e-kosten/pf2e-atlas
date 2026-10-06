@@ -8,8 +8,9 @@ use atlas_search::{
 };
 use clap::{ArgAction, Args};
 
-use crate::cli::args::{CliPathMode, FilterOptions};
+use crate::cli::args::FilterOptions;
 use crate::cli::parse::{DETAIL_HELP, parse_detail_level};
+use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 #[command(

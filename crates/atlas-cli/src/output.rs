@@ -1,59 +1,9 @@
 use std::process::ExitCode;
 use std::time::Duration;
 
+use atlas_cli_support::write_json_data;
 use atlas_index::{ArtifactValidationReport, ValidationCode, ValidationStatus};
-use serde::Serialize;
 use serde_json::{Map, Value, json};
-
-#[derive(Debug, Serialize)]
-struct SuccessEnvelope<T>
-where
-    T: Serialize,
-{
-    status: &'static str,
-    data: T,
-}
-
-#[derive(Debug, Serialize)]
-struct ErrorEnvelope {
-    status: &'static str,
-    error: CliError,
-}
-
-#[derive(Debug, Serialize)]
-struct ErrorEnvelopeWithData<T>
-where
-    T: Serialize,
-{
-    status: &'static str,
-    error: CliErrorWithData<T>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct CliError {
-    pub code: &'static str,
-    pub message: String,
-}
-
-#[derive(Debug, Serialize)]
-struct CliErrorWithData<T>
-where
-    T: Serialize,
-{
-    code: &'static str,
-    message: String,
-    data: T,
-}
-
-pub(crate) fn write_json_data<T>(data: T) -> Result<(), String>
-where
-    T: Serialize,
-{
-    let body = serde_json::to_string_pretty(&SuccessEnvelope { status: "ok", data })
-        .map_err(|error| error.to_string())?;
-    println!("{body}");
-    Ok(())
-}
 
 pub(crate) fn format_duration_ms(duration_ms: u128) -> String {
     let millis = u64::try_from(duration_ms).unwrap_or(u64::MAX);
@@ -81,37 +31,6 @@ fn format_duration(duration: Duration) -> String {
     let hours = minutes / 60;
     let minutes = minutes % 60;
     format!("{hours}h {minutes:02}m {seconds:02}s")
-}
-
-pub(crate) fn write_json_error(code: &'static str, message: String) -> Result<(), String> {
-    let body = serde_json::to_string_pretty(&ErrorEnvelope {
-        status: "error",
-        error: CliError { code, message },
-    })
-    .map_err(|error| error.to_string())?;
-    println!("{body}");
-    Ok(())
-}
-
-pub(crate) fn write_json_error_data<T>(
-    code: &'static str,
-    message: String,
-    data: T,
-) -> Result<(), String>
-where
-    T: Serialize,
-{
-    let body = serde_json::to_string_pretty(&ErrorEnvelopeWithData {
-        status: "error",
-        error: CliErrorWithData {
-            code,
-            message,
-            data,
-        },
-    })
-    .map_err(|error| error.to_string())?;
-    println!("{body}");
-    Ok(())
 }
 
 pub(crate) fn write_validation_report(

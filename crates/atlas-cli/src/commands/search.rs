@@ -15,7 +15,8 @@ use atlas_app_model::{AppError, AppErrorCode};
 use crate::client::{
     AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
 };
-use crate::output::{write_json_data, write_json_error};
+use atlas_cli_support::{write_json_data, write_json_error};
+
 use crate::terminal::TerminalStyle;
 
 pub(crate) mod args;

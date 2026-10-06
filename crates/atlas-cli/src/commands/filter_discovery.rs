@@ -14,7 +14,7 @@ use crate::cli::args::FilterOptions;
 use crate::client::{
     AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
 };
-use crate::output::{write_json_data, write_json_error};
+use atlas_cli_support::{write_json_data, write_json_error};
 
 pub(crate) mod args;
 

@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 use crate::client::AtlasClient;
-use crate::output::write_json_data;
+use atlas_cli_support::write_json_data;
 
 use super::args::GraphRemasterOptions;
 use super::data::graph_remaster_data;

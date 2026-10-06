@@ -10,7 +10,7 @@ use atlas_search::{
 use serde::Serialize;
 
 use crate::client::AtlasClient;
-use crate::output::{write_json_error, write_json_error_data};
+use atlas_cli_support::{write_json_error, write_json_error_data};
 
 pub(super) trait GraphRecordRefResolver {
     fn resolve_graph_record_ref_query(

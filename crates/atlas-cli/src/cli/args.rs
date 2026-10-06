@@ -1,39 +1,4 @@
-use atlas_runtime::AtlasPathMode;
-use clap::{Args, ValueEnum};
-
-use crate::progress;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum CliPathMode {
-    Repo,
-    Global,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum CliProgressMode {
-    Auto,
-    Always,
-    Never,
-}
-
-impl From<CliPathMode> for AtlasPathMode {
-    fn from(mode: CliPathMode) -> Self {
-        match mode {
-            CliPathMode::Repo => Self::Repo,
-            CliPathMode::Global => Self::Global,
-        }
-    }
-}
-
-impl From<CliProgressMode> for progress::ProgressMode {
-    fn from(mode: CliProgressMode) -> Self {
-        match mode {
-            CliProgressMode::Auto => Self::Auto,
-            CliProgressMode::Always => Self::Always,
-            CliProgressMode::Never => Self::Never,
-        }
-    }
-}
+use clap::Args;
 
 #[derive(Debug, Clone, Default, Args)]
 pub(crate) struct FilterOptions {

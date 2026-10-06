@@ -3,7 +3,7 @@ use std::process::ExitCode;
 use atlas_search::GraphContextRequest;
 
 use crate::client::AtlasClient;
-use crate::output::write_json_data;
+use atlas_cli_support::write_json_data;
 
 use super::args::GraphUsesOptions;
 use super::data::graph_uses_data;

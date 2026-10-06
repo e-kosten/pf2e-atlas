@@ -1,0 +1,10 @@
+{
+  "packs": [
+    {
+      "name": "actions",
+      "label": "Actions",
+      "type": "Item",
+      "path": "packs/actions"
+    }
+  ]
+}

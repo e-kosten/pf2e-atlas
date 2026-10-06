@@ -4,7 +4,7 @@ use atlas_tags::{AssignmentFile, OntologySuggestionFile, TagCorpus, validate_tag
 use serde::Serialize;
 
 use crate::commands::tags::args::TagsValidateOptions;
-use crate::output::write_json_data;
+use atlas_cli_support::write_json_data;
 
 pub(crate) mod args;
 

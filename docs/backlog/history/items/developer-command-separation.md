@@ -1,6 +1,6 @@
 # Developer command separation
 
-Status: in_progress
+Status: done
 Priority: next tooling cleanup
 Owner: unassigned
 Last reviewed: 2026-10-06
@@ -42,10 +42,20 @@ discovery remain in atlas. Keep authored-tag workflows out of this bounded move.
   release selection agree with the three command owners.
 - Both developer surfaces are validated in CI and excluded from published bundles.
 
+## Completed outcome
+
+The compiler tools use the private strict TypeScript package. Rust diagnostics
+live in atlas-dev; the old product routes are removed. Both Rust CLIs share
+argument vocabulary, JSON envelopes, and progress rendering through
+atlas-cli-support while runtime and ingest/index policy retain their owners.
+CI checks the standalone Rust developer build without preparing web assets.
+Both developer crates set publish=false and cargo-dist selection excludes them.
+See [ADR 0033](../../../architecture/decisions/0033-developer-command-surfaces.md).
+
 ## Related follow-up
 
-- [Source-contract modeling experiment](./rust-source-contract-generation.md).
-- [Selective integration recovery](./rust-integration-recovery.md): recover JSON
+- [Source-contract modeling experiment](../../items/rust-source-contract-generation.md).
+- [Selective integration recovery](../../items/rust-integration-recovery.md): recover JSON
   schema snapshots, diffs and field sampling into atlas-ingest and atlas-dev in a
   separate slice. Use discovery evidence rather than field-owner receipts or a
   new runtime admission gate.
