@@ -96,7 +96,7 @@ impl ItemType {
         }
     }
 
-    fn parse(
+    pub(super) fn parse(
         value: &str,
         identity: &SourceIdentity,
         json_path: &str,

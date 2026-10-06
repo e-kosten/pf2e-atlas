@@ -35,6 +35,7 @@ pub use report::{
     SourceAnalysisRelationshipReport, SourceAnalysisReport, SourceAnalysisSourceReport,
     SourceAnalysisTextReport, analyze_foundry_source,
 };
+pub use source::dto::item_common as item_source;
 pub use source::dto::{
     ActorType, FullItemSource, ItemSource, ItemType, NpcSource, PF2E_SOURCE_CONTRACT_VERSION,
     PF2E_SOURCE_PINNED_COMMIT, PF2E_SOURCE_PINNED_SIGNATURE, PF2E_SOURCE_PINNED_SYSTEM_ID,
