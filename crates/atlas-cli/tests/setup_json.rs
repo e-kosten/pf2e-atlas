@@ -423,7 +423,7 @@ fn setup_failed_source_update_is_runtime_failure() -> Result<(), Box<dyn std::er
     assert!(build_output.status.success());
     fs::create_dir(source.join(".git"))?;
 
-    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+    let output = atlas_command()
         .args([
             "setup",
             "--path-mode",
@@ -466,7 +466,7 @@ fn setup_failed_source_update_blocks_missing_index_build() -> Result<(), Box<dyn
     write_single_action_source(&source)?;
     fs::create_dir(source.join(".git"))?;
 
-    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+    let output = atlas_command()
         .args([
             "setup",
             "--path-mode",
