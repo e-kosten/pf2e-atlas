@@ -1,15 +1,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import ts from 'typescript';
-
-export const SOURCE_ROOTS = [
-  ['src/module/item/base/data/system.ts', 'ItemSystemSource'],
-  ['src/module/item/physical/data.ts', 'PhysicalSystemSource'],
-  ['src/module/item/equipment/data.ts', 'EquipmentSource'],
-  ['src/module/item/container/data.ts', 'ContainerSource'],
-  ['src/module/item/book/data.ts', 'BookSource'],
-  ['src/module/item/treasure/data.ts', 'TreasureSource'],
-].map(([file, name]) => ({ file, name }));
+import { discoverSourcePortfolio, PORTFOLIO_FILE } from './source-portfolio.mjs';
 
 const digest = (text) => createHash('sha256').update(text).digest('hex').slice(0, 24);
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
@@ -31,10 +23,18 @@ export function extractTypeGraph(sourceRoot, options = {}) {
   if (read.error) return failure(read.error);
   const config = ts.parseJsonConfigFileContent(read.config, ts.sys, root, undefined, configPath);
   if (config.errors.length) return failure(...config.errors);
-  const selections = options.roots ?? SOURCE_ROOTS;
+  const portfolio = options.roots ? null : discoverSourcePortfolio(root);
+  const selections = options.roots ?? portfolio.selections;
+  diagnostics.push(...(portfolio?.diagnostics ?? []));
   const maxNodes = options.maxNodes ?? 4000;
   if (!Number.isInteger(maxNodes) || maxNodes < 1) throw new Error('maxNodes must be a positive integer');
-  const program = ts.createProgram(config.fileNames, config.options);
+  const host = ts.createCompilerHost(config.options);
+  const virtualFile = path.join(root, PORTFOLIO_FILE);
+  const originalGetSourceFile = host.getSourceFile.bind(host);
+  host.getSourceFile = (file, ...args) => portfolio && path.resolve(file) === virtualFile
+    ? ts.createSourceFile(file, portfolio.virtualSource, ts.ScriptTarget.Latest, true)
+    : originalGetSourceFile(file, ...args);
+  const program = ts.createProgram([...config.fileNames, ...(portfolio ? [virtualFile] : [])], config.options, host);
   const checker = program.getTypeChecker();
   const nodes = new Map();
   const seen = new Map();
@@ -257,14 +257,40 @@ export function extractTypeGraph(sourceRoot, options = {}) {
     roots.push({ ...selection, ref });
   }
 
+  if (portfolio) {
+    for (const family of portfolio.families) {
+      const ref = roots.find((entry) => entry.documentKind === family.documentKind)?.ref;
+      const literals = new Set();
+      const inspected = new Set();
+      function discriminate(id) {
+        if (inspected.has(id)) return;
+        inspected.add(id);
+        const node = nodes.get(id);
+        if (node?.kind === 'union') { for (const member of node.members) discriminate(member); }
+        else {
+          const field = node?.fields?.find((entry) => entry.name === 'type');
+          const type = nodes.get(field?.ref);
+          if (type?.kind === 'literal' && typeof type.value === 'string') literals.add(type.value);
+          else problem('family-discriminator', `${family.documentKind} source member has no literal type discriminator`, id);
+        }
+      }
+      discriminate(ref);
+      family.discovered = [...literals].sort(compare);
+      if (JSON.stringify(family.registered) !== JSON.stringify(family.discovered)) {
+        problem('family-coverage', `${family.documentKind} registered families differ from source discriminators`);
+      }
+    }
+  }
+
   const projectDiagnostics = { selected: [], unrelated: [] };
   const selectedRanges = [...selectedDeclarations].map((declaration) => ({
     file: declaration.getSourceFile().fileName, start: declaration.getStart(), end: declaration.getEnd(),
   }));
   for (const diagnostic of ts.getPreEmitDiagnostics(program)) {
     const serialized = serializeDiagnostic(diagnostic);
-    const selected = diagnostic.file && diagnostic.start !== undefined && selectedRanges.some((range) =>
-      range.file === diagnostic.file.fileName && range.start <= diagnostic.start && diagnostic.start < range.end);
+    const selected = diagnostic.file && ((portfolio && diagnostic.file.fileName === virtualFile)
+      || (diagnostic.start !== undefined && selectedRanges.some((range) =>
+        range.file === diagnostic.file.fileName && range.start <= diagnostic.start && diagnostic.start < range.end)));
     projectDiagnostics[selected ? 'selected' : 'unrelated'].push(serialized);
   }
   for (const group of Object.values(projectDiagnostics)) group.sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b)));
@@ -272,7 +298,9 @@ export function extractTypeGraph(sourceRoot, options = {}) {
   const complete = !diagnostics.length && !projectDiagnostics.selected.some((entry) => entry.category === 'error');
   return { format: 'atlas-source-type-graph/v1', typescript: ts.version, complete,
     status: complete ? 'complete' : 'incomplete',
-    roots, nodes: [...nodes.values()].sort((a, b) => compare(a.id, b.id)), diagnostics, projectDiagnostics };
+    roots, ...(portfolio ? { portfolio: { documentKinds: portfolio.documentKinds, families: portfolio.families,
+      ruleKeys: portfolio.ruleKeys } } : {}),
+    nodes: [...nodes.values()].sort((a, b) => compare(a.id, b.id)), diagnostics, projectDiagnostics };
 
   function serializeDiagnostic(diagnostic) {
     return { code: diagnostic.code, category: ts.DiagnosticCategory[diagnostic.category].toLowerCase(),
