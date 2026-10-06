@@ -4,7 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const inputDirectories = ['src', 'types'];
-const inputFiles = ['package.json', 'tsconfig.json', 'static/lang/en.json'];
+const inputFiles = ['package.json', 'tsconfig.json', 'static/system.json', 'static/lang/en.json'];
 
 export async function sourceIdentity(sourceRoot) {
   const names = [...inputFiles];
@@ -39,4 +39,3 @@ export async function sourceIdentity(sourceRoot) {
   }
   return { system_version: manifest.version ?? null, source_digest: hash.digest('hex'), input_file_count: names.length, git_commit: gitCommit, git_clean: gitClean };
 }
-
