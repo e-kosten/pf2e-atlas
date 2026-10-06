@@ -95,5 +95,6 @@ jobs:
           scripts/release/test-prepare-release.sh
       - name: Windows installer smoke tests
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: scripts/release/test-installer.ps1
+        # Git Bash supplies XZ-capable tar; Windows' bundled tar cannot create XZ.
+        shell: bash
+        run: pwsh -NoProfile -File scripts/release/test-installer.ps1
