@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 import { open } from 'yauzl';
 
 /** Inspect ZIP central-directory names without decompressing release binaries. */
@@ -16,5 +17,9 @@ export function zipEntries(file: string): Promise<string[]> {
 }
 export async function archiveEntries(file: string): Promise<string[]> {
   if (file.endsWith('.zip')) return zipEntries(file);
-  return execFileSync('tar', ['-tf', file], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }).split(/\r?\n/).filter(Boolean);
+  // GNU tar treats a drive-letter archive path as a remote host. Keep it local
+  // using a relative filename, which also works with BSD tar.
+  return execFileSync('tar', ['-tf', `./${path.basename(file)}`], {
+    cwd: path.dirname(file), encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
+  }).split(/\r?\n/).filter(Boolean);
 }
