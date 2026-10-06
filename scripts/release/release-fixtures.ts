@@ -26,7 +26,10 @@ export async function fixture(args: string[]): Promise<void> {
     }
     case 'unix-archive': {
       if (!extra) throw new Error('Archive source root is required');
-      execFileSync('tar', ['-cJf', file, '-C', path.dirname(extra), path.basename(extra)]); break;
+      const source = path.resolve(extra);
+      execFileSync('tar', ['-cJf', `./${path.basename(file)}`, '-C', path.dirname(source), path.basename(source)], {
+        cwd: path.dirname(file),
+      }); break;
     }
     case 'bad-zip': await writeZip(file, { 'atlas-cli-x86_64-pc-windows-msvc/vendor/pf2e/source.json': '{}\n' }); break;
     case 'dist-manifest': {
