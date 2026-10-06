@@ -215,7 +215,7 @@ fn physical_common_fields_are_typed_without_defaults_or_numeric_coercion() {
             .system
             .pending_family_fields
             .compact_json(),
-        r#"{"damage":{"dice":1}}"#
+        "{}"
     );
     let activation = p.activations.as_value().unwrap()[0].1.as_value().unwrap();
     assert_eq!(activation.id, SourcePresence::Value("authored-id".into()));
@@ -298,7 +298,7 @@ fn all_eight_physical_discriminators_include_declaration_only_book() {
                     .pending_family_fields
                     .fields()
                     .len(),
-                3
+                0
             );
         }
     }

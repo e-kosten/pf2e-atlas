@@ -1,7 +1,7 @@
 use atlas_record::{CreatureFrequencyPeriod, CreatureSize};
 use serde_json::Number;
 
-use super::super::item_common::{CommonItemSource, ItemParentSource};
+use super::super::item_common::{CommonItemSource, ItemNumberValueSource, ItemParentSource};
 use super::super::{
     SerializedSourceObject, SerializedSourceValue, SourceIdentity, SourcePresence,
     SourceVersionMetadata,
@@ -29,15 +29,16 @@ pub struct PhysicalItemSource {
     /// fields exclude the physical fields modeled below.
     pub common: CommonItemSource,
     pub physical: PhysicalSystemSource,
+    pub family: super::PhysicalFamilySource,
 }
 
-/// Shared PhysicalSystemSource. Presence is retained before defaults; concrete
-/// family requirements, forbidden members and narrower types are still pending.
+/// Shared PhysicalSystemSource. Presence is retained before defaults; the family
+/// owner supplies concrete refinements and field applicability separately.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PhysicalSystemSource {
     pub quantity: SourcePresence<Number>,
     pub base_item: SourcePresence<String>,
-    pub bulk: SourcePresence<PhysicalBulkSource>,
+    pub bulk: SourcePresence<ItemNumberValueSource>,
     pub hp: SourcePresence<PhysicalHitPointsSource>,
     pub hardness: SourcePresence<Number>,
     pub price: SourcePresence<ItemPriceSource>,
@@ -51,16 +52,9 @@ pub struct PhysicalSystemSource {
     pub usage: SourcePresence<PhysicalUsageSource>,
     pub activations: SourcePresence<Vec<(String, SourcePresence<ItemActivationSource>)>>,
     pub temporary: SourcePresence<bool>,
-    /// Recursive shared physical fields; child family bodies remain pending.
+    /// Recursive common/physical fields and the same family refinement as roots.
     pub subitems: SourcePresence<Vec<PhysicalItemSource>>,
     pub apex: SourcePresence<SourceApex>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PhysicalBulkSource {
-    pub value: SourcePresence<Number>,
-    /// Container-specific bulk fields are modeled with that family's refinement.
-    pub additional_fields: SerializedSourceObject,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +87,10 @@ pub struct ItemEquippedSource {
     pub in_slot: SourcePresence<bool>,
     pub hands_held: SourcePresence<u8>,
     pub invested: SourcePresence<bool>,
+    /// Legacy serialized slot field, before modern inSlot state.
+    pub legacy_slot: SourcePresence<String>,
+    /// Observed Foundry deletion syntax; only missing/null is admitted.
+    pub legacy_in_slot_deletion: SourcePresence<()>,
     pub additional_fields: SerializedSourceObject,
 }
 

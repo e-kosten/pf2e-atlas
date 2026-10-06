@@ -9,12 +9,12 @@ mod parse;
 pub use super::value::{SerializedSourceObject, SerializedSourceValue};
 pub use model::{
     CommonItemSource, ItemDescriptionSource, ItemFlagsSource, ItemGrantDeleteAction,
-    ItemGrantSource, ItemGranterSource, ItemLevelSource, ItemLicenseSource,
-    ItemMigrationPreviousSource, ItemMigrationSource, ItemOwnershipLevel, ItemParentSource,
+    ItemGrantSource, ItemGranterSource, ItemLicenseSource, ItemMigrationPreviousSource,
+    ItemMigrationSource, ItemNumberValueSource, ItemOwnershipLevel, ItemParentSource,
     ItemPublicationSource, ItemRuleSelectionSource, ItemSourceEnvelope, ItemStatsSource,
     ItemSystemSource, ItemTraitsShape, ItemTraitsSource, Pf2eItemFlagsSource,
     VersionedCommonItemSource,
 };
 pub use parse::parse_common_item_source;
 
-pub(super) use parse::parse_common_item_fields;
+pub(super) use parse::{number_value, parse_common_item_fields};

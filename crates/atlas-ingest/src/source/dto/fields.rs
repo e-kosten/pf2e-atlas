@@ -34,7 +34,7 @@ impl<'a> Fields<'a> {
         key: &str,
         parse: impl FnOnce(&SerializedSourceValue, &SourceIdentity, &str) -> ParseResult<T>,
     ) -> ParseResult<SourcePresence<T>> {
-        let path = format!("{}.{}", self.path, key);
+        let path = self.member_path(key);
         match self.object.member(key) {
             SerializedSourceMember::Missing => Ok(SourcePresence::Missing),
             SerializedSourceMember::Null => Ok(SourcePresence::Null),
@@ -66,16 +66,49 @@ impl<'a> Fields<'a> {
             SourcePresence::Value(value) => Ok(value),
             SourcePresence::Missing => Err(malformed(
                 self.identity,
-                &format!("{}.{}", self.path, key),
+                &self.member_path(key),
                 "present non-null field",
                 "missing",
             )),
             SourcePresence::Null => Err(malformed(
                 self.identity,
-                &format!("{}.{}", self.path, key),
+                &self.member_path(key),
                 "present non-null field",
                 "null",
             )),
+        }
+    }
+
+    pub(super) fn absent(&self, key: &str) -> ParseResult<()> {
+        let actual = match self.presence(key, |v, _, _| Ok(v.clone()))? {
+            SourcePresence::Missing => return Ok(()),
+            SourcePresence::Null => "null".to_string(),
+            SourcePresence::Value(value) => value.compact_json(),
+        };
+        Err(malformed(
+            self.identity,
+            &self.member_path(key),
+            "field absent in this family source",
+            actual,
+        ))
+    }
+
+    fn member_path(&self, key: &str) -> String {
+        let identifier = key
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+            && key
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$');
+        if identifier {
+            format!("{}.{}", self.path, key)
+        } else {
+            format!(
+                "{}[{}]",
+                self.path,
+                serde_json::Value::String(key.to_string())
+            )
         }
     }
 
