@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 
-use crate::cli::args::{CliPathMode, FilterOptions};
+use crate::cli::args::FilterOptions;
+use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 pub(crate) struct FiltersArgs {

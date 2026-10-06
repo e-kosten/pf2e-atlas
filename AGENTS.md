@@ -4,7 +4,9 @@
 
 PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 
-- `crates/atlas-cli`: command parsing, output, progress, exit codes, and agent skill installation.
+- `crates/atlas-cli`: product command parsing, presentation, exit codes, and agent skill installation.
+- `crates/atlas-dev`: local Rust developer commands for source analysis, path auditing, and artifact inspection; excluded from releases.
+- `crates/atlas-cli-support`: shared path/progress argument vocabulary, JSON envelopes, and progress rendering for both Rust CLIs.
 - `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction.
 - `crates/atlas-search`: product-facing retrieval orchestration.
 - `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL.
@@ -50,7 +52,8 @@ For `web/atlas-ui`, Ant Design is the selected component library for generic app
 - `scripts/install-git-hooks.sh`: configure this clone to use the tracked git hooks in `.githooks/`.
 - `scripts/preflight.sh`: verify the current checkout is a linked worktree on a non-`main` branch.
 - `just verify` or `scripts/verify.sh`: run the Rust fmt, clippy, test, and build gate.
-- `cargo run -p atlas-cli -- --help`: run the CLI from source.
+- `cargo run -p atlas-cli -- --help`: run the product CLI from source.
+- `cargo run -p atlas-dev -- --help`: run Rust developer diagnostics without building the web UI or starting Node.
 - `cargo run -p atlas-cli -- setup --check --json`: inspect setup readiness from source.
 - `cargo install --path crates/atlas-cli --locked`: install the local `atlas` CLI.
 
@@ -66,7 +69,8 @@ Prefer descriptive module names and explicit ownership:
 - retrieval orchestration belongs in `atlas-search`
 - source loading, normalization, enrichment, and writing belong in `atlas-ingest`
 - presentation-neutral record/content models belong in `atlas-record`
-- CLI presentation and exit behavior belong in `atlas-cli`
+- Product command presentation and exit behavior belong in `atlas-cli`; developer command presentation belongs in `atlas-dev`
+- Shared CLI argument vocabulary, JSON envelopes, and progress rendering belong in `atlas-cli-support`; runtime path policy stays in `atlas-runtime`
 
 Use `cargo fmt` for formatting. Keep Clippy clean under the workspace gate.
 

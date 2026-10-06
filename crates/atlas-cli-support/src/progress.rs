@@ -10,20 +10,20 @@ use tracing_subscriber::layer::Context;
 use tracing_subscriber::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ProgressMode {
+pub enum ProgressMode {
     Auto,
     Always,
     Never,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ProgressOptions {
-    pub(crate) mode: ProgressMode,
-    pub(crate) json: bool,
-    pub(crate) setup_timing: bool,
+pub struct ProgressOptions {
+    pub mode: ProgressMode,
+    pub json: bool,
+    pub setup_timing: bool,
 }
 
-pub(crate) fn init_tracing(options: ProgressOptions) {
+pub fn init_tracing(options: ProgressOptions) {
     let subscriber = tracing_subscriber::registry().with(CliProgressLayer::new(
         options,
         internal_logs_enabled_from_env(),

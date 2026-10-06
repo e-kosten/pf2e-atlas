@@ -118,6 +118,7 @@ version = "0.1.0-rc.6"
 dependencies = [
  "atlas-app-model",
  "atlas-app-service",
+ "atlas-cli-support",
  "atlas-domain",
  "atlas-embedding",
  "atlas-index",
@@ -132,7 +133,6 @@ dependencies = [
  "axum",
  "clap",
  "clap_complete",
- "indicatif",
  "inquire",
  "rand 0.9.4",
  "rusqlite",
@@ -141,7 +141,30 @@ dependencies = [
  "sha2",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "atlas-cli-support"
+version = "0.1.0"
+dependencies = [
+ "atlas-runtime",
+ "clap",
+ "indicatif",
+ "serde",
+ "serde_json",
+ "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "atlas-dev"
+version = "0.1.0"
+dependencies = [
+ "atlas-cli-support",
+ "atlas-ingest",
+ "atlas-runtime",
+ "clap",
+ "serde_json",
 ]
 
 [[package]]

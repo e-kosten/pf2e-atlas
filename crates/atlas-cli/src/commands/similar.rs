@@ -14,7 +14,7 @@ use crate::client::{
 };
 use crate::commands::filters::build_filter;
 use crate::commands::record::{detail_outputs_description, print_record_for_detail};
-use crate::output::{write_json_data, write_json_error, write_json_error_data};
+use atlas_cli_support::{write_json_data, write_json_error, write_json_error_data};
 
 pub(crate) mod args;
 

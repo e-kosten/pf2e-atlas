@@ -7,8 +7,8 @@ use atlas_search::{
 };
 use clap::{Args, Subcommand};
 
-use crate::cli::args::CliPathMode;
 use crate::cli::parse::{DETAIL_HELP, parse_detail_level};
+use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 pub(crate) struct GraphArgs {

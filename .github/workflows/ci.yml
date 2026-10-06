@@ -35,6 +35,18 @@ jobs:
       - name: Rust verification
         run: scripts/verify.sh
 
+  atlas-dev:
+    name: atlas dev (no web bundle)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build and test standalone Rust diagnostics
+        run: |
+          test ! -d web/atlas-ui/dist
+          cargo build -p atlas-dev --locked
+          cargo test -p atlas-dev -p atlas-cli-support --locked
+
   web-ui:
     name: web ui
     runs-on: ubuntu-24.04

@@ -1,0 +1,20 @@
+[package]
+name = "atlas-cli-support"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+rust-version.workspace = true
+description = "Shared argument, JSON and progress presentation for Atlas CLIs"
+
+[package.metadata.dist]
+dist = false
+
+[dependencies]
+atlas-runtime.workspace = true
+clap.workspace = true
+indicatif.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

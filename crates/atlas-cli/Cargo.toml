@@ -18,6 +18,7 @@ name = "atlas"
 path = "src/main.rs"
 
 [dependencies]
+atlas-cli-support.workspace = true
 atlas-app-service.workspace = true
 atlas-app-model.workspace = true
 atlas-web.workspace = true
@@ -33,7 +34,6 @@ atlas-tags.workspace = true
 axum.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
-indicatif.workspace = true
 inquire.workspace = true
 rand.workspace = true
 serde.workspace = true
@@ -41,7 +41,6 @@ serde_json.workspace = true
 sha2.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
 
 [dev-dependencies]
 atlas-index = { workspace = true, features = ["test-support"] }

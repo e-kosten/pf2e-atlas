@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use crate::output::write_json_data;
+use atlas_cli_support::write_json_data;
 
 use super::args::GraphVariantsOptions;
 use super::data::graph_variants_data;

@@ -47,7 +47,9 @@ Recommended types:
 PF2e Atlas is a Rust workspace:
 
 - `Cargo.toml`: workspace definition and shared dependency versions
-- `crates/atlas-cli`: command parsing, JSON/text output, progress output, exit codes, and agent skill installation
+- `crates/atlas-cli`: product command parsing, presentation, exit codes, and agent skill installation
+- `crates/atlas-dev`: private Rust developer source and artifact diagnostics
+- `crates/atlas-cli-support`: shared argument vocabulary, JSON envelopes, and progress rendering
 - `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction
 - `crates/atlas-search`: product-facing retrieval orchestration
 - `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL
@@ -115,6 +117,41 @@ atlas completions zsh
 atlas completions bash
 atlas completions fish
 ```
+
+## Rust Developer Commands
+
+Build and run developer diagnostics independently of the product CLI, web UI
+bundle, and Node:
+
+```bash
+cargo run -p atlas-dev -- --help
+cargo run -p atlas-dev -- source analyze --source vendor/pf2e --json
+cargo run -p atlas-dev -- source audit-paths --source vendor/pf2e --record-type npc --json
+cargo run -p atlas-dev -- index inspect --index .cache/pf2e-index.sqlite --json
+cargo test -p atlas-dev -p atlas-cli-support
+```
+
+These commands use the same global/repo path policy, JSON envelope, and progress
+controls as atlas. Analysis runs ingest projections without writing SQLite;
+path auditing reports source paths and known consumers; inspection reads an
+existing artifact without changing it. Source commands' `--manifest` overrides
+the Foundry input manifest. Reports go to stdout; `--json` selects JSON.
+Use Cargo's release profile for ingest performance measurements:
+
+```bash
+cargo run --release -p atlas-dev -- source analyze --source vendor/pf2e --json
+```
+
+Setup and index build/check/validate remain operational product commands:
+
+```bash
+cargo run -p atlas-cli -- index build --no-embeddings --json
+```
+
+Foundry compiler research runs through the separate private
+[TypeScript package](./scripts/source-contracts/README.md), with npm entry points.
+Rust developer commands do not launch TypeScript tools. Neither developer
+surface is included in published product bundles; atlas-dev is built locally.
 
 ## Release Process
 

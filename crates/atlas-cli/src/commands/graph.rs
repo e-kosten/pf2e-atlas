@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use crate::cli::args::CliPathMode;
 use crate::client::{AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect};
-use crate::output::write_json_error;
+use atlas_cli_support::CliPathMode;
+use atlas_cli_support::write_json_error;
 
 pub(crate) mod args;
 mod data;

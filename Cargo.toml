@@ -1,6 +1,8 @@
 [workspace]
 members = [
   "crates/atlas-cli",
+  "crates/atlas-cli-support",
+  "crates/atlas-dev",
   "crates/atlas-app-model",
   "crates/atlas-app-service",
   "crates/atlas-web",
@@ -26,6 +28,7 @@ homepage = "https://github.com/e-kosten/pf2e-atlas"
 rust-version = "1.95"
 
 [workspace.dependencies]
+atlas-cli-support = { path = "crates/atlas-cli-support" }
 atlas-domain = { path = "crates/atlas-domain" }
 atlas-app-model = { path = "crates/atlas-app-model" }
 atlas-app-service = { path = "crates/atlas-app-service" }
