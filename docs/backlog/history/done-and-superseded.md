@@ -6,6 +6,10 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Developer command separation](./items/developer-command-separation.md)
+  Product operations use atlas, Rust diagnostics use atlas-dev, and Foundry
+  compiler research uses private TypeScript npm commands. Status: done.
+
 - [TypeScript release tooling](./items/typescript-release-tooling.md)
   Private strict TypeScript tools own release metadata and archive inspection;
   platform smoke tests remain native shell and PowerShell. Status: done.

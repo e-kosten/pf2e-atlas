@@ -20,6 +20,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): app-service composes final app-facing record surfaces from source facts plus product context, while the frontend renders and hosts interactions.
 - [`0032-ingest-product-intent.md`](./0032-ingest-product-intent.md): ingest promotes Foundry source fields only when they improve durable Atlas product surfaces, while broad raw JSON scans remain diagnostic tooling.
 
+- [`0033-developer-command-surfaces.md`](./0033-developer-command-surfaces.md): product operations use `atlas`, Rust diagnostics use private `atlas-dev`, and compiler research uses private TypeScript npm commands; shared CLI presentation has a narrow support crate.
+
 ## Historical ADRs
 
 ADRs 0001-0017 preserve design history for earlier architecture work and migration sequencing. They are retained as context, but current implementation guidance lives in the Rust architecture docs and current ADRs above. ADR 0026 supersedes ADR 0017 for product surface and workspace layout.

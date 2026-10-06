@@ -21,6 +21,8 @@ It is intended as release hygiene and is not legal advice.
 - atlas-app-model 0.1.0: MIT (workspace)
 - atlas-app-service 0.1.0: MIT (workspace)
 - atlas-cli 0.1.0-rc.6: MIT (workspace)
+- atlas-cli-support 0.1.0: MIT (workspace)
+- atlas-dev 0.1.0: MIT (workspace)
 - atlas-domain 0.1.0: MIT (workspace)
 - atlas-embedding 0.1.0: MIT (workspace)
 - atlas-index 0.1.0: MIT (workspace)

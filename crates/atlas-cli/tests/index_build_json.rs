@@ -89,28 +89,6 @@ fn build_index_json_writes_valid_minimal_artifact() -> Result<(), Box<dyn std::e
         "table:record_vector_index"
     );
 
-    let inspect_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["index", "inspect", "--index"])
-        .arg(&index_path)
-        .arg("--json")
-        .output()?;
-
-    assert!(inspect_output.status.success());
-    let inspect_json = parse_ok_data(&inspect_output)?;
-    assert_eq!(inspect_json["records"]["total_records"], 1);
-    assert_eq!(inspect_json["records"]["default_visible_records"], 1);
-    assert_eq!(inspect_json["records"]["by_kind"]["rule"], 1);
-    assert_eq!(
-        inspect_json["records"]["by_publication_category"]["unknown"],
-        1
-    );
-    assert_eq!(inspect_json["tables"]["records"], 1);
-    assert_eq!(inspect_json["tables"]["packs"], 1);
-    assert_eq!(inspect_json["tables"]["document_embedding_cache"], 0);
-    assert_eq!(inspect_json["text"]["records_with_description"], 1);
-    assert_eq!(inspect_json["relationships"]["reference_edges"], 1);
-    assert_eq!(inspect_json["metrics"]["metric_value_catalog_rows"], 0);
-
     fs::remove_dir_all(root)?;
     Ok(())
 }
@@ -124,92 +102,6 @@ fn validate_rejects_conflicting_embedding_flags() -> Result<(), Box<dyn std::err
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8(output.stderr)?;
     assert!(stderr.contains("cannot be used with"));
-    Ok(())
-}
-
-#[test]
-fn analyze_index_json_reports_source_without_writing_artifact()
--> Result<(), Box<dyn std::error::Error>> {
-    let root = temp_source_root("cli-analyze");
-    write_record_search_source(&root)?;
-    let index_path = root.join("artifact.sqlite");
-
-    let analyze_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["index", "analyze", "--source"])
-        .arg(&root)
-        .arg("--json")
-        .output()?;
-
-    assert!(analyze_output.status.success());
-    assert!(!index_path.exists());
-    let analyze_json = parse_ok_data(&analyze_output)?;
-    assert_eq!(analyze_json["source"]["root"], root.display().to_string());
-    assert_eq!(
-        analyze_json["source"]["manifest"],
-        root.join("module.json").display().to_string()
-    );
-    let source_signature = analyze_json["source"]["source_signature"]
-        .as_str()
-        .expect("index analyze should report source signature");
-    assert!(source_signature.starts_with("foundry-pf2e:sha256:"));
-    assert_eq!(source_signature.len(), "foundry-pf2e:sha256:".len() + 64);
-    assert_eq!(analyze_json["pack_count"], 1);
-    assert_eq!(analyze_json["loaded_source_pack_count"], 1);
-    assert_eq!(analyze_json["record_count"], 1);
-    assert_eq!(analyze_json["loaded_source_record_count"], 1);
-    assert_eq!(analyze_json["generated_record_count"], 0);
-    assert_eq!(analyze_json["default_visible_record_count"], 1);
-    assert_eq!(analyze_json["hidden_record_count"], 0);
-    assert_eq!(analyze_json["by_kind"]["rule"], 1);
-    assert_eq!(analyze_json["by_foundry_taxonomy"]["Item|action"], 1);
-    assert_eq!(analyze_json["by_publication_category"]["unknown"], 1);
-    assert_eq!(analyze_json["mechanics"]["item_records"], 1);
-    assert_eq!(analyze_json["text"]["records_with_description"], 1);
-    assert_eq!(analyze_json["embeddings"]["pending_document_embeddings"], 1);
-    assert_eq!(analyze_json["relationships"]["reference_edges"], 1);
-    assert_eq!(analyze_json["skipped_record_count"], 0);
-
-    fs::remove_dir_all(root)?;
-    Ok(())
-}
-
-#[test]
-fn audit_source_paths_json_reports_source_field_coverage() -> Result<(), Box<dyn std::error::Error>>
-{
-    let root = temp_source_root("cli-audit-source-paths");
-    write_record_search_source(&root)?;
-
-    let audit_output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["index", "audit-source-paths", "--source"])
-        .arg(&root)
-        .args(["--record-type", "action", "--json"])
-        .output()?;
-
-    assert!(audit_output.status.success());
-    let audit_json = parse_ok_data(&audit_output)?;
-    assert_eq!(audit_json["source_root"], root.display().to_string());
-    assert_eq!(
-        audit_json["manifest_path"],
-        root.join("module.json").display().to_string()
-    );
-    assert_eq!(audit_json["pack_count"], 1);
-    assert_eq!(audit_json["record_count"], 1);
-    assert_eq!(audit_json["filters"]["record_type"], "action");
-    assert!(
-        audit_json["path_count"]
-            .as_u64()
-            .is_some_and(|count| count >= 1)
-    );
-    let paths = audit_json["paths"].as_array().expect("audit paths");
-    assert!(paths.iter().any(|path| {
-        path["path"] == "$.system.description.value"
-            && path["coverage_status"] == "consumed"
-            && path["known_consumers"].as_array().is_some_and(|consumers| {
-                consumers.iter().any(|consumer| consumer == "rich_content")
-            })
-    }));
-
-    fs::remove_dir_all(root)?;
     Ok(())
 }
 

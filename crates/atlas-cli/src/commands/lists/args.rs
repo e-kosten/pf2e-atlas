@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand, ValueEnum};
 
-use crate::cli::args::CliPathMode;
+use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 pub(crate) struct ListsArgs {

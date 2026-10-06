@@ -16,7 +16,9 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-web` owns the Axum local HTTP surface, adapting `/api/*` routes and future static frontend serving to `atlas-app-service`.
 - `web/atlas-ui` owns the TypeScript/React frontend. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and uses Ant Design as the selected component library for the current web UI. It should not own retrieval semantics or duplicate Rust DTO contracts.
 - `atlas-local-state` owns durable mutable local state stored outside the generated artifact, including saved-list schema/items and encounter schema/participants.
-- `atlas-cli` owns command parsing, output, progress, exit codes, `atlas web` startup, and agent skill installation.
+- `atlas-cli` owns product command parsing, presentation, exit codes, `atlas web` startup, and agent skill installation.
+- `atlas-dev` owns local Rust developer command parsing, presentation, and exit codes for source analysis, raw path auditing, and artifact inspection. It depends on the owning Rust libraries and builds without the product CLI, web UI bundle, or Node.
+- `atlas-cli-support` owns shared path/progress argument vocabulary, JSON envelopes, and progress rendering for the two Rust CLIs. It carries presentation primitives, not runtime path policy or ingest/index behavior.
 - `atlas-runtime` owns path/setup policy and runtime handle construction.
 - `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
 - `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the hooks needed by ingest, runtime, search, and CLI artifact diagnostics; product CLI workflows route through `atlas-search` rather than index readers. Artifact, read, write, and SQLite implementation details stay behind internal module facades.
@@ -77,6 +79,12 @@ flowchart TD
 
 It should not own durable retrieval semantics, filter discovery behavior, SQLite schema, model execution policy, or artifact mutation rules.
 
+### Developer Commands
+
+`atlas-dev source analyze`, `atlas-dev source audit-paths`, and `atlas-dev index inspect` expose Rust diagnostics. Source reports belong to `atlas-ingest`, inspection reports belong to `atlas-index`, and path resolution belongs to `atlas-runtime`. Setup and index build/check/validate remain product operations in `atlas`.
+
+Foundry compiler discovery and declaration research run through the private TypeScript package in `scripts/source-contracts`. Rust developer commands do not dispatch Node. Both developer surfaces are checked in CI and excluded from release distributions. See [ADR 0033](./decisions/0033-developer-command-surfaces.md).
+
 ### Local Web Service
 
 `atlas web` starts a long-lived localhost service for the interactive web app. CLI startup owns process flags such as path overrides, port selection, and `--open`; `atlas-web` owns HTTP routing; `atlas-app-service` owns long-lived retrieval workflow state.
@@ -125,7 +133,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 
 ## Editing Guidance
 
-- Keep `atlas-cli` thin. Durable search, lookup, graph, validation, setup, artifact behavior, and cross-layer local-state workflows belong below the CLI. CLI commands should own argument grammar, terminal/JSON envelopes, and exit-code mapping. When a command needs app workflow behavior, prefer the CLI client facade over direct runtime/search/local-state composition so future local and remote clients can share the same contracts.
+- Keep both Rust CLIs thin. Shared argument vocabulary, JSON envelopes, and progress rendering belong in `atlas-cli-support`; command-specific grammar, dispatch, presentation, and exit mapping belong in the respective binary crate. Durable search, lookup, graph, validation, setup, artifact behavior, and cross-layer local-state workflows belong below the CLI. CLI commands should own argument grammar, terminal/JSON envelopes, and exit-code mapping. When a command needs app workflow behavior, prefer the CLI client facade over direct runtime/search/local-state composition so future local and remote clients can share the same contracts.
 - Keep `atlas-app-model` thin. It should contain interactive workflow DTOs and generated TypeScript contracts, not duplicate domain logic or record presentation models.
 - Run `cargo test -p atlas-app-model` after app DTO changes; it fails when checked-in TypeScript bindings drift. Regenerate bindings intentionally with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
 - Keep `atlas-app-service` behind runtime/search boundaries. It should not import `atlas-index` or assemble SQLite readers. Web service construction must use full pooled retrieval; the CLI local client may opt into explicit on-demand app-service modes when a short-lived command does not need query embeddings. App-service owns the app filter editor projection, including field grouping, typed controls, placement, labels, discovery-scope semantics, selected-field preservation, and display ordering over product discovery results. App-service also owns final app-facing record surface composition: source facts from `atlas-record`, active retrieval context, and local encounter/list state are composed into profile-specific DTOs before the browser renders them. The service facade owns shared app state and a bounded retrieval executor; workflow modules such as result windows, record detail, and filters own their orchestration and tests. Result-window metadata may be serialized through app-service state, but web read-only retrieval execution should run through the bounded pool rather than a single global request lane.

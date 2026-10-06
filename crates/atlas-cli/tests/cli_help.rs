@@ -30,18 +30,6 @@ fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn
     ));
     assert!(build_help.contains("Standard users should run `atlas setup` instead."));
 
-    let analyze_help = help_output(&["index", "analyze"])?;
-    assert!(analyze_help.contains(
-        "atlas index analyze --source vendor/pf2e --manifest scratch/ingest-manifest.json --json"
-    ));
-
-    let audit_help = help_output(&["index", "audit-source-paths"])?;
-    assert!(audit_help.contains("atlas index audit-source-paths --record-type npc"));
-    assert!(audit_help.contains("--min-records"));
-
-    let inspect_help = help_output(&["index", "inspect"])?;
-    assert!(inspect_help.contains("atlas index inspect --json"));
-
     let record_get_help = help_output(&["record", "get"])?;
     assert!(record_get_help.contains("equipment-srd:s1vB3HdXjMigYAnY"));
     assert!(record_get_help.contains("Canonical record keys"));
@@ -206,4 +194,21 @@ fn rust_files(
         }
     }
     Ok(files)
+}
+
+#[test]
+fn developer_index_commands_are_removed() -> Result<(), Box<dyn std::error::Error>> {
+    let help = help_output(&["index"])?;
+    for name in ["analyze", "audit-source-paths", "inspect"] {
+        assert!(!help.contains(name));
+        let output = support::command::atlas_command()
+            .args(["index", name, "--json"])
+            .output()?;
+        assert_eq!(output.status.code(), Some(2));
+        let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+        assert_eq!(json["status"], "error");
+        assert_eq!(json["error"]["code"], "invalid_input");
+        assert!(output.stderr.is_empty());
+    }
+    Ok(())
 }

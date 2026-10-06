@@ -35,7 +35,7 @@ The audit should help answer:
 
 ## Acceptance Sketch
 
-- The audit can scan the full Foundry source tree and emit a stable JSON report. Initial support exists as `atlas index audit-source-paths`.
+- The audit can scan the full Foundry source tree and emit a stable JSON report. The diagnostic command is `atlas-dev source audit-paths`.
 - The report groups source paths by document/record type, record type, or pack filter and includes counts plus representative record keys or source paths.
 - The report distinguishes consumed, ignored, deferred, and unknown paths.
 - Existing ingest owners can declare covered JSON pointer paths or path families without centralizing all source policy in one file.

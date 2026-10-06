@@ -13,7 +13,8 @@ use serde::Serialize;
 use crate::client::{
     AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
 };
-use crate::output::{CliError, write_json_data, write_json_error, write_json_error_data};
+use atlas_cli_support::{CliError, write_json_data, write_json_error, write_json_error_data};
+
 use crate::terminal::TerminalStyle;
 
 pub(crate) mod args;
