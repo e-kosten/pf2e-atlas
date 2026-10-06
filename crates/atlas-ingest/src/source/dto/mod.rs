@@ -8,9 +8,11 @@
 mod creature_core;
 mod diagnostic;
 mod embedded;
+mod fields;
 mod hazard;
 mod item;
 pub mod item_common;
+pub mod item_physical;
 mod npc;
 mod presence;
 mod spell;
