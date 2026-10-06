@@ -10,12 +10,15 @@ test('source identity follows source bytes and relative names, not location', as
   try {
     for (const root of directories) {
       for (const directory of ['src', 'types', 'static/lang']) await mkdir(path.join(root, directory), { recursive: true });
-      for (const [name, bytes] of [['src/source.ts', 'export interface Source { value: number }'], ['types/base.d.ts', 'interface Base {}'], ['package.json', '{"version":"6.12.4"}'], ['tsconfig.json', '{}'], ['static/lang/en.json', '{}']]) await writeFile(path.join(root, name), bytes);
+      for (const [name, bytes] of [['src/source.ts', 'export interface Source { value: number }'], ['types/base.d.ts', 'interface Base {}'], ['package.json', '{"version":"6.12.4"}'], ['tsconfig.json', '{}'], ['static/system.json', '{"packs":[]}'], ['static/lang/en.json', '{}']]) await writeFile(path.join(root, name), bytes);
     }
     const first = await sourceIdentity(directories[0]);
     assert.deepEqual(first, await sourceIdentity(directories[1]));
     assert.equal(first.git_commit, null);
     assert.equal(first.system_version, '6.12.4');
+    await writeFile(path.join(directories[1], 'static/system.json'), '{"packs":[{"type":"Item"}]}');
+    assert.notEqual(first.source_digest, (await sourceIdentity(directories[1])).source_digest);
+    await writeFile(path.join(directories[1], 'static/system.json'), '{"packs":[]}');
     await writeFile(path.join(directories[1], 'src/source.ts'), 'export interface Source { value: string }');
     assert.notEqual(first.source_digest, (await sourceIdentity(directories[1])).source_digest);
   } finally {

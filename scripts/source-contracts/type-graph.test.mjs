@@ -14,6 +14,112 @@ const lookup = (result, id) => result.nodes.find((node) => node.id === id);
 const rootNode = (result, name) => lookup(result, result.roots.find((entry) => entry.name === name).ref);
 const field = (node, name) => node.fields.find((entry) => entry.name === name);
 
+test('default portfolio follows pack kinds, complete family unions and registered schema sources', () => {
+  const result = extractTypeGraph(fixture);
+  assert.equal(result.complete, true, JSON.stringify(result.diagnostics));
+  assert.deepEqual(result.portfolio.documentKinds, ['Actor', 'Item', 'JournalEntry', 'Macro', 'RollTable']);
+  assert.equal(result.roots.length, 7);
+  for (const family of result.portfolio.families) assert.deepEqual(family.discovered, family.registered);
+  assert.deepEqual(result.portfolio.ruleKeys, ['Example', 'Inherited']);
+  for (const root of result.roots.filter((entry) => entry.ruleKey)) {
+    const node = lookup(result, root.ref);
+    assert.deepEqual(node.fields.map((field) => field.name), ['amount', 'choices']);
+    assert.equal(lookup(result, field(node, 'amount').ref).value, 'number');
+    assert.equal(lookup(result, field(node, 'choices').ref).kind, 'array');
+  }
+  assert.ok(!result.nodes.some((node) => node.fields?.some((field) => field.name === 'preparedOnly')));
+});
+
+test('portfolio changes reveal new families, document kinds, rules and unsupported registry syntax', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'atlas-portfolio-'));
+  try {
+    await cp(fixture, temporary, { recursive: true });
+    const configFile = path.join(temporary, 'src/scripts/config/index.ts');
+    const config = await readFile(configFile, 'utf8');
+    // Same count, different family: counts alone cannot establish coverage.
+    await writeFile(configFile, config.replace('spell: Object', 'newFamily: Object'));
+    const mismatch = extractTypeGraph(temporary);
+    assert.ok(mismatch.diagnostics.some((entry) => entry.code === 'family-coverage'));
+    assert.equal(mismatch.complete, false);
+    await writeFile(configFile, config);
+    const manifestFile = path.join(temporary, 'static/system.json');
+    const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
+    manifest.packs.push({ type: 'NewDocument' });
+    await writeFile(manifestFile, JSON.stringify(manifest));
+    const missing = extractTypeGraph(temporary);
+    assert.ok(missing.roots.some((entry) => entry.documentKind === 'NewDocument' && entry.ref === null));
+    assert.ok(missing.diagnostics.some((entry) => entry.code === 'missing-root'));
+    const documentsFile = path.join(temporary, 'types/foundry/common/documents/module.d.ts');
+    await writeFile(documentsFile, `${await readFile(documentsFile, 'utf8')}\nexport interface NewDocumentSource { value: string }`);
+    assert.equal(extractTypeGraph(temporary).complete, true);
+    const rulesFile = path.join(temporary, 'src/module/rules/index.ts');
+    const rules = await readFile(rulesFile, 'utf8');
+    await writeFile(rulesFile, rules.replace('Example: GenericRule', 'Added: OtherRule, Example: GenericRule'));
+    const added = extractTypeGraph(temporary);
+    assert.equal(added.complete, true);
+    assert.deepEqual(added.portfolio.ruleKeys, ['Added', 'Example', 'Inherited']);
+    assert.ok(added.roots.find((entry) => entry.ruleKey === 'Added').ref);
+    const original = extractTypeGraph(fixture);
+    assert.equal(added.roots.find((entry) => entry.ruleKey === 'Example').ref,
+      original.roots.find((entry) => entry.ruleKey === 'Example').ref);
+    await writeFile(rulesFile, rules.replace('Example: GenericRule', '...{}, Example: missingConstructor'));
+    const unsupported = extractTypeGraph(temporary);
+    assert.equal(unsupported.complete, false);
+    assert.ok(unsupported.diagnostics.some((entry) => entry.code === 'source-portfolio' && entry.message.includes('Unsupported registry entry')));
+    assert.ok(unsupported.diagnostics.some((entry) => entry.message.includes('Cannot resolve registered rule constructor Example')));
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
+test('missing schema methods and invalid portfolio inputs cannot report a complete graph', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'atlas-portfolio-errors-'));
+  try {
+    await cp(fixture, temporary, { recursive: true });
+    const exampleFile = path.join(temporary, 'src/module/rules/example.ts');
+    const example = await readFile(exampleFile, 'utf8');
+    await writeFile(exampleFile, example.replace('defineSchema()', 'otherMethod()'));
+    const missingMethod = extractTypeGraph(temporary);
+    assert.equal(missingMethod.complete, false);
+    assert.ok(missingMethod.projectDiagnostics.selected.some((entry) => entry.code === 2339));
+    await writeFile(exampleFile, example);
+    const configFile = path.join(temporary, 'src/scripts/config/index.ts');
+    const config = await readFile(configFile, 'utf8');
+    for (const changed of [
+      config.replace('unrelated,', 'unrelated, Actor: { documentClasses: { changed: Object } },'),
+      config.replace('npc: Object, character: Object }', 'npc: Object, character: Object }, documentClasses: { changed: Object }'),
+    ]) {
+      await writeFile(configFile, changed);
+      const duplicate = extractTypeGraph(temporary);
+      assert.equal(duplicate.complete, false);
+      assert.ok(duplicate.diagnostics.some((entry) => entry.message.includes('Duplicate property')));
+    }
+    await writeFile(configFile, config);
+    const rulesFile = path.join(temporary, 'src/module/rules/index.ts');
+    const rules = await readFile(rulesFile, 'utf8');
+    for (const changed of [
+      rules.replace('static readonly builtin', 'static readonly builtin = { Inherited: OtherRule };\n  static readonly builtin'),
+      `${rules}\nclass RuleElements { static builtin = {} }`,
+      rules.replace('static readonly builtin', 'readonly builtin'),
+      `${rules}\nRuleElements.builtin.Added = OtherRule;`,
+      `${rules}\nObject.assign(RuleElements.builtin, { Added: OtherRule });`,
+    ]) {
+      await writeFile(rulesFile, changed);
+      assert.equal(extractTypeGraph(temporary).complete, false);
+    }
+    await writeFile(rulesFile, rules);
+    await writeFile(configFile, `${config}\nconst PF2ECONFIG = {};`);
+    assert.equal(extractTypeGraph(temporary).complete, false);
+    await writeFile(configFile, `${config}\nPF2ECONFIG.Actor.documentClasses.npc = Object;`);
+    assert.equal(extractTypeGraph(temporary).complete, false);
+    await writeFile(configFile, config);
+    await writeFile(path.join(temporary, 'static/system.json'), '{"packs":[]}');
+    const empty = extractTypeGraph(temporary);
+    assert.equal(empty.complete, false);
+    assert.ok(empty.diagnostics.some((entry) => entry.message.includes('packs must not be empty')));
+    await writeFile(path.join(temporary, 'static/system.json'), '{invalid json');
+    assert.equal(extractTypeGraph(temporary).complete, false);
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
 test('resolves configured imports, inherited/shared references, refinements and source presence', () => {
   const result = graph();
   assert.equal(result.status, 'complete');
