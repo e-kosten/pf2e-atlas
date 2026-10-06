@@ -275,3 +275,7 @@ feature PR targets that branch; dependent PRs target the preceding feature branc
 The draft integration-to-`main` PR shows work as reviewed feature PRs land and
 remains a separate merge decision. `integration/record-refactor` is retained as
 the earlier research and product-preview reference.
+
+## Source declaration research
+
+Offline declaration and trait metadata tooling lives in [scripts/source-contracts](./scripts/source-contracts/README.md). Its pinned Node dependencies and fixture tests are separate from the Rust build.
