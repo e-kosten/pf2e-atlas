@@ -84,3 +84,20 @@ pieces, dependencies and deferred product work. Declaration graph extraction and
 trait catalog extraction can be implemented independently above a shared tooling
 base, with the combined command following both. gh-stack publication uses a linear
 review chain, even when the implementation work happens in parallel.
+
+## Extraction slice implemented
+
+Offline tooling is under `scripts/source-contracts`; see its
+[developer instructions](../../../scripts/source-contracts/README.md). The
+reviewed PF2e pin produces 1,728 declaration graph nodes, six selected roots
+covering common Item/physical and four family contracts, and 26 trait/tag/rarity
+catalogs with 2,686 memberships. Selected graph/compiler diagnostics are empty;
+226 unrelated upstream project diagnostics and 32 localization warnings remain
+visible. Repeated extraction is deterministic. Fixture tests include generic
+instantiation, anonymous union identity and same-named imported types.
+
+This completes the bounded extraction and catalog slices, not the broader Rust
+generation experiment. Next, inspect those outputs and test meaningful typed
+Rust generation for one shared component and equipment before expanding the
+portfolio or adopting parsers. Corpus agreement, frontend applicability, storage,
+metrics and production pipeline adoption remain separate work.

@@ -6,7 +6,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test *.test.mjs"
+    "test": "node --test *.test.mjs",
+    "extract": "node extract.mjs"
   },
   "dependencies": {
     "typescript": "5.9.3"
