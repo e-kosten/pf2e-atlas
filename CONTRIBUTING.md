@@ -267,3 +267,11 @@ The normal setup path can fetch or update source data automatically:
 ```bash
 atlas setup
 ```
+
+## Source Modeling Integration
+
+Source-modeling work lands through `integration/source-modeling`. The bottom
+feature PR targets that branch; dependent PRs target the preceding feature branch.
+The draft integration-to-`main` PR shows work as reviewed feature PRs land and
+remains a separate merge decision. `integration/record-refactor` is retained as
+the earlier research and product-preview reference.
