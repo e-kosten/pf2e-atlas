@@ -6,6 +6,10 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [TypeScript release tooling](./items/typescript-release-tooling.md)
+  Private strict TypeScript tools own release metadata and archive inspection;
+  platform smoke tests remain native shell and PowerShell. Status: done.
+
 - [Rust web UI frontend architecture cleanup](./items/rust-web-ui-frontend-architecture-cleanup.md)
   The React frontend now uses `app`, `features`, and `shared` module ownership with shared filter discovery, record/detail primitives, and feature-local route modules. Status: done.
 

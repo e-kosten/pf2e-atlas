@@ -30,12 +30,6 @@ printf '%s\n' "$0" >> "$ATLAS_TEST_COMMAND_LOG"
 exit 0
 EOF_GIT_HOOK_CHECK
 chmod +x "$work/scripts/git-hooks/test-common.sh"
-cat > "$work/scripts/release/generate-notices.py" <<'EOF_NOTICES'
-#!/bin/sh
-printf '%s\n' "$0" >> "$ATLAS_TEST_COMMAND_LOG"
-exit 0
-EOF_NOTICES
-chmod +x "$work/scripts/release/generate-notices.py"
 cat > "$work/crates/atlas-cli/Cargo.toml" <<'EOF_CARGO'
 [package]
 name = "atlas-cli"
@@ -416,7 +410,7 @@ grep -q 'cargo check -p atlas-cli' "$log" || {
   echo "prepare-release --prepare-pr did not refresh the lockfile through cargo" >&2
   exit 1
 }
-grep -q 'scripts/release/generate-notices.py' "$log" || {
+grep -q 'npm --prefix scripts/release run notices' "$log" || {
   echo "prepare-release --prepare-pr did not regenerate third-party notices" >&2
   exit 1
 }

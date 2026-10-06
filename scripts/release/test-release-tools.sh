@@ -34,19 +34,7 @@ printf 'atlas 9.9.9\\n'"
 make_windows_archive() {
   target="$1"
   archive="$dist/atlas-cli-$target.zip"
-  python3 - "$archive" "$repo_root" <<'PY'
-import sys
-import zipfile
-from pathlib import Path
-
-archive = Path(sys.argv[1])
-repo_root = Path(sys.argv[2])
-root = archive.stem
-with zipfile.ZipFile(archive, "w") as out:
-    out.writestr(f"{root}/atlas.exe", "atlas 9.9.9\r\n")
-    for name in ["LICENSE", "README.md", "THIRD-PARTY-NOTICES.md"]:
-        out.write(repo_root / name, f"{root}/{name}")
-PY
+  node "$repo_root/scripts/release/dist/release-fixtures.js" windows-archive "$archive" "$repo_root"
 }
 
 for target in \
@@ -68,26 +56,10 @@ cp "$repo_root/scripts/install/atlas-installer.ps1" "$dist/atlas-installer.ps1"
 cp "$repo_root/THIRD-PARTY-NOTICES.md" "$dist/THIRD-PARTY-NOTICES.md"
 printf '{}\n' > "$dist/dist-manifest.json"
 
-python3 "$repo_root/scripts/release/generate-release-manifest.py" v9.9.9 "$dist"
-python3 - "$dist/dist-manifest.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-dist_manifest = Path(sys.argv[1])
-dist = dist_manifest.parent
-artifacts = {}
-for path in sorted(dist.iterdir()):
-    name = path.name
-    if name.endswith((".tar.xz", ".zip")):
-        artifacts[name] = {"kind": "executable-zip"}
-        artifacts[f"{name}.sha256"] = {"kind": "checksum"}
-        Path(f"{path}.sha256").write_text("fixture checksum\n")
-artifacts["SHA256SUMS"] = {"kind": "unified-checksum"}
-dist_manifest.write_text(json.dumps({"artifacts": artifacts}, indent=2) + "\n")
-PY
-"$repo_root/scripts/release/validate-release-assets.sh" v9.9.9 "$dist"
-python3 "$repo_root/scripts/release/generate-notices.py" --check >/dev/null
+node "$repo_root/scripts/release/dist/generate-release-manifest.js" v9.9.9 "$dist"
+node "$repo_root/scripts/release/dist/release-fixtures.js" dist-manifest "$dist/dist-manifest.json"
+node "$repo_root/scripts/release/dist/validate-release-assets.js" v9.9.9 "$dist"
+node "$repo_root/scripts/release/dist/generate-notices.js" --check >/dev/null
 grep -q 'ONNX Runtime: MIT' "$repo_root/THIRD-PARTY-NOTICES.md" || {
   echo "generated notices are missing ONNX Runtime coverage" >&2
   exit 1
@@ -95,20 +67,8 @@ grep -q 'ONNX Runtime: MIT' "$repo_root/THIRD-PARTY-NOTICES.md" || {
 
 bad_manifest_dist="$tmp/bad-manifest-dist"
 cp -R "$dist" "$bad_manifest_dist"
-python3 - "$bad_manifest_dist/atlas-release-manifest.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-manifest = json.loads(path.read_text())
-manifest["assets"] = [
-    asset for asset in manifest["assets"]
-    if asset["target"] != "aarch64-apple-darwin"
-]
-path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-PY
-if "$repo_root/scripts/release/validate-release-assets.sh" v9.9.9 "$bad_manifest_dist" >/dev/null 2>&1; then
+node "$repo_root/scripts/release/dist/release-fixtures.js" remove-target "$bad_manifest_dist/atlas-release-manifest.json"
+if node "$repo_root/scripts/release/dist/validate-release-assets.js" v9.9.9 "$bad_manifest_dist" >/dev/null 2>&1; then
   echo "asset validation accepted a manifest missing a required target" >&2
   exit 1
 fi
@@ -117,41 +77,23 @@ bad_checksum_dist="$tmp/bad-checksum-dist"
 cp -R "$dist" "$bad_checksum_dist"
 sed 's/^[0-9a-f][0-9a-f]*/0000000000000000000000000000000000000000000000000000000000000000/' "$bad_checksum_dist/SHA256SUMS" > "$bad_checksum_dist/SHA256SUMS.new"
 mv "$bad_checksum_dist/SHA256SUMS.new" "$bad_checksum_dist/SHA256SUMS"
-if "$repo_root/scripts/release/validate-release-assets.sh" v9.9.9 "$bad_checksum_dist" >/dev/null 2>&1; then
+if node "$repo_root/scripts/release/dist/validate-release-assets.js" v9.9.9 "$bad_checksum_dist" >/dev/null 2>&1; then
   echo "asset validation accepted a checksum mismatch" >&2
   exit 1
 fi
 
 bad_manifest_checksum_dist="$tmp/bad-manifest-checksum-dist"
 cp -R "$dist" "$bad_manifest_checksum_dist"
-python3 - "$bad_manifest_checksum_dist/atlas-release-manifest.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-manifest = json.loads(path.read_text())
-manifest["assets"][0]["sha256"] = "0" * 64
-path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-PY
-if "$repo_root/scripts/release/validate-release-assets.sh" v9.9.9 "$bad_manifest_checksum_dist" >/dev/null 2>&1; then
+node "$repo_root/scripts/release/dist/release-fixtures.js" bad-manifest-checksum "$bad_manifest_checksum_dist/atlas-release-manifest.json"
+if node "$repo_root/scripts/release/dist/validate-release-assets.js" v9.9.9 "$bad_manifest_checksum_dist" >/dev/null 2>&1; then
   echo "asset validation accepted a manifest checksum mismatch" >&2
   exit 1
 fi
 
 bad_dist_manifest_dist="$tmp/bad-dist-manifest-dist"
 cp -R "$dist" "$bad_dist_manifest_dist"
-python3 - "$bad_dist_manifest_dist/dist-manifest.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-path = Path(sys.argv[1])
-manifest = json.loads(path.read_text())
-manifest["artifacts"]["missing.tar.xz"] = {"kind": "executable-zip"}
-path.write_text(json.dumps(manifest, indent=2) + "\n")
-PY
-if "$repo_root/scripts/release/validate-release-assets.sh" v9.9.9 "$bad_dist_manifest_dist" >/dev/null 2>&1; then
+node "$repo_root/scripts/release/dist/release-fixtures.js" missing-artifact "$bad_dist_manifest_dist/dist-manifest.json"
+if node "$repo_root/scripts/release/dist/validate-release-assets.js" v9.9.9 "$bad_dist_manifest_dist" >/dev/null 2>&1; then
   echo "asset validation accepted a dist manifest with a missing artifact" >&2
   exit 1
 fi
@@ -231,7 +173,7 @@ EOF_CURL
   cp -R "$dist" "$rollback_dist"
   make_unix_archive_in "$rollback_dist" "$host_target" "#!/bin/sh
 exit 42"
-  python3 "$repo_root/scripts/release/generate-release-manifest.py" v9.9.9 "$rollback_dist" >/dev/null
+  node "$repo_root/scripts/release/dist/generate-release-manifest.js" v9.9.9 "$rollback_dist" >/dev/null
   if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$rollback_dist" \
     "$repo_root/scripts/install/atlas-installer.sh" \
     --install-dir "$install_dir" --version v9.9.9 --yes >/dev/null 2>&1
@@ -270,23 +212,17 @@ bad_work="$tmp/bad-work"
 mkdir -p "$bad_work/atlas-cli-aarch64-apple-darwin/vendor/pf2e"
 printf '{}\n' > "$bad_work/atlas-cli-aarch64-apple-darwin/vendor/pf2e/source.json"
 tar -cJf "$bad_archive_dist/atlas-cli-aarch64-apple-darwin.tar.xz" -C "$bad_work" atlas-cli-aarch64-apple-darwin
-if "$repo_root/scripts/release/validate-release-assets.sh" v9.9.9 "$bad_archive_dist" >/dev/null 2>&1; then
+node "$repo_root/scripts/release/dist/generate-release-manifest.js" v9.9.9 "$bad_archive_dist"
+if node "$repo_root/scripts/release/dist/validate-release-assets.js" v9.9.9 "$bad_archive_dist" >/dev/null 2>&1; then
   echo "archive validation accepted bundled runtime data" >&2
   exit 1
 fi
 
 bad_zip_dist="$tmp/bad-zip-dist"
 cp -R "$dist" "$bad_zip_dist"
-python3 - "$bad_zip_dist/atlas-cli-x86_64-pc-windows-msvc.zip" <<'PY'
-import sys
-import zipfile
-from pathlib import Path
-
-archive = Path(sys.argv[1])
-with zipfile.ZipFile(archive, "w") as out:
-    out.writestr("atlas-cli-x86_64-pc-windows-msvc/vendor/pf2e/source.json", "{}\n")
-PY
-if "$repo_root/scripts/release/validate-release-assets.sh" v9.9.9 "$bad_zip_dist" >/dev/null 2>&1; then
+node "$repo_root/scripts/release/dist/release-fixtures.js" bad-zip "$bad_zip_dist/atlas-cli-x86_64-pc-windows-msvc.zip"
+node "$repo_root/scripts/release/dist/generate-release-manifest.js" v9.9.9 "$bad_zip_dist"
+if node "$repo_root/scripts/release/dist/validate-release-assets.js" v9.9.9 "$bad_zip_dist" >/dev/null 2>&1; then
   echo "archive validation accepted bundled runtime data in a zip" >&2
   exit 1
 fi
