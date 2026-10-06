@@ -66,3 +66,35 @@ jobs:
         run: |
           npm --prefix scripts/source-contracts ci --ignore-scripts
           npm --prefix scripts/source-contracts run verify
+
+  release-tools:
+    name: release tools (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/release/package-lock.json
+      - name: Verify private release tools
+        shell: bash
+        run: |
+          npm --prefix scripts/release ci --ignore-scripts
+          npm --prefix scripts/release run verify
+      - name: Unix installer and preparation smoke tests
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          scripts/release/validate-release-tooling.sh
+          scripts/release/test-release-tools.sh
+          scripts/release/test-prepare-release.sh
+      - name: Windows installer smoke tests
+        if: runner.os == 'Windows'
+        # Git Bash supplies XZ-capable tar; Windows' bundled tar cannot create XZ.
+        shell: bash
+        run: pwsh -NoProfile -File scripts/release/test-installer.ps1
