@@ -85,3 +85,29 @@ pieces, dependencies and deferred product work. Declaration graph extraction and
 trait catalog extraction can be implemented independently above a shared tooling
 base, with the combined command following both. gh-stack publication uses a linear
 review chain, even when the implementation work happens in parallel.
+
+## Extraction slice implemented
+
+Offline tooling is under `scripts/source-contracts`; see its
+[developer instructions](../../../scripts/source-contracts/README.md). The
+reviewed PF2e pin produces 3,084 declaration graph nodes with 47 roots: five
+pack document kinds covering all 24 Item and eight Actor families, plus 42
+built-in rule schemas. Source discriminator sets match registered family sets.
+The trait/tag/rarity output has 26 catalogs and 2,686 memberships. Explicit JSON
+projections resolve the Predicate runtime array, ChoiceSet's constructor inputs,
+and three omitted modifier callbacks while retaining their declaration provenance.
+Graph and catalog extraction report complete; selected compiler diagnostics and
+unsupported nodes are empty. The 226 unrelated upstream
+project diagnostics and 32 localization warnings remain visible. Repeated
+extraction is deterministic. Fixture tests cover shared identities, source
+presence, portfolio additions, registry ambiguity and partial/strict command output.
+
+This completes the bounded extraction and catalog slices, not the broader Rust
+generation experiment. Next, inspect those outputs and test meaningful typed
+Rust generation for one shared component and equipment before adopting parsers.
+The focused predicate scan found one malformed upstream value combining `nor`
+and `not` in revolutionary-innovation, rule 0, choice 29; Foundry's validator
+also rejects it. Track this discrepancy during corpus comparison. The pinned
+corpus has no nonempty custom modifiers, so their projections have fixture evidence.
+Full-corpus agreement, frontend applicability, storage,
+metrics and production pipeline adoption remain separate work.
