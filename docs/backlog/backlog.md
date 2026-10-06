@@ -14,6 +14,14 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Selective integration recovery](./items/rust-integration-recovery.md)
+  Recover reviewed behavior in small branches from main; retain integration as
+  evidence and a preview. Status: planned.
+
+- [Compiler-based source contracts and trait catalog](./items/rust-source-contract-generation.md)
+  Test bounded TypeScript compiler extraction and Rust generation, and capture
+  upstream trait/tag metadata before storage or UI integration. Status: in_progress.
+
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)
   Working notes and checklist for the Rust runtime, CLI, artifact, search, graph, skill, and cutover work. Status: in_progress.
 
