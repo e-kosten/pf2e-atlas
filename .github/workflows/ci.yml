@@ -51,3 +51,18 @@ jobs:
         run: |
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run verify
+
+  source-contracts:
+    name: source contracts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/source-contracts/package-lock.json
+      - name: Source contract fixture tests
+        run: |
+          npm --prefix scripts/source-contracts ci --ignore-scripts
+          npm --prefix scripts/source-contracts test

@@ -1,0 +1,21 @@
+{
+  "name": "atlas-source-contracts",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test *.test.mjs"
+  },
+  "dependencies": {
+    "typescript": "5.9.3"
+  },
+  "devDependencies": {
+    "@types/jest": "29.5.14",
+    "@types/jquery": "3.5.32",
+    "@types/node": "22.13.10",
+    "@types/tooltipster": "0.0.35",
+    "remeda": "2.21.0"
+  }
+}
