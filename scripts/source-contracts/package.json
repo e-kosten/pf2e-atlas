@@ -6,8 +6,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test *.test.mjs",
-    "extract": "node extract.mjs"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build --silent && node --test dist/*.test.js",
+    "verify": "npm run typecheck && npm test",
+    "preextract": "npm run build --silent",
+    "extract": "node dist/extract.js"
   },
   "dependencies": {
     "typescript": "5.9.3"
