@@ -40,10 +40,8 @@ pub fn decode_f32_vector_blob(blob: &[u8]) -> Result<Vec<f32>, VectorBlobDecodeE
     }
 
     let mut vector = Vec::with_capacity(blob.len() / F32_VECTOR_ELEMENT_BYTES);
-    for chunk in blob.chunks_exact(F32_VECTOR_ELEMENT_BYTES) {
-        let mut bytes = [0_u8; F32_VECTOR_ELEMENT_BYTES];
-        bytes.copy_from_slice(chunk);
-        vector.push(f32::from_le_bytes(bytes));
+    for chunk in blob.as_chunks::<F32_VECTOR_ELEMENT_BYTES>().0 {
+        vector.push(f32::from_le_bytes(*chunk));
     }
     Ok(vector)
 }
