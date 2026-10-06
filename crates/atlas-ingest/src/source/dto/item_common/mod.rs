@@ -16,3 +16,5 @@ pub use model::{
     VersionedCommonItemSource,
 };
 pub use parse::parse_common_item_source;
+
+pub(super) use parse::parse_common_item_fields;

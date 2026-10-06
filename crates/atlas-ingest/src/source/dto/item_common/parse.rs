@@ -1,13 +1,12 @@
 use atlas_domain::Rarity;
-use serde_json::Number;
 
 use super::super::{
-    ItemType, SourceDiagnostic, SourceDiagnosticKind, SourceIdentity, SourcePresence,
-    SourceVersionMetadata, parse_serialized_source_object, validate_pinned_source_version,
+    ItemType, SourceIdentity, SourceVersionMetadata, parse_serialized_source_object,
+    validate_pinned_source_version,
 };
 use super::*;
 
-type ParseResult<T> = Result<T, SourceDiagnostic>;
+use super::super::fields::*;
 
 /// Parse common Item facts from bytes, before defaults or product conversion.
 ///
@@ -34,17 +33,32 @@ pub fn parse_common_item_source(
     );
     let serialized = parse_serialized_source_object(bytes)
         .map_err(|error| malformed(&identity, &path, "Item source JSON object", error))?;
+    let source = parse_common_item_fields(&serialized, &identity, &path)?;
+    Ok(VersionedCommonItemSource {
+        version,
+        identity,
+        parent,
+        source,
+        serialized,
+    })
+}
+
+pub(in crate::source::dto) fn parse_common_item_fields(
+    serialized: &SerializedSourceObject,
+    identity: &SourceIdentity,
+    path: &str,
+) -> ParseResult<CommonItemSource> {
     let fields = Fields {
-        object: &serialized,
-        identity: &identity,
-        path: &path,
+        object: serialized,
+        identity,
+        path,
     };
     let id = fields.presence("_id", string)?;
     let name = fields.required("name", string)?;
     let item_type = fields.required("type", |value, identity, path| {
         ItemType::parse(&string(value, identity, path)?, identity, path)
     })?;
-    let source = CommonItemSource {
+    Ok(CommonItemSource {
         envelope: ItemSourceEnvelope {
             id,
             name,
@@ -71,97 +85,7 @@ pub fn parse_common_item_source(
             ]),
         },
         system: fields.required("system", system)?,
-    };
-    Ok(VersionedCommonItemSource {
-        version,
-        identity,
-        parent,
-        source,
-        serialized,
     })
-}
-
-struct Fields<'a> {
-    object: &'a SerializedSourceObject,
-    identity: &'a SourceIdentity,
-    path: &'a str,
-}
-
-impl<'a> Fields<'a> {
-    fn new(
-        value: &'a SerializedSourceValue,
-        identity: &'a SourceIdentity,
-        path: &'a str,
-    ) -> ParseResult<Self> {
-        Ok(Self {
-            object: value
-                .object()
-                .ok_or_else(|| shape_error(value, identity, path, "object"))?,
-            identity,
-            path,
-        })
-    }
-
-    fn presence<T>(
-        &self,
-        key: &str,
-        parse: impl FnOnce(&SerializedSourceValue, &SourceIdentity, &str) -> ParseResult<T>,
-    ) -> ParseResult<SourcePresence<T>> {
-        let path = format!("{}.{}", self.path, key);
-        match self.object.member(key) {
-            super::super::SerializedSourceMember::Missing => Ok(SourcePresence::Missing),
-            super::super::SerializedSourceMember::Null => Ok(SourcePresence::Null),
-            super::super::SerializedSourceMember::Value(value) => {
-                parse(value, self.identity, &path).map(SourcePresence::Value)
-            }
-            super::super::SerializedSourceMember::Duplicate(values) => Err(malformed(
-                self.identity,
-                &path,
-                "one source member",
-                format!(
-                    "duplicate members: [{}]",
-                    values
-                        .iter()
-                        .map(|v| v.compact_json())
-                        .collect::<Vec<_>>()
-                        .join(",")
-                ),
-            )),
-        }
-    }
-
-    fn required<T>(
-        &self,
-        key: &str,
-        parse: impl FnOnce(&SerializedSourceValue, &SourceIdentity, &str) -> ParseResult<T>,
-    ) -> ParseResult<T> {
-        match self.presence(key, parse)? {
-            SourcePresence::Value(value) => Ok(value),
-            SourcePresence::Missing => Err(malformed(
-                self.identity,
-                &format!("{}.{}", self.path, key),
-                "present non-null field",
-                "missing",
-            )),
-            SourcePresence::Null => Err(malformed(
-                self.identity,
-                &format!("{}.{}", self.path, key),
-                "present non-null field",
-                "null",
-            )),
-        }
-    }
-
-    fn rest(&self, known: &[&str]) -> SerializedSourceObject {
-        SerializedSourceObject::from_fields(
-            self.object
-                .fields()
-                .iter()
-                .filter(|(key, _)| !known.contains(&key.as_str()))
-                .cloned()
-                .collect(),
-        )
-    }
 }
 
 fn system(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<ItemSystemSource> {
@@ -370,111 +294,4 @@ fn ownership(
         3 => Ok(ItemOwnershipLevel::Owner),
         _ => Err(shape_error(v, i, p, "ownership level -1 | 0 | 1 | 2 | 3")),
     }
-}
-
-fn keyed<T>(
-    v: &SerializedSourceValue,
-    i: &SourceIdentity,
-    p: &str,
-    parse: impl Fn(&SerializedSourceValue, &SourceIdentity, &str) -> ParseResult<T>,
-) -> ParseResult<Vec<(String, SourcePresence<T>)>> {
-    let f = Fields::new(v, i, p)?;
-    f.object
-        .fields()
-        .iter()
-        .map(|(key, value)| {
-            let path = format!("{p}[{}]", serde_json::Value::String(key.clone()));
-            let value = if matches!(value, SerializedSourceValue::Null) {
-                SourcePresence::Null
-            } else {
-                SourcePresence::Value(parse(value, i, &path)?)
-            };
-            Ok((key.clone(), value))
-        })
-        .collect()
-}
-
-fn array<T>(
-    v: &SerializedSourceValue,
-    i: &SourceIdentity,
-    p: &str,
-    parse: impl Fn(&SerializedSourceValue, &SourceIdentity, &str) -> ParseResult<T>,
-) -> ParseResult<Vec<T>> {
-    let SerializedSourceValue::Array(values) = v else {
-        return Err(shape_error(v, i, p, "array"));
-    };
-    values
-        .iter()
-        .enumerate()
-        .map(|(n, v)| parse(v, i, &format!("{p}[{n}]")))
-        .collect()
-}
-
-fn strings(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<Vec<String>> {
-    array(v, i, p, string)
-}
-fn objects(
-    v: &SerializedSourceValue,
-    i: &SourceIdentity,
-    p: &str,
-) -> ParseResult<Vec<SerializedSourceObject>> {
-    array(v, i, p, object)
-}
-fn object(
-    v: &SerializedSourceValue,
-    i: &SourceIdentity,
-    p: &str,
-) -> ParseResult<SerializedSourceObject> {
-    v.object()
-        .cloned()
-        .ok_or_else(|| shape_error(v, i, p, "object"))
-}
-fn structured_value(
-    v: &SerializedSourceValue,
-    i: &SourceIdentity,
-    p: &str,
-) -> ParseResult<SerializedSourceValue> {
-    match v {
-        SerializedSourceValue::Object(_) | SerializedSourceValue::Array(_) => Ok(v.clone()),
-        _ => Err(shape_error(v, i, p, "object | array")),
-    }
-}
-
-fn string(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<String> {
-    v.string()
-        .map(str::to_string)
-        .ok_or_else(|| shape_error(v, i, p, "string"))
-}
-fn number(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<Number> {
-    match v {
-        SerializedSourceValue::Number(n) => Ok(n.clone()),
-        _ => Err(shape_error(v, i, p, "number")),
-    }
-}
-fn integer(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<i64> {
-    number(v, i, p)?
-        .as_i64()
-        .ok_or_else(|| shape_error(v, i, p, "integer"))
-}
-fn boolean(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<bool> {
-    match v {
-        SerializedSourceValue::Boolean(b) => Ok(*b),
-        _ => Err(shape_error(v, i, p, "boolean")),
-    }
-}
-fn shape_error(
-    v: &SerializedSourceValue,
-    i: &SourceIdentity,
-    p: &str,
-    expected: &str,
-) -> SourceDiagnostic {
-    malformed(i, p, expected, v.compact_json())
-}
-fn malformed(
-    i: &SourceIdentity,
-    p: &str,
-    expected: &str,
-    actual: impl Into<String>,
-) -> SourceDiagnostic {
-    SourceDiagnostic::new(SourceDiagnosticKind::MalformedShape, i, p, expected, actual)
 }
