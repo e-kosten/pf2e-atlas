@@ -27,8 +27,9 @@ Extraction is demonstrated; reliable full Rust generation remains unproven.
 
 ## Proposed slices
 
-1. Produce deterministic compiler-based extraction for common Item/physical
-   shapes and the researched family refinements. Preserve named references,
+1. Produce deterministic compiler-based extraction for the persisted source
+   portfolio: all pack document kinds, registered Actor and Item families,
+   embedded source shapes and built-in rule schemas. Preserve named references,
    recursion, optional/null/never distinctions and source locations. Diagnose
    unresolved types rather than emitting empty structs or arbitrary JSON.
 2. Extract upstream trait and other-tag catalogs with identifiers, labels,
