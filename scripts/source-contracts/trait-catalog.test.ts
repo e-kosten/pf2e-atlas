@@ -1,15 +1,17 @@
+import type { TraitCatalog } from './contracts.js';
+import type { TestContext } from 'node:test';
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { extractTraitCatalog } from "./trait-catalog.mjs";
+import { extractTraitCatalog } from "./trait-catalog.js";
 
-const fixture = fileURLToPath(new URL("./fixtures/trait-catalog/", import.meta.url));
-const catalog = (result, name) => result.catalogs.find((entry) => entry.name === name);
-const item = (result, name, identifier) => catalog(result, name).entries.find((entry) => entry.identifier === identifier);
-function changeFixture(t, mutate) {
+const fixture = fileURLToPath(new URL("../fixtures/trait-catalog/", import.meta.url));
+const catalog = (result: TraitCatalog, name: string) => { const found = result.catalogs.find((entry) => entry.name === name); assert.ok(found); return found; };
+const item = (result: TraitCatalog, name: string, identifier: string) => { const found = catalog(result, name).entries.find((entry) => entry.identifier === identifier); assert.ok(found); return found; };
+function changeFixture(t: TestContext, mutate: (root: string) => void) {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-trait-catalog-"));
   t.after(() => fs.rmSync(temporary, { recursive: true, force: true }));
   fs.cpSync(fixture, temporary, { recursive: true });
