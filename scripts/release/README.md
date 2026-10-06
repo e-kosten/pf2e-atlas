@@ -15,9 +15,11 @@ scripts/release/test-release-tools.sh
 scripts/release/test-prepare-release.sh
 ```
 
-On Windows, also run `scripts/release/test-installer.ps1` in PowerShell 7. It uses
-the .NET SDK to build a fixture executable. PR CI runs the package on Linux,
-macOS and Windows and exercises the corresponding installer smoke tests.
+On Windows, launch PowerShell 7 from Git Bash so the fixture builder uses Git's
+XZ-capable tar: `pwsh -NoProfile -File scripts/release/test-installer.ps1`.
+Windows' bundled tar cannot create XZ archives. The smoke test also uses the .NET
+SDK to build a fixture executable. PR CI runs the package on Linux, macOS and
+Windows and exercises the corresponding installer smoke tests.
 
 The TypeScript build emits JavaScript into ignored `dist/`. The maintainer npm
 commands build before execution and resolve path arguments from the caller's
