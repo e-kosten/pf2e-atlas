@@ -7,16 +7,11 @@ sh -n \
   "$repo_root/scripts/verify.sh" \
   "$repo_root/scripts/prepare-release.sh" \
   "$repo_root/scripts/install/atlas-installer.sh" \
-  "$repo_root/scripts/release/validate-release-assets.sh" \
   "$repo_root/scripts/release/test-release-tools.sh" \
   "$repo_root/scripts/release/test-prepare-release.sh"
 
-PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile \
-  "$repo_root/scripts/release/generate-notices.py" \
-  "$repo_root/scripts/release/generate-release-manifest.py" \
-  "$repo_root/scripts/release/prune-dist-manifest.py"
-
-python3 "$repo_root/scripts/release/generate-notices.py" --check >/dev/null
+npm --prefix "$repo_root/scripts/release" run verify
+node "$repo_root/scripts/release/dist/generate-notices.js" --check >/dev/null
 
 ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path) }' \
   "$repo_root/.github/workflows/ci.yml" \
