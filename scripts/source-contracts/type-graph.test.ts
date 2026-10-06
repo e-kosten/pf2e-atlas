@@ -1,33 +1,34 @@
+import type { GraphField, GraphNode, TypeGraph } from './contracts.js';
 import assert from 'node:assert/strict';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { extractTypeGraph } from './type-graph.mjs';
+import { extractTypeGraph } from './type-graph.js';
 
-const fixture = fileURLToPath(new URL('./fixtures/type-graph/', import.meta.url));
+const fixture = fileURLToPath(new URL('../fixtures/type-graph/', import.meta.url));
 const roots = ['Equipment', 'Backpack', 'Family', 'Pair', 'Formula', 'NumericFormula', 'Instantiations',
   'AnonymousFamily', 'SameNamedArguments', 'SameNamedNullable'].map((name) => ({ file: 'models.ts', name }));
 const graph = () => extractTypeGraph(fixture, { roots });
-const lookup = (result, id) => result.nodes.find((node) => node.id === id);
-const rootNode = (result, name) => lookup(result, result.roots.find((entry) => entry.name === name).ref);
-const field = (node, name) => node.fields.find((entry) => entry.name === name);
+const lookup = (result: TypeGraph, id: string | null) => { const node = result.nodes.find((node) => node.id === id); assert.ok(node); return node; };
+const rootNode = (result: TypeGraph, name: string) => { const root = result.roots.find((entry) => entry.name === name); assert.ok(root); return lookup(result, root.ref); };
+const field = (node: GraphNode, name: string) => { const found = fieldsOf(node).find((entry) => entry.name === name); assert.ok(found); return found; };
 
 test('default portfolio follows pack kinds, complete family unions and registered schema sources', () => {
   const result = extractTypeGraph(fixture);
   assert.equal(result.complete, true, JSON.stringify(result.diagnostics));
-  assert.deepEqual(result.portfolio.documentKinds, ['Actor', 'Item', 'JournalEntry', 'Macro', 'RollTable']);
+  assert.deepEqual(result.portfolio!.documentKinds, ['Actor', 'Item', 'JournalEntry', 'Macro', 'RollTable']);
   assert.equal(result.roots.length, 7);
-  for (const family of result.portfolio.families) assert.deepEqual(family.discovered, family.registered);
-  assert.deepEqual(result.portfolio.ruleKeys, ['Example', 'Inherited']);
+  for (const family of result.portfolio!.families) assert.deepEqual(family.discovered, family.registered);
+  assert.deepEqual(result.portfolio!.ruleKeys, ['Example', 'Inherited']);
   for (const root of result.roots.filter((entry) => entry.ruleKey)) {
     const node = lookup(result, root.ref);
-    assert.deepEqual(node.fields.map((field) => field.name), ['amount', 'choices']);
-    assert.equal(lookup(result, field(node, 'amount').ref).value, 'number');
+    assert.deepEqual(fieldsOf(node).map((field) => field.name), ['amount', 'choices']);
+    assert.equal(valueOf(lookup(result, field(node, 'amount').ref)), 'number');
     assert.equal(lookup(result, field(node, 'choices').ref).kind, 'array');
   }
-  assert.ok(!result.nodes.some((node) => node.fields?.some((field) => field.name === 'preparedOnly')));
+  assert.ok(!result.nodes.some((node) => 'fields' in node && node.fields?.some((field) => field.name === 'preparedOnly')));
 });
 
 test('portfolio changes reveal new families, document kinds, rules and unsupported registry syntax', async () => {
@@ -57,11 +58,11 @@ test('portfolio changes reveal new families, document kinds, rules and unsupport
     await writeFile(rulesFile, rules.replace('Example: GenericRule', 'Added: OtherRule, Example: GenericRule'));
     const added = extractTypeGraph(temporary);
     assert.equal(added.complete, true);
-    assert.deepEqual(added.portfolio.ruleKeys, ['Added', 'Example', 'Inherited']);
-    assert.ok(added.roots.find((entry) => entry.ruleKey === 'Added').ref);
+    assert.deepEqual(added.portfolio!.ruleKeys, ['Added', 'Example', 'Inherited']);
+    assert.ok(added.roots.find((entry) => entry.ruleKey === 'Added')!.ref);
     const original = extractTypeGraph(fixture);
-    assert.equal(added.roots.find((entry) => entry.ruleKey === 'Example').ref,
-      original.roots.find((entry) => entry.ruleKey === 'Example').ref);
+    assert.equal(added.roots.find((entry) => entry.ruleKey === 'Example')!.ref,
+      original.roots.find((entry) => entry.ruleKey === 'Example')!.ref);
     await writeFile(rulesFile, rules.replace('Example: GenericRule', '...{}, Example: missingConstructor'));
     const unsupported = extractTypeGraph(temporary);
     assert.equal(unsupported.complete, false);
@@ -128,37 +129,37 @@ test('resolves configured imports, inherited/shared references, refinements and 
   assert.equal(field(equipment, 'level').ref, field(backpack, 'level').ref);
   assert.equal(lookup(result, field(equipment, 'level').ref).name, 'NumericValue');
   assert.equal(field(equipment, 'contents').ref, field(backpack, 'contents').ref);
-  assert.equal(lookup(result, field(equipment, 'type').ref).value, 'equipment');
-  assert.equal(lookup(result, field(backpack, 'type').ref).value, 'backpack');
+  assert.equal(valueOf(lookup(result, field(equipment, 'type').ref)), 'equipment');
+  assert.equal(valueOf(lookup(result, field(backpack, 'type').ref)), 'backpack');
   const usage = field(equipment, 'usage');
   assert.equal(usage.optional, true);
   assert.equal(usage.nullable, true);
   assert.equal(usage.undefinedAllowed, true);
   assert.equal(field(backpack, 'subitems').forbidden, true);
-  assert.ok(equipment.extends.some((ref) => lookup(result, ref).name === 'Common'));
-  assert.deepEqual(rootNode(result, 'Family').members, [equipment.id, backpack.id].sort());
-  assert.equal(lookup(result, field(equipment, 'explicit').ref).domain, 'any');
-  assert.equal(lookup(result, field(equipment, 'legacy').ref).domain, 'object');
+  assert.ok(basesOf(equipment).some((ref) => lookup(result, ref).name === 'Common'));
+  assert.deepEqual(membersOf(rootNode(result, 'Family')), [equipment.id, backpack.id].sort());
+  assert.equal(domainOf(lookup(result, field(equipment, 'explicit').ref)), 'any');
+  assert.equal(domainOf(lookup(result, field(equipment, 'legacy').ref)), 'object');
   const flags = lookup(result, field(equipment, 'flags').ref);
-  assert.equal(lookup(result, flags.indexSignatures[0].value).domain, 'unknown');
+  assert.equal(domainOf(lookup(result, indicesOf(flags)[0].value)), 'unknown');
 });
 
 test('retains instantiated recursive references and tuple/mapped fields', () => {
   const result = graph();
   const array = lookup(result, field(rootNode(result, 'Equipment'), 'contents').ref);
-  const nested = lookup(result, array.element);
+  const nested = lookup(result, elementOf(array));
   const recursion = lookup(result, field(nested, 'children').ref);
-  assert.equal(recursion.element, nested.id);
+  assert.equal(elementOf(recursion), nested.id);
   assert.equal(lookup(result, field(nested, 'payload').ref).name, 'NumericValue');
-  assert.equal(rootNode(result, 'Pair').elements[1].optional, true);
-  assert.equal(rootNode(result, 'Pair').readonly, true);
-  assert.deepEqual(rootNode(result, 'Formula').fields.map((entry) => [entry.name, entry.optional]),
+  assert.equal(elementsOf(rootNode(result, 'Pair'))[1].optional, true);
+  assert.equal(readonlyOf(rootNode(result, 'Pair')), true);
+  assert.deepEqual(fieldsOf(rootNode(result, 'Formula')).map((entry) => [entry.name, entry.optional]),
     [['a', true], ['b', true]]);
   const numeric = rootNode(result, 'NumericFormula');
-  assert.deepEqual(numeric.fields.map((entry) => entry.name), ['1', '2']);
+  assert.deepEqual(fieldsOf(numeric).map((entry) => entry.name), ['1', '2']);
   const numericValue = lookup(result, field(numeric, '1').ref);
   assert.equal(numericValue.kind, 'union');
-  assert.ok(numericValue.members.some((ref) => lookup(result, ref).name === 'NumericValue'));
+  assert.ok(membersOf(numericValue).some((ref) => lookup(result, ref).name === 'NumericValue'));
 });
 
 test('marks unresolved and unsupported selected types explicitly, separating unrelated project errors', () => {
@@ -175,7 +176,7 @@ test('marks unresolved and unsupported selected types explicitly, separating unr
   assert.ok(indirect.diagnostics.some((entry) => entry.code === 'unresolved-type'));
   const mixed = extractTypeGraph(fixture, { roots: [...roots, { file: 'problems.ts', name: 'IndirectBroken' }] });
   assert.equal(mixed.complete, false);
-  assert.equal(lookup(mixed, field(rootNode(mixed, 'Equipment'), 'explicit').ref).domain, 'any');
+  assert.equal(domainOf(lookup(mixed, field(rootNode(mixed, 'Equipment'), 'explicit').ref)), 'any');
   assert.equal(lookup(mixed, field(rootNode(mixed, 'IndirectBroken'), 'field').ref).kind, 'unresolved');
 });
 
@@ -194,39 +195,39 @@ test('serialized Predicate data and modifier callbacks retain explicit source pr
   const predicate = lookup(result, field(source, 'predicate').ref);
   assert.equal(predicate.name, 'Predicate');
   assert.equal(predicate.kind, 'array');
-  assert.equal(predicate.serialization.rawRef, field(source, 'rawPredicate').ref);
-  assert.equal(predicate.element, lookup(result, predicate.serialization.rawRef).element);
-  assert.equal(predicate.serialization.method, 'toObject');
-  assert.ok(predicate.serialization.declaredAt.some((entry) => entry.file.endsWith('predication.ts')));
-  const choiceArray = lookup(result, field(source, 'choices').ref).members.map((id) => lookup(result, id))
+  assert.equal(arraySerializationOf(predicate).rawRef, field(source, 'rawPredicate').ref);
+  assert.equal(elementOf(predicate), elementOf(lookup(result, arraySerializationOf(predicate).rawRef)));
+  assert.equal(arraySerializationOf(predicate).method, 'toObject');
+  assert.ok(arraySerializationOf(predicate).declaredAt.some((entry) => entry.file.endsWith('predication.ts')));
+  const choiceArray = membersOf(lookup(result, field(source, 'choices').ref)).map((id) => lookup(result, id))
     .find((node) => node.kind === 'array');
-  const choicePredicate = field(lookup(result, choiceArray.element), 'predicate');
+  const choicePredicate = field(lookup(result, elementOf(choiceArray)), 'predicate');
   assert.equal(choicePredicate.optional, true);
-  assert.equal(choicePredicate.serialization.basis, 'predicate-constructor-input');
-  assert.equal(choicePredicate.serialization.declaredRef, predicate.id);
+  assert.equal(choiceSerializationOf(choicePredicate).basis, 'predicate-constructor-input');
+  assert.equal(choiceSerializationOf(choicePredicate).declaredRef, predicate.id);
   const input = lookup(result, choicePredicate.ref);
   assert.equal(input.kind, 'union');
-  const inputNodes = input.members.map((id) => lookup(result, id));
-  assert.ok(inputNodes.some((node) => node.kind === 'array' && node.element === predicate.element));
-  assert.ok(input.members.includes(predicate.element));
+  const inputNodes = membersOf(input).map((id) => lookup(result, id));
+  assert.ok(inputNodes.some((node) => node.kind === 'array' && elementOf(node) === elementOf(predicate)));
+  assert.ok(membersOf(input).includes(elementOf(predicate)));
   const adjustments = lookup(result, field(source, 'adjustments').ref);
-  const array = adjustments.members.map((id) => lookup(result, id)).find((node) => node.kind === 'array');
-  const adjustment = lookup(result, array.element);
+  const array = membersOf(adjustments).map((id) => lookup(result, id)).find((node) => node.kind === 'array');
+  const adjustment = lookup(result, elementOf(array));
   for (const name of ['test', 'getNewValue', 'getDamageType']) {
     const callback = field(adjustment, name);
     assert.equal(callback.forbidden, true);
     assert.equal(callback.optional, true);
     assert.equal(callback.nullable, false);
-    assert.equal(lookup(result, callback.ref).value, 'never');
-    assert.equal(callback.serialization.basis, 'omitted-function-property');
-    assert.equal(callback.serialization.declaredOptional, name !== 'test');
-    assert.ok(callback.serialization.declaredType.includes('=>'));
+    assert.equal(valueOf(lookup(result, callback.ref)), 'never');
+    assert.equal(callbackSerializationOf(callback).basis, 'omitted-function-property');
+    assert.equal(callbackSerializationOf(callback).declaredOptional, name !== 'test');
+    assert.ok(callbackSerializationOf(callback).declaredType.includes('=>'));
   }
   assert.equal(field(adjustment, 'slug').optional, false);
   assert.equal(field(adjustment, 'slug').nullable, true);
   assert.equal(field(adjustment, 'suppress').optional, true);
   assert.deepEqual(JSON.parse(JSON.stringify({ slug: 'example', test: () => true,
-    getNewValue: (value) => value + 1, getDamageType: () => 'fire', suppress: false })),
+    getNewValue: (value: number) => value + 1, getDamageType: () => 'fire', suppress: false })),
     { slug: 'example', suppress: false });
   const unsupported = extractTypeGraph(fixture, { roots: [{ file: 'serialization.ts', name: 'OtherSource' }] });
   assert.equal(unsupported.complete, false);
@@ -270,7 +271,7 @@ test('authored empty interface is an explicit open domain rather than an empty m
   const result = extractTypeGraph(fixture, { roots: [{ file: 'models.ts', name: 'ExplicitEmpty' }] });
   assert.equal(result.complete, true);
   assert.equal(rootNode(result, 'ExplicitEmpty').kind, 'open');
-  assert.equal(rootNode(result, 'ExplicitEmpty').domain, 'non-nullish');
+  assert.equal(domainOf(rootNode(result, 'ExplicitEmpty')), 'non-nullish');
 });
 
 test('anonymous nested generic structures retain each resolved instantiation', () => {
@@ -281,18 +282,18 @@ test('anonymous nested generic structures retain each resolved instantiation', (
   const firstNested = lookup(result, field(first, 'nested').ref);
   const secondNested = lookup(result, field(second, 'nested').ref);
   assert.notEqual(firstNested.id, secondNested.id);
-  assert.equal(lookup(result, field(firstNested, 'value').ref).value, 'string');
-  assert.equal(lookup(result, field(secondNested, 'value').ref).value, 'number');
+  assert.equal(valueOf(lookup(result, field(firstNested, 'value').ref)), 'string');
+  assert.equal(valueOf(lookup(result, field(secondNested, 'value').ref)), 'number');
 });
 
 test('anonymous discriminated union alternatives remain distinct and preserve their fields', () => {
   const result = graph();
   const family = rootNode(result, 'AnonymousFamily');
-  assert.equal(new Set(family.members).size, 2);
-  assert.deepEqual(family.members.map((ref) => {
+  assert.equal(new Set(membersOf(family)).size, 2);
+  assert.deepEqual(membersOf(family).map((ref) => {
     const member = lookup(result, ref);
-    return [lookup(result, field(member, 'kind').ref).value,
-      lookup(result, field(member, 'payload').ref).value];
+    return [valueOf(lookup(result, field(member, 'kind').ref)),
+      valueOf(lookup(result, field(member, 'payload').ref))];
   }).sort(), [['a', 'string'], ['b', 'number']]);
 });
 
@@ -305,14 +306,14 @@ test('same printed type names retain distinct declaration identity through neste
   });
   assert.notEqual(nested[0].id, nested[1].id);
   const values = nested.map((node) => lookup(result, field(node, 'value').ref));
-  assert.deepEqual(values.map((node) => node.fields.map((entry) => entry.name)), [['a'], ['b']]);
+  assert.deepEqual(values.map((node) => fieldsOf(node).map((entry) => entry.name)), [['a'], ['b']]);
   assert.notEqual(values[0].id, values[1].id);
   const nullable = rootNode(result, 'SameNamedNullable');
   const first = lookup(result, field(nullable, 'first').ref);
   const second = lookup(result, field(nullable, 'second').ref);
   assert.notEqual(first.id, second.id);
-  assert.ok(first.members.includes(values[0].id));
-  assert.ok(second.members.includes(values[1].id));
+  assert.ok(membersOf(first).includes(values[0].id));
+  assert.ok(membersOf(second).includes(values[1].id));
 });
 
 test('repeat and relocated input produce identical output; an upstream field addition has an understandable diff', async () => {
@@ -330,9 +331,24 @@ test('repeat and relocated input produce identical output; an upstream field add
     const before = rootNode(original, 'Equipment');
     const after = rootNode(changed, 'Equipment');
     assert.equal(after.id, before.id);
-    assert.deepEqual(after.fields.filter((entry) => !before.fields.some((old) => old.name === entry.name))
+    assert.deepEqual(fieldsOf(after).filter((entry) => !fieldsOf(before).some((old) => old.name === entry.name))
       .map((entry) => ({ name: entry.name, optional: entry.optional, ref: entry.ref })),
     [{ name: 'newlyAuthored', optional: true, ref: field(after, 'newlyAuthored').ref }]);
     assert.equal(rootNode(changed, 'Backpack').id, rootNode(original, 'Backpack').id);
   } finally { await rm(temporary, { recursive: true, force: true }); }
 });
+
+
+// Accessors assert the discovered shape before inspecting its payload.
+function fieldsOf(node: GraphNode) { assert.ok('fields' in node && node.fields); return node.fields; }
+function membersOf(node: GraphNode) { assert.ok(node.kind === 'union' || node.kind === 'intersection'); return node.members; }
+function valueOf(node: GraphNode) { assert.ok(node.kind === 'primitive' || node.kind === 'literal'); return node.value; }
+function domainOf(node: GraphNode) { assert.equal(node.kind, 'open'); assert.ok(node.kind === 'open'); return node.domain; }
+function elementOf(node: GraphNode | undefined) { assert.ok(node?.kind === 'array'); return node.element; }
+function elementsOf(node: GraphNode) { assert.ok(node.kind === 'tuple'); return node.elements; }
+function readonlyOf(node: GraphNode) { assert.ok(node.kind === 'tuple' || node.kind === 'array'); return node.readonly; }
+function basesOf(node: GraphNode) { assert.ok(node.kind === 'object' && node.extends); return node.extends; }
+function indicesOf(node: GraphNode) { assert.ok(node.kind === 'object'); return node.indexSignatures; }
+function arraySerializationOf(node: GraphNode) { assert.ok(node.kind === 'array' && node.serialization); return node.serialization; }
+function choiceSerializationOf(field: GraphField) { assert.ok(field.serialization?.basis === 'predicate-constructor-input'); return field.serialization; }
+function callbackSerializationOf(field: GraphField) { assert.ok(field.serialization?.basis === 'omitted-function-property'); return field.serialization; }

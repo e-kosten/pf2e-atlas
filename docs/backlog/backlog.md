@@ -14,6 +14,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Developer command separation](./items/developer-command-separation.md)
+  Keep compiler discovery in a private TypeScript package; move Rust developer
+  commands to a later atlas-dev slice. Status: in_progress.
+
 - [Selective integration recovery](./items/rust-integration-recovery.md)
   Recover reviewed behavior in small branches from main; retain integration as
   evidence and a preview. Status: planned.

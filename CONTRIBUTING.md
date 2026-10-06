@@ -278,4 +278,4 @@ the earlier research and product-preview reference.
 
 ## Source declaration research
 
-Offline declaration and trait metadata tooling lives in [scripts/source-contracts](./scripts/source-contracts/README.md). Its pinned Node dependencies and fixture tests are separate from the Rust build.
+Offline declaration and trait metadata tooling lives in [scripts/source-contracts](./scripts/source-contracts/README.md). Its pinned Node dependencies, strict TypeScript build and fixture tests are separate from the Rust build and published product. Run `npm --prefix scripts/source-contracts ci --ignore-scripts`, then `npm --prefix scripts/source-contracts run verify`. Run extraction with `npm --prefix scripts/source-contracts run extract -- --source PATH --out PATH [--strict]`. Rust developer commands use Rust libraries; compiler research runs through this npm package.
