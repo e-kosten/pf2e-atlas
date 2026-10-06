@@ -121,6 +121,12 @@ gh auth status
 cargo install cargo-dist --locked
 ```
 
+Release tooling also requires Node 22 or later and an XZ-capable `tar`. Install the
+private maintainer package with `npm --prefix scripts/release ci --ignore-scripts`
+and validate it with `npm --prefix scripts/release run verify`. See
+[release tooling](./scripts/release/README.md) for notices, manifest, checksum and
+platform smoke-test commands. These dependencies stay out of product bundles.
+
 Releases use a three-step flow:
 
 1. From a clean, current `main`, create the release-preparation branch and scaffold the version bump and release notes:
