@@ -77,6 +77,11 @@ scripts/preflight.sh
 # or: just dev-setup
 ```
 
+Use Cargo's default `target/` directory inside each checkout, including linked
+worktrees. Compiled tests embed checkout-specific fixture paths, so sharing a
+`CARGO_TARGET_DIR` across worktrees can reuse binaries with stale paths. Run
+`git push` directly; its validation hook needs no Cargo environment override.
+
 Build and test from the repository root:
 
 ```bash
