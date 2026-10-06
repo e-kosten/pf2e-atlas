@@ -33,9 +33,22 @@ common tree parser with one shared PhysicalSystemSource parser for armor,
 backpack, book, consumable, equipment, shield, treasure and weapon. Nested price,
 equipment state, identification, material, apex and activation structures are
 typed; physical subitems recurse through the same structural parser. Only
-physical child discriminators are admitted. Concrete family restrictions and
-specialized bodies remain separate pending work. Shared fields have one typed
+physical child discriminators are admitted. Equipment, backpack, book and
+treasure have named family refinements; armor, consumable, shield and weapon
+remain explicitly pending. Shared fields have one typed
 owner rather than being copied into each family or retained as pending JSON.
+The same refinements apply to recursive children. Common level, physical bulk
+and legacy numeric bonuses share ItemNumberValueSource. Broad trait and usage
+vocabularies remain strings rather than closed enums. Book categories and
+treasure stack groups use their complete pinned literal vocabularies.
+
+Family applicability rejects declared forbidden fields even when null or empty:
+backpack/book subitems and treasure subitems/apex/usage. Treasure's supplied
+traits must be empty. Prepared-Data restrictions do not narrow persisted Source
+(for example treasure equipped.invested). Defaultable fields continue to retain
+missing/null source evidence. Observed legacy equipment stowing, weapon-like
+fields, slot and null deletion markers have typed source owners without changing
+the authored family or applying gameplay interpretation.
 
 Common fields retain pre-default `Missing | Null | Value`; an explicit null is
 source evidence even where a prepared/schema model expects a defaulted value.
@@ -63,8 +76,8 @@ Schema/value discovery remains governed by ADR 0037.
 ## Consequences
 
 The common Item and shared physical source layers are completed components, not
-completion of all 24 item systems or the eight physical-family refinements.
-Family bodies, built-in rule schemas, nested effects, all
+completion of all 24 item systems. Four physical system refinements are modeled;
+the other four family bodies, built-in rule schemas, nested effects, all
 actor bodies and other document classes remain tracked work. Canonical conversion,
 database/storage design, metrics and UI expansion follow the source-modeling
 phase. Pipeline adoption must later finish the direct replacement and retire old

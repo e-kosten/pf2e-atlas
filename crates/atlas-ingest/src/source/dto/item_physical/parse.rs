@@ -4,7 +4,7 @@ use super::super::fields::{
     Fields, ParseResult, array, boolean, keyed, malformed, number, object, shape_error, string,
     strings, structured_value,
 };
-use super::super::item_common::{ItemParentSource, parse_common_item_fields};
+use super::super::item_common::{ItemParentSource, number_value, parse_common_item_fields};
 use super::super::{
     ItemType, SerializedSourceObject, SerializedSourceValue, SourceIdentity, SourceVersionMetadata,
     parse_serialized_source_object, validate_pinned_source_version,
@@ -68,15 +68,17 @@ fn physical_item(
     // Common fields have already been parsed from this tree. Consume only the
     // remaining fields, then leave concrete family fields in the common owner.
     let path = format!("{p}.system");
+    let physical_fields = std::mem::take(&mut common.system.pending_family_fields);
     let f = Fields {
-        object: &common.system.pending_family_fields,
+        object: &physical_fields,
         identity: i,
         path: &path,
     };
-    let physical = PhysicalSystemSource {
+    super::family::validate_field_applicability(common.envelope.item_type, &f)?;
+    let mut physical = PhysicalSystemSource {
         quantity: f.presence("quantity", number)?,
         base_item: f.presence("baseItem", string)?,
-        bulk: f.presence("bulk", bulk)?,
+        bulk: f.presence("bulk", number_value)?,
         hp: f.presence("hp", hp)?,
         hardness: f.presence("hardness", number)?,
         price: f.presence("price", price)?,
@@ -114,14 +116,11 @@ fn physical_item(
         "subitems",
         "apex",
     ]);
-    Ok(PhysicalItemSource { common, physical })
-}
-
-fn bulk(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<PhysicalBulkSource> {
-    let f = Fields::new(v, i, p)?;
-    Ok(PhysicalBulkSource {
-        value: f.presence("value", number)?,
-        additional_fields: f.rest(&["value"]),
+    let family = super::family::refine(&mut common, &mut physical, &f)?;
+    Ok(PhysicalItemSource {
+        common,
+        physical,
+        family,
     })
 }
 
@@ -182,7 +181,18 @@ fn equipped(
         in_slot: f.presence("inSlot", boolean)?,
         hands_held: f.presence("handsHeld", |v, i, p| bounded_count(v, i, p, 0, 2))?,
         invested: f.presence("invested", boolean)?,
-        additional_fields: f.rest(&["carryType", "inSlot", "handsHeld", "invested"]),
+        legacy_slot: f.presence("slot", string)?,
+        legacy_in_slot_deletion: f.presence("-=inSlot", |v, i, p| {
+            Err(shape_error(v, i, p, "null deletion marker"))
+        })?,
+        additional_fields: f.rest(&[
+            "carryType",
+            "inSlot",
+            "handsHeld",
+            "invested",
+            "slot",
+            "-=inSlot",
+        ]),
     })
 }
 
@@ -230,7 +240,7 @@ fn mystified_data(
     })
 }
 
-fn text_value(
+pub(super) fn text_value(
     v: &SerializedSourceValue,
     i: &SourceIdentity,
     p: &str,

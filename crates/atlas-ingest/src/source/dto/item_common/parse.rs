@@ -91,7 +91,7 @@ pub(in crate::source::dto) fn parse_common_item_fields(
 fn system(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<ItemSystemSource> {
     let f = Fields::new(v, i, p)?;
     Ok(ItemSystemSource {
-        level: f.presence("level", level)?,
+        level: f.presence("level", number_value)?,
         description: f.presence("description", description)?,
         traits: f.presence("traits", traits)?,
         rules: f.presence("rules", objects)?,
@@ -112,9 +112,13 @@ fn system(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult
     })
 }
 
-fn level(v: &SerializedSourceValue, i: &SourceIdentity, p: &str) -> ParseResult<ItemLevelSource> {
+pub(in crate::source::dto) fn number_value(
+    v: &SerializedSourceValue,
+    i: &SourceIdentity,
+    p: &str,
+) -> ParseResult<ItemNumberValueSource> {
     let f = Fields::new(v, i, p)?;
-    Ok(ItemLevelSource {
+    Ok(ItemNumberValueSource {
         value: f.presence("value", number)?,
         additional_fields: f.rest(&["value"]),
     })
