@@ -65,4 +65,4 @@ jobs:
       - name: Source contract fixture tests
         run: |
           npm --prefix scripts/source-contracts ci --ignore-scripts
-          npm --prefix scripts/source-contracts test
+          npm --prefix scripts/source-contracts run verify

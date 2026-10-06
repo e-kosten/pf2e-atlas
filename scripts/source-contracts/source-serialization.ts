@@ -1,32 +1,34 @@
+import { typeArguments } from './compiler-types.js';
+type Relative = (file: string) => string;
 import ts from 'typescript';
 
 // Upstream source declarations include runtime types. Keep their JSON
 // projections bounded to the declarations whose serialization was inspected.
-function declarationIs(type, file, name, relative) {
+function declarationIs(type: ts.Type, file: string, name: string, relative: Relative) {
   const symbol = type.aliasSymbol ?? type.getSymbol();
   return symbol?.getName() === name && symbol.getDeclarations()?.some((declaration) =>
     relative(declaration.getSourceFile().fileName) === file);
 }
 
-export function predicateSourceArray(type, checker, relative) {
+export function predicateSourceArray(type: ts.Type, checker: ts.TypeChecker, relative: Relative): { error: string } | { error?: undefined; raw: ts.TypeReference; method: ts.Symbol } | null {
   if (!declarationIs(type, 'src/module/system/predication.ts', 'Predicate', relative)) return null;
   const method = checker.getPropertyOfType(type, 'toObject');
   const declaration = method?.valueDeclaration ?? method?.declarations?.[0];
-  const signatures = declaration && checker.getSignaturesOfType(
+  const signatures = method && declaration && checker.getSignaturesOfType(
     checker.getTypeOfSymbolAtLocation(method, declaration), ts.SignatureKind.Call);
   const raw = signatures?.length === 1 && signatures[0].parameters.length === 0
     ? checker.getReturnTypeOfSignature(signatures[0]) : null;
-  const baseArray = checker.getBaseTypes(type)?.find((base) => checker.isArrayType(base));
+  const baseArray = checker.getBaseTypes(type as ts.InterfaceType)?.find((base) => checker.isArrayType(base));
   // A custom toJSON hook would take precedence over ordinary array serialization.
   if (!baseArray || !raw || !checker.isArrayType(raw)
-    || checker.getTypeArguments(baseArray)[0] !== checker.getTypeArguments(raw)[0]
+    || typeArguments(baseArray, checker)[0] !== typeArguments(raw, checker)[0]
     || checker.getPropertyOfType(type, 'toJSON')) {
     return { error: 'Predicate must extend Array and expose one zero-argument toObject returning the same element type, without a toJSON override' };
   }
-  return { raw, method };
+  return { raw: raw as ts.TypeReference, method: method! };
 }
 
-export function modifierCallbackProjection(owner, property, resolved, checker, relative) {
+export function modifierCallbackProjection(owner: ts.Type, property: ts.Symbol, resolved: ts.Type, checker: ts.TypeChecker, relative: Relative): { error: string } | { error?: undefined; declaredOptional: boolean } | null {
   if (!declarationIs(owner, 'src/module/actor/modifiers.ts', 'ModifierAdjustment', relative)
     || !['test', 'getNewValue', 'getDamageType'].includes(property.getName())) return null;
   const alternatives = resolved.isUnion() ? resolved.types : [resolved];
@@ -40,7 +42,7 @@ export function modifierCallbackProjection(owner, property, resolved, checker, r
   return { declaredOptional: !!(property.flags & ts.SymbolFlags.Optional) };
 }
 
-export function choicePredicateInputs(owner, property, resolved, checker, relative) {
+export function choicePredicateInputs(owner: ts.Type, property: ts.Symbol, resolved: ts.Type, checker: ts.TypeChecker, relative: Relative): { error: string } | { error?: undefined; inputs: ts.Type[]; predicate: ts.Type; constructor: ts.Symbol } | null {
   if (!declarationIs(owner, 'src/module/apps/pick-a-thing-prompt.ts', 'PickableThing', relative)
     || property.getName() !== 'predicate') return null;
   const alternatives = resolved.isUnion() ? resolved.types : [resolved];
@@ -50,21 +52,23 @@ export function choicePredicateInputs(owner, property, resolved, checker, relati
   const array = predicateSourceArray(predicate, checker, relative);
   if (!array || array.error) return { error: array?.error ?? 'PickableThing.predicate no longer refers to the inspected Predicate declaration' };
   const symbol = predicate.getSymbol();
+  if (!symbol) return { error: "Predicate has no constructor symbol" };
   const declaration = symbol.valueDeclaration ?? symbol.declarations?.[0];
+  if (!declaration) return { error: "Predicate has no constructor declaration" };
   const constructors = checker.getSignaturesOfType(
     checker.getTypeOfSymbolAtLocation(symbol, declaration), ts.SignatureKind.Construct);
   const parameter = constructors.length === 1 && constructors[0].parameters.length === 1
     ? constructors[0].parameters[0] : null;
-  if (!parameter?.valueDeclaration?.dotDotDotToken) {
+  if (!parameter?.valueDeclaration || !ts.isParameter(parameter.valueDeclaration) || !parameter.valueDeclaration.dotDotDotToken) {
     return { error: 'Predicate constructor input must be one rest parameter' };
   }
   const argumentsType = checker.getTypeOfSymbolAtLocation(parameter, parameter.valueDeclaration);
   const variants = argumentsType.isUnion() ? argumentsType.types : [argumentsType];
-  const inputs = [];
+  const inputs: ts.Type[] = [];
   for (const variant of variants) {
-    const elements = checker.getTypeArguments(variant);
+    const elements = typeArguments(variant, checker);
     if (checker.isArrayType(variant) || (checker.isTupleType(variant) && elements.length === 1
-      && variant.target.elementFlags[0] === ts.ElementFlags.Required)) inputs.push(elements[0]);
+      && (variant as ts.TupleTypeReference).target.elementFlags[0] === ts.ElementFlags.Required)) inputs.push(elements[0]);
     else return { error: 'Predicate constructor rest input contains an unsupported argument shape' };
   }
   // ChoiceSet passes c.predicate as one constructor argument. Derive the

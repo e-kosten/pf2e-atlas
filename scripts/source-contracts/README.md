@@ -8,14 +8,21 @@ Use Node 22 or later. From the Atlas repository root:
 
 ```sh
 npm --prefix scripts/source-contracts ci --ignore-scripts
-npm --prefix scripts/source-contracts test
+npm --prefix scripts/source-contracts run verify
 ```
+
+The package is private contributor tooling. `build` emits JavaScript into ignored `dist/`;
+`typecheck` checks implementation and tests without emitting; `test` builds and runs
+the 24 fixture tests; `verify` runs both checks. `extract` builds before executing
+the compiled entry point. Fixtures stay in the source package. Public discovery
+contracts live in `contracts.ts`; compiler-internal access is bounded in
+`compiler-types.ts`. Neither this package nor its dependencies ship with Atlas.
 
 The source directory needs upstream `src`, `types`, `package.json`, `tsconfig.json`, `static/system.json` and `static/lang/en.json`. The compiler must also resolve the upstream declaration dependencies. For a clean exported source directory in `scratch/pf2e`, use:
 
 ```sh
 ln -s ../../scripts/source-contracts/node_modules scratch/pf2e/node_modules
-node scripts/source-contracts/extract.mjs \
+npm --prefix scripts/source-contracts run extract -- \
   --source scratch/pf2e --out scratch/source-extraction
 ```
 
@@ -25,7 +32,7 @@ Output files are `type-graph.json`, `trait-catalog.json` and `summary.json`. Out
 
 ## Declaration graph
 
-`source-serialization.mjs` handles the inspected runtime declarations that occur inside source types. Its bounded projections retain original declarations and serialization metadata:
+`source-serialization.ts` handles the inspected runtime declarations that occur inside source types. Its bounded projections retain original declarations and serialization metadata:
 
 - `Predicate` extends `Array<PredicateStatement>` and `toObject()` returns `RawPredicate` with the same element type. Its persisted shape is an array. An unrelated runtime class, changed element type, or custom `toJSON` hook remains unsupported.
 - `ModifierAdjustment.test`, `getNewValue`, and `getDamageType` are function-valued object properties. JSON serialization omits them. The graph retains their signatures and marks these names optional and forbidden in JSON, rather than accepting strings or objects as callbacks. New callbacks and changes to nonfunction values still produce diagnostics.

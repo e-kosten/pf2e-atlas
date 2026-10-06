@@ -1,31 +1,33 @@
+import type { DiscoveryDiagnostic, FieldSerialization, GraphBase, GraphField, GraphNode, GraphShape, Location, ProjectDiagnostic, RootSelection, TypeGraph } from './contracts.js';
+import { declarationName, intrinsicName, objectFlags, typeArguments } from './compiler-types.js';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import ts from 'typescript';
-import { choicePredicateInputs, modifierCallbackProjection, predicateSourceArray } from './source-serialization.mjs';
-import { discoverSourcePortfolio, PORTFOLIO_FILE } from './source-portfolio.mjs';
+import { choicePredicateInputs, modifierCallbackProjection, predicateSourceArray } from './source-serialization.js';
+import { discoverSourcePortfolio, PORTFOLIO_FILE } from './source-portfolio.js';
 
-const digest = (text) => createHash('sha256').update(text).digest('hex').slice(0, 24);
-const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 24);
+const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 
 /** Offline declaration discovery. This is neither a source parser nor a schema admission gate. */
-export function extractTypeGraph(sourceRoot, options = {}) {
+export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSelection[]; maxNodes?: number } = {}): TypeGraph {
   const root = path.resolve(sourceRoot);
-  const relative = (file) => {
+  const relative = (file: string) => {
     const normalized = file.replaceAll('\\', '/');
     const dependency = normalized.lastIndexOf('/node_modules/');
     return dependency >= 0 ? `node_modules/${normalized.slice(dependency + 14)}`
       : path.relative(root, file).replaceAll('\\', '/');
   };
-  const cleanText = (text) => text.replaceAll(root.replaceAll('\\', '/'), '<source>')
+  const cleanText = (text: string) => text.replaceAll(root.replaceAll('\\', '/'), '<source>')
     .replace(/(?:[A-Za-z]:)?\/[^\s"']*\/node_modules\//g, 'node_modules/');
-  const diagnostics = [];
+  const diagnostics: DiscoveryDiagnostic[] = [];
   const configPath = path.join(root, 'tsconfig.json');
   const read = ts.readConfigFile(configPath, ts.sys.readFile);
   if (read.error) return failure(read.error);
   const config = ts.parseJsonConfigFileContent(read.config, ts.sys, root, undefined, configPath);
   if (config.errors.length) return failure(...config.errors);
   const portfolio = options.roots ? null : discoverSourcePortfolio(root);
-  const selections = options.roots ?? portfolio.selections;
+  const selections = options.roots ?? portfolio!.selections;
   diagnostics.push(...(portfolio?.diagnostics ?? []));
   const maxNodes = options.maxNodes ?? 4000;
   if (!Number.isInteger(maxNodes) || maxNodes < 1) throw new Error('maxNodes must be a positive integer');
@@ -37,18 +39,18 @@ export function extractTypeGraph(sourceRoot, options = {}) {
     : originalGetSourceFile(file, ...args);
   const program = ts.createProgram([...config.fileNames, ...(portfolio ? [virtualFile] : [])], config.options, host);
   const checker = program.getTypeChecker();
-  const nodes = new Map();
-  const seen = new Map();
-  const selectedDeclarations = new Set();
-  const roots = [];
+  const nodes = new Map<string, GraphNode | (GraphBase & { kind: "pending" })>();
+  const seen = new Map<ts.Type, string>();
+  const selectedDeclarations = new Set<ts.Declaration>();
+  const roots: TypeGraph["roots"] = [];
 
-  function location(declaration) {
+  function location(declaration: ts.Node): Location {
     const source = declaration.getSourceFile();
     const at = source.getLineAndCharacterOfPosition(declaration.getStart());
     return { file: relative(source.fileName), line: at.line + 1, column: at.character + 1 };
   }
 
-  function declarations(symbol) {
+  function declarations(symbol: ts.Symbol | undefined): Location[] {
     return (symbol?.getDeclarations() ?? []).map((declaration) => {
       selectedDeclarations.add(declaration);
       return location(declaration);
@@ -56,55 +58,56 @@ export function extractTypeGraph(sourceRoot, options = {}) {
   }
 
   // Named declaration ancestry avoids compiler-local IDs and line/offset identities.
-  function declarationKey(declaration) {
+  function declarationKey(declaration: ts.Node): string {
     const names = [];
-    for (let current = declaration; current && !ts.isSourceFile(current); current = current.parent) {
-      if (current.name && typeof current.name.getText === 'function') names.unshift(current.name.getText());
+    for (let current: ts.Node | undefined = declaration; current && !ts.isSourceFile(current); current = current.parent) {
+      const name = declarationName(current);
+      if (name) names.unshift(name.getText());
       else if (ts.isTypeLiteralNode(current)) names.unshift('$object');
       else if (ts.isMappedTypeNode(current)) names.unshift('$mapped');
     }
     return `${relative(declaration.getSourceFile().fileName)}#${names.join('.') || '$anonymous'}`;
   }
 
-  function label(type) {
+  function label(type: ts.Type): string {
     return cleanText(checker.typeToString(type, undefined,
       ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope));
   }
 
-  function identity(type) {
+  function identity(type: ts.Type): string {
     const flags = type.flags;
     for (const [flag, name] of [[ts.TypeFlags.String, 'string'], [ts.TypeFlags.Number, 'number'],
       [ts.TypeFlags.Boolean, 'boolean'], [ts.TypeFlags.Null, 'null'], [ts.TypeFlags.Undefined, 'undefined'],
       [ts.TypeFlags.Never, 'never'], [ts.TypeFlags.Unknown, 'unknown'], [ts.TypeFlags.NonPrimitive, 'object']]) {
       if (flags === flag) return `primitive:${name}`;
     }
-    if (flags & ts.TypeFlags.StringLiteral) return `literal:string:${JSON.stringify(type.value)}`;
-    if (flags & ts.TypeFlags.NumberLiteral) return `literal:number:${type.value}`;
-    if (flags & ts.TypeFlags.BooleanLiteral) return `literal:boolean:${type.intrinsicName}`;
-    if (flags & ts.TypeFlags.Any) return type.intrinsicName === 'error'
+    if (flags & ts.TypeFlags.StringLiteral) return `literal:string:${JSON.stringify((type as ts.StringLiteralType | ts.NumberLiteralType).value)}`;
+    if (flags & ts.TypeFlags.NumberLiteral) return `literal:number:${(type as ts.StringLiteralType | ts.NumberLiteralType).value}`;
+    if (flags & ts.TypeFlags.BooleanLiteral) return `literal:boolean:${intrinsicName(type)}`;
+    if (flags & ts.TypeFlags.Any) return intrinsicName(type) === 'error'
       ? `unresolved:${digest(label(type))}` : 'primitive:any';
     const symbol = type.aliasSymbol ?? type.getSymbol();
     const origin = symbol?.getDeclarations()?.[0];
-    const args = type.aliasTypeArguments ?? (type.objectFlags & ts.ObjectFlags.Reference ? checker.getTypeArguments(type) : []);
+    const args = typeArguments(type, checker);
     if (origin) {
       // Several anonymous objects can share the same declaration ancestry, and
       // an inline object under Shared<T> resolves separately for each T. Their
       // resolved shape is part of their identity, while named declarations keep
       // an identity that survives ordinary field additions.
-      const anonymous = !type.aliasSymbol && symbol.getName().startsWith('__');
+      const anonymous = !type.aliasSymbol && symbol!.getName().startsWith('__');
       const suffix = anonymous ? argumentIdentity(type) : args.length ? args.map((arg) => argumentIdentity(arg)).join('|') : null;
       return `${declarationKey(origin)}${suffix === null ? '' : `@${digest(suffix)}`}`;
     }
     return `structural:${digest(argumentIdentity(type))}`;
   }
 
-  function argumentIdentity(type, ancestors = new Set()) {
+  function argumentIdentity(type: ts.Type, ancestors = new Set<ts.Type>()): string {
     const symbol = type.aliasSymbol ?? type.getSymbol();
     const origin = symbol?.getDeclarations()?.[0];
-    const own = `${origin ? declarationKey(origin) : type.flags}:${type.intrinsicName ?? ''}:${label(type)}`;
+    const own = `${origin ? declarationKey(origin) : type.flags}:${intrinsicName(type) ?? ''}:${label(type)}`;
     if (ancestors.has(type)) return own;
     const next = new Set(ancestors).add(type);
-    const args = type.aliasTypeArguments ?? (type.objectFlags & ts.ObjectFlags.Reference ? checker.getTypeArguments(type) : []);
+    const args = typeArguments(type, checker);
     const parts = args.map((arg) => argumentIdentity(arg, next));
     if (type.isUnion() || type.isIntersection()) {
       parts.push(...type.types.map((member) => argumentIdentity(member, next)).sort(compare));
@@ -113,7 +116,7 @@ export function extractTypeGraph(sourceRoot, options = {}) {
       // Resolve member identities to retain the actual referenced declarations.
       parts.push(...checker.getPropertiesOfType(type).map((property) => {
         const declaration = property.valueDeclaration ?? property.declarations?.[0] ?? origin;
-        return `${property.getName()}:${argumentIdentity(checker.getTypeOfSymbolAtLocation(property, declaration), next)}`;
+        return `${property.getName()}:${argumentIdentity(checker.getTypeOfSymbolAtLocation(property, declaration!), next)}`;
       }).sort(compare));
       parts.push(...checker.getIndexInfosOfType(type).map((info) =>
         `${argumentIdentity(info.keyType, next)}:${argumentIdentity(info.type, next)}`).sort(compare));
@@ -121,13 +124,13 @@ export function extractTypeGraph(sourceRoot, options = {}) {
     return `${own}[${parts.join('|')}]`;
   }
 
-  function problem(code, message, node, declaration) {
+  function problem(code: string, message: string, node?: string, declaration?: ts.Node) {
     diagnostics.push({ code, message, ...(node ? { node } : {}),
       ...(declaration ? { location: location(declaration) } : {}) });
   }
 
-  function visit(type, context) {
-    if (seen.has(type)) return seen.get(type);
+  function visit(type: ts.Type, context?: ts.Node): string {
+    if (seen.has(type)) return seen.get(type)!;
     const id = identity(type);
     seen.set(type, id);
     if (nodes.has(id)) return id;
@@ -142,86 +145,78 @@ export function extractTypeGraph(sourceRoot, options = {}) {
     }
     const symbol = type.aliasSymbol ?? type.getSymbol();
     const origin = symbol?.getDeclarations()?.[0] ?? context;
-    const node = { id, kind: 'pending', ...(symbol && !symbol.getName().startsWith('__')
+    const pending: GraphBase & { kind: 'pending' } = { id, kind: 'pending', ...(symbol && !symbol!.getName().startsWith('__')
       ? { name: symbol.getName() } : {}), declaredAt: declarations(symbol) };
     // Register before traversing children: references can recur through arrays or aliases.
-    nodes.set(id, node);
+    nodes.set(id, pending);
+    let shape: GraphShape;
     const flags = type.flags;
     if (type.isUnion() || type.isIntersection()) {
-      node.kind = type.isUnion() ? 'union' : 'intersection';
-      node.members = type.types.map((member) => visit(member, origin)).sort(compare);
-      // Intersections can carry inherited fields which are not repeated in every constituent.
-      if (type.isIntersection()) node.fields = fields(type, origin);
+      const members = type.types.map((member) => visit(member, origin)).sort(compare);
+      shape = type.isUnion() ? { kind: 'union', members } : { kind: 'intersection', members, fields: fields(type, origin) };
     } else if (flags & (ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BooleanLiteral)) {
-      node.kind = 'literal';
-      node.value = flags & ts.TypeFlags.BooleanLiteral ? type.intrinsicName === 'true' : type.value;
+      shape = { kind: 'literal', value: flags & ts.TypeFlags.BooleanLiteral ? intrinsicName(type) === 'true' : (type as ts.StringLiteralType | ts.NumberLiteralType).value };
     } else if (flags & ts.TypeFlags.Any) {
-      if (type.intrinsicName === 'error') {
-        node.kind = 'unresolved';
+      if (intrinsicName(type) === 'error') {
+        shape = { kind: 'unresolved' };
         problem('unresolved-type', `Compiler could not resolve ${label(type)}`, id, origin);
-      } else { node.kind = 'open'; node.domain = 'any'; }
-    } else if (flags & ts.TypeFlags.Unknown) { node.kind = 'open'; node.domain = 'unknown'; }
-    else if (flags & ts.TypeFlags.NonPrimitive) { node.kind = 'open'; node.domain = 'object'; }
+      } else { shape = { kind: 'open', domain: 'any' }; }
+    } else if (flags & ts.TypeFlags.Unknown) { shape = { kind: 'open', domain: 'unknown' }; }
+    else if (flags & ts.TypeFlags.NonPrimitive) { shape = { kind: 'open', domain: 'object' }; }
     else if (flags & ts.TypeFlags.TemplateLiteral) {
-      node.kind = 'template'; node.text = type.texts;
-      node.parameters = type.types.map((parameter) => visit(parameter, origin));
+      const template = type as ts.TemplateLiteralType;
+      shape = { kind: 'template', text: template.texts, parameters: template.types.map((parameter) => visit(parameter, origin)) };
     }
     else if (flags & (ts.TypeFlags.String | ts.TypeFlags.Number | ts.TypeFlags.Boolean |
       ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Never)) {
-      node.kind = 'primitive'; node.value = label(type);
+      shape = { kind: 'primitive', value: label(type) };
     } else if (checker.isTupleType(type)) {
-      node.kind = 'tuple';
-      node.elements = checker.getTypeArguments(type).map((element, index) => ({
-        ref: visit(element, origin), optional: !!(type.target.elementFlags[index] & ts.ElementFlags.Optional),
-        rest: !!(type.target.elementFlags[index] & (ts.ElementFlags.Rest | ts.ElementFlags.Variadic)),
-      }));
-      node.readonly = !!type.target.readonly;
+      const tuple = type as ts.TupleTypeReference;
+      shape = { kind: 'tuple', elements: checker.getTypeArguments(tuple).map((element, index) => ({
+        ref: visit(element, origin), optional: !!(tuple.target.elementFlags[index] & ts.ElementFlags.Optional),
+        rest: !!(tuple.target.elementFlags[index] & (ts.ElementFlags.Rest | ts.ElementFlags.Variadic)),
+      })), readonly: !!tuple.target.readonly };
     } else if (checker.isArrayType(type) ||
-      (type.getSymbol()?.getName() === 'ReadonlyArray' && type.objectFlags & ts.ObjectFlags.Reference)) {
-      node.kind = 'array';
-      node.element = visit(checker.getTypeArguments(type)[0], origin);
-      node.readonly = type.getSymbol()?.getName() === 'ReadonlyArray';
+      (type.getSymbol()?.getName() === 'ReadonlyArray' && objectFlags(type) & ts.ObjectFlags.Reference)) {
+      shape = { kind: 'array', element: visit(typeArguments(type, checker)[0], origin), readonly: type.getSymbol()?.getName() === 'ReadonlyArray' };
     } else if (flags & ts.TypeFlags.Object) {
       const calls = checker.getSignaturesOfType(type, ts.SignatureKind.Call);
       const constructors = checker.getSignaturesOfType(type, ts.SignatureKind.Construct);
       if (calls.length || constructors.length) {
-        node.kind = 'unsupported'; node.reason = 'Function or constructor is not a persisted source value';
-        problem('callable-source-type', node.reason, id, origin);
+        shape = { kind: 'unsupported', reason: 'Function or constructor is not a persisted source value' };
+        problem('callable-source-type', shape.reason, id, origin);
       } else if (type.getSymbol()?.getDeclarations()?.some(ts.isClassDeclaration)) {
         const projection = predicateSourceArray(type, checker, relative);
-        if (projection && !projection.error) {
-          node.kind = 'array';
-          node.element = visit(checker.getTypeArguments(projection.raw)[0], origin);
-          node.readonly = false;
-          node.serialization = { basis: 'array-subclass', rawRef: visit(projection.raw, origin),
-            method: 'toObject', declaredAt: declarations(projection.method) };
+        if (projection && projection.error === undefined) {
+          shape = { kind: 'array', element: visit(checker.getTypeArguments(projection.raw)[0], origin), readonly: false, serialization: { basis: 'array-subclass', rawRef: visit(projection.raw, origin),
+            method: 'toObject', declaredAt: declarations(projection.method) } };
         } else {
-          node.kind = 'unsupported'; node.reason = projection?.error ?? 'Runtime class instance is outside the source graph boundary';
-          problem('class-instance-source-type', node.reason, id, origin);
+          shape = { kind: 'unsupported', reason: projection?.error ?? 'Runtime class instance is outside the source graph boundary' };
+          problem('class-instance-source-type', shape.reason, id, origin);
         }
       } else {
-        node.kind = 'object';
-        node.fields = fields(type, origin);
-        if (type.objectFlags & ts.ObjectFlags.Interface) {
-          const bases = checker.getBaseTypes(type) ?? [];
-          if (bases.length) node.extends = bases.map((base) => visit(base, origin)).sort(compare);
-        }
-        node.indexSignatures = checker.getIndexInfosOfType(type).map((info) => ({
+        const objectFields = fields(type, origin);
+        const bases = objectFlags(type) & ts.ObjectFlags.Interface ? checker.getBaseTypes(type as ts.InterfaceType) ?? [] : [];
+        const object: Extract<GraphShape, { kind: 'object' }> = { kind: 'object', fields: objectFields,
+          ...(bases.length ? { extends: bases.map((base) => visit(base, origin)).sort(compare) } : {}), indexSignatures: [] };
+        object.indexSignatures = checker.getIndexInfosOfType(type).map((info) => ({
           key: visit(info.keyType, info.declaration), value: visit(info.type, info.declaration),
           readonly: info.isReadonly,
         })).sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b)));
-        if (!node.fields.length && !node.indexSignatures.length) {
+        if (!object.fields.length && !object.indexSignatures.length) {
           const explicitEmpty = origin && ((ts.isTypeLiteralNode(origin) && !origin.members.length)
             || (ts.isInterfaceDeclaration(origin) && !origin.members.length && !origin.heritageClauses?.length));
-          if (explicitEmpty) { node.kind = 'open'; node.domain = 'non-nullish'; }
-          else problem('empty-resolved-object', 'An empty resolved object requires an explicit source decision', id, origin);
-        }
+          if (!explicitEmpty) problem('empty-resolved-object', 'An empty resolved object requires an explicit source decision', id, origin);
+          shape = explicitEmpty ? { ...object, kind: 'open', domain: 'non-nullish' } : object;
+        } else { shape = object; }
       }
     } else {
-      node.kind = 'unsupported'; node.reason = `Unresolved or unsupported TypeScript construct: ${label(type)}`;
-      problem('unsupported-type', node.reason, id, origin);
+      shape = { kind: 'unsupported', reason: `Unresolved or unsupported TypeScript construct: ${label(type)}` };
+      problem('unsupported-type', shape.reason, id, origin);
     }
-    const args = type.aliasTypeArguments ?? (type.objectFlags & ts.ObjectFlags.Reference ? checker.getTypeArguments(type) : []);
+    const node: GraphNode = { ...pending, ...shape };
+    nodes.set(id, node);
+    const args = typeArguments(type, checker);
     if (args.length && !['array', 'tuple', 'unsupported'].includes(node.kind)) {
       // Generic inputs are compiler provenance, not necessarily persisted values.
       // Foundry SourceFromSchema<TSchema>, for example, takes DataField classes.
@@ -234,16 +229,16 @@ export function extractTypeGraph(sourceRoot, options = {}) {
     return id;
   }
 
-  function fields(type, context) {
-    return checker.getPropertiesOfType(type).map((property) => {
+  function fields(type: ts.Type, context?: ts.Node): GraphField[] {
+    return checker.getPropertiesOfType(type).map((property): GraphField => {
       const declaration = property.valueDeclaration ?? property.declarations?.[0];
       const symbolKey = property.getName().startsWith('__@');
-      const name = symbolKey ? declaration?.name?.getText() ?? '$symbol' : property.getName();
+      const name = symbolKey ? (declaration && declarationName(declaration))?.getText() ?? '$symbol' : property.getName();
       if (symbolKey) problem('symbol-keyed-field', `Symbol-keyed field ${name} is not a JSON member`, undefined, declaration);
-      const resolved = checker.getTypeOfSymbolAtLocation(property, declaration ?? context);
+      const resolved = checker.getTypeOfSymbolAtLocation(property, (declaration ?? context)!);
       const projection = modifierCallbackProjection(type, property, resolved, checker, relative);
       if (projection?.error) problem('source-serialization-drift', projection.error, undefined, declaration);
-      if (projection && !projection.error) {
+      if (projection && projection.error === undefined) {
         const ref = 'primitive:never';
         if (!nodes.has(ref)) nodes.set(ref, { id: ref, kind: 'primitive', value: 'never' });
         return { name, ref, optional: true, nullable: false, undefinedAllowed: true,
@@ -254,9 +249,9 @@ export function extractTypeGraph(sourceRoot, options = {}) {
       }
       const choice = choicePredicateInputs(type, property, resolved, checker, relative);
       if (choice?.error) problem('source-serialization-drift', choice.error, undefined, declaration);
-      let sourceRef;
-      let serialization;
-      if (choice && !choice.error) {
+      let sourceRef: string | undefined;
+      let serialization: FieldSerialization | undefined;
+      if (choice && choice.error === undefined) {
         sourceRef = `${identity(type)}#${name}:constructor-input`;
         const members = [...new Set(choice.inputs.map((input) => visit(input, declaration)))].sort(compare);
         nodes.set(sourceRef, { id: sourceRef, kind: 'union', members, declaredAt: declarations(property) });
@@ -292,18 +287,18 @@ export function extractTypeGraph(sourceRoot, options = {}) {
   if (portfolio) {
     for (const family of portfolio.families) {
       const ref = roots.find((entry) => entry.documentKind === family.documentKind)?.ref;
-      const literals = new Set();
-      const inspected = new Set();
-      function discriminate(id) {
+      const literals = new Set<string>();
+      const inspected = new Set<string | null | undefined>();
+      function discriminate(id: string | null | undefined) {
         if (inspected.has(id)) return;
         inspected.add(id);
-        const node = nodes.get(id);
+        const node = id ? nodes.get(id) : undefined;
         if (node?.kind === 'union') { for (const member of node.members) discriminate(member); }
         else {
-          const field = node?.fields?.find((entry) => entry.name === 'type');
-          const type = nodes.get(field?.ref);
+          const field = node && 'fields' in node ? node.fields?.find((entry) => entry.name === 'type') : undefined;
+          const type = field && nodes.get(field.ref);
           if (type?.kind === 'literal' && typeof type.value === 'string') literals.add(type.value);
-          else problem('family-discriminator', `${family.documentKind} source member has no literal type discriminator`, id);
+          else problem('family-discriminator', `${family.documentKind} source member has no literal type discriminator`, id ?? undefined);
         }
       }
       discriminate(ref);
@@ -314,7 +309,7 @@ export function extractTypeGraph(sourceRoot, options = {}) {
     }
   }
 
-  const projectDiagnostics = { selected: [], unrelated: [] };
+  const projectDiagnostics: TypeGraph["projectDiagnostics"] = { selected: [], unrelated: [] };
   const selectedRanges = [...selectedDeclarations].map((declaration) => ({
     file: declaration.getSourceFile().fileName, start: declaration.getStart(), end: declaration.getEnd(),
   }));
@@ -322,7 +317,7 @@ export function extractTypeGraph(sourceRoot, options = {}) {
     const serialized = serializeDiagnostic(diagnostic);
     const selected = diagnostic.file && ((portfolio && diagnostic.file.fileName === virtualFile)
       || (diagnostic.start !== undefined && selectedRanges.some((range) =>
-        range.file === diagnostic.file.fileName && range.start <= diagnostic.start && diagnostic.start < range.end)));
+        range.file === diagnostic.file!.fileName && range.start <= diagnostic.start! && diagnostic.start! < range.end)));
     projectDiagnostics[selected ? 'selected' : 'unrelated'].push(serialized);
   }
   for (const group of Object.values(projectDiagnostics)) group.sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b)));
@@ -332,9 +327,9 @@ export function extractTypeGraph(sourceRoot, options = {}) {
     status: complete ? 'complete' : 'incomplete',
     roots, ...(portfolio ? { portfolio: { documentKinds: portfolio.documentKinds, families: portfolio.families,
       ruleKeys: portfolio.ruleKeys } } : {}),
-    nodes: [...nodes.values()].sort((a, b) => compare(a.id, b.id)), diagnostics, projectDiagnostics };
+    nodes: [...nodes.values()].map((node): GraphNode => { if (node.kind === "pending") throw new Error(`Unfinished graph node ${node.id}`); return node; }).sort((a, b) => compare(a.id, b.id)), diagnostics, projectDiagnostics };
 
-  function serializeDiagnostic(diagnostic) {
+  function serializeDiagnostic(diagnostic: ts.Diagnostic): ProjectDiagnostic {
     return { code: diagnostic.code, category: ts.DiagnosticCategory[diagnostic.category].toLowerCase(),
       message: cleanText(ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')),
       ...(diagnostic.file ? { location: {
@@ -344,7 +339,7 @@ export function extractTypeGraph(sourceRoot, options = {}) {
       } } : {}) };
   }
 
-  function failure(...errors) {
+  function failure(...errors: ts.Diagnostic[]): TypeGraph {
     return { format: 'atlas-source-type-graph/v1', typescript: ts.version, complete: false, status: 'incomplete',
       roots: [], nodes: [], diagnostics: errors.map((error) => ({ code: 'configuration-error',
         message: cleanText(ts.flattenDiagnosticMessageText(error.messageText, '\n')) })),
