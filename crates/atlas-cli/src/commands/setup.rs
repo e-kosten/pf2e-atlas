@@ -8,7 +8,8 @@ use atlas_runtime::{
 };
 use serde::Serialize;
 
-use crate::output::{format_duration_ms, write_json_data, write_json_error};
+use crate::output::format_duration_ms;
+use atlas_cli_support::{write_json_data, write_json_error};
 
 pub(crate) mod args;
 

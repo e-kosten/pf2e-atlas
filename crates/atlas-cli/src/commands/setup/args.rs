@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use clap::{Args, Subcommand};
 
-use crate::cli::args::CliPathMode;
+use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 #[command(

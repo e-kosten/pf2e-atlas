@@ -177,26 +177,15 @@ Example:
 atlas index validate --json
 ```
 
-## Contributor Index Commands
-
-Standard users should run `atlas setup`. Manual index commands remain available for development and diagnostics:
-
-```bash
-cargo run -p atlas-cli -- index analyze --json
-cargo run -p atlas-cli -- index build --no-embeddings --json
-```
-
-Use Cargo's release profile for ingest or search performance measurements:
-
-```bash
-cargo run --release -p atlas-cli -- index analyze --source vendor/pf2e --json
-```
+## Install From Source
 
 For source installation from a local checkout, install Rust 1.95 or newer and run:
 
 ```bash
 cargo install --path crates/atlas-cli --locked
 ```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for source development and diagnostic commands.
 
 ## Further Reading
 

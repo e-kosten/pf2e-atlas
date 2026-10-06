@@ -18,7 +18,7 @@ use serde::Serialize;
 use crate::client::{
     AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
 };
-use crate::output::{write_json_data, write_json_error, write_json_error_data};
+use atlas_cli_support::{write_json_data, write_json_error, write_json_error_data};
 
 pub(crate) mod args;
 
