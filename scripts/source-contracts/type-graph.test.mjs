@@ -187,6 +187,85 @@ test('missing root and closure bounds are visible failures', () => {
   assert.ok(limited.nodes.some((entry) => entry.id === 'unsupported:closure-limit'));
 });
 
+test('serialized Predicate data and modifier callbacks retain explicit source projections', () => {
+  const result = extractTypeGraph(fixture, { roots: [{ file: 'serialization.ts', name: 'SerializedSource' }] });
+  assert.equal(result.complete, true, JSON.stringify(result.diagnostics));
+  const source = rootNode(result, 'SerializedSource');
+  const predicate = lookup(result, field(source, 'predicate').ref);
+  assert.equal(predicate.name, 'Predicate');
+  assert.equal(predicate.kind, 'array');
+  assert.equal(predicate.serialization.rawRef, field(source, 'rawPredicate').ref);
+  assert.equal(predicate.element, lookup(result, predicate.serialization.rawRef).element);
+  assert.equal(predicate.serialization.method, 'toObject');
+  assert.ok(predicate.serialization.declaredAt.some((entry) => entry.file.endsWith('predication.ts')));
+  const choiceArray = lookup(result, field(source, 'choices').ref).members.map((id) => lookup(result, id))
+    .find((node) => node.kind === 'array');
+  const choicePredicate = field(lookup(result, choiceArray.element), 'predicate');
+  assert.equal(choicePredicate.optional, true);
+  assert.equal(choicePredicate.serialization.basis, 'predicate-constructor-input');
+  assert.equal(choicePredicate.serialization.declaredRef, predicate.id);
+  const input = lookup(result, choicePredicate.ref);
+  assert.equal(input.kind, 'union');
+  const inputNodes = input.members.map((id) => lookup(result, id));
+  assert.ok(inputNodes.some((node) => node.kind === 'array' && node.element === predicate.element));
+  assert.ok(input.members.includes(predicate.element));
+  const adjustments = lookup(result, field(source, 'adjustments').ref);
+  const array = adjustments.members.map((id) => lookup(result, id)).find((node) => node.kind === 'array');
+  const adjustment = lookup(result, array.element);
+  for (const name of ['test', 'getNewValue', 'getDamageType']) {
+    const callback = field(adjustment, name);
+    assert.equal(callback.forbidden, true);
+    assert.equal(callback.optional, true);
+    assert.equal(callback.nullable, false);
+    assert.equal(lookup(result, callback.ref).value, 'never');
+    assert.equal(callback.serialization.basis, 'omitted-function-property');
+    assert.equal(callback.serialization.declaredOptional, name !== 'test');
+    assert.ok(callback.serialization.declaredType.includes('=>'));
+  }
+  assert.equal(field(adjustment, 'slug').optional, false);
+  assert.equal(field(adjustment, 'slug').nullable, true);
+  assert.equal(field(adjustment, 'suppress').optional, true);
+  assert.deepEqual(JSON.parse(JSON.stringify({ slug: 'example', test: () => true,
+    getNewValue: (value) => value + 1, getDamageType: () => 'fire', suppress: false })),
+    { slug: 'example', suppress: false });
+  const unsupported = extractTypeGraph(fixture, { roots: [{ file: 'serialization.ts', name: 'OtherSource' }] });
+  assert.equal(unsupported.complete, false);
+  assert.ok(unsupported.diagnostics.some((entry) => entry.code === 'class-instance-source-type'));
+});
+
+test('serialization projections reject upstream type drift and new callable properties', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'atlas-serialization-'));
+  const selections = { roots: [{ file: 'serialization.ts', name: 'SerializedSource' }] };
+  try {
+    await cp(fixture, temporary, { recursive: true });
+    const modifierFile = path.join(temporary, 'src/module/actor/modifiers.ts');
+    const modifier = await readFile(modifierFile, 'utf8');
+    await writeFile(modifierFile, modifier.replace('test: (options: string[]) => boolean', 'test: boolean'));
+    const changedCallback = extractTypeGraph(temporary, selections);
+    assert.equal(changedCallback.complete, false);
+    assert.ok(changedCallback.diagnostics.some((entry) => entry.code === 'source-serialization-drift'));
+    await writeFile(modifierFile, modifier.replace('slug: string | null;', 'slug: string | null; added: () => number;'));
+    const addedCallback = extractTypeGraph(temporary, selections);
+    assert.equal(addedCallback.complete, false);
+    assert.ok(addedCallback.diagnostics.some((entry) => entry.code === 'callable-source-type'));
+    await writeFile(modifierFile, modifier);
+    const predicateFile = path.join(temporary, 'src/module/system/predication.ts');
+    const predicate = await readFile(predicateFile, 'utf8');
+    for (const changed of [
+      predicate.replace('toObject(): RawPredicate { return [...this]; }', 'toObject(): string { return "changed"; }'),
+      predicate.replace('toObject(): RawPredicate { return [...this]; }', 'toObject(): number[] { return []; }'),
+      predicate.replace('readonly isValid = true;', 'readonly isValid = true; toJSON() { return "changed"; }'),
+      predicate.replace('extends Array<PredicateStatement>', '').replace('return [...this]', 'return []'),
+      predicate.replace('constructor(...statements: PredicateStatement[] | [PredicateStatement[]])', 'constructor(statement: PredicateStatement)').replace('super(...(Array.isArray(statements[0]) ? statements[0] : statements as PredicateStatement[]))', 'super(statement)'),
+    ]) {
+      await writeFile(predicateFile, changed);
+      const result = extractTypeGraph(temporary, selections);
+      assert.equal(result.complete, false);
+      assert.ok(result.diagnostics.some((entry) => ['class-instance-source-type', 'source-serialization-drift'].includes(entry.code)));
+    }
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
 test('authored empty interface is an explicit open domain rather than an empty model', () => {
   const result = extractTypeGraph(fixture, { roots: [{ file: 'models.ts', name: 'ExplicitEmpty' }] });
   assert.equal(result.complete, true);
