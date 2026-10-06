@@ -3,7 +3,7 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-07
+Last reviewed: 2026-10-05
 
 ## Problem
 
@@ -21,6 +21,22 @@ The implementation should support:
 - term kind, slug, label, localization keys, and parsed `RichDocument` description content
 - relationships from normal records to terms through trait membership, localized macros, rule-option labels, or authored references
 - web/TUI-ready lookup and hover-card data without making runtime consumers resolve raw localization keys
+
+## Source discovery prerequisite
+
+The [source-contract generation and catalog experiment](./rust-source-contract-generation.md)
+proposes extracting upstream trait and other-tag identifiers, authoritative labels,
+localization keys, authored description text and catalog/family membership first.
+That source-only catalog can be inspected independently of storage or app models.
+Catalog extraction does not complete this item's product lookup, hover content or
+record-to-term relationships.
+
+Use the explicit upstream trait-description mappings, including parameterized
+variants, rather than assuming every label key has a mechanically matching
+description key. Preserve missing descriptions. Foundry otherTags can have
+family-specific vocabularies and remain distinct from traits and Atlas authored
+tags. Description prose does not itself supply structured implication edges or
+executable mechanics. AoN-style citations/links require a separate source review.
 
 ## Initial Scope
 
