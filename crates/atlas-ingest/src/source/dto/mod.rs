@@ -10,6 +10,7 @@ mod diagnostic;
 mod embedded;
 mod hazard;
 mod item;
+pub mod item_common;
 mod npc;
 mod presence;
 mod spell;
