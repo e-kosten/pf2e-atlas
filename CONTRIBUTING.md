@@ -267,3 +267,7 @@ The normal setup path can fetch or update source data automatically:
 ```bash
 atlas setup
 ```
+
+## Source declaration research
+
+Offline declaration and trait metadata tooling lives in [scripts/source-contracts](./scripts/source-contracts/README.md). Its pinned Node dependencies and fixture tests are separate from the Rust build.
