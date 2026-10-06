@@ -28,6 +28,15 @@ presentation model. The current ingest pipeline remains on its existing typed
 conversion paths until the later integration phase; this API is not a fallback
 or compatibility wrapper around them.
 
+`atlas_ingest::physical_item_source::parse_physical_item_source` composes that
+common tree parser with one shared PhysicalSystemSource parser for armor,
+backpack, book, consumable, equipment, shield, treasure and weapon. Nested price,
+equipment state, identification, material, apex and activation structures are
+typed; physical subitems recurse through the same structural parser. Only
+physical child discriminators are admitted. Concrete family restrictions and
+specialized bodies remain separate pending work. Shared fields have one typed
+owner rather than being copied into each family or retained as pending JSON.
+
 Common fields retain pre-default `Missing | Null | Value`; an explicit null is
 source evidence even where a prepared/schema model expects a defaulted value.
 Malformed non-null typed values and repeated scalar/structural members produce
@@ -53,8 +62,9 @@ Schema/value discovery remains governed by ADR 0037.
 
 ## Consequences
 
-The common Item source layer is the first completed component, not completion of
-all 24 item systems. Family bodies, built-in rule schemas, nested effects, all
+The common Item and shared physical source layers are completed components, not
+completion of all 24 item systems or the eight physical-family refinements.
+Family bodies, built-in rule schemas, nested effects, all
 actor bodies and other document classes remain tracked work. Canonical conversion,
 database/storage design, metrics and UI expansion follow the source-modeling
 phase. Pipeline adoption must later finish the direct replacement and retire old

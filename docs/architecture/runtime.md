@@ -170,6 +170,25 @@ its current source/conversion paths until the separate integration phase.
 See [ADR 0038](./decisions/0038-parser-only-source-modeling.md) and the
 [source modeling backlog](../backlog/items/rust-source-modeling.md).
 
+`atlas_ingest::physical_item_source::parse_physical_item_source` extends that
+shared structural parser with PhysicalSystemSource for the eight physical Item
+types. It deserializes once, parses common fields through the same tree parser,
+then consumes quantity, bulk, HP, price/coins, equipment state, identification,
+material, size, usage, apex, activations and recursive physical subitems. Typed
+physical fields are removed from the common system's pending family fields.
+Subitem array position supplies occurrence context; child source IDs remain
+missing or null when authored that way. The existing size and frequency token
+vocabularies are reused without product interpretation.
+
+This is shared-base parsing, not full physical-family validation. Concrete family
+systems, narrower vocabularies and required/forbidden fields remain pending,
+including container bulk extras, weapon usage/traits/flags, runes and consumable
+spell children. Identification `misidentified` is an upstream-declared open
+object; `unidentified` and activation structures have typed fields. Additional
+fields on structured objects remain inspection evidence rather than modeled
+extensions. No parser here computes prices, resolves containers, executes
+activations, applies defaults or constructs product/storage models.
+
 ## Content, Search, And Reference Projections
 
 ```mermaid

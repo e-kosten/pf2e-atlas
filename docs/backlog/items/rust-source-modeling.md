@@ -11,10 +11,18 @@ actor-embedded occurrences. Typed common fields cover descriptions, traits,
 publication, migration, metadata, ownership and grants. Family-specific systems,
 rule elements and effects are retained as pending source payloads.
 
+The shared PhysicalSystemSource parser is also implemented for all eight
+physical discriminators, with typed price/coins, HP/bulk, equipment state,
+identification, material, size, usage, apex and activations. Physical subitems
+recursively share the common and physical parsers. Concrete family requirements,
+forbidden fields, narrower vocabularies and specialized payloads remain pending;
+recognized physical types are not completed family models.
+
 Remaining work:
 
-- Model physical item components and all eight physical families, including
-  permitted subitem recursion and full consumable spell children.
+- Model all eight physical-family refinements, including container bulk,
+  weapon/shield traits, specialized flags, runes, family admission restrictions
+  for subitems/apex/usage, and full consumable spell children.
 - Model ABC (ancestry/background/class), abstract effects, ability/feature schemas,
   other item systems and spell patches. Compare and reuse the existing spell
   payload types where source semantics and fidelity match.
