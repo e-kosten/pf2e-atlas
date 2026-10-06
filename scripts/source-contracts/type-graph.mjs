@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import ts from 'typescript';
+import { choicePredicateInputs, modifierCallbackProjection, predicateSourceArray } from './source-serialization.mjs';
 import { discoverSourcePortfolio, PORTFOLIO_FILE } from './source-portfolio.mjs';
 
 const digest = (text) => createHash('sha256').update(text).digest('hex').slice(0, 24);
@@ -187,8 +188,17 @@ export function extractTypeGraph(sourceRoot, options = {}) {
         node.kind = 'unsupported'; node.reason = 'Function or constructor is not a persisted source value';
         problem('callable-source-type', node.reason, id, origin);
       } else if (type.getSymbol()?.getDeclarations()?.some(ts.isClassDeclaration)) {
-        node.kind = 'unsupported'; node.reason = 'Runtime class instance is outside the source graph boundary';
-        problem('class-instance-source-type', node.reason, id, origin);
+        const projection = predicateSourceArray(type, checker, relative);
+        if (projection && !projection.error) {
+          node.kind = 'array';
+          node.element = visit(checker.getTypeArguments(projection.raw)[0], origin);
+          node.readonly = false;
+          node.serialization = { basis: 'array-subclass', rawRef: visit(projection.raw, origin),
+            method: 'toObject', declaredAt: declarations(projection.method) };
+        } else {
+          node.kind = 'unsupported'; node.reason = projection?.error ?? 'Runtime class instance is outside the source graph boundary';
+          problem('class-instance-source-type', node.reason, id, origin);
+        }
       } else {
         node.kind = 'object';
         node.fields = fields(type, origin);
@@ -231,14 +241,36 @@ export function extractTypeGraph(sourceRoot, options = {}) {
       const name = symbolKey ? declaration?.name?.getText() ?? '$symbol' : property.getName();
       if (symbolKey) problem('symbol-keyed-field', `Symbol-keyed field ${name} is not a JSON member`, undefined, declaration);
       const resolved = checker.getTypeOfSymbolAtLocation(property, declaration ?? context);
+      const projection = modifierCallbackProjection(type, property, resolved, checker, relative);
+      if (projection?.error) problem('source-serialization-drift', projection.error, undefined, declaration);
+      if (projection && !projection.error) {
+        const ref = 'primitive:never';
+        if (!nodes.has(ref)) nodes.set(ref, { id: ref, kind: 'primitive', value: 'never' });
+        return { name, ref, optional: true, nullable: false, undefinedAllowed: true,
+          forbidden: true, declaredAt: declarations(property), serialization: {
+            basis: 'omitted-function-property', declaredType: label(resolved),
+            declaredOptional: projection.declaredOptional,
+          } };
+      }
+      const choice = choicePredicateInputs(type, property, resolved, checker, relative);
+      if (choice?.error) problem('source-serialization-drift', choice.error, undefined, declaration);
+      let sourceRef;
+      let serialization;
+      if (choice && !choice.error) {
+        sourceRef = `${identity(type)}#${name}:constructor-input`;
+        const members = [...new Set(choice.inputs.map((input) => visit(input, declaration)))].sort(compare);
+        nodes.set(sourceRef, { id: sourceRef, kind: 'union', members, declaredAt: declarations(property) });
+        serialization = { basis: 'predicate-constructor-input', declaredRef: visit(choice.predicate, declaration),
+          declaredType: label(resolved), declaredAt: declarations(choice.constructor) };
+      }
       const alternatives = resolved.isUnion() ? resolved.types : [resolved];
       const present = alternatives.filter((part) => !(part.flags & ts.TypeFlags.Undefined));
-      return { name, ref: visit(resolved, declaration ?? context),
+      return { name, ref: sourceRef ?? visit(resolved, declaration ?? context),
         optional: !!(property.flags & ts.SymbolFlags.Optional),
         nullable: alternatives.some((part) => !!(part.flags & ts.TypeFlags.Null)),
         undefinedAllowed: alternatives.some((part) => !!(part.flags & ts.TypeFlags.Undefined)),
         forbidden: present.every((part) => !!(part.flags & ts.TypeFlags.Never)),
-        declaredAt: declarations(property) };
+        declaredAt: declarations(property), ...(serialization ? { serialization } : {}) };
     }).sort((a, b) => compare(a.name, b.name));
   }
 
