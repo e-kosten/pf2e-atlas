@@ -1,8 +1,10 @@
 //! Shared persisted physical Item fields, before defaults or product conversion.
 //!
-//! Concrete family refinements, rules and effects remain pending. This parser
-//! recognizes the physical union; it does not certify full family admission.
+//! Equipment, backpack, book and treasure have typed family refinements. The
+//! other four family bodies, rules and effects remain pending. This parser
+//! retains pre-default source presence rather than full Foundry admission checks.
 
+mod family;
 mod model;
 mod parse;
 
@@ -11,8 +13,16 @@ pub use model::{
     ItemActivationTraitsSource, ItemCarryTypeSource, ItemCoinsSource, ItemEquippedSource,
     ItemFrequencySource, ItemIdentificationSource, ItemIdentificationStatusSource,
     ItemMaterialGradeSource, ItemMaterialSource, ItemMaterialTypeSource, ItemMystifiedDataSource,
-    ItemMystifiedSource, ItemPriceSource, ItemTextValueSource, PhysicalBulkSource,
-    PhysicalHitPointsSource, PhysicalItemSource, PhysicalSystemSource, PhysicalUsageSource,
-    SourceActionCost, SourceActionType, SourceApex, VersionedPhysicalItemSource,
+    ItemMystifiedSource, ItemPriceSource, ItemTextValueSource, PhysicalHitPointsSource,
+    PhysicalItemSource, PhysicalSystemSource, PhysicalUsageSource, SourceActionCost,
+    SourceActionType, SourceApex, VersionedPhysicalItemSource,
 };
 pub use parse::parse_physical_item_source;
+
+pub use family::{
+    BackpackBulkSource, BackpackFamilySource, BookCategorySource, BookFamilySource,
+    EquipmentFamilySource, EquipmentLegacyDamageSource, EquipmentLegacySource,
+    PhysicalFamilySource, TreasureFamilySource, TreasureStackGroupSource,
+};
+
+use parse::text_value;

@@ -9,20 +9,23 @@ The common Item envelope and ItemSystemSource parser are implemented independent
 of the existing ingest pipeline. They share source types across root and
 actor-embedded occurrences. Typed common fields cover descriptions, traits,
 publication, migration, metadata, ownership and grants. Family-specific systems,
-rule elements and effects are retained as pending source payloads.
+rule elements and effects retain pending source payloads unless refined below.
 
 The shared PhysicalSystemSource parser is also implemented for all eight
 physical discriminators, with typed price/coins, HP/bulk, equipment state,
 identification, material, size, usage, apex and activations. Physical subitems
-recursively share the common and physical parsers. Concrete family requirements,
-forbidden fields, narrower vocabularies and specialized payloads remain pending;
-recognized physical types are not completed family models.
+recursively share the common, physical and family parsers. Equipment, backpack,
+book and treasure have typed system refinements, including container bulk,
+book contents/category, treasure groups and observed legacy equipment payloads.
+Declared forbidden fields require absence; defaultable source fields preserve
+missing/null. Traits and usage retain broad string vocabularies. Rules and
+effects remain pending, so these refinements do not complete whole documents.
 
 Remaining work:
 
-- Model all eight physical-family refinements, including container bulk,
-  weapon/shield traits, specialized flags, runes, family admission restrictions
-  for subitems/apex/usage, and full consumable spell children.
+- Model armor, consumable, shield and weapon refinements, including specialized
+  traits/usage/flags, runes, remaining family admission restrictions and full
+  consumable spell children.
 - Model ABC (ancestry/background/class), abstract effects, ability/feature schemas,
   other item systems and spell patches. Compare and reuse the existing spell
   payload types where source semantics and fidelity match.

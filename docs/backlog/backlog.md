@@ -23,7 +23,8 @@ Source shape discovery follows [ADR 0037](../architecture/decisions/0037-source-
 - [Rust source types and parsers](./items/rust-source-modeling.md)
   Model shared components and the complete pinned source portfolio before further
   family product/UI work; defer canonical conversion, storage and metrics.
-  The common Item parser is implemented; other source components remain open.
+  Common Item, shared physical fields and four physical system refinements are
+  implemented; other source components remain open.
   Status: in_progress.
 
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)

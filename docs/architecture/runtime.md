@@ -180,10 +180,23 @@ Subitem array position supplies occurrence context; child source IDs remain
 missing or null when authored that way. The existing size and frequency token
 vocabularies are reused without product interpretation.
 
-This is shared-base parsing, not full physical-family validation. Concrete family
-systems, narrower vocabularies and required/forbidden fields remain pending,
-including container bulk extras, weapon usage/traits/flags, runes and consumable
-spell children. Identification `misidentified` is an upstream-declared open
+The family owner adds equipment, backpack, book and treasure refinements:
+container bulk/stowing/collapsed state, book category/capacity/ordered ItemUUID
+strings, and treasure stack groups. Equipment retains observed legacy stowing
+and weapon-like payloads without changing its discriminator or assigning weapon
+semantics. Shared equipment state also retains legacy slot and null deletion
+markers. Common level, physical bulk and legacy numeric bonuses share
+ItemNumberValueSource. Broad trait and usage vocabularies remain strings.
+
+Declared forbidden fields require absence, including null or empty payloads:
+backpack/book subitems and treasure subitems/apex/usage. Treasure traits are
+empty when supplied; equipped.invested remains valid persisted source despite
+its prepared-Data restriction. Declared defaultable fields retain Missing/Null
+as source evidence; this parser does not perform full Foundry admission checks.
+Armor, consumable, shield and weapon refinements remain explicitly pending,
+including specialized usage/traits/flags, runes and consumable spell children.
+Built-in rules and ActiveEffects remain pending for all families.
+Identification `misidentified` is an upstream-declared open
 object; `unidentified` and activation structures have typed fields. Additional
 fields on structured objects remain inspection evidence rather than modeled
 extensions. No parser here computes prices, resolves containers, executes

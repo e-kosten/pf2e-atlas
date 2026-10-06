@@ -55,7 +55,7 @@ pub struct ItemSourceEnvelope {
 /// explicit null are evidence states, not defaults or prepared product values.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemSystemSource {
-    pub level: SourcePresence<ItemLevelSource>,
+    pub level: SourcePresence<ItemNumberValueSource>,
     pub description: SourcePresence<ItemDescriptionSource>,
     pub traits: SourcePresence<ItemTraitsSource>,
     /// Rule-specific typed models are pending; this is not rule execution.
@@ -69,7 +69,7 @@ pub struct ItemSystemSource {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ItemLevelSource {
+pub struct ItemNumberValueSource {
     pub value: SourcePresence<Number>,
     pub additional_fields: SerializedSourceObject,
 }
