@@ -90,15 +90,19 @@ review chain, even when the implementation work happens in parallel.
 
 Offline tooling is under `scripts/source-contracts`; see its
 [developer instructions](../../../scripts/source-contracts/README.md). The
-reviewed PF2e pin produces 1,728 declaration graph nodes, six selected roots
-covering common Item/physical and four family contracts, and 26 trait/tag/rarity
-catalogs with 2,686 memberships. Selected graph/compiler diagnostics are empty;
-226 unrelated upstream project diagnostics and 32 localization warnings remain
-visible. Repeated extraction is deterministic. Fixture tests include generic
-instantiation, anonymous union identity and same-named imported types.
+reviewed PF2e pin produces 3,089 declaration graph nodes with 47 roots: five
+pack document kinds covering all 24 Item and eight Actor families, plus 42
+built-in rule schemas. Source discriminator sets match registered family sets.
+The trait/tag/rarity output has 26 catalogs and 2,686 memberships. Three modifier
+callback types and the Predicate runtime class remain explicit unsupported graph
+nodes; selected compiler diagnostics are empty. The 226 unrelated upstream
+project diagnostics and 32 localization warnings remain visible. Repeated
+extraction is deterministic. Fixture tests cover shared identities, source
+presence, portfolio additions, registry ambiguity and partial/strict command output.
 
 This completes the bounded extraction and catalog slices, not the broader Rust
 generation experiment. Next, inspect those outputs and test meaningful typed
-Rust generation for one shared component and equipment before expanding the
-portfolio or adopting parsers. Corpus agreement, frontend applicability, storage,
+Rust generation for one shared component and equipment before adopting parsers.
+The four unsupported declaration shapes need an explicit interpretation before
+full extraction can report complete. Corpus agreement, frontend applicability, storage,
 metrics and production pipeline adoption remain separate work.
