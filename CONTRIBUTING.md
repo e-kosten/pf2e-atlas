@@ -341,6 +341,10 @@ remain under atlas-ingest; its source parsers need no Node runtime.
 ChoiceSet constructor inputs. The Rust `predicate_generation_probe` compares
 typed values and reports source conflicts with a nonzero exit. See the
 [recursive generation report](./docs/research/recursive-source-generation.md).
+`sample-rules` samples root/embedded Item rules; `compare-rules` compiles scratch
+schema/authored portfolios and checks raw-value fidelity in Rust. Rejections and
+unmodeled keys remain counted and exit nonzero. Foundry runtime admission is a
+separate evidence state; see the [authored-rule report](./docs/research/authored-rule-source.md).
 
 Saved declaration inputs live in `scripts/source-contracts/snapshots`, with one
 manifest and references across module snapshots. Generated Rust lives under

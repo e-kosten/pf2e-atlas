@@ -12,6 +12,7 @@ import type { ExtractionSummary } from './contracts.js';
 export async function extract(sourceRoot: string, outputRoot: string, { strict = false }: { strict?: boolean } = {}) {
   const identity = await sourceIdentity(sourceRoot);
   const typeGraph = await extractTypeGraph(sourceRoot);
+  typeGraph.source = identity;
   const traitCatalog = await extractTraitCatalog(sourceRoot);
   const summary: ExtractionSummary = {
     format: 'atlas-source-extraction/v1',

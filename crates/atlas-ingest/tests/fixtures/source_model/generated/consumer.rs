@@ -7,8 +7,11 @@ use crate::source_model::generated::common::{
     read_image_path, read_open_bag, read_scalar_pair, read_source_from_schema_first_schema,
     read_yes,
 };
-use crate::source_model::parse::{Fields, ParseResult, SourceContext, non_primitive, number};
+use crate::source_model::parse::{
+    Fields, ParseResult, SourceContext, array, non_primitive, number, string,
+};
 use crate::source_model::presence::SourcePresence;
+use crate::source_model::union::UnionCandidates;
 use crate::source_model::value::{SourceObject, SourceValue};
 use serde::Serialize;
 use serde_json::Number;
@@ -182,4 +185,141 @@ pub(in crate::source_model) fn parse_template_consumer(
     p: &str,
 ) -> ParseResult<TemplateConsumer> {
     read_template_consumer(v, c, p)
+}
+
+// Source declaration: Strings
+pub type AuthoredArraySchemaSelectorAlternative1 = Vec<String>;
+pub(in crate::source_model::generated) fn read_authored_array_schema_selector_alternative1(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<AuthoredArraySchemaSelectorAlternative1> {
+    array(v, c, p, string)
+}
+
+// Source declaration: Strings#authored-string-array
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum AuthoredArraySchemaSelector {
+    Alternative1(AuthoredArraySchemaSelectorAlternative1),
+    String(String),
+}
+pub(in crate::source_model::generated) fn read_authored_array_schema_selector(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<AuthoredArraySchemaSelector> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::Array(values) if values.iter().all(|v| matches!(v, SourceValue::String(_))))
+    {
+        candidates.push("Alternative1", || {
+            read_authored_array_schema_selector_alternative1(v, c, p)
+                .map(AuthoredArraySchemaSelector::Alternative1)
+        });
+    }
+    if matches!(v, SourceValue::String(_)) {
+        candidates.push("String", || {
+            string(v, c, p).map(AuthoredArraySchemaSelector::String)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// Source declaration: AuthoredArraySchema#authored-input:selector
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AuthoredArraySchema {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub selector: SourcePresence<AuthoredArraySchemaSelector>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub selectors: SourcePresence<AuthoredArraySchemaSelectorAlternative1>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_authored_array_schema(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<AuthoredArraySchema> {
+    let f = Fields::new(v, c, p)?;
+    Ok(AuthoredArraySchema {
+        selector: f.presence("selector", read_authored_array_schema_selector)?,
+        selectors: f.presence(
+            "selectors",
+            read_authored_array_schema_selector_alternative1,
+        )?,
+        additional_fields: f.remaining(&["selector", "selectors"]),
+    })
+}
+
+// AuthoredArraySchema; deferred fields:
+pub type AuthoredArrays = AuthoredArraySchema;
+pub(in crate::source_model) fn parse_authored_arrays(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<AuthoredArrays> {
+    read_authored_array_schema(v, c, p)
+}
+
+// Source declaration: NestedIwr#authored-input:type
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NestedIwr {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub r#type: SourcePresence<AuthoredArraySchemaSelector>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub exceptions: SourcePresence<AuthoredArraySchemaSelectorAlternative1>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_nested_iwr(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NestedIwr> {
+    let f = Fields::new(v, c, p)?;
+    Ok(NestedIwr {
+        r#type: f.presence("type", read_authored_array_schema_selector)?,
+        exceptions: f.presence(
+            "exceptions",
+            read_authored_array_schema_selector_alternative1,
+        )?,
+        additional_fields: f.remaining(&["type", "exceptions"]),
+    })
+}
+
+// Source declaration: NestedIwrArray#authored-input
+pub type FormSchemaImmunities = Vec<NestedIwr>;
+pub(in crate::source_model::generated) fn read_form_schema_immunities(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<FormSchemaImmunities> {
+    array(v, c, p, read_nested_iwr)
+}
+
+// Source declaration: FormSchema#authored-input
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FormSchema {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub immunities: SourcePresence<FormSchemaImmunities>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_form_schema(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<FormSchema> {
+    let f = Fields::new(v, c, p)?;
+    Ok(FormSchema {
+        immunities: f.presence("immunities", read_form_schema_immunities)?,
+        additional_fields: f.remaining(&["immunities"]),
+    })
+}
+
+// FormSchema; deferred fields:
+pub type AuthoredForm = FormSchema;
+pub(in crate::source_model) fn parse_authored_form(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<AuthoredForm> {
+    read_form_schema(v, c, p)
 }

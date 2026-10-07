@@ -1,4 +1,4 @@
-import type { DiscoveryDiagnostic, FieldSerialization, GraphBase, GraphField, GraphNode, GraphShape, Location, ProjectDiagnostic, RootSelection, TypeGraph } from './contracts.js';
+import type { DiscoveryDiagnostic, FieldSerialization, GraphBase, GraphField, GraphNode, GraphShape, Location, ProjectDiagnostic, RootSelection, RuleArrayInput, TypeGraph } from './contracts.js';
 import { declarationName, intrinsicName, objectFlags, typeArguments } from './compiler-types.js';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
@@ -287,7 +287,31 @@ export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSele
     if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
     const type = checker.getDeclaredTypeOfSymbol(symbol);
     const ref = visit(type, symbol.declarations?.[0]);
-    roots.push({ ...selection, ref });
+    const arrayInputs:RuleArrayInput[]=[];
+    if (selection.ruleKey && module) {
+      const schemaSymbol=checker.getExportsOfModule(module).find(entry=>entry.getName()===`RuleSchema_${Buffer.from(selection.ruleKey!).toString('hex')}`);
+      if (!schemaSymbol) problem('missing-rule-schema',`Cannot inspect schema fields for ${selection.ruleKey}`,ref);
+      else for (const property of checker.getPropertiesOfType(checker.getDeclaredTypeOfSymbol(schemaSymbol))) {
+        const declaration=property.valueDeclaration??property.declarations?.[0];
+        if (!declaration) continue;
+        const fieldType=checker.getTypeOfSymbolAtLocation(property,declaration);
+        const symbol=fieldType.getSymbol();
+        const fieldClass=symbol?.getName();
+        const expectedFile=fieldClass==='ArrayField'?'types/foundry/common/data/fields.d.ts'
+          :fieldClass==='StrictArrayField'?'src/module/system/schema-data-fields.ts':null;
+        if (!expectedFile || !symbol?.getDeclarations()?.some(declaration=>relative(declaration.getSourceFile().fileName)===expectedFile)) continue;
+        const node=nodes.get(ref);
+        const sourceField=node && 'fields' in node ? node.fields?.find(field=>field.name===property.getName()):undefined;
+        if (!sourceField) {problem('missing-array-source-field',`Missing source field ${selection.ruleKey}.${property.getName()}`,ref);continue;}
+        const sourceNode=nodes.get(sourceField.ref);
+        const arrays=(sourceNode?.kind==='union'?sourceNode.members:[sourceField.ref]).map(ref=>nodes.get(ref)).filter(node=>node?.kind==='array');
+        if (arrays.length!==1) {problem('array-source-shape',`Unresolved array shape ${selection.ruleKey}.${property.getName()}`,ref);continue;}
+        const array=arrays[0]!;
+        arrayInputs.push({field:property.getName(),arrayRef:array.id,elementRef:array.element,
+          fieldClass:fieldClass as RuleArrayInput['fieldClass'],declaredAt:declarations(property)});
+      }
+    }
+    roots.push({ ...selection, ref, ...(selection.ruleKey?{arrayInputs:arrayInputs.sort((a,b)=>compare(a.field,b.field))}:{}) });
   }
 
   if (portfolio) {

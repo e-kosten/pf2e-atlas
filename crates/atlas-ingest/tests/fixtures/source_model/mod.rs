@@ -11,6 +11,8 @@ mod union;
 mod value;
 pub use keyed::SourceMap;
 pub mod generated;
+#[path = "../../../examples/support/rule_fidelity.rs"]
+mod rule_fidelity;
 
 #[cfg(test)]
 mod tests {

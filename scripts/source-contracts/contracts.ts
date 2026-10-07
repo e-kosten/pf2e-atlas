@@ -15,6 +15,10 @@ export interface RootSelection {
   file: string; name: string; documentKind?: string; ruleKey?: string;
   schemaConstructor?: { file: string; name: string };
 }
+export interface RuleArrayInput {
+  field: string; arrayRef: string; elementRef: string;
+  fieldClass: 'ArrayField' | 'StrictArrayField'; declaredAt: Location[];
+}
 export interface Family { documentKind: string; registered: string[]; discovered?: string[] }
 export interface Portfolio {
   selections: RootSelection[]; families: Family[]; diagnostics: DiscoveryDiagnostic[];
@@ -49,7 +53,8 @@ export type GraphNode = GraphBase & GraphShape;
 export interface ProjectDiagnostic { code: number; category: string; message: string; location?: Location }
 export interface TypeGraph {
   format: 'atlas-source-type-graph/v1'; typescript: string; complete: boolean;
-  status: 'complete' | 'incomplete'; roots: (RootSelection & { ref: string | null })[];
+  source?: SourceIdentity;
+  status: 'complete' | 'incomplete'; roots: (RootSelection & { ref: string | null; arrayInputs?: RuleArrayInput[] })[];
   portfolio?: Pick<Portfolio, 'documentKinds' | 'families' | 'ruleKeys'>;
   nodes: GraphNode[]; diagnostics: DiscoveryDiagnostic[];
   projectDiagnostics: { selected: ProjectDiagnostic[]; unrelated: ProjectDiagnostic[] };
