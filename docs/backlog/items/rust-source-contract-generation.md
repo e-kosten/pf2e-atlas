@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: next source-modeling experiment
 Owner: unassigned
-Last reviewed: 2026-10-05
+Last reviewed: 2026-10-06
 
 ## Problem and evidence
 
@@ -102,9 +102,25 @@ project diagnostics and 32 localization warnings remain visible. Repeated
 extraction is deterministic. Fixture tests cover shared identities, source
 presence, portfolio additions, registry ambiguity and partial/strict command output.
 
-This completes the bounded extraction and catalog slices, not the broader Rust
-generation experiment. Next, inspect those outputs and test meaningful typed
-Rust generation for one shared component and equipment before adopting parsers.
+This completes the bounded extraction and catalog slices. The
+[equipment generation comparison](../../research/equipment-source-generation.md)
+now generates equipped, hp, price and usage from 29 graph nodes, using one shared
+physical/equipment value owner. Both the generated partial parser and compiled
+PR18 manual reference accept 4,580 pinned occurrences; selected declared values
+match throughout. Six legacy slot/deletion members are retained as ordered data
+instead of separate typed properties. Eighteen adversarial comparison cases and
+focused Rust/TypeScript tests exercise fidelity and fail-loud generation drift.
+Saved inputs now use a manifest and physical/equipment snapshots with nodes owned
+once; Rust output uses shared physical and equipment modules generated from the
+whole selected graph. Freshness checks cover complete output sets. See
+[ADR 0034](../../architecture/decisions/0034-source-generation-layout.md).
+The production ingest pipeline remains unchanged.
+
+The bounded trial is useful, but does not establish full-portfolio generation.
+Next, trial a shared Item component and its representative arrays/keyed shapes
+before adoption. Recursion, richer unions and explicit legacy semantics remain
+unproven. The report records maintenance costs and scope differences rather than
+treating corpus acceptance as model completeness.
 The focused predicate scan found one malformed upstream value combining `nor`
 and `not` in revolutionary-innovation, rule 0, choice 29; Foundry's validator
 also rejects it. Track this discrepancy during corpus comparison. The pinned

@@ -6,12 +6,18 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build --silent && node --test dist/*.test.js",
     "verify": "npm run typecheck && npm test",
     "preextract": "npm run build --silent",
-    "extract": "node dist/extract.js"
+    "extract": "node dist/extract.js",
+    "pregenerate": "npm run build --silent",
+    "generate": "node dist/generate.js",
+    "presample-equipment": "npm run build --silent",
+    "sample-equipment": "node dist/sample-equipment.js",
+    "precompare-equipment": "npm run build --silent",
+    "compare-equipment": "node dist/compare-equipment.js"
   },
   "dependencies": {
     "typescript": "5.9.3"
