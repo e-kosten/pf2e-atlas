@@ -131,6 +131,12 @@ Private TypeScript rule comparison keeps cleaned schema graphs distinct from
 authored input projections. Ordinary string-array selectors and IWR types admit
 preserved scalar/array forms, including nested IWR objects with the same compiler
 declaration origin; strict arrays retain their boundary.
+ChoiceSet preserves omitted constructor-defaulted predicates. DamageDice override
+types/sizes remain authored strings and dice counts preserve numeric or expression
+forms. Strike scalar traits follow the array's explicit vocabulary policy.
+Union parsing excludes declaration-forbidden keys during arm selection and prefers
+anchored shapes over broad open/optional-only fallbacks, retaining nested errors
+without bypassing them through open JSON.
 Scratch portfolios compile against real source primitives, and independent Rust
 fidelity comparison checks typed values and ordered additional data. Corpus
 rejections remain counted and unresolved until supported by implementation or

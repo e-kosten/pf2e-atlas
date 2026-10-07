@@ -215,7 +215,8 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       const literal=required.filter(field=>{const child=normalized(field.ref);return child.kind==='literal' || child.kind==='template'
         || child.kind==='union' && child.members.every(ref=>['literal','template'].includes(normalized(ref).kind));});
       return `union_object(${v}, &[${required.map(field=>rustString(field.name)).join(', ')}])`
-        +literal.map(field=>` && union_member(${v}, ${rustString(field.name)}, |v| ${field.nullable?'matches!(v, SourceValue::Null) || ':''}${guard(field.ref,'v')})`).join('');
+        +literal.map(field=>` && union_member(${v}, ${rustString(field.name)}, |v| ${field.nullable?'matches!(v, SourceValue::Null) || ':''}${guard(field.ref,'v')})`).join('')
+        +node.fields.filter(field=>field.forbidden).map(field=>` && !union_member(${v}, ${rustString(field.name)}, |_| true)`).join('');
     }
     throw new Error(`Unsupported union alternative: ${node.id}`);
   };
@@ -419,10 +420,13 @@ ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${va
       const required=member.kind==='object' || member.kind==='intersection' ? member.fields.filter(field=>!field.forbidden && !field.optional && !field.undefinedAllowed) : [];
       const validate=member.kind==='object' || member.kind==='intersection'
         ? `union_required(v, c, p, &[${required.map(field=>`(${rustString(field.name)}, ${field.nullable})`).join(', ')}]).and_then(|()| ${child.parser}(v, c, p))` : `${child.parser}(v, c, p)`;
-      return {variant,child,boxed,condition,
+      const fallback=member.kind==='open' || (member.kind==='object' || member.kind==='intersection') && required.length===0;
+      return {variant,child,boxed,condition,fallback,kinds:valueKinds(member.id),
         parse:validate+(boxed?`.map(Box::new)`:'' )+`.map(${name}::${variant})`};
     });
     if(new Set(alternatives.map(a=>a.variant)).size!==alternatives.length)throw new Error(`Union variant collision: ${node.id}`);
+    const anchored=alternatives.filter(a=>!a.fallback);
+    const hasFallback=alternatives.some(a=>a.fallback && anchored.some(other=>[...a.kinds].some(kind=>other.kinds.has(kind))));
     output.declarations.push(()=>`// Source declaration: ${node.id}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
@@ -431,7 +435,7 @@ ${alternatives.map(a=>`    ${a.variant}(${a.boxed?`Box<${a.child.type}>`:a.child
 }
 pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
     let mut candidates = UnionCandidates::new();
-${alternatives.map(a=>`    if ${a.condition} {
+${hasFallback?`    let anchored = ${anchored.map(a=>a.condition).join(' || ')};\n`:''}${alternatives.map(a=>`    if ${a.fallback && hasFallback?'!anchored && ('+a.condition+')':a.condition} {
         candidates.push("${a.variant}", || ${a.parse});
     }`).join('\n')}
     candidates.finish(v, c, p)
