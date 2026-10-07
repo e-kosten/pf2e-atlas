@@ -1,5 +1,7 @@
 //! Independently callable source slices. No production pipeline adoption.
-mod generated;
+pub mod generated;
+mod item;
+mod keyed;
 mod parse;
 mod presence;
 mod value;
@@ -8,6 +10,11 @@ pub use generated::{
     Coins, EquipmentFields, EquippedData, EquippedDataCarryType, PartialPrice,
     PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
 };
+pub use generated::{
+    ItemDescriptionSource, ItemGrantFields, ItemGranterSource, ItemTraits, PublicationData,
+};
+pub use item::{ItemGrantSlice, ItemSourceSlice, parse_item_source_slice};
+pub use keyed::SourceMap;
 pub use parse::{SourceContext, SourceDiagnostic};
 pub use presence::SourcePresence;
 pub use value::{SourceObject, SourceValue};

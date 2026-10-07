@@ -12,7 +12,7 @@ mod index_build_input;
 mod records;
 mod report;
 mod source;
-mod source_model;
+pub mod source_model;
 mod source_pipeline;
 
 pub use artifact_manifest::{
@@ -40,9 +40,11 @@ pub use source::model::{
 };
 pub use source_model::{
     Coins, EquipmentFields, EquipmentSourceSlice, EquippedData, EquippedDataCarryType,
-    PartialPrice, PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
-    SourceContext, SourceDiagnostic, SourceObject, SourcePresence, SourceValue,
-    parse_equipment_source_slice, parse_physical_equipment_fields,
+    ItemDescriptionSource, ItemGrantFields, ItemGrantSlice, ItemGranterSource, ItemSourceSlice,
+    ItemTraits, PartialPrice, PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage,
+    PhysicalItemHPSource, PublicationData, SourceContext, SourceDiagnostic, SourceMap,
+    SourceObject, SourcePresence, SourceValue, parse_equipment_source_slice,
+    parse_item_source_slice, parse_physical_equipment_fields,
 };
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {

@@ -9,6 +9,14 @@
   },
   "modules": [
     {
+      "name": "items/common",
+      "file": "items/common.json"
+    },
+    {
+      "name": "items/traits",
+      "file": "items/traits.json"
+    },
+    {
       "name": "physical",
       "file": "physical.json"
     },
@@ -16,5 +24,21 @@
       "name": "items/equipment",
       "file": "items/equipment.json"
     }
+  ],
+  "openTraitArrays": [
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@06478830b4edeb5130a7341e",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@272a45b4530a9dacfcbed05b",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@3cd1dd18d1a3e7013241e1b1",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@3ce8c9bad63aff8d8bc44ce8",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@583e5930ccada6c7f794ec38",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@74e0a05f871c030a8c7f1c40",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@809a8a569696c742d827f082",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@8a6260c32652ca6e14d5500d",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@984cb5462048e31050bf2168",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@af3c7e210d4566224a48eb3b",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@c37abe850ac9dcd4fd3329c4",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@c7306a06bfbccb9a4703e054",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@cb8d8abf36e5573681431fdd",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@e8b0af67a137028630bf78c4"
   ]
 }
