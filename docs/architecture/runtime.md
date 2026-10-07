@@ -94,6 +94,16 @@ flowchart LR
 
 `atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or the build-input handoff. The final build-input handoff consumes ingest state into an owned `atlas-index::IndexBuildInput`; it should not be a borrowed view over `SourceLoad`. Physical SQLite artifact writing belongs in `atlas-index`.
 
+`atlas-ingest::source_model` is an independently callable source-only experiment
+for physical/equipment equipped, hp, price and usage fields. Private TypeScript
+tooling emits its checked Rust structures/parsers from a bounded declaration
+graph. Minimal Rust primitives preserve pre-default missing/null/value states,
+ordinary numbers and ordered additional members. Other equipment fields remain
+pending source values. The build pipeline does not call these parsers; this
+partial model is not full-family admission or a new record/storage contract.
+See the [comparison report](../research/equipment-source-generation.md) before
+expanding generation. Rust consumers do not launch Node.
+
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 
 Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `AtlasRecord.raw_json`; reference, FTS, and embedding projections consume the normalized `RichDocument` outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.

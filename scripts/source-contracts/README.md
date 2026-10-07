@@ -1,10 +1,10 @@
 # Source contract discovery
 
-Offline developer tooling for investigating upstream PF2e declarations and authored trait metadata. This changes no Rust parser, ingest pipeline, artifact, API or UI. Rust generation remains a separate experiment.
+Offline developer tooling for investigating upstream PF2e declarations and authored trait metadata, plus a bounded Rust source-model generation experiment. It does not adopt generated parsing into the ingest pipeline, artifact, API or UI.
 
 ## Run
 
-Use Node 22 or later. From the Atlas repository root:
+Use Node 22 or later and Rust with rustfmt for generation/freshness checks. From the Atlas repository root:
 
 ```sh
 npm --prefix scripts/source-contracts ci --ignore-scripts
@@ -13,10 +13,48 @@ npm --prefix scripts/source-contracts run verify
 
 The package is private contributor tooling. `build` emits JavaScript into ignored `dist/`;
 `typecheck` checks implementation and tests without emitting; `test` builds and runs
-the 24 fixture tests; `verify` runs both checks. `extract` builds before executing
+the fixture tests; `verify` runs both checks, including generated Rust freshness. `extract` builds before executing
 the compiled entry point. Fixtures stay in the source package. Public discovery
 contracts live in `contracts.ts`; compiler-internal access is bounded in
 `compiler-types.ts`. Neither this package nor its dependencies ship with Atlas.
+
+## Bounded equipment generation
+
+`generate-equipment` selects equipped, hp, price and usage from the physical and
+equipment system declarations and emits Rust under atlas-ingest. It is a partial
+source model. Unsupported selected constructs stop generation; unselected fields
+remain ordered source values at parsing. SourcePresence keeps missing/null/value
+before defaults, while the input retains upstream optional/null/undefined facts.
+This policy is separate from full Foundry admission and canonical product models.
+
+From the repository root, regenerate or check using the saved input:
+
+```sh
+npm --prefix scripts/source-contracts run generate-equipment -- \
+  --input crates/atlas-ingest/src/source_model/generated.input.json \
+  --out crates/atlas-ingest/src/source_model/generated.rs --check
+```
+
+Omit `--check` to write Rust. To refresh from a complete extraction, replace
+`--input` with `--graph scratch/source-extraction/type-graph.json --summary
+scratch/source-extraction/summary.json`. That mode writes the adjacent
+`generated.input.json`; `--check` compares both Rust and input metadata without
+writing. Review both artifacts when changing upstream versions. rustfmt formats
+output before any writes, and overlapping output/input paths are rejected.
+
+`sample-equipment --source PATH` emits JSONL source packets for root equipment and
+direct Actor.items. Payload spans preserve authored numeric tokens and duplicate
+keys. `compare-equipment --packets PATH --baseline PATH --generated PATH` compares
+the Rust probes' JSONL results, reports counts/presence and full differences, and
+exits 1 on any difference. npm commands build first; for redirected JSONL run
+`npm --prefix scripts/source-contracts run build` once and invoke
+`node scripts/source-contracts/dist/sample-equipment.js` directly so npm's
+progress output does not contaminate packets.
+
+The [comparison report](../../docs/research/equipment-source-generation.md) records
+the exact source/manual candidates, 4,580 corpus occurrences, legacy differences,
+maintenance cost, limitations and reproducible probe instructions. Sampling and
+comparison are private experiment tooling, not additions to either Rust CLI.
 
 The source directory needs upstream `src`, `types`, `package.json`, `tsconfig.json`, `static/system.json` and `static/lang/en.json`. The compiler must also resolve the upstream declaration dependencies. For a clean exported source directory in `scratch/pf2e`, use:
 
