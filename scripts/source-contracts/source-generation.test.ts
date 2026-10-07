@@ -110,7 +110,7 @@ test('shared numeric literal parsers import their function while Number stays lo
 });
 
 test('unsupported shapes, indexed intersections, dangling refs and naming collisions reject', () => {
-  for (const kind of ['unsupported', 'unresolved', 'open', 'template', 'tuple'] as const) {
+  for (const kind of ['unsupported', 'unresolved', 'open', 'template'] as const) {
     const changed = structuredClone(input);
     const hp = changed.nodes.findIndex(node => node.name === 'PhysicalItemHPSource');
     changed.nodes[hp] = { id: changed.nodes[hp].id, kind } as GenerationInput['nodes'][number];

@@ -5,6 +5,7 @@
 
 pub(in crate::source_model::generated) mod items;
 pub(in crate::source_model::generated) mod physical;
+pub(in crate::source_model::generated) mod rules;
 pub(super) use items::common::parse_item_description_source;
 pub(super) use items::common::parse_item_grant_fields;
 pub(super) use items::common::parse_publication_data;
@@ -31,4 +32,13 @@ pub(super) use physical::parse_physical_equipment_fields;
 pub use physical::{
     Coins, EquippedData, EquippedDataCarryType, PartialPrice, PhysicalEquipmentFields,
     PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
+};
+pub(super) use rules::predicate::parse_predicate_input;
+pub(super) use rules::predicate::parse_predicate_statement;
+pub(super) use rules::predicate::parse_predicate_statements;
+pub use rules::predicate::{
+    AlternativeDenial, AlternativeDenialNand, Biconditional, Conditional, Conjunction, Disjunction,
+    EqualTo, EqualToEq, EqualToEqEntry2, ExclusiveDisjunction, GreaterThan, GreaterThanEqualTo,
+    JointDenial, LessThan, LessThanEqualTo, Negation, PredicateInput, PredicateStatement,
+    PredicateStatements,
 };

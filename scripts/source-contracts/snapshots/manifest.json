@@ -23,6 +23,10 @@
     {
       "name": "items/equipment",
       "file": "items/equipment.json"
+    },
+    {
+      "name": "rules/predicate",
+      "file": "rules/predicate.json"
     }
   ],
   "openTraitArrays": [

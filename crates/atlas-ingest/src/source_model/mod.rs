@@ -3,7 +3,9 @@ pub mod generated;
 mod item;
 mod keyed;
 mod parse;
+mod predicate;
 mod presence;
+mod union;
 mod value;
 
 pub use generated::{
@@ -13,9 +15,11 @@ pub use generated::{
 pub use generated::{
     ItemDescriptionSource, ItemGrantFields, ItemGranterSource, ItemTraits, PublicationData,
 };
+pub use generated::{PredicateInput, PredicateStatement, PredicateStatements};
 pub use item::{ItemGrantSlice, ItemSourceSlice, parse_item_source_slice};
 pub use keyed::SourceMap;
 pub use parse::{SourceContext, SourceDiagnostic};
+pub use predicate::{parse_predicate_input, parse_predicate_statement, parse_predicate_statements};
 pub use presence::SourcePresence;
 pub use value::{SourceObject, SourceValue};
 

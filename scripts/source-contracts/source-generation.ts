@@ -1,7 +1,7 @@
 import type { GraphNode } from './contracts.js';
 import { validateInput, type GenerationInput } from './generation-input.js';
 
-interface Owner { type: string; parser: string; module?: string }
+interface Owner { type: string; parser: string; module?: string; allocated?:string }
 interface RustModule {
   declarations: string[]; imports: Map<string, Set<string>>; types: Set<string>;
   helpers: Set<string>; object: boolean; number: boolean; serialize: boolean;
@@ -42,22 +42,41 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     const node = lookup(ref);
     if (node.kind !== 'array' || !stringVocabulary(node.element)) throw new Error(`Open trait policy requires a string vocabulary array: ${ref}`);
   }
-  const normalized = (id: string): GraphNode => {
+  const normalized = (id: string, seen = new Set<string>()): GraphNode => {
+    if(seen.has(id)) throw new Error(`Recursive alias has no value anchor: ${id}`);
     const node = lookup(id);
     if (node.kind !== 'union') return node;
     const members = node.members.filter(id => { const member = lookup(id); return !['primitive:null', 'primitive:undefined', 'primitive:never'].includes(id)
       && !(member.kind === 'intersection' && member.impossible); });
-    if (members.length === 1) return normalized(members[0]);
+    if (members.length === 1) return normalized(members[0], new Set(seen).add(id));
     if (members.length === 2 && members.every(id => lookup(id).kind === 'literal'
       && typeof (lookup(id) as GraphNode & { value: unknown }).value === 'boolean')) {
-      return { id: 'primitive:boolean', kind: 'primitive', value: 'boolean' };
+      const boolean:GraphNode={ id: 'primitive:boolean', kind: 'primitive', value: 'boolean' };
+      nodes.set(boolean.id,boolean);
+      return boolean;
     }
     return { ...node, members };
   };
-  const signature = (node: GraphNode, ancestors = new Set<string>()): string => {
-    if (ancestors.has(node.id)) throw new Error(`Recursive selected shape is outside this trial: ${node.id}`);
+  const valueRefs=(node:GraphNode):string[]=>node.kind==='union'?node.members:node.kind==='array'?[node.element]
+    :node.kind==='tuple'?node.elements.map(element=>element.ref)
+    :node.kind==='object'?[...node.fields.filter(field=>!field.forbidden).map(field=>field.ref),...node.indexSignatures.map(index=>index.value)]
+    :node.kind==='intersection'?[...node.members,...node.fields.filter(field=>!field.forbidden).map(field=>field.ref)]:[];
+  const anchors=new Set<string>(),visited=new Set<string>(),active:string[]=[];
+  const findCycles=(ref:string)=>{
+    const node=normalized(ref);const start=active.indexOf(node.id);
+    if(start>=0){for(const id of active.slice(start)){const node=normalized(id);if(node.kind==='object' && !node.indexSignatures.length || node.kind==='intersection' || node.kind==='union')anchors.add(id);}return;}
+    if(visited.has(node.id))return;active.push(node.id);valueRefs(node).forEach(findCycles);active.pop();visited.add(node.id);
+  };
+  input.selection.forEach(root=>{root.fields.filter(field=>!field.forbidden).forEach(field=>findCycles(field.ref));if(root.valueRef)findCycles(root.valueRef);});
+  const validatedAnchors=new Set<string>();
+  const signature = (node: GraphNode, ancestors = new Set<string>(),canonical=true): string => {
+    if(canonical && anchors.has(node.id)) {
+      if(!validatedAnchors.has(node.id)){signature(node,new Set(),false);validatedAnchors.add(node.id);}
+      return JSON.stringify(['recursive',node.id]);
+    }
+    if (ancestors.has(node.id)) return JSON.stringify(['recursive',node.id]);
     const next = new Set([...ancestors, node.id]);
-    const child = (ref: string) => signature(normalized(ref), next);
+    const child = (ref: string) => signature(normalized(ref), next,canonical);
     const collectionChild = (ref: string) => {
       const entry = lookup(ref);
       if (entry.kind === 'union' && entry.members.some(ref => ['primitive:null', 'primitive:undefined'].includes(ref)))
@@ -81,10 +100,94 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       }
       return JSON.stringify(node.fields.filter(field => !field.forbidden).map(field => [field.name, child(field.ref)]));
     }
-    if (node.kind === 'union') return JSON.stringify(node.members.map(child).sort());
+    if (node.kind === 'union') return JSON.stringify(node.members.map(ref=>{
+      const member=normalized(ref);
+      return JSON.stringify([child(ref),member.kind==='object' || member.kind==='intersection'
+        ? member.fields.map(field=>[field.name,field.optional,field.nullable,field.undefinedAllowed,field.forbidden]) : []]);
+    }).sort());
+    if (node.kind === 'tuple') {
+      if(node.elements.some(element=>element.optional || element.rest)) throw new Error(`Optional/rest tuples are unsupported: ${node.id}`);
+      return JSON.stringify(['tuple',...node.elements.map(element=>collectionChild(element.ref))]);
+    }
     if (node.kind === 'array') return `array:${openTraitArrays.has(node.id) ? JSON.stringify(['primitive', 'string']) : collectionChild(node.element)}`;
     if (node.kind === 'primitive' || node.kind === 'literal') return JSON.stringify([node.kind, node.value]);
     throw new Error(`Unsupported selected construct: ${node.id} (${node.kind})`);
+  };
+  // Rust layout follows inline value edges; Vec and SourceMap already break cycles.
+  const inlineRefs = (ref:string): string[] => {
+    const node=normalized(ref);
+    if(node.kind==='union') return node.members;
+    if(node.kind==='tuple') return node.elements.map(element=>element.ref);
+    if((node.kind==='object' && !node.indexSignatures.length) || node.kind==='intersection')
+      return node.fields.filter(field=>!field.forbidden).map(field=>field.ref);
+    return [];
+  };
+  const reaches = (from:string,to:string,seen=new Set<string>()):boolean => {
+    from=normalized(from).id;to=normalized(to).id;
+    if(from===to)return true;if(seen.has(from))return false;seen.add(from);
+    return inlineRefs(from).some(ref=>reaches(ref,to,seen));
+  };
+  const residualReaches = (from:string,to:string,seen=new Set<string>()):boolean => {
+    const node=normalized(from);to=normalized(to).id;
+    if(node.id===to)return true;if(seen.has(node.id))return false;seen.add(node.id);
+    return inlineRefs(node.id).filter(ref=>node.kind!=='union' || !reaches(ref,node.id))
+      .some(ref=>residualReaches(ref,to,seen));
+  };
+  const boxedEdge = (parent:GraphNode,ref:string):boolean => parent.kind==='union'
+    ? reaches(ref,parent.id) : residualReaches(ref,parent.id);
+  const rustField = (name:string):string => {
+    if(!/^[a-z][a-z0-9_]*$/.test(name) || ['self','super','crate'].includes(name)) throw new Error(`Invalid Rust field name: ${name}`);
+    return ['type','mod','use','ref','match','struct','enum','pub','fn','const','static','let','loop','move','where','trait','impl','async','await','dyn','in','as','if','else','return','break','continue','mut','unsafe','extern','for','while','abstract','become','box','do','final','macro','override','priv','try','typeof','unsized','virtual','yield','gen'].includes(name) ? `r#${name}` : name;
+  };
+  const valueKinds=(ref:string,seen=new Set<string>()):Set<string>=>{
+    const node=normalized(ref);if(seen.has(node.id))return new Set();const next=new Set(seen).add(node.id);
+    if(node.kind==='union')return new Set(node.members.flatMap(ref=>[...valueKinds(ref,next)]));
+    if(node.kind==='array' || node.kind==='tuple')return new Set(['Array']);
+    if(node.kind==='object' || node.kind==='intersection')return new Set(['Object']);
+    if(node.kind==='literal')return new Set([typeof node.value==='string'?'String':typeof node.value==='number'?'Number':'Boolean']);
+    if(node.kind==='primitive')return new Set([{string:'String',number:'Number',boolean:'Boolean'}[node.value]??'Null']);
+    throw new Error(`Unsupported union value kind: ${node.id}`);
+  };
+  const guard = (ref:string,v:string,seen=new Set<string>()):string => {
+    const node=normalized(ref);
+    if(seen.has(node.id))throw new Error(`Recursive union identity needs a structural anchor: ${node.id}`);
+    const next=new Set(seen).add(node.id);
+    if(node.kind==='primitive')return `matches!(${v}, SourceValue::${{string:'String',number:'Number',boolean:'Boolean'}[node.value] ?? 'Null'}(_))`;
+    if(node.kind==='literal') {
+      if(typeof node.value==='string')return `matches!(${v}, SourceValue::String(value) if value == ${rustString(node.value)})`;
+      if(typeof node.value==='boolean')return `matches!(${v}, SourceValue::Boolean(value) if *value == ${node.value})`;
+      return `matches!(${v}, SourceValue::Number(value) if value.as_f64() == Some(${node.value.toFixed(1)}))`;
+    }
+    if(node.kind==='union')return '('+node.members.map(ref=>guard(ref,v,next)).join(' || ')+')';
+    if(node.kind==='tuple')return `matches!(${v}, SourceValue::Array(values) if values.len() == ${node.elements.length}${node.elements.map((element,index)=>{
+      const child=normalized(element.ref),position=`&values[${index}]`;
+      const scalar=child.kind==='literal' || child.kind==='primitive' || child.kind==='union' && child.members.every(ref=>['literal','primitive'].includes(normalized(ref).kind));
+      return ` && ${scalar?guard(element.ref,position,next):`matches!(${position}, ${[...valueKinds(element.ref)].sort().map(kind=>`SourceValue::${kind}(_)`).join(' | ')})`}`;
+    }).join('')})`;
+    if(node.kind==='array') {
+      const element=normalized(node.element);
+      if(element.kind==='primitive' && element.value==='never')return `matches!(${v}, SourceValue::Array(values) if values.is_empty())`;
+      const scalar=element.kind==='literal' || element.kind==='primitive' || element.kind==='union' && element.members.every(ref=>['literal','primitive'].includes(normalized(ref).kind));
+      return scalar?`matches!(${v}, SourceValue::Array(values) if values.iter().all(|v| ${guard(node.element,'v',next)}))`:`matches!(${v}, SourceValue::Array(_))`;
+    }
+    if(node.kind==='object' || node.kind==='intersection') {
+      const required=node.fields.filter(field=>!field.forbidden && !field.optional && !field.undefinedAllowed);
+      const literal=required.filter(field=>{const child=normalized(field.ref);return child.kind==='literal'
+        || child.kind==='union' && child.members.every(ref=>normalized(ref).kind==='literal');});
+      return `union_object(${v}, &[${required.map(field=>rustString(field.name)).join(', ')}])`
+        +literal.map(field=>` && union_member(${v}, ${rustString(field.name)}, |v| ${field.nullable?'matches!(v, SourceValue::Null) || ':''}${guard(field.ref,'v')})`).join('');
+    }
+    throw new Error(`Unsupported union alternative: ${node.id}`);
+  };
+  const anchored = new Set<string>();
+  const checkAliases=(ref:string,seen=new Set<string>()):void=>{
+    const node=normalized(ref);
+    if(anchored.has(node.id))return;
+    const children=node.kind==='array'?[node.element]:node.kind==='tuple'?node.elements.map(element=>element.ref)
+      :node.kind==='object' && node.indexSignatures.length?node.indexSignatures.map(index=>index.value):[];
+    if(!children.length)return;
+    if(seen.has(node.id))throw new Error(`Recursive collection aliases need a nominal anchor: ${node.id}`);
+    const next=new Set(seen).add(node.id);children.forEach(ref=>checkAliases(ref,next));anchored.add(node.id);
   };
   const allocate = (hint: string) => {
     const name = pascal(hint);
@@ -96,7 +199,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     const output = moduleFor(module);
     if (owner.module && owner.module !== module) {
       if (!output.imports.has(owner.module)) output.imports.set(owner.module, new Set());
-      if (owner.type !== 'Number') output.imports.get(owner.module)!.add(owner.type);
+      if (!['Number','bool'].includes(owner.type)) output.imports.get(owner.module)!.add(owner.type);
       output.imports.get(owner.module)!.add(owner.parser);
     } else if (!owner.module) output.helpers.add(owner.parser);
     if (owner.type === 'Number') output.number = true;
@@ -104,6 +207,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
   };
   const emit = (ref: string, hint: string, module: string): Owner => {
     const node = normalized(ref);
+    checkAliases(ref);
     const key = signature(node);
     const existing = owners.get(key);
     if (existing) return depend(module, existing);
@@ -115,9 +219,24 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       return depend(module, value);
     }
     const name = allocate(node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length ? hint : node.name ?? hint);
-    const value: Owner = { type: name, parser: `read_${snake(name)}`, module };
+    const value: Owner = { type: name, parser: `read_${snake(name)}`, module, allocated:name };
     owners.set(key, value);
     const output = moduleFor(module);
+    if(node.kind==='tuple') {
+      const children=node.elements.map((element,index)=>{
+        const child=emit(element.ref,name+'Entry'+(index+1),module);
+        const boxed=boxedEdge(node,element.ref);
+        return {type:boxed?`Box<${child.type}>`:child.type,parse:`${child.parser}(&values[${index}], c, &format!("{p}[${index}]"))?`,boxed};
+      });
+      output.types.add(name);output.helpers.add('tuple');
+      output.declarations.push(`// Source declaration: ${node.id}
+pub type ${name} = ${children.length?`(${children.map(child=>child.type).join(', ')}${children.length===1?',':''})`:'[(); 0]'};
+pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
+    ${children.length?'let values = ':''}tuple(v, c, p, ${children.length})?;
+    Ok(${children.length?`(${children.map(child=>child.boxed?`Box::new(${child.parse})`:child.parse).join(', ')}${children.length===1?',':''})`:'[]'})
+}`);
+      return value;
+    }
     if (node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length) {
       const array = node.kind === 'array';
       const childRef = array ? node.element : node.indexSignatures[0].value;
@@ -138,24 +257,24 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
       output.types.add(name);
       const fields = node.fields.filter(field => !field.forbidden).map(field => {
         const child = emit(field.ref, name + pascal(field.name), module);
-        return { field, child, rust: snake(field.name) };
+        const boxed=boxedEdge(node,field.ref);
+        return { field, child, rust: rustField(snake(field.name)),boxed };
       });
       const names = fields.map(field => field.rust);
       if (new Set(names).size !== names.length || names.includes('additional_fields')
-        || names.some(name => !/^[a-z][a-z0-9_]*$/.test(name)
-          || ['type', 'self', 'mod', 'use', 'ref', 'match', 'struct', 'enum', 'pub', 'fn', 'const', 'static', 'let', 'loop', 'move', 'crate', 'super', 'where', 'trait', 'impl', 'async', 'await', 'dyn', 'in', 'as', 'if', 'else', 'return', 'break', 'continue', 'mut', 'unsafe', 'extern', 'for', 'while'].includes(name)))
+        )
         throw new Error(`Invalid or unsupported Rust field names: ${node.id}`);
       output.declarations.push(`// Source declaration: ${node.id}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ${name} {
-${fields.map(({ field, child, rust }) => `    // Declared optional=${field.optional}, nullable=${field.nullable}; retained before defaults.
-    pub ${rust}: SourcePresence<${child.type}>,`).join('\n')}
+${fields.map(({ field, child, rust, boxed }) => `    // Declared optional=${field.optional}, nullable=${field.nullable}; retained before defaults.
+    pub ${rust}: SourcePresence<${boxed?`Box<${child.type}>`:child.type}>,`).join('\n')}
     pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
     let f = Fields::new(v, c, p)?;
     Ok(${name} {
-${fields.map(({ field, child, rust }) => `        ${rust}: f.presence(${rustString(field.name)}, ${child.parser})?,`).join('\n')}
+${fields.map(({ field, child, rust, boxed }) => `        ${rust}: f.presence(${rustString(field.name)}, ${boxed?`|v, c, p| ${child.parser}(v, c, p).map(Box::new)`:child.parser})?,`).join('\n')}
         additional_fields: f.remaining(&[${fields.map(({ field }) => rustString(field.name)).join(', ')}]),
     })
 }`);
@@ -200,17 +319,60 @@ ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${va
 }`);
       return value;
     }
-    throw new Error(`Unsupported selected union: ${node.id}`);
+    if(node.kind==='literal' && typeof node.value==='boolean') {
+      value.type='bool';output.helpers.add('boolean');
+      output.declarations.push(`pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<bool> {
+    let value = boolean(v, c, p)?;
+    if ${node.value?'value':'!value'} { Ok(value) } else { Err(c.error(p, "${node.value}", v)) }
+}`);return value;
+    }
+    if(node.kind!=='union')throw new Error(`Unsupported selected union: ${node.id}`);
+    output.serialize=true;output.types.add(name);output.helpers.add('UnionCandidates');
+    const alternatives=members.map((member,index)=>{
+      const child=emit(member.id,name+'Alternative'+(index+1),module);
+      const variant=pascal(member.name ?? (member.kind==='primitive'?member.value:'Alternative'+(index+1)));
+      const boxed=boxedEdge(node,member.id);
+      if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_required');
+      if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_object');
+      const condition=guard(member.id,'v');
+      if(condition.includes('union_member(')) output.helpers.add('union_member');
+      if(condition.includes('union_object(')) output.helpers.add('union_object');
+      const required=member.kind==='object' || member.kind==='intersection' ? member.fields.filter(field=>!field.forbidden && !field.optional && !field.undefinedAllowed) : [];
+      const validate=member.kind==='object' || member.kind==='intersection'
+        ? `union_required(v, c, p, &[${required.map(field=>`(${rustString(field.name)}, ${field.nullable})`).join(', ')}]).and_then(|()| ${child.parser}(v, c, p))` : `${child.parser}(v, c, p)`;
+      return {variant,type:boxed?`Box<${child.type}>`:child.type,condition,
+        parse:validate+(boxed?`.map(Box::new)`:'' )+`.map(${name}::${variant})`};
+    });
+    if(new Set(alternatives.map(a=>a.variant)).size!==alternatives.length)throw new Error(`Union variant collision: ${node.id}`);
+    output.declarations.push(`// Source declaration: ${node.id}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum ${name} {
+${alternatives.map(a=>`    ${a.variant}(${a.type}),`).join('\n')}
+}
+pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
+    let mut candidates = UnionCandidates::new();
+${alternatives.map(a=>`    if ${a.condition} {
+        candidates.push("${a.variant}", || ${a.parse});
+    }`).join('\n')}
+    candidates.finish(v, c, p)
+}`);
+    return value;
   };
   const rootExports: string[] = [];
   for (const selection of input.selection) {
+    if(selection.valueRef) {
+      const root=lookup(selection.valueRef);
+      if(root.kind==='union' && root.members.some(ref=>['primitive:null','primitive:undefined'].includes(ref)))
+        throw new Error(`Nullable value roots need an explicit model: ${selection.valueRef}`);
+    }
     const id = `selection:${selection.name}`;
     nodes.set(id, { id, name: selection.name, kind: 'object', fields: selection.fields, indexSignatures: [] });
-    const value = emit(id, selection.name, selection.module);
+    const value = emit(selection.valueRef ?? id, selection.name, selection.module);
     const alias = value.type === selection.name ? '' : `pub type ${selection.name} = ${value.type};\n`;
     const output = moduleFor(selection.module);
     if (alias) {
-      if (usedNames.has(selection.name)) throw new Error(`Rust name collision: ${selection.name}`);
+      if (usedNames.has(selection.name) && value.allocated!==selection.name) throw new Error(`Rust name collision: ${selection.name}`);
       usedNames.add(selection.name);
       output.types.add(selection.name);
     }
@@ -270,7 +432,10 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
       if (output.number) lines.push('use serde_json::Number;');
       if (output.object) lines.push('use crate::source_model::presence::SourcePresence;');
       lines.push(`use crate::source_model::value::{${output.object ? 'SourceObject, ' : ''}SourceValue};`);
-      lines.push(`use crate::source_model::parse::{ParseResult, SourceContext${output.object ? ', Fields' : ''}${[...output.helpers].sort().map(helper => ', ' + helper).join('')}};`);
+      const unionHelpers=[...output.helpers].filter(helper=>helper.startsWith('union_') || helper==='UnionCandidates').sort();
+      const parseHelpers=[...output.helpers].filter(helper=>!unionHelpers.includes(helper)).sort();
+      lines.push(`use crate::source_model::parse::{ParseResult, SourceContext${output.object ? ', Fields' : ''}${parseHelpers.map(helper => ', ' + helper).join('')}};`);
+      if(unionHelpers.length)lines.push(`use crate::source_model::union::{${unionHelpers.join(', ')}};`);
       for (const [dependency, names] of [...output.imports].sort(([a], [b]) => a.localeCompare(b)))
         lines.push(`use crate::source_model::generated::${dependency.replaceAll('/', '::')}::{${[...names].sort().join(', ')}};`);
       lines.push('', output.declarations.join('\n\n'));

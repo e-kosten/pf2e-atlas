@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { GraphField, GraphNode, SourceIdentity } from './contracts.js';
 
 export interface GenerationRoot {
-  name: string; declaration: string; fields: GraphField[]; deferred: string[]; module: string; family?: string; sourceRef?: string;
+  name: string; declaration: string; fields: GraphField[]; deferred: string[]; module: string; family?: string; sourceRef?: string; valueRef?: string;
 }
 export interface GenerationInput {
   source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[]; openTraitArrays?: string[];
@@ -38,6 +38,8 @@ export function validateInput(input: GenerationInput): void {
       activeModule = root.module;
     }
     if (!/^[A-Z][A-Za-z0-9]*$/.test(root.name) || names.has(root.name)) throw new Error(`Invalid or duplicate root name: ${root.name}`);
+    if(root.valueRef && (root.fields.length || root.family || root.deferred.length || !nodes.has(root.valueRef)))
+      throw new Error(`Invalid value root: ${root.name}`);
     names.add(root.name);
   }
 }
@@ -45,7 +47,9 @@ export function nodeReferences(node: GraphNode): string[] {
   return [...('fields' in node ? node.fields?.map(field => field.ref) ?? [] : []),
     ...('members' in node ? node.members : []), ...(node.kind === 'array' ? [node.element] : []),
     ...(node.kind === 'tuple' ? node.elements.map(element => element.ref) : []),
-    ...('indexSignatures' in node ? node.indexSignatures?.map(index => index.value) ?? [] : [])];
+    ...('indexSignatures' in node ? node.indexSignatures?.map(index => index.value) ?? [] : []),
+    ...(node.kind==='array' && node.serialization ? [node.serialization.rawRef] : []),
+    ...('fields' in node ? node.fields?.flatMap(field=>field.serialization?.basis==='predicate-constructor-input'?[field.serialization.declaredRef]:[]) ?? [] : [])];
 }
 
 /** Resolve the whole selection, then partition nodes once in base-before-refinement root order. */
@@ -57,7 +61,7 @@ export function snapshotFiles(input: GenerationInput): Record<string, string> {
   for (const { module, ...root } of input.selection) {
     if (!modules.has(module)) modules.set(module, { format: 'atlas-source-generation-module/v1', roots: [], nodes: [] });
     modules.get(module)!.roots.push({ name: root.name, declaration: root.declaration, fields: root.fields, deferred: root.deferred,
-      ...(root.family ? { family: root.family } : {}), ...(root.sourceRef ? {sourceRef: root.sourceRef} : {}) });
+      ...(root.family ? { family: root.family } : {}), ...(root.sourceRef ? {sourceRef: root.sourceRef} : {}), ...(root.valueRef ? {valueRef: root.valueRef} : {}) });
     const visit = (id: string) => {
       if (owners.has(id)) return;
       const node = nodes.get(id);
@@ -67,6 +71,7 @@ export function snapshotFiles(input: GenerationInput): Record<string, string> {
     };
     root.fields.forEach(field => visit(field.ref));
     if(root.sourceRef) visit(root.sourceRef);
+    if(root.valueRef) visit(root.valueRef);
   }
   if (owners.size !== nodes.size) throw new Error('Unreachable nodes in generation input');
   for (const node of [...input.nodes].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
