@@ -1448,3 +1448,95 @@ pub(in crate::source_model) fn parse_generic_union(
 ) -> ParseResult<GenericUnion> {
     read_generic_union(v, c, p)
 }
+
+// Source declaration: MappedFields
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct MappedFields {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub _id: SourcePresence<String>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    #[serde(rename = "greater-darkvision")]
+    pub greater_darkvision: SourcePresence<Number>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    #[serde(rename = "self")]
+    pub self_: SourcePresence<String>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    #[serde(rename = "1st")]
+    pub _1st: SourcePresence<String>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_mapped_fields(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<MappedFields> {
+    let f = Fields::new(v, c, p)?;
+    Ok(MappedFields {
+        _id: f.presence("_id", string)?,
+        greater_darkvision: f.presence("greater-darkvision", number)?,
+        self_: f.presence("self", string)?,
+        _1st: f.presence("1st", string)?,
+        additional_fields: f.remaining(&["_id", "greater-darkvision", "self", "1st"]),
+    })
+}
+
+// MappedFields; deferred fields:
+pub(in crate::source_model) fn parse_mapped_fields(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<MappedFields> {
+    read_mapped_fields(v, c, p)
+}
+
+// IntersectionBag; deferred fields:
+pub type IntersectionBag = ConstrainedBag;
+pub(in crate::source_model) fn parse_intersection_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<IntersectionBag> {
+    read_constrained_bag(v, c, p)
+}
+
+// IntersectionMap; deferred fields:
+pub type IntersectionMap = MaybeNumberMap;
+pub(in crate::source_model) fn parse_intersection_map(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<IntersectionMap> {
+    read_maybe_number_map(v, c, p)
+}
+
+// Source declaration: RecursiveIntersection
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RecursiveIntersection {
+    // Declared optional=true, nullable=false; retained before defaults.
+    pub next: SourcePresence<Box<RecursiveIntersection>>,
+    pub indexed_fields: crate::source_model::SourceMap<RecursiveIntersection>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_recursive_intersection(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<RecursiveIntersection> {
+    let f = Fields::new(v, c, p)?;
+    Ok(RecursiveIntersection {
+        next: f.presence("next", |v, c, p| {
+            read_recursive_intersection(v, c, p).map(Box::new)
+        })?,
+        indexed_fields: f.indexed(&["next"], &[], read_recursive_intersection)?,
+        additional_fields: f.retained(&[]),
+    })
+}
+
+// RecursiveIntersection; deferred fields:
+pub(in crate::source_model) fn parse_recursive_intersection(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<RecursiveIntersection> {
+    read_recursive_intersection(v, c, p)
+}

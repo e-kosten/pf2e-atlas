@@ -8109,6 +8109,7 @@
         "src/module/item/base/data/system.ts#OtherTagsOnly"
       ],
       "fields": [],
+      "indexSignatures": [],
       "impossible": true
     },
     {
@@ -9087,6 +9088,7 @@
         "src/module/item/base/data/system.ts#OtherTagsOnly"
       ],
       "fields": [],
+      "indexSignatures": [],
       "impossible": true
     },
     {
@@ -9348,6 +9350,7 @@
         "src/module/item/base/data/system.ts#RarityTraitAndOtherTags"
       ],
       "fields": [],
+      "indexSignatures": [],
       "impossible": true
     },
     {

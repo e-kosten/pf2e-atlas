@@ -13,7 +13,10 @@ pub(super) use common::parse_empty;
 pub(super) use common::parse_expr;
 pub(super) use common::parse_generic_union;
 pub(super) use common::parse_image_path;
+pub(super) use common::parse_intersection_bag;
+pub(super) use common::parse_intersection_map;
 pub(super) use common::parse_loose;
+pub(super) use common::parse_mapped_fields;
 pub(super) use common::parse_maybe_number_map;
 pub(super) use common::parse_mixed_template;
 pub(super) use common::parse_node;
@@ -27,6 +30,7 @@ pub(super) use common::parse_open_tuple_union;
 pub(super) use common::parse_overlapping_open;
 pub(super) use common::parse_overlapping_templates;
 pub(super) use common::parse_recursive_bag;
+pub(super) use common::parse_recursive_intersection;
 pub(super) use common::parse_scalar_envelope;
 pub(super) use common::parse_scalar_pair;
 pub(super) use common::parse_single;
@@ -41,13 +45,14 @@ pub(super) use common::parse_uuid;
 pub(super) use common::parse_yes;
 pub use common::{
     A, AnyValue, B, Color, ColorTag, ConstrainedBag, Discriminated, DivineFonts,
-    DivineFontsAlternative1, Empty, Expr, GenericUnion, Harm, Heal, ImagePath, KnownObject, Left,
-    Loose, MaybeNumberMap, MixedTemplate, Node, NonNullishValue, NumberBag, NumberOrBoolean,
-    ObjectUnion, ObjectValue, One, OpenBag, OpenTupleUnion, Other, OverlappingOpen,
-    OverlappingTemplates, RecursiveBag, Required, Right, ScalarEnvelope, ScalarEnvelopeRestricted,
-    ScalarPair, Single, SourceFromSchemaFirstSchema, SourceFromSchemaSecondSchema, Strict,
-    StringOrBoolean, StringOrNumber, StringOrNumberOrBoolean, TemplateTagged, TemplateTupleUnion,
-    TupleEntry, TupleExpr, UnknownMap, UnknownValue, Uuid, UuidTag, Yes,
+    DivineFontsAlternative1, Empty, Expr, GenericUnion, Harm, Heal, ImagePath, IntersectionBag,
+    IntersectionMap, KnownObject, Left, Loose, MappedFields, MaybeNumberMap, MixedTemplate, Node,
+    NonNullishValue, NumberBag, NumberOrBoolean, ObjectUnion, ObjectValue, One, OpenBag,
+    OpenTupleUnion, Other, OverlappingOpen, OverlappingTemplates, RecursiveBag,
+    RecursiveIntersection, Required, Right, ScalarEnvelope, ScalarEnvelopeRestricted, ScalarPair,
+    Single, SourceFromSchemaFirstSchema, SourceFromSchemaSecondSchema, Strict, StringOrBoolean,
+    StringOrNumber, StringOrNumberOrBoolean, TemplateTagged, TemplateTupleUnion, TupleEntry,
+    TupleExpr, UnknownMap, UnknownValue, Uuid, UuidTag, Yes,
 };
 pub(super) use consumer::parse_bool_consumer;
 pub(super) use consumer::parse_generic_consumer;
