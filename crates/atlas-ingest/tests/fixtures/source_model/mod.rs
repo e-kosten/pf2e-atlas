@@ -150,4 +150,138 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn open_domains_preserve_values_and_enforce_json_kind_boundaries() {
+        for bytes in [
+            b"null".as_slice(),
+            b"false",
+            b"18446744073709551615",
+            br#""text""#,
+            br#"[null,{"repeated":1,"repeated":2}]"#,
+            br#"{"repeated":1,"repeated":2}"#,
+        ] {
+            let value = value::parse_source(bytes).unwrap();
+            assert_eq!(
+                generated::parse_any_value(&value, &context(), "$").unwrap(),
+                value
+            );
+            assert_eq!(
+                generated::parse_unknown_value(&value, &context(), "$").unwrap(),
+                value
+            );
+            assert_eq!(
+                generated::parse_non_nullish_value(&value, &context(), "$").is_ok(),
+                !matches!(value, value::SourceValue::Null)
+            );
+            assert_eq!(
+                generated::parse_object_value(&value, &context(), "$").is_ok(),
+                matches!(
+                    value,
+                    value::SourceValue::Object(_) | value::SourceValue::Array(_)
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn indexed_fields_preserve_order_values_and_forbidden_additional_members() {
+        let value = value::parse_source(
+            br#"{"z":null,"label":"bag","a":{"x":1,"x":2},"retired":null,"retired":[]}"#,
+        )
+        .unwrap();
+        let parsed = generated::parse_open_bag(&value, &context(), "$").unwrap();
+        assert_eq!(
+            parsed.label,
+            super::presence::SourcePresence::Value("bag".into())
+        );
+        assert_eq!(
+            parsed
+                .indexed_fields
+                .entries
+                .iter()
+                .map(|(key, _)| key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["z", "a"]
+        );
+        let value::SourceValue::Object(raw) = value else {
+            panic!()
+        };
+        assert_eq!(parsed.indexed_fields.entries[0].1, raw.fields()[0].1);
+        assert_eq!(parsed.indexed_fields.entries[1].1, raw.fields()[2].1);
+        assert_eq!(parsed.additional_fields.fields(), &raw.fields()[3..]);
+    }
+
+    #[test]
+    fn index_constraints_check_named_values_and_fail_at_escaped_dynamic_paths() {
+        let valid = value::parse_source(br#"{"fixed":"a","dynamic":"a"}"#).unwrap();
+        generated::parse_constrained_bag(&valid, &context(), "$").unwrap();
+        let invalid = value::parse_source(br#"{"fixed":"b"}"#).unwrap();
+        let error = generated::parse_constrained_bag(&invalid, &context(), "$").unwrap_err();
+        assert_eq!(error.json_path, r#"$["fixed"]"#);
+        for (bytes, path) in [
+            (br#"{"fixed":1,"x":null}"#.as_slice(), r#"$["x"]"#),
+            (br#"{"fixed":1,"x":2,"x":3}"#, r#"$["x"]"#),
+            (br#"{"fixed":1,"quote\"key":"bad"}"#, r#"$["quote\"key"]"#),
+            (br#"{"fixed":1,"fixed":2}"#, "$.fixed"),
+        ] {
+            let value = value::parse_source(bytes).unwrap();
+            let error = generated::parse_number_bag(&value, &context(), "$").unwrap_err();
+            assert_eq!(error.json_path, path);
+            assert_eq!(error.context.record_key, "fixture");
+        }
+        // The ordinary named-field pre-default policy remains unchanged.
+        let null = value::parse_source(br#"{"fixed":null}"#).unwrap();
+        assert_eq!(
+            generated::parse_number_bag(&null, &context(), "$")
+                .unwrap()
+                .fixed,
+            super::presence::SourcePresence::Null
+        );
+    }
+
+    #[test]
+    fn indexed_recursion_and_cross_module_open_owners_compile_and_parse() {
+        let value =
+            value::parse_source(br#"{"child":{"leaf":{}},"branch":{"child":null}}"#).unwrap();
+        let parsed = generated::parse_recursive_bag(&value, &context(), "$").unwrap();
+        assert_eq!(parsed.indexed_fields.entries[0].0, "branch");
+        let consumer =
+            value::parse_source(br#"{"bag":{"label":"x","future":[null,3]},"payload":[]}"#)
+                .unwrap();
+        generated::parse_open_consumer(&consumer, &context(), "$").unwrap();
+    }
+
+    #[test]
+    fn open_union_arms_keep_kind_constraints_and_report_overlapping_objects() {
+        for bytes in [br#""string""#.as_slice(), b"[]", b"{}"] {
+            let value = value::parse_source(bytes).unwrap();
+            generated::parse_object_union(&value, &context(), "$").unwrap();
+        }
+        let boolean = value::parse_source(b"true").unwrap();
+        assert!(generated::parse_object_union(&boolean, &context(), "$").is_err());
+        let overlapping = value::parse_source(br#"{"label":"x"}"#).unwrap();
+        assert!(generated::parse_overlapping_open(&overlapping, &context(), "$").is_err());
+    }
+
+    #[test]
+    fn unknown_maps_accept_null_but_optional_number_entries_stay_constrained() {
+        let raw = value::parse_source(br#"{"z":null,"a":[1],"o":{"x":1,"x":2}}"#).unwrap();
+        let parsed = generated::parse_unknown_map(&raw, &context(), "$").unwrap();
+        let value::SourceValue::Object(object) = raw else {
+            panic!()
+        };
+        assert_eq!(parsed.entries, object.fields());
+        for bytes in [b"{}".as_slice(), br#"{"x":3}"#] {
+            let value = value::parse_source(bytes).unwrap();
+            generated::parse_maybe_number_map(&value, &context(), "$").unwrap();
+        }
+        let null = value::parse_source(br#"{"x":null}"#).unwrap();
+        assert_eq!(
+            generated::parse_maybe_number_map(&null, &context(), "$")
+                .unwrap_err()
+                .json_path,
+            r#"$["x"]"#
+        );
+    }
 }

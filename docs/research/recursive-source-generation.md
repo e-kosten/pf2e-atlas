@@ -2,6 +2,10 @@
 
 Date: 2026-10-07
 
+This report records PR32. The subsequent
+[open/indexed source report](./open-source-generation.md) records the current
+flags model and the updated 27-root emission result.
+
 ## Implemented capability
 
 The existing emitter supports anchored recursive models, mixed unions and fixed

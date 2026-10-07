@@ -37,11 +37,27 @@ export function recursiveFixture():GenerationInput {
     {id:'RestrictedScalar',kind:'union',members:['Yes','primitive:number']},
     {id:'ScalarPair',kind:'tuple',elements:[{ref:'AnyScalar',optional:false,rest:false},{ref:'primitive:number',optional:false,rest:false}],readonly:false},
     object('ScalarEnvelope',[field('numeric','NumericScalar'),field('logical','LogicalScalar'),field('numeric_boolean','NumericBoolean'),field('any_scalar','AnyScalar'),field('restricted','RestrictedScalar')]),
-    object('ScalarConsumer',[field('pair','ScalarPair')])];
+    object('ScalarConsumer',[field('pair','ScalarPair')]),
+    ...(['any','unknown','object','non-nullish'] as const).map(domain=>({id:'Open:'+domain,kind:'open' as const,domain})),
+    {id:'UnknownMap',kind:'object',fields:[],indexSignatures:[{key:'primitive:string',value:'Open:unknown',readonly:false}]},
+    {id:'OpenBag',name:'OpenBag',kind:'object',fields:[field('label','primitive:string'),
+      {...field('retired','primitive:never'),forbidden:true}],indexSignatures:[{key:'primitive:string',value:'Open:unknown',readonly:false}]},
+    {id:'NumberBag',name:'NumberBag',kind:'object',fields:[field('fixed','primitive:number')],indexSignatures:[{key:'primitive:string',value:'primitive:number',readonly:false}]},
+    {id:'ConstrainedBag',name:'ConstrainedBag',kind:'object',fields:[field('fixed','primitive:string')],indexSignatures:[{key:'primitive:string',value:'A',readonly:false}]},
+    {id:'RecursiveBag',name:'RecursiveBag',kind:'object',fields:[field('child','RecursiveBag',true)],indexSignatures:[{key:'primitive:string',value:'RecursiveBag',readonly:false}]},
+    {id:'primitive:undefined',kind:'primitive',value:'undefined'},
+    {id:'MaybeNumber',kind:'union',members:['primitive:number','primitive:undefined']},
+    {id:'MaybeNumberMap',kind:'object',fields:[],indexSignatures:[{key:'primitive:string',value:'MaybeNumber',readonly:false}]},
+    {id:'ObjectUnion',name:'ObjectUnion',kind:'union',members:['primitive:string','Open:object']},
+    object('KnownObject',[field('label','primitive:string')]),
+    {id:'OverlappingOpen',name:'OverlappingOpen',kind:'union',members:['Open:object','KnownObject']},
+    object('OpenConsumer',[field('bag','OpenBag'),field('payload','Open:object')])];
   return {source:{system_version:'fixture',source_digest:'fixture',input_file_count:1,git_commit:null,git_clean:null},nodes,
     selection:[...['Node','Expr','Empty','Single','Discriminated','Strict','Loose','Yes','One','DivineFonts'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'TupleEntry',declaration:'NestedTuple',valueRef:'NestedTuple',module:'common',fields:[],deferred:[]},
       ...['TupleExpr','ScalarEnvelope'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'ScalarPair',declaration:'ScalarPair',valueRef:'ScalarPair',module:'common',fields:[],deferred:[]},
-      ...['BoolConsumer','ScalarConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]}))]};
+      ...['OpenBag','NumberBag','ConstrainedBag','RecursiveBag','UnknownMap','MaybeNumberMap','ObjectUnion','OverlappingOpen'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
+      ...[{name:'AnyValue',ref:'Open:any'},{name:'UnknownValue',ref:'Open:unknown'},{name:'ObjectValue',ref:'Open:object'},{name:'NonNullishValue',ref:'Open:non-nullish'}].map(({name,ref})=>({name,declaration:ref,valueRef:ref,module:'common',fields:[],deferred:[]})),
+      ...['BoolConsumer','ScalarConsumer','OpenConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]}))]};
 }

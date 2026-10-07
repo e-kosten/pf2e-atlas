@@ -71,7 +71,7 @@ test('field and literal drift change generated types and preserve shared ownersh
 test('arrays, keyed objects and explicit trait policy retain distinct constraints', () => {
   const files = generateRustModules(input);
   assert.equal(input.selection.filter(root => root.family).length,24);
-  assert.match(files['items/common.rs'], /crate::source_model::SourceMap<ItemGranterSource>/);
+  assert.match(files['items/flags.rs'], /crate::source_model::SourceMap<ItemGranterSource>/);
   assert.match(files['items/traits.rs'], /no array elements/);
   assert.match(files['items/traits.rs'], /Explicit trait-array policies keep identifiers as strings/);
   assert.match(files['items/traits.rs'], /Deity\(DeityTraitsFields\)/);
@@ -110,7 +110,7 @@ test('shared numeric literal parsers import their function while Number stays lo
 });
 
 test('unsupported shapes, indexed intersections, dangling refs and naming collisions reject', () => {
-  for (const kind of ['unsupported', 'unresolved', 'open', 'template'] as const) {
+  for (const kind of ['unsupported', 'unresolved', 'template'] as const) {
     const changed = structuredClone(input);
     const hp = changed.nodes.findIndex(node => node.name === 'PhysicalItemHPSource');
     changed.nodes[hp] = { id: changed.nodes[hp].id, kind } as GenerationInput['nodes'][number];
@@ -167,8 +167,6 @@ test('graph refresh checks metadata changes that shared Rust value types collaps
     for (const root of input.selection) if (!nodes.has(root.declaration)) nodes.set(root.declaration, {
       id: root.declaration, kind: 'object', fields: [...root.fields, ...root.deferred.map(name => ({ ...root.fields[0],name,ref:'primitive:string' }))],indexSignatures:[] });
     const makeField = (name: string,ref: string) => ({name,ref,optional:false,nullable:false,undefinedAllowed:false,forbidden:false,declaredAt:[]});
-    const grants = input.selection.find(root=>root.name==='ItemGrantFields')!;
-    nodes.set('src/module/item/base/data/system.ts#ItemSourceFlagsPF2e',{ id:'src/module/item/base/data/system.ts#ItemSourceFlagsPF2e',kind:'object',fields:[makeField('pf2e',grants.declaration)],indexSignatures:[] });
     const members: string[] = [];
     for (const root of input.selection.filter(root=>root.family)) {
       const id=`fixture:${root.family}`;members.push(id);

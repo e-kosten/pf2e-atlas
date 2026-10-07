@@ -96,7 +96,7 @@ flowchart LR
 
 `atlas-ingest::source_model` exposes independently callable source-only slices
 for physical/equipment equipped, hp, price and usage, plus shared Item description,
-publication, core traits and item grants across all registered Item families.
+publication, core traits and complete Item flags across all registered Item families.
 Its public `generated` namespace exposes the generated value models. Private
 TypeScript tooling emits checked structures/parsers from selected declaration
 graphs. Minimal Rust primitives preserve pre-default missing/null/value states,
@@ -106,7 +106,14 @@ generated owners under `rules/predicate`. Anonymous primitive unions use shared
 member-named enums; anonymous tuples appear inline with shared parsers and named
 element imports. Shape-sensitive union parsing reports competing alternatives
 and preserves nested errors; ordinary object fields retain
-pre-default presence. This models persisted shapes without executing predicates
+pre-default presence. Explicit any/unknown payloads preserve JSON values; object
+domains constrain values to arrays/objects and explicit-empty domains reject null.
+Named-plus-indexed objects expose typed named fields and ordered typed dynamic
+entries, preserving declaration-forbidden members separately. Complete Item flags
+under `items/flags` replace the partial handwritten source slice and model grants,
+rule selections and open namespaces. See
+[ADR 0037](./decisions/0037-open-and-indexed-source-values.md).
+This models persisted shapes without executing predicates
 or enforcing all Foundry runtime constraints. Unselected
 and declaration-forbidden persisted members remain additional source data.
 The build pipeline does not call these parsers; this partial model is not
@@ -117,7 +124,7 @@ Saved generator inputs live under `scripts/source-contracts/snapshots`, with sou
 identity in one manifest and graph nodes owned once across module snapshots.
 The generator loads the entire selection before assigning shared Rust owners.
 Output is partitioned under `source_model/generated` into shared Item components,
-traits, physical/equipment and predicate modules; indexes compose existing content.
+flags, traits, physical/equipment and predicate modules; indexes compose existing content.
 Handwritten presence/value/diagnostic primitives remain outside that generated
 directory. See [ADR 0034](./decisions/0034-source-generation-layout.md) and
 [ADR 0035](./decisions/0035-source-value-generation-policy.md). Broad trait arrays
