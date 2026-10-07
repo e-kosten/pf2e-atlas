@@ -67,10 +67,11 @@ No field-owner ledger, coverage receipts or new artifact readiness gate is neede
 
 The [authored-rule comparison](../../research/authored-rule-source.md) implements
 authored/cleaned input separation for selectors, nested IWR types, ChoiceSet
-predicates, DamageDice override expressions and scalar Strike traits. Generic
+predicates, DamageDice override expressions, scalar Strike traits and nested
+BattleForm strike base-type strings. Generic
 union selection distinguishes anchored shapes from open/optional-only fallbacks.
-It recovers 11,120 of 31,174 rule occurrences without measured value loss;
-17 first-error occurrences remain counted: 16 unresolved declaration/corpus/runtime
+It recovers 11,130 of 31,174 rule occurrences without measured value loss;
+seven first-error occurrences remain counted: six unresolved declaration/corpus/runtime
 discrepancies and one confirmed malformed predicate. Follow-ups are those
 discrepancies and nullable/undefined collection support for whole Actor/Item
 generation. Full Foundry

@@ -322,6 +322,45 @@ mod tests {
         }
     }
     #[test]
+    fn authored_battle_form_base_types_preserve_strings_without_widening_direct_strikes() {
+        for (members, expected) in [
+            (r#""baseType":"leg""#, serde_json::json!({"value":"leg"})),
+            (
+                r#""baseType":"future-base","future":1,"future":2"#,
+                serde_json::json!({"value":"future-base"}),
+            ),
+            (r#""baseType":null"#, serde_json::json!("null")),
+            ("", serde_json::json!("missing")),
+        ] {
+            let source = format!(r#"{{"immunities":[],"strikes":{{"limb":{{{members}}}}}}}"#);
+            let raw = value::parse_source(source.as_bytes()).unwrap();
+            let model = serde_json::to_value(
+                generated::parse_authored_form(&raw, &context(), "$").unwrap(),
+            )
+            .unwrap();
+            assert_eq!(
+                model["strikes"]["value"]["entries"][0][1]["base_type"],
+                expected
+            );
+            if members.contains("future") {
+                assert_eq!(
+                    model["strikes"]["value"]["entries"][0][1]["additional_fields"]["fields"],
+                    serde_json::json!([["future", {"Number":1}], ["future", {"Number":2}]])
+                );
+            }
+        }
+        for source in [
+            r#"{"immunities":[],"strikes":{"limb":{"baseType":1}}}"#,
+            r#"{"immunities":[],"strikes":{"limb":{"baseType":true}}}"#,
+            r#"{"immunities":[],"strikes":{"limb":{"baseType":"leg","range":100}}}"#,
+        ] {
+            let raw = value::parse_source(source.as_bytes()).unwrap();
+            assert!(generated::parse_authored_form(&raw, &context(), "$").is_err());
+        }
+        let direct = value::parse_source(br#"{"traits":[],"baseType":"leg"}"#).unwrap();
+        assert!(generated::parse_authored_strike_rule(&direct, &context(), "$").is_err());
+    }
+    #[test]
     fn authored_strike_scalar_and_array_traits_share_the_open_vocabulary() {
         for (source, expected) in [
             (

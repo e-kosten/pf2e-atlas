@@ -5,6 +5,7 @@ import { authoredRuleInputs } from './rule-inputs.js';
 import { rulePackets } from './sample-rules.js';
 import { itemPackets } from './sample-items.js';
 import { compareRuleResults } from './compare-rules.js';
+import { battleFormStrikeFixture } from './authored-rule-fixture.js';
 
 const field = (name: string): GraphField => ({ name, ref: 'strings', optional: false, nullable: false, undefinedAllowed: false, forbidden: false, declaredAt: [] });
 function schema(): TypeGraph {
@@ -47,7 +48,8 @@ test('shared IWR declarations propagate through recursive ancestors without wide
     {id:'map',kind:'object',fields:[],indexSignatures:[{key:'string',value:'nested',readonly:false}]},
     {id:'strict-iwr',kind:'object',fields:[{...field('type'),declaredAt:declaration}],indexSignatures:[]},
     {id:'form',kind:'object',fields:[{...field('immunities'),ref:'nested-array'},{...field('self'),ref:'form'},field('type'),
-      {...field('tuple'),ref:'tuple'},{...field('map'),ref:'map'}],indexSignatures:[]});
+      {...field('tuple'),ref:'tuple'},{...field('map'),ref:'map'},{...field('strikes'),ref:'FixtureBattleStrikes'}],indexSignatures:[]});
+  original.nodes.push(...battleFormStrikeFixture().filter(node=>!original.nodes.some(existing=>existing.id===node.id)));
   original.roots.push({file:'fixture',name:'Form',ruleKey:'BattleForm',ref:'form',arrayInputs:[]});
   original.roots.push({file:'fixture',name:'StrictIwr',ruleKey:'Weakness',ref:'strict-iwr',arrayInputs:[
     {field:'type',arrayRef:'strings',elementRef:'string',fieldClass:'StrictArrayField',declaredAt:declaration}]});
