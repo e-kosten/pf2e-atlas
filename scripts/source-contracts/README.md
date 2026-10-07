@@ -18,12 +18,15 @@ the compiled entry point. Fixtures stay in the source package. Public discovery
 contracts live in `contracts.ts`; compiler-internal access is bounded in
 `compiler-types.ts`. Neither this package nor its dependencies ship with Atlas.
 
-## Bounded equipment generation
+## Source-slice generation
 
 `generate` loads the saved modular declaration selection and emits Rust under
-atlas-ingest. The graph refresh recipe in `equipment-selection.ts` selects only
-equipped, hp, price and usage from physical/equipment declarations. It is a partial
-source model. Unsupported selected constructs stop generation; unselected fields
+atlas-ingest. The graph refresh recipe in `item-selection.ts` selects shared Item
+description, publication, core traits (value/rarity/otherTags) across all 24
+registered families, and keyed item grants. It retains the equipped, hp, price
+and usage selection from `equipment-selection.ts`. It is a partial source model.
+Trait toggles, shield integrated traits and spell traditions remain explicitly
+deferred. Unsupported selected constructs stop generation; unselected fields
 remain ordered source values at parsing. SourcePresence keeps missing/null/value
 before defaults, while the input retains upstream optional/null/undefined facts.
 This policy is separate from full Foundry admission and canonical product models.
@@ -48,14 +51,46 @@ and unmanaged files are rejected. Regeneration removes obsolete generated files;
 the two output directories are exclusively generator-owned.
 
 The input manifest records source identity and ordered module files. Each graph
-node is stored once: physical owns shared input, equipment supplies refinement
-nodes and its root metadata. Roots are selected base-before-refinement. Loading
+node is stored once across common Item, trait, physical and equipment snapshots.
+Roots are selected base-before-refinement. Loading
 resolves all module inputs into one graph before emission; the emitter assigns
 shared value owners globally and writes explicit cross-module Rust imports.
-Current outputs are `physical.rs`, `items/equipment.rs` and their module indexes.
+Current outputs are `items/common.rs`, `items/traits.rs`, `physical.rs`,
+`items/equipment.rs` and their indexes. The public Rust value namespace is
+`atlas_ingest::source_model::generated`.
 Only modules with definitions or existing children are emitted. Future families
 extend this organization; [ADR 0034](../../docs/architecture/decisions/0034-source-generation-layout.md)
 records the ownership and layout rules.
+
+The manifest lists `openTraitArrays` by exact graph identity. These arrays retain
+their declared vocabulary nodes in input but generate string values. A policy
+target that becomes a nonstring array rejects generation. Ordinary string arrays
+may share the same vector owner. Current finite other-tag enums, rarity, license
+and grant deletion behavior remain checked. Declaration-forbidden persisted
+members remain additional data before defaults. Pure string-keyed maps preserve
+typed values and authored order, rejecting repeated modeled keys. Nullable
+collection entries, recursion, richer unions, templates, open domains and
+named-plus-indexed objects remain unsupported. [ADR 0035](../../docs/architecture/decisions/0035-source-value-generation-policy.md)
+records these policies.
+
+For shared Item fidelity against a pinned source export:
+
+```sh
+npm --prefix scripts/source-contracts run build
+cargo build -p atlas-ingest --example item_generation_probe
+set -o pipefail
+node scripts/source-contracts/dist/sample-items.js --source scratch/pf2e | \
+  target/debug/examples/item_generation_probe > scratch/item-corpus-report.json
+```
+
+The sampler uses raw AST spans for root and recursively embedded Item sources in
+Item/Actor packs; additional payload numbers and repeated members are preserved.
+The Rust probe compares typed values, presence and ordered additional members
+against raw source projections, using saved selected field metadata. Numbers
+remain in Rust until comparison transport. It reports per-family counts and
+exits 1 on any rejection or value difference. This proves selected-slice fidelity,
+not complete declaration coverage. See the
+[shared Item report](../../docs/research/shared-item-source-generation.md).
 
 `sample-equipment --source PATH` emits JSONL source packets for root equipment and
 direct Actor.items. Payload spans preserve authored numeric tokens and duplicate

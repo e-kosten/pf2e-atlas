@@ -3,14 +3,14 @@ import path from 'node:path';
 import type { GraphField, GraphNode, SourceIdentity } from './contracts.js';
 
 export interface GenerationRoot {
-  name: string; declaration: string; fields: GraphField[]; deferred: string[]; module: string;
+  name: string; declaration: string; fields: GraphField[]; deferred: string[]; module: string; family?: string; sourceRef?: string;
 }
 export interface GenerationInput {
-  source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[];
+  source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[]; openTraitArrays?: string[];
 }
 export interface GenerationManifest {
   format: 'atlas-source-generation/v1'; source: SourceIdentity;
-  modules: { name: string; file: string }[];
+  modules: { name: string; file: string }[]; openTraitArrays?: string[];
 }
 interface ModuleSnapshot {
   format: 'atlas-source-generation-module/v1';
@@ -25,9 +25,18 @@ export function validateInput(input: GenerationInput): void {
   const nodes = new Set(input.nodes.map(node => node.id));
   if (nodes.size !== input.nodes.length) throw new Error('Duplicate generation node identities');
   if (!input.selection.length) throw new Error('No generation roots');
+  if (new Set(input.openTraitArrays).size !== (input.openTraitArrays?.length ?? 0)) throw new Error('Duplicate open trait array policies');
+  for (const ref of input.openTraitArrays ?? []) if (!nodes.has(ref)) throw new Error(`Missing policy node: ${ref}`);
   const names = new Set<string>();
+  const closedModules = new Set<string>();
+  let activeModule: string | undefined;
   for (const root of input.selection) {
     validateModule(root.module);
+    if(root.module !== activeModule) {
+      if(closedModules.has(root.module)) throw new Error('Generation roots must group each module before refinements');
+      if(activeModule) closedModules.add(activeModule);
+      activeModule = root.module;
+    }
     if (!/^[A-Z][A-Za-z0-9]*$/.test(root.name) || names.has(root.name)) throw new Error(`Invalid or duplicate root name: ${root.name}`);
     names.add(root.name);
   }
@@ -47,7 +56,8 @@ export function snapshotFiles(input: GenerationInput): Record<string, string> {
   const modules = new Map<string, ModuleSnapshot>();
   for (const { module, ...root } of input.selection) {
     if (!modules.has(module)) modules.set(module, { format: 'atlas-source-generation-module/v1', roots: [], nodes: [] });
-    modules.get(module)!.roots.push({ name: root.name, declaration: root.declaration, fields: root.fields, deferred: root.deferred });
+    modules.get(module)!.roots.push({ name: root.name, declaration: root.declaration, fields: root.fields, deferred: root.deferred,
+      ...(root.family ? { family: root.family } : {}), ...(root.sourceRef ? {sourceRef: root.sourceRef} : {}) });
     const visit = (id: string) => {
       if (owners.has(id)) return;
       const node = nodes.get(id);
@@ -56,12 +66,14 @@ export function snapshotFiles(input: GenerationInput): Record<string, string> {
       nodeReferences(node).forEach(visit);
     };
     root.fields.forEach(field => visit(field.ref));
+    if(root.sourceRef) visit(root.sourceRef);
   }
   if (owners.size !== nodes.size) throw new Error('Unreachable nodes in generation input');
   for (const node of [...input.nodes].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     modules.get(owners.get(node.id)!)!.nodes.push(node);
   const manifest: GenerationManifest = { format: 'atlas-source-generation/v1', source: input.source,
-    modules: [...modules.keys()].map(name => ({ name, file: `${name}.json` })) };
+    modules: [...modules.keys()].map(name => ({ name, file: `${name}.json` })),
+    ...(input.openTraitArrays?.length ? { openTraitArrays: input.openTraitArrays } : {}) };
   const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
   return { 'manifest.json': json(manifest), ...Object.fromEntries([...modules].map(([name, value]) => [`${name}.json`, json(value)])) };
 }
@@ -69,7 +81,8 @@ export function snapshotFiles(input: GenerationInput): Record<string, string> {
 export async function loadGenerationInput(manifestFile: string): Promise<GenerationInput> {
   const manifest = JSON.parse(await readFile(manifestFile, 'utf8')) as GenerationManifest;
   if (manifest.format !== 'atlas-source-generation/v1' || !manifest.modules.length) throw new Error('Invalid generation manifest');
-  const input: GenerationInput = { source: manifest.source, selection: [], nodes: [] };
+  const input: GenerationInput = { source: manifest.source, selection: [], nodes: [],
+    ...(manifest.openTraitArrays?.length ? { openTraitArrays: manifest.openTraitArrays } : {}) };
   const names = new Set<string>();
   for (const module of manifest.modules) {
     validateModule(module.name);

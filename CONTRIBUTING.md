@@ -328,12 +328,14 @@ the earlier research and product-preview reference.
 
 Offline declaration and trait metadata tooling lives in [scripts/source-contracts](./scripts/source-contracts/README.md). Its pinned Node dependencies, strict TypeScript build and fixture tests are separate from the Rust build and published product. Run `npm --prefix scripts/source-contracts ci --ignore-scripts`, then `npm --prefix scripts/source-contracts run verify`. Run extraction with `npm --prefix scripts/source-contracts run extract -- --source PATH --out PATH [--strict]`. Rust developer commands use Rust libraries; compiler research runs through this npm package.
 
-The bounded equipment generation trial also requires rustfmt. Package verification
+Source-model generation also requires rustfmt. Package verification
 checks that the saved graph selection reproduces checked Rust; it does not fetch
 upstream source. `generate` emits/checks the modular trial, `sample-equipment`
 extracts raw equipment packets and `compare-equipment` compares Rust probe results.
-These private experiment commands are documented in the package README and
-[comparison report](./docs/research/equipment-source-generation.md). Rust tests
+`sample-items` recursively samples Item sources, including embedded/subitems;
+the Rust `item_generation_probe` example compares typed slices against raw source
+projections. These private experiment commands are documented in the package README and
+[shared Item report](./docs/research/shared-item-source-generation.md). Rust tests
 remain under atlas-ingest; its source parsers need no Node runtime.
 
 Saved declaration inputs live in `scripts/source-contracts/snapshots`, with one

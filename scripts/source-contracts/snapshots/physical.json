@@ -92,18 +92,6 @@
   ],
   "nodes": [
     {
-      "id": "literal:boolean:false",
-      "kind": "literal",
-      "declaredAt": [],
-      "value": false
-    },
-    {
-      "id": "literal:boolean:true",
-      "kind": "literal",
-      "declaredAt": [],
-      "value": true
-    },
-    {
       "id": "literal:number:0",
       "kind": "literal",
       "declaredAt": [],
@@ -120,12 +108,6 @@
       "kind": "literal",
       "declaredAt": [],
       "value": 2
-    },
-    {
-      "id": "literal:string:\"attached\"",
-      "kind": "literal",
-      "declaredAt": [],
-      "value": "attached"
     },
     {
       "id": "literal:string:\"dropped\"",
@@ -152,28 +134,10 @@
       "value": "worn"
     },
     {
-      "id": "primitive:null",
-      "kind": "primitive",
-      "declaredAt": [],
-      "value": "null"
-    },
-    {
       "id": "primitive:number",
       "kind": "primitive",
       "declaredAt": [],
       "value": "number"
-    },
-    {
-      "id": "primitive:string",
-      "kind": "primitive",
-      "declaredAt": [],
-      "value": "string"
-    },
-    {
-      "id": "primitive:undefined",
-      "kind": "primitive",
-      "declaredAt": [],
-      "value": "undefined"
     },
     {
       "id": "src/module/item/physical/data.ts#Coins",
@@ -476,17 +440,6 @@
       "members": [
         "primitive:undefined",
         "src/module/item/physical/data.ts#PhysicalSystemSource.usage.$object@71a25e0f497be6d0a2f2a3a9"
-      ]
-    },
-    {
-      "id": "structural:8370691b5ffe37d8846141b0",
-      "kind": "union",
-      "declaredAt": [],
-      "members": [
-        "literal:boolean:false",
-        "literal:boolean:true",
-        "primitive:null",
-        "primitive:undefined"
       ]
     },
     {

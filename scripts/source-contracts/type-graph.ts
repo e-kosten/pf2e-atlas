@@ -153,7 +153,8 @@ export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSele
     const flags = type.flags;
     if (type.isUnion() || type.isIntersection()) {
       const members = type.types.map((member) => visit(member, origin)).sort(compare);
-      shape = type.isUnion() ? { kind: 'union', members } : { kind: 'intersection', members, fields: fields(type, origin) };
+      shape = type.isUnion() ? { kind: 'union', members } : { kind: 'intersection', members, fields: fields(type, origin),
+        ...(checker.isTypeAssignableTo(type, checker.getNeverType()) ? { impossible: true } : {}) };
     } else if (flags & (ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BooleanLiteral)) {
       shape = { kind: 'literal', value: flags & ts.TypeFlags.BooleanLiteral ? intrinsicName(type) === 'true' : (type as ts.StringLiteralType | ts.NumberLiteralType).value };
     } else if (flags & ts.TypeFlags.Any) {

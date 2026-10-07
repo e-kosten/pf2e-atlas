@@ -22,3 +22,7 @@ export interface Instantiations { first: Shared<string>; second: Shared<number> 
 export type AnonymousFamily = { kind: 'a'; payload: string } | { kind: 'b'; payload: number };
 export interface SameNamedArguments { first: Shared<A.Foo>; second: Shared<B.Foo> }
 export interface SameNamedNullable { first: A.Foo | null; second: B.Foo | null }
+export interface NeverAlternatives {
+  traits: { otherTags: string[]; value?: never } | ({ value: string[] } & { value?: never });
+  empty: ExplicitEmpty;
+}
