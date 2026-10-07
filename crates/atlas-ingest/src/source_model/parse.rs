@@ -231,6 +231,30 @@ pub(super) fn string(
         Err(context.error(path, "string", value))
     }
 }
+/// Match TypeScript templates whose interpolations are arbitrary strings.
+/// Empty, multiline and Unicode interpolations are valid; literals stay ordered.
+#[allow(
+    dead_code,
+    reason = "Template domains are compiled by generator fixtures and portfolio probes."
+)]
+pub(super) fn matches_template(value: &str, parts: &[&str]) -> bool {
+    let Some((prefix, rest)) = parts.split_first() else {
+        return false;
+    };
+    let Some(mut remaining) = value.strip_prefix(prefix) else {
+        return false;
+    };
+    let Some((suffix, middle)) = rest.split_last() else {
+        return remaining.is_empty();
+    };
+    for literal in middle {
+        let Some(position) = remaining.find(literal) else {
+            return false;
+        };
+        remaining = &remaining[position + literal.len()..];
+    }
+    remaining.ends_with(suffix)
+}
 pub(super) fn number(
     value: &SourceValue,
     context: &SourceContext,

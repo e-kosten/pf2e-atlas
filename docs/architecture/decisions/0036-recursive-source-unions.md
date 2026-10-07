@@ -38,6 +38,8 @@ String, Number, Boolean order, such as StringOrNumber or NumberOrBoolean. A comp
 true/false pair represents Boolean; a restricted boolean literal remains restricted.
 When allocating a value owner, declared names take priority over generated names.
 Equivalent shapes retain their existing shared owner. Name collisions fail explicitly.
+Concrete generic instantiations and template-string domains follow
+[ADR 0038](./0038-source-templates-and-generic-names.md).
 Anonymous tuples appear inline and share a private parser; declared or explicitly
 selected root names retain aliases. Defer type rendering until recursive owners are
 allocated, and import an inline tuple's element types rather than inventing a type

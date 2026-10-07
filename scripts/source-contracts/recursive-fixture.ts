@@ -53,7 +53,27 @@ export function recursiveFixture():GenerationInput {
     {id:'OpenTupleUnion',name:'OpenTupleUnion',kind:'union',members:['primitive:string','OpenTuple']},
     object('KnownObject',[field('label','primitive:string')]),
     {id:'OverlappingOpen',name:'OverlappingOpen',kind:'union',members:['Open:object','KnownObject']},
-    object('OpenConsumer',[field('bag','OpenBag'),field('payload','Open:object')])];
+    object('OpenConsumer',[field('bag','OpenBag'),field('payload','Open:object')]),
+    {id:'Color',name:'Color',kind:'template',text:['#',''],parameters:['primitive:string']},
+    {id:'Png',kind:'template',text:['','.png'],parameters:['primitive:string']},
+    {id:'Svg',kind:'template',text:['','.svg'],parameters:['primitive:string']},
+    {id:'ImagePath',name:'ImagePath',kind:'union',members:['Png','Svg']},
+    {id:'Uuid',name:'Uuid',kind:'template',text:['Actor.','.Item.',''],parameters:['primitive:string','primitive:string']},
+    {id:'TemplatePair',kind:'tuple',elements:[{ref:'Color',optional:false,rest:false}],readonly:false},
+    {id:'TemplateTupleUnion',name:'TemplateTupleUnion',kind:'union',members:['TemplatePair','primitive:number']},
+    {id:'MixedTemplate',name:'MixedTemplate',kind:'union',members:['Color','KnownObject']},
+    object('ColorTag',[field('tag','Color')]),object('UuidTag',[field('tag','Uuid')]),
+    {id:'TemplateTagged',name:'TemplateTagged',kind:'union',members:['ColorTag','UuidTag']},
+    {id:'OverlappingTemplates',name:'OverlappingTemplates',kind:'union',members:['Uuid',
+      'ActorPrefix']},
+    {id:'ActorPrefix',kind:'template',text:['Actor.',''],parameters:['primitive:string']},
+    {id:'Generic:first',name:'SourceFromSchema',kind:'object',fields:[field('first','primitive:string')],indexSignatures:[],typeArguments:[{expression:'FirstSchema',declaredAt:[]}]},
+    {id:'Generic:second',name:'SourceFromSchema',kind:'object',fields:[field('second','primitive:number')],indexSignatures:[],typeArguments:[{expression:'SecondSchema',declaredAt:[]}]},
+    {id:'Generic:equal',name:'SourceFromSchema',kind:'object',fields:[field('first','primitive:string')],indexSignatures:[],typeArguments:[{expression:'EquivalentSchema',declaredAt:[]}]},
+    {id:'Generic:anonymous',name:'SourceFromSchema',kind:'object',fields:[field('anonymous','primitive:number')],indexSignatures:[],typeArguments:[{expression:'{ anonymous: NumberField }',declaredAt:[]}]},
+    {id:'GenericUnion',name:'GenericUnion',kind:'union',members:['Generic:first','Generic:second']},
+    object('GenericConsumer',[field('repeated','Generic:equal'),field('anonymous','Generic:anonymous')]),
+    object('TemplateConsumer',[field('color','Color'),field('image','ImagePath')])];
   return {source:{system_version:'fixture',source_digest:'fixture',input_file_count:1,git_commit:null,git_clean:null},nodes,
     selection:[...['Node','Expr','Empty','Single','Discriminated','Strict','Loose','Yes','One','DivineFonts'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'TupleEntry',declaration:'NestedTuple',valueRef:'NestedTuple',module:'common',fields:[],deferred:[]},
@@ -61,5 +81,6 @@ export function recursiveFixture():GenerationInput {
       {name:'ScalarPair',declaration:'ScalarPair',valueRef:'ScalarPair',module:'common',fields:[],deferred:[]},
       ...['OpenBag','NumberBag','ConstrainedBag','RecursiveBag','UnknownMap','MaybeNumberMap','ObjectUnion','OpenTupleUnion','OverlappingOpen'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...[{name:'AnyValue',ref:'Open:any'},{name:'UnknownValue',ref:'Open:unknown'},{name:'ObjectValue',ref:'Open:object'},{name:'NonNullishValue',ref:'Open:non-nullish'}].map(({name,ref})=>({name,declaration:ref,valueRef:ref,module:'common',fields:[],deferred:[]})),
-      ...['BoolConsumer','ScalarConsumer','OpenConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]}))]};
+      ...['Color','ImagePath','Uuid','TemplateTupleUnion','MixedTemplate','TemplateTagged','OverlappingTemplates','GenericUnion'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
+      ...['BoolConsumer','ScalarConsumer','OpenConsumer','GenericConsumer','TemplateConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]}))]};
 }
