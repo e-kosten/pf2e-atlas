@@ -49,6 +49,8 @@ export function recursiveFixture():GenerationInput {
     {id:'MaybeNumber',kind:'union',members:['primitive:number','primitive:undefined']},
     {id:'MaybeNumberMap',kind:'object',fields:[],indexSignatures:[{key:'primitive:string',value:'MaybeNumber',readonly:false}]},
     {id:'ObjectUnion',name:'ObjectUnion',kind:'union',members:['primitive:string','Open:object']},
+    {id:'OpenTuple',kind:'tuple',elements:[{ref:'Open:unknown',optional:false,rest:false}],readonly:false},
+    {id:'OpenTupleUnion',name:'OpenTupleUnion',kind:'union',members:['primitive:string','OpenTuple']},
     object('KnownObject',[field('label','primitive:string')]),
     {id:'OverlappingOpen',name:'OverlappingOpen',kind:'union',members:['Open:object','KnownObject']},
     object('OpenConsumer',[field('bag','OpenBag'),field('payload','Open:object')])];
@@ -57,7 +59,7 @@ export function recursiveFixture():GenerationInput {
       {name:'TupleEntry',declaration:'NestedTuple',valueRef:'NestedTuple',module:'common',fields:[],deferred:[]},
       ...['TupleExpr','ScalarEnvelope'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'ScalarPair',declaration:'ScalarPair',valueRef:'ScalarPair',module:'common',fields:[],deferred:[]},
-      ...['OpenBag','NumberBag','ConstrainedBag','RecursiveBag','UnknownMap','MaybeNumberMap','ObjectUnion','OverlappingOpen'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
+      ...['OpenBag','NumberBag','ConstrainedBag','RecursiveBag','UnknownMap','MaybeNumberMap','ObjectUnion','OpenTupleUnion','OverlappingOpen'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...[{name:'AnyValue',ref:'Open:any'},{name:'UnknownValue',ref:'Open:unknown'},{name:'ObjectValue',ref:'Open:object'},{name:'NonNullishValue',ref:'Open:non-nullish'}].map(({name,ref})=>({name,declaration:ref,valueRef:ref,module:'common',fields:[],deferred:[]})),
       ...['BoolConsumer','ScalarConsumer','OpenConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]}))]};
 }

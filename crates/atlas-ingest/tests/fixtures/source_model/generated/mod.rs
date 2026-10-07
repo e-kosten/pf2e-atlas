@@ -19,6 +19,7 @@ pub(super) use common::parse_object_union;
 pub(super) use common::parse_object_value;
 pub(super) use common::parse_one;
 pub(super) use common::parse_open_bag;
+pub(super) use common::parse_open_tuple_union;
 pub(super) use common::parse_overlapping_open;
 pub(super) use common::parse_recursive_bag;
 pub(super) use common::parse_scalar_envelope;
@@ -33,10 +34,10 @@ pub(super) use common::parse_yes;
 pub use common::{
     A, AnyValue, B, ConstrainedBag, Discriminated, DivineFonts, DivineFontsAlternative1, Empty,
     Expr, Harm, Heal, KnownObject, Left, Loose, MaybeNumberMap, Node, NonNullishValue, NumberBag,
-    NumberOrBoolean, ObjectUnion, ObjectValue, One, OpenBag, Other, OverlappingOpen, RecursiveBag,
-    Required, Right, ScalarEnvelope, ScalarEnvelopeRestricted, ScalarPair, Single, Strict,
-    StringOrBoolean, StringOrNumber, StringOrNumberOrBoolean, TupleEntry, TupleExpr, UnknownMap,
-    UnknownValue, Yes,
+    NumberOrBoolean, ObjectUnion, ObjectValue, One, OpenBag, OpenTupleUnion, Other,
+    OverlappingOpen, RecursiveBag, Required, Right, ScalarEnvelope, ScalarEnvelopeRestricted,
+    ScalarPair, Single, Strict, StringOrBoolean, StringOrNumber, StringOrNumberOrBoolean,
+    TupleEntry, TupleExpr, UnknownMap, UnknownValue, Yes,
 };
 pub(super) use consumer::parse_bool_consumer;
 pub(super) use consumer::parse_open_consumer;

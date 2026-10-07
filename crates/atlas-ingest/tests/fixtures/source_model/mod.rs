@@ -284,4 +284,30 @@ mod tests {
             r#"$["x"]"#
         );
     }
+
+    #[test]
+    fn open_tuple_union_guards_compile_and_preserve_every_json_kind() {
+        for bytes in [
+            b"[null]".as_slice(),
+            b"[false]",
+            b"[18446744073709551615]",
+            br#"["text"]"#,
+            br#"[[]]"#,
+            br#"[{"x":1,"x":2}]"#,
+        ] {
+            let raw = value::parse_source(bytes).unwrap();
+            let parsed = generated::parse_open_tuple_union(&raw, &context(), "$").unwrap();
+            let value::SourceValue::Array(values) = raw else {
+                panic!()
+            };
+            assert_eq!(
+                serde_json::to_value(parsed).unwrap(),
+                serde_json::to_value(values).unwrap()
+            );
+        }
+        for bytes in [b"[]".as_slice(), b"[null,null]", b"null"] {
+            let raw = value::parse_source(bytes).unwrap();
+            assert!(generated::parse_open_tuple_union(&raw, &context(), "$").is_err());
+        }
+    }
 }
