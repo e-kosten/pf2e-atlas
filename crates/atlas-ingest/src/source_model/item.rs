@@ -1,10 +1,10 @@
 use serde::Serialize;
 
 use super::generated;
-use super::parse::{Fields, ParseResult, string};
+use super::parse::{Fields, string};
 use super::{
-    ItemDescriptionSource, ItemGrantFields, ItemTraits, PublicationData, SourceContext,
-    SourceDiagnostic, SourceObject, SourcePresence, SourceValue,
+    ItemDescriptionSource, ItemSourceFlagsPF2e, ItemTraits, PublicationData, SourceContext,
+    SourceDiagnostic, SourceObject, SourcePresence,
 };
 
 /// Common Item source fields before defaults; all unselected fields remain ordered data.
@@ -14,27 +14,9 @@ pub struct ItemSourceSlice {
     pub description: SourcePresence<ItemDescriptionSource>,
     pub publication: SourcePresence<PublicationData>,
     pub traits: SourcePresence<ItemTraits>,
-    pub flags: SourcePresence<ItemGrantSlice>,
+    pub flags: SourcePresence<ItemSourceFlagsPF2e>,
     pub system_fields: SourceObject,
     pub envelope_fields: SourceObject,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ItemGrantSlice {
-    pub pf2e: SourcePresence<ItemGrantFields>,
-    pub additional_fields: SourceObject,
-}
-
-fn grant_flags(
-    value: &SourceValue,
-    context: &SourceContext,
-    path: &str,
-) -> ParseResult<ItemGrantSlice> {
-    let fields = Fields::new(value, context, path)?;
-    Ok(ItemGrantSlice {
-        pf2e: fields.presence("pf2e", generated::parse_item_grant_fields)?,
-        additional_fields: fields.remaining(&["pf2e"]),
-    })
 }
 
 pub fn parse_item_source_slice(
@@ -69,7 +51,7 @@ pub fn parse_item_source_slice(
         traits: fields.presence("traits", |v, c, p| {
             generated::parse_item_traits(&family, v, c, p)
         })?,
-        flags: envelope.presence("flags", grant_flags)?,
+        flags: envelope.presence("flags", generated::parse_item_source_flags_pf2e)?,
         system_fields: fields.remaining(&["description", "publication", "traits"]),
         envelope_fields: envelope.remaining(&["type", "system", "flags"]),
         family,

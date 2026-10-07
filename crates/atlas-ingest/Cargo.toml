@@ -6,6 +6,10 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
+[[example]]
+name = "item_generation_probe"
+test = true
+
 [dependencies]
 atlas-domain.workspace = true
 atlas-embedding.workspace = true

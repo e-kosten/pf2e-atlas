@@ -13,10 +13,10 @@ pub use generated::{
     PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
 };
 pub use generated::{
-    ItemDescriptionSource, ItemGrantFields, ItemGranterSource, ItemTraits, PublicationData,
+    ItemDescriptionSource, ItemGranterSource, ItemSourceFlagsPF2e, ItemTraits, PublicationData,
 };
 pub use generated::{PredicateInput, PredicateStatement, PredicateStatements};
-pub use item::{ItemGrantSlice, ItemSourceSlice, parse_item_source_slice};
+pub use item::{ItemSourceSlice, parse_item_source_slice};
 pub use keyed::SourceMap;
 pub use parse::{SourceContext, SourceDiagnostic};
 pub use predicate::{parse_predicate_input, parse_predicate_statement, parse_predicate_statements};

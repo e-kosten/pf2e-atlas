@@ -7,14 +7,16 @@ pub(in crate::source_model::generated) mod items;
 pub(in crate::source_model::generated) mod physical;
 pub(in crate::source_model::generated) mod rules;
 pub(super) use items::common::parse_item_description_source;
-pub(super) use items::common::parse_item_grant_fields;
 pub(super) use items::common::parse_publication_data;
-pub use items::common::{
-    ItemDescriptionSource, ItemGrantFields, ItemGrantFieldsItemGrants, ItemGranterSource,
-    ItemGranterSourceOnDelete, PublicationData, PublicationDataLicense,
-};
+pub use items::common::{ItemDescriptionSource, PublicationData, PublicationDataLicense};
 pub use items::equipment::EquipmentFields;
 pub(super) use items::equipment::parse_equipment_fields;
+pub(super) use items::flags::parse_item_source_flags_pf2e;
+pub use items::flags::{
+    ItemGrantSource, ItemGrantSourceOnDelete, ItemGranterSource, ItemSourceFlagsPF2e,
+    ItemSourceFlagsPF2eIndexedEntry, ItemSourceFlagsPF2ePf2e, ItemSourceFlagsPF2ePf2eItemGrants,
+    ItemSourceFlagsPF2ePf2eRulesSelections, StringOrNumberOrObject,
+};
 pub(super) use items::traits::ITEM_FAMILIES;
 pub(super) use items::traits::parse_item_traits;
 pub use items::traits::{

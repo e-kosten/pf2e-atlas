@@ -13,6 +13,10 @@
       "file": "items/common.json"
     },
     {
+      "name": "items/flags",
+      "file": "items/flags.json"
+    },
+    {
       "name": "items/traits",
       "file": "items/traits.json"
     },

@@ -40,10 +40,10 @@ pub use source::model::{
 };
 pub use source_model::{
     Coins, EquipmentFields, EquipmentSourceSlice, EquippedData, EquippedDataCarryType,
-    ItemDescriptionSource, ItemGrantFields, ItemGrantSlice, ItemGranterSource, ItemSourceSlice,
-    ItemTraits, PartialPrice, PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage,
-    PhysicalItemHPSource, PredicateInput, PredicateStatement, PredicateStatements, PublicationData,
-    SourceContext, SourceDiagnostic, SourceMap, SourceObject, SourcePresence, SourceValue,
+    ItemDescriptionSource, ItemGranterSource, ItemSourceFlagsPF2e, ItemSourceSlice, ItemTraits,
+    PartialPrice, PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
+    PredicateInput, PredicateStatement, PredicateStatements, PublicationData, SourceContext,
+    SourceDiagnostic, SourceMap, SourceObject, SourcePresence, SourceValue,
     parse_equipment_source_slice, parse_item_source_slice, parse_physical_equipment_fields,
     parse_predicate_input, parse_predicate_statement, parse_predicate_statements,
 };

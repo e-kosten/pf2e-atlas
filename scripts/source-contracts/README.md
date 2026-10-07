@@ -57,7 +57,7 @@ node is stored once across common Item, trait, physical and equipment snapshots.
 Roots are selected base-before-refinement. Loading
 resolves all module inputs into one graph before emission; the emitter assigns
 shared value owners globally and writes explicit cross-module Rust imports.
-Current outputs are `items/common.rs`, `items/traits.rs`, `physical.rs`,
+Current outputs are `items/common.rs`, `items/flags.rs`, `items/traits.rs`, `physical.rs`,
 `items/equipment.rs`, `rules/predicate.rs` and their indexes. The public Rust value namespace is
 `atlas_ingest::source_model::generated`.
 Only modules with definitions or existing children are emitted. Future families
@@ -71,8 +71,8 @@ may share the same vector owner. Current finite other-tag enums, rarity, license
 and grant deletion behavior remain checked. Declaration-forbidden persisted
 members remain additional data before defaults. Pure string-keyed maps preserve
 typed values and authored order, rejecting repeated modeled keys. Nullable
-collection entries, optional/rest tuples, alias-only recursion, templates, open
-domains and named-plus-indexed objects remain unsupported. Anchored recursion,
+collection unions, optional/rest tuples, alias-only recursion, templates and
+indexed intersection constraints remain unsupported. Anchored recursion,
 mixed unions and fixed tuples are supported. Union identity requires exactly one
 shape candidate; required keys count even with null/invalid payload, and required
 literal discriminants retain nullable state. Additional partial operator keys
@@ -88,6 +88,24 @@ collisions fail explicitly. Anonymous tuple fields and union payloads use inline
 Rust tuples and share a private parser; declared or selected root names retain
 aliases. These source types are inputs to later ingest interpretation, rather
 than prescribed application or storage models.
+
+Explicit any/unknown declarations retain JSON in SourceValue. TypeScript object
+accepts arrays/objects; an explicit empty shape accepts all non-null JSON.
+Their parsing primitives enforce these boundaries without inventing nested fields.
+Atomic unions extend member-derived names to these domains, such as
+`StringOrNumberOrObject`. Unsupported declarations do not become arbitrary JSON.
+Named-plus-indexed objects retain SourcePresence named fields, typed ordered
+`indexed_fields`, and raw `additional_fields` for declaration-forbidden members.
+The index parser also checks non-null named values. Named missing/null states
+remain pre-default facts; dynamic entries use the index's actual null constraints.
+Undefined in an index value union allows absent keys, not undefined JSON entries.
+Multiple and non-string index signatures remain unsupported. See
+[ADR 0037](../../docs/architecture/decisions/0037-open-and-indexed-source-values.md).
+
+The callable Item slice now uses the generated full flags declaration, including
+`grantedBy`, `itemGrants`, `rulesSelections` and module namespaces. Open payloads
+remain source evidence for later interpretation; they do not automatically become
+product fields or database columns.
 
 [ADR 0036](../../docs/architecture/decisions/0036-recursive-source-unions.md) defines
 the recursive and union policies; [ADR 0035](../../docs/architecture/decisions/0035-source-value-generation-policy.md)

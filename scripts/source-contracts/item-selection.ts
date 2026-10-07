@@ -35,8 +35,8 @@ export function selectItemInput(graph: TypeGraph, summary: ExtractionSummary): G
   add('src/module/item/base/data/system.ts#ItemDescriptionSource', 'ItemDescriptionSource');
   add('src/module/data.ts#PublicationData', 'PublicationData');
   const flags = object('src/module/item/base/data/system.ts#ItemSourceFlagsPF2e');
-  const pf2e = object(field(flags, 'pf2e').ref);
-  add(pf2e.id, 'ItemGrantFields', ['itemGrants']);
+  selection.push({declaration:flags.id,name:'ItemSourceFlagsPF2e',valueRef:flags.id,
+    module:'items/flags',fields:[],deferred:[]});
   const aggregate = lookup(graph.roots.find(root => root.documentKind === 'Item')?.ref ?? '');
   if (aggregate.kind !== 'union') throw new Error('Expected complete Item family union');
   const openTraitArrays = new Set<string>();
@@ -57,7 +57,7 @@ export function selectItemInput(graph: TypeGraph, summary: ExtractionSummary): G
   selection.push(...equipment.selection);
   const visited = new Set<string>();
   const visit = (ref: string) => { if (visited.has(ref)) return; visited.add(ref); nodeReferences(lookup(ref)).forEach(visit); };
-  selection.forEach(root => {root.fields.forEach(field => visit(field.ref)); if(root.sourceRef) visit(root.sourceRef);});
+  selection.forEach(root => {root.fields.forEach(field => visit(field.ref)); if(root.sourceRef) visit(root.sourceRef); if(root.valueRef) visit(root.valueRef);});
   return { source: summary.source, selection, nodes: graph.nodes.filter(node => visited.has(node.id)).sort((a,b) => a.id.localeCompare(b.id)),
     openTraitArrays: [...openTraitArrays].sort() };
 }

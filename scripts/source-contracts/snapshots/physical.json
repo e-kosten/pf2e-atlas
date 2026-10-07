@@ -134,12 +134,6 @@
       "value": "worn"
     },
     {
-      "id": "primitive:number",
-      "kind": "primitive",
-      "declaredAt": [],
-      "value": "number"
-    },
-    {
       "id": "src/module/item/physical/data.ts#Coins",
       "kind": "object",
       "name": "Coins",

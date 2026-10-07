@@ -13,6 +13,9 @@ const pascal = (name: string) => name.replace(/[^A-Za-z0-9]+/g, ' ').split(/\s+/
 const snake = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const rustString = (text: string) => JSON.stringify(text).replace(/\\u([0-9a-f]{4})/gi, '\\u{$1}');
 const scalarOrder = ['string', 'number', 'boolean'];
+const atomicOrder = [...scalarOrder, 'object', 'non-nullish', 'unknown', 'any'];
+const atomicDomain = (node: GraphNode): string | undefined => node.kind === 'primitive' && scalarOrder.includes(node.value)
+  ? node.value : node.kind === 'open' ? node.domain : undefined;
 
 /** Emit only supported, reachable value shapes. SourcePresence retains pre-default states. */
 export function generateRustModules(input: GenerationInput): Record<string, string> {
@@ -56,8 +59,8 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       members=[...new Set([...members.filter(id=>{const member=lookup(id);return member.kind!=='literal' || typeof member.value!=='boolean';}),boolean.id])];
       if(members.length===1)return boolean;
     }
-    if(members.every(id=>{const member=lookup(id);return member.kind==='primitive' && scalarOrder.includes(member.value);}))
-      members.sort((a,b)=>scalarOrder.indexOf((lookup(a) as GraphNode & {value:string}).value)-scalarOrder.indexOf((lookup(b) as GraphNode & {value:string}).value));
+    if(members.every(id=>atomicDomain(lookup(id))!==undefined))
+      members.sort((a,b)=>atomicOrder.indexOf(atomicDomain(lookup(a))!)-atomicOrder.indexOf(atomicDomain(lookup(b))!));
     return { ...node, members };
   };
   const valueRefs=(node:GraphNode):string[]=>node.kind==='union'?node.members:node.kind==='array'?[node.element]
@@ -67,7 +70,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
   const anchors=new Set<string>(),visited=new Set<string>(),active:string[]=[];
   const findCycles=(ref:string)=>{
     const node=normalized(ref);const start=active.indexOf(node.id);
-    if(start>=0){for(const id of active.slice(start)){const node=normalized(id);if(node.kind==='object' && !node.indexSignatures.length || node.kind==='intersection' || node.kind==='union')anchors.add(id);}return;}
+    if(start>=0){for(const id of active.slice(start)){const node=normalized(id);if(node.kind==='object' && (!node.indexSignatures.length || node.fields.length) || node.kind==='intersection' || node.kind==='union')anchors.add(id);}return;}
     if(visited.has(node.id))return;active.push(node.id);valueRefs(node).forEach(findCycles);active.pop();visited.add(node.id);
   };
   input.selection.forEach(root=>{root.fields.filter(field=>!field.forbidden).forEach(field=>findCycles(field.ref));if(root.valueRef)findCycles(root.valueRef);});
@@ -80,18 +83,22 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if (ancestors.has(node.id)) return JSON.stringify(['recursive',node.id]);
     const next = new Set([...ancestors, node.id]);
     const child = (ref: string) => signature(normalized(ref), next,canonical);
-    const collectionChild = (ref: string) => {
+    const collectionChild = (ref: string, indexed = false) => {
       const entry = lookup(ref);
-      if (entry.kind === 'union' && entry.members.some(ref => ['primitive:null', 'primitive:undefined'].includes(ref)))
+      if (entry.kind === 'union' && entry.members.some(ref => ref === 'primitive:null' || !indexed && ref === 'primitive:undefined'))
         throw new Error(`Nullable collection entries need a separate model: ${ref}`);
       return child(ref);
     };
     if (node.kind === 'object' || node.kind === 'intersection') {
       if (node.kind === 'intersection' && node.impossible) throw new Error(`Impossible selected intersection: ${node.id}`);
       if (node.kind === 'object' && node.indexSignatures.length) {
-        if (node.fields.length || node.indexSignatures.length !== 1 || node.indexSignatures[0].key !== 'primitive:string')
+        if (node.indexSignatures.length !== 1 || node.indexSignatures[0].key !== 'primitive:string')
           throw new Error(`Selected index signature is unsupported: ${node.id}`);
-        return `map:${collectionChild(node.indexSignatures[0].value)}`;
+        const indexed = collectionChild(node.indexSignatures[0].value, true);
+        if (!node.fields.length) return `map:${indexed}`;
+        return JSON.stringify(['indexed-object',
+          node.fields.filter(field => !field.forbidden).map(field => [field.name, child(field.ref)]),
+          indexed, node.fields.filter(field => field.forbidden).map(field => field.name)]);
       }
       if (node.kind === 'intersection') for (const member of node.members) {
         const constituent = normalized(member);
@@ -114,6 +121,11 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     }
     if (node.kind === 'array') return `array:${openTraitArrays.has(node.id) ? JSON.stringify(['primitive', 'string']) : collectionChild(node.element)}`;
     if (node.kind === 'primitive' || node.kind === 'literal') return JSON.stringify([node.kind, node.value]);
+    if (node.kind === 'open') {
+      if (node.fields?.length || node.indexSignatures?.length || !['any','unknown','object','non-nullish'].includes(node.domain))
+        throw new Error(`Unsupported structured open domain: ${node.id}`);
+      return JSON.stringify(['open', node.domain]);
+    }
     throw new Error(`Unsupported selected construct: ${node.id} (${node.kind})`);
   };
   // Rust layout follows inline value edges; Vec and SourceMap already break cycles.
@@ -121,7 +133,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     const node=normalized(ref);
     if(node.kind==='union') return node.members;
     if(node.kind==='tuple') return node.elements.map(element=>element.ref);
-    if((node.kind==='object' && !node.indexSignatures.length) || node.kind==='intersection')
+    if((node.kind==='object' && (!node.indexSignatures.length || node.fields.length)) || node.kind==='intersection')
       return node.fields.filter(field=>!field.forbidden).map(field=>field.ref);
     return [];
   };
@@ -149,6 +161,8 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if(node.kind==='object' || node.kind==='intersection')return new Set(['Object']);
     if(node.kind==='literal')return new Set([typeof node.value==='string'?'String':typeof node.value==='number'?'Number':'Boolean']);
     if(node.kind==='primitive')return new Set([{string:'String',number:'Number',boolean:'Boolean'}[node.value]??'Null']);
+    if(node.kind==='open')return new Set(node.domain==='object'?['Array','Object']
+      :node.domain==='non-nullish'?['Boolean','Number','String','Array','Object']:['Null','Boolean','Number','String','Array','Object']);
     throw new Error(`Unsupported union value kind: ${node.id}`);
   };
   const guard = (ref:string,v:string,seen=new Set<string>()):string => {
@@ -156,6 +170,8 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if(seen.has(node.id))throw new Error(`Recursive union identity needs a structural anchor: ${node.id}`);
     const next=new Set(seen).add(node.id);
     if(node.kind==='primitive')return `matches!(${v}, SourceValue::${{string:'String',number:'Number',boolean:'Boolean'}[node.value] ?? 'Null'}(_))`;
+    if(node.kind==='open')return node.domain==='object'?`matches!(${v}, SourceValue::Array(_) | SourceValue::Object(_))`
+      :node.domain==='non-nullish'?`!matches!(${v}, SourceValue::Null)`:'true';
     if(node.kind==='literal') {
       if(typeof node.value==='string')return `matches!(${v}, SourceValue::String(value) if value == ${rustString(node.value)})`;
       if(typeof node.value==='boolean')return `matches!(${v}, SourceValue::Boolean(value) if ${node.value?'*value':'!*value'})`;
@@ -165,7 +181,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if(node.kind==='tuple')return `matches!(${v}, SourceValue::Array(values) if values.len() == ${node.elements.length}${node.elements.map((element,index)=>{
       const child=normalized(element.ref),position=`&values[${index}]`;
       const scalar=child.kind==='literal' || child.kind==='primitive' || child.kind==='union' && child.members.every(ref=>['literal','primitive'].includes(normalized(ref).kind));
-      return ` && ${scalar?guard(element.ref,position,next):`matches!(${position}, ${[...valueKinds(element.ref)].sort().map(kind=>`SourceValue::${kind}(_)`).join(' | ')})`}`;
+      return ` && ${scalar?guard(element.ref,position,next):`matches!(${position}, ${[...valueKinds(element.ref)].sort().map(kind=>`SourceValue::${kind}${kind==='Null'?'':'(_)'}`).join(' | ')})`}`;
     }).join('')})`;
     if(node.kind==='array') {
       const element=normalized(node.element);
@@ -187,7 +203,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     const node=normalized(ref);
     if(anchored.has(node.id))return;
     const children=node.kind==='array'?[node.element]:node.kind==='tuple'?node.elements.map(element=>element.ref)
-      :node.kind==='object' && node.indexSignatures.length?node.indexSignatures.map(index=>index.value):[];
+      :node.kind==='object' && node.indexSignatures.length && !node.fields.length?node.indexSignatures.map(index=>index.value):[];
     if(!children.length)return;
     if(seen.has(node.id))throw new Error(`Recursive collection aliases need a nominal anchor: ${node.id}`);
     const next=new Set(seen).add(node.id);children.forEach(ref=>checkAliases(ref,next));anchored.add(node.id);
@@ -231,9 +247,11 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       if (!value) throw new Error(`Unsupported primitive: ${node.value}`);
       return depend(module, value);
     }
-    const scalarName=node.kind==='union' && node.members.every(ref=>{const member=lookup(ref);return member.kind==='primitive' && scalarOrder.includes(member.value);})
-      ? node.members.map(ref=>pascal((lookup(ref) as GraphNode & {value:string}).value)).join('Or'):undefined;
-    const name = allocate(node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length ? hint : node.name ?? scalarName ?? hint);
+    if (node.kind === 'open') return depend(module, {type:'SourceValue',
+      parser:node.domain==='object'?'non_primitive':node.domain==='non-nullish'?'non_nullish':'unknown'});
+    const scalarName=node.kind==='union' && node.members.every(ref=>atomicDomain(lookup(ref))!==undefined)
+      ? node.members.map(ref=>pascal(atomicDomain(lookup(ref))!)).join('Or'):undefined;
+    const name = allocate(node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length && !node.fields.length ? hint : node.name ?? scalarName ?? hint);
     const value: Owner = { type: name, parser: `read_${snake(name)}`, module, allocated:name,
       ...(node.kind==='tuple' && !node.name?{inline:true}:{}) };
     owners.set(key, value);
@@ -257,7 +275,7 @@ ${value.inline?'':`pub type ${name} = ${tupleType()};\n`}pub(in crate::source_mo
 }`);
       return value;
     }
-    if (node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length) {
+    if (node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length && !node.fields.length) {
       const array = node.kind === 'array';
       const childRef = array ? node.element : node.indexSignatures[0].value;
       const empty = array && lookup(childRef).kind === 'primitive' && (lookup(childRef) as GraphNode & { value: string }).value === 'never';
@@ -280,8 +298,12 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
         const boxed=boxedEdge(node,field.ref);
         return { field, child, rust: rustField(snake(field.name)),boxed };
       });
+      const indexed = node.kind==='object' && node.indexSignatures.length
+        ? emit(node.indexSignatures[0].value, name+'IndexedEntry', module) : undefined;
+      const forbidden = node.fields.filter(field=>field.forbidden).map(field=>rustString(field.name)).join(', ');
       const names = fields.map(field => field.rust);
       if (new Set(names).size !== names.length || names.includes('additional_fields')
+        || indexed && names.includes('indexed_fields')
         )
         throw new Error(`Invalid or unsupported Rust field names: ${node.id}`);
       output.declarations.push(()=>`// Source declaration: ${node.id}
@@ -289,13 +311,14 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
 pub struct ${name} {
 ${fields.map(({ field, child, rust, boxed }) => `    // Declared optional=${field.optional}, nullable=${field.nullable}; retained before defaults.
     pub ${rust}: SourcePresence<${boxed?`Box<${child.type}>`:child.type}>,`).join('\n')}
-    pub additional_fields: SourceObject,
+${indexed?`    pub indexed_fields: crate::source_model::SourceMap<${indexed.type}>,\n`:''}    pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
     let f = Fields::new(v, c, p)?;
     Ok(${name} {
 ${fields.map(({ field, child, rust, boxed }) => `        ${rust}: f.presence(${rustString(field.name)}, ${boxed?`|v, c, p| ${child.parser}(v, c, p).map(Box::new)`:child.parser})?,`).join('\n')}
-        additional_fields: f.remaining(&[${fields.map(({ field }) => rustString(field.name)).join(', ')}]),
+${indexed?`        indexed_fields: f.indexed(&[${fields.map(({field})=>rustString(field.name)).join(', ')}], &[${forbidden}], ${indexed.parser})?,\n        additional_fields: f.retained(&[${forbidden}]),`
+        :`        additional_fields: f.remaining(&[${fields.map(({field})=>rustString(field.name)).join(', ')}]),`}
     })
 }`);
       return value;
@@ -350,7 +373,7 @@ ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${va
     output.serialize=true;output.types.add(name);output.helpers.add('UnionCandidates');
     const alternatives=members.map((member,index)=>{
       const child=emit(member.id,name+'Alternative'+(index+1),module);
-      const variant=pascal(member.name ?? (member.kind==='primitive'?member.value:'Alternative'+(index+1)));
+      const variant=pascal(member.name ?? (member.kind==='primitive'?member.value:member.kind==='open'?member.domain:'Alternative'+(index+1)));
       const boxed=boxedEdge(node,member.id);
       if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_required');
       if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_object');
