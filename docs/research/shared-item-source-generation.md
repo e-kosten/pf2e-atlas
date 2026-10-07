@@ -2,6 +2,9 @@
 
 Date: 2026-10-06
 
+The later [open/indexed source report](./open-source-generation.md) records the
+replacement of the partial flags slice with generated complete Item flags.
+
 ## Selected model
 
 Compiler-derived generation now covers shared Item description, publication,

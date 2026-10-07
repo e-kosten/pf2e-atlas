@@ -90,12 +90,6 @@
       "readonly": false
     },
     {
-      "id": "primitive:object",
-      "kind": "open",
-      "declaredAt": [],
-      "domain": "object"
-    },
-    {
       "id": "src/module/apps/pick-a-thing-prompt.ts#PickableThing@c7b069aeecdb71fec02355c2",
       "kind": "object",
       "name": "PickableThing",
@@ -706,16 +700,6 @@
       "declaredAt": [],
       "members": [
         "primitive:number",
-        "primitive:string"
-      ]
-    },
-    {
-      "id": "structural:c7b069aeecdb71fec02355c2",
-      "kind": "union",
-      "declaredAt": [],
-      "members": [
-        "primitive:number",
-        "primitive:object",
         "primitive:string"
       ]
     },

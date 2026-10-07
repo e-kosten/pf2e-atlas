@@ -26,8 +26,8 @@ equivalent value structures under the explicit pre-default presence policy.
 Input optional/null/undefined facts and declaration provenance remain intact.
 Output partitioning follows module ownership with explicit cross-module imports;
 it is not separate per-family generation. Content modules are items/common,
-items/traits, physical and items/equipment. Generate only modules with definitions
-or existing children.
+items/flags, items/traits, physical, items/equipment and rules/predicate.
+Generate only modules with definitions or existing children.
 
 `atlas-ingest/src/source_model/generated` owns generated Rust and its explicit
 module/re-export indexes. Handwritten source presence, ordered values, parsing

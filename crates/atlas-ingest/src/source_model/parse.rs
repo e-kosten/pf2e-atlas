@@ -143,6 +143,82 @@ impl<'a> Fields<'a> {
                 .collect(),
         }
     }
+    pub(super) fn retained(&self, names: &[&str]) -> SourceObject {
+        SourceObject {
+            fields: self
+                .object
+                .fields
+                .iter()
+                .filter(|(key, _)| names.contains(&key.as_str()))
+                .cloned()
+                .collect(),
+        }
+    }
+    /// Index signatures constrain named values too. Preserve named nulls before
+    /// defaults, and retain forbidden declarations as raw additional members.
+    pub(super) fn indexed<T>(
+        &self,
+        known: &[&str],
+        forbidden: &[&str],
+        parse: impl Fn(&SourceValue, &SourceContext, &str) -> ParseResult<T>,
+    ) -> ParseResult<super::SourceMap<T>> {
+        let mut keys = std::collections::HashSet::new();
+        let mut entries = Vec::new();
+        for (key, value) in &self.object.fields {
+            if forbidden.contains(&key.as_str()) {
+                continue;
+            }
+            let entry_path = keyed_path(self.context, self.path, key)?;
+            if !keys.insert(key) {
+                return Err(self.context.message(
+                    &entry_path,
+                    "one keyed member",
+                    "duplicate members",
+                ));
+            }
+            if known.contains(&key.as_str()) {
+                if !matches!(value, SourceValue::Null) {
+                    parse(value, self.context, &entry_path)?;
+                }
+            } else {
+                entries.push((key.clone(), parse(value, self.context, &entry_path)?));
+            }
+        }
+        Ok(super::SourceMap { entries })
+    }
+}
+pub(super) fn unknown(
+    value: &SourceValue,
+    _context: &SourceContext,
+    _path: &str,
+) -> ParseResult<SourceValue> {
+    Ok(value.clone())
+}
+pub(super) fn non_primitive(
+    value: &SourceValue,
+    context: &SourceContext,
+    path: &str,
+) -> ParseResult<SourceValue> {
+    if matches!(value, SourceValue::Array(_) | SourceValue::Object(_)) {
+        Ok(value.clone())
+    } else {
+        Err(context.error(path, "non-primitive JSON value (object or array)", value))
+    }
+}
+#[allow(
+    dead_code,
+    reason = "Generated explicit-empty domains use this primitive; the current production selection has none."
+)]
+pub(super) fn non_nullish(
+    value: &SourceValue,
+    context: &SourceContext,
+    path: &str,
+) -> ParseResult<SourceValue> {
+    if matches!(value, SourceValue::Null) {
+        Err(context.error(path, "non-null JSON value", value))
+    } else {
+        Ok(value.clone())
+    }
 }
 pub(super) fn string(
     value: &SourceValue,
@@ -206,15 +282,19 @@ pub(super) fn keyed<T>(
     let mut keys = std::collections::HashSet::new();
     let mut entries = Vec::new();
     for (key, value) in &object.fields {
-        let key_path = serde_json::to_string(key)
-            .map_err(|error| context.message(path, "serializable source key", error.to_string()))?;
-        let entry_path = format!("{path}[{key_path}]");
+        let entry_path = keyed_path(context, path, key)?;
         if !keys.insert(key) {
             return Err(context.message(&entry_path, "one keyed member", "duplicate members"));
         }
         entries.push((key.clone(), parse(value, context, &entry_path)?));
     }
     Ok(super::SourceMap { entries })
+}
+
+fn keyed_path(context: &SourceContext, path: &str, key: &str) -> ParseResult<String> {
+    let key = serde_json::to_string(key)
+        .map_err(|error| context.message(path, "serializable source key", error.to_string()))?;
+    Ok(format!("{path}[{key}]"))
 }
 
 pub(super) fn tuple<'a>(

@@ -5,4 +5,5 @@
 
 pub(in crate::source_model::generated) mod common;
 pub(in crate::source_model::generated) mod equipment;
+pub(in crate::source_model::generated) mod flags;
 pub(in crate::source_model::generated) mod traits;

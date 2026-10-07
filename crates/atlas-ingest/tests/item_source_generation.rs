@@ -145,8 +145,10 @@ fn keyed_grants_are_typed_ordered_and_keep_unknown_fields() {
         grants.entries[0].1.additional_fields.fields()[0].0,
         "future"
     );
-    assert_eq!(pf2e.additional_fields.fields()[0].0, "other");
-    assert_eq!(flags.additional_fields.fields()[0].0, "module");
+    assert_eq!(pf2e.indexed_fields.entries[0].0, "other");
+    assert_eq!(flags.indexed_fields.entries[0].0, "module");
+    assert!(pf2e.additional_fields.fields().is_empty());
+    assert!(flags.additional_fields.fields().is_empty());
 }
 
 #[test]
@@ -228,5 +230,95 @@ fn malformed_modeled_values_fail_with_nested_context() {
         .unwrap_err();
         assert_eq!(error.json_path, path, "{text}");
         assert_eq!(error.context.record_key, "pack:id");
+    }
+}
+
+#[test]
+fn complete_flags_model_grants_selections_and_open_namespaces() {
+    let item = parse(
+        r#"{"type":"feat","system":{},"flags":{"pf2e":{"grantedBy":{"id":"parent","onDelete":"cascade"},
+        "rulesSelections":{"name":"choice","rank":18446744073709551615,"object":{"x":1,"x":2},"array":[null,3]},
+        "future":{"x":1,"x":2}},"module":{"enabled":true,"payload":null,"values":[1,2]}}}"#,
+    );
+    let SourcePresence::Value(flags) = item.flags else {
+        panic!()
+    };
+    let SourcePresence::Value(pf2e) = flags.pf2e else {
+        panic!()
+    };
+    let SourcePresence::Value(granted) = pf2e.granted_by else {
+        panic!()
+    };
+    assert_eq!(granted.id, SourcePresence::Value("parent".into()));
+    let SourcePresence::Value(selections) = pf2e.rules_selections else {
+        panic!()
+    };
+    assert_eq!(
+        selections
+            .entries
+            .iter()
+            .map(|(key, _)| key.as_str())
+            .collect::<Vec<_>>(),
+        vec!["name", "rank", "object", "array"]
+    );
+    let serialized = serde_json::to_value(selections).unwrap();
+    assert_eq!(
+        serialized["entries"][1][1],
+        serde_json::json!(18446744073709551615u64)
+    );
+    assert_eq!(
+        serialized["entries"][2][1]["Object"]["fields"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    let atlas_ingest::SourceValue::Object(future) = &pf2e.indexed_fields.entries[0].1 else {
+        panic!()
+    };
+    assert_eq!(future.fields().len(), 2);
+    let module = &flags.indexed_fields.entries[0].1;
+    assert_eq!(
+        module
+            .entries
+            .iter()
+            .map(|(key, _)| key.as_str())
+            .collect::<Vec<_>>(),
+        vec!["enabled", "payload", "values"]
+    );
+    assert!(matches!(
+        module.entries[1].1,
+        atlas_ingest::SourceValue::Null
+    ));
+}
+
+#[test]
+fn new_flags_fields_reject_bad_declared_values_without_widening_open_data() {
+    for (flags, path) in [
+        (
+            r#"{"pf2e":{"rulesSelections":{"x":false}}}"#,
+            r#"$.flags.pf2e.rulesSelections["x"]"#,
+        ),
+        (
+            r#"{"pf2e":{"rulesSelections":{"x":null}}}"#,
+            r#"$.flags.pf2e.rulesSelections["x"]"#,
+        ),
+        (
+            r#"{"pf2e":{"grantedBy":{"onDelete":"unknown"}}}"#,
+            "$.flags.pf2e.grantedBy.onDelete",
+        ),
+        (r#"{"module":false}"#, r#"$.flags["module"]"#),
+        (
+            r#"{"pf2e":{"future":1,"future":2}}"#,
+            r#"$.flags.pf2e["future"]"#,
+        ),
+    ] {
+        let source = format!(r#"{{"type":"feat","system":{{}},"flags":{flags}}}"#);
+        let error = parse_item_source_slice(
+            SourceContext::new("pack:id", "fixture.json", "$"),
+            source.as_bytes(),
+        )
+        .unwrap_err();
+        assert_eq!(error.json_path, path);
     }
 }
