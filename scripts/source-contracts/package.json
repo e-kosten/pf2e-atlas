@@ -18,6 +18,8 @@
     "sample-equipment": "node dist/sample-equipment.js",
     "presample-items": "npm run build --silent",
     "sample-items": "node dist/sample-items.js",
+    "presample-predicates": "npm run build --silent",
+    "sample-predicates": "node dist/sample-predicates.js",
     "precompare-equipment": "npm run build --silent",
     "compare-equipment": "node dist/compare-equipment.js"
   },
