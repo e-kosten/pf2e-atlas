@@ -72,6 +72,16 @@ an upstream data error. Executing a pure upstream validator establishes only tha
 validator's result, not complete Foundry document/rule admission. A missing
 Foundry runtime must remain visible as `runtimeAdmission: not-executed`.
 
+Corpus investigation finishes when remaining failures have an evidence-backed
+disposition, including intentional source-model rejection and explicit runtime
+evidence gaps. Corpus presence or a small failure count alone cannot establish
+validity or invalidity. A core coercion may also conceal an authoring error or
+change a rule's meaning. Keep the declared representation for the remaining
+isolated anomalies; do not add per-record repairs, admission allowlists or
+field unions solely to accept them. Preserve contextual failures and source
+provenance. Runtime uncertainty remains separate from the decision to keep a
+source field constrained, and does not block unrelated generator capabilities.
+
 ## Consequences
 
 This developer comparison provides repeatable evidence without adding a field
