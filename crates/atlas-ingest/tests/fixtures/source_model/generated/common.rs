@@ -3,8 +3,8 @@
 // SourcePresence intentionally preserves missing/null before Foundry defaults.
 
 use crate::source_model::parse::{
-    Fields, ParseResult, SourceContext, array, boolean, keyed, non_nullish, non_primitive, number,
-    string, tuple, unknown,
+    Fields, ParseResult, SourceContext, array, boolean, keyed, matches_template, non_nullish,
+    non_primitive, number, string, tuple, unknown,
 };
 use crate::source_model::presence::SourcePresence;
 use crate::source_model::union::{UnionCandidates, union_member, union_object, union_required};
@@ -1105,4 +1105,346 @@ pub(in crate::source_model) fn parse_non_nullish_value(
     p: &str,
 ) -> ParseResult<NonNullishValue> {
     non_nullish(v, c, p)
+}
+
+// Source declaration: Color
+pub type Color = String;
+pub(in crate::source_model::generated) fn read_color(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Color> {
+    if matches!(v, SourceValue::String(value) if matches_template(value, &["#", ""])) {
+        string(v, c, p)
+    } else {
+        Err(c.error(p, "string matching Color", v))
+    }
+}
+
+// Color; deferred fields:
+pub(in crate::source_model) fn parse_color(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Color> {
+    read_color(v, c, p)
+}
+
+// Source declaration: ImagePath
+pub type ImagePath = String;
+pub(in crate::source_model::generated) fn read_image_path(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ImagePath> {
+    if matches!(v, SourceValue::String(value) if matches_template(value, &["", ".png"]))
+        || matches!(v, SourceValue::String(value) if matches_template(value, &["", ".svg"]))
+    {
+        string(v, c, p)
+    } else {
+        Err(c.error(p, "string matching ImagePath", v))
+    }
+}
+
+// ImagePath; deferred fields:
+pub(in crate::source_model) fn parse_image_path(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ImagePath> {
+    read_image_path(v, c, p)
+}
+
+// Source declaration: Uuid
+pub type Uuid = String;
+pub(in crate::source_model::generated) fn read_uuid(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Uuid> {
+    if matches!(v, SourceValue::String(value) if matches_template(value, &["Actor.", ".Item.", ""]))
+    {
+        string(v, c, p)
+    } else {
+        Err(c.error(p, "string matching Uuid", v))
+    }
+}
+
+// Uuid; deferred fields:
+pub(in crate::source_model) fn parse_uuid(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Uuid> {
+    read_uuid(v, c, p)
+}
+
+// Source declaration: TemplatePair
+pub(in crate::source_model::generated) fn read_template_tuple_union_alternative1(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<(Color,)> {
+    let values = tuple(v, c, p, 1)?;
+    Ok((read_color(&values[0], c, &format!("{p}[0]"))?,))
+}
+
+// Source declaration: TemplateTupleUnion
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum TemplateTupleUnion {
+    Alternative1((Color,)),
+    Number(Number),
+}
+pub(in crate::source_model::generated) fn read_template_tuple_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<TemplateTupleUnion> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::Array(values) if values.len() == 1 && matches!(&values[0], SourceValue::String(value) if matches_template(value, &["#", ""])))
+    {
+        candidates.push("Alternative1", || {
+            read_template_tuple_union_alternative1(v, c, p).map(TemplateTupleUnion::Alternative1)
+        });
+    }
+    if matches!(v, SourceValue::Number(_)) {
+        candidates.push("Number", || number(v, c, p).map(TemplateTupleUnion::Number));
+    }
+    candidates.finish(v, c, p)
+}
+
+// TemplateTupleUnion; deferred fields:
+pub(in crate::source_model) fn parse_template_tuple_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<TemplateTupleUnion> {
+    read_template_tuple_union(v, c, p)
+}
+
+// Source declaration: MixedTemplate
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum MixedTemplate {
+    Color(Color),
+    KnownObject(KnownObject),
+}
+pub(in crate::source_model::generated) fn read_mixed_template(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<MixedTemplate> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::String(value) if matches_template(value, &["#", ""])) {
+        candidates.push("Color", || read_color(v, c, p).map(MixedTemplate::Color));
+    }
+    if union_object(v, &["label"]) {
+        candidates.push("KnownObject", || {
+            union_required(v, c, p, &[("label", false)])
+                .and_then(|()| read_known_object(v, c, p))
+                .map(MixedTemplate::KnownObject)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// MixedTemplate; deferred fields:
+pub(in crate::source_model) fn parse_mixed_template(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<MixedTemplate> {
+    read_mixed_template(v, c, p)
+}
+
+// Source declaration: ColorTag
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ColorTag {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub tag: SourcePresence<Color>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_color_tag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ColorTag> {
+    let f = Fields::new(v, c, p)?;
+    Ok(ColorTag {
+        tag: f.presence("tag", read_color)?,
+        additional_fields: f.remaining(&["tag"]),
+    })
+}
+
+// Source declaration: UuidTag
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct UuidTag {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub tag: SourcePresence<Uuid>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_uuid_tag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<UuidTag> {
+    let f = Fields::new(v, c, p)?;
+    Ok(UuidTag {
+        tag: f.presence("tag", read_uuid)?,
+        additional_fields: f.remaining(&["tag"]),
+    })
+}
+
+// Source declaration: TemplateTagged
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum TemplateTagged {
+    ColorTag(ColorTag),
+    UuidTag(UuidTag),
+}
+pub(in crate::source_model::generated) fn read_template_tagged(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<TemplateTagged> {
+    let mut candidates = UnionCandidates::new();
+    if union_object(v, &["tag"])
+        && union_member(
+            v,
+            "tag",
+            |v| matches!(v, SourceValue::String(value) if matches_template(value, &["#", ""])),
+        )
+    {
+        candidates.push("ColorTag", || {
+            union_required(v, c, p, &[("tag", false)])
+                .and_then(|()| read_color_tag(v, c, p))
+                .map(TemplateTagged::ColorTag)
+        });
+    }
+    if union_object(v, &["tag"])
+        && union_member(
+            v,
+            "tag",
+            |v| matches!(v, SourceValue::String(value) if matches_template(value, &["Actor.", ".Item.", ""])),
+        )
+    {
+        candidates.push("UuidTag", || {
+            union_required(v, c, p, &[("tag", false)])
+                .and_then(|()| read_uuid_tag(v, c, p))
+                .map(TemplateTagged::UuidTag)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// TemplateTagged; deferred fields:
+pub(in crate::source_model) fn parse_template_tagged(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<TemplateTagged> {
+    read_template_tagged(v, c, p)
+}
+
+// Source declaration: OverlappingTemplates
+pub type OverlappingTemplates = String;
+pub(in crate::source_model::generated) fn read_overlapping_templates(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OverlappingTemplates> {
+    if matches!(v, SourceValue::String(value) if matches_template(value, &["Actor.", ".Item.", ""]))
+        || matches!(v, SourceValue::String(value) if matches_template(value, &["Actor.", ""]))
+    {
+        string(v, c, p)
+    } else {
+        Err(c.error(p, "string matching OverlappingTemplates", v))
+    }
+}
+
+// OverlappingTemplates; deferred fields:
+pub(in crate::source_model) fn parse_overlapping_templates(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OverlappingTemplates> {
+    read_overlapping_templates(v, c, p)
+}
+
+// Source declaration: Generic:first
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceFromSchemaFirstSchema {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub first: SourcePresence<String>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_source_from_schema_first_schema(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<SourceFromSchemaFirstSchema> {
+    let f = Fields::new(v, c, p)?;
+    Ok(SourceFromSchemaFirstSchema {
+        first: f.presence("first", string)?,
+        additional_fields: f.remaining(&["first"]),
+    })
+}
+
+// Source declaration: Generic:second
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SourceFromSchemaSecondSchema {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub second: SourcePresence<Number>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_source_from_schema_second_schema(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<SourceFromSchemaSecondSchema> {
+    let f = Fields::new(v, c, p)?;
+    Ok(SourceFromSchemaSecondSchema {
+        second: f.presence("second", number)?,
+        additional_fields: f.remaining(&["second"]),
+    })
+}
+
+// Source declaration: GenericUnion
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum GenericUnion {
+    SourceFromSchemaFirstSchema(SourceFromSchemaFirstSchema),
+    SourceFromSchemaSecondSchema(SourceFromSchemaSecondSchema),
+}
+pub(in crate::source_model::generated) fn read_generic_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<GenericUnion> {
+    let mut candidates = UnionCandidates::new();
+    if union_object(v, &["first"]) {
+        candidates.push("SourceFromSchemaFirstSchema", || {
+            union_required(v, c, p, &[("first", false)])
+                .and_then(|()| read_source_from_schema_first_schema(v, c, p))
+                .map(GenericUnion::SourceFromSchemaFirstSchema)
+        });
+    }
+    if union_object(v, &["second"]) {
+        candidates.push("SourceFromSchemaSecondSchema", || {
+            union_required(v, c, p, &[("second", false)])
+                .and_then(|()| read_source_from_schema_second_schema(v, c, p))
+                .map(GenericUnion::SourceFromSchemaSecondSchema)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// GenericUnion; deferred fields:
+pub(in crate::source_model) fn parse_generic_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<GenericUnion> {
+    read_generic_union(v, c, p)
 }

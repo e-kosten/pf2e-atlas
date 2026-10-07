@@ -113,6 +113,10 @@ entries, preserving declaration-forbidden members separately. Complete Item flag
 under `items/flags` replace the partial handwritten source slice and model grants,
 rule selections and open namespaces. See
 [ADR 0037](./decisions/0037-open-and-indexed-source-values.md).
+Template-string parsers preserve literal constraints around arbitrary string
+interpolations. Concrete generic names use named arguments or field context,
+while equivalent shapes share owners. See
+[ADR 0038](./decisions/0038-source-templates-and-generic-names.md).
 This models persisted shapes without executing predicates
 or enforcing all Foundry runtime constraints. Unselected
 and declaration-forbidden persisted members remain additional source data.
@@ -133,7 +137,9 @@ continue to reject unknown values with contextual paths.
 Recursive layout, union identity and compiled fixture policies are defined in
 [ADR 0036](./decisions/0036-recursive-source-unions.md); the
 [predicate comparison](../research/recursive-source-generation.md) records
-corpus evidence and remaining full-generation blockers.
+predicate corpus evidence. The
+[template/generic report](../research/template-source-generation.md) records
+whole-portfolio compilation, corpus discrepancies and remaining generator gaps.
 
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 

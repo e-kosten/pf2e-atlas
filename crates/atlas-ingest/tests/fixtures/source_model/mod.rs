@@ -20,6 +20,90 @@ mod tests {
         parse::SourceContext::new("fixture", "fixture.json", "$")
     }
     #[test]
+    fn template_strings_preserve_literals_and_arbitrary_interpolations() {
+        for text in ["#", "#蓝\n.[]", "#ff00ff"] {
+            let raw = value::SourceValue::String(text.into());
+            assert_eq!(generated::parse_color(&raw, &context(), "$").unwrap(), text);
+        }
+        for text in ["Actor..Item.", "Actor.a.Item.b", "Actor.a.Item.x.Item.b"] {
+            let raw = value::SourceValue::String(text.into());
+            assert_eq!(generated::parse_uuid(&raw, &context(), "$").unwrap(), text);
+        }
+        for text in [".png", "图片\n.svg", "[a](b).png"] {
+            let raw = value::SourceValue::String(text.into());
+            assert_eq!(
+                generated::parse_image_path(&raw, &context(), "$").unwrap(),
+                text
+            );
+        }
+        for text in ["xActor.a.Item.b", "Actor.a", "actor.a.Item.b"] {
+            let raw = value::SourceValue::String(text.into());
+            assert_eq!(
+                generated::parse_uuid(&raw, &context(), "$.uuid")
+                    .unwrap_err()
+                    .json_path,
+                "$.uuid"
+            );
+        }
+        for text in ["x.png.bad", "image.PNG", "imagepng"] {
+            let raw = value::SourceValue::String(text.into());
+            assert!(generated::parse_image_path(&raw, &context(), "$").is_err());
+        }
+        assert!(!parse::matches_template("x", &["", "x", "x"]));
+        assert!(parse::matches_template("xx", &["", "x", "x"]));
+        assert!(parse::matches_template("🙂", &["", "", ""]));
+    }
+    #[test]
+    fn template_constraints_identify_mixed_and_tuple_union_arms() {
+        for source in [json!("#"), json!({"label":"x"})] {
+            let raw = value::parse_source(&serde_json::to_vec(&source).unwrap()).unwrap();
+            generated::parse_mixed_template(&raw, &context(), "$").unwrap();
+        }
+        for source in [json!(["#蓝"]), json!(3)] {
+            let raw = value::parse_source(&serde_json::to_vec(&source).unwrap()).unwrap();
+            let parsed = generated::parse_template_tuple_union(&raw, &context(), "$").unwrap();
+            assert_eq!(serde_json::to_value(parsed).unwrap(), source);
+        }
+        let raw = value::parse_source(br#"["bad"]"#).unwrap();
+        assert!(generated::parse_template_tuple_union(&raw, &context(), "$").is_err());
+        let raw = value::SourceValue::String("Actor.a.Item.b".into());
+        assert_eq!(
+            generated::parse_overlapping_templates(&raw, &context(), "$").unwrap(),
+            "Actor.a.Item.b"
+        );
+        let raw = value::parse_source(r##"{"color":"#蓝","image":"x.svg"}"##.as_bytes()).unwrap();
+        generated::parse_template_consumer(&raw, &context(), "$").unwrap();
+        let raw = value::SourceValue::Boolean(false);
+        assert!(generated::parse_color(&raw, &context(), "$").is_err());
+    }
+    #[test]
+    fn instantiated_generic_owners_compile_share_and_parse() {
+        for source in [
+            json!({"first":"x"}),
+            json!({"second":18446744073709551615u64}),
+        ] {
+            let raw = value::parse_source(&serde_json::to_vec(&source).unwrap()).unwrap();
+            let parsed = generated::parse_generic_union(&raw, &context(), "$").unwrap();
+            let actual = serde_json::to_value(parsed).unwrap();
+            for (name, expected) in source.as_object().unwrap() {
+                assert_eq!(&actual[name]["value"], expected);
+            }
+        }
+        let raw = value::parse_source(br#"{"repeated":{"first":"x"},"anonymous":{"anonymous":3}}"#)
+            .unwrap();
+        generated::parse_generic_consumer(&raw, &context(), "$").unwrap();
+    }
+    #[test]
+    fn required_template_fields_discriminate_object_alternatives() {
+        for tag in ["#", "Actor.a.Item.b"] {
+            let raw =
+                value::parse_source(&serde_json::to_vec(&json!({"tag":tag})).unwrap()).unwrap();
+            generated::parse_template_tagged(&raw, &context(), "$").unwrap();
+        }
+        let raw = value::parse_source(br#"{"tag":"unmatched"}"#).unwrap();
+        assert!(generated::parse_template_tagged(&raw, &context(), "$").is_err());
+    }
+    #[test]
     fn mixed_inline_cycles_have_compilable_owners_and_finite_parsing() {
         let value =
             value::parse_source(br#"{"next":{"expression":"a"},"expression":{"next":null}}"#)
