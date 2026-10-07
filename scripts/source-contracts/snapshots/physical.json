@@ -1,0 +1,525 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "PhysicalEquipmentFields",
+      "declaration": "src/module/item/physical/data.ts#PhysicalSystemSource",
+      "fields": [
+        {
+          "name": "equipped",
+          "ref": "src/module/item/physical/data.ts#EquippedData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 30,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hp",
+          "ref": "src/module/item/physical/data.ts#PhysicalItemHPSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 27,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "price",
+          "ref": "src/module/item/physical/data.ts#PartialPrice",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 29,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "usage",
+          "ref": "structural:6837a658c594450e7cd04388",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 35,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "deferred": [
+        "_migration",
+        "activations",
+        "apex",
+        "baseItem",
+        "bulk",
+        "containerId",
+        "description",
+        "hardness",
+        "identification",
+        "level",
+        "material",
+        "publication",
+        "quantity",
+        "rules",
+        "schema",
+        "size",
+        "slug",
+        "subitems",
+        "temporary",
+        "traits"
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:boolean:false",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": false
+    },
+    {
+      "id": "literal:boolean:true",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": true
+    },
+    {
+      "id": "literal:number:0",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 0
+    },
+    {
+      "id": "literal:number:1",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 1
+    },
+    {
+      "id": "literal:number:2",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 2
+    },
+    {
+      "id": "literal:string:\"attached\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "attached"
+    },
+    {
+      "id": "literal:string:\"dropped\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dropped"
+    },
+    {
+      "id": "literal:string:\"held\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "held"
+    },
+    {
+      "id": "literal:string:\"stowed\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "stowed"
+    },
+    {
+      "id": "literal:string:\"worn\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "worn"
+    },
+    {
+      "id": "primitive:null",
+      "kind": "primitive",
+      "declaredAt": [],
+      "value": "null"
+    },
+    {
+      "id": "primitive:number",
+      "kind": "primitive",
+      "declaredAt": [],
+      "value": "number"
+    },
+    {
+      "id": "primitive:string",
+      "kind": "primitive",
+      "declaredAt": [],
+      "value": "string"
+    },
+    {
+      "id": "primitive:undefined",
+      "kind": "primitive",
+      "declaredAt": [],
+      "value": "undefined"
+    },
+    {
+      "id": "src/module/item/physical/data.ts#Coins",
+      "kind": "object",
+      "name": "Coins",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 151,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "cp",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 155,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "gp",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 153,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "pp",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 152,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sp",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 154,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#EquippedData",
+      "kind": "object",
+      "name": "EquippedData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 115,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "carryType",
+          "ref": "structural:ca6f96d552c71940f3c9ab3a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 116,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "handsHeld",
+          "ref": "structural:85d60dcd51d329d46042fc59",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 118,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "inSlot",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 117,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "invested",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 119,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#PartialPrice",
+      "kind": "object",
+      "name": "PartialPrice",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 158,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "per",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 160,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sizeSensitive",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 162,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "src/module/item/physical/data.ts#Coins",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 159,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#PhysicalItemHPSource",
+      "kind": "object",
+      "name": "PhysicalItemHPSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 142,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "max",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 144,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 143,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#PhysicalSystemSource.usage.$object@71a25e0f497be6d0a2f2a3a9",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 35,
+          "column": 13
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 35,
+              "column": 15
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:51a25f49de60e2f035745d37",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:6837a658c594450e7cd04388",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/physical/data.ts#PhysicalSystemSource.usage.$object@71a25e0f497be6d0a2f2a3a9"
+      ]
+    },
+    {
+      "id": "structural:8370691b5ffe37d8846141b0",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "primitive:null",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:85d60dcd51d329d46042fc59",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:number:0",
+        "literal:number:1",
+        "literal:number:2",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:ca6f96d552c71940f3c9ab3a",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"attached\"",
+        "literal:string:\"dropped\"",
+        "literal:string:\"held\"",
+        "literal:string:\"stowed\"",
+        "literal:string:\"worn\""
+      ]
+    },
+    {
+      "id": "structural:db517e8d19c28591a8d6aa13",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:number",
+        "primitive:undefined"
+      ]
+    }
+  ]
+}
