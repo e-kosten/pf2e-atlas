@@ -134,6 +134,8 @@ declaration origin; strict arrays retain their boundary.
 ChoiceSet preserves omitted constructor-defaulted predicates. DamageDice override
 types/sizes remain authored strings and dice counts preserve numeric or expression
 forms. Strike scalar traits follow the array's explicit vocabulary policy.
+Nested BattleForm strike base types preserve authored strings at the pinned
+`baseItem` handoff; direct Strike retains its closed base-type vocabulary.
 Union parsing excludes declaration-forbidden keys during arm selection and prefers
 anchored shapes over broad open/optional-only fallbacks, retaining nested errors
 without bypassing them through open JSON.

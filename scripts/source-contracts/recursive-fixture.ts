@@ -94,7 +94,7 @@ export function recursiveFixture():GenerationInput {
   nodes.push(object('IwrSchema',[iwrType(),field('exceptions','Strings')]),
     object('NestedIwr',[iwrType(),field('exceptions','Strings')]),
     {id:'NestedIwrArray',kind:'array',element:'NestedIwr',readonly:false},
-    object('FormSchema',[field('immunities','NestedIwrArray')]));
+    object('FormSchema',[field('immunities','NestedIwrArray'),field('strikes','FixtureBattleStrikes',true)]));
   const rules=authoredRuleFixture();
   nodes.push(...rules.nodes.filter(node=>!nodes.some(existing=>existing.id===node.id)));
   const authored=authoredRuleInputs({format:'atlas-source-type-graph/v1',typescript:'fixture',complete:true,status:'complete',
@@ -103,7 +103,7 @@ export function recursiveFixture():GenerationInput {
       {field:'selectors',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'StrictArrayField',declaredAt:[]}]},
       {file:'fixture',name:'IwrSchema',ruleKey:'Immunity',ref:'IwrSchema',arrayInputs:[
         {field:'type',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'ArrayField',declaredAt:iwrDeclaration}]},
-      {file:'fixture',name:'FormSchema',ruleKey:'BattleForm',ref:'FormSchema',arrayInputs:[]},...rules.roots]},['FixtureTraits']);
+      {file:'fixture',name:'FormSchema',ruleKey:'BattleForm',ref:'FormSchema',arrayInputs:[]},...rules.roots.filter(root=>root.ruleKey!=='BattleForm')]},['FixtureTraits']);
   return {source:{system_version:'fixture',source_digest:'fixture',input_file_count:1,git_commit:null,git_clean:null},nodes:authored.graph.nodes,openTraitArrays:['FixtureTraits'],
     selection:[...['Node','Expr','Empty','Single','Discriminated','Strict','Loose','Yes','One','DivineFonts'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'TupleEntry',declaration:'NestedTuple',valueRef:'NestedTuple',module:'common',fields:[],deferred:[]},

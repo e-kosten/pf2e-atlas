@@ -1,5 +1,21 @@
 import type { GraphField, GraphNode, TypeGraph } from './contracts.js';
 
+export function battleFormStrikeFixture(): GraphNode[] {
+  const field = (name: string, ref: string, optional = true, nullable = false): GraphField => ({
+    name, ref, optional, nullable, undefinedAllowed: optional, forbidden: false,
+    declaredAt: [{ file: 'src/module/rules/rule-element/battle-form/types.ts', line: 1, column: 1 }],
+  });
+  return [
+    ...(['string', 'number', 'null', 'undefined'] as const).map(value => ({ id: `primitive:${value}`, kind: 'primitive' as const, value })),
+    { id: 'FixtureClaw', kind: 'literal', value: 'claw' },
+    { id: 'FixtureBaseType', kind: 'union', members: ['FixtureClaw', 'primitive:null', 'primitive:undefined'] },
+    { id: 'FixtureRange', kind: 'object', fields: [field('increment', 'primitive:number')], indexSignatures: [] },
+    { id: 'BattleFormStrike', name: 'BattleFormStrike', kind: 'object', fields: [
+      field('baseType', 'FixtureBaseType', true, true), field('range', 'FixtureRange')], indexSignatures: [] },
+    { id: 'FixtureBattleStrikes', kind: 'object', fields: [], indexSignatures: [{ key: 'primitive:string', value: 'BattleFormStrike', readonly: false }] },
+  ];
+}
+
 /** Small constructor-shape regressions; the corpus comparison uses upstream declarations. */
 export function authoredRuleFixture(): TypeGraph {
   const choiceFile = 'src/module/rules/rule-element/choice-set/data.ts';
@@ -32,7 +48,9 @@ export function authoredRuleFixture(): TypeGraph {
     object('DamageRule', [field('override', 'DamageDiceOverride')]),
     { id: 'FixtureTrait', kind: 'literal', value: 'agile' },
     { id: 'FixtureTraits', kind: 'array', element: 'FixtureTrait', readonly: false },
-    object('StrikeRule', [field('traits', 'FixtureTraits')]),
+    object('StrikeRule', [field('traits', 'FixtureTraits'), { ...field('baseType', 'FixtureBaseType', true), nullable: true }]),
+    ...battleFormStrikeFixture().filter(node => !['primitive:string', 'primitive:number', 'primitive:undefined'].includes(node.id)),
+    object('BattleRule', [field('strikes', 'FixtureBattleStrikes')]),
   ];
   return { format: 'atlas-source-type-graph/v1', typescript: 'fixture', complete: true, status: 'complete',
     diagnostics: [], projectDiagnostics: { selected: [], unrelated: [] }, nodes, roots: [
@@ -40,5 +58,6 @@ export function authoredRuleFixture(): TypeGraph {
       { file: damageFile, name: 'DamageRule', ruleKey: 'DamageDice', ref: 'DamageRule', arrayInputs: [] },
       { file: 'fixture', name: 'StrikeRule', ruleKey: 'Strike', ref: 'StrikeRule', arrayInputs: [
         { field: 'traits', arrayRef: 'FixtureTraits', elementRef: 'FixtureTrait', fieldClass: 'ArrayField', declaredAt: [] }] },
+      { file: 'fixture', name: 'BattleRule', ruleKey: 'BattleForm', ref: 'BattleRule', arrayInputs: [] },
     ] };
 }

@@ -9,7 +9,7 @@ use crate::source_model::generated::common::{
     read_source_from_schema_first_schema, read_string_or_number, read_yes,
 };
 use crate::source_model::parse::{
-    Fields, ParseResult, SourceContext, array, boolean, non_primitive, number, string,
+    Fields, ParseResult, SourceContext, array, boolean, keyed, non_primitive, number, string,
 };
 use crate::source_model::presence::SourcePresence;
 use crate::source_model::union::{UnionCandidates, union_member, union_object, union_required};
@@ -296,11 +296,64 @@ pub(in crate::source_model::generated) fn read_form_schema_immunities(
     array(v, c, p, read_nested_iwr)
 }
 
+// Source declaration: FixtureRange
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct BattleFormStrikeRange {
+    // Declared optional=true, nullable=false; retained before defaults.
+    pub increment: SourcePresence<Number>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_battle_form_strike_range(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<BattleFormStrikeRange> {
+    let f = Fields::new(v, c, p)?;
+    Ok(BattleFormStrikeRange {
+        increment: f.presence("increment", number)?,
+        additional_fields: f.remaining(&["increment"]),
+    })
+}
+
+// Source declaration: BattleFormStrike#authored-input:baseType
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct BattleFormStrike {
+    // Declared optional=true, nullable=true; retained before defaults.
+    pub base_type: SourcePresence<String>,
+    // Declared optional=true, nullable=false; retained before defaults.
+    pub range: SourcePresence<BattleFormStrikeRange>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_battle_form_strike(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<BattleFormStrike> {
+    let f = Fields::new(v, c, p)?;
+    Ok(BattleFormStrike {
+        base_type: f.presence("baseType", string)?,
+        range: f.presence("range", read_battle_form_strike_range)?,
+        additional_fields: f.remaining(&["baseType", "range"]),
+    })
+}
+
+// Source declaration: FixtureBattleStrikes#authored-input
+pub type FormSchemaStrikes = crate::source_model::SourceMap<BattleFormStrike>;
+pub(in crate::source_model::generated) fn read_form_schema_strikes(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<FormSchemaStrikes> {
+    keyed(v, c, p, read_battle_form_strike)
+}
+
 // Source declaration: FormSchema#authored-input
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct FormSchema {
     // Declared optional=false, nullable=false; retained before defaults.
     pub immunities: SourcePresence<FormSchemaImmunities>,
+    // Declared optional=true, nullable=false; retained before defaults.
+    pub strikes: SourcePresence<FormSchemaStrikes>,
     pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn read_form_schema(
@@ -311,7 +364,8 @@ pub(in crate::source_model::generated) fn read_form_schema(
     let f = Fields::new(v, c, p)?;
     Ok(FormSchema {
         immunities: f.presence("immunities", read_form_schema_immunities)?,
-        additional_fields: f.remaining(&["immunities"]),
+        strikes: f.presence("strikes", read_form_schema_strikes)?,
+        additional_fields: f.remaining(&["immunities", "strikes"]),
     })
 }
 
@@ -634,11 +688,29 @@ pub(in crate::source_model) fn parse_authored_damage_rule(
     read_damage_rule(v, c, p)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum StrikeRuleBaseType {
+    #[serde(rename = "claw")]
+    Claw,
+}
+pub(in crate::source_model::generated) fn read_strike_rule_base_type(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<StrikeRuleBaseType> {
+    match string(v, c, p)?.as_str() {
+        "claw" => Ok(StrikeRuleBaseType::Claw),
+        _ => Err(c.error(p, "claw", v)),
+    }
+}
+
 // Source declaration: StrikeRule#authored-input:traits
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct StrikeRule {
     // Declared optional=false, nullable=false; retained before defaults.
     pub traits: SourcePresence<AuthoredArraySchemaSelector>,
+    // Declared optional=true, nullable=true; retained before defaults.
+    pub base_type: SourcePresence<StrikeRuleBaseType>,
     pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn read_strike_rule(
@@ -649,7 +721,8 @@ pub(in crate::source_model::generated) fn read_strike_rule(
     let f = Fields::new(v, c, p)?;
     Ok(StrikeRule {
         traits: f.presence("traits", read_authored_array_schema_selector)?,
-        additional_fields: f.remaining(&["traits"]),
+        base_type: f.presence("baseType", read_strike_rule_base_type)?,
+        additional_fields: f.remaining(&["traits", "baseType"]),
     })
 }
 

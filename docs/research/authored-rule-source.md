@@ -69,6 +69,16 @@ their extracted types. `valueChanges` identifies the six changed declaration
 fields and their provenance. This represents source expressions, not evaluation
 or proof that every expression resolves successfully.
 
+BattleForm's nested strike `baseType` also has an authored string projection,
+bringing `valueChanges` to seven fields. Its [schema](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/module/rules/rule-element/battle-form/rule-element.ts#L106)
+stores `strikes` as ObjectField, and the [preparation handoff](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/module/rules/rule-element/battle-form/rule-element.ts#L384)
+assigns `baseItem: strikeData.baseType`. It does not assign Strike's `baseType`
+field, whose StringField has the closed base-weapon choices. Those choices cannot
+establish a restriction on this authored member. Preserve the string, null and
+missing states without changing direct Strike or the shared weapon vocabulary.
+This models the observed source boundary; it does not repair the upstream naming
+discrepancy or establish the intended gameplay effect.
+
 Generic union selection uses declaration-forbidden key absence as well as
 required keys/literals. Anchored shapes take precedence over broad open and
 optional-only fallbacks when their value kinds overlap. Competing anchors or
@@ -114,11 +124,11 @@ keys occur in packs; TokenImage and TokenName have no corpus occurrences.
 | Check | Schema shapes | Authored projection |
 | --- | ---: | ---: |
 | Rule occurrences sampled | 31,174 | 31,174 |
-| Accepted | 20,037 | 31,157 |
-| Rejected, still counted | 11,137 | 17 |
+| Accepted | 20,037 | 31,167 |
+| Rejected, still counted | 11,137 | 7 |
 | Fidelity failures among accepted occurrences | 0 | 0 |
 
-The projection recovers 11,120 occurrences, with zero acceptance regressions and
+The projection recovers 11,130 occurrences, with zero acceptance regressions and
 zero unmodeled rule keys. All occurrences of the six fully covered families
 FlatModifier, Note, EphemeralEffect, Immunity, Resistance and Weakness, plus
 RollTwice, AdjustModifier and DamageDice, now parse. ChoiceSet parses 1,527 of
@@ -128,6 +138,9 @@ Relative to PR 36's authored profile, 204 additional occurrences parse: 176
 ChoiceSet, 23 DamageDice, four BattleForm and one Strike. Comparing the same packet
 digest occurrence-by-occurrence shows zero regressions. Generic union fixes also
 increase schema-profile acceptance by 63 before applying authored projections.
+Relative to PR 37, the nested BattleForm base-type policy recovers ten more
+occurrences. The packet digest is unchanged, with zero regressions or fidelity
+failures. No further first errors are exposed in those recovered occurrences.
 
 Fidelity comparison runs in Rust before results pass through JavaScript. It
 compares every graph-declared field and presence state, recursively represented
@@ -141,26 +154,25 @@ collapse, scalar-to-array coercion, large-integer changes, lost duplicates and
 reordered additional/map entries. Generated fixtures exercise strict arrays,
 scalar/array variants, empty arrays and contextual rejection.
 
-BattleForm parses 104 of 115 occurrences, and Strike parses 679 of 680. The
+BattleForm parses 114 of 115 occurrences, and Strike parses 679 of 680. The
 remaining failures stay counted below.
 
-## Triage of all 17 remaining first errors
+## Triage of all seven remaining first errors
 
 These classifications use the pinned implementation. They are research findings;
 the generic comparison initially labels rejections unresolved and retains every
 occurrence for review. Multiple defects in one rule can remain behind its first
-error. Counts below sum to all 17 affected occurrences, not just unique examples.
+error. Counts below sum to all seven affected occurrences, not just unique examples.
 
 | Group | Occurrences | Classification and evidence |
 | --- | ---: | --- |
 | ChoiceSet nested predicate with both nor/not | 1 | Confirmed upstream predicate error under the actual pinned StatementValidator; see below. |
-| BattleForm strike baseType outside vocabulary | 10 | Unresolved declaration/corpus/runtime discrepancy; two cases were exposed after resolving nested IWR scalar inputs. No full Foundry Item validation run. |
 | BattleForm strike range number | 1 | Unresolved declaration/corpus/runtime discrepancy: `BattleFormStrike.range` is an increment/max object, but the Nature Incarnate packet authors 100. The NumberField previously cited belongs to senses, not strikes. |
 | Strike fist string | 1 | Unresolved coercion/legacy discrepancy; BooleanField does not establish acceptance without core execution. |
 | TokenLight coloration numeric strings | 3 | Unresolved cleaning/choice-validation discrepancy; numeric coercion alone cannot establish valid coloration. |
 | Sense bloodsense | 1 | Unresolved corpus/vocabulary discrepancy; the pinned Sense rule has finite StringField choices, and declarations alone do not establish migration/admission outcome. |
 
-Totals: one confirmed upstream predicate error and 16 unresolved occurrences.
+Totals: one confirmed upstream predicate error and six unresolved occurrences.
 None are ignored or declared valid merely because they occur in packs. None are
 declared invalid merely because our
 generated parser rejects them.
@@ -172,6 +184,28 @@ The upstream [range migration](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d
 converts direct Strike rules, not nested BattleForm strikes. This evidence does
 not establish migration or runtime acceptance of that nested numeric range, so
 the parser remains constrained and this occurrence stays unresolved.
+
+Focused execution of the pinned BattleForm `ruleData` mapping expression on all
+11 previously rejected BattleForm occurrences confirms that every nested
+`baseType` reaches `baseItem`, no `baseType` property is emitted, and `range`
+passes through unchanged. The mapping was selected with the TypeScript AST and
+executed without rewriting its field assignments. Localization/icon dependencies
+were supplied only to run the mapping; no Foundry cleaner, rule constructor,
+Actor/Item admission or gameplay behavior was simulated.
+
+The actual pinned Migration868 `updateItem` method was also transpiled and
+executed with a direct Strike and nested BattleForm range of 100. It changed
+the direct Strike to `{ increment: 100 }` and left the nested range at 100.
+This is evidence about that migration only, not a full migration-chain run.
+
+The pinned `SENSE_TYPES` initializer was executed and does not contain
+`bloodsense`. Sense's `defineSchema` uses exactly that set as StringField choices,
+so this discrepancy is present in the implementation as well as the declaration;
+it is not evidence of a missing compiler enum member. Full document admission
+remains unexecuted. Strike's `fist` remains BooleanField, and TokenLight forwards
+the three coloration strings to LightData without an explicit PF2e coercion.
+Foundry's core cleaner/validator is unavailable locally; neither accepting these
+values nor declaring their runtime rejection is justified by the current probes.
 
 For the one confirmed predicate error, the exact input is
 `packs/classfeatures/revolutionary-innovation.json`,
@@ -190,7 +224,7 @@ predicate's structural invalidity; complete document/rule admission was not run.
 
 ## Follow-up and adoption boundary
 
-Resolve the 16 unexplained declaration/corpus/runtime discrepancies with targeted
+Resolve the six unexplained declaration/corpus/runtime discrepancies with targeted
 upstream migration/runtime evidence. Actor/Item full-root emission still needs
 explicit nullable/undefined collection modeling. This slice does not remove
 those blockers or claim the entire source space is modeled.
