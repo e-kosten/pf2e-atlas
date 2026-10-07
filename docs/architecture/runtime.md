@@ -94,23 +94,28 @@ flowchart LR
 
 `atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or the build-input handoff. The final build-input handoff consumes ingest state into an owned `atlas-index::IndexBuildInput`; it should not be a borrowed view over `SourceLoad`. Physical SQLite artifact writing belongs in `atlas-index`.
 
-`atlas-ingest::source_model` is an independently callable source-only experiment
-for physical/equipment equipped, hp, price and usage fields. Private TypeScript
-tooling emits its checked Rust structures/parsers from a bounded declaration
-graph. Minimal Rust primitives preserve pre-default missing/null/value states,
-ordinary numbers and ordered additional members. Other equipment fields remain
-pending source values. The build pipeline does not call these parsers; this
-partial model is not full-family admission or a new record/storage contract.
-See the [comparison report](../research/equipment-source-generation.md) before
-expanding generation. Rust consumers do not launch Node.
+`atlas-ingest::source_model` exposes independently callable source-only slices
+for physical/equipment equipped, hp, price and usage, plus shared Item description,
+publication, core traits and item grants across all registered Item families.
+Its public `generated` namespace exposes the generated value models. Private
+TypeScript tooling emits checked structures/parsers from selected declaration
+graphs. Minimal Rust primitives preserve pre-default missing/null/value states,
+ordinary numbers, ordered typed map entries and additional members. Unselected
+and declaration-forbidden persisted members remain additional source data.
+The build pipeline does not call these parsers; this partial model is not
+full-family admission or a new record/storage contract. Rust consumers do not
+launch Node. See the [shared Item comparison](../research/shared-item-source-generation.md).
 
 Saved generator inputs live under `scripts/source-contracts/snapshots`, with source
 identity in one manifest and graph nodes owned once across module snapshots.
 The generator loads the entire selection before assigning shared Rust owners.
-Output is partitioned under `source_model/generated` into shared physical and
-equipment modules with explicit imports; module indexes compose existing content.
+Output is partitioned under `source_model/generated` into shared Item components,
+traits, physical and equipment modules; indexes compose existing content.
 Handwritten presence/value/diagnostic primitives remain outside that generated
-directory. See [ADR 0034](./decisions/0034-source-generation-layout.md).
+directory. See [ADR 0034](./decisions/0034-source-generation-layout.md) and
+[ADR 0035](./decisions/0035-source-value-generation-policy.md). Broad trait arrays
+have explicit open-string representation policies; closed small vocabularies
+continue to reject unknown values with contextual paths.
 
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 

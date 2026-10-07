@@ -116,11 +116,20 @@ whole selected graph. Freshness checks cover complete output sets. See
 [ADR 0034](../../architecture/decisions/0034-source-generation-layout.md).
 The production ingest pipeline remains unchanged.
 
-The bounded trial is useful, but does not establish full-portfolio generation.
-Next, trial a shared Item component and its representative arrays/keyed shapes
-before adoption. Recursion, richer unions and explicit legacy semantics remain
-unproven. The report records maintenance costs and scope differences rather than
-treating corpus acceptance as model completeness.
+The [shared Item slice](../../research/shared-item-source-generation.md) adds
+description/publication, core trait fields for all 24 families and ordered keyed
+item grants. Its 756-node input preserves declaration evidence, with 14 explicit
+open trait-array policies. All 98,651 root/embedded occurrences across 22 families
+match raw selected-value projections; fixtures cover absent book/affliction and
+malformed selected values. Forbidden persisted fields remain additional data.
+This does not establish full-family admission or full-portfolio generation.
+
+A 47-root full generation attempt reports first blockers in recursion (34),
+explicit upstream open domains (6), templates (5) and named-plus-indexed objects
+(2). Next, implement recursion/richer unions and explicit open/indexed domain
+semantics, then repeat generation across all roots. Nullable collection entries
+and tuples also remain unsupported; first blockers are not an exhaustive list.
+Full parser coverage and legacy semantic ownership still need separate evidence.
 The focused predicate scan found one malformed upstream value combining `nor`
 and `not` in revolutionary-innovation, rule 0, choice 29; Foundry's validator
 also rejects it. Track this discrepancy during corpus comparison. The pinned

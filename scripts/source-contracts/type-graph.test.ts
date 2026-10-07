@@ -15,6 +15,18 @@ const lookup = (result: TypeGraph, id: string | null) => { const node = result.n
 const rootNode = (result: TypeGraph, name: string) => { const root = result.roots.find((entry) => entry.name === name); assert.ok(root); return lookup(result, root.ref); };
 const field = (node: GraphNode, name: string) => { const found = fieldsOf(node).find((entry) => entry.name === name); assert.ok(found); return found; };
 
+test('compiler-proven impossible intersections stay distinct from valid empty objects', () => {
+  const result = extractTypeGraph(fixture, { roots: [{file:'models.ts',name:'NeverAlternatives'}] });
+  assert.equal(result.complete,true);
+  const root = rootNode(result,'NeverAlternatives');
+  const traits = lookup(result,field(root,'traits').ref);
+  assert.ok(traits.kind==='union');
+  assert.ok(traits.members.some(ref => { const node = lookup(result,ref); return node.kind==='intersection' && node.impossible; }));
+  const empty = lookup(result,field(root,'empty').ref);
+  assert.ok(empty.kind==='object' || empty.kind==='open');
+  assert.equal('impossible' in empty,false);
+});
+
 test('default portfolio follows pack kinds, complete family unions and registered schema sources', () => {
   const result = extractTypeGraph(fixture);
   assert.equal(result.complete, true, JSON.stringify(result.diagnostics));

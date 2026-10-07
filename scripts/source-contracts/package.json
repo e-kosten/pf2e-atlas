@@ -16,6 +16,8 @@
     "generate": "node dist/generate.js",
     "presample-equipment": "npm run build --silent",
     "sample-equipment": "node dist/sample-equipment.js",
+    "presample-items": "npm run build --silent",
+    "sample-items": "node dist/sample-items.js",
     "precompare-equipment": "npm run build --silent",
     "compare-equipment": "node dist/compare-equipment.js"
   },

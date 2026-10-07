@@ -18,13 +18,16 @@ contains its roots, deferred field names and canonical graph nodes. Nodes occur
 once across snapshots; references retain their global declaration identities.
 The selection orders shared base roots before refinements so base modules own
 their shared closure and refinement modules add only their additional nodes.
+Roots for each module are contiguous; interleaving would change ownership on
+manifest reload and is rejected.
 
 Load the whole selected graph before emitting Rust. A global owner table shares
 equivalent value structures under the explicit pre-default presence policy.
 Input optional/null/undefined facts and declaration provenance remain intact.
 Output partitioning follows module ownership with explicit cross-module imports;
-it is not separate per-family generation. The current modules are physical and
-items/equipment. Generate only modules with definitions or existing children.
+it is not separate per-family generation. Content modules are items/common,
+items/traits, physical and items/equipment. Generate only modules with definitions
+or existing children.
 
 `atlas-ingest/src/source_model/generated` owns generated Rust and its explicit
 module/re-export indexes. Handwritten source presence, ordered values, parsing
@@ -46,5 +49,6 @@ New families extend the module layout without copying existing shared closures.
 Generated directories are exclusively tool-owned; contributor notes belong
 outside them. Source updates intentionally regenerate inputs and Rust together.
 This establishes layout and editing rules, not full-schema generation support,
-full Foundry admission or pipeline/storage/UI adoption. The same four fields
-remain the modeled scope; additional constructs and coverage need follow-up work.
+full Foundry admission or pipeline/storage/UI adoption. Shared Item fields and
+four physical/equipment fields are partial source slices; additional constructs
+and coverage need follow-up work.
