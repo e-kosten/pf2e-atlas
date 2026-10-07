@@ -1,4 +1,4 @@
-# Authored rule inputs: selectors and IWR
+# Authored rule inputs and corpus fidelity
 
 ## Source and boundary
 
@@ -27,11 +27,13 @@ admission or rule execution with a real Actor/Item parent.
 
 ## Modeled inputs
 
-Nine selected fields now have a separate authored projection:
+Ten selected collection fields have a separate authored projection:
 
 - AdjustModifier.selectors, DamageDice.selector, EphemeralEffect.selectors,
   FlatModifier.selector, Note.selector and RollTwice.selector.
 - Immunity.type, Resistance.type and Weakness.type.
+- Strike.traits, with the same explicit open/closed vocabulary policy for the
+  scalar and array alternatives.
 
 Only ordinary ArrayField of strings is projected. DamageAlteration.selectors and
 IWR exceptions/doubleVs are strict arrays and retain that boundary. Other array
@@ -42,7 +44,7 @@ the corresponding IWR rule constructors by
 [`#prepareIWR`](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/module/rules/rule-element/battle-form/rule-element.ts#L450).
 Unrelated `type` arrays do not change; schema nodes and declaration/serialization
 provenance remain intact. The comparison reports the three nested derived owners
-as `sharedIwrChanges`, separately from the nine root field policies.
+as `sharedIwrChanges`, separately from the ten root field policies.
 
 For example, both `"selector":"attack"` and `"selector":["attack","damage"]`
 become typed union variants. Serialization retains their different authored
@@ -50,6 +52,30 @@ forms; parsing does not turn the scalar into an array. IWR types remain strings,
 including injected-property text, because this schema's element is StringField;
 dictionary validation occurs later in IWR rule preparation. Missing/null states
 remain SourcePresence states, rather than synthesized defaults or admission claims.
+
+ChoiceSet config, owned-item and attack-query predicates may be omitted in authored
+objects. The [constructor](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/module/rules/rule-element/choice-set/rule-element.ts#L67)
+supplies `predicate ?? []`; the three interfaces describe that populated object.
+The projection marks the predicate optional for union identity and preserves its
+missing/null/value state without supplying a default. Pack-query `filter` stays
+required. Config/owned-item/attack forbidden keys retain their declaration origin.
+
+DamageDice override `damageType` and `dieSize` accept authored strings and
+`diceNumber` accepts numbers or expression strings. Its
+[`#isValidOverride`](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/module/rules/rule-element/damage-dice.ts#L155)
+explicitly accepts these string forms; preparation resolves them before checking
+vocabularies and numeric constraints. Prepared upgrade/downgrade booleans retain
+their extracted types. `valueChanges` identifies the six changed declaration
+fields and their provenance. This represents source expressions, not evaluation
+or proof that every expression resolves successfully.
+
+Generic union selection uses declaration-forbidden key absence as well as
+required keys/literals. Anchored shapes take precedence over broad open and
+optional-only fallbacks when their value kinds overlap. Competing anchors or
+competing fallbacks remain errors. Malformed anchored payloads retain their
+nested error rather than being accepted as open JSON. This distinguishes ChoiceSet
+forms and bracketed RuleValue objects without handwritten Rust rule dispatch.
+See [ADR 0036](../architecture/decisions/0036-recursive-source-unions.md).
 
 ## Reproduction
 
@@ -70,8 +96,8 @@ npm --prefix scripts/source-contracts run compare-rules -- \
 
 The manifest supplies the existing explicit open-trait-array policy, verified
 against the same source digest. Omit it to compare the closed extracted
-vocabularies instead; that deliberately adds 46 trait-vocabulary rejections on
-this pin. The command requires a local Cargo toolchain and dependencies already
+vocabularies instead, retaining any trait-vocabulary rejections. The command
+requires a local Cargo toolchain and dependencies already
 cached for its offline scratch builds. It does not install or invoke Foundry.
 
 Output: `comparison.json`, per-occurrence `schema.json` and `authored.json`, two
@@ -88,15 +114,20 @@ keys occur in packs; TokenImage and TokenName have no corpus occurrences.
 | Check | Schema shapes | Authored projection |
 | --- | ---: | ---: |
 | Rule occurrences sampled | 31,174 | 31,174 |
-| Accepted | 19,974 | 30,953 |
-| Rejected, still counted | 11,200 | 221 |
+| Accepted | 20,037 | 31,157 |
+| Rejected, still counted | 11,137 | 17 |
 | Fidelity failures among accepted occurrences | 0 | 0 |
 
-The projection recovers 10,979 occurrences, with zero acceptance regressions and
+The projection recovers 11,120 occurrences, with zero acceptance regressions and
 zero unmodeled rule keys. All occurrences of the six fully covered families
 FlatModifier, Note, EphemeralEffect, Immunity, Resistance and Weakness, plus
-RollTwice and AdjustModifier, now parse. DamageDice's remaining 23 first errors
-concern override fields, not selectors.
+RollTwice, AdjustModifier and DamageDice, now parse. ChoiceSet parses 1,527 of
+1,528 occurrences; its remaining error is the confirmed malformed predicate.
+
+Relative to PR 36's authored profile, 204 additional occurrences parse: 176
+ChoiceSet, 23 DamageDice, four BattleForm and one Strike. Comparing the same packet
+digest occurrence-by-occurrence shows zero regressions. Generic union fixes also
+increase schema-profile acceptance by 63 before applying authored projections.
 
 Fidelity comparison runs in Rust before results pass through JavaScript. It
 compares every graph-declared field and presence state, recursively represented
@@ -110,38 +141,37 @@ collapse, scalar-to-array coercion, large-integer changes, lost duplicates and
 reordered additional/map entries. Generated fixtures exercise strict arrays,
 scalar/array variants, empty arrays and contextual rejection.
 
-Extending the IWR projection into nested BattleForm objects resolves all 55
-previous scalar-type first errors. Fifty-three occurrences now parse; the two
-others expose existing strike `baseType` vocabulary discrepancies (`wing` in
-Devil Form Coarti, `hoof` in Devil Form Vordine). BattleForm acceptance rises
-from 47 to 100 of 115 occurrences. The remaining failures stay counted below.
+BattleForm parses 104 of 115 occurrences, and Strike parses 679 of 680. The
+remaining failures stay counted below.
 
-## Triage of all 221 remaining first errors
+## Triage of all 17 remaining first errors
 
 These classifications use the pinned implementation. They are research findings;
 the generic comparison initially labels rejections unresolved and retains every
 occurrence for review. Multiple defects in one rule can remain behind its first
-error. Counts below sum to all 221 affected occurrences, not just unique examples.
+error. Counts below sum to all 17 affected occurrences, not just unique examples.
 
 | Group | Occurrences | Classification and evidence |
 | --- | ---: | --- |
-| ChoiceSet choices with missing predicate | 116 | Authored-model gap: ChoiceSet's constructor supplies `predicate ?? []`; its interfaces describe the populated object while union identity currently requires that field. |
-| ChoiceSet choices with overlapping arms | 60 | Parser defect: optional attack-query fields create a competing arm for config/owned-item inputs. Runtime `inflateChoices` dispatches on config/ownedItems/attacks; the generator's generic union identity does not reproduce that distinction. |
 | ChoiceSet nested predicate with both nor/not | 1 | Confirmed upstream predicate error under the actual pinned StatementValidator; see below. |
-| DamageDice override.damageType injection strings | 16 | Authored-model gap: `beforePrepareData` resolves injected properties before dictionary validation. |
-| DamageDice override.diceNumber formulas | 7 | Authored-model gap: `#isValidOverride` accepts strings and preparation resolves the expression before numeric validation. |
 | BattleForm strike baseType outside vocabulary | 10 | Unresolved declaration/corpus/runtime discrepancy; two cases were exposed after resolving nested IWR scalar inputs. No full Foundry Item validation run. |
-| BattleForm strike range number | 1 | Authored-model gap: the declared BattleForm schema and its actual NumberField describe numeric range, whereas the embedded prepared strike interface describes an object. |
-| BattleForm bracketed resistance value overlapping open/object arms | 4 | Parser defect: broad/open and structured RuleValue alternatives compete in generic union selection. |
-| Strike scalar traits | 1 | Authored-model gap: ordinary ArrayField outside this PR's bounded target fields. |
+| BattleForm strike range number | 1 | Unresolved declaration/corpus/runtime discrepancy: `BattleFormStrike.range` is an increment/max object, but the Nature Incarnate packet authors 100. The NumberField previously cited belongs to senses, not strikes. |
 | Strike fist string | 1 | Unresolved coercion/legacy discrepancy; BooleanField does not establish acceptance without core execution. |
 | TokenLight coloration numeric strings | 3 | Unresolved cleaning/choice-validation discrepancy; numeric coercion alone cannot establish valid coloration. |
 | Sense bloodsense | 1 | Unresolved corpus/vocabulary discrepancy; the pinned Sense rule has finite StringField choices, and declarations alone do not establish migration/admission outcome. |
 
-Totals: 141 authored-model gaps, 64 parser defects, one confirmed upstream
-predicate error and 15 unresolved occurrences. None are ignored or declared valid
-merely because they occur in packs. None are declared invalid merely because our
+Totals: one confirmed upstream predicate error and 16 unresolved occurrences.
+None are ignored or declared valid merely because they occur in packs. None are
+declared invalid merely because our
 generated parser rejects them.
+
+The numeric BattleForm strike range was previously classified as a known
+authored-model gap based on the wrong field. The pinned BattleForm schema leaves
+`strikes` as an ObjectField and passes each strike range into Strike unchanged.
+The upstream [range migration](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/module/migration/migrations/868-strike-re-range.ts#L9)
+converts direct Strike rules, not nested BattleForm strikes. This evidence does
+not establish migration or runtime acceptance of that nested numeric range, so
+the parser remains constrained and this occurrence stays unresolved.
 
 For the one confirmed predicate error, the exact input is
 `packs/classfeatures/revolutionary-innovation.json`,
@@ -160,10 +190,9 @@ predicate's structural invalidity; complete document/rule admission was not run.
 
 ## Follow-up and adoption boundary
 
-Prioritize ChoiceSet authored identity and expression-valued DamageDice overrides;
-then resolve the remaining prepared/source discrepancies. Actor/Item full-root
-emission still
-needs explicit nullable/undefined collection modeling. This slice does not remove
+Resolve the 16 unexplained declaration/corpus/runtime discrepancies with targeted
+upstream migration/runtime evidence. Actor/Item full-root emission still needs
+explicit nullable/undefined collection modeling. This slice does not remove
 those blockers or claim the entire source space is modeled.
 
 Before adopting full-rule parsing into ingest, resolve unexplained rejections of

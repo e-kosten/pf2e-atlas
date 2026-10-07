@@ -207,10 +207,142 @@ mod tests {
     fn optional_arm_identity_stays_distinct_from_shared_payload_owners() {
         let other = value::parse_source(br#"{"other":"x"}"#).unwrap();
         generated::parse_strict(&other, &context(), "$").unwrap();
-        assert!(generated::parse_loose(&other, &context(), "$").is_err());
+        generated::parse_loose(&other, &context(), "$").unwrap();
         let empty = value::parse_source(b"{}").unwrap();
         assert!(generated::parse_strict(&empty, &context(), "$").is_err());
         generated::parse_loose(&empty, &context(), "$").unwrap();
+    }
+    #[test]
+    fn authored_choices_preserve_missing_predicates_and_reject_conflicting_shapes() {
+        for (source, predicate) in [
+            (
+                r#"{"choices":{"config":"weaponGroups"}}"#,
+                serde_json::json!("missing"),
+            ),
+            (
+                r#"{"choices":{"ownedItems":true,"types":["weapon"]}}"#,
+                serde_json::json!("missing"),
+            ),
+            (
+                r#"{"choices":{"attacks":true}}"#,
+                serde_json::json!("missing"),
+            ),
+            (
+                r#"{"choices":{"unarmedAttacks":true,"predicate":["item:unarmed"]}}"#,
+                serde_json::json!({"value":["item:unarmed"]}),
+            ),
+            (
+                r#"{"choices":{"config":"weaponGroups","predicate":[]}}"#,
+                serde_json::json!({"value":[]}),
+            ),
+        ] {
+            let raw = value::parse_source(source.as_bytes()).unwrap();
+            let model = serde_json::to_value(
+                generated::parse_authored_choice_rule(&raw, &context(), "$").unwrap(),
+            )
+            .unwrap();
+            assert_eq!(model["choices"]["value"]["predicate"], predicate);
+        }
+        let query = value::parse_source(br#"{"choices":{"filter":["item:feat"]}}"#).unwrap();
+        generated::parse_authored_choice_rule(&query, &context(), "$").unwrap();
+        for source in [
+            r#"{"choices":"weaponGroups"}"#,
+            r#"{"choices":[{"value":"a"},{"value":"b","predicate":[]}]}"#,
+        ] {
+            let raw = value::parse_source(source.as_bytes()).unwrap();
+            generated::parse_authored_choice_rule(&raw, &context(), "$").unwrap();
+        }
+        for source in [
+            r#"{"choices":{"config":"x","attacks":true}}"#,
+            r#"{"choices":{"config":"x","ownedItems":null}}"#,
+            r#"{"choices":{"config":"x","ownedItems":false}}"#,
+            r#"{"choices":{"ownedItems":true}}"#,
+            r#"{"choices":{"config":"x","predicate":[{}]}}"#,
+            r#"{"choices":{"config":"x","config":"y"}}"#,
+        ] {
+            let raw = value::parse_source(source.as_bytes()).unwrap();
+            assert!(generated::parse_authored_choice_rule(&raw, &context(), "$").is_err());
+        }
+        let malformed = value::parse_source(br#"{"choices":{"filter":"bad"}}"#).unwrap();
+        assert_eq!(
+            generated::parse_authored_choice_rule(&malformed, &context(), "$")
+                .unwrap_err()
+                .json_path,
+            "$.choices.filter"
+        );
+    }
+    #[test]
+    fn authored_damage_overrides_keep_expressions_and_closed_boolean_fields() {
+        for (source, expected) in [
+            (
+                r#"{"override":{"diceNumber":3}}"#,
+                serde_json::json!({"value":3}),
+            ),
+            (
+                r#"{"override":{"diceNumber":"@actor.level"}}"#,
+                serde_json::json!({"value":"@actor.level"}),
+            ),
+            (
+                r#"{"override":{"diceNumber":null}}"#,
+                serde_json::json!("null"),
+            ),
+            (r#"{"override":{}}"#, serde_json::json!("missing")),
+        ] {
+            let raw = value::parse_source(source.as_bytes()).unwrap();
+            let model = serde_json::to_value(
+                generated::parse_authored_damage_rule(&raw, &context(), "$").unwrap(),
+            )
+            .unwrap();
+            assert_eq!(model["override"]["value"]["dice_number"], expected);
+        }
+        for (damage, die) in [("fire", "d6"), ("{item|flags.damage}", "{item|flags.die}")] {
+            let source =
+                serde_json::json!({"override":{"damageType":damage,"dieSize":die,"upgrade":true}});
+            let raw = value::parse_source(source.to_string().as_bytes()).unwrap();
+            let model = serde_json::to_value(
+                generated::parse_authored_damage_rule(&raw, &context(), "$").unwrap(),
+            )
+            .unwrap();
+            assert_eq!(
+                model["override"]["value"]["damage_type"],
+                serde_json::json!({"value":damage})
+            );
+            assert_eq!(
+                model["override"]["value"]["die_size"],
+                serde_json::json!({"value":die})
+            );
+        }
+        for source in [
+            r#"{"override":{"diceNumber":true}}"#,
+            r#"{"override":{"damageType":3}}"#,
+            r#"{"override":{"upgrade":"true"}}"#,
+        ] {
+            let raw = value::parse_source(source.as_bytes()).unwrap();
+            assert!(generated::parse_authored_damage_rule(&raw, &context(), "$").is_err());
+        }
+    }
+    #[test]
+    fn authored_strike_scalar_and_array_traits_share_the_open_vocabulary() {
+        for (source, expected) in [
+            (
+                r#"{"traits":"future-trait"}"#,
+                serde_json::json!({"value":"future-trait"}),
+            ),
+            (
+                r#"{"traits":["agile","future-trait"]}"#,
+                serde_json::json!({"value":["agile","future-trait"]}),
+            ),
+            (r#"{"traits":[]}"#, serde_json::json!({"value":[]})),
+        ] {
+            let raw = value::parse_source(source.as_bytes()).unwrap();
+            let model = serde_json::to_value(
+                generated::parse_authored_strike_rule(&raw, &context(), "$").unwrap(),
+            )
+            .unwrap();
+            assert_eq!(model["traits"], expected);
+        }
+        let raw = value::parse_source(br#"{"traits":["agile",3]}"#).unwrap();
+        assert!(generated::parse_authored_strike_rule(&raw, &context(), "$").is_err());
     }
     #[test]
     fn divine_font_alternatives_use_arity_and_position_literals() {
@@ -390,7 +522,7 @@ mod tests {
     }
 
     #[test]
-    fn open_union_arms_keep_kind_constraints_and_report_overlapping_objects() {
+    fn open_union_arms_keep_kind_constraints_and_defer_to_known_shapes() {
         for bytes in [br#""string""#.as_slice(), b"[]", b"{}"] {
             let value = value::parse_source(bytes).unwrap();
             generated::parse_object_union(&value, &context(), "$").unwrap();
@@ -398,7 +530,20 @@ mod tests {
         let boolean = value::parse_source(b"true").unwrap();
         assert!(generated::parse_object_union(&boolean, &context(), "$").is_err());
         let overlapping = value::parse_source(br#"{"label":"x"}"#).unwrap();
-        assert!(generated::parse_overlapping_open(&overlapping, &context(), "$").is_err());
+        let parsed = generated::parse_overlapping_open(&overlapping, &context(), "$").unwrap();
+        assert!(matches!(parsed, generated::OverlappingOpen::KnownObject(_)));
+        let malformed = value::parse_source(br#"{"label":3}"#).unwrap();
+        assert_eq!(
+            generated::parse_overlapping_open(&malformed, &context(), "$")
+                .unwrap_err()
+                .json_path,
+            "$.label"
+        );
+        let future = value::parse_source(br#"{"future":1,"future":2}"#).unwrap();
+        let parsed = generated::parse_overlapping_open(&future, &context(), "$").unwrap();
+        assert!(matches!(parsed, generated::OverlappingOpen::Object(_)));
+        let ambiguous = value::parse_source(b"{}").unwrap();
+        assert!(generated::parse_ambiguous_fallback(&ambiguous, &context(), "$").is_err());
     }
 
     #[test]
