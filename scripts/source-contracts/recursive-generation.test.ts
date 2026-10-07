@@ -90,3 +90,60 @@ test('snapshot references include persisted value and retained serialization pro
   const object=field('predicate','Input');object.serialization={basis:'predicate-constructor-input',declaredRef:'Declared',declaredType:'Declared',declaredAt:[]};
   assert.deepEqual(nodeReferences({id:'Object',kind:'object',fields:[object],indexSignatures:[]}),['Input','Declared']);
 });
+
+test('anonymous scalar unions use canonical member names and share across modules',()=>{
+  for(const [members,name] of [
+    [['primitive:string','primitive:number'],'StringOrNumber'],
+    [['True','False','primitive:string'],'StringOrBoolean'],
+    [['True','primitive:number','False'],'NumberOrBoolean'],
+    [['True','primitive:number','primitive:string','False'],'StringOrNumberOrBoolean'],
+  ] as [string[],string][]) {
+    const nodes:GraphNode[]=[primitive('string'),primitive('number'),
+      {id:'True',kind:'literal',value:true},{id:'False',kind:'literal',value:false},
+      {id:'First',kind:'union',members},{id:'Second',kind:'union',members:[...members].reverse()},
+      object('Base',[field('value','First')]),object('Consumer',[field('other','Second')])];
+    const selected=input(nodes,[{ref:'Base',name:'Base'},{ref:'Consumer',name:'Consumer',module:'consumer'}]);
+    const files=generateRustModules(selected),all=Object.values(files).join('');
+    assert.equal((all.match(new RegExp(`pub enum ${name} \\{`,'g'))??[]).length,1);
+    assert.match(files['fixture.rs'],new RegExp(`pub value: SourcePresence<${name}>`));
+    assert.match(files['consumer.rs'],new RegExp(`generated::fixture::\\{[^}]*${name}`));
+    assert.match(files['consumer.rs'],new RegExp(`pub other: SourcePresence<${name}>`));
+    const reversed=structuredClone(selected);
+    for(const node of reversed.nodes)if(node.kind==='union')node.members.reverse();
+    assert.deepEqual(generateRustModules(reversed),files);
+  }
+});
+
+test('declared union names and restricted literal alternatives retain their identity',()=>{
+  const nodes:GraphNode[]=[primitive('string'),primitive('number'),
+    {id:'Amount',name:'Amount',kind:'union',members:['primitive:number','primitive:string']},
+    {id:'Yes',name:'Yes',kind:'literal',value:true},
+    {id:'Restricted',name:'Restricted',kind:'union',members:['Yes','primitive:string']}];
+  const files=generateRustModules(input(nodes,[{ref:'Amount',name:'Amount'},{ref:'Restricted',name:'Restricted'}]));
+  assert.match(files['fixture.rs'],/pub enum Amount/);
+  assert.match(files['fixture.rs'],/pub enum Restricted/);
+  assert.doesNotMatch(files['fixture.rs'],/pub enum StringOrBoolean/);
+  assert.match(files['fixture.rs'],/if value \{ Ok\(value\)/);
+});
+
+test('scalar union names fail explicitly when an unrelated declared type owns that name',()=>{
+  const nodes:GraphNode[]=[primitive('string'),primitive('number'),
+    {id:'Anonymous',kind:'union',members:['primitive:string','primitive:number']},
+    object('StringOrNumber',[field('label','primitive:string')]),object('Container',[field('value','Anonymous')])];
+  for(const roots of [[{ref:'StringOrNumber',name:'StringOrNumber'},{ref:'Container',name:'Container'}],
+    [{ref:'Container',name:'Container'},{ref:'StringOrNumber',name:'StringOrNumber'}]])
+    assert.throws(()=>generateRustModules(input(nodes,roots)),/Rust name collision.*StringOrNumber/);
+});
+
+test('anonymous tuples inline their types and import cross-module type dependencies',()=>{
+  const nodes:GraphNode[]=[primitive('string'),primitive('number'),
+    {id:'Scalar',kind:'union',members:['primitive:string','primitive:number']},
+    {id:'Pair',kind:'tuple',elements:[{ref:'Scalar',optional:false,rest:false},{ref:'primitive:number',optional:false,rest:false}],readonly:false},
+    object('Base',[field('pair','Pair')]),object('Consumer',[field('other','Pair')])];
+  const files=generateRustModules(input(nodes,[{ref:'Base',name:'Base'},{ref:'Consumer',name:'Consumer',module:'consumer'}]));
+  assert.match(files['fixture.rs'],/pub pair: SourcePresence<\(StringOrNumber, Number\)>/);
+  assert.match(files['consumer.rs'],/pub other: SourcePresence<\(StringOrNumber, Number\)>/);
+  assert.match(files['consumer.rs'],/use serde_json::Number/);
+  assert.match(files['consumer.rs'],/generated::fixture::\{StringOrNumber, read_base_pair\}/);
+  assert.doesNotMatch(Object.values(files).join(''),/pub type BasePair|use .*\(StringOrNumber/);
+});

@@ -105,5 +105,49 @@ mod tests {
         let value = value::parse_source(br#"[[["leaf"]]]"#).unwrap();
         let parsed = generated::parse_tuple_expr(&value, &context(), "$").unwrap();
         assert_eq!(serde_json::to_value(parsed).unwrap(), json!([[["leaf"]]]));
+        let parsed = generated::parse_tuple_entry(&value, &context(), "$").unwrap();
+        assert_eq!(serde_json::to_value(parsed).unwrap(), json!([[["leaf"]]]));
+    }
+    #[test]
+    fn primitive_unions_preserve_all_scalar_alternatives_and_restricted_literals() {
+        for scalar in [
+            json!("option"),
+            json!(18446744073709551615u64),
+            json!(false),
+        ] {
+            let source = json!({"numeric":18446744073709551615u64,"logical":false,
+                "numeric_boolean":true,"any_scalar":scalar,"restricted":true});
+            let value = value::parse_source(&serde_json::to_vec(&source).unwrap()).unwrap();
+            let parsed = generated::parse_scalar_envelope(&value, &context(), "$").unwrap();
+            let actual = serde_json::to_value(parsed).unwrap();
+            for field in [
+                "numeric",
+                "logical",
+                "numeric_boolean",
+                "any_scalar",
+                "restricted",
+            ] {
+                assert_eq!(actual[field]["value"], source[field]);
+            }
+        }
+        let value = value::parse_source(br#"{"restricted":false}"#).unwrap();
+        let error = generated::parse_scalar_envelope(&value, &context(), "$").unwrap_err();
+        assert_eq!(error.json_path, "$.restricted");
+    }
+    #[test]
+    fn inline_tuple_types_share_cross_module_parsers_and_named_element_owners() {
+        for scalar in [
+            json!("option"),
+            json!(18446744073709551615u64),
+            json!(false),
+        ] {
+            let source = json!({"pair":[scalar,18446744073709551615u64]});
+            let value = value::parse_source(&serde_json::to_vec(&source).unwrap()).unwrap();
+            let parsed = generated::parse_scalar_consumer(&value, &context(), "$").unwrap();
+            assert_eq!(
+                serde_json::to_value(parsed).unwrap()["pair"]["value"],
+                source["pair"]
+            );
+        }
     }
 }

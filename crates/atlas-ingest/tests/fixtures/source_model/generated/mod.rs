@@ -11,14 +11,19 @@ pub(super) use common::parse_expr;
 pub(super) use common::parse_loose;
 pub(super) use common::parse_node;
 pub(super) use common::parse_one;
+pub(super) use common::parse_scalar_envelope;
+pub(super) use common::parse_scalar_pair;
 pub(super) use common::parse_single;
 pub(super) use common::parse_strict;
+pub(super) use common::parse_tuple_entry;
 pub(super) use common::parse_tuple_expr;
 pub(super) use common::parse_yes;
 pub use common::{
-    A, B, Discriminated, DivineFonts, DivineFontsAlternative1, DivineFontsAlternative2,
-    DivineFontsAlternative3, DivineFontsAlternative4, Empty, Expr, Harm, Heal, Left, Loose, Node,
-    One, Other, Required, Right, Single, Strict, TupleExpr, TupleExprAlternative2, Yes,
+    A, B, Discriminated, DivineFonts, DivineFontsAlternative1, Empty, Expr, Harm, Heal, Left,
+    Loose, Node, NumberOrBoolean, One, Other, Required, Right, ScalarEnvelope,
+    ScalarEnvelopeRestricted, ScalarPair, Single, Strict, StringOrBoolean, StringOrNumber,
+    StringOrNumberOrBoolean, TupleEntry, TupleExpr, Yes,
 };
-pub use consumer::BoolConsumer;
 pub(super) use consumer::parse_bool_consumer;
+pub(super) use consumer::parse_scalar_consumer;
+pub use consumer::{BoolConsumer, ScalarConsumer};

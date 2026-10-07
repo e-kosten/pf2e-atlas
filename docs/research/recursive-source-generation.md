@@ -13,7 +13,13 @@ production ingest, storage, metrics or UI adoption occurs.
 The Rust API exposes `parse_predicate_statement`, `parse_predicate_statements`
 and `parse_predicate_input` with contextual diagnostics. Generated values live
 under `source_model::generated`; owners are partitioned into `rules/predicate.rs`.
-Comparison operands share a typed `(String, string-or-number)` tuple. Array
+Comparison operands share a typed `(String, StringOrNumber)` tuple and parser;
+the tuple appears inline in all five operator fields. Anonymous primitive unions
+use member-derived names in fixed String, Number, Boolean order. Complete
+true/false pairs represent Boolean; restricted literal alternatives retain their
+checks. Declared/selected root names can retain aliases, and name collisions fail
+explicitly. These generated source types are inputs to later ingest interpretation,
+with application, storage and predicate execution models deferred. Array
 operators share one vector owner. Negation and conditional inline cycles use
 boxed union payloads; arrays/maps already provide indirection. Remaining inline
 cycles are checked after removing boxed union edges.
@@ -46,8 +52,8 @@ Selected input contains 781 nodes owned once across five module snapshots,
 including a new 750-line predicate snapshot. Original Predicate array `rawRef`
 and ChoiceSet field `declaredRef` provenance close over saved nodes. The original
 PickableThing declaration remains evidence without making its other fields
-selected parser values. Generated source Rust totals 1,628 lines across eight
-files, with 501 in the predicate module. The trait snapshot remains unchanged.
+selected parser values. Generated source Rust totals 1,627 lines across eight
+files, with 500 in the predicate module. The trait snapshot remains unchanged.
 
 Recursive nominal owners retain upstream identity; other value shapes share
 structural owners. Union selection facts stay distinct even when ordinary
@@ -99,6 +105,9 @@ literal roots/imports and optional-arm ambiguity. A DivineFonts-shaped union
 exercises empty, harm, heal and harm/heal alternatives by arity and literals.
 Package tests check the complete saved fixture output, not only string fragments.
 Probe tests detect partial operator-key projection errors and number/string loss.
+Scalar-union fixtures cover all supported primitive combinations, member-order
+stability, cross-module sharing/imports and literal restrictions. Tuple fixtures
+also compile when an anonymous tuple root is selected before its recursive union.
 
 ## Whole-portfolio attempt
 

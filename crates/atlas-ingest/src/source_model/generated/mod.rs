@@ -38,7 +38,7 @@ pub(super) use rules::predicate::parse_predicate_statement;
 pub(super) use rules::predicate::parse_predicate_statements;
 pub use rules::predicate::{
     AlternativeDenial, AlternativeDenialNand, Biconditional, Conditional, Conjunction, Disjunction,
-    EqualTo, EqualToEq, EqualToEqEntry2, ExclusiveDisjunction, GreaterThan, GreaterThanEqualTo,
-    JointDenial, LessThan, LessThanEqualTo, Negation, PredicateInput, PredicateStatement,
-    PredicateStatements,
+    EqualTo, ExclusiveDisjunction, GreaterThan, GreaterThanEqualTo, JointDenial, LessThan,
+    LessThanEqualTo, Negation, PredicateInput, PredicateStatement, PredicateStatements,
+    StringOrNumber,
 };

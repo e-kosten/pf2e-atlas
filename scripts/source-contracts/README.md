@@ -78,6 +78,17 @@ shape candidate; required keys count even with null/invalid payload, and require
 literal discriminants retain nullable state. Additional partial operator keys
 remain additional values when they do not identify another complete arm. This is
 declaration-shaped source modeling, not full Foundry runtime admission.
+
+Anonymous unions of complete scalar types have member-derived names in fixed
+String, Number, Boolean order (`StringOrNumber`, `StringOrBoolean`,
+`NumberOrBoolean`, `StringOrNumberOrBoolean`). Complete true/false pairs represent
+Boolean; restricted literal alternatives retain their checks. New owners prefer
+upstream declared names, while equivalent shapes reuse existing owners. Naming
+collisions fail explicitly. Anonymous tuple fields and union payloads use inline
+Rust tuples and share a private parser; declared or selected root names retain
+aliases. These source types are inputs to later ingest interpretation, rather
+than prescribed application or storage models.
+
 [ADR 0036](../../docs/architecture/decisions/0036-recursive-source-unions.md) defines
 the recursive and union policies; [ADR 0035](../../docs/architecture/decisions/0035-source-value-generation-policy.md)
 records these policies.

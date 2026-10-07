@@ -102,8 +102,10 @@ TypeScript tooling emits checked structures/parsers from selected declaration
 graphs. Minimal Rust primitives preserve pre-default missing/null/value states,
 ordinary numbers, ordered typed map entries and additional members. Recursive
 predicate values, fixed comparison tuples and ChoiceSet constructor inputs share
-generated owners under `rules/predicate`. Shape-sensitive union parsing reports
-competing alternatives and preserves nested errors; ordinary object fields retain
+generated owners under `rules/predicate`. Anonymous primitive unions use shared
+member-named enums; anonymous tuples appear inline with shared parsers and named
+element imports. Shape-sensitive union parsing reports competing alternatives
+and preserves nested errors; ordinary object fields retain
 pre-default presence. This models persisted shapes without executing predicates
 or enforcing all Foundry runtime constraints. Unselected
 and declaration-forbidden persisted members remain additional source data.
