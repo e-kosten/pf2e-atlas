@@ -33,7 +33,7 @@ export interface GraphBase {
 }
 export type GraphShape =
   | { kind: 'union'; members: string[] }
-  | { kind: 'intersection'; members: string[]; fields: GraphField[]; impossible?: boolean }
+  | { kind: 'intersection'; members: string[]; fields: GraphField[]; indexSignatures: IndexSignature[]; impossible?: boolean }
   | { kind: 'literal'; value: string | number | boolean }
   | { kind: 'primitive'; value: string }
   | { kind: 'unresolved' }

@@ -72,6 +72,31 @@ test('literal discriminants, boolean literals and Rust keyword fields remain che
   assert.match(rust,/union_required\(v, c, p/);
 });
 
+test('source names map to Rust fields with explicit serialization names and collision checks',()=>{
+  const rust=generateRustModules(recursiveFixture())['common.rs'];
+  assert.match(rust,/pub _id: SourcePresence<String>/);
+  assert.match(rust,/#\[serde\(rename = "greater-darkvision"\)\]\s+pub greater_darkvision:/);
+  assert.match(rust,/#\[serde\(rename = "self"\)\]\s+pub self_:/);
+  assert.match(rust,/#\[serde\(rename = "1st"\)\]\s+pub _1st:/);
+  for (const names of [['greater-darkvision','greater_darkvision'],['self','self_'],['additional-fields'],['_'],['']]) {
+    const selected=input([primitive('string'),object('Collision',names.map(name=>field(name,'primitive:string')))],[{ref:'Collision',name:'Collision'}]);
+    assert.throws(()=>generateRustModules(selected),/Rust field name/);
+  }
+});
+
+test('compiler-resolved indexed intersections reuse named owners and pure maps',()=>{
+  const rust=generateRustModules(recursiveFixture())['common.rs'];
+  assert.match(rust,/pub type IntersectionBag = ConstrainedBag/);
+  assert.match(rust,/parse_intersection_map[^]*?ParseResult<IntersectionMap>/);
+  assert.match(rust,/pub type IntersectionMap = MaybeNumberMap/);
+  assert.match(rust,/pub next: SourcePresence<Box<RecursiveIntersection>>/);
+  assert.match(rust,/pub indexed_fields: crate::source_model::SourceMap<RecursiveIntersection>/);
+  const legacy=recursiveFixture();
+  const node=legacy.nodes.find(node=>node.kind==='intersection');assert.ok(node);
+  delete (node as unknown as {indexSignatures?:unknown}).indexSignatures;
+  assert.throws(()=>generateRustModules(legacy),/re-extract the graph/);
+});
+
 test('compiled generic fixture output is fresh and includes residual cycles and empty tuples',async()=>{
   const files=generateRustModules(recursiveFixture());
   const dir=fileURLToPath(new URL('../../../crates/atlas-ingest/tests/fixtures/source_model/generated/',import.meta.url));

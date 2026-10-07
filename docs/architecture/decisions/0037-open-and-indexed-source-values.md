@@ -32,9 +32,16 @@ Every modeled key occurs at most once; declaration-forbidden repeated members
 remain additional data. Repeated names inside an explicit open value remain intact.
 
 Pure maps remain SourceMap. Undefined in an index value union permits absent keys;
-persisted entries still use its remaining declared value types. Explicit nullable
-collection unions, multiple/non-string index signatures and indexed intersection
-constraints remain unsupported until their representations are defined.
+persisted entries still use its remaining declared value types. Object intersections
+use the compiler's resolved fields and index signatures for the entire intersection,
+including narrowed and merged index value types. Original constituent references
+remain discovery provenance; the Rust emitter does not reconstruct conjunctions
+from their broader individual constraints. Resolved pure maps use SourceMap; named
+indexed intersections use the same struct representation as indexed objects and
+share equivalent owners. Older graphs without resolved intersection indices must
+be re-extracted; there is no constituent-based fallback.
+Explicit nullable collection unions and multiple/non-string resolved index
+signatures remain unsupported until their representations are defined.
 Indexed object identity includes the dynamic value constraint and forbidden-member
 set. Named indexed structs can anchor recursion; their map entries provide layout
 indirection, while inline recursive named fields retain the existing boxing policy.
