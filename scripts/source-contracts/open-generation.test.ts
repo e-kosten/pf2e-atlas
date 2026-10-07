@@ -41,6 +41,12 @@ test('named indexed owners remain structs and share typed dynamic values across 
   assert.match(rust['common.rs'],/pub child: SourcePresence<Box<RecursiveBag>>/);
 });
 
+test('tuple union kind guards include null as a unit Rust variant for open values',()=>{
+  const rust=generateRustModules(recursiveFixture())['common.rs'];
+  assert.match(rust,/SourceValue::Null \|/);
+  assert.doesNotMatch(rust,/SourceValue::Null\(_\)/);
+});
+
 test('open support does not mask unresolved, structured open or unsupported index domains',()=>{
   for(const node of [
     {id:'gap',kind:'unsupported',reason:'fixture'}, {id:'gap',kind:'unresolved'},

@@ -967,6 +967,50 @@ pub(in crate::source_model) fn parse_object_union(
     read_object_union(v, c, p)
 }
 
+// Source declaration: OpenTuple
+pub(in crate::source_model::generated) fn read_open_tuple_union_alternative2(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<(SourceValue,)> {
+    let values = tuple(v, c, p, 1)?;
+    Ok((unknown(&values[0], c, &format!("{p}[0]"))?,))
+}
+
+// Source declaration: OpenTupleUnion
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum OpenTupleUnion {
+    String(String),
+    Alternative2((SourceValue,)),
+}
+pub(in crate::source_model::generated) fn read_open_tuple_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OpenTupleUnion> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::String(_)) {
+        candidates.push("String", || string(v, c, p).map(OpenTupleUnion::String));
+    }
+    if matches!(v, SourceValue::Array(values) if values.len() == 1 && matches!(&values[0], SourceValue::Array(_) | SourceValue::Boolean(_) | SourceValue::Null | SourceValue::Number(_) | SourceValue::Object(_) | SourceValue::String(_)))
+    {
+        candidates.push("Alternative2", || {
+            read_open_tuple_union_alternative2(v, c, p).map(OpenTupleUnion::Alternative2)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// OpenTupleUnion; deferred fields:
+pub(in crate::source_model) fn parse_open_tuple_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OpenTupleUnion> {
+    read_open_tuple_union(v, c, p)
+}
+
 // Source declaration: KnownObject
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct KnownObject {

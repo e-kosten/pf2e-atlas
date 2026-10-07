@@ -181,7 +181,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if(node.kind==='tuple')return `matches!(${v}, SourceValue::Array(values) if values.len() == ${node.elements.length}${node.elements.map((element,index)=>{
       const child=normalized(element.ref),position=`&values[${index}]`;
       const scalar=child.kind==='literal' || child.kind==='primitive' || child.kind==='union' && child.members.every(ref=>['literal','primitive'].includes(normalized(ref).kind));
-      return ` && ${scalar?guard(element.ref,position,next):`matches!(${position}, ${[...valueKinds(element.ref)].sort().map(kind=>`SourceValue::${kind}(_)`).join(' | ')})`}`;
+      return ` && ${scalar?guard(element.ref,position,next):`matches!(${position}, ${[...valueKinds(element.ref)].sort().map(kind=>`SourceValue::${kind}${kind==='Null'?'':'(_)'}`).join(' | ')})`}`;
     }).join('')})`;
     if(node.kind==='array') {
       const element=normalized(node.element);

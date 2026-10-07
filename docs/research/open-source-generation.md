@@ -61,13 +61,15 @@ dynamic pf2e entries. There are no authored rulesSelections fields in this pin.
 Its scalar/object/array alternatives therefore have fixture evidence, not corpus
 evidence. Missing corpus families and source states retain the prior fixture coverage.
 
-Verification includes 57 TypeScript tests on Node 22, the full Rust gate, eight
-shared Item tests, 15 compiled generic-fixture tests and an independent raw-oracle
+Verification includes 58 TypeScript tests on Node 22, the full Rust gate, eight
+shared Item tests, 16 compiled generic-fixture tests and an independent raw-oracle
 probe test. The probe test participates in the ordinary workspace test gate.
 Fixtures check null and primitive domain boundaries, exact large integers,
 repeated open members, duplicate modeled keys, escaped paths, index constraints
 on named values, forbidden-member retention, undefined index unions, recursive
-indexed structs, cross-module ownership and ambiguous broad union alternatives.
+indexed structs, cross-module ownership, ambiguous broad union alternatives and
+tuple-union guards containing open/null values. The last fixture verifies that
+null uses Rust's unit variant while other JSON kinds use payload variants.
 
 ## Whole-portfolio diagnostic
 
