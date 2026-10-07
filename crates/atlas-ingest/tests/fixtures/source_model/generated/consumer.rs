@@ -197,7 +197,7 @@ pub(in crate::source_model::generated) fn read_authored_array_schema_selector_al
     array(v, c, p, string)
 }
 
-// Source declaration: AuthoredArraySchema#authored:selector
+// Source declaration: Strings#authored-string-array
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum AuthoredArraySchemaSelector {
@@ -258,4 +258,68 @@ pub(in crate::source_model) fn parse_authored_arrays(
     p: &str,
 ) -> ParseResult<AuthoredArrays> {
     read_authored_array_schema(v, c, p)
+}
+
+// Source declaration: NestedIwr#authored-input:type
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NestedIwr {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub r#type: SourcePresence<AuthoredArraySchemaSelector>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub exceptions: SourcePresence<AuthoredArraySchemaSelectorAlternative1>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_nested_iwr(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NestedIwr> {
+    let f = Fields::new(v, c, p)?;
+    Ok(NestedIwr {
+        r#type: f.presence("type", read_authored_array_schema_selector)?,
+        exceptions: f.presence(
+            "exceptions",
+            read_authored_array_schema_selector_alternative1,
+        )?,
+        additional_fields: f.remaining(&["type", "exceptions"]),
+    })
+}
+
+// Source declaration: NestedIwrArray#authored-input
+pub type FormSchemaImmunities = Vec<NestedIwr>;
+pub(in crate::source_model::generated) fn read_form_schema_immunities(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<FormSchemaImmunities> {
+    array(v, c, p, read_nested_iwr)
+}
+
+// Source declaration: FormSchema#authored-input
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FormSchema {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub immunities: SourcePresence<FormSchemaImmunities>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_form_schema(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<FormSchema> {
+    let f = Fields::new(v, c, p)?;
+    Ok(FormSchema {
+        immunities: f.presence("immunities", read_form_schema_immunities)?,
+        additional_fields: f.remaining(&["immunities"]),
+    })
+}
+
+// FormSchema; deferred fields:
+pub type AuthoredForm = FormSchema;
+pub(in crate::source_model) fn parse_authored_form(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<AuthoredForm> {
+    read_form_schema(v, c, p)
 }

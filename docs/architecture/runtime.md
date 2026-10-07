@@ -128,8 +128,9 @@ full-family admission or a new record/storage contract. Rust consumers do not
 launch Node. See the [shared Item comparison](../research/shared-item-source-generation.md).
 
 Private TypeScript rule comparison keeps cleaned schema graphs distinct from
-authored input projections. Ordinary string-array selectors and top-level IWR
-types admit preserved scalar/array forms; strict arrays retain their boundary.
+authored input projections. Ordinary string-array selectors and IWR types admit
+preserved scalar/array forms, including nested IWR objects with the same compiler
+declaration origin; strict arrays retain their boundary.
 Scratch portfolios compile against real source primitives, and independent Rust
 fidelity comparison checks typed values and ordered additional data. Corpus
 rejections remain counted and unresolved until supported by implementation or

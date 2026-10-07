@@ -87,10 +87,19 @@ export function recursiveFixture():GenerationInput {
       fields:[field('next','RecursiveIntersection',true)],indexSignatures:[{key:'primitive:string',value:'RecursiveIntersection',readonly:false}]}];
   nodes.push({id:'Strings',kind:'array',element:'primitive:string',readonly:false},
     object('AuthoredArraySchema',[field('selector','Strings'),field('selectors','Strings')]));
+  const iwrDeclaration=[{file:'iwr/base.ts',line:1,column:1}];
+  const iwrType=()=>({...field('type','Strings'),declaredAt:iwrDeclaration});
+  nodes.push(object('IwrSchema',[iwrType(),field('exceptions','Strings')]),
+    object('NestedIwr',[iwrType(),field('exceptions','Strings')]),
+    {id:'NestedIwrArray',kind:'array',element:'NestedIwr',readonly:false},
+    object('FormSchema',[field('immunities','NestedIwrArray')]));
   const authored=authoredRuleInputs({format:'atlas-source-type-graph/v1',typescript:'fixture',complete:true,status:'complete',
     nodes,diagnostics:[],projectDiagnostics:{selected:[],unrelated:[]},roots:[{file:'fixture',name:'AuthoredArraySchema',ruleKey:'FlatModifier',ref:'AuthoredArraySchema',arrayInputs:[
       {field:'selector',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'ArrayField',declaredAt:[]},
-      {field:'selectors',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'StrictArrayField',declaredAt:[]}]}]});
+      {field:'selectors',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'StrictArrayField',declaredAt:[]}]},
+      {file:'fixture',name:'IwrSchema',ruleKey:'Immunity',ref:'IwrSchema',arrayInputs:[
+        {field:'type',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'ArrayField',declaredAt:iwrDeclaration}]},
+      {file:'fixture',name:'FormSchema',ruleKey:'BattleForm',ref:'FormSchema',arrayInputs:[]}]});
   return {source:{system_version:'fixture',source_digest:'fixture',input_file_count:1,git_commit:null,git_clean:null},nodes:authored.graph.nodes,
     selection:[...['Node','Expr','Empty','Single','Discriminated','Strict','Loose','Yes','One','DivineFonts'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'TupleEntry',declaration:'NestedTuple',valueRef:'NestedTuple',module:'common',fields:[],deferred:[]},
@@ -101,5 +110,6 @@ export function recursiveFixture():GenerationInput {
       ...['Color','ImagePath','Uuid','TemplateTupleUnion','MixedTemplate','TemplateTagged','OverlappingTemplates','GenericUnion'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...['MappedFields','IntersectionBag','IntersectionMap','RecursiveIntersection'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...['BoolConsumer','ScalarConsumer','OpenConsumer','GenericConsumer','TemplateConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]})),
-      {name:'AuthoredArrays',declaration:'AuthoredArraySchema',valueRef:authored.graph.roots[0].ref!,module:'consumer',fields:[],deferred:[]}]};
+      {name:'AuthoredArrays',declaration:'AuthoredArraySchema',valueRef:authored.graph.roots[0].ref!,module:'consumer',fields:[],deferred:[]},
+      {name:'AuthoredForm',declaration:'FormSchema',valueRef:authored.graph.roots[2].ref!,module:'consumer',fields:[],deferred:[]}]};
 }

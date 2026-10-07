@@ -35,7 +35,14 @@ Nine selected fields now have a separate authored projection:
 
 Only ordinary ArrayField of strings is projected. DamageAlteration.selectors and
 IWR exceptions/doubleVs are strict arrays and retain that boundary. Other array
-fields and nested BattleForm IWR inputs remain separate follow-up work.
+fields retain their extracted shape. The IWR projection also reaches BattleForm's
+nested immunity/resistance/weakness objects through their shared compiler
+declaration origin and original value reference. These objects are passed into
+the corresponding IWR rule constructors by
+[`#prepareIWR`](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/module/rules/rule-element/battle-form/rule-element.ts#L450).
+Unrelated `type` arrays do not change; schema nodes and declaration/serialization
+provenance remain intact. The comparison reports the three nested derived owners
+as `sharedIwrChanges`, separately from the nine root field policies.
 
 For example, both `"selector":"attack"` and `"selector":["attack","damage"]`
 become typed union variants. Serialization retains their different authored
@@ -81,11 +88,11 @@ keys occur in packs; TokenImage and TokenName have no corpus occurrences.
 | Check | Schema shapes | Authored projection |
 | --- | ---: | ---: |
 | Rule occurrences sampled | 31,174 | 31,174 |
-| Accepted | 19,974 | 30,900 |
-| Rejected, still counted | 11,200 | 274 |
+| Accepted | 19,974 | 30,953 |
+| Rejected, still counted | 11,200 | 221 |
 | Fidelity failures among accepted occurrences | 0 | 0 |
 
-The projection recovers 10,926 occurrences, with zero acceptance regressions and
+The projection recovers 10,979 occurrences, with zero acceptance regressions and
 zero unmodeled rule keys. All occurrences of the six fully covered families
 FlatModifier, Note, EphemeralEffect, Immunity, Resistance and Weakness, plus
 RollTwice and AdjustModifier, now parse. DamageDice's remaining 23 first errors
@@ -103,12 +110,18 @@ collapse, scalar-to-array coercion, large-integer changes, lost duplicates and
 reordered additional/map entries. Generated fixtures exercise strict arrays,
 scalar/array variants, empty arrays and contextual rejection.
 
-## Triage of all 274 remaining first errors
+Extending the IWR projection into nested BattleForm objects resolves all 55
+previous scalar-type first errors. Fifty-three occurrences now parse; the two
+others expose existing strike `baseType` vocabulary discrepancies (`wing` in
+Devil Form Coarti, `hoof` in Devil Form Vordine). BattleForm acceptance rises
+from 47 to 100 of 115 occurrences. The remaining failures stay counted below.
+
+## Triage of all 221 remaining first errors
 
 These classifications use the pinned implementation. They are research findings;
 the generic comparison initially labels rejections unresolved and retains every
 occurrence for review. Multiple defects in one rule can remain behind its first
-error. Counts below sum to all 274 affected occurrences, not just unique examples.
+error. Counts below sum to all 221 affected occurrences, not just unique examples.
 
 | Group | Occurrences | Classification and evidence |
 | --- | ---: | --- |
@@ -117,8 +130,7 @@ error. Counts below sum to all 274 affected occurrences, not just unique example
 | ChoiceSet nested predicate with both nor/not | 1 | Confirmed upstream predicate error under the actual pinned StatementValidator; see below. |
 | DamageDice override.damageType injection strings | 16 | Authored-model gap: `beforePrepareData` resolves injected properties before dictionary validation. |
 | DamageDice override.diceNumber formulas | 7 | Authored-model gap: `#isValidOverride` accepts strings and preparation resolves the expression before numeric validation. |
-| BattleForm nested IWR scalar type | 55 | Authored-model gap: `#prepareIWR` passes these objects into ordinary IWR rule constructors. This PR's root-only projection does not yet apply there. |
-| BattleForm strike baseType outside vocabulary | 8 | Unresolved declaration/corpus/runtime discrepancy; no full Foundry Item validation run. |
+| BattleForm strike baseType outside vocabulary | 10 | Unresolved declaration/corpus/runtime discrepancy; two cases were exposed after resolving nested IWR scalar inputs. No full Foundry Item validation run. |
 | BattleForm strike range number | 1 | Authored-model gap: the declared BattleForm schema and its actual NumberField describe numeric range, whereas the embedded prepared strike interface describes an object. |
 | BattleForm bracketed resistance value overlapping open/object arms | 4 | Parser defect: broad/open and structured RuleValue alternatives compete in generic union selection. |
 | Strike scalar traits | 1 | Authored-model gap: ordinary ArrayField outside this PR's bounded target fields. |
@@ -126,8 +138,8 @@ error. Counts below sum to all 274 affected occurrences, not just unique example
 | TokenLight coloration numeric strings | 3 | Unresolved cleaning/choice-validation discrepancy; numeric coercion alone cannot establish valid coloration. |
 | Sense bloodsense | 1 | Unresolved corpus/vocabulary discrepancy; the pinned Sense rule has finite StringField choices, and declarations alone do not establish migration/admission outcome. |
 
-Totals: 196 authored-model gaps, 64 parser defects, one confirmed upstream
-predicate error and 13 unresolved occurrences. None are ignored or declared valid
+Totals: 141 authored-model gaps, 64 parser defects, one confirmed upstream
+predicate error and 15 unresolved occurrences. None are ignored or declared valid
 merely because they occur in packs. None are declared invalid merely because our
 generated parser rejects them.
 
@@ -149,8 +161,8 @@ predicate's structural invalidity; complete document/rule admission was not run.
 ## Follow-up and adoption boundary
 
 Prioritize ChoiceSet authored identity and expression-valued DamageDice overrides;
-then carry shared authored IWR semantics into nested BattleForm objects and resolve
-the remaining prepared/source discrepancies. Actor/Item full-root emission still
+then resolve the remaining prepared/source discrepancies. Actor/Item full-root
+emission still
 needs explicit nullable/undefined collection modeling. This slice does not remove
 those blockers or claim the entire source space is modeled.
 
