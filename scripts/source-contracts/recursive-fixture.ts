@@ -28,8 +28,20 @@ export function recursiveFixture():GenerationInput {
     {id:'BothFonts',kind:'tuple',elements:[{ref:'Harm',optional:false,rest:false},{ref:'Heal',optional:false,rest:false}],readonly:false},
     {id:'DivineFonts',name:'DivineFonts',kind:'union',members:['NoFonts','HarmFont','HealFont','BothFonts']},
     {id:'TupleExpr',name:'TupleExpr',kind:'union',members:['primitive:string','NestedTuple']},
-    {id:'NestedTuple',kind:'tuple',elements:[{ref:'TupleExpr',optional:false,rest:false}],readonly:false}];
+    {id:'NestedTuple',kind:'tuple',elements:[{ref:'TupleExpr',optional:false,rest:false}],readonly:false},
+    {id:'No',kind:'literal',value:false},
+    {id:'NumericScalar',kind:'union',members:['primitive:number','primitive:string']},
+    {id:'LogicalScalar',kind:'union',members:['No','primitive:string','Yes']},
+    {id:'NumericBoolean',kind:'union',members:['Yes','primitive:number','No']},
+    {id:'AnyScalar',kind:'union',members:['No','primitive:number','primitive:string','Yes']},
+    {id:'RestrictedScalar',kind:'union',members:['Yes','primitive:number']},
+    {id:'ScalarPair',kind:'tuple',elements:[{ref:'AnyScalar',optional:false,rest:false},{ref:'primitive:number',optional:false,rest:false}],readonly:false},
+    object('ScalarEnvelope',[field('numeric','NumericScalar'),field('logical','LogicalScalar'),field('numeric_boolean','NumericBoolean'),field('any_scalar','AnyScalar'),field('restricted','RestrictedScalar')]),
+    object('ScalarConsumer',[field('pair','ScalarPair')])];
   return {source:{system_version:'fixture',source_digest:'fixture',input_file_count:1,git_commit:null,git_clean:null},nodes,
-    selection:[...['Node','Expr','Empty','Single','Discriminated','Strict','Loose','Yes','One','DivineFonts','TupleExpr'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
-      {name:'BoolConsumer',declaration:'BoolConsumer',valueRef:'BoolConsumer',module:'consumer',fields:[],deferred:[]}]};
+    selection:[...['Node','Expr','Empty','Single','Discriminated','Strict','Loose','Yes','One','DivineFonts'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
+      {name:'TupleEntry',declaration:'NestedTuple',valueRef:'NestedTuple',module:'common',fields:[],deferred:[]},
+      ...['TupleExpr','ScalarEnvelope'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
+      {name:'ScalarPair',declaration:'ScalarPair',valueRef:'ScalarPair',module:'common',fields:[],deferred:[]},
+      ...['BoolConsumer','ScalarConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]}))]};
 }

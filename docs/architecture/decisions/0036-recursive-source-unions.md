@@ -33,6 +33,16 @@ field names use Rust raw identifiers. Optional/rest tuples, nullable collection
 entries/value roots and recursive aliases without a nominal anchor fail explicitly
 until their representations are supported.
 
+Anonymous unions of complete persisted scalar types use member-derived names in
+String, Number, Boolean order, such as StringOrNumber or NumberOrBoolean. A complete
+true/false pair represents Boolean; a restricted boolean literal remains restricted.
+When allocating a value owner, declared names take priority over generated names.
+Equivalent shapes retain their existing shared owner. Name collisions fail explicitly.
+Anonymous tuples appear inline and share a private parser; declared or explicitly
+selected root names retain aliases. Defer type rendering until recursive owners are
+allocated, and import an inline tuple's element types rather than inventing a type
+name for the tuple. These source representations do not define product/runtime DTOs.
+
 Value roots use `valueRef` in the existing modular input. `sourceRef`, serialized
 array `rawRef` and constructor field `declaredRef` retain original provenance in
 the saved closure. These evidence nodes do not become unselected parser fields.

@@ -79,17 +79,17 @@ pub(in crate::source_model) fn parse_expr(
 }
 
 // Source declaration: Empty
-pub type Empty = [(); 0];
 pub(in crate::source_model::generated) fn read_empty(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<Empty> {
+) -> ParseResult<[(); 0]> {
     tuple(v, c, p, 0)?;
     Ok([])
 }
 
 // Empty; deferred fields:
+pub type Empty = [(); 0];
 pub(in crate::source_model) fn parse_empty(
     v: &SourceValue,
     c: &SourceContext,
@@ -99,17 +99,17 @@ pub(in crate::source_model) fn parse_empty(
 }
 
 // Source declaration: Single
-pub type Single = (String,);
 pub(in crate::source_model::generated) fn read_single(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<Single> {
+) -> ParseResult<(String,)> {
     let values = tuple(v, c, p, 1)?;
     Ok((string(&values[0], c, &format!("{p}[0]"))?,))
 }
 
 // Single; deferred fields:
+pub type Single = (String,);
 pub(in crate::source_model) fn parse_single(
     v: &SourceValue,
     c: &SourceContext,
@@ -430,12 +430,11 @@ pub(in crate::source_model::generated) fn read_harm(
 }
 
 // Source declaration: HarmFont
-pub type DivineFontsAlternative2 = (Harm,);
 pub(in crate::source_model::generated) fn read_divine_fonts_alternative2(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<DivineFontsAlternative2> {
+) -> ParseResult<(Harm,)> {
     let values = tuple(v, c, p, 1)?;
     Ok((read_harm(&values[0], c, &format!("{p}[0]"))?,))
 }
@@ -457,23 +456,21 @@ pub(in crate::source_model::generated) fn read_heal(
 }
 
 // Source declaration: HealFont
-pub type DivineFontsAlternative3 = (Heal,);
 pub(in crate::source_model::generated) fn read_divine_fonts_alternative3(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<DivineFontsAlternative3> {
+) -> ParseResult<(Heal,)> {
     let values = tuple(v, c, p, 1)?;
     Ok((read_heal(&values[0], c, &format!("{p}[0]"))?,))
 }
 
 // Source declaration: BothFonts
-pub type DivineFontsAlternative4 = (Harm, Heal);
 pub(in crate::source_model::generated) fn read_divine_fonts_alternative4(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<DivineFontsAlternative4> {
+) -> ParseResult<(Harm, Heal)> {
     let values = tuple(v, c, p, 2)?;
     Ok((
         read_harm(&values[0], c, &format!("{p}[0]"))?,
@@ -486,9 +483,9 @@ pub(in crate::source_model::generated) fn read_divine_fonts_alternative4(
 #[serde(untagged)]
 pub enum DivineFonts {
     Alternative1(DivineFontsAlternative1),
-    Alternative2(DivineFontsAlternative2),
-    Alternative3(DivineFontsAlternative3),
-    Alternative4(DivineFontsAlternative4),
+    Alternative2((Harm,)),
+    Alternative3((Heal,)),
+    Alternative4((Harm, Heal)),
 }
 pub(in crate::source_model::generated) fn read_divine_fonts(
     v: &SourceValue,
@@ -531,23 +528,12 @@ pub(in crate::source_model) fn parse_divine_fonts(
     read_divine_fonts(v, c, p)
 }
 
-// Source declaration: NestedTuple
-pub type TupleExprAlternative2 = (TupleExpr,);
-pub(in crate::source_model::generated) fn read_tuple_expr_alternative2(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<TupleExprAlternative2> {
-    let values = tuple(v, c, p, 1)?;
-    Ok((read_tuple_expr(&values[0], c, &format!("{p}[0]"))?,))
-}
-
 // Source declaration: TupleExpr
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum TupleExpr {
     String(String),
-    Alternative2(Box<TupleExprAlternative2>),
+    Alternative2(Box<(TupleExpr,)>),
 }
 pub(in crate::source_model::generated) fn read_tuple_expr(
     v: &SourceValue,
@@ -561,12 +547,32 @@ pub(in crate::source_model::generated) fn read_tuple_expr(
     if matches!(v, SourceValue::Array(values) if values.len() == 1 && matches!(&values[0], SourceValue::Array(_) | SourceValue::String(_)))
     {
         candidates.push("Alternative2", || {
-            read_tuple_expr_alternative2(v, c, p)
+            read_tuple_entry(v, c, p)
                 .map(Box::new)
                 .map(TupleExpr::Alternative2)
         });
     }
     candidates.finish(v, c, p)
+}
+
+// Source declaration: NestedTuple
+pub(in crate::source_model::generated) fn read_tuple_entry(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<(TupleExpr,)> {
+    let values = tuple(v, c, p, 1)?;
+    Ok((read_tuple_expr(&values[0], c, &format!("{p}[0]"))?,))
+}
+
+// NestedTuple; deferred fields:
+pub type TupleEntry = (TupleExpr,);
+pub(in crate::source_model) fn parse_tuple_entry(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<TupleEntry> {
+    read_tuple_entry(v, c, p)
 }
 
 // TupleExpr; deferred fields:
@@ -576,4 +582,197 @@ pub(in crate::source_model) fn parse_tuple_expr(
     p: &str,
 ) -> ParseResult<TupleExpr> {
     read_tuple_expr(v, c, p)
+}
+
+// Source declaration: NumericScalar
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum StringOrNumber {
+    String(String),
+    Number(Number),
+}
+pub(in crate::source_model::generated) fn read_string_or_number(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<StringOrNumber> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::String(_)) {
+        candidates.push("String", || string(v, c, p).map(StringOrNumber::String));
+    }
+    if matches!(v, SourceValue::Number(_)) {
+        candidates.push("Number", || number(v, c, p).map(StringOrNumber::Number));
+    }
+    candidates.finish(v, c, p)
+}
+
+// Source declaration: LogicalScalar
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum StringOrBoolean {
+    String(String),
+    Boolean(bool),
+}
+pub(in crate::source_model::generated) fn read_string_or_boolean(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<StringOrBoolean> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::String(_)) {
+        candidates.push("String", || string(v, c, p).map(StringOrBoolean::String));
+    }
+    if matches!(v, SourceValue::Boolean(_)) {
+        candidates.push("Boolean", || boolean(v, c, p).map(StringOrBoolean::Boolean));
+    }
+    candidates.finish(v, c, p)
+}
+
+// Source declaration: NumericBoolean
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum NumberOrBoolean {
+    Number(Number),
+    Boolean(bool),
+}
+pub(in crate::source_model::generated) fn read_number_or_boolean(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NumberOrBoolean> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::Number(_)) {
+        candidates.push("Number", || number(v, c, p).map(NumberOrBoolean::Number));
+    }
+    if matches!(v, SourceValue::Boolean(_)) {
+        candidates.push("Boolean", || boolean(v, c, p).map(NumberOrBoolean::Boolean));
+    }
+    candidates.finish(v, c, p)
+}
+
+// Source declaration: AnyScalar
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum StringOrNumberOrBoolean {
+    String(String),
+    Number(Number),
+    Boolean(bool),
+}
+pub(in crate::source_model::generated) fn read_string_or_number_or_boolean(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<StringOrNumberOrBoolean> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::String(_)) {
+        candidates.push("String", || {
+            string(v, c, p).map(StringOrNumberOrBoolean::String)
+        });
+    }
+    if matches!(v, SourceValue::Number(_)) {
+        candidates.push("Number", || {
+            number(v, c, p).map(StringOrNumberOrBoolean::Number)
+        });
+    }
+    if matches!(v, SourceValue::Boolean(_)) {
+        candidates.push("Boolean", || {
+            boolean(v, c, p).map(StringOrNumberOrBoolean::Boolean)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// Source declaration: RestrictedScalar
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum ScalarEnvelopeRestricted {
+    Yes(bool),
+    Number(Number),
+}
+pub(in crate::source_model::generated) fn read_scalar_envelope_restricted(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ScalarEnvelopeRestricted> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::Boolean(value) if *value) {
+        candidates.push("Yes", || {
+            read_yes(v, c, p).map(ScalarEnvelopeRestricted::Yes)
+        });
+    }
+    if matches!(v, SourceValue::Number(_)) {
+        candidates.push("Number", || {
+            number(v, c, p).map(ScalarEnvelopeRestricted::Number)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// Source declaration: ScalarEnvelope
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ScalarEnvelope {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub numeric: SourcePresence<StringOrNumber>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub logical: SourcePresence<StringOrBoolean>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub numeric_boolean: SourcePresence<NumberOrBoolean>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub any_scalar: SourcePresence<StringOrNumberOrBoolean>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub restricted: SourcePresence<ScalarEnvelopeRestricted>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_scalar_envelope(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ScalarEnvelope> {
+    let f = Fields::new(v, c, p)?;
+    Ok(ScalarEnvelope {
+        numeric: f.presence("numeric", read_string_or_number)?,
+        logical: f.presence("logical", read_string_or_boolean)?,
+        numeric_boolean: f.presence("numeric_boolean", read_number_or_boolean)?,
+        any_scalar: f.presence("any_scalar", read_string_or_number_or_boolean)?,
+        restricted: f.presence("restricted", read_scalar_envelope_restricted)?,
+        additional_fields: f.remaining(&[
+            "numeric",
+            "logical",
+            "numeric_boolean",
+            "any_scalar",
+            "restricted",
+        ]),
+    })
+}
+
+// ScalarEnvelope; deferred fields:
+pub(in crate::source_model) fn parse_scalar_envelope(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ScalarEnvelope> {
+    read_scalar_envelope(v, c, p)
+}
+
+// Source declaration: ScalarPair
+pub(in crate::source_model::generated) fn read_scalar_pair(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<(StringOrNumberOrBoolean, Number)> {
+    let values = tuple(v, c, p, 2)?;
+    Ok((
+        read_string_or_number_or_boolean(&values[0], c, &format!("{p}[0]"))?,
+        number(&values[1], c, &format!("{p}[1]"))?,
+    ))
+}
+
+// ScalarPair; deferred fields:
+pub type ScalarPair = (StringOrNumberOrBoolean, Number);
+pub(in crate::source_model) fn parse_scalar_pair(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ScalarPair> {
+    read_scalar_pair(v, c, p)
 }

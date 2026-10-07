@@ -123,36 +123,35 @@ pub(in crate::source_model::generated) fn read_disjunction(
 // Source declaration: structural:a9cf616de67a358eacab010a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
-pub enum EqualToEqEntry2 {
-    Number(Number),
+pub enum StringOrNumber {
     String(String),
+    Number(Number),
 }
-pub(in crate::source_model::generated) fn read_equal_to_eq_entry2(
+pub(in crate::source_model::generated) fn read_string_or_number(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<EqualToEqEntry2> {
+) -> ParseResult<StringOrNumber> {
     let mut candidates = UnionCandidates::new();
-    if matches!(v, SourceValue::Number(_)) {
-        candidates.push("Number", || number(v, c, p).map(EqualToEqEntry2::Number));
-    }
     if matches!(v, SourceValue::String(_)) {
-        candidates.push("String", || string(v, c, p).map(EqualToEqEntry2::String));
+        candidates.push("String", || string(v, c, p).map(StringOrNumber::String));
+    }
+    if matches!(v, SourceValue::Number(_)) {
+        candidates.push("Number", || number(v, c, p).map(StringOrNumber::Number));
     }
     candidates.finish(v, c, p)
 }
 
 // Source declaration: structural:cb03a4eb3c8dfd597213039f
-pub type EqualToEq = (String, EqualToEqEntry2);
 pub(in crate::source_model::generated) fn read_equal_to_eq(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<EqualToEq> {
+) -> ParseResult<(String, StringOrNumber)> {
     let values = tuple(v, c, p, 2)?;
     Ok((
         string(&values[0], c, &format!("{p}[0]"))?,
-        read_equal_to_eq_entry2(&values[1], c, &format!("{p}[1]"))?,
+        read_string_or_number(&values[1], c, &format!("{p}[1]"))?,
     ))
 }
 
@@ -160,7 +159,7 @@ pub(in crate::source_model::generated) fn read_equal_to_eq(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EqualTo {
     // Declared optional=false, nullable=false; retained before defaults.
-    pub eq: SourcePresence<EqualToEq>,
+    pub eq: SourcePresence<(String, StringOrNumber)>,
     pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn read_equal_to(
@@ -198,7 +197,7 @@ pub(in crate::source_model::generated) fn read_exclusive_disjunction(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct GreaterThan {
     // Declared optional=false, nullable=false; retained before defaults.
-    pub gt: SourcePresence<EqualToEq>,
+    pub gt: SourcePresence<(String, StringOrNumber)>,
     pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn read_greater_than(
@@ -217,7 +216,7 @@ pub(in crate::source_model::generated) fn read_greater_than(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct GreaterThanEqualTo {
     // Declared optional=false, nullable=false; retained before defaults.
-    pub gte: SourcePresence<EqualToEq>,
+    pub gte: SourcePresence<(String, StringOrNumber)>,
     pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn read_greater_than_equal_to(
@@ -255,7 +254,7 @@ pub(in crate::source_model::generated) fn read_joint_denial(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LessThan {
     // Declared optional=false, nullable=false; retained before defaults.
-    pub lt: SourcePresence<EqualToEq>,
+    pub lt: SourcePresence<(String, StringOrNumber)>,
     pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn read_less_than(
@@ -274,7 +273,7 @@ pub(in crate::source_model::generated) fn read_less_than(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LessThanEqualTo {
     // Declared optional=false, nullable=false; retained before defaults.
-    pub lte: SourcePresence<EqualToEq>,
+    pub lte: SourcePresence<(String, StringOrNumber)>,
     pub additional_fields: SourceObject,
 }
 pub(in crate::source_model::generated) fn read_less_than_equal_to(

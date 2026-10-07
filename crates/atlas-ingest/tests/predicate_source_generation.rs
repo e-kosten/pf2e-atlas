@@ -1,4 +1,4 @@
-use atlas_ingest::source_model::generated::EqualToEqEntry2;
+use atlas_ingest::source_model::generated::StringOrNumber;
 use atlas_ingest::{
     PredicateInput, PredicateStatement, SourceContext, SourcePresence, parse_predicate_input,
     parse_predicate_statement, parse_predicate_statements,
@@ -52,7 +52,7 @@ fn all_declared_operators_have_typed_owners_and_recursive_values() {
     else {
         panic!("comparison owner")
     };
-    let SourcePresence::Value((name, EqualToEqEntry2::Number(number))) = value.eq else {
+    let SourcePresence::Value((name, StringOrNumber::Number(number))) = value.eq else {
         panic!("typed tuple")
     };
     assert_eq!(name, "level");
