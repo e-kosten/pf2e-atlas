@@ -3,7 +3,7 @@
 // SourcePresence intentionally preserves missing/null before Foundry defaults.
 // Explicit trait-array policies keep identifiers as strings; declaration vocabularies remain in snapshots.
 
-use crate::source_model::parse::{Fields, ParseResult, SourceContext, boolean, keyed, string};
+use crate::source_model::parse::{Fields, ParseResult, SourceContext, boolean, string};
 use crate::source_model::presence::SourcePresence;
 use crate::source_model::value::{SourceObject, SourceValue};
 use serde::Serialize;
@@ -93,89 +93,4 @@ pub(in crate::source_model) fn parse_publication_data(
     p: &str,
 ) -> ParseResult<PublicationData> {
     read_publication_data(v, c, p)
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum ItemGranterSourceOnDelete {
-    #[serde(rename = "cascade")]
-    Cascade,
-    #[serde(rename = "detach")]
-    Detach,
-    #[serde(rename = "restrict")]
-    Restrict,
-}
-pub(in crate::source_model::generated) fn read_item_granter_source_on_delete(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<ItemGranterSourceOnDelete> {
-    match string(v, c, p)?.as_str() {
-        "cascade" => Ok(ItemGranterSourceOnDelete::Cascade),
-        "detach" => Ok(ItemGranterSourceOnDelete::Detach),
-        "restrict" => Ok(ItemGranterSourceOnDelete::Restrict),
-        _ => Err(c.error(p, "cascade | detach | restrict", v)),
-    }
-}
-
-// Source declaration: src/module/item/base/data/system.ts#ItemGranterSource
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ItemGranterSource {
-    // Declared optional=false, nullable=false; retained before defaults.
-    pub id: SourcePresence<String>,
-    // Declared optional=true, nullable=true; retained before defaults.
-    pub nested: SourcePresence<bool>,
-    // Declared optional=true, nullable=false; retained before defaults.
-    pub on_delete: SourcePresence<ItemGranterSourceOnDelete>,
-    pub additional_fields: SourceObject,
-}
-pub(in crate::source_model::generated) fn read_item_granter_source(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<ItemGranterSource> {
-    let f = Fields::new(v, c, p)?;
-    Ok(ItemGranterSource {
-        id: f.presence("id", string)?,
-        nested: f.presence("nested", boolean)?,
-        on_delete: f.presence("onDelete", read_item_granter_source_on_delete)?,
-        additional_fields: f.remaining(&["id", "nested", "onDelete"]),
-    })
-}
-
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@fb71618094a0b05b6c421b69
-pub type ItemGrantFieldsItemGrants = crate::source_model::SourceMap<ItemGranterSource>;
-pub(in crate::source_model::generated) fn read_item_grant_fields_item_grants(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<ItemGrantFieldsItemGrants> {
-    keyed(v, c, p, read_item_granter_source)
-}
-
-// Source declaration: selection:ItemGrantFields
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ItemGrantFields {
-    // Declared optional=true, nullable=false; retained before defaults.
-    pub item_grants: SourcePresence<ItemGrantFieldsItemGrants>,
-    pub additional_fields: SourceObject,
-}
-pub(in crate::source_model::generated) fn read_item_grant_fields(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<ItemGrantFields> {
-    let f = Fields::new(v, c, p)?;
-    Ok(ItemGrantFields {
-        item_grants: f.presence("itemGrants", read_item_grant_fields_item_grants)?,
-        additional_fields: f.remaining(&["itemGrants"]),
-    })
-}
-
-// src/module/item/base/data/system.ts#ItemSourceFlagsPF2e.pf2e.$object@d2f9dbdeef5416dcb8aaeb59; deferred fields: grantedBy, rulesSelections
-pub(in crate::source_model) fn parse_item_grant_fields(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<ItemGrantFields> {
-    read_item_grant_fields(v, c, p)
 }

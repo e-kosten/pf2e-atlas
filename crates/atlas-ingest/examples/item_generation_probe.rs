@@ -51,6 +51,27 @@ fn presence(value: Option<&SourceValue>, project: impl FnOnce(&SourceValue) -> V
 fn remaining(object: &SourceObject, known: &[&str]) -> Value {
     json!({"fields":object.fields().iter().filter(|(key,_)| !known.contains(&key.as_str())).collect::<Vec<_>>()})
 }
+fn indexed(
+    object: &SourceObject,
+    known: &[&str],
+    project: impl Fn(&SourceValue) -> Value,
+) -> Value {
+    json!({"entries":object.fields().iter().filter(|(key,_)| !known.contains(&key.as_str()))
+        .map(|(key,value)|json!([key,project(value)])).collect::<Vec<_>>()})
+}
+fn open(value: &SourceValue) -> Value {
+    serde_json::to_value(value).expect("source value serializes")
+}
+fn unknown_map(value: &SourceValue) -> Value {
+    indexed(object(value), &[], open)
+}
+fn selection_value(value: &SourceValue) -> Value {
+    match value {
+        SourceValue::String(_) | SourceValue::Number(_) => scalar(value),
+        SourceValue::Array(_) | SourceValue::Object(_) => open(value),
+        _ => panic!("oracle called only after accepted rule selection"),
+    }
+}
 fn fields(object: &SourceObject, names: &[&str]) -> Value {
     let mut result = serde_json::Map::new();
     for name in names {
@@ -92,9 +113,12 @@ fn expected(
             let flags = object(v);
             json!({"pf2e":presence(member(flags,"pf2e"),|v|{
                 let pf2e = object(v);
-                json!({"item_grants":presence(member(pf2e,"itemGrants"),|v|json!({"entries":object(v).fields().iter().map(|(key,value)|json!([key,fields(object(value), &["id","nested","onDelete"])] )).collect::<Vec<_>>()})),
-                    "additional_fields":remaining(pf2e,&["itemGrants"])})
-            }),"additional_fields":remaining(flags,&["pf2e"])})
+                json!({"item_grants":presence(member(pf2e,"itemGrants"),|v|indexed(object(v), &[], |value|fields(object(value), &["id","nested","onDelete"]))),
+                    "granted_by":presence(member(pf2e,"grantedBy"),|v|fields(object(v), &["id","onDelete"])),
+                    "rules_selections":presence(member(pf2e,"rulesSelections"),|v|indexed(object(v), &[], selection_value)),
+                    "indexed_fields":indexed(pf2e,&["itemGrants","grantedBy","rulesSelections"],open),
+                    "additional_fields":{"fields":[]}})
+            }),"indexed_fields":indexed(flags,&["pf2e"],unknown_map),"additional_fields":{"fields":[]}})
         }),
         "system_fields":remaining(system,&["description","publication","traits"]),
         "envelope_fields":remaining(envelope,&["type","system","flags"])
@@ -171,4 +195,37 @@ fn main() -> Result<(), Box<dyn Error>> {
         std::process::exit(1);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn raw_oracle_covers_complete_flags_and_preserves_open_member_values() {
+        for flags in [
+            r#"{"pf2e":{"itemGrants":{"x":{"id":"child","onDelete":"detach","nested":null,"future":1}},
+                "grantedBy":{"id":"parent","onDelete":"cascade","future":2},
+                "rulesSelections":{"number":18446744073709551615,"string":"18446744073709551615","array":[null,1],"object":{"x":1,"x":2}},
+                "future":{"x":1,"x":2}},"module":{"null":null,"boolean":false,"payload":[1,{"x":1,"x":2}]}}"#,
+            r#"{"pf2e":{"grantedBy":null,"itemGrants":null,"rulesSelections":null,"future":null},"module":{}}"#,
+        ] {
+            let packet = Packet {
+                source: format!(r#"{{"type":"feat","system":{{}},"flags":{flags}}}"#),
+                family: "feat".into(),
+                context: Context {
+                    record_key: "fixture:id".into(),
+                    source_path: "fixture.json".into(),
+                    json_path: "$".into(),
+                },
+            };
+            let parsed = parse_item_source_slice(
+                SourceContext::new("fixture:id", "fixture.json", "$"),
+                packet.source.as_bytes(),
+            )
+            .unwrap();
+            let wanted = expected(&packet, &BTreeMap::from([("feat".into(), vec![])])).unwrap();
+            assert_eq!(serde_json::to_value(parsed).unwrap(), wanted);
+        }
+    }
 }

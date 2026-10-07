@@ -3,7 +3,8 @@
 // SourcePresence intentionally preserves missing/null before Foundry defaults.
 
 use crate::source_model::parse::{
-    Fields, ParseResult, SourceContext, array, boolean, number, string, tuple,
+    Fields, ParseResult, SourceContext, array, boolean, keyed, non_nullish, non_primitive, number,
+    string, tuple, unknown,
 };
 use crate::source_model::presence::SourcePresence;
 use crate::source_model::union::{UnionCandidates, union_member, union_object, union_required};
@@ -775,4 +776,289 @@ pub(in crate::source_model) fn parse_scalar_pair(
     p: &str,
 ) -> ParseResult<ScalarPair> {
     read_scalar_pair(v, c, p)
+}
+
+// Source declaration: OpenBag
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct OpenBag {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub label: SourcePresence<String>,
+    pub indexed_fields: crate::source_model::SourceMap<SourceValue>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_open_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OpenBag> {
+    let f = Fields::new(v, c, p)?;
+    Ok(OpenBag {
+        label: f.presence("label", string)?,
+        indexed_fields: f.indexed(&["label"], &["retired"], unknown)?,
+        additional_fields: f.retained(&["retired"]),
+    })
+}
+
+// OpenBag; deferred fields:
+pub(in crate::source_model) fn parse_open_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OpenBag> {
+    read_open_bag(v, c, p)
+}
+
+// Source declaration: NumberBag
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NumberBag {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub fixed: SourcePresence<Number>,
+    pub indexed_fields: crate::source_model::SourceMap<Number>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_number_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NumberBag> {
+    let f = Fields::new(v, c, p)?;
+    Ok(NumberBag {
+        fixed: f.presence("fixed", number)?,
+        indexed_fields: f.indexed(&["fixed"], &[], number)?,
+        additional_fields: f.retained(&[]),
+    })
+}
+
+// NumberBag; deferred fields:
+pub(in crate::source_model) fn parse_number_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NumberBag> {
+    read_number_bag(v, c, p)
+}
+
+// Source declaration: ConstrainedBag
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ConstrainedBag {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub fixed: SourcePresence<String>,
+    pub indexed_fields: crate::source_model::SourceMap<A>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_constrained_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ConstrainedBag> {
+    let f = Fields::new(v, c, p)?;
+    Ok(ConstrainedBag {
+        fixed: f.presence("fixed", string)?,
+        indexed_fields: f.indexed(&["fixed"], &[], read_a)?,
+        additional_fields: f.retained(&[]),
+    })
+}
+
+// ConstrainedBag; deferred fields:
+pub(in crate::source_model) fn parse_constrained_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ConstrainedBag> {
+    read_constrained_bag(v, c, p)
+}
+
+// Source declaration: RecursiveBag
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RecursiveBag {
+    // Declared optional=true, nullable=false; retained before defaults.
+    pub child: SourcePresence<Box<RecursiveBag>>,
+    pub indexed_fields: crate::source_model::SourceMap<RecursiveBag>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_recursive_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<RecursiveBag> {
+    let f = Fields::new(v, c, p)?;
+    Ok(RecursiveBag {
+        child: f.presence("child", |v, c, p| read_recursive_bag(v, c, p).map(Box::new))?,
+        indexed_fields: f.indexed(&["child"], &[], read_recursive_bag)?,
+        additional_fields: f.retained(&[]),
+    })
+}
+
+// RecursiveBag; deferred fields:
+pub(in crate::source_model) fn parse_recursive_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<RecursiveBag> {
+    read_recursive_bag(v, c, p)
+}
+
+// Source declaration: UnknownMap
+pub type UnknownMap = crate::source_model::SourceMap<SourceValue>;
+pub(in crate::source_model::generated) fn read_unknown_map(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<UnknownMap> {
+    keyed(v, c, p, unknown)
+}
+
+// UnknownMap; deferred fields:
+pub(in crate::source_model) fn parse_unknown_map(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<UnknownMap> {
+    read_unknown_map(v, c, p)
+}
+
+// Source declaration: MaybeNumberMap
+pub type MaybeNumberMap = crate::source_model::SourceMap<Number>;
+pub(in crate::source_model::generated) fn read_maybe_number_map(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<MaybeNumberMap> {
+    keyed(v, c, p, number)
+}
+
+// MaybeNumberMap; deferred fields:
+pub(in crate::source_model) fn parse_maybe_number_map(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<MaybeNumberMap> {
+    read_maybe_number_map(v, c, p)
+}
+
+// Source declaration: ObjectUnion
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum ObjectUnion {
+    String(String),
+    Object(SourceValue),
+}
+pub(in crate::source_model::generated) fn read_object_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ObjectUnion> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::String(_)) {
+        candidates.push("String", || string(v, c, p).map(ObjectUnion::String));
+    }
+    if matches!(v, SourceValue::Array(_) | SourceValue::Object(_)) {
+        candidates.push("Object", || non_primitive(v, c, p).map(ObjectUnion::Object));
+    }
+    candidates.finish(v, c, p)
+}
+
+// ObjectUnion; deferred fields:
+pub(in crate::source_model) fn parse_object_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ObjectUnion> {
+    read_object_union(v, c, p)
+}
+
+// Source declaration: KnownObject
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct KnownObject {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub label: SourcePresence<String>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_known_object(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<KnownObject> {
+    let f = Fields::new(v, c, p)?;
+    Ok(KnownObject {
+        label: f.presence("label", string)?,
+        additional_fields: f.remaining(&["label"]),
+    })
+}
+
+// Source declaration: OverlappingOpen
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum OverlappingOpen {
+    Object(SourceValue),
+    KnownObject(KnownObject),
+}
+pub(in crate::source_model::generated) fn read_overlapping_open(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OverlappingOpen> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::Array(_) | SourceValue::Object(_)) {
+        candidates.push("Object", || {
+            non_primitive(v, c, p).map(OverlappingOpen::Object)
+        });
+    }
+    if union_object(v, &["label"]) {
+        candidates.push("KnownObject", || {
+            union_required(v, c, p, &[("label", false)])
+                .and_then(|()| read_known_object(v, c, p))
+                .map(OverlappingOpen::KnownObject)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// OverlappingOpen; deferred fields:
+pub(in crate::source_model) fn parse_overlapping_open(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OverlappingOpen> {
+    read_overlapping_open(v, c, p)
+}
+
+// Open:any; deferred fields:
+pub type AnyValue = SourceValue;
+pub(in crate::source_model) fn parse_any_value(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<AnyValue> {
+    unknown(v, c, p)
+}
+
+// Open:unknown; deferred fields:
+pub type UnknownValue = SourceValue;
+pub(in crate::source_model) fn parse_unknown_value(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<UnknownValue> {
+    unknown(v, c, p)
+}
+
+// Open:object; deferred fields:
+pub type ObjectValue = SourceValue;
+pub(in crate::source_model) fn parse_object_value(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<ObjectValue> {
+    non_primitive(v, c, p)
+}
+
+// Open:non-nullish; deferred fields:
+pub type NonNullishValue = SourceValue;
+pub(in crate::source_model) fn parse_non_nullish_value(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NonNullishValue> {
+    non_nullish(v, c, p)
 }

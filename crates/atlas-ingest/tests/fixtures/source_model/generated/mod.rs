@@ -4,26 +4,41 @@
 
 pub(in crate::source_model::generated) mod common;
 pub(in crate::source_model::generated) mod consumer;
+pub(super) use common::parse_any_value;
+pub(super) use common::parse_constrained_bag;
 pub(super) use common::parse_discriminated;
 pub(super) use common::parse_divine_fonts;
 pub(super) use common::parse_empty;
 pub(super) use common::parse_expr;
 pub(super) use common::parse_loose;
+pub(super) use common::parse_maybe_number_map;
 pub(super) use common::parse_node;
+pub(super) use common::parse_non_nullish_value;
+pub(super) use common::parse_number_bag;
+pub(super) use common::parse_object_union;
+pub(super) use common::parse_object_value;
 pub(super) use common::parse_one;
+pub(super) use common::parse_open_bag;
+pub(super) use common::parse_overlapping_open;
+pub(super) use common::parse_recursive_bag;
 pub(super) use common::parse_scalar_envelope;
 pub(super) use common::parse_scalar_pair;
 pub(super) use common::parse_single;
 pub(super) use common::parse_strict;
 pub(super) use common::parse_tuple_entry;
 pub(super) use common::parse_tuple_expr;
+pub(super) use common::parse_unknown_map;
+pub(super) use common::parse_unknown_value;
 pub(super) use common::parse_yes;
 pub use common::{
-    A, B, Discriminated, DivineFonts, DivineFontsAlternative1, Empty, Expr, Harm, Heal, Left,
-    Loose, Node, NumberOrBoolean, One, Other, Required, Right, ScalarEnvelope,
-    ScalarEnvelopeRestricted, ScalarPair, Single, Strict, StringOrBoolean, StringOrNumber,
-    StringOrNumberOrBoolean, TupleEntry, TupleExpr, Yes,
+    A, AnyValue, B, ConstrainedBag, Discriminated, DivineFonts, DivineFontsAlternative1, Empty,
+    Expr, Harm, Heal, KnownObject, Left, Loose, MaybeNumberMap, Node, NonNullishValue, NumberBag,
+    NumberOrBoolean, ObjectUnion, ObjectValue, One, OpenBag, Other, OverlappingOpen, RecursiveBag,
+    Required, Right, ScalarEnvelope, ScalarEnvelopeRestricted, ScalarPair, Single, Strict,
+    StringOrBoolean, StringOrNumber, StringOrNumberOrBoolean, TupleEntry, TupleExpr, UnknownMap,
+    UnknownValue, Yes,
 };
 pub(super) use consumer::parse_bool_consumer;
+pub(super) use consumer::parse_open_consumer;
 pub(super) use consumer::parse_scalar_consumer;
-pub use consumer::{BoolConsumer, ScalarConsumer};
+pub use consumer::{BoolConsumer, OpenConsumer, ScalarConsumer};

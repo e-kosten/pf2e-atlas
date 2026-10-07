@@ -2,8 +2,10 @@
 // Partial source model for PF2e fixture; source digest fixture.
 // SourcePresence intentionally preserves missing/null before Foundry defaults.
 
-use crate::source_model::generated::common::{StringOrNumberOrBoolean, read_scalar_pair, read_yes};
-use crate::source_model::parse::{Fields, ParseResult, SourceContext};
+use crate::source_model::generated::common::{
+    OpenBag, StringOrNumberOrBoolean, read_open_bag, read_scalar_pair, read_yes,
+};
+use crate::source_model::parse::{Fields, ParseResult, SourceContext, non_primitive};
 use crate::source_model::presence::SourcePresence;
 use crate::source_model::value::{SourceObject, SourceValue};
 use serde::Serialize;
@@ -63,4 +65,35 @@ pub(in crate::source_model) fn parse_scalar_consumer(
     p: &str,
 ) -> ParseResult<ScalarConsumer> {
     read_scalar_consumer(v, c, p)
+}
+
+// Source declaration: OpenConsumer
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct OpenConsumer {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub bag: SourcePresence<OpenBag>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub payload: SourcePresence<SourceValue>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_open_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OpenConsumer> {
+    let f = Fields::new(v, c, p)?;
+    Ok(OpenConsumer {
+        bag: f.presence("bag", read_open_bag)?,
+        payload: f.presence("payload", non_primitive)?,
+        additional_fields: f.remaining(&["bag", "payload"]),
+    })
+}
+
+// OpenConsumer; deferred fields:
+pub(in crate::source_model) fn parse_open_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<OpenConsumer> {
+    read_open_consumer(v, c, p)
 }
