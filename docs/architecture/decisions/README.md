@@ -21,6 +21,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0032-ingest-product-intent.md`](./0032-ingest-product-intent.md): ingest promotes Foundry source fields only when they improve durable Atlas product surfaces, while broad raw JSON scans remain diagnostic tooling.
 
 - [`0033-developer-command-surfaces.md`](./0033-developer-command-surfaces.md): product operations use `atlas`, Rust diagnostics use private `atlas-dev`, and compiler research uses private TypeScript npm commands; shared CLI presentation has a narrow support crate.
+- [`0034-source-generation-layout.md`](./0034-source-generation-layout.md): saved inputs use a manifest and shared declaration snapshots; Rust output uses shared modules generated from the complete selected graph, with whole-output freshness checks.
 
 ## Historical ADRs
 

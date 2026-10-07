@@ -110,6 +110,10 @@ PR18 manual reference accept 4,580 pinned occurrences; selected declared values
 match throughout. Six legacy slot/deletion members are retained as ordered data
 instead of separate typed properties. Eighteen adversarial comparison cases and
 focused Rust/TypeScript tests exercise fidelity and fail-loud generation drift.
+Saved inputs now use a manifest and physical/equipment snapshots with nodes owned
+once; Rust output uses shared physical and equipment modules generated from the
+whole selected graph. Freshness checks cover complete output sets. See
+[ADR 0034](../../architecture/decisions/0034-source-generation-layout.md).
 The production ingest pipeline remains unchanged.
 
 The bounded trial is useful, but does not establish full-portfolio generation.

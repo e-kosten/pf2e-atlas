@@ -11,7 +11,7 @@ npm --prefix scripts/source-contracts ci --ignore-scripts
 npm --prefix scripts/source-contracts run verify
 ```
 
-The package is private contributor tooling. `build` emits JavaScript into ignored `dist/`;
+The package is private contributor tooling. `build` replaces ignored `dist/` and emits JavaScript;
 `typecheck` checks implementation and tests without emitting; `test` builds and runs
 the fixture tests; `verify` runs both checks, including generated Rust freshness. `extract` builds before executing
 the compiled entry point. Fixtures stay in the source package. Public discovery
@@ -20,8 +20,9 @@ contracts live in `contracts.ts`; compiler-internal access is bounded in
 
 ## Bounded equipment generation
 
-`generate-equipment` selects equipped, hp, price and usage from the physical and
-equipment system declarations and emits Rust under atlas-ingest. It is a partial
+`generate` loads the saved modular declaration selection and emits Rust under
+atlas-ingest. The graph refresh recipe in `equipment-selection.ts` selects only
+equipped, hp, price and usage from physical/equipment declarations. It is a partial
 source model. Unsupported selected constructs stop generation; unselected fields
 remain ordered source values at parsing. SourcePresence keeps missing/null/value
 before defaults, while the input retains upstream optional/null/undefined facts.
@@ -30,17 +31,31 @@ This policy is separate from full Foundry admission and canonical product models
 From the repository root, regenerate or check using the saved input:
 
 ```sh
-npm --prefix scripts/source-contracts run generate-equipment -- \
-  --input crates/atlas-ingest/src/source_model/generated.input.json \
-  --out crates/atlas-ingest/src/source_model/generated.rs --check
+npm --prefix scripts/source-contracts run generate -- \
+  --manifest scripts/source-contracts/snapshots/manifest.json \
+  --out-dir crates/atlas-ingest/src/source_model/generated --check
 ```
 
 Omit `--check` to write Rust. To refresh from a complete extraction, replace
-`--input` with `--graph scratch/source-extraction/type-graph.json --summary
-scratch/source-extraction/summary.json`. That mode writes the adjacent
-`generated.input.json`; `--check` compares both Rust and input metadata without
-writing. Review both artifacts when changing upstream versions. rustfmt formats
-output before any writes, and overlapping output/input paths are rejected.
+`--manifest` with `--graph scratch/source-extraction/type-graph.json --summary
+scratch/source-extraction/summary.json --snapshot-dir scripts/source-contracts/snapshots`.
+That mode writes the manifest and module snapshots; `--check` compares the entire
+Rust and snapshot file sets without writing. Saved-manifest mode also verifies
+the canonical input file set so unlisted/obsolete snapshots are visible. Review both when changing upstream
+versions. All Rust is formatted and both artifact directories are checked before
+writes. Overlapping input/output directories, symlinks in artifact directories
+and unmanaged files are rejected. Regeneration removes obsolete generated files;
+the two output directories are exclusively generator-owned.
+
+The input manifest records source identity and ordered module files. Each graph
+node is stored once: physical owns shared input, equipment supplies refinement
+nodes and its root metadata. Roots are selected base-before-refinement. Loading
+resolves all module inputs into one graph before emission; the emitter assigns
+shared value owners globally and writes explicit cross-module Rust imports.
+Current outputs are `physical.rs`, `items/equipment.rs` and their module indexes.
+Only modules with definitions or existing children are emitted. Future families
+extend this organization; [ADR 0034](../../docs/architecture/decisions/0034-source-generation-layout.md)
+records the ownership and layout rules.
 
 `sample-equipment --source PATH` emits JSONL source packets for root equipment and
 direct Actor.items. Payload spans preserve authored numeric tokens and duplicate
