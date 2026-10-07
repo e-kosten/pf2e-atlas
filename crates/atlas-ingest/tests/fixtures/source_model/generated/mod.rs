@@ -54,12 +54,14 @@ pub use common::{
     StringOrNumber, StringOrNumberOrBoolean, TemplateTagged, TemplateTupleUnion, TupleEntry,
     TupleExpr, UnknownMap, UnknownValue, Uuid, UuidTag, Yes,
 };
+pub(super) use consumer::parse_authored_arrays;
 pub(super) use consumer::parse_bool_consumer;
 pub(super) use consumer::parse_generic_consumer;
 pub(super) use consumer::parse_open_consumer;
 pub(super) use consumer::parse_scalar_consumer;
 pub(super) use consumer::parse_template_consumer;
 pub use consumer::{
-    BoolConsumer, GenericConsumer, GenericConsumerAnonymousSourceFromSchema, OpenConsumer,
-    ScalarConsumer, TemplateConsumer,
+    AuthoredArraySchema, AuthoredArraySchemaSelector, AuthoredArraySchemaSelectorAlternative1,
+    AuthoredArrays, BoolConsumer, GenericConsumer, GenericConsumerAnonymousSourceFromSchema,
+    OpenConsumer, ScalarConsumer, TemplateConsumer,
 };

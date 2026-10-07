@@ -195,6 +195,24 @@ the exact source/manual candidates, 4,580 corpus occurrences, legacy differences
 maintenance cost, limitations and reproducible probe instructions. Sampling and
 comparison are private experiment tooling, not additions to either Rust CLI.
 
+`sample-rules --source PATH` emits JSONL packets for direct system.rules of every
+recursively sampled root/embedded Item. Missing/duplicate rule keys, non-object
+rules and non-array rule lists fail visibly; raw tokens and additional duplicates
+remain intact. Use direct Node execution after building when redirecting JSONL.
+
+`compare-rules --source PATH --graph PATH --summary PATH --out PATH
+[--policy-manifest PATH]` builds scratch Rust portfolios for extracted schema
+shapes and the bounded authored scalar-or-array projection. Re-extract first:
+graph and summary must identify the same source bytes. Optional policies come
+from a saved generation manifest for that same source. The command writes
+per-occurrence results and `comparison.json`, counts every rejection/unmodeled
+key, and checks typed value/presence and ordered additional-member fidelity in
+Rust. Rejections, fidelity loss or acceptance regressions exit 1. It requires
+locally cached Cargo dependencies for offline builds. Runtime admission is
+reported separately as not executed; parser rejection is not upstream-invalid
+evidence. See the [authored-rule report](../../docs/research/authored-rule-source.md)
+and [ADR 0039](../../docs/architecture/decisions/0039-authored-rule-inputs.md).
+
 The source directory needs upstream `src`, `types`, `package.json`, `tsconfig.json`, `static/system.json` and `static/lang/en.json`. The compiler must also resolve the upstream declaration dependencies. For a clean exported source directory in `scratch/pf2e`, use:
 
 ```sh

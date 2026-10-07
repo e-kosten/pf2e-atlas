@@ -1,6 +1,6 @@
 import type { GraphField, GraphNode, TypeGraph } from './contracts.js';
 import assert from 'node:assert/strict';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -55,6 +55,31 @@ test('default portfolio follows pack kinds, complete family unions and registere
     assert.equal(lookup(result, field(node, 'choices').ref).kind, 'array');
   }
   assert.ok(!result.nodes.some((node) => 'fields' in node && node.fields?.some((field) => field.name === 'preparedOnly')));
+});
+
+test('rule schema field provenance distinguishes ArrayField, StrictArrayField and unrelated names without execution', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'atlas-array-fields-'));
+  try {
+    await cp(fixture, temporary, { recursive: true });
+    await mkdir(path.join(temporary, 'types/foundry/common/data'), { recursive: true });
+    await writeFile(path.join(temporary, 'types/foundry/common/data/fields.d.ts'), 'export class ArrayField<T> { source: T[] }');
+    await mkdir(path.join(temporary, 'src/module/system'), { recursive: true });
+    await writeFile(path.join(temporary, 'src/module/system/schema-data-fields.ts'),
+      "import { ArrayField } from '../../../types/foundry/common/data/fields.js'; export class StrictArrayField<T> extends ArrayField<T> {}");
+    await writeFile(path.join(temporary, 'unrelated.ts'), 'export class ArrayField<T> { declare source: T[] }');
+    const exampleFile = path.join(temporary, 'src/module/rules/example.ts');
+    const example = await readFile(exampleFile, 'utf8');
+    await writeFile(exampleFile, `import { ArrayField } from '../../../types/foundry/common/data/fields.js';
+import { StrictArrayField } from '../system/schema-data-fields.js';
+import { ArrayField as Impostor } from '../../../unrelated.js';
+${example.replace('choices: Field<string[]>', 'choices: ArrayField<string>; strict: StrictArrayField<string>; unrelated: Impostor<string>')}`);
+    const graph = extractTypeGraph(temporary);
+    assert.equal(graph.complete, true, JSON.stringify(graph.diagnostics));
+    for (const root of graph.roots.filter(root => root.ruleKey)) {
+      assert.deepEqual(root.arrayInputs!.map(input => [input.field, input.fieldClass]), [['choices', 'ArrayField'], ['strict', 'StrictArrayField']]);
+      assert.ok(root.arrayInputs!.every(input => input.elementRef === 'primitive:string' && input.declaredAt[0].file === 'src/module/rules/example.ts'));
+    }
+  } finally { await rm(temporary, { recursive: true, force: true }); }
 });
 
 test('portfolio changes reveal new families, document kinds, rules and unsupported registry syntax', async () => {

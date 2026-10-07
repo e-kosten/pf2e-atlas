@@ -26,6 +26,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0036-recursive-source-unions.md`](./0036-recursive-source-unions.md): anchored recursive values, shape-sensitive union identity, typed tuples and compiled generic fixtures.
 - [`0037-open-and-indexed-source-values.md`](./0037-open-and-indexed-source-values.md): explicit open JSON domains, named fields plus typed dynamic entries, and the generated complete Item flags source model.
 - [`0038-source-templates-and-generic-names.md`](./0038-source-templates-and-generic-names.md): checked template-string domains, concrete generic-instantiation names and distinct compilation/corpus evidence.
+- [`0039-authored-rule-inputs.md`](./0039-authored-rule-inputs.md): separate authored collection forms, schema field provenance and contextual corpus/fidelity comparison without claiming Foundry admission.
 
 ## Historical ADRs
 
