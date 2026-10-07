@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: next source-modeling experiment
 Owner: unassigned
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-07
 
 ## Problem and evidence
 
@@ -124,11 +124,20 @@ match raw selected-value projections; fixtures cover absent book/affliction and
 malformed selected values. Forbidden persisted fields remain additional data.
 This does not establish full-family admission or full-portfolio generation.
 
-A 47-root full generation attempt reports first blockers in recursion (34),
-explicit upstream open domains (6), templates (5) and named-plus-indexed objects
-(2). Next, implement recursion/richer unions and explicit open/indexed domain
-semantics, then repeat generation across all roots. Nullable collection entries
-and tuples also remain unsupported; first blockers are not an exhaustive list.
+The [recursive capability slice](../../research/recursive-source-generation.md)
+adds anchored recursion, mixed unions and fixed tuples, using complete persisted
+predicates as the concrete model. All 18,512 accepted selected corpus values
+match raw projections; one known upstream nor/not conflict remains reported.
+Compiled generic fixtures exercise states absent from the corpus. The complete
+source graph is unchanged; original serialization provenance closes saved inputs.
+
+A refreshed 47-root attempt emits seven complete roots. The other first blockers
+are explicit upstream open domains (31), templates (6), named-plus-indexed objects
+(2), and a generic-instantiation Rust name collision (1). Emission is not proof
+of compiled/accepted family coverage. Next implement explicit open/indexed domain
+semantics, template domains and deterministic generic naming, then repeat across
+all roots. Nullable collection entries, optional/rest tuples and alias-only
+recursive types remain unsupported; first blockers are not exhaustive.
 Full parser coverage and legacy semantic ownership still need separate evidence.
 The focused predicate scan found one malformed upstream value combining `nor`
 and `not` in revolutionary-innovation, rule 0, choice 29; Foundry's validator

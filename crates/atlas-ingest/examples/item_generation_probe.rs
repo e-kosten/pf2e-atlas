@@ -100,14 +100,6 @@ fn expected(
         "envelope_fields":remaining(envelope,&["type","system","flags"])
     }))
 }
-fn transport(value: &mut Value) {
-    match value {
-        Value::Number(number) => *value = Value::String(number.to_string()),
-        Value::Array(values) => values.iter_mut().for_each(transport),
-        Value::Object(values) => values.values_mut().for_each(transport),
-        _ => {}
-    }
-}
 fn main() -> Result<(), Box<dyn Error>> {
     let snapshot: Value = serde_json::from_str(include_str!(
         "../../../scripts/source-contracts/snapshots/items/traits.json"
@@ -151,10 +143,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         ) {
             Ok(value) => {
                 accepted += 1;
-                let mut actual = serde_json::to_value(value)?;
-                let mut wanted = expected(&packet, &root_fields)?;
-                transport(&mut actual);
-                transport(&mut wanted);
+                let actual = serde_json::to_value(value)?;
+                let wanted = expected(&packet, &root_fields)?;
                 if actual == wanted {
                     equal += 1;
                     None

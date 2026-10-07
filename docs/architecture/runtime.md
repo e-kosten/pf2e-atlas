@@ -100,7 +100,14 @@ publication, core traits and item grants across all registered Item families.
 Its public `generated` namespace exposes the generated value models. Private
 TypeScript tooling emits checked structures/parsers from selected declaration
 graphs. Minimal Rust primitives preserve pre-default missing/null/value states,
-ordinary numbers, ordered typed map entries and additional members. Unselected
+ordinary numbers, ordered typed map entries and additional members. Recursive
+predicate values, fixed comparison tuples and ChoiceSet constructor inputs share
+generated owners under `rules/predicate`. Anonymous primitive unions use shared
+member-named enums; anonymous tuples appear inline with shared parsers and named
+element imports. Shape-sensitive union parsing reports competing alternatives
+and preserves nested errors; ordinary object fields retain
+pre-default presence. This models persisted shapes without executing predicates
+or enforcing all Foundry runtime constraints. Unselected
 and declaration-forbidden persisted members remain additional source data.
 The build pipeline does not call these parsers; this partial model is not
 full-family admission or a new record/storage contract. Rust consumers do not
@@ -110,12 +117,16 @@ Saved generator inputs live under `scripts/source-contracts/snapshots`, with sou
 identity in one manifest and graph nodes owned once across module snapshots.
 The generator loads the entire selection before assigning shared Rust owners.
 Output is partitioned under `source_model/generated` into shared Item components,
-traits, physical and equipment modules; indexes compose existing content.
+traits, physical/equipment and predicate modules; indexes compose existing content.
 Handwritten presence/value/diagnostic primitives remain outside that generated
 directory. See [ADR 0034](./decisions/0034-source-generation-layout.md) and
 [ADR 0035](./decisions/0035-source-value-generation-policy.md). Broad trait arrays
 have explicit open-string representation policies; closed small vocabularies
 continue to reject unknown values with contextual paths.
+Recursive layout, union identity and compiled fixture policies are defined in
+[ADR 0036](./decisions/0036-recursive-source-unions.md); the
+[predicate comparison](../research/recursive-source-generation.md) records
+corpus evidence and remaining full-generation blockers.
 
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 

@@ -216,3 +216,22 @@ pub(super) fn keyed<T>(
     }
     Ok(super::SourceMap { entries })
 }
+
+pub(super) fn tuple<'a>(
+    value: &'a SourceValue,
+    context: &SourceContext,
+    path: &str,
+    length: usize,
+) -> ParseResult<&'a [SourceValue]> {
+    let SourceValue::Array(values) = value else {
+        return Err(context.error(path, "tuple array", value));
+    };
+    if values.len() != length {
+        return Err(context.message(
+            path,
+            &format!("tuple of length {length}"),
+            format!("length {}", values.len()),
+        ));
+    }
+    Ok(values)
+}

@@ -337,6 +337,10 @@ the Rust `item_generation_probe` example compares typed slices against raw sourc
 projections. These private experiment commands are documented in the package README and
 [shared Item report](./docs/research/shared-item-source-generation.md). Rust tests
 remain under atlas-ingest; its source parsers need no Node runtime.
+`sample-predicates` extracts selected predicate-bearing field contexts, including
+ChoiceSet constructor inputs. The Rust `predicate_generation_probe` compares
+typed values and reports source conflicts with a nonzero exit. See the
+[recursive generation report](./docs/research/recursive-source-generation.md).
 
 Saved declaration inputs live in `scripts/source-contracts/snapshots`, with one
 manifest and references across module snapshots. Generated Rust lives under
