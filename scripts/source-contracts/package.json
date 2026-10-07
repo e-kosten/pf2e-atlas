@@ -11,7 +11,13 @@
     "test": "npm run build --silent && node --test dist/*.test.js",
     "verify": "npm run typecheck && npm test",
     "preextract": "npm run build --silent",
-    "extract": "node dist/extract.js"
+    "extract": "node dist/extract.js",
+    "pregenerate-equipment": "npm run build --silent",
+    "generate-equipment": "node dist/generate-equipment.js",
+    "presample-equipment": "npm run build --silent",
+    "sample-equipment": "node dist/sample-equipment.js",
+    "precompare-equipment": "npm run build --silent",
+    "compare-equipment": "node dist/compare-equipment.js"
   },
   "dependencies": {
     "typescript": "5.9.3"

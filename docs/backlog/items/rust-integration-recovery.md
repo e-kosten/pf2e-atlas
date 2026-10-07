@@ -3,14 +3,16 @@
 Status: planned
 Priority: source foundation first; selective product recovery later
 Owner: unassigned
-Last reviewed: 2026-10-05
+Last reviewed: 2026-10-06
 
 ## Direction and reference candidates
 
 Start new work from main and recover useful integration behavior through small,
 working PRs. Keep the integration branch and PR18 intact as references. This
 inventory selects functional bundles, not commits to cherry-pick or whole crates
-to copy. No recovery bundle below has been ported or tested on main yet.
+to copy. Recovery work is being reviewed on `integration/source-modeling`; main
+adoption remains separate. Declaration/catalog tooling and the bounded equipment
+source generation trial are implemented there or in feature review.
 
 Static inspection compared main `c7b74cbdc7c4df72b7c9a1c88c4f8dedbca959e7`
 with integration `66d47fa9608c5f8c0b77e44efc85faade78d2b89`, using their
@@ -37,8 +39,9 @@ metadata without changing ingest, storage or UI. It needs the pinned upstream
 TypeScript environment, configuration and localization inputs; it does not need
 integration's canonical records or artifact machinery. Validate deterministic
 output, shared references, unresolved selected types, missing descriptions,
-parameterized variants and an understandable change fixture. Rust generation
-remains a later experiment; Atlas tags remain a separate product vocabulary.
+parameterized variants and an understandable change fixture. The bounded Rust
+equipment experiment follows this tooling; Atlas tags remain a separate product
+vocabulary.
 
 ### Source primitives, common Item and shared physical parsing — rework a bounded dependency bundle
 
@@ -149,6 +152,13 @@ behavior tests without restoring receipts, authorization wrappers or corpus
 replay gates. This inventory neither deletes integration files nor establishes
 that artifact publication receipts are equivalent to AO process receipts.
 
+The [bounded equipment comparison](../../research/equipment-source-generation.md)
+reworks the essential ordered-value, presence and contextual error primitives
+without importing the old dependency closure. Only equipped, hp, price and usage
+are generated/typed; common Item, other physical/family fields and recursive
+subitems remain pending. The PR18 parser is compiled separately as comparison
+evidence, not brought into the production source tree.
+
 ## Sequence and completion
 
 Land independent extraction/catalog tooling first. Review its output before Rust
@@ -163,4 +173,5 @@ within an adopting slice; no compatibility wrappers or parallel production model
 Keep crate ownership, update current docs and regenerate actual API bindings when
 affected. Static import inspection proves the dependencies named here, not a
 complete compilable port, preservation of all behavior, performance or UI
-acceptance. No tests or ports were performed for this inventory.
+acceptance. The initial inventory was static; later comparison evidence is
+linked above and remains bounded to its named source-only slice.

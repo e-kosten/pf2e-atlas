@@ -12,6 +12,7 @@ mod index_build_input;
 mod records;
 mod report;
 mod source;
+mod source_model;
 mod source_pipeline;
 
 pub use artifact_manifest::{
@@ -36,6 +37,12 @@ pub use source::model::{
     DocumentEmbeddingSectionTruncationReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, DocumentEmbeddingUnitKindTruncationReport,
     EmbeddingTimingReport, SkippedRecord,
+};
+pub use source_model::{
+    Coins, EquipmentFields, EquipmentSourceSlice, EquippedData, EquippedDataCarryType,
+    PartialPrice, PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
+    SourceContext, SourceDiagnostic, SourceObject, SourcePresence, SourceValue,
+    parse_equipment_source_slice, parse_physical_equipment_fields,
 };
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
