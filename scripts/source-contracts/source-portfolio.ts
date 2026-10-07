@@ -12,6 +12,7 @@ export function discoverSourcePortfolio(root: string): Portfolio {
   const families: Family[] = [];
   const imports: string[] = [];
   const aliases: string[] = [];
+  const schemas: string[] = [];
   const problem = (message: string) => diagnostics.push({ code: 'source-portfolio', message });
   const unique = <T>(matches: T[], context: string): T | undefined => {
     if (matches.length > 1) problem(`Duplicate ${context}`);
@@ -136,9 +137,10 @@ export function discoverSourcePortfolio(root: string): Portfolio {
     imports.push(`import { ${binding.imported} as Rule${index} } from ${JSON.stringify(`./${binding.file}`)};`);
     const alias = `RuleSource_${Buffer.from(key).toString('hex')}`;
     aliases.push(`export type ${alias} = SourceFromSchema<ReturnType<typeof Rule${index}.defineSchema>>;`);
+    schemas.push(`export type RuleSchema_${Buffer.from(key).toString('hex')} = ReturnType<typeof Rule${index}.defineSchema>;`);
     selections.push({ file: PORTFOLIO_FILE, name: alias, ruleKey: key,
       schemaConstructor: { file: binding.file, name: binding.imported } });
   }
   return { selections, families, diagnostics, documentKinds: kinds,
-    ruleKeys: registeredRules.map(([key]) => key).sort(), virtualSource: [...imports, ...aliases].join('\n') };
+    ruleKeys: registeredRules.map(([key]) => key).sort(), virtualSource: [...imports, ...aliases, ...schemas].join('\n') };
 }

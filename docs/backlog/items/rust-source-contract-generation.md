@@ -65,6 +65,18 @@ No field-owner ledger, coverage receipts or new artifact readiness gate is neede
 
 ## Related work
 
+The [authored-rule comparison](../../research/authored-rule-source.md) implements
+the first authored/cleaned input separation for scalar selectors and IWR types.
+It recovers 10,979 of 31,174 rule occurrences without measured value loss;
+221 first-error occurrences remain counted and triaged. Shared nested BattleForm
+IWR inputs use the same authored type projection. Follow-ups are ChoiceSet
+authored union identity, DamageDice expression inputs and the remaining
+source/prepared discrepancies. Whole Actor/Item
+generation still requires nullable/undefined collection support. Full Foundry
+admission/migration verification remains separate from declaration extraction and
+Rust corpus parsing; do not adopt full-rule pipeline parsing while these gaps
+remain unexplained.
+
 - [Localization-backed rules terms](./rust-localization-backed-rules-terms.md)
   owns later product lookup, hover content and record-to-term relationships.
 - [Common Item parser PR16](https://github.com/e-kosten/pf2e-atlas/pull/16)

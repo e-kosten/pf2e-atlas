@@ -127,6 +127,17 @@ The build pipeline does not call these parsers; this partial model is not
 full-family admission or a new record/storage contract. Rust consumers do not
 launch Node. See the [shared Item comparison](../research/shared-item-source-generation.md).
 
+Private TypeScript rule comparison keeps cleaned schema graphs distinct from
+authored input projections. Ordinary string-array selectors and IWR types admit
+preserved scalar/array forms, including nested IWR objects with the same compiler
+declaration origin; strict arrays retain their boundary.
+Scratch portfolios compile against real source primitives, and independent Rust
+fidelity comparison checks typed values and ordered additional data. Corpus
+rejections remain counted and unresolved until supported by implementation or
+runtime evidence. See [ADR 0039](./decisions/0039-authored-rule-inputs.md) and the
+[authored-rule comparison](../research/authored-rule-source.md). These complete
+rule portfolios are diagnostic output, separate from callable production slices.
+
 Saved generator inputs live under `scripts/source-contracts/snapshots`, with source
 identity in one manifest and graph nodes owned once across module snapshots.
 The generator loads the entire selection before assigning shared Rust owners.
