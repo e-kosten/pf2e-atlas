@@ -31,10 +31,22 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if (!node) throw new Error(`Missing generation node: ${id}`);
     return node;
   };
+  const openTraitArrays = new Set(input.openTraitArrays ?? []);
+  const stringVocabulary = (ref: string, seen = new Set<string>()): boolean => {
+    if (seen.has(ref)) return false;
+    const node = lookup(ref); const next = new Set(seen).add(ref);
+    return node.kind === 'primitive' && node.value === 'string' || node.kind === 'literal' && typeof node.value === 'string'
+      || node.kind === 'union' && node.members.length > 0 && node.members.every(ref => stringVocabulary(ref, next));
+  };
+  for (const ref of openTraitArrays) {
+    const node = lookup(ref);
+    if (node.kind !== 'array' || !stringVocabulary(node.element)) throw new Error(`Open trait policy requires a string vocabulary array: ${ref}`);
+  }
   const normalized = (id: string): GraphNode => {
     const node = lookup(id);
     if (node.kind !== 'union') return node;
-    const members = node.members.filter(id => !['primitive:null', 'primitive:undefined'].includes(id));
+    const members = node.members.filter(id => { const member = lookup(id); return !['primitive:null', 'primitive:undefined', 'primitive:never'].includes(id)
+      && !(member.kind === 'intersection' && member.impossible); });
     if (members.length === 1) return normalized(members[0]);
     if (members.length === 2 && members.every(id => lookup(id).kind === 'literal'
       && typeof (lookup(id) as GraphNode & { value: unknown }).value === 'boolean')) {
@@ -46,18 +58,31 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if (ancestors.has(node.id)) throw new Error(`Recursive selected shape is outside this trial: ${node.id}`);
     const next = new Set([...ancestors, node.id]);
     const child = (ref: string) => signature(normalized(ref), next);
+    const collectionChild = (ref: string) => {
+      const entry = lookup(ref);
+      if (entry.kind === 'union' && entry.members.some(ref => ['primitive:null', 'primitive:undefined'].includes(ref)))
+        throw new Error(`Nullable collection entries need a separate model: ${ref}`);
+      return child(ref);
+    };
     if (node.kind === 'object' || node.kind === 'intersection') {
-      if (node.kind === 'object' && node.indexSignatures.length) throw new Error(`Selected index signature is unsupported: ${node.id}`);
+      if (node.kind === 'intersection' && node.impossible) throw new Error(`Impossible selected intersection: ${node.id}`);
+      if (node.kind === 'object' && node.indexSignatures.length) {
+        if (node.fields.length || node.indexSignatures.length !== 1 || node.indexSignatures[0].key !== 'primitive:string')
+          throw new Error(`Selected index signature is unsupported: ${node.id}`);
+        return `map:${collectionChild(node.indexSignatures[0].value)}`;
+      }
       if (node.kind === 'intersection') for (const member of node.members) {
         const constituent = normalized(member);
         if (constituent.kind !== 'object' && constituent.kind !== 'intersection')
           throw new Error(`Unsupported selected intersection member: ${member}`);
+        if (constituent.kind === 'object' && constituent.indexSignatures.length)
+          throw new Error(`Selected intersection index signature is unsupported: ${member}`);
         child(member); // Resolved fields do not encode index-signature constraints.
       }
-      return JSON.stringify(node.fields.map(field => [field.name, field.forbidden, child(field.ref)]));
+      return JSON.stringify(node.fields.filter(field => !field.forbidden).map(field => [field.name, child(field.ref)]));
     }
     if (node.kind === 'union') return JSON.stringify(node.members.map(child).sort());
-    if (node.kind === 'array') return `array:${child(node.element)}`;
+    if (node.kind === 'array') return `array:${openTraitArrays.has(node.id) ? JSON.stringify(['primitive', 'string']) : collectionChild(node.element)}`;
     if (node.kind === 'primitive' || node.kind === 'literal') return JSON.stringify([node.kind, node.value]);
     throw new Error(`Unsupported selected construct: ${node.id} (${node.kind})`);
   };
@@ -89,16 +114,29 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       if (!value) throw new Error(`Unsupported primitive: ${node.value}`);
       return depend(module, value);
     }
-    if (node.kind === 'array') throw new Error(`Selected arrays are outside this trial: ${node.id}`);
-    const name = allocate(node.name ?? hint);
+    const name = allocate(node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length ? hint : node.name ?? hint);
     const value: Owner = { type: name, parser: `read_${snake(name)}`, module };
     owners.set(key, value);
     const output = moduleFor(module);
+    if (node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length) {
+      const array = node.kind === 'array';
+      const childRef = array ? node.element : node.indexSignatures[0].value;
+      const empty = array && lookup(childRef).kind === 'primitive' && (lookup(childRef) as GraphNode & { value: string }).value === 'never';
+      const child = empty ? { type: 'String', parser: '|v, c, p| Err(c.error(p, "no array elements", v))' }
+        : array && openTraitArrays.has(node.id) ? depend(module, { type: 'String', parser: 'string' }) : emit(childRef, name + 'Entry', module);
+      output.types.add(name);
+      output.helpers.add(array ? 'array' : 'keyed');
+      output.declarations.push(`// Source declaration: ${node.id}${array && openTraitArrays.has(node.id) ? '; trait identifiers intentionally remain open strings.' : ''}
+pub type ${name} = ${array ? 'Vec' : 'crate::source_model::SourceMap'}<${child.type}>;
+pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
+    ${array ? 'array' : 'keyed'}(v, c, p, ${child.parser})
+}`);
+      return value;
+    }
     if (node.kind === 'object' || node.kind === 'intersection') {
       output.object = output.serialize = true;
       output.types.add(name);
-      const fields = node.fields.map(field => {
-        if (field.forbidden) throw new Error(`Forbidden selected field is outside this trial: ${node.id}.${field.name}`);
+      const fields = node.fields.filter(field => !field.forbidden).map(field => {
         const child = emit(field.ref, name + pascal(field.name), module);
         return { field, child, rust: snake(field.name) };
       });
@@ -130,7 +168,7 @@ ${fields.map(({ field, child, rust }) => `        ${rust}: f.presence(${rustStri
       output.helpers.add('string');
       output.types.add(name);
       const tokens = members.map(member => (member as GraphNode & { value: string }).value).sort();
-      const variants = tokens.map(pascal);
+      const variants = tokens.map(token => pascal(/^[A-Z]+$/.test(token) ? token.toLowerCase() : token));
       if (new Set(variants).size !== variants.length || variants.some(variant => !/^[A-Z][A-Za-z0-9]*$/.test(variant)))
         throw new Error(`Unrepresentable literal variants: ${node.id}`);
       output.declarations.push(`#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -180,9 +218,36 @@ ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${va
 ${alias}pub(in crate::source_model) fn parse_${snake(selection.name)}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${selection.name}> {
     ${value.parser}(v, c, p)
 }`);
-    rootExports.push(`pub(super) use ${selection.module.replaceAll('/', '::')}::parse_${snake(selection.name)};`);
+    if (!selection.family) rootExports.push(`pub(super) use ${selection.module.replaceAll('/', '::')}::parse_${snake(selection.name)};`);
   }
   const children = new Map<string, Set<string>>();
+  const familyRoots = input.selection.filter(root => root.family);
+  if (familyRoots.length) {
+    if (new Set(familyRoots.map(root => root.family)).size !== familyRoots.length) throw new Error('Duplicate Item trait family');
+    const output = moduleFor('items/traits');
+    output.serialize = true;
+    output.types.add('ItemTraits');
+    for (const root of familyRoots) {
+      if (root.module === 'items/traits') continue;
+      if (!output.imports.has(root.module)) output.imports.set(root.module, new Set());
+      output.imports.get(root.module)!.add(root.name);
+      output.imports.get(root.module)!.add(`parse_${snake(root.name)}`);
+    }
+    output.declarations.push(`#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum ItemTraits {
+${familyRoots.map(root => `    ${pascal(root.family!)}(${root.name}),`).join('\n')}
+}
+pub(in crate::source_model) fn parse_item_traits(family: &str, v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<ItemTraits> {
+    match family {
+${familyRoots.map(root => `        ${rustString(root.family!)} => parse_${snake(root.name)}(v, c, p).map(ItemTraits::${pascal(root.family!)}),`).join('\n')}
+        _ => Err(c.message(p, "registered Item family", family)),
+    }
+}`);
+    rootExports.push('pub(super) use items::traits::parse_item_traits;');
+    output.declarations.push(`pub(in crate::source_model) const ITEM_FAMILIES: &[&str] = &[${familyRoots.map(root => rustString(root.family!)).join(', ')}];`);
+    rootExports.push('pub(super) use items::traits::ITEM_FAMILIES;');
+  }
   for (const name of modules.keys()) {
     const parts = name.split('/');
     for (let index = 0; index < parts.length; index++) {
@@ -194,6 +259,7 @@ ${alias}pub(in crate::source_model) fn parse_${snake(selection.name)}(v: &Source
   const header = `${generatedHeader}
 // Partial source model for PF2e ${input.source.system_version}; source digest ${input.source.source_digest}.
 // SourcePresence intentionally preserves missing/null before Foundry defaults.
+${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as strings; declaration vocabularies remain in snapshots.\n' : ''}
 `;
   const files: Record<string, string> = {};
   for (const name of new Set([...modules.keys(), ...children.keys()])) {

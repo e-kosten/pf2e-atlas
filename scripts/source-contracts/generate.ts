@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { spawnSync } from 'node:child_process';
 import type { ExtractionSummary, TypeGraph } from './contracts.js';
-import { selectEquipmentInput } from './equipment-selection.js';
+import { selectItemInput } from './item-selection.js';
 import { loadGenerationInput, snapshotFiles } from './generation-input.js';
 import { prepareGeneratedFiles } from './generated-files.js';
 import { generateRustModules, generatedHeader } from './source-generation.js';
@@ -31,7 +31,7 @@ export async function generate(args: { manifest?: string; graph?: string; summar
       || inputs.some(file => contains(args.snapshotDir!, file)))))
     throw new Error('Output directories must be separate from inputs and each other');
   const input = args.manifest ? await loadGenerationInput(args.manifest)
-    : selectEquipmentInput(JSON.parse(await readFile(args.graph!, 'utf8')) as TypeGraph,
+    : selectItemInput(JSON.parse(await readFile(args.graph!, 'utf8')) as TypeGraph,
       JSON.parse(await readFile(args.summary!, 'utf8')) as ExtractionSummary);
   // Resolve all roots and format all Rust before writing either artifact set.
   const rust = Object.fromEntries(Object.entries(generateRustModules(input)).map(([file, text]) => [file, formatRust(text)]));

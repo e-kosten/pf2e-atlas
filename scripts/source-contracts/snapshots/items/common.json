@@ -1,0 +1,344 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "ItemDescriptionSource",
+      "declaration": "src/module/item/base/data/system.ts#ItemDescriptionSource",
+      "fields": [
+        {
+          "name": "gm",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 99,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "deferred": []
+    },
+    {
+      "name": "PublicationData",
+      "declaration": "src/module/data.ts#PublicationData",
+      "fields": [
+        {
+          "name": "authors",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "license",
+          "ref": "structural:ede92db1927e6d50c7d3fc25",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 95,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "remaster",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "title",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 93,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "deferred": []
+    },
+    {
+      "name": "ItemGrantFields",
+      "declaration": "src/module/item/base/data/system.ts#ItemSourceFlagsPF2e.pf2e.$object@d2f9dbdeef5416dcb8aaeb59",
+      "fields": [
+        {
+          "name": "itemGrants",
+          "ref": "structural:134fcd328d72b5a011dcbd56",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 56,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "deferred": [
+        "grantedBy",
+        "rulesSelections"
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:boolean:false",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": false
+    },
+    {
+      "id": "literal:boolean:true",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": true
+    },
+    {
+      "id": "literal:string:\"OGL\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "OGL"
+    },
+    {
+      "id": "literal:string:\"ORC\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "ORC"
+    },
+    {
+      "id": "literal:string:\"cascade\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "cascade"
+    },
+    {
+      "id": "literal:string:\"detach\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "detach"
+    },
+    {
+      "id": "literal:string:\"restrict\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "restrict"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Record@fb71618094a0b05b6c421b69",
+      "kind": "object",
+      "name": "Record",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1613,
+          "column": 1
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "src/module/item/base/data/system.ts#ItemGranterSource",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "string",
+          "declaredAt": []
+        },
+        {
+          "expression": "ItemGranterSource",
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 71,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "primitive:null",
+      "kind": "primitive",
+      "declaredAt": [],
+      "value": "null"
+    },
+    {
+      "id": "primitive:string",
+      "kind": "primitive",
+      "declaredAt": [],
+      "value": "string"
+    },
+    {
+      "id": "primitive:undefined",
+      "kind": "primitive",
+      "declaredAt": [],
+      "value": "undefined"
+    },
+    {
+      "id": "src/module/item/base/data/system.ts#ItemGranterSource",
+      "kind": "object",
+      "name": "ItemGranterSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/base/data/system.ts",
+          "line": 71,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 64,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "nested",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 73,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "onDelete",
+          "ref": "structural:e3b53a5d90ec4bc7194eb114",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/base/data/system.ts#ItemGrantSource"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:134fcd328d72b5a011dcbd56",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Record@fb71618094a0b05b6c421b69",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:25553ed4a96b64ee5076405e",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true"
+      ]
+    },
+    {
+      "id": "structural:8370691b5ffe37d8846141b0",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "primitive:null",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:e3b53a5d90ec4bc7194eb114",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"cascade\"",
+        "literal:string:\"detach\"",
+        "literal:string:\"restrict\"",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:ede92db1927e6d50c7d3fc25",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"OGL\"",
+        "literal:string:\"ORC\""
+      ]
+    }
+  ]
+}

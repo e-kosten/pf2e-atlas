@@ -2,6 +2,10 @@
 
 Date: 2026-10-06
 
+This report records the bounded PR30 trial. The current selection and emitter
+have since expanded through the [shared Item slice](./shared-item-source-generation.md);
+the counts, supported constructs and recommendation below describe PR30.
+
 ## Result and recommendation
 
 Compiler-derived Rust works for the selected physical/equipment fields without
@@ -28,11 +32,11 @@ physical families; the selected generation input contains 29 nodes.
   `6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8`, dependency lock
   digest `7a529fe3429ec19e948efe519f54b1ba2a2da8b45cfb07a0e8c1fd06da7b4747`.
 
-The checked [input manifest](../../scripts/source-contracts/snapshots/manifest.json)
+PR30's [input manifest](https://github.com/e-kosten/pf2e-atlas/blob/99aed39d8e3af5f54f5276b44a9b05ce60cc2156/scripts/source-contracts/snapshots/manifest.json)
 records source identity and points to physical/equipment snapshots. Together they
 retain selected declarations, source locations, optional/null/undefined facts and
 deferred field names. Each of the 29 graph nodes occurs once. This is a compact
-graph selection, not a coverage ledger. The [Rust modules](../../crates/atlas-ingest/src/source_model/generated/mod.rs)
+graph selection, not a coverage ledger. The [PR30 Rust modules](https://github.com/e-kosten/pf2e-atlas/blob/99aed39d8e3af5f54f5276b44a9b05ce60cc2156/crates/atlas-ingest/src/source_model/generated/mod.rs)
 are readable and reproducible without an upstream checkout. Equipment imports
 shared physical owners. See [ADR 0034](../architecture/decisions/0034-source-generation-layout.md)
 for partitioning and regeneration rules.
