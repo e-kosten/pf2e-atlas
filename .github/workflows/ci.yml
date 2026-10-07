@@ -77,6 +77,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: scripts/source-contracts/package-lock.json
+      - name: Prepare repository Rust formatter
+        # Node test files run concurrently; resolve/install the repo-pinned
+        # toolchain before their rustfmt subprocesses can race rustup.
+        run: rustfmt --version
       - name: Source contract fixture tests
         run: |
           npm --prefix scripts/source-contracts ci --ignore-scripts
