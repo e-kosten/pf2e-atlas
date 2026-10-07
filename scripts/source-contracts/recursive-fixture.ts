@@ -73,7 +73,17 @@ export function recursiveFixture():GenerationInput {
     {id:'Generic:anonymous',name:'SourceFromSchema',kind:'object',fields:[field('anonymous','primitive:number')],indexSignatures:[],typeArguments:[{expression:'{ anonymous: NumberField }',declaredAt:[]}]},
     {id:'GenericUnion',name:'GenericUnion',kind:'union',members:['Generic:first','Generic:second']},
     object('GenericConsumer',[field('repeated','Generic:equal'),field('anonymous','Generic:anonymous')]),
-    object('TemplateConsumer',[field('color','Color'),field('image','ImagePath')])];
+    object('TemplateConsumer',[field('color','Color'),field('image','ImagePath')]),
+    object('MappedFields',[field('_id','primitive:string'),field('greater-darkvision','primitive:number'),field('self','primitive:string'),field('1st','primitive:string')]),
+    {id:'StringMap',kind:'object',fields:[],indexSignatures:[{key:'primitive:string',value:'primitive:string',readonly:false}]},
+    {id:'IntersectionBag',name:'IntersectionBag',kind:'intersection',members:['ConstrainedBag','StringMap'],
+      fields:[field('fixed','primitive:string')],indexSignatures:[{key:'primitive:string',value:'A',readonly:false}]},
+    {id:'IntersectionMap',name:'IntersectionMap',kind:'intersection',members:['UnknownMap','MaybeNumberMap'],
+      fields:[],indexSignatures:[{key:'primitive:string',value:'primitive:number',readonly:false}]},
+    object('RecursiveIntersectionFields',[field('next','RecursiveIntersection',true)]),
+    {id:'RecursiveIntersectionIndex',kind:'object',fields:[],indexSignatures:[{key:'primitive:string',value:'RecursiveIntersection',readonly:false}]},
+    {id:'RecursiveIntersection',name:'RecursiveIntersection',kind:'intersection',members:['RecursiveIntersectionFields','RecursiveIntersectionIndex'],
+      fields:[field('next','RecursiveIntersection',true)],indexSignatures:[{key:'primitive:string',value:'RecursiveIntersection',readonly:false}]}];
   return {source:{system_version:'fixture',source_digest:'fixture',input_file_count:1,git_commit:null,git_clean:null},nodes,
     selection:[...['Node','Expr','Empty','Single','Discriminated','Strict','Loose','Yes','One','DivineFonts'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'TupleEntry',declaration:'NestedTuple',valueRef:'NestedTuple',module:'common',fields:[],deferred:[]},
@@ -82,5 +92,6 @@ export function recursiveFixture():GenerationInput {
       ...['OpenBag','NumberBag','ConstrainedBag','RecursiveBag','UnknownMap','MaybeNumberMap','ObjectUnion','OpenTupleUnion','OverlappingOpen'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...[{name:'AnyValue',ref:'Open:any'},{name:'UnknownValue',ref:'Open:unknown'},{name:'ObjectValue',ref:'Open:object'},{name:'NonNullishValue',ref:'Open:non-nullish'}].map(({name,ref})=>({name,declaration:ref,valueRef:ref,module:'common',fields:[],deferred:[]})),
       ...['Color','ImagePath','Uuid','TemplateTupleUnion','MixedTemplate','TemplateTagged','OverlappingTemplates','GenericUnion'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
+      ...['MappedFields','IntersectionBag','IntersectionMap','RecursiveIntersection'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...['BoolConsumer','ScalarConsumer','OpenConsumer','GenericConsumer','TemplateConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]}))]};
 }

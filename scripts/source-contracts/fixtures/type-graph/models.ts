@@ -26,3 +26,6 @@ export interface NeverAlternatives {
   traits: { otherTags: string[]; value?: never } | ({ value: string[] } & { value?: never });
   empty: ExplicitEmpty;
 }
+export type IndexedFlags = { pf2e?: { enabled: boolean } } & Record<string, Record<string, unknown> | undefined>;
+export type NarrowedIndex = Record<string, string | number | null> & Record<string, 'a' | 'b'>;
+export type ObjectIndex = Record<string, { id: string }> & Record<string, { nested?: boolean }>;

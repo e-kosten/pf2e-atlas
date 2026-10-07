@@ -154,6 +154,7 @@ export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSele
     if (type.isUnion() || type.isIntersection()) {
       const members = type.types.map((member) => visit(member, origin)).sort(compare);
       shape = type.isUnion() ? { kind: 'union', members } : { kind: 'intersection', members, fields: fields(type, origin),
+        indexSignatures: indices(type),
         ...(checker.isTypeAssignableTo(type, checker.getNeverType()) ? { impossible: true } : {}) };
     } else if (flags & (ts.TypeFlags.StringLiteral | ts.TypeFlags.NumberLiteral | ts.TypeFlags.BooleanLiteral)) {
       shape = { kind: 'literal', value: flags & ts.TypeFlags.BooleanLiteral ? intrinsicName(type) === 'true' : (type as ts.StringLiteralType | ts.NumberLiteralType).value };
@@ -200,10 +201,7 @@ export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSele
         const bases = objectFlags(type) & ts.ObjectFlags.Interface ? checker.getBaseTypes(type as ts.InterfaceType) ?? [] : [];
         const object: Extract<GraphShape, { kind: 'object' }> = { kind: 'object', fields: objectFields,
           ...(bases.length ? { extends: bases.map((base) => visit(base, origin)).sort(compare) } : {}), indexSignatures: [] };
-        object.indexSignatures = checker.getIndexInfosOfType(type).map((info) => ({
-          key: visit(info.keyType, info.declaration), value: visit(info.type, info.declaration),
-          readonly: info.isReadonly,
-        })).sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b)));
+        object.indexSignatures = indices(type);
         if (!object.fields.length && !object.indexSignatures.length) {
           const explicitEmpty = origin && ((ts.isTypeLiteralNode(origin) && !origin.members.length)
             || (ts.isInterfaceDeclaration(origin) && !origin.members.length && !origin.heritageClauses?.length));
@@ -228,6 +226,13 @@ export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSele
     }
     // Union null/undefined are retained as their own graph nodes, not erased by serde policy.
     return id;
+  }
+
+  function indices(type: ts.Type) {
+    return checker.getIndexInfosOfType(type).map(info => ({
+      key: visit(info.keyType, info.declaration), value: visit(info.type, info.declaration),
+      readonly: info.isReadonly,
+    })).sort((a, b) => compare(JSON.stringify(a), JSON.stringify(b)));
   }
 
   function fields(type: ts.Type, context?: ts.Node): GraphField[] {

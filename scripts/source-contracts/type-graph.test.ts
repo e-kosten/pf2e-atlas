@@ -27,6 +27,20 @@ test('compiler-proven impossible intersections stay distinct from valid empty ob
   assert.equal('impossible' in empty,false);
 });
 
+test('intersection indices come from the compiler including narrowed and merged value constraints', () => {
+  const result=extractTypeGraph(fixture,{roots:['IndexedFlags','NarrowedIndex','ObjectIndex'].map(name=>({file:'models.ts',name}))});
+  assert.equal(result.complete,true,JSON.stringify(result.diagnostics));
+  const indices=(name:string)=>{const node=rootNode(result,name);assert.ok(node.kind==='intersection');return node.indexSignatures;};
+  assert.equal(indices('IndexedFlags').length,1);
+  const narrowed=lookup(result,indices('NarrowedIndex')[0].value);
+  assert.ok(narrowed.kind==='union');
+  assert.deepEqual(narrowed.members.map(ref=>valueOf(lookup(result,ref))).sort(),['a','b']);
+  const object=lookup(result,indices('ObjectIndex')[0].value);
+  assert.ok(object.kind==='intersection');
+  assert.deepEqual(object.fields.map(field=>field.name),['id','nested']);
+  assert.deepEqual(object.indexSignatures,[]);
+});
+
 test('default portfolio follows pack kinds, complete family unions and registered schema sources', () => {
   const result = extractTypeGraph(fixture);
   assert.equal(result.complete, true, JSON.stringify(result.diagnostics));

@@ -90,7 +90,7 @@ review chain, even when the implementation work happens in parallel.
 
 Offline tooling is under `scripts/source-contracts`; see its
 [developer instructions](../../../scripts/source-contracts/README.md). The
-reviewed PF2e pin produces 3,084 declaration graph nodes with 47 roots: five
+reviewed PF2e pin produces 3,085 declaration graph nodes with 47 roots: five
 pack document kinds covering all 24 Item and eight Actor families, plus 42
 built-in rule schemas. Source discriminator sets match registered family sets.
 The trait/tag/rarity output has 26 catalogs and 2,686 memberships. Explicit JSON
@@ -131,13 +131,18 @@ match raw projections; one known upstream nor/not conflict remains reported.
 Compiled generic fixtures exercise states absent from the corpus. The complete
 source graph is unchanged; original serialization provenance closes saved inputs.
 
-A refreshed 47-root attempt emits seven complete roots. The other first blockers
-are explicit upstream open domains (31), templates (6), named-plus-indexed objects
-(2), and a generic-instantiation Rust name collision (1). Emission is not proof
-of compiled/accepted family coverage. Next implement explicit open/indexed domain
-semantics, template domains and deterministic generic naming, then repeat across
-all roots. Nullable collection entries, optional/rest tuples and alias-only
-recursive types remain unsupported; first blockers are not exhaustive.
+The [intersection capability slice](../../research/intersection-source-generation.md)
+brings the 47-root attempt to 45 emitted and individually compiled roots: all 42
+rule roots plus JournalEntry, Macro and RollTable. Open/indexed domains, string
+templates, concrete generic naming and field-name mappings now have explicit
+representations. Intersection index constraints come directly from the compiler.
+Actor/Item reach an undefined-allowing array element in DeepPartial materials;
+define its persisted collection representation next, then repeat all roots.
+Optional/rest tuples and alias-only recursive collections also remain unsupported;
+first blockers are not exhaustive. Emission/compilation does not establish
+accepted or value-faithful family coverage. The authored rule corpus exposes
+scalar/array, vocabulary and union-identity discrepancies; compare authored source
+interfaces and Foundry cleaning with SourceFromSchema before adopting those parsers.
 Full parser coverage and legacy semantic ownership still need separate evidence.
 The focused predicate scan found one malformed upstream value combining `nor`
 and `not` in revolutionary-innovation, rule 0, choice 29; Foundry's validator
