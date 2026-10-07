@@ -25,6 +25,8 @@ atlas-ingest. The graph refresh recipe in `item-selection.ts` selects shared Ite
 description, publication, core traits (value/rarity/otherTags) across all 24
 registered families, and keyed item grants. It retains the equipped, hp, price
 and usage selection from `equipment-selection.ts`. It is a partial source model.
+`predicate-selection.ts` adds complete PredicateStatement/Predicate arrays and
+the existing ChoiceSet constructor-input projection through value roots.
 Trait toggles, shield integrated traits and spell traditions remain explicitly
 deferred. Unsupported selected constructs stop generation; unselected fields
 remain ordered source values at parsing. SourcePresence keeps missing/null/value
@@ -56,7 +58,7 @@ Roots are selected base-before-refinement. Loading
 resolves all module inputs into one graph before emission; the emitter assigns
 shared value owners globally and writes explicit cross-module Rust imports.
 Current outputs are `items/common.rs`, `items/traits.rs`, `physical.rs`,
-`items/equipment.rs` and their indexes. The public Rust value namespace is
+`items/equipment.rs`, `rules/predicate.rs` and their indexes. The public Rust value namespace is
 `atlas_ingest::source_model::generated`.
 Only modules with definitions or existing children are emitted. Future families
 extend this organization; [ADR 0034](../../docs/architecture/decisions/0034-source-generation-layout.md)
@@ -69,8 +71,26 @@ may share the same vector owner. Current finite other-tag enums, rarity, license
 and grant deletion behavior remain checked. Declaration-forbidden persisted
 members remain additional data before defaults. Pure string-keyed maps preserve
 typed values and authored order, rejecting repeated modeled keys. Nullable
-collection entries, recursion, richer unions, templates, open domains and
-named-plus-indexed objects remain unsupported. [ADR 0035](../../docs/architecture/decisions/0035-source-value-generation-policy.md)
+collection entries, optional/rest tuples, alias-only recursion, templates, open
+domains and named-plus-indexed objects remain unsupported. Anchored recursion,
+mixed unions and fixed tuples are supported. Union identity requires exactly one
+shape candidate; required keys count even with null/invalid payload, and required
+literal discriminants retain nullable state. Additional partial operator keys
+remain additional values when they do not identify another complete arm. This is
+declaration-shaped source modeling, not full Foundry runtime admission.
+
+Anonymous unions of complete scalar types have member-derived names in fixed
+String, Number, Boolean order (`StringOrNumber`, `StringOrBoolean`,
+`NumberOrBoolean`, `StringOrNumberOrBoolean`). Complete true/false pairs represent
+Boolean; restricted literal alternatives retain their checks. New owners prefer
+upstream declared names, while equivalent shapes reuse existing owners. Naming
+collisions fail explicitly. Anonymous tuple fields and union payloads use inline
+Rust tuples and share a private parser; declared or selected root names retain
+aliases. These source types are inputs to later ingest interpretation, rather
+than prescribed application or storage models.
+
+[ADR 0036](../../docs/architecture/decisions/0036-recursive-source-unions.md) defines
+the recursive and union policies; [ADR 0035](../../docs/architecture/decisions/0035-source-value-generation-policy.md)
 records these policies.
 
 For shared Item fidelity against a pinned source export:
@@ -91,6 +111,35 @@ remain in Rust until comparison transport. It reports per-family counts and
 exits 1 on any rejection or value difference. This proves selected-slice fidelity,
 not complete declaration coverage. See the
 [shared Item report](../../docs/research/shared-item-source-generation.md).
+
+For predicate value discovery and fidelity:
+
+```sh
+npm --prefix scripts/source-contracts run build
+cargo build -p atlas-ingest --example predicate_generation_probe
+set -o pipefail
+node scripts/source-contracts/dist/sample-predicates.js --source scratch/pf2e | \
+  target/debug/examples/predicate_generation_probe > scratch/predicate-corpus-report.json
+```
+
+The sampler scans authored `predicate` fields, rule `definition` fields (including
+nested exceptions), ChoiceSet `choices.filter`, CraftingAbility `craftableItems`,
+RollOption `disabledIf` and predicate-valued FlatModifier/SubstituteRoll
+`removeAfterRoll`. Only ChoiceSet `choices[i].predicate` uses statement-or-array
+input. Malformed non-array values at array-only paths are emitted as discrepancies.
+Ten pinned ItemAlteration definitions are labeled legacy discovery; sampling
+does not establish typed family ownership. The known revolutionary-innovation
+predicate conflict makes the pin's comparison exit 1: inspect the report rather
+than suppressing it. All other 18,512 selected occurrences have equal typed values.
+See the [recursive report](../../docs/research/recursive-source-generation.md).
+
+Synthetic regression graphs live in `recursive-fixture.ts`; their generated
+test-only Rust files under `crates/atlas-ingest/tests/fixtures/source_model/generated`
+compile against the actual source primitives. Package tests verify file freshness;
+Rust tests execute mixed recursive layouts, empty tuples, literal roots, nullable
+discriminants and optional-arm ambiguity. To refresh after an intentional fixture
+change, build the package and use `generateRustModules(recursiveFixture())` plus
+`formatRust()` to write that directory, then run both package and Rust verification.
 
 `sample-equipment --source PATH` emits JSONL source packets for root equipment and
 direct Actor.items. Payload spans preserve authored numeric tokens and duplicate

@@ -23,6 +23,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0033-developer-command-surfaces.md`](./0033-developer-command-surfaces.md): product operations use `atlas`, Rust diagnostics use private `atlas-dev`, and compiler research uses private TypeScript npm commands; shared CLI presentation has a narrow support crate.
 - [`0034-source-generation-layout.md`](./0034-source-generation-layout.md): saved inputs use a manifest and shared declaration snapshots; Rust output uses shared modules generated from the complete selected graph, with whole-output freshness checks.
 - [`0035-source-value-generation-policy.md`](./0035-source-value-generation-policy.md): pre-default source slices, explicit open trait arrays, typed ordered maps, forbidden-member preservation and compiler-proven impossible alternatives.
+- [`0036-recursive-source-unions.md`](./0036-recursive-source-unions.md): anchored recursive values, shape-sensitive union identity, typed tuples and compiled generic fixtures.
 
 ## Historical ADRs
 
