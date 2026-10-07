@@ -32,10 +32,18 @@ Ordinary arrays produce typed vectors. Pure string-indexed objects produce
 `SourceMap<T>` with typed values and authored key order. Repeated modeled map
 keys reject with contextual paths; repeated additional members remain intact.
 Named-plus-indexed objects and explicit upstream open domains follow
-[ADR 0037](./0037-open-and-indexed-source-values.md). Indexed intersection
-constraints, explicit nullable collection unions and unsupported selected
+[ADR 0037](./0037-open-and-indexed-source-values.md). Explicit null/undefined
+collection unions and unsupported selected
 constructs stop generation until their semantics are modeled. Do not substitute
 arbitrary JSON for unsupported selected values.
+
+Rust fields preserve valid leading underscores, map punctuation to underscores,
+prefix digit-leading names with an underscore, and use raw identifiers for Rust
+keywords. self/super/crate receive a trailing underscore. Converted names must
+remain valid and unique, including the generated additional_fields/indexed_fields
+slots. Collisions fail generation. Parsers always address the original source key;
+new punctuation/reserved/digit mappings carry an explicit serde rename. Existing
+camelCase-to-snake_case model serialization retains its current convention.
 
 Compiler extraction records `impossible: true` for intersections proven assignable
 to the compiler's `never` type, retaining their original constituents and source

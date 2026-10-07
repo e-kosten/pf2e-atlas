@@ -101,8 +101,19 @@ Named-plus-indexed objects retain SourcePresence named fields, typed ordered
 The index parser also checks non-null named values. Named missing/null states
 remain pre-default facts; dynamic entries use the index's actual null constraints.
 Undefined in an index value union allows absent keys, not undefined JSON entries.
-Multiple and non-string index signatures remain unsupported. See
+Object intersections carry compiler-resolved fields and index signatures for
+the complete intersection; narrowed/merged value constraints generate through
+the same struct and pure-map representations. Re-extract older graphs without
+intersection index metadata. Multiple and non-string resolved indices remain unsupported. See
 [ADR 0037](../../docs/architecture/decisions/0037-open-and-indexed-source-values.md).
+
+Rust field names support leading underscores and map punctuation, digit-leading
+names and reserved path keywords while retaining source keys for parsing and
+explicit serde renames for these mappings. Name collisions, including generated
+retention slots, stop generation. See
+[ADR 0035](../../docs/architecture/decisions/0035-source-value-generation-policy.md).
+The [intersection report](../../docs/research/intersection-source-generation.md)
+records current 47-root results and the remaining Actor/Item collection gap.
 
 The callable Item slice now uses the generated full flags declaration, including
 `grantedBy`, `itemGrants`, `rulesSelections` and module namespaces. Open payloads

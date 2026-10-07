@@ -22,6 +22,8 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
   validateInput(input);
   const nodes = new Map(input.nodes.map(node => [node.id, node]));
   if (nodes.size !== input.nodes.length) throw new Error('Duplicate generation node identities');
+  for (const node of nodes.values()) if (node.kind==='intersection' && !Array.isArray(node.indexSignatures))
+    throw new Error(`Intersection lacks compiler-resolved index signatures; re-extract the graph: ${node.id}`);
   const modules = new Map<string, RustModule>();
   const moduleFor = (name: string) => {
     if (!modules.has(name)) modules.set(name, { declarations: [], imports: new Map(), types: new Set(), typeDependencies:new Set(),
@@ -80,11 +82,11 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
   const valueRefs=(node:GraphNode):string[]=>node.kind==='union'?node.members:node.kind==='array'?[node.element]
     :node.kind==='tuple'?node.elements.map(element=>element.ref)
     :node.kind==='object'?[...node.fields.filter(field=>!field.forbidden).map(field=>field.ref),...node.indexSignatures.map(index=>index.value)]
-    :node.kind==='intersection'?[...node.members,...node.fields.filter(field=>!field.forbidden).map(field=>field.ref)]:[];
+    :node.kind==='intersection'?[...node.fields.filter(field=>!field.forbidden).map(field=>field.ref),...node.indexSignatures.map(index=>index.value)]:[];
   const anchors=new Set<string>(),visited=new Set<string>(),active:string[]=[];
   const findCycles=(ref:string)=>{
     const node=normalized(ref);const start=active.indexOf(node.id);
-    if(start>=0){for(const id of active.slice(start)){const node=normalized(id);if(node.kind==='object' && (!node.indexSignatures.length || node.fields.length) || node.kind==='intersection' || node.kind==='union')anchors.add(id);}return;}
+    if(start>=0){for(const id of active.slice(start)){const node=normalized(id);if((node.kind==='object' || node.kind==='intersection') && (!node.indexSignatures.length || node.fields.length) || node.kind==='union')anchors.add(id);}return;}
     if(visited.has(node.id))return;active.push(node.id);valueRefs(node).forEach(findCycles);active.pop();visited.add(node.id);
   };
   input.selection.forEach(root=>{root.fields.filter(field=>!field.forbidden).forEach(field=>findCycles(field.ref));if(root.valueRef)findCycles(root.valueRef);});
@@ -105,7 +107,14 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     };
     if (node.kind === 'object' || node.kind === 'intersection') {
       if (node.kind === 'intersection' && node.impossible) throw new Error(`Impossible selected intersection: ${node.id}`);
-      if (node.kind === 'object' && node.indexSignatures.length) {
+      if (node.kind === 'intersection') for (const member of node.members) {
+        const constituent = normalized(member);
+        if (constituent.kind !== 'object' && constituent.kind !== 'intersection')
+          throw new Error(`Unsupported selected intersection member: ${member}`);
+      }
+      // Both fields and index values are resolved by the compiler for the whole
+      // intersection. Constituent constraints may be broader than this result.
+      if (node.indexSignatures.length) {
         if (node.indexSignatures.length !== 1 || node.indexSignatures[0].key !== 'primitive:string')
           throw new Error(`Selected index signature is unsupported: ${node.id}`);
         const indexed = collectionChild(node.indexSignatures[0].value, true);
@@ -113,14 +122,6 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
         return JSON.stringify(['indexed-object',
           node.fields.filter(field => !field.forbidden).map(field => [field.name, child(field.ref)]),
           indexed, node.fields.filter(field => field.forbidden).map(field => field.name)]);
-      }
-      if (node.kind === 'intersection') for (const member of node.members) {
-        const constituent = normalized(member);
-        if (constituent.kind !== 'object' && constituent.kind !== 'intersection')
-          throw new Error(`Unsupported selected intersection member: ${member}`);
-        if (constituent.kind === 'object' && constituent.indexSignatures.length)
-          throw new Error(`Selected intersection index signature is unsupported: ${member}`);
-        child(member); // Resolved fields do not encode index-signature constraints.
       }
       return JSON.stringify(node.fields.filter(field => !field.forbidden).map(field => [field.name, child(field.ref)]));
     }
@@ -148,7 +149,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     const node=normalized(ref);
     if(node.kind==='union') return node.members;
     if(node.kind==='tuple') return node.elements.map(element=>element.ref);
-    if((node.kind==='object' && (!node.indexSignatures.length || node.fields.length)) || node.kind==='intersection')
+    if((node.kind==='object' || node.kind==='intersection') && (!node.indexSignatures.length || node.fields.length))
       return node.fields.filter(field=>!field.forbidden).map(field=>field.ref);
     return [];
   };
@@ -165,8 +166,11 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
   };
   const boxedEdge = (parent:GraphNode,ref:string):boolean => parent.kind==='union'
     ? reaches(ref,parent.id) : residualReaches(ref,parent.id);
-  const rustField = (name:string):string => {
-    if(!/^[a-z][a-z0-9_]*$/.test(name) || ['self','super','crate'].includes(name)) throw new Error(`Invalid Rust field name: ${name}`);
+  const rustField = (source:string):string => {
+    let name=snake(source).replace(/[^a-z0-9_]/g,'_');
+    if (/^[0-9]/.test(name)) name='_'+name;
+    if (['self','super','crate'].includes(name)) name+='_' ;
+    if(!/^[a-z_][a-z0-9_]*$/.test(name) || /^_+$/.test(name)) throw new Error(`Invalid Rust field name: ${source}`);
     return ['type','mod','use','ref','match','struct','enum','pub','fn','const','static','let','loop','move','where','trait','impl','async','await','dyn','in','as','if','else','return','break','continue','mut','unsafe','extern','for','while','abstract','become','box','do','final','macro','override','priv','try','typeof','unsized','virtual','yield','gen'].includes(name) ? `r#${name}` : name;
   };
   const valueKinds=(ref:string,seen=new Set<string>()):Set<string>=>{
@@ -220,7 +224,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     const node=normalized(ref);
     if(anchored.has(node.id))return;
     const children=node.kind==='array'?[node.element]:node.kind==='tuple'?node.elements.map(element=>element.ref)
-      :node.kind==='object' && node.indexSignatures.length && !node.fields.length?node.indexSignatures.map(index=>index.value):[];
+      :(node.kind==='object' || node.kind==='intersection') && node.indexSignatures.length && !node.fields.length?node.indexSignatures.map(index=>index.value):[];
     if(!children.length)return;
     if(seen.has(node.id))throw new Error(`Recursive collection aliases need a nominal anchor: ${node.id}`);
     const next=new Set(seen).add(node.id);children.forEach(ref=>checkAliases(ref,next));anchored.add(node.id);
@@ -268,7 +272,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       parser:node.domain==='object'?'non_primitive':node.domain==='non-nullish'?'non_nullish':'unknown'});
     const scalarName=node.kind==='union' && node.members.every(ref=>atomicDomain(lookup(ref))!==undefined)
       ? node.members.map(ref=>pascal(atomicDomain(lookup(ref))!)).join('Or'):undefined;
-    const name = allocate(node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length && !node.fields.length ? hint : declaredName(node,hint) ?? scalarName ?? hint);
+    const name = allocate(node.kind === 'array' || (node.kind === 'object' || node.kind === 'intersection') && node.indexSignatures.length && !node.fields.length ? hint : declaredName(node,hint) ?? scalarName ?? hint);
     const value: Owner = { type: name, parser: `read_${snake(name)}`, module, allocated:name,
       ...(node.kind==='tuple' && !node.name?{inline:true}:{}) };
     owners.set(key, value);
@@ -292,7 +296,7 @@ ${value.inline?'':`pub type ${name} = ${tupleType()};\n`}pub(in crate::source_mo
 }`);
       return value;
     }
-    if (node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length && !node.fields.length) {
+    if (node.kind === 'array' || (node.kind === 'object' || node.kind === 'intersection') && node.indexSignatures.length && !node.fields.length) {
       const array = node.kind === 'array';
       const childRef = array ? node.element : node.indexSignatures[0].value;
       const empty = array && lookup(childRef).kind === 'primitive' && (lookup(childRef) as GraphNode & { value: string }).value === 'never';
@@ -313,9 +317,9 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
       const fields = node.fields.filter(field => !field.forbidden).map(field => {
         const child = emit(field.ref, name + pascal(field.name), module);
         const boxed=boxedEdge(node,field.ref);
-        return { field, child, rust: rustField(snake(field.name)),boxed };
+        return { field, child, rust: rustField(field.name),boxed };
       });
-      const indexed = node.kind==='object' && node.indexSignatures.length
+      const indexed = node.indexSignatures.length
         ? emit(node.indexSignatures[0].value, name+'IndexedEntry', module) : undefined;
       const forbidden = node.fields.filter(field=>field.forbidden).map(field=>rustString(field.name)).join(', ');
       const names = fields.map(field => field.rust);
@@ -327,6 +331,7 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ${name} {
 ${fields.map(({ field, child, rust, boxed }) => `    // Declared optional=${field.optional}, nullable=${field.nullable}; retained before defaults.
+${rust.replace(/^r#/, '')!==snake(field.name)?`    #[serde(rename = ${rustString(field.name)})]\n`:''}\
     pub ${rust}: SourcePresence<${boxed?`Box<${child.type}>`:child.type}>,`).join('\n')}
 ${indexed?`    pub indexed_fields: crate::source_model::SourceMap<${indexed.type}>,\n`:''}    pub additional_fields: SourceObject,
 }

@@ -20,6 +20,57 @@ mod tests {
         parse::SourceContext::new("fixture", "fixture.json", "$")
     }
     #[test]
+    fn mapped_source_keys_preserve_values_serialized_names_and_diagnostics() {
+        let raw =
+            value::parse_source(br#"{"_id":"abc","greater-darkvision":60,"self":"x","1st":"y"}"#)
+                .unwrap();
+        let parsed = generated::parse_mapped_fields(&raw, &context(), "$").unwrap();
+        assert_eq!(
+            parsed._id,
+            super::presence::SourcePresence::Value("abc".into())
+        );
+        let serialized = serde_json::to_value(parsed).unwrap();
+        assert_eq!(serialized["greater-darkvision"]["value"], json!(60));
+        assert_eq!(serialized["self"]["value"], json!("x"));
+        assert_eq!(serialized["1st"]["value"], json!("y"));
+        let bad = value::parse_source(br#"{"greater-darkvision":"bad"}"#).unwrap();
+        assert_eq!(
+            generated::parse_mapped_fields(&bad, &context(), "$")
+                .unwrap_err()
+                .json_path,
+            "$.greater-darkvision"
+        );
+        let duplicate = value::parse_source(br#"{"_id":"a","_id":"b"}"#).unwrap();
+        assert!(generated::parse_mapped_fields(&duplicate, &context(), "$").is_err());
+    }
+
+    #[test]
+    fn indexed_intersections_enforce_resolved_constraints_and_recursive_layouts() {
+        let raw = value::parse_source(br#"{"fixed":"a","dynamic":"a"}"#).unwrap();
+        let parsed = generated::parse_intersection_bag(&raw, &context(), "$").unwrap();
+        assert_eq!(parsed.indexed_fields.entries[0].0, "dynamic");
+        for bytes in [
+            br#"{"fixed":"b"}"#.as_slice(),
+            br#"{"fixed":"a","dynamic":"b"}"#,
+        ] {
+            let raw = value::parse_source(bytes).unwrap();
+            assert!(generated::parse_intersection_bag(&raw, &context(), "$").is_err());
+        }
+        let raw = value::parse_source(br#"{"z":2,"a":1}"#).unwrap();
+        let parsed = generated::parse_intersection_map(&raw, &context(), "$").unwrap();
+        assert_eq!(
+            parsed
+                .entries
+                .iter()
+                .map(|(key, _)| key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["z", "a"]
+        );
+        let raw = value::parse_source(br#"{"next":{"leaf":{}},"branch":{"next":null}}"#).unwrap();
+        let parsed = generated::parse_recursive_intersection(&raw, &context(), "$").unwrap();
+        assert_eq!(parsed.indexed_fields.entries[0].0, "branch");
+    }
+    #[test]
     fn template_strings_preserve_literals_and_arbitrary_interpolations() {
         for text in ["#", "#蓝\n.[]", "#ff00ff"] {
             let raw = value::SourceValue::String(text.into());

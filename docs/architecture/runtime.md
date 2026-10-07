@@ -113,6 +113,9 @@ entries, preserving declaration-forbidden members separately. Complete Item flag
 under `items/flags` replace the partial handwritten source slice and model grants,
 rule selections and open namespaces. See
 [ADR 0037](./decisions/0037-open-and-indexed-source-values.md).
+Indexed intersections use TypeScript's resolved whole-intersection constraints
+and the same ordered map/struct owners. Rust field-name mappings retain original
+source keys in parsers and detect collisions before emission.
 Template-string parsers preserve literal constraints around arbitrary string
 interpolations. Concrete generic names use named arguments or field context,
 while equivalent shapes share owners. See
@@ -140,6 +143,8 @@ Recursive layout, union identity and compiled fixture policies are defined in
 predicate corpus evidence. The
 [template/generic report](../research/template-source-generation.md) records
 whole-portfolio compilation, corpus discrepancies and remaining generator gaps.
+The [intersection report](../research/intersection-source-generation.md) updates
+that evidence to 45 emitted and individually compiled roots out of 47.
 
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 
