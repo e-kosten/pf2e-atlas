@@ -104,6 +104,14 @@ partial model is not full-family admission or a new record/storage contract.
 See the [comparison report](../research/equipment-source-generation.md) before
 expanding generation. Rust consumers do not launch Node.
 
+Saved generator inputs live under `scripts/source-contracts/snapshots`, with source
+identity in one manifest and graph nodes owned once across module snapshots.
+The generator loads the entire selection before assigning shared Rust owners.
+Output is partitioned under `source_model/generated` into shared physical and
+equipment modules with explicit imports; module indexes compose existing content.
+Handwritten presence/value/diagnostic primitives remain outside that generated
+directory. See [ADR 0034](./decisions/0034-source-generation-layout.md).
+
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 
 Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `AtlasRecord.raw_json`; reference, FTS, and embedding projections consume the normalized `RichDocument` outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.

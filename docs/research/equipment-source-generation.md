@@ -28,11 +28,14 @@ physical families; the selected generation input contains 29 nodes.
   `6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8`, dependency lock
   digest `7a529fe3429ec19e948efe519f54b1ba2a2da8b45cfb07a0e8c1fd06da7b4747`.
 
-The checked [generation input](../../crates/atlas-ingest/src/source_model/generated.input.json)
-retains selected declarations, source locations, optional/null/undefined facts and
-deferred field names. It is a compact graph selection, not a coverage ledger.
-The [Rust output](../../crates/atlas-ingest/src/source_model/generated.rs) is readable
-and reproducible without an upstream checkout.
+The checked [input manifest](../../scripts/source-contracts/snapshots/manifest.json)
+records source identity and points to physical/equipment snapshots. Together they
+retain selected declarations, source locations, optional/null/undefined facts and
+deferred field names. Each of the 29 graph nodes occurs once. This is a compact
+graph selection, not a coverage ledger. The [Rust modules](../../crates/atlas-ingest/src/source_model/generated/mod.rs)
+are readable and reproducible without an upstream checkout. Equipment imports
+shared physical owners. See [ADR 0034](../architecture/decisions/0034-source-generation-layout.md)
+for partitioning and regeneration rules.
 
 ## Comparison evidence
 
@@ -75,6 +78,15 @@ Rust numbers to strings before comparison, normalizing integral `1.0` against
 the manual parser's `u8` hands count. Ordinary fields retain `serde_json::Number`;
 exact original numeric token spelling and arbitrary precision are not promised.
 
+The modular layout was replayed against the original PR30 source-model code at
+`bc38e293105eee883ff488b4e2881eb20880f635`. That code was compiled in a private
+scratch package with the same serde dependencies. All 4,580 corpus results and
+all 18 adversarial results/rejection paths match exactly, including retained
+legacy members. Generated declarations and parser bodies also have identical
+tokens after accounting for module imports, visibility and formatting. This
+checks behavior preservation through the layout change; the manual PR18
+comparison above remains the separate source-modeling evidence.
+
 ## Policy and maintenance cost
 
 All fields use `SourcePresence<T>` before Foundry defaults, including declaration-
@@ -91,10 +103,12 @@ selected forbidden fields stop generation. Intersection constituents are checked
 so resolved fields cannot hide an unsupported index signature. There is no
 arbitrary-JSON fallback for an unsupported selected field.
 
-The initial output is 206 Rust lines. Handwritten support is about 350 Rust lines
+The modular output is 242 Rust lines across two content modules and two indexes.
+Handwritten support is about 350 Rust lines
 for ordered source values, presence, diagnostics and slice composition, plus
-about 250 TypeScript lines for selection/emission and the formatting driver.
-The 769-line generation input is derived data. Sampling, comparison probes and
+about 450 TypeScript lines for selection/emission, snapshot loading/partitioning
+and artifact formatting/freshness. Input metadata is 789 lines across a 20-line
+manifest and two snapshots. Sampling, comparison probes and
 tests add contributor validation code. The old corresponding model/parser
 fragments are already compact; generation does not demonstrate a line-count
 saving at this scale. Its demonstrated benefit is one declaration-driven edit

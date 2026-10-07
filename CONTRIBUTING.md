@@ -330,8 +330,15 @@ Offline declaration and trait metadata tooling lives in [scripts/source-contract
 
 The bounded equipment generation trial also requires rustfmt. Package verification
 checks that the saved graph selection reproduces checked Rust; it does not fetch
-upstream source. `generate-equipment` emits/checks the trial, `sample-equipment`
+upstream source. `generate` emits/checks the modular trial, `sample-equipment`
 extracts raw equipment packets and `compare-equipment` compares Rust probe results.
 These private experiment commands are documented in the package README and
 [comparison report](./docs/research/equipment-source-generation.md). Rust tests
 remain under atlas-ingest; its source parsers need no Node runtime.
+
+Saved declaration inputs live in `scripts/source-contracts/snapshots`, with one
+manifest and references across module snapshots. Generated Rust lives under
+`crates/atlas-ingest/src/source_model/generated`; handwritten source primitives
+remain beside it. Resolve the full selected graph before emitting shared owners.
+Use the package's `generate --manifest ... --out-dir ... --check` command to check
+every output file, including missing and obsolete modules.

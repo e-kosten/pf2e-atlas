@@ -1,0 +1,20 @@
+{
+  "format": "atlas-source-generation/v1",
+  "source": {
+    "system_version": "6.12.4",
+    "source_digest": "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8",
+    "input_file_count": 1509,
+    "git_commit": null,
+    "git_clean": null
+  },
+  "modules": [
+    {
+      "name": "physical",
+      "file": "physical.json"
+    },
+    {
+      "name": "items/equipment",
+      "file": "items/equipment.json"
+    }
+  ]
+}
