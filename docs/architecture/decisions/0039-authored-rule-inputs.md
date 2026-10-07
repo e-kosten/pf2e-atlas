@@ -28,6 +28,25 @@ node. Derived ancestor nodes carry the changed reference through arrays and
 recursive graphs; original schema nodes and serialization provenance stay intact.
 Selected fields sharing the same source value shape reuse one authored union.
 
+Strike's ordinary trait array also admits a scalar string vocabulary. Its scalar
+arm follows the same explicit open-trait policy as its array arm; omitting that
+policy keeps both arms constrained by the extracted vocabulary.
+
+`rule-value-inputs.ts` records bounded constructor-supported differences from
+prepared interfaces. ChoiceSet owned-item, attack and config predicates are
+optional in authored input because its constructor supplies `predicate ?? []`;
+parsing preserves absence rather than synthesizing the default. DamageDice
+override damage types and die sizes are authored strings, and dice counts admit
+numbers or expression strings before resolution and validation. Changes identify
+reachable declaration owners and verify field origin and shape, retaining the
+original nodes. They do not evaluate expressions or assert runtime acceptance.
+When changing the source pin, recheck constructor behavior as well as declaration
+shape; declaration checks alone cannot prove unchanged implementation semantics.
+
+Generic union identity and open fallback behavior follow
+[ADR 0036](./0036-recursive-source-unions.md). Rule projections change authored
+field shapes; they do not add handwritten Foundry execution or dispatch to Rust.
+
 The private TypeScript `compare-rules` command samples every root/embedded Item's
 direct rules from the selected packs. It compiles schema and authored portfolios
 against the real Rust source primitives in scratch outputs and compares typed

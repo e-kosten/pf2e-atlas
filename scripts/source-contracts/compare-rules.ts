@@ -56,7 +56,7 @@ export async function compareRules(args: { source: string; graph: string; summar
   const keys = new Set(graph.roots.flatMap(root => root.ruleKey ? [root.ruleKey] : []));
   const modeled = packets.filter(packet => keys.has(packet.key));
   const unmodeled = packets.filter(packet => !keys.has(packet.key));
-  const authored = authoredRuleInputs(graph);
+  const authored = authoredRuleInputs(graph, openTraitArrays);
   await mkdir(args.out, { recursive: true });
   const json = async (name: string, value: unknown) => writeFile(path.join(args.out, name), JSON.stringify(value, null, 2) + '\n');
   const run = async (profile: string, graph: TypeGraph): Promise<ProbeResult[]> => {
@@ -116,7 +116,8 @@ fn main() { source_model::run(); }
   const before = await run('schema', graph), after = await run('authored', authored.graph);
   const comparison = compareRuleResults(modeled, before, after);
   const report = { source: identity, corpusDigest: createHash('sha256').update(packets.map(packet => JSON.stringify(packet)).join('\n')).digest('hex'),
-    occurrences: packets.length, runtimeAdmission: 'not-executed', openTraitArrays, changes: authored.changes, sharedIwrChanges: authored.sharedIwrChanges,
+    occurrences: packets.length, runtimeAdmission: 'not-executed', openTraitArrays, changes: authored.changes,
+    sharedIwrChanges: authored.sharedIwrChanges, valueChanges: authored.valueChanges,
     ...comparison, unmodeled };
   await json('comparison.json', report);
   return { report, exitCode: comparison.failures.length || comparison.counts.schemaFidelityFailures || comparison.counts.regressed || unmodeled.length ? 1 : 0 };

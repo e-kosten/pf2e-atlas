@@ -12,14 +12,21 @@ recursive identities. Allocate owners before descending. Arrays/maps already
 provide layout indirection. Box inline recursive union payloads, then detect
 remaining object/tuple cycles after removing those boxed edges.
 
-Source union identity uses value kind, required key presence and required literal
-discriminants, including their declared nullability. Count all candidate arms
-before accepting a result: competing keys still identify competing arms when a
-payload is null or invalid. Exactly one candidate must match. For that arm, verify
-required member uniqueness and nullable state, then retain the original nested
-parse diagnostic. Optional-only object alternatives can be ambiguous; do not
-silently choose the first successful parser. Union owner signatures retain these
-selection facts even when ordinary payload structs share pre-default fields.
+Source union identity uses value kind, required key presence, required literal
+discriminants and declaration-forbidden key absence. Forbidden keys exclude a
+union arm even when their value is null or false; ordinary standalone object
+parsing still retains these members as additional source data.
+
+Match anchored alternatives before broad fallbacks: open JSON domains and
+optional-only objects are fallback alternatives when their value kinds overlap
+an anchored arm. Use them only if no anchored shape matches. Count all candidates
+within the selected group before accepting a result; competing anchored shapes
+remain errors. For the single matching arm, verify required member uniqueness
+and nullable state, then retain the original nested parse diagnostic. An invalid
+anchored payload must not fall through to an open domain. Competing fallback
+shapes remain ambiguous; do not choose the first successful parser. Union owner
+signatures retain these selection facts even when ordinary payload structs share
+pre-default fields.
 
 This boundary is distinct from ordinary object parsing, which preserves
 missing/null/value through SourcePresence. Additional and declaration-forbidden

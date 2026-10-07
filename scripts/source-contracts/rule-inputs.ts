@@ -1,4 +1,5 @@
 import type { GraphField, GraphNode, Location, TypeGraph } from './contracts.js';
+import { ruleValueInputs } from './rule-value-inputs.js';
 
 // Only persisted value edges change; declaration and serialization provenance stays original.
 function mapValueReferences(node: GraphNode, map: (ref: string) => string): GraphNode {
@@ -15,7 +16,7 @@ function declarationKey(locations: Location[]): string {
 }
 
 /** Bounded authored-input projection; the extracted cleaned schema remains unchanged. */
-export function authoredRuleInputs(schema: TypeGraph) {
+export function authoredRuleInputs(schema: TypeGraph, openTraitArrays: string[] = []) {
   if (!schema.complete) throw new Error('Authored rule inputs require complete schema extraction');
   const graph = structuredClone(schema);
   const nodes = new Map(graph.nodes.map(node => [node.id, node]));
@@ -24,13 +25,13 @@ export function authoredRuleInputs(schema: TypeGraph) {
     nodes.set(node.id, node); graph.nodes.push(node);
   };
   const changes: { rule: string; field: string; schemaRef: string; authoredRef: string; declaredAt: unknown }[] = [];
-  const replacements = new Map<string, Map<string, string>>();
+  const replacements = new Map<string, Map<string, Partial<GraphField>>>();
   const sharedIwr = new Map<string, { schemaRef: string; authoredRef: string }>();
   const strictFields = new Set(graph.roots.flatMap(root => (root.arrayInputs ?? [])
     .filter(input => input.fieldClass === 'StrictArrayField').map(input => JSON.stringify([root.ref, input.field]))));
-  const replace = (owner: string, field: string, ref: string) => {
+  const replace = (owner: string, field: string, patch: Partial<GraphField>) => {
     if (!replacements.has(owner)) replacements.set(owner, new Map());
-    replacements.get(owner)!.set(field, ref);
+    replacements.get(owner)!.set(field, patch);
   };
   for (const root of graph.roots.filter(root => root.ruleKey)) {
     if (!root.arrayInputs) throw new Error(`Re-extract schema field classes for ${root.ruleKey}`);
@@ -39,18 +40,28 @@ export function authoredRuleInputs(schema: TypeGraph) {
     const fields = structuredClone(original.fields);
     for (const input of root.arrayInputs) {
       const selected = ['selector', 'selectors'].includes(input.field)
-        || ['Immunity', 'Resistance', 'Weakness'].includes(root.ruleKey!) && input.field === 'type';
+        || ['Immunity', 'Resistance', 'Weakness'].includes(root.ruleKey!) && input.field === 'type'
+        || root.ruleKey === 'Strike' && input.field === 'traits';
       if (!selected || input.fieldClass === 'StrictArrayField') continue;
       const field = fields.find(field => field.name === input.field);
       const source = field && nodes.get(field.ref);
       const members = source?.kind === 'union' ? source.members : [field?.ref];
       const array = nodes.get(input.arrayRef), element = nodes.get(input.elementRef);
+      const trait = root.ruleKey === 'Strike' && input.field === 'traits';
+      const stringVocabulary = (ref: string, seen = new Set<string>()): boolean => {
+        if (seen.has(ref)) return false;
+        const node = nodes.get(ref), next = new Set(seen).add(ref);
+        return node?.kind === 'primitive' && node.value === 'string' || node?.kind === 'literal' && typeof node.value === 'string'
+          || node?.kind === 'union' && node.members.length > 0 && node.members.every(ref => stringVocabulary(ref, next));
+      };
       if (!field || !members.includes(input.arrayRef) || array?.kind !== 'array' || array.element !== input.elementRef
-        || element?.kind !== 'primitive' || element.value !== 'string')
+        || !(trait ? stringVocabulary(input.elementRef) : element?.kind === 'primitive' && element.value === 'string'))
         throw new Error(`Authored string-array projection drift: ${root.ruleKey}.${input.field}`);
+      const scalarRef = trait && openTraitArrays.includes(input.arrayRef) ? 'primitive:string' : input.elementRef;
+      if (!nodes.has(scalarRef)) add({ id: scalarRef, kind: 'primitive', value: 'string' });
       const schemaRef = field.ref, authoredRef = `${schemaRef}#authored-string-array`;
-      add({ id: authoredRef, kind: 'union', members: [...new Set([...members as string[], input.elementRef])] });
-      replace(original.id, field.name, authoredRef);
+      add({ id: authoredRef, kind: 'union', members: [...new Set([...members as string[], scalarRef])] });
+      replace(original.id, field.name, { ref: authoredRef });
       changes.push({ rule: root.ruleKey!, field: input.field, schemaRef, authoredRef, declaredAt: input.declaredAt });
       if (input.field === 'type') {
         if (!field.declaredAt.length || declarationKey(field.declaredAt) !== declarationKey(input.declaredAt))
@@ -70,9 +81,10 @@ export function authoredRuleInputs(schema: TypeGraph) {
       if (field.ref !== policy.schemaRef) throw new Error(`Shared IWR type projection drift: ${node.id}`);
       if (!replacements.get(node.id)?.has(field.name))
         sharedIwrChanges.push({ ownerRef: node.id, field: field.name, ...policy, declaredAt: field.declaredAt });
-      replace(node.id, field.name, policy.authoredRef);
+      replace(node.id, field.name, { ref: policy.authoredRef });
     }
   }
+  const valueChanges = ruleValueInputs(graph, replace);
   // Find all ancestors before copying, so recursive graphs need no provisional nodes.
   const affected = new Set(replacements.keys());
   let changed = true;
@@ -92,10 +104,10 @@ export function authoredRuleInputs(schema: TypeGraph) {
     const copy = mapValueReferences(node, authoredId);
     copy.id = authoredId(node.id);
     if ('fields' in copy) copy.fields?.forEach((field: GraphField) => {
-      field.ref = replacements.get(node.id)?.get(field.name) ?? field.ref;
+      Object.assign(field, replacements.get(node.id)?.get(field.name));
     });
     add(copy);
   }
   graph.roots.forEach(root => { if (root.ref) root.ref = authoredId(root.ref); });
-  return { graph, changes, sharedIwrChanges };
+  return { graph, changes, sharedIwrChanges, valueChanges };
 }

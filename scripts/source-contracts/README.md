@@ -207,6 +207,12 @@ graph and summary must identify the same source bytes. Optional policies come
 from a saved generation manifest for that same source. Nested IWR objects reuse
 the authored projection through matching compiler declaration provenance;
 `sharedIwrChanges` lists these owners without broadening unrelated arrays.
+`valueChanges` records the constructor-supported ChoiceSet predicate optionality
+and DamageDice override expression shapes. Strike scalar traits follow the same
+explicit vocabulary policy as their array form. Generic unions select anchored
+shapes before open/optional-only fallbacks; malformed anchored payloads retain
+their nested errors. Declaration-forbidden keys exclude union arms while remaining
+additional data in ordinary standalone object parsing.
 The command writes
 per-occurrence results and `comparison.json`, counts every rejection/unmodeled
 key, and checks typed value/presence and ordered additional-member fidelity in

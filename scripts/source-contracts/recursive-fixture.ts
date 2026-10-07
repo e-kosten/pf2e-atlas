@@ -2,6 +2,7 @@
 import type {GraphField,GraphNode} from './contracts.js';
 import type {GenerationInput} from './generation-input.js';
 import {authoredRuleInputs} from './rule-inputs.js';
+import {authoredRuleFixture} from './authored-rule-fixture.js';
 
 export function recursiveFixture():GenerationInput {
   const field=(name:string,ref:string,optional=false,nullable=false):GraphField=>({name,ref,optional,nullable,undefinedAllowed:false,forbidden:false,declaredAt:[]});
@@ -54,6 +55,7 @@ export function recursiveFixture():GenerationInput {
     {id:'OpenTupleUnion',name:'OpenTupleUnion',kind:'union',members:['primitive:string','OpenTuple']},
     object('KnownObject',[field('label','primitive:string')]),
     {id:'OverlappingOpen',name:'OverlappingOpen',kind:'union',members:['Open:object','KnownObject']},
+    {id:'AmbiguousFallback',name:'AmbiguousFallback',kind:'union',members:['Open:object','Optional']},
     object('OpenConsumer',[field('bag','OpenBag'),field('payload','Open:object')]),
     {id:'Color',name:'Color',kind:'template',text:['#',''],parameters:['primitive:string']},
     {id:'Png',kind:'template',text:['','.png'],parameters:['primitive:string']},
@@ -93,23 +95,27 @@ export function recursiveFixture():GenerationInput {
     object('NestedIwr',[iwrType(),field('exceptions','Strings')]),
     {id:'NestedIwrArray',kind:'array',element:'NestedIwr',readonly:false},
     object('FormSchema',[field('immunities','NestedIwrArray')]));
+  const rules=authoredRuleFixture();
+  nodes.push(...rules.nodes.filter(node=>!nodes.some(existing=>existing.id===node.id)));
   const authored=authoredRuleInputs({format:'atlas-source-type-graph/v1',typescript:'fixture',complete:true,status:'complete',
     nodes,diagnostics:[],projectDiagnostics:{selected:[],unrelated:[]},roots:[{file:'fixture',name:'AuthoredArraySchema',ruleKey:'FlatModifier',ref:'AuthoredArraySchema',arrayInputs:[
       {field:'selector',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'ArrayField',declaredAt:[]},
       {field:'selectors',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'StrictArrayField',declaredAt:[]}]},
       {file:'fixture',name:'IwrSchema',ruleKey:'Immunity',ref:'IwrSchema',arrayInputs:[
         {field:'type',arrayRef:'Strings',elementRef:'primitive:string',fieldClass:'ArrayField',declaredAt:iwrDeclaration}]},
-      {file:'fixture',name:'FormSchema',ruleKey:'BattleForm',ref:'FormSchema',arrayInputs:[]}]});
-  return {source:{system_version:'fixture',source_digest:'fixture',input_file_count:1,git_commit:null,git_clean:null},nodes:authored.graph.nodes,
+      {file:'fixture',name:'FormSchema',ruleKey:'BattleForm',ref:'FormSchema',arrayInputs:[]},...rules.roots]},['FixtureTraits']);
+  return {source:{system_version:'fixture',source_digest:'fixture',input_file_count:1,git_commit:null,git_clean:null},nodes:authored.graph.nodes,openTraitArrays:['FixtureTraits'],
     selection:[...['Node','Expr','Empty','Single','Discriminated','Strict','Loose','Yes','One','DivineFonts'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'TupleEntry',declaration:'NestedTuple',valueRef:'NestedTuple',module:'common',fields:[],deferred:[]},
       ...['TupleExpr','ScalarEnvelope'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       {name:'ScalarPair',declaration:'ScalarPair',valueRef:'ScalarPair',module:'common',fields:[],deferred:[]},
-      ...['OpenBag','NumberBag','ConstrainedBag','RecursiveBag','UnknownMap','MaybeNumberMap','ObjectUnion','OpenTupleUnion','OverlappingOpen'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
+      ...['OpenBag','NumberBag','ConstrainedBag','RecursiveBag','UnknownMap','MaybeNumberMap','ObjectUnion','OpenTupleUnion','OverlappingOpen','AmbiguousFallback'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...[{name:'AnyValue',ref:'Open:any'},{name:'UnknownValue',ref:'Open:unknown'},{name:'ObjectValue',ref:'Open:object'},{name:'NonNullishValue',ref:'Open:non-nullish'}].map(({name,ref})=>({name,declaration:ref,valueRef:ref,module:'common',fields:[],deferred:[]})),
       ...['Color','ImagePath','Uuid','TemplateTupleUnion','MixedTemplate','TemplateTagged','OverlappingTemplates','GenericUnion'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...['MappedFields','IntersectionBag','IntersectionMap','RecursiveIntersection'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...['BoolConsumer','ScalarConsumer','OpenConsumer','GenericConsumer','TemplateConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]})),
       {name:'AuthoredArrays',declaration:'AuthoredArraySchema',valueRef:authored.graph.roots[0].ref!,module:'consumer',fields:[],deferred:[]},
-      {name:'AuthoredForm',declaration:'FormSchema',valueRef:authored.graph.roots[2].ref!,module:'consumer',fields:[],deferred:[]}]};
+      {name:'AuthoredForm',declaration:'FormSchema',valueRef:authored.graph.roots[2].ref!,module:'consumer',fields:[],deferred:[]},
+      ...['Choice','Damage','Strike'].map((name,index)=>({name:`Authored${name}Rule`,declaration:rules.roots[index].ref!,
+        valueRef:authored.graph.roots[index+3].ref!,module:'consumer',fields:[],deferred:[]}))]};
 }
