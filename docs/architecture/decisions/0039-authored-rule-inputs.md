@@ -20,6 +20,14 @@ additional members; later normalization has a separate owner. This is a source
 representation decision, not blanket support for every ArrayField coercion or
 Foundry admission validation.
 
+The same IWR `type` projection applies to nested source objects that retain the
+compiler declaration origin and original value reference, including BattleForm's
+`Omit<IWRSource, "key">` objects passed into IWR constructors. Matching uses
+declaration provenance, not a property name or a globally shared string-array
+node. Derived ancestor nodes carry the changed reference through arrays and
+recursive graphs; original schema nodes and serialization provenance stay intact.
+Selected fields sharing the same source value shape reuse one authored union.
+
 The private TypeScript `compare-rules` command samples every root/embedded Item's
 direct rules from the selected packs. It compiles schema and authored portfolios
 against the real Rust source primitives in scratch outputs and compares typed

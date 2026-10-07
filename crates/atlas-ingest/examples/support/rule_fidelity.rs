@@ -288,6 +288,38 @@ mod tests {
     }
 
     #[test]
+    fn generated_nested_iwr_keeps_authored_forms_and_strict_exceptions() {
+        let context = SourceContext::new("fixture", "fixture.json", "$");
+        for (source, expected) in [
+            (
+                r#"{"immunities":[{"type":"fire"}]}"#,
+                json!({"value":"fire"}),
+            ),
+            (
+                r#"{"immunities":[{"type":["fire","cold"]}]}"#,
+                json!({"value":["fire","cold"]}),
+            ),
+            (r#"{"immunities":[{"type":[]}]}"#, json!({"value":[]})),
+            (r#"{"immunities":[{"type":null}]}"#, json!("null")),
+            (r#"{"immunities":[{}]}"#, json!("missing")),
+        ] {
+            let raw = parse_source(source.as_bytes()).unwrap();
+            let model =
+                serde_json::to_value(generated::parse_authored_form(&raw, &context, "$").unwrap())
+                    .unwrap();
+            assert_eq!(model["immunities"]["value"][0]["type"], expected);
+        }
+        for source in [
+            r#"{"immunities":[{"type":3}]}"#,
+            r#"{"immunities":[{"type":["fire",3]}]}"#,
+            r#"{"immunities":[{"type":"fire","exceptions":"cold"}]}"#,
+        ] {
+            let raw = parse_source(source.as_bytes()).unwrap();
+            assert!(generated::parse_authored_form(&raw, &context, "$").is_err());
+        }
+    }
+
+    #[test]
     fn fidelity_detects_omission_presence_coercion_number_loss_and_additional_order() {
         let graph = FidelityGraph::new(&json!({"nodes":[
             {"id":"string","kind":"primitive","value":"string"},

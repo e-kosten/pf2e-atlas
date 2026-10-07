@@ -116,7 +116,7 @@ fn main() { source_model::run(); }
   const before = await run('schema', graph), after = await run('authored', authored.graph);
   const comparison = compareRuleResults(modeled, before, after);
   const report = { source: identity, corpusDigest: createHash('sha256').update(packets.map(packet => JSON.stringify(packet)).join('\n')).digest('hex'),
-    occurrences: packets.length, runtimeAdmission: 'not-executed', openTraitArrays, changes: authored.changes,
+    occurrences: packets.length, runtimeAdmission: 'not-executed', openTraitArrays, changes: authored.changes, sharedIwrChanges: authored.sharedIwrChanges,
     ...comparison, unmodeled };
   await json('comparison.json', report);
   return { report, exitCode: comparison.failures.length || comparison.counts.schemaFidelityFailures || comparison.counts.regressed || unmodeled.length ? 1 : 0 };

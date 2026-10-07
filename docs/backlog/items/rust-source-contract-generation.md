@@ -67,10 +67,11 @@ No field-owner ledger, coverage receipts or new artifact readiness gate is neede
 
 The [authored-rule comparison](../../research/authored-rule-source.md) implements
 the first authored/cleaned input separation for scalar selectors and IWR types.
-It recovers 10,926 of 31,174 rule occurrences without measured value loss;
-274 first-error occurrences remain counted and triaged. Follow-ups are ChoiceSet
-authored union identity, DamageDice expression inputs, shared nested BattleForm
-IWR semantics and the remaining source/prepared discrepancies. Whole Actor/Item
+It recovers 10,979 of 31,174 rule occurrences without measured value loss;
+221 first-error occurrences remain counted and triaged. Shared nested BattleForm
+IWR inputs use the same authored type projection. Follow-ups are ChoiceSet
+authored union identity, DamageDice expression inputs and the remaining
+source/prepared discrepancies. Whole Actor/Item
 generation still requires nullable/undefined collection support. Full Foundry
 admission/migration verification remains separate from declaration extraction and
 Rust corpus parsing; do not adopt full-rule pipeline parsing while these gaps
