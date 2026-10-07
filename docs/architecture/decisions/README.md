@@ -25,6 +25,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0035-source-value-generation-policy.md`](./0035-source-value-generation-policy.md): pre-default source slices, explicit open trait arrays, typed ordered maps, forbidden-member preservation and compiler-proven impossible alternatives.
 - [`0036-recursive-source-unions.md`](./0036-recursive-source-unions.md): anchored recursive values, shape-sensitive union identity, typed tuples and compiled generic fixtures.
 - [`0037-open-and-indexed-source-values.md`](./0037-open-and-indexed-source-values.md): explicit open JSON domains, named fields plus typed dynamic entries, and the generated complete Item flags source model.
+- [`0038-source-templates-and-generic-names.md`](./0038-source-templates-and-generic-names.md): checked template-string domains, concrete generic-instantiation names and distinct compilation/corpus evidence.
 
 ## Historical ADRs
 

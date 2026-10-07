@@ -2,6 +2,10 @@
 
 Date: 2026-10-07
 
+This report records PR33. The subsequent
+[template/generic report](./template-source-generation.md) records the current
+41-root compilation result and the authored-rule corpus discrepancies.
+
 ## Implemented model
 
 The source emitter handles explicit any, unknown, object and non-nullish domains,

@@ -3,9 +3,11 @@
 // SourcePresence intentionally preserves missing/null before Foundry defaults.
 
 use crate::source_model::generated::common::{
-    OpenBag, StringOrNumberOrBoolean, read_open_bag, read_scalar_pair, read_yes,
+    Color, ImagePath, OpenBag, SourceFromSchemaFirstSchema, StringOrNumberOrBoolean, read_color,
+    read_image_path, read_open_bag, read_scalar_pair, read_source_from_schema_first_schema,
+    read_yes,
 };
-use crate::source_model::parse::{Fields, ParseResult, SourceContext, non_primitive};
+use crate::source_model::parse::{Fields, ParseResult, SourceContext, non_primitive, number};
 use crate::source_model::presence::SourcePresence;
 use crate::source_model::value::{SourceObject, SourceValue};
 use serde::Serialize;
@@ -96,4 +98,88 @@ pub(in crate::source_model) fn parse_open_consumer(
     p: &str,
 ) -> ParseResult<OpenConsumer> {
     read_open_consumer(v, c, p)
+}
+
+// Source declaration: Generic:anonymous
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct GenericConsumerAnonymousSourceFromSchema {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub anonymous: SourcePresence<Number>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_generic_consumer_anonymous_source_from_schema(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<GenericConsumerAnonymousSourceFromSchema> {
+    let f = Fields::new(v, c, p)?;
+    Ok(GenericConsumerAnonymousSourceFromSchema {
+        anonymous: f.presence("anonymous", number)?,
+        additional_fields: f.remaining(&["anonymous"]),
+    })
+}
+
+// Source declaration: GenericConsumer
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct GenericConsumer {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub repeated: SourcePresence<SourceFromSchemaFirstSchema>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub anonymous: SourcePresence<GenericConsumerAnonymousSourceFromSchema>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_generic_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<GenericConsumer> {
+    let f = Fields::new(v, c, p)?;
+    Ok(GenericConsumer {
+        repeated: f.presence("repeated", read_source_from_schema_first_schema)?,
+        anonymous: f.presence(
+            "anonymous",
+            read_generic_consumer_anonymous_source_from_schema,
+        )?,
+        additional_fields: f.remaining(&["repeated", "anonymous"]),
+    })
+}
+
+// GenericConsumer; deferred fields:
+pub(in crate::source_model) fn parse_generic_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<GenericConsumer> {
+    read_generic_consumer(v, c, p)
+}
+
+// Source declaration: TemplateConsumer
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct TemplateConsumer {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub color: SourcePresence<Color>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub image: SourcePresence<ImagePath>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_template_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<TemplateConsumer> {
+    let f = Fields::new(v, c, p)?;
+    Ok(TemplateConsumer {
+        color: f.presence("color", read_color)?,
+        image: f.presence("image", read_image_path)?,
+        additional_fields: f.remaining(&["color", "image"]),
+    })
+}
+
+// TemplateConsumer; deferred fields:
+pub(in crate::source_model) fn parse_template_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<TemplateConsumer> {
+    read_template_consumer(v, c, p)
 }

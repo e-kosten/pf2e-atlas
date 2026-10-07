@@ -63,6 +63,20 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       members.sort((a,b)=>atomicOrder.indexOf(atomicDomain(lookup(a))!)-atomicOrder.indexOf(atomicDomain(lookup(b))!));
     return { ...node, members };
   };
+  const templateParts = (node: GraphNode & {kind:'template'}): string => {
+    if (node.text.length !== node.parameters.length + 1
+      || node.parameters.some(ref => { const parameter=lookup(ref); return parameter.kind!=='primitive' || parameter.value!=='string'; }))
+      throw new Error(`Unsupported template interpolation: ${node.id}`);
+    return `&[${node.text.map(rustString).join(', ')}]`;
+  };
+  // Compiler-resolved generic arguments are provenance, not emitted Rust generics.
+  // Anonymous arguments use the owning field context rather than a printed schema.
+  const declaredName = (node:GraphNode,hint:string):string|undefined => {
+    if (!node.name || !node.typeArguments?.length) return node.name;
+    const arguments_=node.typeArguments.map(argument=>argument.expression);
+    return arguments_.every(argument=>/^[A-Za-z][A-Za-z0-9_]*$/.test(argument))
+      ? node.name+arguments_.map(pascal).join('') : hint+node.name;
+  };
   const valueRefs=(node:GraphNode):string[]=>node.kind==='union'?node.members:node.kind==='array'?[node.element]
     :node.kind==='tuple'?node.elements.map(element=>element.ref)
     :node.kind==='object'?[...node.fields.filter(field=>!field.forbidden).map(field=>field.ref),...node.indexSignatures.map(index=>index.value)]
@@ -121,6 +135,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     }
     if (node.kind === 'array') return `array:${openTraitArrays.has(node.id) ? JSON.stringify(['primitive', 'string']) : collectionChild(node.element)}`;
     if (node.kind === 'primitive' || node.kind === 'literal') return JSON.stringify([node.kind, node.value]);
+    if (node.kind === 'template') { templateParts(node); return JSON.stringify(['template',node.text]); }
     if (node.kind === 'open') {
       if (node.fields?.length || node.indexSignatures?.length || !['any','unknown','object','non-nullish'].includes(node.domain))
         throw new Error(`Unsupported structured open domain: ${node.id}`);
@@ -160,6 +175,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if(node.kind==='array' || node.kind==='tuple')return new Set(['Array']);
     if(node.kind==='object' || node.kind==='intersection')return new Set(['Object']);
     if(node.kind==='literal')return new Set([typeof node.value==='string'?'String':typeof node.value==='number'?'Number':'Boolean']);
+    if(node.kind==='template')return new Set(['String']);
     if(node.kind==='primitive')return new Set([{string:'String',number:'Number',boolean:'Boolean'}[node.value]??'Null']);
     if(node.kind==='open')return new Set(node.domain==='object'?['Array','Object']
       :node.domain==='non-nullish'?['Boolean','Number','String','Array','Object']:['Null','Boolean','Number','String','Array','Object']);
@@ -172,6 +188,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if(node.kind==='primitive')return `matches!(${v}, SourceValue::${{string:'String',number:'Number',boolean:'Boolean'}[node.value] ?? 'Null'}(_))`;
     if(node.kind==='open')return node.domain==='object'?`matches!(${v}, SourceValue::Array(_) | SourceValue::Object(_))`
       :node.domain==='non-nullish'?`!matches!(${v}, SourceValue::Null)`:'true';
+    if(node.kind==='template')return `matches!(${v}, SourceValue::String(value) if matches_template(value, ${templateParts(node)}))`;
     if(node.kind==='literal') {
       if(typeof node.value==='string')return `matches!(${v}, SourceValue::String(value) if value == ${rustString(node.value)})`;
       if(typeof node.value==='boolean')return `matches!(${v}, SourceValue::Boolean(value) if ${node.value?'*value':'!*value'})`;
@@ -180,19 +197,19 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if(node.kind==='union')return '('+node.members.map(ref=>guard(ref,v,next)).join(' || ')+')';
     if(node.kind==='tuple')return `matches!(${v}, SourceValue::Array(values) if values.len() == ${node.elements.length}${node.elements.map((element,index)=>{
       const child=normalized(element.ref),position=`&values[${index}]`;
-      const scalar=child.kind==='literal' || child.kind==='primitive' || child.kind==='union' && child.members.every(ref=>['literal','primitive'].includes(normalized(ref).kind));
+      const scalar=child.kind==='literal' || child.kind==='primitive' || child.kind==='template' || child.kind==='union' && child.members.every(ref=>['literal','primitive','template'].includes(normalized(ref).kind));
       return ` && ${scalar?guard(element.ref,position,next):`matches!(${position}, ${[...valueKinds(element.ref)].sort().map(kind=>`SourceValue::${kind}${kind==='Null'?'':'(_)'}`).join(' | ')})`}`;
     }).join('')})`;
     if(node.kind==='array') {
       const element=normalized(node.element);
       if(element.kind==='primitive' && element.value==='never')return `matches!(${v}, SourceValue::Array(values) if values.is_empty())`;
-      const scalar=element.kind==='literal' || element.kind==='primitive' || element.kind==='union' && element.members.every(ref=>['literal','primitive'].includes(normalized(ref).kind));
+      const scalar=element.kind==='literal' || element.kind==='primitive' || element.kind==='template' || element.kind==='union' && element.members.every(ref=>['literal','primitive','template'].includes(normalized(ref).kind));
       return scalar?`matches!(${v}, SourceValue::Array(values) if values.iter().all(|v| ${guard(node.element,'v',next)}))`:`matches!(${v}, SourceValue::Array(_))`;
     }
     if(node.kind==='object' || node.kind==='intersection') {
       const required=node.fields.filter(field=>!field.forbidden && !field.optional && !field.undefinedAllowed);
-      const literal=required.filter(field=>{const child=normalized(field.ref);return child.kind==='literal'
-        || child.kind==='union' && child.members.every(ref=>normalized(ref).kind==='literal');});
+      const literal=required.filter(field=>{const child=normalized(field.ref);return child.kind==='literal' || child.kind==='template'
+        || child.kind==='union' && child.members.every(ref=>['literal','template'].includes(normalized(ref).kind));});
       return `union_object(${v}, &[${required.map(field=>rustString(field.name)).join(', ')}])`
         +literal.map(field=>` && union_member(${v}, ${rustString(field.name)}, |v| ${field.nullable?'matches!(v, SourceValue::Null) || ':''}${guard(field.ref,'v')})`).join('');
     }
@@ -251,7 +268,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       parser:node.domain==='object'?'non_primitive':node.domain==='non-nullish'?'non_nullish':'unknown'});
     const scalarName=node.kind==='union' && node.members.every(ref=>atomicDomain(lookup(ref))!==undefined)
       ? node.members.map(ref=>pascal(atomicDomain(lookup(ref))!)).join('Or'):undefined;
-    const name = allocate(node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length && !node.fields.length ? hint : node.name ?? scalarName ?? hint);
+    const name = allocate(node.kind === 'array' || node.kind === 'object' && node.indexSignatures.length && !node.fields.length ? hint : declaredName(node,hint) ?? scalarName ?? hint);
     const value: Owner = { type: name, parser: `read_${snake(name)}`, module, allocated:name,
       ...(node.kind==='tuple' && !node.name?{inline:true}:{}) };
     owners.set(key, value);
@@ -325,6 +342,19 @@ ${indexed?`        indexed_fields: f.indexed(&[${fields.map(({field})=>rustStrin
     }
     const members = node.kind === 'union' ? node.members.map(lookup) : [node];
     if (!members.length) throw new Error(`Selected union has no supported value alternatives: ${node.id}`);
+    const stringDomain=(member:GraphNode):boolean=>member.kind==='template'
+      || member.kind==='literal' && typeof member.value==='string'
+      || member.kind==='primitive' && member.value==='string';
+    if (members.some(member=>member.kind==='template') && members.every(stringDomain)) {
+      output.helpers.add('string');output.helpers.add('matches_template');output.types.add(name);
+      const condition=members.map(member=>guard(member.id,'v')).join(' || ');
+      output.declarations.push(`// Source declaration: ${node.id}
+pub type ${name} = String;
+pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
+    if ${condition} { string(v, c, p) } else { Err(c.error(p, ${rustString('string matching '+name)}, v)) }
+}`);
+      return value;
+    }
     if (members.every(member => member.kind === 'literal' && typeof member.value === 'string')) {
       output.serialize = true;
       output.helpers.add('string');
@@ -373,13 +403,14 @@ ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${va
     output.serialize=true;output.types.add(name);output.helpers.add('UnionCandidates');
     const alternatives=members.map((member,index)=>{
       const child=emit(member.id,name+'Alternative'+(index+1),module);
-      const variant=pascal(member.name ?? (member.kind==='primitive'?member.value:member.kind==='open'?member.domain:'Alternative'+(index+1)));
+      const variant=pascal(declaredName(member,name+'Alternative'+(index+1)) ?? (member.kind==='primitive'?member.value:member.kind==='open'?member.domain:'Alternative'+(index+1)));
       const boxed=boxedEdge(node,member.id);
       if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_required');
       if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_object');
       const condition=guard(member.id,'v');
       if(condition.includes('union_member(')) output.helpers.add('union_member');
       if(condition.includes('union_object(')) output.helpers.add('union_object');
+      if(condition.includes('matches_template(')) output.helpers.add('matches_template');
       const required=member.kind==='object' || member.kind==='intersection' ? member.fields.filter(field=>!field.forbidden && !field.optional && !field.undefinedAllowed) : [];
       const validate=member.kind==='object' || member.kind==='intersection'
         ? `union_required(v, c, p, &[${required.map(field=>`(${rustString(field.name)}, ${field.nullable})`).join(', ')}]).and_then(|()| ${child.parser}(v, c, p))` : `${child.parser}(v, c, p)`;
