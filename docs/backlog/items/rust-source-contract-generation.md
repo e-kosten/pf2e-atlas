@@ -184,8 +184,13 @@ all document kinds and specific rules, preserving every first-error context and
 checking value fidelity. A pinned corpus baseline detects changed input,
 rejection sets, counts and value loss; known rejections remain nonzero diagnostic
 outcomes. Remaining migration/core-dependent or malformed values
-retain explicit constrained dispositions; rejected-document handling and
-contextual normalization must be decided before production adoption. Before choosing
+retain explicit constrained dispositions. Callable source admission now preserves
+useful documents with raw invalid fields and contextual diagnostics, using
+`SourcePresence::Invalid`; specific rejected rules remain wholly unavailable to
+typed interpretation. NPC senses use compiler-resolved constructor inputs before
+defaults. See [ADR 0041](../../architecture/decisions/0041-source-admission-and-field-retention.md).
+Production normalization/storage adoption and contextual normalization remain open.
+Before choosing
 field/node recovery or whole-document rejection, report affected unique document
 names, families and source paths, retained useful content, and losses under each
 policy. Counts of overlapping rejected occurrences alone do not justify a drop

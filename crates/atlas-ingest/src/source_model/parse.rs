@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
-use super::presence::SourcePresence;
+use super::presence::{SourceFieldRejection, SourcePresence};
 use super::value::{SourceObject, SourceValue};
 use serde::Serialize;
 use serde_json::Number;
@@ -12,6 +13,8 @@ pub struct SourceContext {
     pub record_key: String,
     pub source_path: String,
     pub json_path: String,
+    #[serde(skip)]
+    pub(super) rejected_fields: BTreeMap<String, Box<SourceFieldRejection>>,
 }
 
 impl SourceContext {
@@ -24,6 +27,7 @@ impl SourceContext {
             record_key: record_key.into(),
             source_path: source_path.into(),
             json_path: json_path.into(),
+            rejected_fields: BTreeMap::new(),
         }
     }
     pub(super) fn error(
@@ -41,10 +45,15 @@ impl SourceContext {
         actual: impl Into<String>,
     ) -> SourceDiagnostic {
         SourceDiagnostic {
-            context: Box::new(self.clone()),
+            context: Box::new(Self::new(
+                &self.record_key,
+                &self.source_path,
+                &self.json_path,
+            )),
             json_path: path.to_string(),
             expected: expected.to_string(),
             actual: actual.into(),
+            field_failure: None,
         }
     }
 }
@@ -55,6 +64,10 @@ pub struct SourceDiagnostic {
     pub json_path: String,
     pub expected: String,
     pub actual: String,
+    // Nearest generated field boundary, recorded by strict parsing. Admission
+    // reuses it without guessing a path, deleting input, or loosening unions.
+    #[serde(skip)]
+    pub(super) field_failure: Option<Box<(String, Vec<SourceValue>)>>,
 }
 impl fmt::Display for SourceDiagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -98,20 +111,29 @@ impl<'a> Fields<'a> {
         parse: impl FnOnce(&SourceValue, &SourceContext, &str) -> ParseResult<T>,
     ) -> ParseResult<SourcePresence<T>> {
         let path = format!("{}.{}", self.path, name);
+        if let Some(rejected) = self.context.rejected_fields.get(&path) {
+            return Ok(SourcePresence::Invalid(rejected.clone()));
+        }
         let values: Vec<_> = self
             .object
             .fields
             .iter()
             .filter_map(|(key, value)| (key == name).then_some(value))
             .collect();
-        match values.as_slice() {
+        let result = match values.as_slice() {
             [] => Ok(SourcePresence::Missing),
             [SourceValue::Null] => Ok(SourcePresence::Null),
             [value] => parse(value, self.context, &path).map(SourcePresence::Value),
             _ => Err(self
                 .context
                 .message(&path, "one structural member", "duplicate members")),
-        }
+        };
+        result.map_err(|mut error| {
+            if error.field_failure.is_none() {
+                error.field_failure = Some(Box::new((path, values.into_iter().cloned().collect())));
+            }
+            error
+        })
     }
     pub(super) fn required<T>(
         &self,
@@ -130,6 +152,7 @@ impl<'a> Fields<'a> {
                 "present non-null field",
                 "null",
             )),
+            SourcePresence::Invalid(rejected) => Err(rejected.diagnostic),
         }
     }
     pub(super) fn remaining(&self, known: &[&str]) -> SourceObject {
@@ -216,7 +239,12 @@ impl<'a> Fields<'a> {
                 ));
             }
             if known.contains(&key.as_str()) {
-                if !matches!(value, SourceValue::Null) {
+                if !matches!(value, SourceValue::Null)
+                    && !self
+                        .context
+                        .rejected_fields
+                        .contains_key(&format!("{}.{}", self.path, key))
+                {
                     parse(value, self.context, &entry_path)?;
                 }
             } else {

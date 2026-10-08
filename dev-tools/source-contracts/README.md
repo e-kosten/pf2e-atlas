@@ -185,6 +185,31 @@ still returns exit 1; fidelity failures and baseline changes also fail. A failed
 run invalidates its previous report. Full Foundry admission remains unexecuted.
 See the [maintained portfolio report](../../docs/research/maintained-source-portfolio.md).
 
+For the separate raw-retention policy, run the same command with `--admission`:
+
+```sh
+npm --prefix dev-tools/source-contracts run compare-portfolio -- \
+  --source scratch/pf2e --admission \
+  --baseline dev-tools/source-contracts/fixtures/portfolio-admission-baseline.json \
+  --out scratch/portfolio-admission
+```
+
+This measures the maintained `admit_*` APIs. Counts distinguish raw retention,
+typed models, models without diagnostics (`fullyTyped`), partial models and
+raw-only roots/rules. `fullyTyped` means representation parsing without recovery;
+it does not imply required runtime defaults or complete mechanics. The report
+keeps every diagnostic and checks unchanged raw values plus typed-field and
+invalid-field fidelity. A malformed collection retains its complete raw value;
+it is not shortened. Specific rule rejection excludes the whole rule from typed
+interpretation while retaining its raw payload. Diagnostics do not alone make
+this mode fail; rejected envelopes, fidelity failures or a mismatched optional
+admission baseline do. Strict comparison remains unchanged, and its rejection
+baseline must not be passed to admission mode. These are callable source APIs;
+the production index pipeline does not yet consume them.
+
+See [ADR 0041](../../docs/architecture/decisions/0041-source-admission-and-field-retention.md)
+for field boundaries, root retention and constructor-input evidence.
+
 ### Schema/authored document comparison
 
 ```sh

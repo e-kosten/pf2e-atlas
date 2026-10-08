@@ -1,4 +1,5 @@
 //! Authored source models and callable parsers. No production pipeline adoption.
+mod admission;
 mod documents;
 pub mod generated;
 mod item;
@@ -9,6 +10,10 @@ mod presence;
 mod union;
 mod value;
 
+pub use admission::{
+    SourceAdmission, admit_actor_source_pf2e, admit_item_source_pf2e, admit_journal_entry_source,
+    admit_macro_source, admit_roll_table_source, admit_rule_source,
+};
 pub use documents::{
     parse_actor_source_pf2e, parse_item_source_pf2e, parse_journal_entry_source,
     parse_macro_source, parse_roll_table_source, parse_rule_source,
@@ -29,6 +34,7 @@ pub use keyed::SourceMap;
 pub use parse::is_numeric_key;
 pub use parse::{SourceContext, SourceDiagnostic};
 pub use predicate::{parse_predicate_input, parse_predicate_statement, parse_predicate_statements};
+pub use presence::SourceFieldRejection;
 pub use presence::SourcePresence;
 pub use value::{SourceObject, SourceValue};
 
