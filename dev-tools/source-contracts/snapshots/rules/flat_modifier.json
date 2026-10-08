@@ -1,0 +1,777 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "FlatModifierRule",
+      "declaration": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@143d4c8b805ba83f90c0eee6",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@143d4c8b805ba83f90c0eee6",
+      "valueRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@143d4c8b805ba83f90c0eee6#authored-input:selector",
+      "ruleKey": "FlatModifier"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"if-enabled\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "if-enabled"
+    },
+    {
+      "id": "structural:31fd4e3c00ced135098d9eef",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "literal:string:\"if-enabled\"",
+        "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f"
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@143d4c8b805ba83f90c0eee6",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "ability",
+          "ref": "structural:a6c893837799ef4b595a5751",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 220,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "critical",
+          "ref": "structural:7746056a882870a35fa2622a",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 240,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damageCategory",
+          "ref": "structural:b176bbb2786e496f9c21bd29",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 232,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damageType",
+          "ref": "structural:2ee37849440595ce20962cc6",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 230,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "force",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 226,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "fromEquipment",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 228,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hideIfDisabled",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 224,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "max",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 223,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "min",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 222,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "removeAfterRoll",
+          "ref": "structural:31fd4e3c00ced135098d9eef",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 249,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "selector",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 209,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "tags",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 244,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:3f36cb525486ba450ba299bb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 218,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:b7f793229a07b7a960cc0e81",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 242,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "FlatModifierSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 207,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@143d4c8b805ba83f90c0eee6#authored-input:selector",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "ability",
+          "ref": "structural:a6c893837799ef4b595a5751",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 220,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "critical",
+          "ref": "structural:7746056a882870a35fa2622a",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 240,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damageCategory",
+          "ref": "structural:b176bbb2786e496f9c21bd29",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 232,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damageType",
+          "ref": "structural:2ee37849440595ce20962cc6",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 230,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "force",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 226,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "fromEquipment",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 228,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hideIfDisabled",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 224,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "max",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 223,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "min",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 222,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "removeAfterRoll",
+          "ref": "structural:31fd4e3c00ced135098d9eef",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 249,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "selector",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3#authored-string-array",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 209,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "tags",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 244,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:3f36cb525486ba450ba299bb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 218,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:b7f793229a07b7a960cc0e81",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 242,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "FlatModifierSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/flat-modifier.ts",
+              "line": 207,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

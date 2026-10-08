@@ -1,0 +1,481 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "AdjustStrikeRule",
+      "declaration": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eb77ecf7568ab9a7cca6cf9d",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eb77ecf7568ab9a7cca6cf9d",
+      "valueRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eb77ecf7568ab9a7cca6cf9d",
+      "ruleKey": "AdjustStrike"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"materials\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "materials"
+    },
+    {
+      "id": "literal:string:\"property-runes\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "property-runes"
+    },
+    {
+      "id": "literal:string:\"range-increment\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "range-increment"
+    },
+    {
+      "id": "literal:string:\"traits\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "traits"
+    },
+    {
+      "id": "literal:string:\"weapon-traits\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "weapon-traits"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@dc9bac8315e4a0ce19a34997",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "src/module/rules/rule-element/data.ts#Bracket@c7b069aeecdb71fec02355c2",
+      "readonly": false
+    },
+    {
+      "id": "src/module/rules/rule-element/data.ts#Bracket@c7b069aeecdb71fec02355c2",
+      "kind": "object",
+      "name": "Bracket",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/data.ts",
+          "line": 20,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "end",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 22,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "start",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 21,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:c7b069aeecdb71fec02355c2",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 23,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "string | number | object",
+          "declaredAt": []
+        }
+      ]
+    },
+    {
+      "id": "src/module/rules/rule-element/data.ts#BracketedValue@c7b069aeecdb71fec02355c2",
+      "kind": "object",
+      "name": "BracketedValue",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/data.ts",
+          "line": 26,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "brackets",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@dc9bac8315e4a0ce19a34997",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 28,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "field",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 27,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "string | number | object",
+          "declaredAt": []
+        }
+      ]
+    },
+    {
+      "id": "src/module/rules/rule-element/data.ts#RuleValue",
+      "kind": "union",
+      "name": "RuleValue",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/data.ts",
+          "line": 18,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "primitive:number",
+        "primitive:object",
+        "primitive:string",
+        "src/module/rules/rule-element/data.ts#BracketedValue@c7b069aeecdb71fec02355c2"
+      ]
+    },
+    {
+      "id": "structural:321663aa6e4f7e636881df01",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"materials\"",
+        "literal:string:\"property-runes\"",
+        "literal:string:\"range-increment\"",
+        "literal:string:\"traits\"",
+        "literal:string:\"weapon-traits\""
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eb77ecf7568ab9a7cca6cf9d",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "definition",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/adjust-strike.ts",
+              "line": 216,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "mode",
+          "ref": "structural:e857db64683483a87da49401",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/adjust-strike.ts",
+              "line": 212,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "property",
+          "ref": "structural:321663aa6e4f7e636881df01",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/adjust-strike.ts",
+              "line": 214,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "src/module/rules/rule-element/data.ts#RuleValue",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/adjust-strike.ts",
+              "line": 217,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "AdjustStrikeSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/adjust-strike.ts",
+              "line": 211,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

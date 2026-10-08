@@ -1,0 +1,2540 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "AfflictionSystemSource",
+      "declaration": "src/module/item/affliction/data.ts#AfflictionSystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/affliction/data.ts#AfflictionSystemSource",
+      "valueRef": "src/module/item/affliction/data.ts#AfflictionSystemSource"
+    },
+    {
+      "name": "AfflictionSource",
+      "declaration": "src/module/item/affliction/data.ts#AfflictionSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/affliction/data.ts#AfflictionSource",
+      "valueRef": "src/module/item/affliction/data.ts#AfflictionSource"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"affliction\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "affliction"
+    },
+    {
+      "id": "literal:string:\"broken\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "broken"
+    },
+    {
+      "id": "literal:string:\"concealed\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "concealed"
+    },
+    {
+      "id": "literal:string:\"days\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "days"
+    },
+    {
+      "id": "literal:string:\"dying\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dying"
+    },
+    {
+      "id": "literal:string:\"encounter\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "encounter"
+    },
+    {
+      "id": "literal:string:\"encumbered\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "encumbered"
+    },
+    {
+      "id": "literal:string:\"friendly\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "friendly"
+    },
+    {
+      "id": "literal:string:\"helpful\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "helpful"
+    },
+    {
+      "id": "literal:string:\"hidden\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hidden"
+    },
+    {
+      "id": "literal:string:\"hostile\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hostile"
+    },
+    {
+      "id": "literal:string:\"hours\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hours"
+    },
+    {
+      "id": "literal:string:\"indifferent\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "indifferent"
+    },
+    {
+      "id": "literal:string:\"invisible\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "invisible"
+    },
+    {
+      "id": "literal:string:\"malevolence\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "malevolence"
+    },
+    {
+      "id": "literal:string:\"minutes\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "minutes"
+    },
+    {
+      "id": "literal:string:\"observed\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "observed"
+    },
+    {
+      "id": "literal:string:\"quickened\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "quickened"
+    },
+    {
+      "id": "literal:string:\"round-end\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "round-end"
+    },
+    {
+      "id": "literal:string:\"rounds\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "rounds"
+    },
+    {
+      "id": "literal:string:\"turn-end\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "turn-end"
+    },
+    {
+      "id": "literal:string:\"turn-start\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "turn-start"
+    },
+    {
+      "id": "literal:string:\"undetected\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "undetected"
+    },
+    {
+      "id": "literal:string:\"unfriendly\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "unfriendly"
+    },
+    {
+      "id": "literal:string:\"unlimited\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "unlimited"
+    },
+    {
+      "id": "literal:string:\"unnoticed\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "unnoticed"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@8904ecc3dd213d9239cee13f",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "src/module/item/affliction/data.ts#AfflictionEffectData",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Omit@38a35458bb3b5a22ad5c0973",
+      "kind": "object",
+      "name": "Omit",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1630,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "unit",
+          "ref": "structural:7b022478efa436b4ddd18c13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 111,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "DurationData",
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 109,
+              "column": 1
+            }
+          ]
+        },
+        {
+          "expression": "\"expiry\"",
+          "declaredAt": []
+        }
+      ]
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Pick@32ac53b7913069ae42da332d",
+      "kind": "object",
+      "name": "Pick",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1606,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "degreeOfSuccess",
+          "ref": "structural:9d458d0e4dcd438f95bf4444",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/system/check/roll.ts",
+              "line": 24,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "total",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/client/roll.d.ts",
+              "line": 83,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "CheckRoll",
+          "declaredAt": [
+            {
+              "file": "src/module/system/check/roll.ts",
+              "line": 8,
+              "column": 1
+            },
+            {
+              "file": "src/module/system/check/roll.ts",
+              "line": 71,
+              "column": 1
+            }
+          ]
+        },
+        {
+          "expression": "\"total\" | \"degreeOfSuccess\"",
+          "declaredAt": []
+        }
+      ]
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Record@233c68545a7f6687d085704a",
+      "kind": "object",
+      "name": "Record",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1613,
+          "column": 1
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "src/module/item/affliction/data.ts#AfflictionConditionData",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "string",
+          "declaredAt": []
+        },
+        {
+          "expression": "AfflictionConditionData",
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 66,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Record@54701638e2521f0327761d3f",
+      "kind": "object",
+      "name": "Record",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1613,
+          "column": 1
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "src/module/item/affliction/data.ts#AfflictionStageData",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "string",
+          "declaredAt": []
+        },
+        {
+          "expression": "AfflictionStageData",
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 59,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Record@833ca70ed156e5b912046ed4",
+      "kind": "object",
+      "name": "Record",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1613,
+          "column": 1
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "src/module/item/affliction/data.ts#AfflictionDamage",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "string",
+          "declaredAt": []
+        },
+        {
+          "expression": "AfflictionDamage",
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 53,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#DurationData",
+      "kind": "object",
+      "name": "DurationData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 109,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "expiry",
+          "ref": "structural:f7734e19a2f53589c4e6db4c",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "unit",
+          "ref": "structural:7b022478efa436b4ddd18c13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 111,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#EffectAuraData",
+      "kind": "object",
+      "name": "EffectAuraData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 97,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "origin",
+          "ref": "types/foundry/client/data/documents/actor.d.ts#global.ActorUUID",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 99,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "removeOnExit",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#EffectContextData",
+      "kind": "object",
+      "name": "EffectContextData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 77,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "origin",
+          "ref": "src/module/item/abstract-effect/data.ts#EffectContextData.origin.$object@c10dede01d7dafa7cb8d9300",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "roll",
+          "ref": "structural:e33e6188a1502cfe94db17ee",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 89,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "target",
+          "ref": "structural:d36850b5f1645e14abbfb34a",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 85,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#EffectContextData.origin.$object@c10dede01d7dafa7cb8d9300",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 78,
+          "column": 13
+        }
+      ],
+      "fields": [
+        {
+          "name": "actor",
+          "ref": "types/foundry/client/data/documents/actor.d.ts#global.ActorUUID",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 79,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "item",
+          "ref": "structural:765d24e1d4dd8b245b42f339",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 81,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "rollOptions",
+          "ref": "structural:48f0fe2134a04a025729bf3e",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 83,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "spellcasting",
+          "ref": "structural:eac1fd1131d5f0be1aeb44bd",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 82,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "token",
+          "ref": "structural:de1ccb53d451efde4895a233",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 80,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#EffectContextData.target.$object@bcb40025450bf71631e62823",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 85,
+          "column": 13
+        }
+      ],
+      "fields": [
+        {
+          "name": "actor",
+          "ref": "types/foundry/client/data/documents/actor.d.ts#global.ActorUUID",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 86,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "token",
+          "ref": "structural:de1ccb53d451efde4895a233",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 87,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#EffectContextSpellcastingData",
+      "kind": "object",
+      "name": "EffectContextSpellcastingData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 92,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "attribute",
+          "ref": "src/module/item/abstract-effect/data.ts#EffectContextSpellcastingData.attribute.$object@662f1b29f85babf99e8a7e84",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 93,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "tradition",
+          "ref": "structural:a8de4e041fc1512fe2463006",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#EffectContextSpellcastingData.attribute.$object@662f1b29f85babf99e8a7e84",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 93,
+          "column": 16
+        }
+      ],
+      "fields": [
+        {
+          "name": "mod",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 93,
+              "column": 41
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:4ad7ee4470b79a8670005dad",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 93,
+              "column": 18
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#EffectTraits",
+      "kind": "object",
+      "name": "EffectTraits",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 41,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "otherTags",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 25,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rarity",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 29,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@cb8d8abf36e5573681431fdd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 23,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/base/data/system.ts#ItemTraitsNoRarity@cb8d8abf36e5573681431fdd"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/abstract-effect/data.ts#TimeUnit",
+      "kind": "union",
+      "name": "TimeUnit",
+      "declaredAt": [
+        {
+          "file": "src/module/item/abstract-effect/data.ts",
+          "line": 106,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"days\"",
+        "literal:string:\"hours\"",
+        "literal:string:\"minutes\"",
+        "literal:string:\"rounds\""
+      ]
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionConditionData",
+      "kind": "object",
+      "name": "AfflictionConditionData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 66,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "linked",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:a77110631fc2db96b3d4fc85",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 67,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 68,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionDamage",
+      "kind": "object",
+      "name": "AfflictionDamage",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 53,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "category",
+          "ref": "structural:b1a6abfc9f0efaa14ada78ab",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 56,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "formula",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 54,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:8802e25b47649f01923ba165",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 55,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionEffectData",
+      "kind": "object",
+      "name": "AfflictionEffectData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 73,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "uuid",
+          "ref": "types/foundry/client/data/documents/item.d.ts#global.ItemUUID",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionOnset",
+      "kind": "object",
+      "name": "AfflictionOnset",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 46,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "active",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "unit",
+          "ref": "src/module/item/abstract-effect/data.ts#TimeUnit",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 50,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 49,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionSource",
+      "kind": "intersection",
+      "name": "AfflictionSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 14,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/affliction/data.ts#AfflictionSource.$object@f4027e3c55ea430be0b41afe",
+        "src/module/item/base/data/system.ts#BaseItemSourcePF2e.$object@bc7b919aa950cd0c25c28aee",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@e83dec91cd3685ae5a4c6887"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:f0977c03247c683b161a384c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 15,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 12,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/affliction/data.ts#AfflictionSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"affliction\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionSource.$object@f4027e3c55ea430be0b41afe",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 14,
+          "column": 84
+        }
+      ],
+      "fields": [
+        {
+          "name": "flags",
+          "ref": "types/foundry/util.d.ts#global.DeepPartial@8c91a3eb9af7a71c2525ec2b",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 15,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionStageData",
+      "kind": "object",
+      "name": "AfflictionStageData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 59,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "conditions",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Record@233c68545a7f6687d085704a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 61,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damage",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Record@833ca70ed156e5b912046ed4",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 60,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "duration",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Omit@38a35458bb3b5a22ad5c0973",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 63,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@8904ecc3dd213d9239cee13f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 62,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionSystemSource",
+      "kind": "object",
+      "name": "AfflictionSystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 24,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "src/module/data.ts#MigrationRecord",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "context",
+          "ref": "structural:fecfe6edc13be9c3c9b2738f",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 39,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "src/module/item/base/data/system.ts#ItemDescriptionSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "duration",
+          "ref": "src/module/item/abstract-effect/data.ts#DurationData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 33,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "expired",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 11,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "fromSpell",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 10,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "src/module/item/affliction/data.ts#AfflictionSystemSource.level.$object@3d09bac030e34f73f51f21e9",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 25,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "onset",
+          "ref": "structural:ea179b7f92df18198c65b4c4",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "src/module/data.ts#PublicationData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 89,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "save",
+          "ref": "src/module/item/affliction/data.ts#AfflictionSystemSource.save.$object@842c108335c9547c4dde3d6a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 26,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "stage",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 30,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "stages",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Record@54701638e2521f0327761d3f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 31,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "start",
+          "ref": "src/module/item/affliction/data.ts#AfflictionSystemSource.start.$object@324ff4b7752f3f994402f480",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "src/module/item/abstract-effect/data.ts#EffectTraits",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/abstract-effect/data.ts",
+              "line": 8,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/abstract-effect/data.ts#AbstractEffectSystemSource"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionSystemSource.level.$object@3d09bac030e34f73f51f21e9",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 25,
+          "column": 12
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 25,
+              "column": 14
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionSystemSource.save.$object@842c108335c9547c4dde3d6a",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 26,
+          "column": 11
+        }
+      ],
+      "fields": [
+        {
+          "name": "type",
+          "ref": "structural:b467173493fd6d3648448ed1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 27,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 28,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/affliction/data.ts#AfflictionSystemSource.start.$object@324ff4b7752f3f994402f480",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/affliction/data.ts",
+          "line": 34,
+          "column": 12
+        }
+      ],
+      "fields": [
+        {
+          "name": "initiative",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 36,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 35,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:023f60277c08e94996497703",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "types/foundry/util.d.ts#global.DeepPartial@3e1a4038e47d7fe619f3cd98"
+      ]
+    },
+    {
+      "id": "structural:0b44be5374d7b9a12f41c395",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "structural:2e1e2e2cf8a6a9b5b9508aad"
+      ]
+    },
+    {
+      "id": "structural:2e1e2e2cf8a6a9b5b9508aad",
+      "kind": "intersection",
+      "declaredAt": [],
+      "members": [
+        "src/module/item/base/data/system.ts#ItemSourceFlagsPF2e.pf2e.$object@d2f9dbdeef5416dcb8aaeb59",
+        "types/foundry/util.d.ts#global.DeepPartial@3e1a4038e47d7fe619f3cd98"
+      ],
+      "fields": [
+        {
+          "name": "aura",
+          "ref": "structural:781388f718523ebd0432b585",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 20,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "grantedBy",
+          "ref": "structural:b8c2ee85b69c25b1bb4cb8cd",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 48,
+              "column": 9
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 57,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "itemGrants",
+          "ref": "structural:df6c1126f422069456f10dcf",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 47,
+              "column": 9
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 56,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "rulesSelections",
+          "ref": "structural:626c93be87b2301b555f5baa",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 46,
+              "column": 9
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 55,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "primitive:unknown",
+          "readonly": false
+        }
+      ]
+    },
+    {
+      "id": "structural:781388f718523ebd0432b585",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/abstract-effect/data.ts#EffectAuraData"
+      ]
+    },
+    {
+      "id": "structural:7b022478efa436b4ddd18c13",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"days\"",
+        "literal:string:\"encounter\"",
+        "literal:string:\"hours\"",
+        "literal:string:\"minutes\"",
+        "literal:string:\"rounds\"",
+        "literal:string:\"unlimited\""
+      ]
+    },
+    {
+      "id": "structural:7c77063c0969763207e0e544",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "Scene.",
+        ".Token.",
+        ""
+      ],
+      "parameters": [
+        "primitive:string",
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:9d458d0e4dcd438f95bf4444",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:number:0",
+        "literal:number:1",
+        "literal:number:2",
+        "literal:number:3",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:a77110631fc2db96b3d4fc85",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"blinded\"",
+        "literal:string:\"broken\"",
+        "literal:string:\"clumsy\"",
+        "literal:string:\"concealed\"",
+        "literal:string:\"confused\"",
+        "literal:string:\"controlled\"",
+        "literal:string:\"cursebound\"",
+        "literal:string:\"dazzled\"",
+        "literal:string:\"deafened\"",
+        "literal:string:\"doomed\"",
+        "literal:string:\"drained\"",
+        "literal:string:\"dying\"",
+        "literal:string:\"encumbered\"",
+        "literal:string:\"enfeebled\"",
+        "literal:string:\"fascinated\"",
+        "literal:string:\"fatigued\"",
+        "literal:string:\"fleeing\"",
+        "literal:string:\"friendly\"",
+        "literal:string:\"frightened\"",
+        "literal:string:\"grabbed\"",
+        "literal:string:\"helpful\"",
+        "literal:string:\"hidden\"",
+        "literal:string:\"hostile\"",
+        "literal:string:\"immobilized\"",
+        "literal:string:\"indifferent\"",
+        "literal:string:\"invisible\"",
+        "literal:string:\"malevolence\"",
+        "literal:string:\"observed\"",
+        "literal:string:\"off-guard\"",
+        "literal:string:\"paralyzed\"",
+        "literal:string:\"persistent-damage\"",
+        "literal:string:\"petrified\"",
+        "literal:string:\"prone\"",
+        "literal:string:\"quickened\"",
+        "literal:string:\"restrained\"",
+        "literal:string:\"sickened\"",
+        "literal:string:\"slowed\"",
+        "literal:string:\"stunned\"",
+        "literal:string:\"stupefied\"",
+        "literal:string:\"unconscious\"",
+        "literal:string:\"undetected\"",
+        "literal:string:\"unfriendly\"",
+        "literal:string:\"unnoticed\"",
+        "literal:string:\"wounded\""
+      ]
+    },
+    {
+      "id": "structural:a8de4e041fc1512fe2463006",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"arcane\"",
+        "literal:string:\"divine\"",
+        "literal:string:\"occult\"",
+        "literal:string:\"primal\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:d36850b5f1645e14abbfb34a",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/item/abstract-effect/data.ts#EffectContextData.target.$object@bcb40025450bf71631e62823"
+      ]
+    },
+    {
+      "id": "structural:de1ccb53d451efde4895a233",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "structural:7c77063c0969763207e0e544"
+      ]
+    },
+    {
+      "id": "structural:e33e6188a1502cfe94db17ee",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Pick@32ac53b7913069ae42da332d",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:ea179b7f92df18198c65b4c4",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/affliction/data.ts#AfflictionOnset"
+      ]
+    },
+    {
+      "id": "structural:eac1fd1131d5f0be1aeb44bd",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/item/abstract-effect/data.ts#EffectContextSpellcastingData"
+      ]
+    },
+    {
+      "id": "structural:f0977c03247c683b161a384c",
+      "kind": "intersection",
+      "declaredAt": [],
+      "members": [
+        "src/module/item/base/data/system.ts#ItemSourceFlagsPF2e",
+        "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+        "types/foundry/util.d.ts#global.DeepPartial@8c91a3eb9af7a71c2525ec2b"
+      ],
+      "fields": [
+        {
+          "name": "pf2e",
+          "ref": "structural:0b44be5374d7b9a12f41c395",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 19,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 45,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 54,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:64e663cf67be13755171744a",
+          "readonly": false
+        }
+      ]
+    },
+    {
+      "id": "structural:f7734e19a2f53589c4e6db4c",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"round-end\"",
+        "literal:string:\"turn-end\"",
+        "literal:string:\"turn-start\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:fecfe6edc13be9c3c9b2738f",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/item/abstract-effect/data.ts#EffectContextData"
+      ]
+    },
+    {
+      "id": "types/foundry/client/data/documents/actor.d.ts#global.ActorUUID",
+      "kind": "union",
+      "name": "ActorUUID",
+      "declaredAt": [
+        {
+          "file": "types/foundry/client/data/documents/actor.d.ts",
+          "line": 277,
+          "column": 5
+        }
+      ],
+      "members": [
+        "structural:990884510d55ea553012dc81",
+        "structural:a0e9781d0a0dc206568b4274",
+        "structural:a9d50e43334728737d61e9ba"
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@e83dec91cd3685ae5a4c6887",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/affliction/data.ts#AfflictionSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"affliction\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ItemSchema<\"affliction\", AfflictionSystemSource>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 68,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/util.d.ts#global.DeepPartial@3e1a4038e47d7fe619f3cd98",
+      "kind": "object",
+      "name": "DeepPartial",
+      "declaredAt": [
+        {
+          "file": "types/foundry/util.d.ts",
+          "line": 7,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "aura",
+          "ref": "structural:781388f718523ebd0432b585",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 20,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "grantedBy",
+          "ref": "structural:a520896abf91795e517f7ced",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 48,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "itemGrants",
+          "ref": "structural:9eb9cf8e563caff19d1f2a99",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 47,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "rulesSelections",
+          "ref": "structural:0872d94e4977e03340d9f073",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 46,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "primitive:unknown",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "{ [key: string]: unknown; rulesSelections: Record<string, string | number | object | null>; itemGrants: Record<string, ItemGranterData>; grantedBy: Required<ItemGrantSource> | null; } & { aura?: EffectAuraData | undefined; }",
+          "declaredAt": []
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/util.d.ts#global.DeepPartial@8c91a3eb9af7a71c2525ec2b",
+      "kind": "object",
+      "name": "DeepPartial",
+      "declaredAt": [
+        {
+          "file": "types/foundry/util.d.ts",
+          "line": 7,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "pf2e",
+          "ref": "structural:023f60277c08e94996497703",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 19,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 45,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:64e663cf67be13755171744a",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "AfflictionFlags",
+          "declaredAt": [
+            {
+              "file": "src/module/item/affliction/data.ts",
+              "line": 18,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

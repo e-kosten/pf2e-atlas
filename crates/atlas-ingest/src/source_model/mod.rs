@@ -1,4 +1,5 @@
-//! Independently callable source slices. No production pipeline adoption.
+//! Authored source models and callable parsers. No production pipeline adoption.
+mod documents;
 pub mod generated;
 mod item;
 mod keyed;
@@ -8,6 +9,13 @@ mod presence;
 mod union;
 mod value;
 
+pub use documents::{
+    parse_actor_source_pf2e, parse_item_source_pf2e, parse_journal_entry_source,
+    parse_macro_source, parse_roll_table_source, parse_rule_source,
+};
+pub use generated::{
+    ActorSourcePF2e, ItemSourcePF2e, JournalEntrySource, MacroSource, RollTableSource, RuleSource,
+};
 pub use generated::{
     Coins, EquipmentFields, EquippedData, EquippedDataCarryType, PartialPrice,
     PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
@@ -18,6 +26,7 @@ pub use generated::{
 pub use generated::{PredicateInput, PredicateStatement, PredicateStatements};
 pub use item::{ItemSourceSlice, parse_item_source_slice};
 pub use keyed::SourceMap;
+pub use parse::is_numeric_key;
 pub use parse::{SourceContext, SourceDiagnostic};
 pub use predicate::{parse_predicate_input, parse_predicate_statement, parse_predicate_statements};
 pub use presence::SourcePresence;

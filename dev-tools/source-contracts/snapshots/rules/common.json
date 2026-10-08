@@ -1,0 +1,192 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "RuleElementSource",
+      "declaration": "src/module/rules/rule-element/data.ts#RuleElementSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/rules/rule-element/data.ts#RuleElementSource",
+      "valueRef": "src/module/rules/rule-element/data.ts#RuleElementSource"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "primitive:object",
+      "kind": "open",
+      "declaredAt": [],
+      "domain": "object"
+    },
+    {
+      "id": "src/module/rules/rule-element/data.ts#RuleElementSource",
+      "kind": "object",
+      "name": "RuleElementSource",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/data.ts",
+          "line": 6,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "ignored",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 12,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 7,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 8,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 10,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 11,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "removeUponCreate",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 15,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 14,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 13,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "types/foundry/util.d.ts#global.JSONValue",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 9,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "types/foundry/util.d.ts#global.JSONValue",
+      "kind": "union",
+      "name": "JSONValue",
+      "declaredAt": [
+        {
+          "file": "types/foundry/util.d.ts",
+          "line": 36,
+          "column": 5
+        }
+      ],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "primitive:null",
+        "primitive:number",
+        "primitive:object",
+        "primitive:string",
+        "primitive:undefined"
+      ]
+    }
+  ]
+}

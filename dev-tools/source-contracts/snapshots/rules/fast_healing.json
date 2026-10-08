@@ -1,0 +1,266 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "FastHealingRule",
+      "declaration": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@039373622b5bc167b0628c0f",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@039373622b5bc167b0628c0f",
+      "valueRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@039373622b5bc167b0628c0f",
+      "ruleKey": "FastHealing"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"fast-healing\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fast-healing"
+    },
+    {
+      "id": "literal:string:\"regeneration\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "regeneration"
+    },
+    {
+      "id": "src/module/rules/rule-element/fast-healing.ts#FastHealingType",
+      "kind": "union",
+      "name": "FastHealingType",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/fast-healing.ts",
+          "line": 109,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"fast-healing\"",
+        "literal:string:\"regeneration\""
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@039373622b5bc167b0628c0f",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "deactivatedBy",
+          "ref": "structural:48f0fe2134a04a025729bf3e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/fast-healing.ts",
+              "line": 95,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "details",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/fast-healing.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "src/module/rules/rule-element/fast-healing.ts#FastHealingType",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/fast-healing.ts",
+              "line": 93,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "src/module/rules/rule-element/data.ts#RuleValue",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/fast-healing.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "FastHealingRuleSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/fast-healing.ts",
+              "line": 91,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

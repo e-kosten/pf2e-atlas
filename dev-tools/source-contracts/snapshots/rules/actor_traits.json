@@ -1,0 +1,208 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "ActorTraitsRule",
+      "declaration": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4cb2a350ee4661621565dd0",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4cb2a350ee4661621565dd0",
+      "valueRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4cb2a350ee4661621565dd0",
+      "ruleKey": "ActorTraits"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4cb2a350ee4661621565dd0",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "add",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/actor-traits.ts",
+              "line": 71,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/actor-traits.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ActorTraitsRuleSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/actor-traits.ts",
+              "line": 70,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

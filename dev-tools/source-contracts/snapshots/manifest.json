@@ -31,6 +31,334 @@
     {
       "name": "rules/predicate",
       "file": "rules/predicate.json"
+    },
+    {
+      "name": "actors/common",
+      "file": "actors/common.json"
+    },
+    {
+      "name": "actors/creature",
+      "file": "actors/creature.json"
+    },
+    {
+      "name": "rules/common",
+      "file": "rules/common.json"
+    },
+    {
+      "name": "items/families/action",
+      "file": "items/families/action.json"
+    },
+    {
+      "name": "items/families/affliction",
+      "file": "items/families/affliction.json"
+    },
+    {
+      "name": "items/families/ancestry",
+      "file": "items/families/ancestry.json"
+    },
+    {
+      "name": "items/families/armor",
+      "file": "items/families/armor.json"
+    },
+    {
+      "name": "items/families/background",
+      "file": "items/families/background.json"
+    },
+    {
+      "name": "items/families/book",
+      "file": "items/families/book.json"
+    },
+    {
+      "name": "items/families/campaign_feature",
+      "file": "items/families/campaign_feature.json"
+    },
+    {
+      "name": "items/families/class",
+      "file": "items/families/class.json"
+    },
+    {
+      "name": "items/families/condition",
+      "file": "items/families/condition.json"
+    },
+    {
+      "name": "items/families/consumable",
+      "file": "items/families/consumable.json"
+    },
+    {
+      "name": "items/families/backpack",
+      "file": "items/families/backpack.json"
+    },
+    {
+      "name": "items/families/deity",
+      "file": "items/families/deity.json"
+    },
+    {
+      "name": "items/families/effect",
+      "file": "items/families/effect.json"
+    },
+    {
+      "name": "items/families/equipment",
+      "file": "items/families/equipment.json"
+    },
+    {
+      "name": "items/families/feat",
+      "file": "items/families/feat.json"
+    },
+    {
+      "name": "items/families/heritage",
+      "file": "items/families/heritage.json"
+    },
+    {
+      "name": "items/families/kit",
+      "file": "items/families/kit.json"
+    },
+    {
+      "name": "items/families/lore",
+      "file": "items/families/lore.json"
+    },
+    {
+      "name": "items/families/melee",
+      "file": "items/families/melee.json"
+    },
+    {
+      "name": "items/families/shield",
+      "file": "items/families/shield.json"
+    },
+    {
+      "name": "items/families/spell",
+      "file": "items/families/spell.json"
+    },
+    {
+      "name": "items/families/spellcasting_entry",
+      "file": "items/families/spellcasting_entry.json"
+    },
+    {
+      "name": "items/families/treasure",
+      "file": "items/families/treasure.json"
+    },
+    {
+      "name": "items/families/weapon",
+      "file": "items/families/weapon.json"
+    },
+    {
+      "name": "items/source",
+      "file": "items/source.json"
+    },
+    {
+      "name": "actors/families/army",
+      "file": "actors/families/army.json"
+    },
+    {
+      "name": "actors/families/character",
+      "file": "actors/families/character.json"
+    },
+    {
+      "name": "actors/families/familiar",
+      "file": "actors/families/familiar.json"
+    },
+    {
+      "name": "actors/families/hazard",
+      "file": "actors/families/hazard.json"
+    },
+    {
+      "name": "actors/families/loot",
+      "file": "actors/families/loot.json"
+    },
+    {
+      "name": "actors/families/npc",
+      "file": "actors/families/npc.json"
+    },
+    {
+      "name": "actors/families/party",
+      "file": "actors/families/party.json"
+    },
+    {
+      "name": "actors/families/vehicle",
+      "file": "actors/families/vehicle.json"
+    },
+    {
+      "name": "actors/source",
+      "file": "actors/source.json"
+    },
+    {
+      "name": "documents/journal_entry_source",
+      "file": "documents/journal_entry_source.json"
+    },
+    {
+      "name": "documents/macro_source",
+      "file": "documents/macro_source.json"
+    },
+    {
+      "name": "documents/roll_table_source",
+      "file": "documents/roll_table_source.json"
+    },
+    {
+      "name": "rules/active_effect_like",
+      "file": "rules/active_effect_like.json"
+    },
+    {
+      "name": "rules/actor_traits",
+      "file": "rules/actor_traits.json"
+    },
+    {
+      "name": "rules/adjust_degree_of_success",
+      "file": "rules/adjust_degree_of_success.json"
+    },
+    {
+      "name": "rules/adjust_modifier",
+      "file": "rules/adjust_modifier.json"
+    },
+    {
+      "name": "rules/adjust_strike",
+      "file": "rules/adjust_strike.json"
+    },
+    {
+      "name": "rules/aura",
+      "file": "rules/aura.json"
+    },
+    {
+      "name": "rules/base_speed",
+      "file": "rules/base_speed.json"
+    },
+    {
+      "name": "rules/battle_form",
+      "file": "rules/battle_form.json"
+    },
+    {
+      "name": "rules/choice_set",
+      "file": "rules/choice_set.json"
+    },
+    {
+      "name": "rules/crafting_ability",
+      "file": "rules/crafting_ability.json"
+    },
+    {
+      "name": "rules/creature_size",
+      "file": "rules/creature_size.json"
+    },
+    {
+      "name": "rules/critical_specialization",
+      "file": "rules/critical_specialization.json"
+    },
+    {
+      "name": "rules/damage_alteration",
+      "file": "rules/damage_alteration.json"
+    },
+    {
+      "name": "rules/damage_dice",
+      "file": "rules/damage_dice.json"
+    },
+    {
+      "name": "rules/dexterity_modifier_cap",
+      "file": "rules/dexterity_modifier_cap.json"
+    },
+    {
+      "name": "rules/ephemeral_effect",
+      "file": "rules/ephemeral_effect.json"
+    },
+    {
+      "name": "rules/fast_healing",
+      "file": "rules/fast_healing.json"
+    },
+    {
+      "name": "rules/flat_modifier",
+      "file": "rules/flat_modifier.json"
+    },
+    {
+      "name": "rules/grant_item",
+      "file": "rules/grant_item.json"
+    },
+    {
+      "name": "rules/immunity",
+      "file": "rules/immunity.json"
+    },
+    {
+      "name": "rules/item_alteration",
+      "file": "rules/item_alteration.json"
+    },
+    {
+      "name": "rules/lose_hit_points",
+      "file": "rules/lose_hit_points.json"
+    },
+    {
+      "name": "rules/martial_proficiency",
+      "file": "rules/martial_proficiency.json"
+    },
+    {
+      "name": "rules/multiple_attack_penalty",
+      "file": "rules/multiple_attack_penalty.json"
+    },
+    {
+      "name": "rules/note",
+      "file": "rules/note.json"
+    },
+    {
+      "name": "rules/resistance",
+      "file": "rules/resistance.json"
+    },
+    {
+      "name": "rules/roll_option",
+      "file": "rules/roll_option.json"
+    },
+    {
+      "name": "rules/roll_twice",
+      "file": "rules/roll_twice.json"
+    },
+    {
+      "name": "rules/sense",
+      "file": "rules/sense.json"
+    },
+    {
+      "name": "rules/special_resource",
+      "file": "rules/special_resource.json"
+    },
+    {
+      "name": "rules/special_statistic",
+      "file": "rules/special_statistic.json"
+    },
+    {
+      "name": "rules/strike",
+      "file": "rules/strike.json"
+    },
+    {
+      "name": "rules/striking",
+      "file": "rules/striking.json"
+    },
+    {
+      "name": "rules/substitute_roll",
+      "file": "rules/substitute_roll.json"
+    },
+    {
+      "name": "rules/temp_hp",
+      "file": "rules/temp_hp.json"
+    },
+    {
+      "name": "rules/token_effect_icon",
+      "file": "rules/token_effect_icon.json"
+    },
+    {
+      "name": "rules/token_image",
+      "file": "rules/token_image.json"
+    },
+    {
+      "name": "rules/token_light",
+      "file": "rules/token_light.json"
+    },
+    {
+      "name": "rules/token_mark",
+      "file": "rules/token_mark.json"
+    },
+    {
+      "name": "rules/token_name",
+      "file": "rules/token_name.json"
+    },
+    {
+      "name": "rules/weakness",
+      "file": "rules/weakness.json"
+    },
+    {
+      "name": "rules/weapon_potency",
+      "file": "rules/weapon_potency.json"
     }
   ],
   "openTraitArrays": [
@@ -47,6 +375,980 @@
     "node_modules/typescript/lib/lib.es5.d.ts#Array@c37abe850ac9dcd4fd3329c4",
     "node_modules/typescript/lib/lib.es5.d.ts#Array@c7306a06bfbccb9a4703e054",
     "node_modules/typescript/lib/lib.es5.d.ts#Array@cb8d8abf36e5573681431fdd",
-    "node_modules/typescript/lib/lib.es5.d.ts#Array@e8b0af67a137028630bf78c4"
-  ]
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@d391f4ff9641596147dfde02",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@e8b0af67a137028630bf78c4",
+    "node_modules/typescript/lib/lib.es5.d.ts#Array@ee6d9490a0d63d19d3e7f489"
+  ],
+  "portfolio": {
+    "typescript": "5.9.3",
+    "schemaRoots": [
+      {
+        "file": "src/module/actor/data/index.ts",
+        "name": "ActorSourcePF2e",
+        "documentKind": "Actor",
+        "ref": "src/module/actor/data/index.ts#ActorSourcePF2e"
+      },
+      {
+        "file": "src/module/item/base/data/index.ts",
+        "name": "ItemSourcePF2e",
+        "documentKind": "Item",
+        "ref": "src/module/item/base/data/index.ts#ItemSourcePF2e"
+      },
+      {
+        "file": "types/foundry/common/documents/module.d.ts",
+        "name": "JournalEntrySource",
+        "documentKind": "JournalEntry",
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@4a0319bec106b09a36a4f868"
+      },
+      {
+        "file": "types/foundry/common/documents/module.d.ts",
+        "name": "MacroSource",
+        "documentKind": "Macro",
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@29d13e57a852b07d4ae91a7b"
+      },
+      {
+        "file": "types/foundry/common/documents/module.d.ts",
+        "name": "RollTableSource",
+        "documentKind": "RollTable",
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@736a789d8dcf6d6f67b793e7"
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4163746976654566666563744c696b65",
+        "ruleKey": "ActiveEffectLike",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/ae-like.ts",
+          "name": "AELikeRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@12d85f216f5c994cd3b0428b",
+        "arrayInputs": [
+          {
+            "field": "testDomains",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/ae-like.ts",
+                "line": 269,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4163746f72547261697473",
+        "ruleKey": "ActorTraits",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/actor-traits.ts",
+          "name": "ActorTraitsRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4cb2a350ee4661621565dd0",
+        "arrayInputs": [
+          {
+            "field": "add",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/actor-traits.ts",
+                "line": 71,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "remove",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/actor-traits.ts",
+                "line": 72,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_41646a7573744465677265654f6653756363657373",
+        "ruleKey": "AdjustDegreeOfSuccess",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/adjust-degree-of-success.ts",
+          "name": "AdjustDegreeOfSuccessRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@842791b1580267cefcca644e",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_41646a7573744d6f646966696572",
+        "ruleKey": "AdjustModifier",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/adjust-modifier.ts",
+          "name": "AdjustModifierRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@f5865916c2bcf44e1b7d8135",
+        "arrayInputs": [
+          {
+            "field": "selectors",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/adjust-modifier.ts",
+                "line": 136,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_41646a757374537472696b65",
+        "ruleKey": "AdjustStrike",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/adjust-strike.ts",
+          "name": "AdjustStrikeRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eb77ecf7568ab9a7cca6cf9d",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_41757261",
+        "ruleKey": "Aura",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/aura.ts",
+          "name": "AuraRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@3fa28719bdfb5c1d16360d64",
+        "arrayInputs": [
+          {
+            "field": "effects",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@90b8f32295bd24e15c67cbe5",
+            "elementRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d9dd7374b380801c53b790f0",
+            "fieldClass": "StrictArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/aura.ts",
+                "line": 379,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "traits",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@cb8d8abf36e5573681431fdd",
+            "elementRef": "structural:cb8d8abf36e5573681431fdd",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/aura.ts",
+                "line": 370,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_426173655370656564",
+        "ruleKey": "BaseSpeed",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/base-speed.ts",
+          "name": "BaseSpeedRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@ff650c69da1ae1814cd86742",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_426174746c65466f726d",
+        "ruleKey": "BattleForm",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/battle-form/rule-element.ts",
+          "name": "BattleFormRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@cc687c630454ac2ac721c851",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_43686f696365536574",
+        "ruleKey": "ChoiceSet",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/choice-set/rule-element.ts",
+          "name": "ChoiceSetRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@47ee5dcf172069578030875b",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4372616674696e674162696c697479",
+        "ruleKey": "CraftingAbility",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/crafting-ability.ts",
+          "name": "CraftingAbilityRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@7592ed1307940ee5a7d87c87",
+        "arrayInputs": [
+          {
+            "field": "prepared",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@fc5819ae06a6e87304ad1563",
+            "elementRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@041604ac6da4fbf1541d9e21",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/crafting-ability.ts",
+                "line": 170,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_437265617475726553697a65",
+        "ruleKey": "CreatureSize",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/creature-size.ts",
+          "name": "CreatureSizeRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@db6ae82bc5724340d16c0520",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_437269746963616c5370656369616c697a6174696f6e",
+        "ruleKey": "CriticalSpecialization",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/crit-spec.ts",
+          "name": "CritSpecRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@2425aa0fad0aec4ca99fe2bf",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_44616d616765416c7465726174696f6e",
+        "ruleKey": "DamageAlteration",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/damage-alteration/rule-element.ts",
+          "name": "DamageAlterationRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@79e8c00240cd176f7049530c",
+        "arrayInputs": [
+          {
+            "field": "selectors",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "StrictArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/damage-alteration/rule-element.ts",
+                "line": 114,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_44616d61676544696365",
+        "ruleKey": "DamageDice",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/damage-dice.ts",
+          "name": "DamageDiceRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@fd5b06a5de10cf55d85bd8d1",
+        "arrayInputs": [
+          {
+            "field": "selector",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/damage-dice.ts",
+                "line": 208,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "tags",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/damage-dice.ts",
+                "line": 232,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4465787465726974794d6f646966696572436170",
+        "ruleKey": "DexterityModifierCap",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/dexterity-modifier-cap.ts",
+          "name": "DexterityModifierCapRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@f05ba55c361088c045be804c",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_457068656d6572616c456666656374",
+        "ruleKey": "EphemeralEffect",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/ephemeral-effect.ts",
+          "name": "EphemeralEffectRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0f1938188cf9a2d5d8ebcc6c",
+        "arrayInputs": [
+          {
+            "field": "alterations",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@f87322307512266449d85088",
+            "elementRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@ff45e134fcdf7f1071d59c6e",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/ephemeral-effect.ts",
+                "line": 102,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "selectors",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/ephemeral-effect.ts",
+                "line": 99,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_466173744865616c696e67",
+        "ruleKey": "FastHealing",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/fast-healing.ts",
+          "name": "FastHealingRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@039373622b5bc167b0628c0f",
+        "arrayInputs": [
+          {
+            "field": "deactivatedBy",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/fast-healing.ts",
+                "line": 95,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_466c61744d6f646966696572",
+        "ruleKey": "FlatModifier",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/flat-modifier.ts",
+          "name": "FlatModifierRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@143d4c8b805ba83f90c0eee6",
+        "arrayInputs": [
+          {
+            "field": "selector",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/flat-modifier.ts",
+                "line": 209,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "tags",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/flat-modifier.ts",
+                "line": 244,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4772616e744974656d",
+        "ruleKey": "GrantItem",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/grant-item/rule-element.ts",
+          "name": "GrantItemRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9c967914cd323546b5f1d2f0",
+        "arrayInputs": [
+          {
+            "field": "alterations",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@f87322307512266449d85088",
+            "elementRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@ff45e134fcdf7f1071d59c6e",
+            "fieldClass": "StrictArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/grant-item/schema.ts",
+                "line": 23,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_496d6d756e697479",
+        "ruleKey": "Immunity",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/iwr/immunity.ts",
+          "name": "ImmunityRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eb059d87920ff2fae6db2f15",
+        "arrayInputs": [
+          {
+            "field": "exceptions",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@fb0b757ed1d42bf59cc4482e",
+            "elementRef": "structural:fb0b757ed1d42bf59cc4482e",
+            "fieldClass": "StrictArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/iwr/immunity.ts",
+                "line": 60,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "type",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/iwr/base.ts",
+                "line": 136,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4974656d416c7465726174696f6e",
+        "ruleKey": "ItemAlteration",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/item-alteration/rule-element.ts",
+          "name": "ItemAlterationRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@608df0a288952130abad2fbe",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4c6f7365486974506f696e7473",
+        "ruleKey": "LoseHitPoints",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/lose-hit-points.ts",
+          "name": "LoseHitPointsRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d690167b65e46a5ef65896c7",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4d61727469616c50726f66696369656e6379",
+        "ruleKey": "MartialProficiency",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/martial-proficiency.ts",
+          "name": "MartialProficiencyRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eef5582ec30dfa7ce37660bf",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4d756c7469706c6541747461636b50656e616c7479",
+        "ruleKey": "MultipleAttackPenalty",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/multiple-attack-penalty.ts",
+          "name": "MultipleAttackPenaltyRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b575404ba301fddeba746bd5",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_4e6f7465",
+        "ruleKey": "Note",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/roll-note.ts",
+          "name": "RollNoteRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@01120d7a8fc0e9cf3c31ec82",
+        "arrayInputs": [
+          {
+            "field": "outcome",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@5781b2f59e40f723e46dbdf3",
+            "elementRef": "structural:5781b2f59e40f723e46dbdf3",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/roll-note.ts",
+                "line": 77,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "selector",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/roll-note.ts",
+                "line": 71,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_526573697374616e6365",
+        "ruleKey": "Resistance",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/iwr/resistance.ts",
+          "name": "ResistanceRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@75377adbb958d84ad7130f56",
+        "arrayInputs": [
+          {
+            "field": "doubleVs",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@5dbf62ee81dd81d6a402ea8e",
+            "elementRef": "structural:5dbf62ee81dd81d6a402ea8e",
+            "fieldClass": "StrictArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/iwr/resistance.ts",
+                "line": 78,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "exceptions",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@5dbf62ee81dd81d6a402ea8e",
+            "elementRef": "structural:5dbf62ee81dd81d6a402ea8e",
+            "fieldClass": "StrictArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/iwr/resistance.ts",
+                "line": 77,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "type",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/iwr/base.ts",
+                "line": 136,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_526f6c6c4f7074696f6e",
+        "ruleKey": "RollOption",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/roll-option/rule-element.ts",
+          "name": "RollOptionRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9e9433e3c147ba142ac241f9",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_526f6c6c5477696365",
+        "ruleKey": "RollTwice",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/roll-twice.ts",
+          "name": "RollTwiceRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@119c217479bf913679058976",
+        "arrayInputs": [
+          {
+            "field": "selector",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/roll-twice.ts",
+                "line": 71,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_53656e7365",
+        "ruleKey": "Sense",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/sense.ts",
+          "name": "SenseRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@37e7c7b1e68b48914efb4d9f",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_5370656369616c5265736f75726365",
+        "ruleKey": "SpecialResource",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/special-resource.ts",
+          "name": "SpecialResourceRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a26be9414b8f01c08376e8e2",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_5370656369616c537461746973746963",
+        "ruleKey": "SpecialStatistic",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/special-statistic.ts",
+          "name": "SpecialStatisticRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@033170c8ace0232492d9b996",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_537472696b65",
+        "ruleKey": "Strike",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/strike.ts",
+          "name": "StrikeRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@49e4c5c3dbf864463943b2bd",
+        "arrayInputs": [
+          {
+            "field": "options",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/strike.ts",
+                "line": 372,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "otherTags",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@8c36cea909794c132863a20d",
+            "elementRef": "src/module/item/weapon/types.ts#OtherWeaponTag",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/strike.ts",
+                "line": 331,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "traits",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@3ce8c9bad63aff8d8bc44ce8",
+            "elementRef": "structural:3ce8c9bad63aff8d8bc44ce8",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/strike.ts",
+                "line": 319,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_537472696b696e67",
+        "ruleKey": "Striking",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/striking.ts",
+          "name": "StrikingRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@2e9e2d2220759ffb93c4f475",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_53756273746974757465526f6c6c",
+        "ruleKey": "SubstituteRoll",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/substitute-roll.ts",
+          "name": "SubstituteRollRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@87f0726f2788bc6b815d123d",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_54656d704850",
+        "ruleKey": "TempHP",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/temp-hp.ts",
+          "name": "TempHPRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@6d7bb999a78f77434d078feb",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_546f6b656e45666665637449636f6e",
+        "ruleKey": "TokenEffectIcon",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/token-effect-icon.ts",
+          "name": "TokenEffectIconRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c11a4f9d91dbd329273636c5",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_546f6b656e496d616765",
+        "ruleKey": "TokenImage",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/token-image.ts",
+          "name": "TokenImageRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@abc0b22685d9a4d8cbaee7df",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_546f6b656e4c69676874",
+        "ruleKey": "TokenLight",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/token-light.ts",
+          "name": "TokenLightRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0f0755454d29a4e4cceed2a1",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_546f6b656e4d61726b",
+        "ruleKey": "TokenMark",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/token-mark/rule-element.ts",
+          "name": "TokenMarkRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c21723f59ae629a5f86656ba",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_546f6b656e4e616d65",
+        "ruleKey": "TokenName",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/token-name.ts",
+          "name": "TokenNameRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@f4d24288a1f04e1bc34ba3aa",
+        "arrayInputs": []
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_5765616b6e657373",
+        "ruleKey": "Weakness",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/iwr/weakness.ts",
+          "name": "WeaknessRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@adc863f7d998bf42bae9c353",
+        "arrayInputs": [
+          {
+            "field": "exceptions",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@c019945edcdf2fe0be003d68",
+            "elementRef": "structural:c019945edcdf2fe0be003d68",
+            "fieldClass": "StrictArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/iwr/weakness.ts",
+                "line": 75,
+                "column": 5
+              }
+            ]
+          },
+          {
+            "field": "type",
+            "arrayRef": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+            "elementRef": "primitive:string",
+            "fieldClass": "ArrayField",
+            "declaredAt": [
+              {
+                "file": "src/module/rules/rule-element/iwr/base.ts",
+                "line": 136,
+                "column": 5
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "file": "__atlas_source_portfolio__.ts",
+        "name": "RuleSource_576561706f6e506f74656e6379",
+        "ruleKey": "WeaponPotency",
+        "schemaConstructor": {
+          "file": "src/module/rules/rule-element/weapon-potency.ts",
+          "name": "WeaponPotencyRuleElement"
+        },
+        "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@965621dab38a8ce3b9493bfe",
+        "arrayInputs": []
+      }
+    ],
+    "families": [
+      {
+        "documentKind": "Actor",
+        "registered": [
+          "army",
+          "character",
+          "familiar",
+          "hazard",
+          "loot",
+          "npc",
+          "party",
+          "vehicle"
+        ],
+        "discovered": [
+          "army",
+          "character",
+          "familiar",
+          "hazard",
+          "loot",
+          "npc",
+          "party",
+          "vehicle"
+        ]
+      },
+      {
+        "documentKind": "Item",
+        "registered": [
+          "action",
+          "affliction",
+          "ancestry",
+          "armor",
+          "background",
+          "backpack",
+          "book",
+          "campaignFeature",
+          "class",
+          "condition",
+          "consumable",
+          "deity",
+          "effect",
+          "equipment",
+          "feat",
+          "heritage",
+          "kit",
+          "lore",
+          "melee",
+          "shield",
+          "spell",
+          "spellcastingEntry",
+          "treasure",
+          "weapon"
+        ],
+        "discovered": [
+          "action",
+          "affliction",
+          "ancestry",
+          "armor",
+          "background",
+          "backpack",
+          "book",
+          "campaignFeature",
+          "class",
+          "condition",
+          "consumable",
+          "deity",
+          "effect",
+          "equipment",
+          "feat",
+          "heritage",
+          "kit",
+          "lore",
+          "melee",
+          "shield",
+          "spell",
+          "spellcastingEntry",
+          "treasure",
+          "weapon"
+        ]
+      }
+    ]
+  }
 }

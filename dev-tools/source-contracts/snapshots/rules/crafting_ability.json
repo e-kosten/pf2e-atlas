@@ -1,0 +1,642 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "CraftingAbilityRule",
+      "declaration": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@7592ed1307940ee5a7d87c87",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@7592ed1307940ee5a7d87c87",
+      "valueRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@7592ed1307940ee5a7d87c87",
+      "ruleKey": "CraftingAbility"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@ae96cd14783581190fa504cd",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@943febfa4611300f17499e91",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@fc5819ae06a6e87304ad1563",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@041604ac6da4fbf1541d9e21",
+      "readonly": false
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@041604ac6da4fbf1541d9e21",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "expended",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 176,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "isSignatureItem",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 177,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "quantity",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 175,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "uuid",
+          "ref": "types/foundry/client/data/documents/item.d.ts#global.ItemUUID",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 174,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "PreparedFormulaSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 173,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@7592ed1307940ee5a7d87c87",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "batchSizes",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@87c2308d7896bf25fc23b68d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 158,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "craftableItems",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 169,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "isAlchemical",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 155,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "isDailyPrep",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 156,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "isPrepared",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 157,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "maxItemLevel",
+          "ref": "src/module/rules/rule-element/data.ts#RuleValue",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 167,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "maxSlots",
+          "ref": "src/module/rules/rule-element/data.ts#RuleValue",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 168,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prepared",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@fc5819ae06a6e87304ad1563",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 170,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "resource",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 154,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "CraftingAbilityRuleSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 153,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@87c2308d7896bf25fc23b68d",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "default",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 159,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "other",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@ae96cd14783581190fa504cd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 160,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ default: NumberField<number, number, false, false, false>; other: ArrayField<SchemaField<{ quantity: NumberField<number, number, true, false, true>; definition: PredicateField<true, false, true>; }, SourceFromSchema<{ quantity: NumberField<number, number, true, false, true>; definition: PredicateField<true, false, true>; }>, ModelPropsFromSchema<{ quantity: NumberField<number, number, true, false, true>; definition: PredicateField<true, false, true>; }>, true, false, true>, SourceFromSchema<{ quantity: NumberField<number, number, true, false, true>; definition: PredicateField<true, false, true>; }>[], ModelPropsFromSchema<{ quantity: NumberField<number, number, true, false, true>; definition: PredicateField<true, false, true>; }>[], true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 158,
+              "column": 36
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@943febfa4611300f17499e91",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "definition",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 163,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "name": "quantity",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 162,
+              "column": 17
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ quantity: NumberField<number, number, true, false, true>; definition: PredicateField<true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crafting-ability.ts",
+              "line": 161,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

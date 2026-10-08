@@ -94,10 +94,12 @@ flowchart LR
 
 `atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or the build-input handoff. The final build-input handoff consumes ingest state into an owned `atlas-index::IndexBuildInput`; it should not be a borrowed view over `SourceLoad`. Physical SQLite artifact writing belongs in `atlas-index`.
 
-`atlas-ingest::source_model` exposes independently callable source-only slices
-for physical/equipment equipped, hp, price and usage, plus shared Item description,
-publication, core traits and complete Item flags across all registered Item families.
-Its public `generated` namespace exposes the generated value models. Private
+`atlas-ingest::source_model` exposes callable source parsers for Actor, Item,
+JournalEntry, Macro, RollTable and specific built-in rules. Its maintained
+generated portfolio covers all 47 extracted roots, eight Actor families and 24
+Item families. Existing physical/equipment, shared Item and predicate slices
+remain independently callable projections using shared value owners.
+Its public `generated` namespace exposes value models and selected root parsers. Private
 TypeScript tooling emits checked structures/parsers from selected declaration
 graphs. Minimal Rust primitives preserve pre-default missing/null/value states,
 ordinary numbers, ordered typed map entries and additional members. Recursive
@@ -123,7 +125,7 @@ while equivalent shapes share owners. See
 This models persisted shapes without executing predicates
 or enforcing all Foundry runtime constraints. Unselected
 and declaration-forbidden persisted members remain additional source data.
-The build pipeline does not call these parsers; this partial model is not
+The build pipeline does not call these parsers; this source portfolio is not
 full-family admission or a new record/storage contract. Rust consumers do not
 launch Node. See the [shared Item comparison](../research/shared-item-source-generation.md).
 
@@ -144,13 +146,19 @@ fidelity comparison checks typed values and ordered additional data. Corpus
 rejections remain counted and unresolved until supported by implementation or
 runtime evidence. See [ADR 0039](./decisions/0039-authored-rule-inputs.md) and the
 [authored-rule comparison](../research/authored-rule-source.md). These complete
-rule portfolios are diagnostic output, separate from callable production slices.
+rule portfolios are maintained and callable, with pipeline adoption deferred.
+The keyed RuleSource dispatcher invokes the specific parser; Item.rules retains
+the generic upstream RuleElementSource and is not a specific-rule admission gate.
 
 Saved generator inputs live under `dev-tools/source-contracts/snapshots`, with source
 identity in one manifest and graph nodes owned once across module snapshots.
 The generator loads the entire selection before assigning shared Rust owners.
 Output is partitioned under `source_model/generated` into shared Item components,
-flags, traits, physical/equipment and predicate modules; indexes compose existing content.
+flags, traits, physical/equipment, Actor components, family sources, document
+kinds and specific-rule modules; indexes compose existing content. Family source
+and system roots reserve their module even when reached through embedded
+nullable/optional references. Large object union payloads are boxed without
+changing their serialized representation.
 Handwritten presence/value/diagnostic primitives remain outside that generated
 directory. See [ADR 0034](./decisions/0034-source-generation-layout.md) and
 [ADR 0035](./decisions/0035-source-value-generation-policy.md). Broad trait arrays
@@ -173,8 +181,12 @@ retention semantics. Disjoint required literal tags identify family arms before
 defaults. Contributor `compare-documents` and `compare-rules` share one Rust probe
 runner; full-document comparisons retain exact authored bytes, apply the existing
 open trait-identifier policy across families and report unresolved authored /
-declaration conflicts. Generated full portfolios are diagnostic artifacts;
-production model selections and pipeline adoption remain separate.
+declaration conflicts. Maintained full portfolios are source contracts;
+production pipeline adoption remains separate. Contributor `compare-portfolio`
+checks the actual maintained Rust crate against all five document kinds and
+specific rules, with raw-value fidelity and a pinned corpus/rejection baseline.
+Matching known failures remain rejected diagnostic outcomes. See the
+[maintained portfolio report](../research/maintained-source-portfolio.md).
 
 Document comparison now measures separate schema and authored profiles. Bounded
 upstream-supported sentinels, spell area number/string values and initiative

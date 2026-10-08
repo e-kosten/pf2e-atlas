@@ -1,0 +1,1410 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "FamiliarSystemSource",
+      "declaration": "src/module/actor/familiar/data.ts#FamiliarSystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/actor/familiar/data.ts#FamiliarSystemSource",
+      "valueRef": "src/module/actor/familiar/data.ts#FamiliarSystemSource"
+    },
+    {
+      "name": "FamiliarSource",
+      "declaration": "src/module/actor/familiar/data.ts#FamiliarSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/actor/familiar/data.ts#FamiliarSource",
+      "valueRef": "src/module/actor/familiar/data.ts#FamiliarSource#authored-document#authored-document-patch"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "src/module/actor/familiar/data.ts#FamiliarAttributesSource",
+      "kind": "object",
+      "name": "FamiliarAttributesSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/familiar/data.ts",
+          "line": 120,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "hp",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@05e24e03ea52681d346d20cd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 95,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "immunities",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 121,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "resistances",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 123,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "weaknesses",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 122,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@35776e37b5aa91072e54d7fc"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/familiar/data.ts#FamiliarDetailsSource",
+      "kind": "object",
+      "name": "FamiliarDetailsSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/familiar/data.ts",
+          "line": 126,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "alliance",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 127,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "creature",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0a2a1b336d0e4abe8b95ca4e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 101,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "languages",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 128,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 129,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@33f9eb6f9c6410fc24de2c14"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/familiar/data.ts#FamiliarSource",
+      "kind": "intersection",
+      "name": "FamiliarSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/familiar/data.ts",
+          "line": 22,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/actor/data/base.ts#BaseActorSourcePF2e.$object@e29820500466eb6f627f34d5",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8901141072b79b8c47b85f24"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:a9eaec2d4f2677516e9adefa",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 23,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "structural:f50366b1bc7c7da093247831",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 24,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/familiar/data.ts#FamiliarSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"familiar\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/familiar/data.ts#FamiliarSource#authored-document#authored-document-patch",
+      "kind": "intersection",
+      "name": "FamiliarSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/familiar/data.ts",
+          "line": 22,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/actor/data/base.ts#BaseActorSourcePF2e.$object@e29820500466eb6f627f34d5",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8901141072b79b8c47b85f24#authored-document#authored-document-patch"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:a9eaec2d4f2677516e9adefa",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 23,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "structural:f50366b1bc7c7da093247831",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 24,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/familiar/data.ts#FamiliarSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"familiar\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/familiar/data.ts#FamiliarSystemSource",
+      "kind": "object",
+      "name": "FamiliarSystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/familiar/data.ts",
+          "line": 107,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d6ebbd831ebfb5ed4ce1b0bb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/model.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "attributes",
+          "ref": "src/module/actor/familiar/data.ts#FamiliarAttributesSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "customModifiers",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "details",
+          "ref": "src/module/actor/familiar/data.ts#FamiliarDetailsSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 109,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "master",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@f4831afccc3404dc02faa5ac",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "perception",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 111,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "resources",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "saves",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 113,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 117,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "skills",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 115,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0fad17f36b590e9f17fc0a6b"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@05e24e03ea52681d346d20cd",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "temp",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 97,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 96,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, true, false, true>; temp: NumberField<number, number, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 95,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0a2a1b336d0e4abe8b95ca4e",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 102,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: StringField<string, string, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 101,
+              "column": 38
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8901141072b79b8c47b85f24",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c19da1ea5bc6fcced3572a13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/familiar/data.ts#FamiliarSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"familiar\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ActorSchema<\"familiar\", FamiliarSystemSource, ItemSourcePF2e>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 84,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8901141072b79b8c47b85f24#authored-document#authored-document-patch",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c19da1ea5bc6fcced3572a13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/familiar/data.ts#FamiliarSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"familiar\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ActorSchema<\"familiar\", FamiliarSystemSource, ItemSourcePF2e>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 84,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@f4831afccc3404dc02faa5ac",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "ability",
+          "ref": "structural:3e0256de69f3b9ebde15f75e",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 92,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 91,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ id: ForeignDocumentField<string, true, true, true>; ability: StringField<\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", \"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", true, true, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/familiar/data.ts",
+              "line": 90,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

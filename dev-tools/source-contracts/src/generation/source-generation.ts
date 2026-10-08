@@ -31,6 +31,8 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     return modules.get(name)!;
   };
   const owners = new Map<string, Owner>();
+  const rootOwners = new Map<string, GenerationInput['selection'][number]>();
+  for (const root of input.selection) if (root.valueRef && !rootOwners.has(root.valueRef)) rootOwners.set(root.valueRef, root);
   const usedNames = new Set<string>();
   const lookup = (id: string): GraphNode => {
     const node = nodes.get(id);
@@ -220,7 +222,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       :node.domain==='non-nullish'?`!matches!(${v}, SourceValue::Null)`:'true';
     if(node.kind==='template')return `matches!(${v}, SourceValue::String(value) if matches_template(value, ${templateParts(node)}))`;
     if(node.kind==='literal') {
-      if(typeof node.value==='string')return `matches!(${v}, SourceValue::String(value) if value == ${rustString(node.value)})`;
+      if(typeof node.value==='string')return `matches!(${v}, SourceValue::String(value) if ${node.value === '' ? 'value.is_empty()' : `value == ${rustString(node.value)}`})`;
       if(typeof node.value==='boolean')return `matches!(${v}, SourceValue::Boolean(value) if ${node.value?'*value':'!*value'})`;
       return `matches!(${v}, SourceValue::Number(value) if value.as_f64() == Some(${node.value.toFixed(1)}))`;
     }
@@ -312,6 +314,28 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     }
   };
   const collectionOwners = new Map<string,Owner>();
+  // Conservative inline footprint estimate, capped at the boxing threshold.
+  // Collections store their elements on the heap; presence adds a discriminant.
+  // Recursive edges are already boxed by the cycle policy. This is a layout
+  // heuristic, not an ABI size contract or a source-value policy.
+  const inlineSize = (ref: string, seen = new Set<string>()): number => {
+    if (seen.has(ref)) return 8;
+    const node = normalized(ref), next = new Set(seen).add(ref);
+    if (node.kind === 'array' || mapAlias(node)) return 24;
+    if (node.kind === 'primitive') return node.value === 'string' ? 24 : node.value === 'number' ? 16 : 1;
+    if (node.kind === 'literal' || node.kind === 'template') return node.kind === 'template' ? 24 : 1;
+    if (node.kind === 'tuple') return Math.min(512, node.elements.reduce((size, element) => size + inlineSize(element.ref, next), 0));
+    if (node.kind === 'union') return Math.min(512, 8 + Math.max(...node.members.map(ref => inlineSize(ref, next))));
+    if (node.kind === 'object' || node.kind === 'intersection') {
+      let size = 24 + (node.indexSignatures.length ? 24 : 0);
+      for (const field of node.fields.filter(field => !field.forbidden)) {
+        size += 8 + (boxedEdge(node, field.ref) ? 8 : inlineSize(field.ref, next));
+        if (size > 256) return 512;
+      }
+      return size;
+    }
+    return 40;
+  };
   const emitCollection = (ref:string,hint:string,module:string,indexed=false):Owner => {
     const {nullable,onlyNullish}=collectionState(ref,indexed);
     if(onlyNullish && nullable)return depend(module,{type:'()',parser:'null',inline:true});
@@ -335,6 +359,9 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
   };
   const emit = (ref: string, hint: string, module: string): Owner => {
     const node = normalized(ref);
+    const rootOwner = rootOwners.get(ref) ?? rootOwners.get(node.id);
+    if (rootOwner && rootOwner.module !== module) return depend(module, emit(ref, rootOwner.name, rootOwner.module));
+    if (rootOwner) hint = rootOwner.name;
     checkAliases(ref);
     const key = signature(node);
     const existing = owners.get(key);
@@ -493,7 +520,7 @@ ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${va
     const alternatives=members.map((member,index)=>{
       const child=emit(member.id,name+'Alternative'+(index+1),module);
       const variant=pascal(declaredName(member,name+'Alternative'+(index+1)) ?? (member.kind==='primitive'?member.value:member.kind==='open'?member.domain:'Alternative'+(index+1)));
-      const boxed=boxedEdge(node,member.id);
+      const boxed=boxedEdge(node,member.id) || (['object', 'intersection'].includes(member.kind) && inlineSize(member.id) > 256);
       if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_required');
       if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_object');
       const condition=guard(member.id,'v',new Set(),identity);
@@ -543,12 +570,38 @@ ${hasFallback?`    let anchored = ${anchored.map(a=>a.condition).join(' || ')};\
       output.types.add(selection.name);
     }
     output.declarations.push(`// ${selection.declaration}; deferred fields: ${selection.deferred.join(', ')}
-${alias}pub(in crate::source_model) fn parse_${snake(selection.name)}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${selection.name}> {
+${alias}${input.portfolio ? 'pub' : 'pub(in crate::source_model)'} fn parse_${snake(selection.name)}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${selection.name}> {
     ${value.parser}(v, c, p)
 }`);
-    if (!selection.family) rootExports.push(`pub(super) use ${selection.module.replaceAll('/', '::')}::parse_${snake(selection.name)};`);
+    if (!selection.family) rootExports.push(`${input.portfolio ? 'pub' : 'pub(super)'} use ${selection.module.replaceAll('/', '::')}::parse_${snake(selection.name)};`);
   }
   const children = new Map<string, Set<string>>();
+  const ruleRoots = input.selection.filter(root => root.ruleKey);
+  if (ruleRoots.length) {
+    if (usedNames.has('RuleSource')) throw new Error('Rust name collision: RuleSource');
+    if (new Set(ruleRoots.map(root => root.ruleKey)).size !== ruleRoots.length) throw new Error('Duplicate rule key');
+    const output = moduleFor('rules/source');
+    output.serialize = true; output.types.add('RuleSource'); output.helpers.add('string'); output.helpers.add('Fields');
+    for (const root of ruleRoots) {
+      if (!output.imports.has(root.module)) output.imports.set(root.module, new Set());
+      output.imports.get(root.module)!.add(root.name);
+      output.imports.get(root.module)!.add(`parse_${snake(root.name)}`);
+    }
+    output.declarations.push(`#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum RuleSource {
+${ruleRoots.map(root => `    ${root.ruleKey}(Box<${root.name}>),`).join('\n')}
+}
+pub fn parse_rule_source(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<RuleSource> {
+    let fields = Fields::new(v, c, p)?;
+    let key = fields.required("key", string)?;
+    match key.as_str() {
+${ruleRoots.map(root => `        ${rustString(root.ruleKey!)} => parse_${snake(root.name)}(v, c, p).map(Box::new).map(RuleSource::${root.ruleKey}),`).join('\n')}
+        _ => Err(c.message(&format!("{p}.key"), "registered rule key", key)),
+    }
+}`);
+    rootExports.push('pub use rules::source::parse_rule_source;');
+  }
   const familyRoots = input.selection.filter(root => root.family);
   if (familyRoots.length) {
     if (new Set(familyRoots.map(root => root.family)).size !== familyRoots.length) throw new Error('Duplicate Item trait family');
@@ -585,7 +638,7 @@ ${familyRoots.map(root => `        ${rustString(root.family!)} => parse_${snake(
     }
   }
   const header = `${generatedHeader}
-// Partial source model for PF2e ${input.source.system_version}; source digest ${input.source.source_digest}.
+// ${input.portfolio ? 'Authored source portfolio' : 'Partial source model'} for PF2e ${input.source.system_version}; source digest ${input.source.source_digest}.
 // SourcePresence intentionally preserves missing/null before Foundry defaults.
 ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as strings; declaration vocabularies remain in snapshots.\n' : ''}
 `;

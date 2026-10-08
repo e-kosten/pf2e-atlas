@@ -720,15 +720,6 @@
         }
       ],
       "readonly": false
-    },
-    {
-      "id": "structural:e7b0c29f9e7d6629103358a0",
-      "kind": "union",
-      "declaredAt": [],
-      "members": [
-        "primitive:string",
-        "primitive:undefined"
-      ]
     }
   ]
 }

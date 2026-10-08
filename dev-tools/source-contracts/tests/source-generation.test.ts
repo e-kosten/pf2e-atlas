@@ -5,7 +5,7 @@ import os from 'node:os';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { generateRustModules } from '../src/generation/source-generation.js';
-import { loadGenerationInput, snapshotFiles, type GenerationInput } from '../src/generation/generation-input.js';
+import { loadGenerationInput, snapshotFiles, nodeReferences, type GenerationInput } from '../src/generation/generation-input.js';
 import { formatRust, generate } from '../src/generation/generate.js';
 import { artifactFiles } from '../src/generation/generated-files.js';
 import type { TypeGraph, ExtractionSummary } from '../src/contracts.js';
@@ -51,6 +51,34 @@ test('snapshots store nodes once and resolve references across input modules', a
     await rm(path.join(directory, 'physical.json'));
     await assert.rejects(loadGenerationInput(path.join(directory, 'manifest.json')), /ENOENT/);
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('maintained portfolio covers every document, family and specific rule with reserved family owners', () => {
+  const roots = input.selection.filter(root => root.documentKind || root.ruleKey);
+  assert.equal(roots.length, 47);
+  assert.equal(roots.filter(root => root.ruleKey).length, 42);
+  assert.deepEqual(roots.flatMap(root => root.documentKind ? [root.documentKind] : []).sort(), ['Actor', 'Item', 'JournalEntry', 'Macro', 'RollTable']);
+  assert.equal(new Set(input.selection.filter(root => root.module.startsWith('items/families/')).map(root => root.module)).size, 24);
+  assert.equal(new Set(input.selection.filter(root => root.module.startsWith('actors/families/')).map(root => root.module)).size, 8);
+  const files = generateRustModules(input), snapshots = snapshotFiles(input);
+  for (const root of input.selection.filter(root => root.module.includes('/families/'))) {
+    assert.match(files[`${root.module}.rs`], new RegExp(`pub fn parse_${root.name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()}\\(`));
+    const module = JSON.parse(snapshots[`${root.module}.json`]);
+    assert.ok(module.nodes.some((node: {id: string}) => node.id === root.valueRef));
+    assert.ok(module.nodes.some((node: {id: string}) => node.id === root.sourceRef));
+  }
+  assert.equal((Object.values(files).join('').match(/pub struct SpellSource \{/g) ?? []).length, 1);
+  assert.match(files['rules/source.rs'], /FlatModifier\(Box<FlatModifierRule>\)/);
+  assert.match(files['items/source.rs'], /SpellSource\(Box<SpellSource>\)/);
+});
+
+test('corpus baseline identifies the maintained source pin and retains zero measured value loss', async () => {
+  const baseline = JSON.parse(await readFile(new URL('../../fixtures/portfolio-corpus-baseline.json', import.meta.url), 'utf8'));
+  assert.equal(baseline.sourceDigest, input.source.source_digest);
+  assert.equal(baseline.counts.occurrences, baseline.counts.accepted + baseline.counts.rejected);
+  assert.equal(baseline.counts.fidelityFailures, 0);
+  assert.match(baseline.corpusDigest, /^[0-9a-f]{64}$/);
+  assert.match(baseline.rejectionDigest, /^[0-9a-f]{64}$/);
 });
 
 test('field and literal drift change generated types and preserve shared ownership', () => {
@@ -164,20 +192,16 @@ test('freshness covers the whole output set and removes only stale generated fil
 test('graph refresh checks metadata changes that shared Rust value types collapse', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'atlas-generation-metadata-'));
   try {
-    const nodes = new Map(input.nodes.map(node => [node.id,node]));
-    for (const root of input.selection) if (!nodes.has(root.declaration)) nodes.set(root.declaration, {
-      id: root.declaration, kind: 'object', fields: [...root.fields, ...root.deferred.map(name => ({ ...root.fields[0],name,ref:'primitive:string' }))],indexSignatures:[] });
-    const makeField = (name: string,ref: string) => ({name,ref,optional:false,nullable:false,undefinedAllowed:false,forbidden:false,declaredAt:[]});
-    const members: string[] = [];
-    for (const root of input.selection.filter(root=>root.family)) {
-      const id=`fixture:${root.family}`;members.push(id);
-      nodes.set(id+':type',{id:id+':type',kind:'literal',value:root.family!});
-      nodes.set(id+':system',{id:id+':system',kind:'object',fields:[makeField('traits',root.declaration)],indexSignatures:[]});
-      nodes.set(id,{id,kind:'object',fields:[makeField('type',id+':type'),makeField('system',id+':system')],indexSignatures:[]});
-    }
-    nodes.set('fixture:Item',{id:'fixture:Item',kind:'union',members});
-    const graph: TypeGraph = { format: 'atlas-source-type-graph/v1', typescript: '5.9.3', complete: true,
-      status: 'complete', roots: [{file:'fixture.ts',name:'Item',documentKind:'Item',ref:'fixture:Item'}],diagnostics:[],projectDiagnostics:{selected:[],unrelated:[]},nodes:[...nodes.values()] };
+    const nodes = new Map(input.nodes.map(node => [node.id, node]));
+    const visited = new Set<string>();
+    const visit = (ref: string) => { if (visited.has(ref)) return; visited.add(ref); nodeReferences(nodes.get(ref)!).forEach(visit); };
+    input.portfolio!.schemaRoots.forEach(root => visit(root.ref!));
+    input.selection.forEach(root => { if (root.sourceRef && !root.sourceRef.includes('#authored')) visit(root.sourceRef); });
+    const graph: TypeGraph = { format: "atlas-source-type-graph/v1", typescript: input.portfolio!.typescript, source: input.source,
+      complete: true, status: "complete", roots: input.portfolio!.schemaRoots, diagnostics: [], projectDiagnostics: { selected: [], unrelated: [] },
+      portfolio: { families: input.portfolio!.families, documentKinds: input.portfolio!.schemaRoots.flatMap(root => root.documentKind ? [root.documentKind] : []),
+        ruleKeys: input.portfolio!.schemaRoots.flatMap(root => root.ruleKey ? [root.ruleKey] : []) },
+      nodes: [...nodes.values()].filter(node => visited.has(node.id)) };
     const summary: ExtractionSummary = { format: 'atlas-source-extraction/v1', source: input.source,
       typescript_version: '5.9.3', dependency_lock_digest: 'test', complete: true,
       type_graph_complete: true, trait_catalog_complete: true, products: { type_graph: 'graph.json', trait_catalog: 'unused' } };

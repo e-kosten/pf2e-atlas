@@ -1,0 +1,1313 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "SpellcastingEntrySystemSource",
+      "declaration": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource",
+      "valueRef": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource"
+    },
+    {
+      "name": "SpellcastingEntrySource",
+      "declaration": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySource",
+      "valueRef": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySource"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"innate\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "innate"
+    },
+    {
+      "id": "literal:string:\"items\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "items"
+    },
+    {
+      "id": "literal:string:\"prepared\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "prepared"
+    },
+    {
+      "id": "literal:string:\"ritual\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "ritual"
+    },
+    {
+      "id": "literal:string:\"spellcastingEntry\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spellcastingEntry"
+    },
+    {
+      "id": "literal:string:\"spontaneous\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spontaneous"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@24f158b5d3d83d7f3983a0ed",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "src/module/item/spellcasting-entry/data.ts#SpellPrepData",
+      "readonly": false
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellCollectionTypeSource",
+      "kind": "object",
+      "name": "SpellCollectionTypeSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 55,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "flexible",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 57,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "validItems",
+          "ref": "structural:631139ad76a3e70797e827e2",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 58,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:47eae203407456acbc0290ad",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 56,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellPrepData",
+      "kind": "object",
+      "name": "SpellPrepData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 19,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "expended",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 21,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 20,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+      "kind": "object",
+      "name": "SpellSlotData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 24,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "max",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 27,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prepared",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@24f158b5d3d83d7f3983a0ed",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 25,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 26,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySlots",
+      "kind": "object",
+      "name": "SpellcastingEntrySlots",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 53,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "slot0",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot1",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot10",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot2",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot3",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot4",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot5",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot6",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot7",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot8",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "slot9",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellSlotData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySource",
+      "kind": "intersection",
+      "name": "SpellcastingEntrySource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 11,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/base/data/system.ts#BaseItemSourcePF2e.$object@bc7b919aa950cd0c25c28aee",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b92de1988d2e72c8bab59171"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:3a6c2d2bead9b588f1831ea0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 12,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"spellcastingEntry\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource",
+      "kind": "object",
+      "name": "SpellcastingEntrySystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 30,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "src/module/data.ts#MigrationRecord",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ability",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.ability.$object@0dd17a661a76b9a3f6ccb6d5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "autoHeightenLevel",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.autoHeightenLevel.$object@aafb20ba3111e6b2d541eef7",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 47,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "src/module/item/base/data/system.ts#ItemDescriptionSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 50,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prepared",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellCollectionTypeSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "proficiency",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.proficiency.$object@d7fb31390c73278522d30f0a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "src/module/data.ts#PublicationData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 89,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "showSlotlessLevels",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.showSlotlessLevels.$object@359ea28dbb08f680ed3bb848",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 39,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySlots",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spelldc",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.spelldc.$object@3acb604e0f0c0df24a930344",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 33,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "tradition",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.tradition.$object@35f704159240ed23d7cae1d1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 37,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "src/module/item/base/data/system.ts#OtherTagsOnly",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 31,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/base/data/system.ts#ItemSystemSource"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.ability.$object@0dd17a661a76b9a3f6ccb6d5",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 32,
+          "column": 14
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:1afc4c6ed73da2484a512817",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 32,
+              "column": 16
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.autoHeightenLevel.$object@aafb20ba3111e6b2d541eef7",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 47,
+          "column": 24
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:7c0255c4ed313d4ce61fb0a7",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 48,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.proficiency.$object@d7fb31390c73278522d30f0a",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 42,
+          "column": 18
+        }
+      ],
+      "fields": [
+        {
+          "name": "slug",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 43,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "src/module/data.ts#ZeroToFour",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 44,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.showSlotlessLevels.$object@359ea28dbb08f680ed3bb848",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 39,
+          "column": 25
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 40,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.spelldc.$object@3acb604e0f0c0df24a930344",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 33,
+          "column": 14
+        }
+      ],
+      "fields": [
+        {
+          "name": "dc",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 35,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 34,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.tradition.$object@35f704159240ed23d7cae1d1",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/spellcasting-entry/data.ts",
+          "line": 37,
+          "column": 16
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:3320d983fc4700d5f9ba70a1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/spellcasting-entry/data.ts",
+              "line": 37,
+              "column": 18
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:1afc4c6ed73da2484a512817",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"\"",
+        "literal:string:\"cha\"",
+        "literal:string:\"con\"",
+        "literal:string:\"dex\"",
+        "literal:string:\"int\"",
+        "literal:string:\"str\"",
+        "literal:string:\"wis\""
+      ]
+    },
+    {
+      "id": "structural:3320d983fc4700d5f9ba70a1",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"\"",
+        "literal:string:\"arcane\"",
+        "literal:string:\"divine\"",
+        "literal:string:\"occult\"",
+        "literal:string:\"primal\""
+      ]
+    },
+    {
+      "id": "structural:47eae203407456acbc0290ad",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"focus\"",
+        "literal:string:\"innate\"",
+        "literal:string:\"items\"",
+        "literal:string:\"prepared\"",
+        "literal:string:\"ritual\"",
+        "literal:string:\"spontaneous\""
+      ]
+    },
+    {
+      "id": "structural:631139ad76a3e70797e827e2",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"\"",
+        "literal:string:\"scroll\"",
+        "primitive:null",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:7c0255c4ed313d4ce61fb0a7",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:number:1",
+        "literal:number:10",
+        "literal:number:2",
+        "literal:number:3",
+        "literal:number:4",
+        "literal:number:5",
+        "literal:number:6",
+        "literal:number:7",
+        "literal:number:8",
+        "literal:number:9",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b92de1988d2e72c8bab59171",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"spellcastingEntry\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ItemSchema<\"spellcastingEntry\", SpellcastingEntrySystemSource>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 68,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2073 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "DeitySystemSource",
+      "declaration": "src/module/item/deity/data.ts#DeitySystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/deity/data.ts#DeitySystemSource",
+      "valueRef": "src/module/item/deity/data.ts#DeitySystemSource"
+    },
+    {
+      "name": "DeitySource",
+      "declaration": "src/module/item/deity/data.ts#DeitySource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/deity/data.ts#DeitySource",
+      "valueRef": "src/module/item/deity/data.ts#DeitySource"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"abomination\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "abomination"
+    },
+    {
+      "id": "literal:string:\"airapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "airapocryphal"
+    },
+    {
+      "id": "literal:string:\"ambition\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "ambition"
+    },
+    {
+      "id": "literal:string:\"ambitionapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "ambitionapocryphal"
+    },
+    {
+      "id": "literal:string:\"can\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "can"
+    },
+    {
+      "id": "literal:string:\"change\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "change"
+    },
+    {
+      "id": "literal:string:\"cities\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "cities"
+    },
+    {
+      "id": "literal:string:\"confidence\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "confidence"
+    },
+    {
+      "id": "literal:string:\"confidenceapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "confidenceapocryphal"
+    },
+    {
+      "id": "literal:string:\"covenant\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "covenant"
+    },
+    {
+      "id": "literal:string:\"creation\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "creation"
+    },
+    {
+      "id": "literal:string:\"darknessapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "darknessapocryphal"
+    },
+    {
+      "id": "literal:string:\"deathapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "deathapocryphal"
+    },
+    {
+      "id": "literal:string:\"decay\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "decay"
+    },
+    {
+      "id": "literal:string:\"deity\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "deity"
+    },
+    {
+      "id": "literal:string:\"delirium\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "delirium"
+    },
+    {
+      "id": "literal:string:\"destruction\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "destruction"
+    },
+    {
+      "id": "literal:string:\"dreams\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dreams"
+    },
+    {
+      "id": "literal:string:\"dust\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dust"
+    },
+    {
+      "id": "literal:string:\"duty\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "duty"
+    },
+    {
+      "id": "literal:string:\"family\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "family"
+    },
+    {
+      "id": "literal:string:\"fate\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fate"
+    },
+    {
+      "id": "literal:string:\"fateapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fateapocryphal"
+    },
+    {
+      "id": "literal:string:\"fireapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fireapocryphal"
+    },
+    {
+      "id": "literal:string:\"freedom\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "freedom"
+    },
+    {
+      "id": "literal:string:\"glyph\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "glyph"
+    },
+    {
+      "id": "literal:string:\"harm\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "harm"
+    },
+    {
+      "id": "literal:string:\"heal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "heal"
+    },
+    {
+      "id": "literal:string:\"indulgence\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "indulgence"
+    },
+    {
+      "id": "literal:string:\"indulgenceapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "indulgenceapocryphal"
+    },
+    {
+      "id": "literal:string:\"introspection\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "introspection"
+    },
+    {
+      "id": "literal:string:\"knowledge\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "knowledge"
+    },
+    {
+      "id": "literal:string:\"knowledgeapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "knowledgeapocryphal"
+    },
+    {
+      "id": "literal:string:\"lightning\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "lightning"
+    },
+    {
+      "id": "literal:string:\"luck\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "luck"
+    },
+    {
+      "id": "literal:string:\"might\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "might"
+    },
+    {
+      "id": "literal:string:\"mightapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "mightapocryphal"
+    },
+    {
+      "id": "literal:string:\"moon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "moon"
+    },
+    {
+      "id": "literal:string:\"must\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "must"
+    },
+    {
+      "id": "literal:string:\"naga\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "naga"
+    },
+    {
+      "id": "literal:string:\"nightmares\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "nightmares"
+    },
+    {
+      "id": "literal:string:\"pain\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "pain"
+    },
+    {
+      "id": "literal:string:\"pantheon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "pantheon"
+    },
+    {
+      "id": "literal:string:\"passion\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "passion"
+    },
+    {
+      "id": "literal:string:\"perfection\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "perfection"
+    },
+    {
+      "id": "literal:string:\"philosophy\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "philosophy"
+    },
+    {
+      "id": "literal:string:\"plague\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "plague"
+    },
+    {
+      "id": "literal:string:\"protection\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "protection"
+    },
+    {
+      "id": "literal:string:\"repose\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "repose"
+    },
+    {
+      "id": "literal:string:\"secrecy\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "secrecy"
+    },
+    {
+      "id": "literal:string:\"secrecyapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "secrecyapocryphal"
+    },
+    {
+      "id": "literal:string:\"sorrow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sorrow"
+    },
+    {
+      "id": "literal:string:\"soul\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "soul"
+    },
+    {
+      "id": "literal:string:\"star\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "star"
+    },
+    {
+      "id": "literal:string:\"sun\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sun"
+    },
+    {
+      "id": "literal:string:\"toil\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "toil"
+    },
+    {
+      "id": "literal:string:\"travel\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "travel"
+    },
+    {
+      "id": "literal:string:\"travelapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "travelapocryphal"
+    },
+    {
+      "id": "literal:string:\"trickery\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "trickery"
+    },
+    {
+      "id": "literal:string:\"truth\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "truth"
+    },
+    {
+      "id": "literal:string:\"tyranny\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tyranny"
+    },
+    {
+      "id": "literal:string:\"undeath\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "undeath"
+    },
+    {
+      "id": "literal:string:\"vigil\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "vigil"
+    },
+    {
+      "id": "literal:string:\"waterapocryphal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "waterapocryphal"
+    },
+    {
+      "id": "literal:string:\"wealth\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wealth"
+    },
+    {
+      "id": "literal:string:\"wyrmkin\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wyrmkin"
+    },
+    {
+      "id": "literal:string:\"zeal\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "zeal"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@42a333c580412a623fbc43c0",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "src/module/item/weapon/types.ts#BaseWeaponType",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@7bd71c20b5608c4ca36b7c3d",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "src/module/item/deity/types.ts#Sanctification",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@91fc6bd799395d4d40aa1c16",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "structural:91fc6bd799395d4d40aa1c16",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Record@31a7d063c32dae79e7727da3",
+      "kind": "object",
+      "name": "Record",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1613,
+          "column": 1
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:number",
+          "value": "types/foundry/client/data/documents/item.d.ts#global.ItemUUID",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "number",
+          "declaredAt": []
+        },
+        {
+          "expression": "ItemUUID",
+          "declaredAt": [
+            {
+              "file": "types/foundry/client/data/documents/item.d.ts",
+              "line": 68,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "src/module/item/deity/data.ts#DeityCategory",
+      "kind": "union",
+      "name": "DeityCategory",
+      "declaredAt": [
+        {
+          "file": "src/module/item/deity/data.ts",
+          "line": 24,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"covenant\"",
+        "literal:string:\"deity\"",
+        "literal:string:\"pantheon\"",
+        "literal:string:\"philosophy\""
+      ]
+    },
+    {
+      "id": "src/module/item/deity/data.ts#DeitySanctification",
+      "kind": "object",
+      "name": "DeitySanctification",
+      "declaredAt": [
+        {
+          "file": "src/module/item/deity/data.ts",
+          "line": 26,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "modal",
+          "ref": "structural:66ef222a98cf5443f05de7af",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 26,
+              "column": 30
+            }
+          ]
+        },
+        {
+          "name": "what",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@7bd71c20b5608c4ca36b7c3d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 26,
+              "column": 53
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/deity/data.ts#DeitySource",
+      "kind": "intersection",
+      "name": "DeitySource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/deity/data.ts",
+          "line": 6,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/base/data/system.ts#BaseItemSourcePF2e.$object@bc7b919aa950cd0c25c28aee",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eb9afb9dd9f1a766928eadda"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:3a6c2d2bead9b588f1831ea0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 12,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/deity/data.ts#DeitySystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"deity\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/deity/data.ts#DeitySystemSource",
+      "kind": "intersection",
+      "name": "DeitySystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/deity/data.ts",
+          "line": 8,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/base/data/system.ts#ItemSystemSource",
+        "src/module/item/deity/data.ts#DeitySystemSource.$object@4c58a3c547d34ec36f4bd7ee"
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "src/module/data.ts#MigrationRecord",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "attribute",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4ad7ee4470b79a8670005dad",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 16,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "category",
+          "ref": "src/module/item/deity/data.ts#DeityCategory",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 9,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "src/module/item/base/data/system.ts#ItemDescriptionSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "domains",
+          "ref": "src/module/item/deity/data.ts#DeitySystemSource.$object.domains.$object@6a32173e156bd991da7f1ece",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 11,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "font",
+          "ref": "src/module/item/deity/data.ts#DivineFonts",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 15,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 81,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 20,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "src/module/data.ts#PublicationData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 89,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sanctification",
+          "ref": "structural:339b9a1ece5f453e8c13470c",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 10,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "skill",
+          "ref": "structural:e48e032056848a67f92344e2",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 17,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spells",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Record@31a7d063c32dae79e7727da3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 19,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "structural:ad84faa8fb41c03fe358e7d5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 83,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 21,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "weapons",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@42a333c580412a623fbc43c0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 18,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/deity/data.ts#DeitySystemSource.$object.domains.$object@6a32173e156bd991da7f1ece",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/deity/data.ts",
+          "line": 11,
+          "column": 14
+        }
+      ],
+      "fields": [
+        {
+          "name": "alternate",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@91fc6bd799395d4d40aa1c16",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 13,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "primary",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@91fc6bd799395d4d40aa1c16",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 12,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/deity/data.ts#DeitySystemSource.$object@4c58a3c547d34ec36f4bd7ee",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/deity/data.ts",
+          "line": 8,
+          "column": 45
+        }
+      ],
+      "fields": [
+        {
+          "name": "attribute",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4ad7ee4470b79a8670005dad",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 16,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "category",
+          "ref": "src/module/item/deity/data.ts#DeityCategory",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 9,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "domains",
+          "ref": "src/module/item/deity/data.ts#DeitySystemSource.$object.domains.$object@6a32173e156bd991da7f1ece",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 11,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "font",
+          "ref": "src/module/item/deity/data.ts#DivineFonts",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 15,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 20,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sanctification",
+          "ref": "structural:339b9a1ece5f453e8c13470c",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 10,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "skill",
+          "ref": "structural:e48e032056848a67f92344e2",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 17,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spells",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Record@31a7d063c32dae79e7727da3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 19,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "src/module/item/base/data/system.ts#OtherTagsOnly",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 21,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "weapons",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@42a333c580412a623fbc43c0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/deity/data.ts",
+              "line": 18,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/deity/data.ts#DivineFonts",
+      "kind": "union",
+      "name": "DivineFonts",
+      "declaredAt": [
+        {
+          "file": "src/module/item/deity/data.ts",
+          "line": 28,
+          "column": 1
+        }
+      ],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Array@82dc6ad4cf43149375b8b1c2",
+        "structural:ac219ec891cb94751c18f34a",
+        "structural:c575b8c2ece7f093a418f4fc",
+        "structural:d1e400e3e20099628aad7b78"
+      ]
+    },
+    {
+      "id": "src/module/item/deity/types.ts#Sanctification",
+      "kind": "union",
+      "name": "Sanctification",
+      "declaredAt": [
+        {
+          "file": "src/module/item/deity/types.ts",
+          "line": 3,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"holy\"",
+        "literal:string:\"unholy\""
+      ]
+    },
+    {
+      "id": "src/module/item/weapon/types.ts#BaseWeaponType",
+      "kind": "union",
+      "name": "BaseWeaponType",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/types.ts",
+          "line": 16,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"adze\"",
+        "literal:string:\"air-repeater\"",
+        "literal:string:\"aklys\"",
+        "literal:string:\"alchemical-bomb\"",
+        "literal:string:\"alchemical-crossbow\"",
+        "literal:string:\"aldori-dueling-sword\"",
+        "literal:string:\"arbalest\"",
+        "literal:string:\"arquebus\"",
+        "literal:string:\"asp-coil\"",
+        "literal:string:\"atlatl\"",
+        "literal:string:\"axe-musket\"",
+        "literal:string:\"barricade-buster\"",
+        "literal:string:\"bastard-sword\"",
+        "literal:string:\"battle-axe\"",
+        "literal:string:\"battle-lute\"",
+        "literal:string:\"battle-saddle\"",
+        "literal:string:\"bec-de-corbin\"",
+        "literal:string:\"big-boom-gun\"",
+        "literal:string:\"black-powder-knuckle-dusters\"",
+        "literal:string:\"bladed-diabolo\"",
+        "literal:string:\"bladed-gauntlet\"",
+        "literal:string:\"bladed-hoop\"",
+        "literal:string:\"bladed-scarf\"",
+        "literal:string:\"blowgun\"",
+        "literal:string:\"blowgun-darts\"",
+        "literal:string:\"blunderbuss\"",
+        "literal:string:\"bo-staff\"",
+        "literal:string:\"boarding-axe\"",
+        "literal:string:\"boarding-pike\"",
+        "literal:string:\"bola\"",
+        "literal:string:\"boomerang\"",
+        "literal:string:\"bow-staff\"",
+        "literal:string:\"breaching-pike\"",
+        "literal:string:\"broadspear\"",
+        "literal:string:\"buckler\"",
+        "literal:string:\"butchering-axe\"",
+        "literal:string:\"butterfly-sword\"",
+        "literal:string:\"buugeng\"",
+        "literal:string:\"cane-pistol\"",
+        "literal:string:\"capturing-spetum\"",
+        "literal:string:\"casters-targe\"",
+        "literal:string:\"chain-sword\"",
+        "literal:string:\"chakram\"",
+        "literal:string:\"chakri\"",
+        "literal:string:\"clan-dagger\"",
+        "literal:string:\"clan-pistol\"",
+        "literal:string:\"claw\"",
+        "literal:string:\"claw-blade\"",
+        "literal:string:\"club\"",
+        "literal:string:\"coat-pistol\"",
+        "literal:string:\"combat-fishing-pole\"",
+        "literal:string:\"combat-grapnel\"",
+        "literal:string:\"combat-lure\"",
+        "literal:string:\"composite-longbow\"",
+        "literal:string:\"composite-shortbow\"",
+        "literal:string:\"corset-knife\"",
+        "literal:string:\"crescent-cross\"",
+        "literal:string:\"crossbow\"",
+        "literal:string:\"dagger\"",
+        "literal:string:\"dagger-pistol\"",
+        "literal:string:\"daikyu\"",
+        "literal:string:\"dancers-spear\"",
+        "literal:string:\"dandpatta\"",
+        "literal:string:\"dart\"",
+        "literal:string:\"dart-shield\"",
+        "literal:string:\"dogslicer\"",
+        "literal:string:\"donchak\"",
+        "literal:string:\"double-barreled-musket\"",
+        "literal:string:\"double-barreled-pistol\"",
+        "literal:string:\"dragon-mouth-pistol\"",
+        "literal:string:\"dueling-pistol\"",
+        "literal:string:\"dueling-spear\"",
+        "literal:string:\"dwarven-dorn-dergar\"",
+        "literal:string:\"dwarven-scattergun\"",
+        "literal:string:\"dwarven-war-axe\"",
+        "literal:string:\"earthbreaker\"",
+        "literal:string:\"elven-branched-spear\"",
+        "literal:string:\"elven-curve-blade\"",
+        "literal:string:\"explosive-dogslicer\"",
+        "literal:string:\"exquisite-sword-cane\"",
+        "literal:string:\"exquisite-sword-cane-sheath\"",
+        "literal:string:\"falcata\"",
+        "literal:string:\"falchion\"",
+        "literal:string:\"fangs\"",
+        "literal:string:\"fangwire\"",
+        "literal:string:\"fauchard\"",
+        "literal:string:\"feng-huo-lun\"",
+        "literal:string:\"fighting-fan\"",
+        "literal:string:\"fighting-oar\"",
+        "literal:string:\"fighting-stick\"",
+        "literal:string:\"filchers-fork\"",
+        "literal:string:\"fire-lance\"",
+        "literal:string:\"fire-poi\"",
+        "literal:string:\"fist\"",
+        "literal:string:\"flail\"",
+        "literal:string:\"flingflenser\"",
+        "literal:string:\"flintlock-musket\"",
+        "literal:string:\"flintlock-pistol\"",
+        "literal:string:\"flying-talon\"",
+        "literal:string:\"flyssa\"",
+        "literal:string:\"forked-bipod\"",
+        "literal:string:\"fortress-shield\"",
+        "literal:string:\"frying-pan\"",
+        "literal:string:\"gada\"",
+        "literal:string:\"gaff\"",
+        "literal:string:\"gakgung\"",
+        "literal:string:\"gauntlet\"",
+        "literal:string:\"gauntlet-bow\"",
+        "literal:string:\"gauntlet-buckler\"",
+        "literal:string:\"gill-hook\"",
+        "literal:string:\"gladius\"",
+        "literal:string:\"glaive\"",
+        "literal:string:\"gnome-amalgam-musket\"",
+        "literal:string:\"gnome-flickmace\"",
+        "literal:string:\"gnome-hooked-hammer\"",
+        "literal:string:\"greataxe\"",
+        "literal:string:\"greatclub\"",
+        "literal:string:\"greatpick\"",
+        "literal:string:\"greatsword\"",
+        "literal:string:\"griffon-cane\"",
+        "literal:string:\"guisarme\"",
+        "literal:string:\"gun-sword\"",
+        "literal:string:\"halberd\"",
+        "literal:string:\"halfling-sling-staff\"",
+        "literal:string:\"hammer-gun\"",
+        "literal:string:\"hand-adze\"",
+        "literal:string:\"hand-cannon\"",
+        "literal:string:\"hand-crossbow\"",
+        "literal:string:\"harmona-gun\"",
+        "literal:string:\"harnessed-shield\"",
+        "literal:string:\"harpoon\"",
+        "literal:string:\"hatchet\"",
+        "literal:string:\"heavy-crossbow\"",
+        "literal:string:\"heavy-rondache\"",
+        "literal:string:\"hide-shield\"",
+        "literal:string:\"hongali-hornbow\"",
+        "literal:string:\"hook-sword\"",
+        "literal:string:\"horsechopper\"",
+        "literal:string:\"injection-spear\"",
+        "literal:string:\"javelin\"",
+        "literal:string:\"jaws\"",
+        "literal:string:\"jezail\"",
+        "literal:string:\"jiu-huan-dao\"",
+        "literal:string:\"juggling-club\"",
+        "literal:string:\"kalis\"",
+        "literal:string:\"kama\"",
+        "literal:string:\"karambit\"",
+        "literal:string:\"katana\"",
+        "literal:string:\"katar\"",
+        "literal:string:\"kestros\"",
+        "literal:string:\"khakkhara\"",
+        "literal:string:\"khopesh\"",
+        "literal:string:\"klar\"",
+        "literal:string:\"knuckle-duster\"",
+        "literal:string:\"kris\"",
+        "literal:string:\"kukri\"",
+        "literal:string:\"kusarigama\"",
+        "literal:string:\"lance\"",
+        "literal:string:\"lancer\"",
+        "literal:string:\"leiomano\"",
+        "literal:string:\"light-hammer\"",
+        "literal:string:\"light-mace\"",
+        "literal:string:\"light-pick\"",
+        "literal:string:\"lion-scythe\"",
+        "literal:string:\"liuyedao\"",
+        "literal:string:\"long-air-repeater\"",
+        "literal:string:\"long-hammer\"",
+        "literal:string:\"longbow\"",
+        "literal:string:\"longspear\"",
+        "literal:string:\"longsword\"",
+        "literal:string:\"mace\"",
+        "literal:string:\"mace-multipistol\"",
+        "literal:string:\"machete\"",
+        "literal:string:\"macuahuitl\"",
+        "literal:string:\"main-gauche\"",
+        "literal:string:\"mambele\"",
+        "literal:string:\"maul\"",
+        "literal:string:\"meteor-hammer\"",
+        "literal:string:\"meteor-shield\"",
+        "literal:string:\"mikazuki\"",
+        "literal:string:\"mithral-tree\"",
+        "literal:string:\"monkeys-fist\"",
+        "literal:string:\"morningstar\"",
+        "literal:string:\"naginata\"",
+        "literal:string:\"nails\"",
+        "literal:string:\"nightstick\"",
+        "literal:string:\"nodachi\"",
+        "literal:string:\"nunchaku\"",
+        "literal:string:\"ogre-hook\"",
+        "literal:string:\"orc-knuckle-dagger\"",
+        "literal:string:\"orc-necksplitter\"",
+        "literal:string:\"orc-skewermaul\"",
+        "literal:string:\"palstave\"",
+        "literal:string:\"panabas\"",
+        "literal:string:\"pepperbox\"",
+        "literal:string:\"phalanx-piercer\"",
+        "literal:string:\"pick\"",
+        "literal:string:\"piercing-wind\"",
+        "literal:string:\"piranha-kiss\"",
+        "literal:string:\"poi\"",
+        "literal:string:\"polytool\"",
+        "literal:string:\"probing-cane\"",
+        "literal:string:\"ranseur\"",
+        "literal:string:\"rapier\"",
+        "literal:string:\"rapier-pistol\"",
+        "literal:string:\"razor-disc\"",
+        "literal:string:\"reinforced-stock\"",
+        "literal:string:\"reinforced-wheels\"",
+        "literal:string:\"repeating-crossbow\"",
+        "literal:string:\"repeating-hand-crossbow\"",
+        "literal:string:\"repeating-heavy-crossbow\"",
+        "literal:string:\"rhoka-sword\"",
+        "literal:string:\"rope-dart\"",
+        "literal:string:\"rotary-bow\"",
+        "literal:string:\"rungu\"",
+        "literal:string:\"sai\"",
+        "literal:string:\"salvo-shield\"",
+        "literal:string:\"sansetsukon\"",
+        "literal:string:\"sap\"",
+        "literal:string:\"sawtooth-saber\"",
+        "literal:string:\"scimitar\"",
+        "literal:string:\"scizore\"",
+        "literal:string:\"scorpion-whip\"",
+        "literal:string:\"scourge\"",
+        "literal:string:\"scythe\"",
+        "literal:string:\"shauth-lash\"",
+        "literal:string:\"shears\"",
+        "literal:string:\"shield-bash\"",
+        "literal:string:\"shield-boss\"",
+        "literal:string:\"shield-bow\"",
+        "literal:string:\"shield-pistol\"",
+        "literal:string:\"shield-spikes\"",
+        "literal:string:\"shobhad-longrifle\"",
+        "literal:string:\"shortbow\"",
+        "literal:string:\"shortsword\"",
+        "literal:string:\"shuan-ji\"",
+        "literal:string:\"shuriken\"",
+        "literal:string:\"sickle\"",
+        "literal:string:\"sickle-saber\"",
+        "literal:string:\"slide-pistol\"",
+        "literal:string:\"sling\"",
+        "literal:string:\"sling-bullets\"",
+        "literal:string:\"spear\"",
+        "literal:string:\"spiked-chain\"",
+        "literal:string:\"spiked-gauntlet\"",
+        "literal:string:\"spiral-rapier\"",
+        "literal:string:\"spirit-thresher\"",
+        "literal:string:\"spoon-gun\"",
+        "literal:string:\"spraysling\"",
+        "literal:string:\"staff\"",
+        "literal:string:\"starknife\"",
+        "literal:string:\"steel-shield\"",
+        "literal:string:\"stiletto-pen\"",
+        "literal:string:\"sukgung\"",
+        "literal:string:\"sun-sling\"",
+        "literal:string:\"switchscythe\"",
+        "literal:string:\"sword-cane\"",
+        "literal:string:\"swordstealer-shield\"",
+        "literal:string:\"talwar\"",
+        "literal:string:\"tamchal-chakram\"",
+        "literal:string:\"taw-launcher\"",
+        "literal:string:\"tekko-kagi\"",
+        "literal:string:\"temple-sword\"",
+        "literal:string:\"tengu-gale-blade\"",
+        "literal:string:\"tetsubo\"",
+        "literal:string:\"thorn-whip\"",
+        "literal:string:\"three-peaked-tree\"",
+        "literal:string:\"three-section-naginata\"",
+        "literal:string:\"throwing-knife\"",
+        "literal:string:\"thunder-sling\"",
+        "literal:string:\"thundermace\"",
+        "literal:string:\"tonfa\"",
+        "literal:string:\"tower-shield\"",
+        "literal:string:\"tri-bladed-katar\"",
+        "literal:string:\"tricky-pick\"",
+        "literal:string:\"trident\"",
+        "literal:string:\"triggerbrand\"",
+        "literal:string:\"urumi\"",
+        "literal:string:\"visap\"",
+        "literal:string:\"wakizashi\"",
+        "literal:string:\"war-flail\"",
+        "literal:string:\"war-gavel\"",
+        "literal:string:\"war-javelin\"",
+        "literal:string:\"war-lance\"",
+        "literal:string:\"war-razor\"",
+        "literal:string:\"warhammer\"",
+        "literal:string:\"wheel-blades\"",
+        "literal:string:\"wheel-spikes\"",
+        "literal:string:\"whip\"",
+        "literal:string:\"whip-claw\"",
+        "literal:string:\"whip-staff\"",
+        "literal:string:\"wish-blade\"",
+        "literal:string:\"wish-knife\"",
+        "literal:string:\"wooden-shield\"",
+        "literal:string:\"wooden-taws\"",
+        "literal:string:\"wrecker\"",
+        "literal:string:\"wrist-launcher\"",
+        "literal:string:\"zhuazhi-bang\"",
+        "literal:string:\"zulfikar\""
+      ]
+    },
+    {
+      "id": "structural:339b9a1ece5f453e8c13470c",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/item/deity/data.ts#DeitySanctification"
+      ]
+    },
+    {
+      "id": "structural:66ef222a98cf5443f05de7af",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"can\"",
+        "literal:string:\"must\""
+      ]
+    },
+    {
+      "id": "structural:91fc6bd799395d4d40aa1c16",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"abomination\"",
+        "literal:string:\"air\"",
+        "literal:string:\"airapocryphal\"",
+        "literal:string:\"ambition\"",
+        "literal:string:\"ambitionapocryphal\"",
+        "literal:string:\"change\"",
+        "literal:string:\"cities\"",
+        "literal:string:\"cold\"",
+        "literal:string:\"confidence\"",
+        "literal:string:\"confidenceapocryphal\"",
+        "literal:string:\"creation\"",
+        "literal:string:\"darkness\"",
+        "literal:string:\"darknessapocryphal\"",
+        "literal:string:\"death\"",
+        "literal:string:\"deathapocryphal\"",
+        "literal:string:\"decay\"",
+        "literal:string:\"delirium\"",
+        "literal:string:\"destruction\"",
+        "literal:string:\"dreams\"",
+        "literal:string:\"dust\"",
+        "literal:string:\"duty\"",
+        "literal:string:\"earth\"",
+        "literal:string:\"family\"",
+        "literal:string:\"fate\"",
+        "literal:string:\"fateapocryphal\"",
+        "literal:string:\"fire\"",
+        "literal:string:\"fireapocryphal\"",
+        "literal:string:\"freedom\"",
+        "literal:string:\"glyph\"",
+        "literal:string:\"healing\"",
+        "literal:string:\"indulgence\"",
+        "literal:string:\"indulgenceapocryphal\"",
+        "literal:string:\"introspection\"",
+        "literal:string:\"knowledge\"",
+        "literal:string:\"knowledgeapocryphal\"",
+        "literal:string:\"lightning\"",
+        "literal:string:\"luck\"",
+        "literal:string:\"magic\"",
+        "literal:string:\"metal\"",
+        "literal:string:\"might\"",
+        "literal:string:\"mightapocryphal\"",
+        "literal:string:\"moon\"",
+        "literal:string:\"naga\"",
+        "literal:string:\"nature\"",
+        "literal:string:\"nightmares\"",
+        "literal:string:\"pain\"",
+        "literal:string:\"passion\"",
+        "literal:string:\"perfection\"",
+        "literal:string:\"plague\"",
+        "literal:string:\"protection\"",
+        "literal:string:\"repose\"",
+        "literal:string:\"secrecy\"",
+        "literal:string:\"secrecyapocryphal\"",
+        "literal:string:\"sorrow\"",
+        "literal:string:\"soul\"",
+        "literal:string:\"star\"",
+        "literal:string:\"sun\"",
+        "literal:string:\"swarm\"",
+        "literal:string:\"time\"",
+        "literal:string:\"toil\"",
+        "literal:string:\"travel\"",
+        "literal:string:\"travelapocryphal\"",
+        "literal:string:\"trickery\"",
+        "literal:string:\"truth\"",
+        "literal:string:\"tyranny\"",
+        "literal:string:\"undeath\"",
+        "literal:string:\"vigil\"",
+        "literal:string:\"void\"",
+        "literal:string:\"water\"",
+        "literal:string:\"waterapocryphal\"",
+        "literal:string:\"wealth\"",
+        "literal:string:\"wood\"",
+        "literal:string:\"wyrmkin\"",
+        "literal:string:\"zeal\""
+      ]
+    },
+    {
+      "id": "structural:ac219ec891cb94751c18f34a",
+      "kind": "tuple",
+      "declaredAt": [],
+      "elements": [
+        {
+          "ref": "literal:string:\"harm\"",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "ref": "literal:string:\"heal\"",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "readonly": false
+    },
+    {
+      "id": "structural:c575b8c2ece7f093a418f4fc",
+      "kind": "tuple",
+      "declaredAt": [],
+      "elements": [
+        {
+          "ref": "literal:string:\"harm\"",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "readonly": false
+    },
+    {
+      "id": "structural:d1e400e3e20099628aad7b78",
+      "kind": "tuple",
+      "declaredAt": [],
+      "elements": [
+        {
+          "ref": "literal:string:\"heal\"",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "readonly": false
+    },
+    {
+      "id": "structural:e48e032056848a67f92344e2",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Array@69f84900b11acec1517cdda8",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@eb9afb9dd9f1a766928eadda",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/deity/data.ts#DeitySystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"deity\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ItemSchema<\"deity\", DeitySystemSource>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 68,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
