@@ -56,6 +56,8 @@ export interface TypeGraph {
   source?: SourceIdentity;
   status: 'complete' | 'incomplete'; roots: (RootSelection & { ref: string | null; arrayInputs?: RuleArrayInput[] })[];
   portfolio?: Pick<Portfolio, 'documentKinds' | 'families' | 'ruleKeys'>;
+  /** Compiler-resolved constructor inputs, separate from document/rule roots. */
+  constructorInputs?: { file: string; name: string; ref: string; declaredAt: Location[] }[];
   nodes: GraphNode[]; diagnostics: DiscoveryDiagnostic[];
   projectDiagnostics: { selected: ProjectDiagnostic[]; unrelated: ProjectDiagnostic[] };
 }

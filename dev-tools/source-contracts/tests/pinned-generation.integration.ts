@@ -60,6 +60,14 @@ test('corpus baseline identifies the maintained source pin and retains zero meas
   assert.equal(baseline.counts.fidelityFailures, 0);
   assert.match(baseline.corpusDigest, /^[0-9a-f]{64}$/);
   assert.match(baseline.rejectionDigest, /^[0-9a-f]{64}$/);
+  const admission = JSON.parse(await readFile(new URL('../../fixtures/portfolio-admission-baseline.json', import.meta.url), 'utf8'));
+  assert.equal(admission.sourceDigest,input.source.source_digest);
+  assert.equal(admission.corpusDigest,baseline.corpusDigest);
+  assert.equal(admission.counts.retained,admission.counts.occurrences);
+  assert.equal(admission.counts.fidelityFailures,0);
+  assert.equal(admission.counts.rejected,0);
+  assert.equal(admission.counts.occurrences,admission.counts.fullyTyped+admission.counts.partial+admission.counts.rawOnly);
+  assert.match(admission.outcomeDigest,/^[0-9a-f]{64}$/);
 });
 
 test('field and literal drift change generated types and preserve shared ownership', () => {

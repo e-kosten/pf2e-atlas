@@ -5,6 +5,26 @@ import os from 'node:os';
 import path from 'node:path';
 import { portfolioResults, portfolioBaselineMatches } from '../src/comparison/compare-portfolio.js';
 import { sampleDocuments } from '../src/comparison/sample-documents.js';
+import { admissionResults, admissionBaselineMatches } from '../src/comparison/admission-results.js';
+
+test('admission distinguishes retained partial documents, excluded rules and value loss', () => {
+  const contexts = ['Item','Item','ChoiceSet','Actor'].map((key,index)=>({key,context:{record_key:`pack:${index}`,source_path:`${index}.json`,json_path:'$'}}));
+  const diagnostic = {json_path:'$.level',expected:'number',actual:'String("1")'};
+  const report = admissionResults(contexts, [
+    {ok:true,retained:true,modeled:true,fidelity:null,diagnostics:[]},
+    {ok:true,retained:true,modeled:true,fidelity:null,diagnostics:[diagnostic]},
+    {ok:true,retained:true,modeled:false,fidelity:null,diagnostics:[diagnostic]},
+    {ok:true,retained:false,modeled:true,fidelity:'lost value',diagnostics:[]},
+  ]);
+  assert.deepEqual(report.counts, {occurrences:4,retained:3,modeled:3,fullyTyped:2,partial:1,rawOnly:1,rejected:0,fidelityFailures:1,diagnostics:2});
+  assert.equal(report.byRoot.ChoiceSet.rawOnly,1);
+  assert.equal(report.outcomes.length,3);
+  assert.throws(()=>admissionResults(contexts,[]),/count mismatch/);
+  const baseline = {sourceDigest:'source',corpusDigest:'corpus',outcomeDigest:report.outcomeDigest,counts:report.counts};
+  assert.equal(admissionBaselineMatches(baseline,baseline),true);
+  assert.equal(admissionBaselineMatches(baseline,{...baseline,counts:{...baseline.counts,rawOnly:0}}),false);
+  assert.equal(admissionBaselineMatches(baseline,{...baseline,outcomeDigest:'changed'}),false);
+});
 
 test('portfolio baseline distinguishes changed rejections, acceptance and value loss', () => {
   const contexts = [
