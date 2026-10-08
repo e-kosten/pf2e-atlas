@@ -1,16 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { GraphField, GraphNode, SourceIdentity } from '../contracts.js';
+import type { GraphField, GraphNode, SourceIdentity, TypeGraph } from '../contracts.js';
 
 export interface GenerationRoot {
   name: string; declaration: string; fields: GraphField[]; deferred: string[]; module: string; family?: string; sourceRef?: string; valueRef?: string;
+  documentKind?: string; ruleKey?: string;
 }
 export interface GenerationInput {
   source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[]; openTraitArrays?: string[];
+  portfolio?: { typescript: string; schemaRoots: TypeGraph['roots']; families: NonNullable<TypeGraph['portfolio']>['families'] };
 }
 export interface GenerationManifest {
   format: 'atlas-source-generation/v1'; source: SourceIdentity;
   modules: { name: string; file: string }[]; openTraitArrays?: string[];
+  portfolio?: GenerationInput['portfolio'];
 }
 interface ModuleSnapshot {
   format: 'atlas-source-generation-module/v1';
@@ -40,6 +43,8 @@ export function validateInput(input: GenerationInput): void {
     if (!/^[A-Z][A-Za-z0-9]*$/.test(root.name) || names.has(root.name)) throw new Error(`Invalid or duplicate root name: ${root.name}`);
     if(root.valueRef && (root.fields.length || root.family || root.deferred.length || !nodes.has(root.valueRef)))
       throw new Error(`Invalid value root: ${root.name}`);
+    if ((root.documentKind || root.ruleKey) && (!root.valueRef || Boolean(root.documentKind) === Boolean(root.ruleKey)
+      || root.ruleKey && !/^[A-Z][A-Za-z0-9]*$/.test(root.ruleKey))) throw new Error(`Invalid portfolio root: ${root.name}`);
     names.add(root.name);
   }
 }
@@ -58,16 +63,22 @@ export function snapshotFiles(input: GenerationInput): Record<string, string> {
   const nodes = new Map(input.nodes.map(node => [node.id, node]));
   const owners = new Map<string, string>();
   const modules = new Map<string, ModuleSnapshot>();
+  const rootModules = new Map<string, string>();
+  for (const root of input.selection) for (const ref of [root.valueRef, root.sourceRef])
+    if (ref && !rootModules.has(ref)) rootModules.set(ref, root.module);
+  for (const root of input.selection) if (!modules.has(root.module)) modules.set(root.module, { format: 'atlas-source-generation-module/v1', roots: [], nodes: [] });
   for (const { module, ...root } of input.selection) {
     if (!modules.has(module)) modules.set(module, { format: 'atlas-source-generation-module/v1', roots: [], nodes: [] });
     modules.get(module)!.roots.push({ name: root.name, declaration: root.declaration, fields: root.fields, deferred: root.deferred,
-      ...(root.family ? { family: root.family } : {}), ...(root.sourceRef ? {sourceRef: root.sourceRef} : {}), ...(root.valueRef ? {valueRef: root.valueRef} : {}) });
-    const visit = (id: string) => {
+      ...(root.family ? { family: root.family } : {}), ...(root.sourceRef ? {sourceRef: root.sourceRef} : {}), ...(root.valueRef ? {valueRef: root.valueRef} : {}),
+      ...(root.documentKind ? { documentKind: root.documentKind } : {}), ...(root.ruleKey ? { ruleKey: root.ruleKey } : {}) });
+    const visit = (id: string, inheritedModule = module) => {
       if (owners.has(id)) return;
       const node = nodes.get(id);
       if (!node) throw new Error(`Missing generation node: ${id}`);
-      owners.set(id, module);
-      nodeReferences(node).forEach(visit);
+      const owner = rootModules.get(id) ?? inheritedModule;
+      owners.set(id, owner);
+      nodeReferences(node).forEach(ref => visit(ref, owner));
     };
     root.fields.forEach(field => visit(field.ref));
     if(root.sourceRef) visit(root.sourceRef);
@@ -78,7 +89,7 @@ export function snapshotFiles(input: GenerationInput): Record<string, string> {
     modules.get(owners.get(node.id)!)!.nodes.push(node);
   const manifest: GenerationManifest = { format: 'atlas-source-generation/v1', source: input.source,
     modules: [...modules.keys()].map(name => ({ name, file: `${name}.json` })),
-    ...(input.openTraitArrays?.length ? { openTraitArrays: input.openTraitArrays } : {}) };
+    ...(input.openTraitArrays?.length ? { openTraitArrays: input.openTraitArrays } : {}), ...(input.portfolio ? { portfolio: input.portfolio } : {}) };
   const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
   return { 'manifest.json': json(manifest), ...Object.fromEntries([...modules].map(([name, value]) => [`${name}.json`, json(value)])) };
 }
@@ -87,7 +98,7 @@ export async function loadGenerationInput(manifestFile: string): Promise<Generat
   const manifest = JSON.parse(await readFile(manifestFile, 'utf8')) as GenerationManifest;
   if (manifest.format !== 'atlas-source-generation/v1' || !manifest.modules.length) throw new Error('Invalid generation manifest');
   const input: GenerationInput = { source: manifest.source, selection: [], nodes: [],
-    ...(manifest.openTraitArrays?.length ? { openTraitArrays: manifest.openTraitArrays } : {}) };
+    ...(manifest.openTraitArrays?.length ? { openTraitArrays: manifest.openTraitArrays } : {}), ...(manifest.portfolio ? { portfolio: manifest.portfolio } : {}) };
   const names = new Set<string>();
   for (const module of manifest.modules) {
     validateModule(module.name);

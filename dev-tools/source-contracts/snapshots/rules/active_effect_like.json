@@ -1,0 +1,366 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "ActiveEffectLikeRule",
+      "declaration": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@12d85f216f5c994cd3b0428b",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@12d85f216f5c994cd3b0428b",
+      "valueRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@12d85f216f5c994cd3b0428b",
+      "ruleKey": "ActiveEffectLike"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"add\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "add"
+    },
+    {
+      "id": "literal:string:\"afterDerived\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "afterDerived"
+    },
+    {
+      "id": "literal:string:\"applyAEs\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "applyAEs"
+    },
+    {
+      "id": "literal:string:\"beforeDerived\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "beforeDerived"
+    },
+    {
+      "id": "literal:string:\"beforeRoll\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "beforeRoll"
+    },
+    {
+      "id": "literal:string:\"downgrade\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "downgrade"
+    },
+    {
+      "id": "literal:string:\"multiply\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "multiply"
+    },
+    {
+      "id": "literal:string:\"remove\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "remove"
+    },
+    {
+      "id": "literal:string:\"subtract\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "subtract"
+    },
+    {
+      "id": "literal:string:\"upgrade\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "upgrade"
+    },
+    {
+      "id": "structural:281dc1214c559a0d1da52348",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"afterDerived\"",
+        "literal:string:\"applyAEs\"",
+        "literal:string:\"beforeDerived\"",
+        "literal:string:\"beforeRoll\""
+      ]
+    },
+    {
+      "id": "structural:5941c9360c25787ab5db5aaa",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "primitive:null",
+        "primitive:number",
+        "primitive:object",
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:e857db64683483a87da49401",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"add\"",
+        "literal:string:\"downgrade\"",
+        "literal:string:\"multiply\"",
+        "literal:string:\"override\"",
+        "literal:string:\"remove\"",
+        "literal:string:\"subtract\"",
+        "literal:string:\"upgrade\""
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@12d85f216f5c994cd3b0428b",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "merge",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/ae-like.ts",
+              "line": 278,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "mode",
+          "ref": "structural:e857db64683483a87da49401",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/ae-like.ts",
+              "line": 261,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "path",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/ae-like.ts",
+              "line": 263,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "phase",
+          "ref": "structural:281dc1214c559a0d1da52348",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/ae-like.ts",
+              "line": 265,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "testDomains",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/ae-like.ts",
+              "line": 269,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:5941c9360c25787ab5db5aaa",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/ae-like.ts",
+              "line": 267,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "AELikeSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/ae-like.ts",
+              "line": 259,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

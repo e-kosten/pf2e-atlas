@@ -2,7 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { itemPackets, type ItemPacket } from './sample-items.js';
 
-export interface DocumentPacket extends ItemPacket { key: 'Actor' | 'Item' }
+export interface DocumentPacket extends ItemPacket { key: 'Actor' | 'Item' | 'JournalEntry' | 'Macro' | 'RollTable' }
 
 /** Root Actors and every Item occurrence, retaining exact authored JSON bytes. */
 export function documentPackets(text: string, sourcePath: string, pack: string, kind: 'Actor' | 'Item'): DocumentPacket[] {
@@ -15,7 +15,7 @@ export function documentPackets(text: string, sourcePath: string, pack: string, 
   return [{ key: 'Actor', source: text, family: root.type,
     context: { record_key: `${pack}:${root._id}`, source_path: sourcePath, json_path: '$' } }, ...items];
 }
-export async function* sampleDocuments(source: string): AsyncGenerator<DocumentPacket> {
+export async function* sampleDocuments(source: string, includeOtherKinds = false): AsyncGenerator<DocumentPacket> {
   const manifest = JSON.parse(await readFile(path.join(source, 'static/system.json'), 'utf8')) as { packs: { type: string; path: string; name: string }[] };
   const files = async (directory: string): Promise<string[]> => {
     const result: string[] = [];
@@ -26,7 +26,17 @@ export async function* sampleDocuments(source: string): AsyncGenerator<DocumentP
     }
     return result;
   };
-  for (const pack of manifest.packs.filter(pack => ['Actor','Item'].includes(pack.type)))
-    for (const file of await files(path.join(source, pack.path)))
-      yield* documentPackets(await readFile(file, 'utf8'), path.relative(source, file).replaceAll('\\','/'), pack.name, pack.type as 'Actor' | 'Item');
+  for (const pack of manifest.packs.filter(pack => ['Actor','Item'].includes(pack.type) || includeOtherKinds)) {
+    if (!['Actor', 'Item', 'JournalEntry', 'Macro', 'RollTable'].includes(pack.type)) throw new Error(`Unmodeled document kind: ${pack.type}`);
+    for (const file of await files(path.join(source, pack.path))) {
+      const text = await readFile(file, 'utf8'), sourcePath = path.relative(source, file).replaceAll('\\', '/');
+      if (['Actor', 'Item'].includes(pack.type)) yield* documentPackets(text, sourcePath, pack.name, pack.type as 'Actor' | 'Item');
+      else {
+        const root = JSON.parse(text) as { _id?: unknown };
+        if (typeof root._id !== 'string') throw new Error(`Expected document _id: ${sourcePath}`);
+        yield { key: pack.type as DocumentPacket['key'], family: pack.type, source: text,
+          context: { record_key: `${pack.name}:${root._id}`, source_path: sourcePath, json_path: '$' } };
+      }
+    }
+  }
 }

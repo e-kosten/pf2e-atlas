@@ -26,7 +26,7 @@ test('recursive union owners terminate and box inline arms while Vec cycles stay
   const files=generateRustModules(value);
   assert.match(files['fixture.rs'],/Not\(Box<Not>\)/);assert.match(files['fixture.rs'],/And\(And\)/);
   assert.match(files['fixture.rs'],/pub not: SourcePresence<Expression>/);
-  assert.match(files['fixture.rs'],/Vec<Expression>/);assert.equal((Object.values(files).join('').match(/pub enum Expression \{/g)??[]).length,1);
+  assert.match(files['consumer.rs'],/Vec<Expression>/);assert.equal((Object.values(files).join('').match(/pub enum Expression \{/g)??[]).length,1);
   assert.match(files['consumer.rs'],/generated::fixture/);
   assert.deepEqual(generateRustModules(value),files);
 });

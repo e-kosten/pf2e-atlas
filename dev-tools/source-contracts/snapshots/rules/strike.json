@@ -1,0 +1,1375 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "StrikeRule",
+      "declaration": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@49e4c5c3dbf864463943b2bd",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@49e4c5c3dbf864463943b2bd",
+      "valueRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@49e4c5c3dbf864463943b2bd#authored-input:traits",
+      "ruleKey": "Strike"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@3ce8c9bad63aff8d8bc44ce8#authored-string-array",
+      "kind": "union",
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Array@3ce8c9bad63aff8d8bc44ce8",
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "src/module/rules/rule-element/strike.ts#StrikeSchema.$object.range.$object@80b7e3f8ec4bf1d220db8c3b",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/strike.ts",
+          "line": 349,
+          "column": 9
+        }
+      ],
+      "fields": [
+        {
+          "name": "increment",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 349,
+              "column": 11
+            }
+          ]
+        },
+        {
+          "name": "max",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 349,
+              "column": 37
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/rules/rule-element/strike.ts#StrikeSchema.$object.traitToggles.$object@fc1c7423cc99fa506d993b27",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/strike.ts",
+          "line": 325,
+          "column": 9
+        }
+      ],
+      "fields": [
+        {
+          "name": "modular",
+          "ref": "structural:5ce31ed24efab9b7dfefac89",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 325,
+              "column": 11
+            }
+          ]
+        },
+        {
+          "name": "versatile",
+          "ref": "structural:5ce31ed24efab9b7dfefac89",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 325,
+              "column": 39
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:928db35f490c6568acc2ee95",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"adze\"",
+        "literal:string:\"air-repeater\"",
+        "literal:string:\"aklys\"",
+        "literal:string:\"alchemical-bomb\"",
+        "literal:string:\"alchemical-crossbow\"",
+        "literal:string:\"aldori-dueling-sword\"",
+        "literal:string:\"arbalest\"",
+        "literal:string:\"arquebus\"",
+        "literal:string:\"asp-coil\"",
+        "literal:string:\"atlatl\"",
+        "literal:string:\"axe-musket\"",
+        "literal:string:\"barricade-buster\"",
+        "literal:string:\"bastard-sword\"",
+        "literal:string:\"battle-axe\"",
+        "literal:string:\"battle-lute\"",
+        "literal:string:\"battle-saddle\"",
+        "literal:string:\"bec-de-corbin\"",
+        "literal:string:\"big-boom-gun\"",
+        "literal:string:\"black-powder-knuckle-dusters\"",
+        "literal:string:\"bladed-diabolo\"",
+        "literal:string:\"bladed-gauntlet\"",
+        "literal:string:\"bladed-hoop\"",
+        "literal:string:\"bladed-scarf\"",
+        "literal:string:\"blowgun\"",
+        "literal:string:\"blowgun-darts\"",
+        "literal:string:\"blunderbuss\"",
+        "literal:string:\"bo-staff\"",
+        "literal:string:\"boarding-axe\"",
+        "literal:string:\"boarding-pike\"",
+        "literal:string:\"bola\"",
+        "literal:string:\"boomerang\"",
+        "literal:string:\"bow-staff\"",
+        "literal:string:\"breaching-pike\"",
+        "literal:string:\"broadspear\"",
+        "literal:string:\"butchering-axe\"",
+        "literal:string:\"butterfly-sword\"",
+        "literal:string:\"buugeng\"",
+        "literal:string:\"cane-pistol\"",
+        "literal:string:\"capturing-spetum\"",
+        "literal:string:\"chain-sword\"",
+        "literal:string:\"chakram\"",
+        "literal:string:\"chakri\"",
+        "literal:string:\"clan-dagger\"",
+        "literal:string:\"clan-pistol\"",
+        "literal:string:\"claw\"",
+        "literal:string:\"claw-blade\"",
+        "literal:string:\"club\"",
+        "literal:string:\"coat-pistol\"",
+        "literal:string:\"combat-fishing-pole\"",
+        "literal:string:\"combat-grapnel\"",
+        "literal:string:\"combat-lure\"",
+        "literal:string:\"composite-longbow\"",
+        "literal:string:\"composite-shortbow\"",
+        "literal:string:\"corset-knife\"",
+        "literal:string:\"crescent-cross\"",
+        "literal:string:\"crossbow\"",
+        "literal:string:\"dagger\"",
+        "literal:string:\"dagger-pistol\"",
+        "literal:string:\"daikyu\"",
+        "literal:string:\"dancers-spear\"",
+        "literal:string:\"dandpatta\"",
+        "literal:string:\"dart\"",
+        "literal:string:\"dogslicer\"",
+        "literal:string:\"donchak\"",
+        "literal:string:\"double-barreled-musket\"",
+        "literal:string:\"double-barreled-pistol\"",
+        "literal:string:\"dragon-mouth-pistol\"",
+        "literal:string:\"dueling-pistol\"",
+        "literal:string:\"dueling-spear\"",
+        "literal:string:\"dwarven-dorn-dergar\"",
+        "literal:string:\"dwarven-scattergun\"",
+        "literal:string:\"dwarven-war-axe\"",
+        "literal:string:\"earthbreaker\"",
+        "literal:string:\"elven-branched-spear\"",
+        "literal:string:\"elven-curve-blade\"",
+        "literal:string:\"explosive-dogslicer\"",
+        "literal:string:\"exquisite-sword-cane\"",
+        "literal:string:\"exquisite-sword-cane-sheath\"",
+        "literal:string:\"falcata\"",
+        "literal:string:\"falchion\"",
+        "literal:string:\"fangs\"",
+        "literal:string:\"fangwire\"",
+        "literal:string:\"fauchard\"",
+        "literal:string:\"feng-huo-lun\"",
+        "literal:string:\"fighting-fan\"",
+        "literal:string:\"fighting-oar\"",
+        "literal:string:\"fighting-stick\"",
+        "literal:string:\"filchers-fork\"",
+        "literal:string:\"fire-lance\"",
+        "literal:string:\"fire-poi\"",
+        "literal:string:\"fist\"",
+        "literal:string:\"flail\"",
+        "literal:string:\"flingflenser\"",
+        "literal:string:\"flintlock-musket\"",
+        "literal:string:\"flintlock-pistol\"",
+        "literal:string:\"flying-talon\"",
+        "literal:string:\"flyssa\"",
+        "literal:string:\"forked-bipod\"",
+        "literal:string:\"frying-pan\"",
+        "literal:string:\"gada\"",
+        "literal:string:\"gaff\"",
+        "literal:string:\"gakgung\"",
+        "literal:string:\"gauntlet\"",
+        "literal:string:\"gauntlet-bow\"",
+        "literal:string:\"gill-hook\"",
+        "literal:string:\"gladius\"",
+        "literal:string:\"glaive\"",
+        "literal:string:\"gnome-amalgam-musket\"",
+        "literal:string:\"gnome-flickmace\"",
+        "literal:string:\"gnome-hooked-hammer\"",
+        "literal:string:\"greataxe\"",
+        "literal:string:\"greatclub\"",
+        "literal:string:\"greatpick\"",
+        "literal:string:\"greatsword\"",
+        "literal:string:\"griffon-cane\"",
+        "literal:string:\"guisarme\"",
+        "literal:string:\"gun-sword\"",
+        "literal:string:\"halberd\"",
+        "literal:string:\"halfling-sling-staff\"",
+        "literal:string:\"hammer-gun\"",
+        "literal:string:\"hand-adze\"",
+        "literal:string:\"hand-cannon\"",
+        "literal:string:\"hand-crossbow\"",
+        "literal:string:\"harmona-gun\"",
+        "literal:string:\"harpoon\"",
+        "literal:string:\"hatchet\"",
+        "literal:string:\"heavy-crossbow\"",
+        "literal:string:\"hongali-hornbow\"",
+        "literal:string:\"hook-sword\"",
+        "literal:string:\"horsechopper\"",
+        "literal:string:\"injection-spear\"",
+        "literal:string:\"javelin\"",
+        "literal:string:\"jaws\"",
+        "literal:string:\"jezail\"",
+        "literal:string:\"jiu-huan-dao\"",
+        "literal:string:\"juggling-club\"",
+        "literal:string:\"kalis\"",
+        "literal:string:\"kama\"",
+        "literal:string:\"karambit\"",
+        "literal:string:\"katana\"",
+        "literal:string:\"katar\"",
+        "literal:string:\"kestros\"",
+        "literal:string:\"khakkhara\"",
+        "literal:string:\"khopesh\"",
+        "literal:string:\"knuckle-duster\"",
+        "literal:string:\"kris\"",
+        "literal:string:\"kukri\"",
+        "literal:string:\"kusarigama\"",
+        "literal:string:\"lance\"",
+        "literal:string:\"lancer\"",
+        "literal:string:\"leiomano\"",
+        "literal:string:\"light-hammer\"",
+        "literal:string:\"light-mace\"",
+        "literal:string:\"light-pick\"",
+        "literal:string:\"lion-scythe\"",
+        "literal:string:\"liuyedao\"",
+        "literal:string:\"long-air-repeater\"",
+        "literal:string:\"long-hammer\"",
+        "literal:string:\"longbow\"",
+        "literal:string:\"longspear\"",
+        "literal:string:\"longsword\"",
+        "literal:string:\"mace\"",
+        "literal:string:\"mace-multipistol\"",
+        "literal:string:\"machete\"",
+        "literal:string:\"macuahuitl\"",
+        "literal:string:\"main-gauche\"",
+        "literal:string:\"mambele\"",
+        "literal:string:\"maul\"",
+        "literal:string:\"meteor-hammer\"",
+        "literal:string:\"mikazuki\"",
+        "literal:string:\"mithral-tree\"",
+        "literal:string:\"monkeys-fist\"",
+        "literal:string:\"morningstar\"",
+        "literal:string:\"naginata\"",
+        "literal:string:\"nails\"",
+        "literal:string:\"nightstick\"",
+        "literal:string:\"nodachi\"",
+        "literal:string:\"nunchaku\"",
+        "literal:string:\"ogre-hook\"",
+        "literal:string:\"orc-knuckle-dagger\"",
+        "literal:string:\"orc-necksplitter\"",
+        "literal:string:\"orc-skewermaul\"",
+        "literal:string:\"palstave\"",
+        "literal:string:\"panabas\"",
+        "literal:string:\"pepperbox\"",
+        "literal:string:\"phalanx-piercer\"",
+        "literal:string:\"pick\"",
+        "literal:string:\"piercing-wind\"",
+        "literal:string:\"piranha-kiss\"",
+        "literal:string:\"poi\"",
+        "literal:string:\"polytool\"",
+        "literal:string:\"probing-cane\"",
+        "literal:string:\"ranseur\"",
+        "literal:string:\"rapier\"",
+        "literal:string:\"rapier-pistol\"",
+        "literal:string:\"reinforced-stock\"",
+        "literal:string:\"reinforced-wheels\"",
+        "literal:string:\"repeating-crossbow\"",
+        "literal:string:\"repeating-hand-crossbow\"",
+        "literal:string:\"repeating-heavy-crossbow\"",
+        "literal:string:\"rhoka-sword\"",
+        "literal:string:\"rope-dart\"",
+        "literal:string:\"rotary-bow\"",
+        "literal:string:\"rungu\"",
+        "literal:string:\"sai\"",
+        "literal:string:\"sansetsukon\"",
+        "literal:string:\"sap\"",
+        "literal:string:\"sawtooth-saber\"",
+        "literal:string:\"scimitar\"",
+        "literal:string:\"scizore\"",
+        "literal:string:\"scorpion-whip\"",
+        "literal:string:\"scourge\"",
+        "literal:string:\"scythe\"",
+        "literal:string:\"shauth-lash\"",
+        "literal:string:\"shears\"",
+        "literal:string:\"shield-bash\"",
+        "literal:string:\"shield-boss\"",
+        "literal:string:\"shield-bow\"",
+        "literal:string:\"shield-pistol\"",
+        "literal:string:\"shield-spikes\"",
+        "literal:string:\"shobhad-longrifle\"",
+        "literal:string:\"shortbow\"",
+        "literal:string:\"shortsword\"",
+        "literal:string:\"shuan-ji\"",
+        "literal:string:\"shuriken\"",
+        "literal:string:\"sickle\"",
+        "literal:string:\"sickle-saber\"",
+        "literal:string:\"slide-pistol\"",
+        "literal:string:\"sling\"",
+        "literal:string:\"sling-bullets\"",
+        "literal:string:\"spear\"",
+        "literal:string:\"spiked-chain\"",
+        "literal:string:\"spiked-gauntlet\"",
+        "literal:string:\"spiral-rapier\"",
+        "literal:string:\"spirit-thresher\"",
+        "literal:string:\"spoon-gun\"",
+        "literal:string:\"spraysling\"",
+        "literal:string:\"staff\"",
+        "literal:string:\"starknife\"",
+        "literal:string:\"stiletto-pen\"",
+        "literal:string:\"sukgung\"",
+        "literal:string:\"sun-sling\"",
+        "literal:string:\"switchscythe\"",
+        "literal:string:\"sword-cane\"",
+        "literal:string:\"talwar\"",
+        "literal:string:\"tamchal-chakram\"",
+        "literal:string:\"taw-launcher\"",
+        "literal:string:\"tekko-kagi\"",
+        "literal:string:\"temple-sword\"",
+        "literal:string:\"tengu-gale-blade\"",
+        "literal:string:\"tetsubo\"",
+        "literal:string:\"thorn-whip\"",
+        "literal:string:\"three-peaked-tree\"",
+        "literal:string:\"three-section-naginata\"",
+        "literal:string:\"throwing-knife\"",
+        "literal:string:\"thunder-sling\"",
+        "literal:string:\"thundermace\"",
+        "literal:string:\"tonfa\"",
+        "literal:string:\"tri-bladed-katar\"",
+        "literal:string:\"tricky-pick\"",
+        "literal:string:\"trident\"",
+        "literal:string:\"triggerbrand\"",
+        "literal:string:\"urumi\"",
+        "literal:string:\"visap\"",
+        "literal:string:\"wakizashi\"",
+        "literal:string:\"war-flail\"",
+        "literal:string:\"war-gavel\"",
+        "literal:string:\"war-javelin\"",
+        "literal:string:\"war-lance\"",
+        "literal:string:\"war-razor\"",
+        "literal:string:\"warhammer\"",
+        "literal:string:\"wheel-blades\"",
+        "literal:string:\"wheel-spikes\"",
+        "literal:string:\"whip\"",
+        "literal:string:\"whip-claw\"",
+        "literal:string:\"whip-staff\"",
+        "literal:string:\"wish-blade\"",
+        "literal:string:\"wish-knife\"",
+        "literal:string:\"wooden-taws\"",
+        "literal:string:\"wrecker\"",
+        "literal:string:\"wrist-launcher\"",
+        "literal:string:\"zhuazhi-bang\"",
+        "literal:string:\"zulfikar\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:bccbb2c15d209cb59ae8d528",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/rules/rule-element/strike.ts#StrikeSchema.$object.range.$object@80b7e3f8ec4bf1d220db8c3b"
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@28f8e23ec444cddc93d36ab3",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "damageType",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 357,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "dice",
+          "ref": "src/module/rules/rule-element/data.ts#RuleValue",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 358,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "die",
+          "ref": "structural:dd36ea893f190cd6009b46e5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 359,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "modifier",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 360,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ damageType: StringField<string, string, true, false, true>; dice: ResolvableValueField<true, false, true>; die: StringField<\"d10\" | \"d12\" | \"d4\" | \"d6\" | \"d8\", \"d10\" | \"d12\" | \"d4\" | \"d6\" | \"d8\", true, false, true>; modifier: NumberField<number, number, false, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 356,
+              "column": 34
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@49e4c5c3dbf864463943b2bd",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "ability",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 363,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "attackModifier",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 343,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "baseType",
+          "ref": "structural:928db35f490c6568acc2ee95",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 317,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "battleForm",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 371,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "category",
+          "ref": "structural:049888e881efa430ac047d1f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 313,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damage",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@fa6da1dc2bc41c6188d16f7d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 355,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "fist",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 381,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "graspingAppendage",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 383,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "group",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 315,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 365,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "options",
+          "ref": "structural:48f0fe2134a04a025729bf3e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 372,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "otherTags",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@8c36cea909794c132863a20d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 331,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "range",
+          "ref": "structural:bccbb2c15d209cb59ae8d528",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 344,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "replaceAll",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 367,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "replaceBasicUnarmed",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 369,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traitToggles",
+          "ref": "src/module/rules/rule-element/strike.ts#StrikeSchema.$object.traitToggles.$object@fc1c7423cc99fa506d993b27",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 320,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@3ce8c9bad63aff8d8bc44ce8",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 319,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "StrikeSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 311,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@49e4c5c3dbf864463943b2bd#authored-input:traits",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "ability",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 363,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "attackModifier",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 343,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "baseType",
+          "ref": "structural:928db35f490c6568acc2ee95",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 317,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "battleForm",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 371,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "category",
+          "ref": "structural:049888e881efa430ac047d1f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 313,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damage",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@fa6da1dc2bc41c6188d16f7d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 355,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "fist",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 381,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "graspingAppendage",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 383,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "group",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 315,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 365,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "options",
+          "ref": "structural:48f0fe2134a04a025729bf3e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 372,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "otherTags",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@8c36cea909794c132863a20d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 331,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "range",
+          "ref": "structural:bccbb2c15d209cb59ae8d528",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 344,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "replaceAll",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 367,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "replaceBasicUnarmed",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 369,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traitToggles",
+          "ref": "src/module/rules/rule-element/strike.ts#StrikeSchema.$object.traitToggles.$object@fc1c7423cc99fa506d993b27",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 320,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@3ce8c9bad63aff8d8bc44ce8#authored-string-array",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 319,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "StrikeSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 311,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@fa6da1dc2bc41c6188d16f7d",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "base",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@28f8e23ec444cddc93d36ab3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 356,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ base: SchemaField<{ damageType: StringField<string, string, true, false, true>; dice: ResolvableValueField<true, false, true>; die: StringField<\"d10\" | \"d12\" | \"d4\" | \"d6\" | \"d8\", \"d10\" | \"d12\" | \"d4\" | \"d6\" | \"d8\", true, false, true>; modifier: NumberField<number, number, false, false, true>; }, SourceFromSchema<{ damageType: StringField<string, string, true, false, true>; dice: ResolvableValueField<true, false, true>; die: StringField<\"d10\" | \"d12\" | \"d4\" | \"d6\" | \"d8\", \"d10\" | \"d12\" | \"d4\" | \"d6\" | \"d8\", true, false, true>; modifier: NumberField<number, number, false, false, true>; }>, ModelPropsFromSchema<{ damageType: StringField<string, string, true, false, true>; dice: ResolvableValueField<true, false, true>; die: StringField<\"d10\" | \"d12\" | \"d4\" | \"d6\" | \"d8\", \"d10\" | \"d12\" | \"d4\" | \"d6\" | \"d8\", true, false, true>; modifier: NumberField<number, number, false, false, true>; }>, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/strike.ts",
+              "line": 355,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

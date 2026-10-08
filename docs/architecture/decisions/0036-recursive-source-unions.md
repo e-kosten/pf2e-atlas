@@ -12,6 +12,14 @@ recursive identities. Allocate owners before descending. Arrays/maps already
 provide layout indirection. Box inline recursive union payloads, then detect
 remaining object/tuple cycles after removing those boxed edges.
 
+Also box object union payloads with a conservative inline footprint estimate
+above 256 bytes. The estimate accounts for presence discriminants and nested
+inline objects, treats collections as heap-backed handles, caps large estimates
+and terminates recursive edges. It is a representation heuristic, not an ABI
+size promise. Small payloads remain inline; serialization and source acceptance
+are unaffected. The keyed RuleSource dispatcher boxes every rule payload so its
+layout stays bounded as rule schemas expand.
+
 For object alternatives with a shared required, non-null field whose finite
 literal domains are pairwise disjoint, that field identifies the arm. Choose a
 discriminator deterministically from the declarations. Validate its uniqueness

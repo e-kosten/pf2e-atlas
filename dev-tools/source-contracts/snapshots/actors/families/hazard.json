@@ -1,0 +1,2791 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "HazardSystemSource",
+      "declaration": "src/module/actor/hazard/data.ts#HazardSystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/actor/hazard/data.ts#HazardSystemSource",
+      "valueRef": "src/module/actor/hazard/data.ts#HazardSystemSource"
+    },
+    {
+      "name": "HazardSource",
+      "declaration": "src/module/actor/hazard/data.ts#HazardSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/actor/hazard/data.ts#HazardSource",
+      "valueRef": "src/module/actor/hazard/data.ts#HazardSource#authored-document#authored-document-patch"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"environmental\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "environmental"
+    },
+    {
+      "id": "literal:string:\"haunt\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "haunt"
+    },
+    {
+      "id": "literal:string:\"hazard\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hazard"
+    },
+    {
+      "id": "literal:string:\"technological\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "technological"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@307c241f9f8fcab71a1c56cb",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@75ee399a8ba164461cba9e5c",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@4b45cb548fa54453e8c53f05",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "structural:4b45cb548fa54453e8c53f05",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@af35332d1cc5e1236cb21d3c",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "structural:af35332d1cc5e1236cb21d3c",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@b58f0374537a4c7b8d82d96c",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@bcbc5c30ad1b84ee851e67af",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@d94157af0af5c86c60c9b68a",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "structural:d94157af0af5c86c60c9b68a",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@ee6d9490a0d63d19d3e7f489",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "structural:ee6d9490a0d63d19d3e7f489",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@f7fdcf1939475d0abffb880f",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0b51810ee4143a125178b476",
+      "readonly": false
+    },
+    {
+      "id": "src/module/actor/hazard/data.ts#HazardSource",
+      "kind": "intersection",
+      "name": "HazardSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/hazard/data.ts",
+          "line": 17,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/actor/data/base.ts#BaseActorSourcePF2e.$object@e29820500466eb6f627f34d5",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@895b5f7886155bd6a0a27060"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:a9eaec2d4f2677516e9adefa",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 23,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "structural:f50366b1bc7c7da093247831",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 24,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/hazard/data.ts#HazardSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"hazard\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/hazard/data.ts#HazardSource#authored-document#authored-document-patch",
+      "kind": "intersection",
+      "name": "HazardSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/hazard/data.ts",
+          "line": 17,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/actor/data/base.ts#BaseActorSourcePF2e.$object@e29820500466eb6f627f34d5",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@895b5f7886155bd6a0a27060#authored-document#authored-document-patch"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:a9eaec2d4f2677516e9adefa",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 23,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "structural:f50366b1bc7c7da093247831",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 24,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/hazard/data.ts#HazardSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"hazard\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/hazard/data.ts#HazardSystemSource",
+      "kind": "object",
+      "name": "HazardSystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/hazard/data.ts",
+          "line": 264,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d6ebbd831ebfb5ed4ce1b0bb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/model.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "attributes",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d22a9b83930ed6db100511c4",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 183,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "details",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a722671583f5e7fc4b8cf35a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 184,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "saves",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@83bcdf699116269575b970c9",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 185,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 265,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9a85cfa863e67518100f565b",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 182,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@da958ec0879be4197e031562"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:5e2a5806bc6bbf7faf4a881e",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "literal:string:\"encounter\""
+      ]
+    },
+    {
+      "id": "structural:ee6d9490a0d63d19d3e7f489",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"aberration\"",
+        "literal:string:\"acid\"",
+        "literal:string:\"aeon\"",
+        "literal:string:\"aesir\"",
+        "literal:string:\"agathion\"",
+        "literal:string:\"air\"",
+        "literal:string:\"aiuvarin\"",
+        "literal:string:\"alchemical\"",
+        "literal:string:\"amphibious\"",
+        "literal:string:\"anadi\"",
+        "literal:string:\"android\"",
+        "literal:string:\"angel\"",
+        "literal:string:\"animal\"",
+        "literal:string:\"anugobu\"",
+        "literal:string:\"aphorite\"",
+        "literal:string:\"aquatic\"",
+        "literal:string:\"arcane\"",
+        "literal:string:\"archon\"",
+        "literal:string:\"ardande\"",
+        "literal:string:\"astral\"",
+        "literal:string:\"asura\"",
+        "literal:string:\"athamaru\"",
+        "literal:string:\"auditory\"",
+        "literal:string:\"automaton\"",
+        "literal:string:\"awakened-animal\"",
+        "literal:string:\"azarketi\"",
+        "literal:string:\"azata\"",
+        "literal:string:\"beast\"",
+        "literal:string:\"beastkin\"",
+        "literal:string:\"blight\"",
+        "literal:string:\"boggard\"",
+        "literal:string:\"bugbear\"",
+        "literal:string:\"caligni\"",
+        "literal:string:\"catfolk\"",
+        "literal:string:\"celestial\"",
+        "literal:string:\"centaur\"",
+        "literal:string:\"changeling\"",
+        "literal:string:\"charau-ka\"",
+        "literal:string:\"clockwork\"",
+        "literal:string:\"cold\"",
+        "literal:string:\"conrasu\"",
+        "literal:string:\"construct\"",
+        "literal:string:\"consumable\"",
+        "literal:string:\"couatl\"",
+        "literal:string:\"curse\"",
+        "literal:string:\"daemon\"",
+        "literal:string:\"darvakka\"",
+        "literal:string:\"demon\"",
+        "literal:string:\"dero\"",
+        "literal:string:\"devil\"",
+        "literal:string:\"dhampir\"",
+        "literal:string:\"dinosaur\"",
+        "literal:string:\"div\"",
+        "literal:string:\"divine\"",
+        "literal:string:\"dragon\"",
+        "literal:string:\"dragonblood\"",
+        "literal:string:\"dream\"",
+        "literal:string:\"dromaar\"",
+        "literal:string:\"drow\"",
+        "literal:string:\"duergar\"",
+        "literal:string:\"duskwalker\"",
+        "literal:string:\"dwarf\"",
+        "literal:string:\"earth\"",
+        "literal:string:\"eidolon\"",
+        "literal:string:\"electricity\"",
+        "literal:string:\"elemental\"",
+        "literal:string:\"elf\"",
+        "literal:string:\"environmental\"",
+        "literal:string:\"ethereal\"",
+        "literal:string:\"experiment\"",
+        "literal:string:\"fetchling\"",
+        "literal:string:\"fey\"",
+        "literal:string:\"fiend\"",
+        "literal:string:\"fire\"",
+        "literal:string:\"fleshwarp\"",
+        "literal:string:\"force\"",
+        "literal:string:\"formian\"",
+        "literal:string:\"fungus\"",
+        "literal:string:\"ganzi\"",
+        "literal:string:\"genie\"",
+        "literal:string:\"geniekin\"",
+        "literal:string:\"ghoran\"",
+        "literal:string:\"ghost\"",
+        "literal:string:\"ghoul\"",
+        "literal:string:\"ghul\"",
+        "literal:string:\"giant\"",
+        "literal:string:\"gnoll\"",
+        "literal:string:\"gnome\"",
+        "literal:string:\"goblin\"",
+        "literal:string:\"golem\"",
+        "literal:string:\"goloma\"",
+        "literal:string:\"graveknight\"",
+        "literal:string:\"gremlin\"",
+        "literal:string:\"grioth\"",
+        "literal:string:\"grippli\"",
+        "literal:string:\"hag\"",
+        "literal:string:\"halfling\"",
+        "literal:string:\"hantu\"",
+        "literal:string:\"haunt\"",
+        "literal:string:\"herald\"",
+        "literal:string:\"hobgoblin\"",
+        "literal:string:\"holy\"",
+        "literal:string:\"hryngar\"",
+        "literal:string:\"human\"",
+        "literal:string:\"humanoid\"",
+        "literal:string:\"hungerseed\"",
+        "literal:string:\"ikeshti\"",
+        "literal:string:\"illusion\"",
+        "literal:string:\"incorporeal\"",
+        "literal:string:\"inevitable\"",
+        "literal:string:\"inhaled\"",
+        "literal:string:\"kaiju\"",
+        "literal:string:\"kami\"",
+        "literal:string:\"kashrishi\"",
+        "literal:string:\"kitsune\"",
+        "literal:string:\"kobold\"",
+        "literal:string:\"kovintus\"",
+        "literal:string:\"leshy\"",
+        "literal:string:\"light\"",
+        "literal:string:\"lilu\"",
+        "literal:string:\"lizardfolk\"",
+        "literal:string:\"locathah\"",
+        "literal:string:\"magical\"",
+        "literal:string:\"mechanical\"",
+        "literal:string:\"mental\"",
+        "literal:string:\"merfolk\"",
+        "literal:string:\"metal\"",
+        "literal:string:\"mindless\"",
+        "literal:string:\"minion\"",
+        "literal:string:\"minotaur\"",
+        "literal:string:\"monitor\"",
+        "literal:string:\"morlock\"",
+        "literal:string:\"mortic\"",
+        "literal:string:\"mummy\"",
+        "literal:string:\"munavri\"",
+        "literal:string:\"mutant\"",
+        "literal:string:\"mythic\"",
+        "literal:string:\"naari\"",
+        "literal:string:\"nagaji\"",
+        "literal:string:\"nephilim\"",
+        "literal:string:\"nindoru\"",
+        "literal:string:\"nonlethal\"",
+        "literal:string:\"nymph\"",
+        "literal:string:\"occult\"",
+        "literal:string:\"oni\"",
+        "literal:string:\"ooze\"",
+        "literal:string:\"orc\"",
+        "literal:string:\"oread\"",
+        "literal:string:\"paaridar\"",
+        "literal:string:\"palinthanos\"",
+        "literal:string:\"persona-flirt\"",
+        "literal:string:\"persona-guardian\"",
+        "literal:string:\"persona-leader\"",
+        "literal:string:\"persona-scholar\"",
+        "literal:string:\"persona-scoundrel\"",
+        "literal:string:\"persona-underdog\"",
+        "literal:string:\"persona-warrior\"",
+        "literal:string:\"persona-wildcard\"",
+        "literal:string:\"petitioner\"",
+        "literal:string:\"phantom\"",
+        "literal:string:\"plant\"",
+        "literal:string:\"poison\"",
+        "literal:string:\"polymorph\"",
+        "literal:string:\"poppet\"",
+        "literal:string:\"primal\"",
+        "literal:string:\"protean\"",
+        "literal:string:\"psychopomp\"",
+        "literal:string:\"qlippoth\"",
+        "literal:string:\"radiation\"",
+        "literal:string:\"rakshasa\"",
+        "literal:string:\"ratfolk\"",
+        "literal:string:\"reflection\"",
+        "literal:string:\"sahkil\"",
+        "literal:string:\"samsaran\"",
+        "literal:string:\"sarangay\"",
+        "literal:string:\"sea-devil\"",
+        "literal:string:\"sedacthy\"",
+        "literal:string:\"serpentfolk\"",
+        "literal:string:\"seugathi\"",
+        "literal:string:\"shabti\"",
+        "literal:string:\"shade\"",
+        "literal:string:\"shadow\"",
+        "literal:string:\"shisk\"",
+        "literal:string:\"shobhad\"",
+        "literal:string:\"shoony\"",
+        "literal:string:\"siktempora\"",
+        "literal:string:\"skeleton\"",
+        "literal:string:\"skelm\"",
+        "literal:string:\"skulk\"",
+        "literal:string:\"snare\"",
+        "literal:string:\"sonic\"",
+        "literal:string:\"soulbound\"",
+        "literal:string:\"spirit\"",
+        "literal:string:\"sporeborn\"",
+        "literal:string:\"spriggan\"",
+        "literal:string:\"sprite\"",
+        "literal:string:\"steam\"",
+        "literal:string:\"stheno\"",
+        "literal:string:\"strix\"",
+        "literal:string:\"suli\"",
+        "literal:string:\"summoned\"",
+        "literal:string:\"surki\"",
+        "literal:string:\"swarm\"",
+        "literal:string:\"sylph\"",
+        "literal:string:\"talos\"",
+        "literal:string:\"tane\"",
+        "literal:string:\"tanggal\"",
+        "literal:string:\"tanuki\"",
+        "literal:string:\"technological\"",
+        "literal:string:\"teleportation\"",
+        "literal:string:\"tengu\"",
+        "literal:string:\"time\"",
+        "literal:string:\"titan\"",
+        "literal:string:\"trap\"",
+        "literal:string:\"troll\"",
+        "literal:string:\"troop\"",
+        "literal:string:\"undead\"",
+        "literal:string:\"undine\"",
+        "literal:string:\"unholy\"",
+        "literal:string:\"urdefhan\"",
+        "literal:string:\"vampire\"",
+        "literal:string:\"vanara\"",
+        "literal:string:\"velstrac\"",
+        "literal:string:\"virulent\"",
+        "literal:string:\"vishkanya\"",
+        "literal:string:\"visual\"",
+        "literal:string:\"vitality\"",
+        "literal:string:\"void\"",
+        "literal:string:\"water\"",
+        "literal:string:\"wayang\"",
+        "literal:string:\"werecreature\"",
+        "literal:string:\"wight\"",
+        "literal:string:\"wild-hunt\"",
+        "literal:string:\"wood\"",
+        "literal:string:\"wraith\"",
+        "literal:string:\"wraithvine\"",
+        "literal:string:\"wyrwood\"",
+        "literal:string:\"xulgath\"",
+        "literal:string:\"yaksha\"",
+        "literal:string:\"yaoguai\"",
+        "literal:string:\"zombie\""
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0b51810ee4143a125178b476",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "exceptions",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4b45cb548fa54453e8c53f05",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 228,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:4b45cb548fa54453e8c53f05",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 226,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 227,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ type: StringField<\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"glass\" | \"magical\" | \"mythic\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"arrow-vulnerability\" | \"axe-vulnerability\" | \"ghost-touch\" | \"splash-damage\" | \"vampire-weaknesses\" | \"vorpal-fear\" | \"vulnerable-to-sunlight\" | \"weapons-shedding-bright-light\", \"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"glass\" | \"magical\" | \"mythic\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"arrow-vulnerability\" | \"axe-vulnerability\" | \"ghost-touch\" | \"splash-damage\" | \"vampire-weaknesses\" | \"vorpal-fear\" | \"vulnerable-to-sunlight\" | \"weapons-shedding-bright-light\", true, false, false>; value: NumberField<number, number, true, false, true>; exceptions: ArrayField<StringField<\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"glass\" | \"magical\" | \"mythic\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"arrow-vulnerability\" | \"axe-vulnerability\" | \"ghost-touch\" | \"splash-damage\" | \"vampire-weaknesses\" | \"vorpal-fear\" | \"vulnerable-to-sunlight\" | \"weapons-shedding-bright-light\", \"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"glass\" | \"magical\" | \"mythic\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"arrow-vulnerability\" | \"axe-vulnerability\" | \"ghost-touch\" | \"splash-damage\" | \"vampire-weaknesses\" | \"vorpal-fear\" | \"vulnerable-to-sunlight\" | \"weapons-shedding-bright-light\", true, false, false>, (\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"glass\" | \"magical\" | \"mythic\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"arrow-vulnerability\" | \"axe-vulnerability\" | \"ghost-touch\" | \"splash-damage\" | \"vampire-weaknesses\" | \"vorpal-fear\" | \"vulnerable-to-sunlight\" | \"weapons-shedding-bright-light\")[], (\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"glass\" | \"magical\" | \"mythic\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"arrow-vulnerability\" | \"axe-vulnerability\" | \"ghost-touch\" | \"splash-damage\" | \"vampire-weaknesses\" | \"vorpal-fear\" | \"vulnerable-to-sunlight\" | \"weapons-shedding-bright-light\")[], true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 225,
+              "column": 28
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@311cfe3e400729b0f71650cd",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 205,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "HazardSaveDataSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 204,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@36bca3cbdb9bcbc9527b90a6",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "details",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/model.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "max",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/model.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "temp",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/model.ts",
+              "line": 45,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/model.ts",
+              "line": 43,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ActorHitPointsSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/model.ts",
+              "line": 42,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@443d4bdf18b2ed9b3dd6df09",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 253,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 252,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@75ee399a8ba164461cba9e5c",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "exceptions",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@af35332d1cc5e1236cb21d3c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 221,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:af35332d1cc5e1236cb21d3c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 220,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ type: StringField<\"light\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"auditory\" | \"bleed\" | \"blinded\" | \"bludgeoning\" | \"clumsy\" | \"cold\" | \"confused\" | \"controlled\" | \"critical-hits\" | \"curse\" | \"custom\" | \"dazzled\" | \"deafened\" | \"death-effects\" | \"detection\" | \"disease\" | \"doomed\" | \"drained\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"enfeebled\" | \"fascinated\" | \"fatigued\" | \"fear-effects\" | \"fire\" | \"fleeing\" | \"force\" | \"fortune-effects\" | \"frightened\" | \"grabbed\" | \"healing\" | \"illusion\" | \"immobilized\" | \"inhaled\" | \"magic\" | \"mental\" | \"metal\" | \"misfortune-effects\" | \"non-magical\" | \"nonlethal-attacks\" | \"object-immunities\" | \"off-guard\" | \"olfactory\" | \"paralyzed\" | \"persistent-damage\" | \"petrified\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"precision\" | \"prone\" | \"radiation\" | \"restrained\" | \"salt-water\" | \"scrying\" | \"sickened\" | \"slashing\" | \"sleep\" | \"slowed\" | \"sonic\" | \"spell-deflection\" | \"spirit\" | \"stunned\" | \"stupefied\" | \"swarm-attacks\" | \"swarm-mind\" | \"trip\" | \"unarmed-attacks\" | \"unconscious\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"wounded\" | \"holy\" | \"unholy\", \"light\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"auditory\" | \"bleed\" | \"blinded\" | \"bludgeoning\" | \"clumsy\" | \"cold\" | \"confused\" | \"controlled\" | \"critical-hits\" | \"curse\" | \"custom\" | \"dazzled\" | \"deafened\" | \"death-effects\" | \"detection\" | \"disease\" | \"doomed\" | \"drained\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"enfeebled\" | \"fascinated\" | \"fatigued\" | \"fear-effects\" | \"fire\" | \"fleeing\" | \"force\" | \"fortune-effects\" | \"frightened\" | \"grabbed\" | \"healing\" | \"illusion\" | \"immobilized\" | \"inhaled\" | \"magic\" | \"mental\" | \"metal\" | \"misfortune-effects\" | \"non-magical\" | \"nonlethal-attacks\" | \"object-immunities\" | \"off-guard\" | \"olfactory\" | \"paralyzed\" | \"persistent-damage\" | \"petrified\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"precision\" | \"prone\" | \"radiation\" | \"restrained\" | \"salt-water\" | \"scrying\" | \"sickened\" | \"slashing\" | \"sleep\" | \"slowed\" | \"sonic\" | \"spell-deflection\" | \"spirit\" | \"stunned\" | \"stupefied\" | \"swarm-attacks\" | \"swarm-mind\" | \"trip\" | \"unarmed-attacks\" | \"unconscious\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"wounded\" | \"holy\" | \"unholy\", true, false, false>; exceptions: ArrayField<StringField<\"light\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"auditory\" | \"bleed\" | \"blinded\" | \"bludgeoning\" | \"clumsy\" | \"cold\" | \"confused\" | \"controlled\" | \"critical-hits\" | \"curse\" | \"custom\" | \"dazzled\" | \"deafened\" | \"death-effects\" | \"detection\" | \"disease\" | \"doomed\" | \"drained\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"enfeebled\" | \"fascinated\" | \"fatigued\" | \"fear-effects\" | \"fire\" | \"fleeing\" | \"force\" | \"fortune-effects\" | \"frightened\" | \"grabbed\" | \"healing\" | \"illusion\" | \"immobilized\" | \"inhaled\" | \"magic\" | \"mental\" | \"metal\" | \"misfortune-effects\" | \"non-magical\" | \"nonlethal-attacks\" | \"object-immunities\" | \"off-guard\" | \"olfactory\" | \"paralyzed\" | \"persistent-damage\" | \"petrified\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"precision\" | \"prone\" | \"radiation\" | \"restrained\" | \"salt-water\" | \"scrying\" | \"sickened\" | \"slashing\" | \"sleep\" | \"slowed\" | \"sonic\" | \"spell-deflection\" | \"spirit\" | \"stunned\" | \"stupefied\" | \"swarm-attacks\" | \"swarm-mind\" | \"trip\" | \"unarmed-attacks\" | \"unconscious\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"wounded\" | \"holy\" | \"unholy\", \"light\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"auditory\" | \"bleed\" | \"blinded\" | \"bludgeoning\" | \"clumsy\" | \"cold\" | \"confused\" | \"controlled\" | \"critical-hits\" | \"curse\" | \"custom\" | \"dazzled\" | \"deafened\" | \"death-effects\" | \"detection\" | \"disease\" | \"doomed\" | \"drained\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"enfeebled\" | \"fascinated\" | \"fatigued\" | \"fear-effects\" | \"fire\" | \"fleeing\" | \"force\" | \"fortune-effects\" | \"frightened\" | \"grabbed\" | \"healing\" | \"illusion\" | \"immobilized\" | \"inhaled\" | \"magic\" | \"mental\" | \"metal\" | \"misfortune-effects\" | \"non-magical\" | \"nonlethal-attacks\" | \"object-immunities\" | \"off-guard\" | \"olfactory\" | \"paralyzed\" | \"persistent-damage\" | \"petrified\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"precision\" | \"prone\" | \"radiation\" | \"restrained\" | \"salt-water\" | \"scrying\" | \"sickened\" | \"slashing\" | \"sleep\" | \"slowed\" | \"sonic\" | \"spell-deflection\" | \"spirit\" | \"stunned\" | \"stupefied\" | \"swarm-attacks\" | \"swarm-mind\" | \"trip\" | \"unarmed-attacks\" | \"unconscious\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"wounded\" | \"holy\" | \"unholy\", true, false, false>, (\"light\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"auditory\" | \"bleed\" | \"blinded\" | \"bludgeoning\" | \"clumsy\" | \"cold\" | \"confused\" | \"controlled\" | \"critical-hits\" | \"curse\" | \"custom\" | \"dazzled\" | \"deafened\" | \"death-effects\" | \"detection\" | \"disease\" | \"doomed\" | \"drained\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"enfeebled\" | \"fascinated\" | \"fatigued\" | \"fear-effects\" | \"fire\" | \"fleeing\" | \"force\" | \"fortune-effects\" | \"frightened\" | \"grabbed\" | \"healing\" | \"illusion\" | \"immobilized\" | \"inhaled\" | \"magic\" | \"mental\" | \"metal\" | \"misfortune-effects\" | \"non-magical\" | \"nonlethal-attacks\" | \"object-immunities\" | \"off-guard\" | \"olfactory\" | \"paralyzed\" | \"persistent-damage\" | \"petrified\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"precision\" | \"prone\" | \"radiation\" | \"restrained\" | \"salt-water\" | \"scrying\" | \"sickened\" | \"slashing\" | \"sleep\" | \"slowed\" | \"sonic\" | \"spell-deflection\" | \"spirit\" | \"stunned\" | \"stupefied\" | \"swarm-attacks\" | \"swarm-mind\" | \"trip\" | \"unarmed-attacks\" | \"unconscious\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"wounded\" | \"holy\" | \"unholy\")[], (\"light\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"auditory\" | \"bleed\" | \"blinded\" | \"bludgeoning\" | \"clumsy\" | \"cold\" | \"confused\" | \"controlled\" | \"critical-hits\" | \"curse\" | \"custom\" | \"dazzled\" | \"deafened\" | \"death-effects\" | \"detection\" | \"disease\" | \"doomed\" | \"drained\" | \"earth\" | \"electricity\" | \"emotion\" | \"energy\" | \"enfeebled\" | \"fascinated\" | \"fatigued\" | \"fear-effects\" | \"fire\" | \"fleeing\" | \"force\" | \"fortune-effects\" | \"frightened\" | \"grabbed\" | \"healing\" | \"illusion\" | \"immobilized\" | \"inhaled\" | \"magic\" | \"mental\" | \"metal\" | \"misfortune-effects\" | \"non-magical\" | \"nonlethal-attacks\" | \"object-immunities\" | \"off-guard\" | \"olfactory\" | \"paralyzed\" | \"persistent-damage\" | \"petrified\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"precision\" | \"prone\" | \"radiation\" | \"restrained\" | \"salt-water\" | \"scrying\" | \"sickened\" | \"slashing\" | \"sleep\" | \"slowed\" | \"sonic\" | \"spell-deflection\" | \"spirit\" | \"stunned\" | \"stupefied\" | \"swarm-attacks\" | \"swarm-mind\" | \"trip\" | \"unarmed-attacks\" | \"unconscious\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"wounded\" | \"holy\" | \"unholy\")[], true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 219,
+              "column": 28
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@77984916f6bb06ce44793335",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "authors",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/model.ts",
+              "line": 37,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "license",
+          "ref": "structural:ede92db1927e6d50c7d3fc25",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/model.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "remaster",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/model.ts",
+              "line": 39,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "title",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/model.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "PublicationSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/model.ts",
+              "line": 35,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@83bcdf699116269575b970c9",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "fortitude",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@311cfe3e400729b0f71650cd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 186,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "reflex",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@311cfe3e400729b0f71650cd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 187,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "will",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@311cfe3e400729b0f71650cd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 188,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ fortitude: SchemaField<HazardSaveDataSchema, SourceFromSchema<HazardSaveDataSchema>, ModelPropsFromSchema<HazardSaveDataSchema>, true, false, true>; reflex: SchemaField<HazardSaveDataSchema, SourceFromSchema<HazardSaveDataSchema>, ModelPropsFromSchema<HazardSaveDataSchema>, true, false, true>; will: SchemaField<HazardSaveDataSchema, SourceFromSchema<HazardSaveDataSchema>, ModelPropsFromSchema<HazardSaveDataSchema>, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 185,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@895b5f7886155bd6a0a27060",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c19da1ea5bc6fcced3572a13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/hazard/data.ts#HazardSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"hazard\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ActorSchema<\"hazard\", HazardSystemSource, ItemSourcePF2e>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 84,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@895b5f7886155bd6a0a27060#authored-document#authored-document-patch",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c19da1ea5bc6fcced3572a13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/hazard/data.ts#HazardSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"hazard\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ActorSchema<\"hazard\", HazardSystemSource, ItemSourcePF2e>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 84,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8b6f156850ee28918258d9da",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "details",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 216,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 215,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, true, true, true>; details: StringField<string, string, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 214,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9a85cfa863e67518100f565b",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "rarity",
+          "ref": "structural:bf6113eac55e1ea864797d40",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 194,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "size",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@ee328dc3e0ea5abd1845b728",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 195,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@ee6d9490a0d63d19d3e7f489",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 193,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "HazardTraitsSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 192,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a722671583f5e7fc4b8cf35a",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "description",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 251,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "disable",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 256,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "isComplex",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 255,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@443d4bdf18b2ed9b3dd6df09",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 252,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@77984916f6bb06ce44793335",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 260,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "reset",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 258,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "routine",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 257,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "HazardDetailsSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 250,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a873a3dba2dc5e8f6fe7e0d0",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 211,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 210,
+              "column": 28
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@bcbc5c30ad1b84ee851e67af",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "doubleVs",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@d94157af0af5c86c60c9b68a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 236,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "exceptions",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@d94157af0af5c86c60c9b68a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 235,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:d94157af0af5c86c60c9b68a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 233,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 234,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ type: StringField<\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\", \"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\", true, false, false>; value: NumberField<number, number, true, false, true>; exceptions: ArrayField<StringField<\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\", \"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\", true, false, false>, (\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\")[], (\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\")[], true, false, true>; doubleVs: ArrayField<StringField<\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\", \"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\", true, false, false>, (\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\")[], (\"light\" | \"weapons\" | \"abysium\" | \"adamantine\" | \"cold-iron\" | \"duskwood\" | \"djezet\" | \"inubrix\" | \"dawnsilver\" | \"noqual\" | \"orichalcum\" | \"siccatite\" | \"silver\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"area-damage\" | \"bleed\" | \"bludgeoning\" | \"cold\" | \"critical-hits\" | \"custom\" | \"earth\" | \"electricity\" | \"energy\" | \"fire\" | \"force\" | \"mental\" | \"metal\" | \"non-magical\" | \"nonlethal-attacks\" | \"persistent-damage\" | \"physical\" | \"piercing\" | \"plant\" | \"poison\" | \"precision\" | \"radiation\" | \"salt-water\" | \"slashing\" | \"sonic\" | \"spirit\" | \"unarmed-attacks\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"axes\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"salt\" | \"spells\" | \"vorpal\" | \"all-damage\" | \"ghost-touch\" | \"weapons-shedding-bright-light\" | \"damage-from-spells\" | \"protean-anatomy\" | \"vorpal-adamantine\")[], true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 232,
+              "column": 28
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d22a9b83930ed6db100511c4",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "ac",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a873a3dba2dc5e8f6fe7e0d0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 210,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "emitsSound",
+          "ref": "structural:5e2a5806bc6bbf7faf4a881e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 239,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hardness",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 213,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hp",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@36bca3cbdb9bcbc9527b90a6",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 209,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "immunities",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@307c241f9f8fcab71a1c56cb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 218,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "resistances",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@b58f0374537a4c7b8d82d96c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 231,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "stealth",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8b6f156850ee28918258d9da",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 214,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "weaknesses",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@f7fdcf1939475d0abffb880f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 224,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "HazardAttributesSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 208,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@ee328dc3e0ea5abd1845b728",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:f8f4246aae857a8e162bc4ac",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 196,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: StringField<\"tiny\" | \"sm\" | \"med\" | \"lg\" | \"huge\" | \"grg\", \"tiny\" | \"sm\" | \"med\" | \"lg\" | \"huge\" | \"grg\", true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/hazard/data.ts",
+              "line": 195,
+              "column": 30
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

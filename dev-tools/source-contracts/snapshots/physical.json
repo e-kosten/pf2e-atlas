@@ -88,6 +88,14 @@
         "temporary",
         "traits"
       ]
+    },
+    {
+      "name": "PhysicalSystemSource",
+      "declaration": "src/module/item/physical/data.ts#PhysicalSystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/physical/data.ts#PhysicalSystemSource",
+      "valueRef": "src/module/item/physical/data.ts#PhysicalSystemSource#authored-document#authored-document-patch"
     }
   ],
   "nodes": [
@@ -110,10 +118,100 @@
       "value": 2
     },
     {
+      "id": "literal:number:3",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 3
+    },
+    {
+      "id": "literal:string:\"P1M\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "P1M"
+    },
+    {
+      "id": "literal:string:\"P1W\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "P1W"
+    },
+    {
+      "id": "literal:string:\"P1Y\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "P1Y"
+    },
+    {
+      "id": "literal:string:\"PT10M\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "PT10M"
+    },
+    {
+      "id": "literal:string:\"PT1H\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "PT1H"
+    },
+    {
+      "id": "literal:string:\"PT1M\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "PT1M"
+    },
+    {
+      "id": "literal:string:\"PT24H\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "PT24H"
+    },
+    {
+      "id": "literal:string:\"action\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "action"
+    },
+    {
+      "id": "literal:string:\"cha\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "cha"
+    },
+    {
+      "id": "literal:string:\"con\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "con"
+    },
+    {
+      "id": "literal:string:\"day\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "day"
+    },
+    {
+      "id": "literal:string:\"dex\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dex"
+    },
+    {
       "id": "literal:string:\"dropped\"",
       "kind": "literal",
       "declaredAt": [],
       "value": "dropped"
+    },
+    {
+      "id": "literal:string:\"free\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "free"
+    },
+    {
+      "id": "literal:string:\"grg\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "grg"
     },
     {
       "id": "literal:string:\"held\"",
@@ -122,16 +220,528 @@
       "value": "held"
     },
     {
+      "id": "literal:string:\"high\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "high"
+    },
+    {
+      "id": "literal:string:\"huge\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "huge"
+    },
+    {
+      "id": "literal:string:\"identified\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "identified"
+    },
+    {
+      "id": "literal:string:\"int\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "int"
+    },
+    {
+      "id": "literal:string:\"lg\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "lg"
+    },
+    {
+      "id": "literal:string:\"low\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "low"
+    },
+    {
+      "id": "literal:string:\"med\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "med"
+    },
+    {
+      "id": "literal:string:\"reaction\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "reaction"
+    },
+    {
+      "id": "literal:string:\"round\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "round"
+    },
+    {
+      "id": "literal:string:\"sm\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sm"
+    },
+    {
+      "id": "literal:string:\"standard\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "standard"
+    },
+    {
       "id": "literal:string:\"stowed\"",
       "kind": "literal",
       "declaredAt": [],
       "value": "stowed"
     },
     {
+      "id": "literal:string:\"str\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "str"
+    },
+    {
+      "id": "literal:string:\"tiny\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tiny"
+    },
+    {
+      "id": "literal:string:\"turn\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "turn"
+    },
+    {
+      "id": "literal:string:\"unidentified\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "unidentified"
+    },
+    {
+      "id": "literal:string:\"wis\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wis"
+    },
+    {
       "id": "literal:string:\"worn\"",
       "kind": "literal",
       "declaredAt": [],
       "value": "worn"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@14ae22b9f5e4cd4eec398af2",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "src/module/item/physical/types.ts#PhysicalItemTrait",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@6ba7fb0619d4e26452b56204",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "src/module/item/base/data/index.ts#PhysicalItemSource",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@6ba7fb0619d4e26452b56204#authored-document#authored-document-patch",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "src/module/item/base/data/index.ts#PhysicalItemSource#authored-document#authored-document-patch",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Record@71268a11cfdc51f54f343a2c",
+      "kind": "object",
+      "name": "Record",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1613,
+          "column": 1
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "src/module/item/physical/data.ts#ItemActivation",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "string",
+          "declaredAt": []
+        },
+        {
+          "expression": "ItemActivation",
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 126,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "src/module/data.ts#ValuesList@06478830b4edeb5130a7341e",
+      "kind": "object",
+      "name": "ValuesList",
+      "declaredAt": [
+        {
+          "file": "src/module/data.ts",
+          "line": 15,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@06478830b4edeb5130a7341e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 16,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "\"consumable\" | \"class\" | \"light\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"auditory\" | \"cold\" | \"curse\" | \"detection\" | \"disease\" | \"earth\" | \"electricity\" | \"emotion\" | \"fire\" | \"force\" | \"healing\" | \"illusion\" | \"inhaled\" | \"mental\" | \"metal\" | \"olfactory\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"radiation\" | \"scrying\" | \"sleep\" | \"sonic\" | \"spirit\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"splash\" | \"darkness\" | \"death\" | \"time\" | \"alchemist\" | \"animist\" | \"barbarian\" | \"bard\" | \"champion\" | \"cleric\" | \"druid\" | \"exemplar\" | \"fighter\" | \"gunslinger\" | \"kineticist\" | \"inventor\" | \"investigator\" | \"magus\" | \"monk\" | \"oracle\" | \"psychic\" | \"ranger\" | \"rogue\" | \"sorcerer\" | \"summoner\" | \"swashbuckler\" | \"thaumaturge\" | \"witch\" | \"wizard\" | \"agile\" | \"propulsive\" | \"backswing\" | \"forceful\" | \"reach\" | \"sweep\" | \"thrown\" | \"volley-20\" | \"volley-30\" | \"volley-50\" | \"volley-60\" | \"artifact\" | \"clockwork\" | \"cursed\" | \"extradimensional\" | \"fear\" | \"fortune\" | \"fungus\" | \"infused\" | \"shadow\" | \"teleportation\" | \"wand\" | \"aiuvarin\" | \"anadi\" | \"android\" | \"aphorite\" | \"ardande\" | \"athamaru\" | \"automaton\" | \"awakened-animal\" | \"azarketi\" | \"beastkin\" | \"bugbear\" | \"catfolk\" | \"centaur\" | \"changeling\" | \"conrasu\" | \"dhampir\" | \"dragonblood\" | \"dromaar\" | \"duskwalker\" | \"dwarf\" | \"elf\" | \"fetchling\" | \"fleshwarp\" | \"ganzi\" | \"geniekin\" | \"ghoran\" | \"gnoll\" | \"gnome\" | \"goblin\" | \"goloma\" | \"grippli\" | \"halfling\" | \"hobgoblin\" | \"human\" | \"hungerseed\" | \"kashrishi\" | \"kitsune\" | \"kobold\" | \"leshy\" | \"lizardfolk\" | \"merfolk\" | \"minotaur\" | \"nagaji\" | \"naari\" | \"nephilim\" | \"orc\" | \"oread\" | \"poppet\" | \"ratfolk\" | \"reflection\" | \"samsaran\" | \"sarangay\" | \"shisk\" | \"shoony\" | \"skeleton\" | \"sprite\" | \"strix\" | \"suli\" | \"surki\" | \"sylph\" | \"tanuki\" | \"talos\" | \"tengu\" | \"undine\" | \"vanara\" | \"vishkanya\" | \"wayang\" | \"yaksha\" | \"yaoguai\" | \"additive\" | \"additive1\" | \"additive2\" | \"additive3\" | \"aftermath\" | \"amp\" | \"archetype\" | \"attack\" | \"beast\" | \"bottled-breath\" | \"cantrip\" | \"catalyst\" | \"circus\" | \"coagulant\" | \"composite\" | \"composition\" | \"concentrate\" | \"dedication\" | \"deviant\" | \"eidolon\" | \"elixir\" | \"esoterica\" | \"expandable\" | \"exploration\" | \"finisher\" | \"flourish\" | \"focus\" | \"fulu\" | \"gadget\" | \"general\" | \"lineage\" | \"litany\" | \"lozenge\" | \"manipulate\" | \"missive\" | \"modification\" | \"multiclass\" | \"mutagen\" | \"oath\" | \"oil\" | \"overflow\" | \"pervasive-magic\" | \"potion\" | \"precious\" | \"press\" | \"processed\" | \"reckless\" | \"reincarnated\" | \"revelation\" | \"sanctified\" | \"scroll\" | \"secret\" | \"skill\" | \"snare\" | \"spellgun\" | \"structure\" | \"subtle\" | \"talisman\" | \"tandem\" | \"tea\" | \"trap\" | \"unstable\" | \"vigilante\" | \"certain-kill\" | \"summon\" | \"aura\" | \"consecration\" | \"contingency\" | \"cursebound\" | \"dream\" | \"hex\" | \"incapacitation\" | \"incarnate\" | \"incorporeal\" | \"linguistic\" | \"misfortune\" | \"morph\" | \"move\" | \"prediction\" | \"psyche\" | \"rage\" | \"spellshape\" | \"stance\" | \"summoned\" | \"trial\" | \"true-name\" | \"contact\" | \"drug\" | \"fey\" | \"ingested\" | \"injury\" | \"mechanical\" | \"virulent\" | \"apparition\" | \"bravado\" | \"calling\" | \"destiny\" | \"downtime\" | \"evolution\" | \"ikon\" | \"impulse\" | \"infusion\" | \"mindshift\" | \"social\" | \"spellshot\" | \"stamina\" | \"transcendence\" | \"wandering\"",
+          "declaredAt": []
+        }
+      ]
+    },
+    {
+      "id": "src/module/item/base/data/index.ts#PhysicalItemSource",
+      "kind": "union",
+      "name": "PhysicalItemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/base/data/index.ts",
+          "line": 51,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/armor/data.ts#ArmorSource",
+        "src/module/item/book/data.ts#BookSource",
+        "src/module/item/consumable/data.ts#ConsumableSource",
+        "src/module/item/container/data.ts#ContainerSource",
+        "src/module/item/equipment/data.ts#EquipmentSource",
+        "src/module/item/shield/data.ts#ShieldSource",
+        "src/module/item/treasure/data.ts#TreasureSource",
+        "src/module/item/weapon/data.ts#WeaponSource"
+      ]
+    },
+    {
+      "id": "src/module/item/base/data/index.ts#PhysicalItemSource#authored-document#authored-document-patch",
+      "kind": "union",
+      "name": "PhysicalItemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/base/data/index.ts",
+          "line": 51,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/armor/data.ts#ArmorSource#authored-document#authored-document-patch",
+        "src/module/item/book/data.ts#BookSource",
+        "src/module/item/consumable/data.ts#ConsumableSource#authored-document#authored-document-patch",
+        "src/module/item/container/data.ts#ContainerSource",
+        "src/module/item/equipment/data.ts#EquipmentSource#authored-document#authored-document-patch",
+        "src/module/item/shield/data.ts#ShieldSource#authored-document#authored-document-patch",
+        "src/module/item/treasure/data.ts#TreasureSource",
+        "src/module/item/weapon/data.ts#WeaponSource#authored-document#authored-document-patch"
+      ]
+    },
+    {
+      "id": "src/module/item/base/data/system.ts#ActionCost",
+      "kind": "object",
+      "name": "ActionCost",
+      "declaredAt": [
+        {
+          "file": "src/module/item/base/data/system.ts",
+          "line": 17,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "type",
+          "ref": "structural:2c5147d13fe69acc7a0b941d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 18,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:be59507e9004188bd6c15ef7",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 19,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/base/data/system.ts#Frequency",
+      "kind": "object",
+      "name": "Frequency",
+      "declaredAt": [
+        {
+          "file": "src/module/item/base/data/system.ts",
+          "line": 137,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "max",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 128,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "per",
+          "ref": "structural:78ee19ffc11ff72f4bda2cf0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 130,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 138,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/base/data/system.ts#FrequencySource"
+      ],
+      "indexSignatures": []
     },
     {
       "id": "src/module/item/physical/data.ts#Coins",
@@ -284,6 +894,453 @@
       "indexSignatures": []
     },
     {
+      "id": "src/module/item/physical/data.ts#IdentificationSource",
+      "kind": "object",
+      "name": "IdentificationSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 50,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "misidentified",
+          "ref": "primitive:object",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 53,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "ref": "src/module/item/physical/data.ts#IdentificationStatus",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 51,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "unidentified",
+          "ref": "src/module/item/physical/data.ts#MystifiedData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 52,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#IdentificationStatus",
+      "kind": "union",
+      "name": "IdentificationStatus",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 93,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"identified\"",
+        "literal:string:\"unidentified\""
+      ]
+    },
+    {
+      "id": "src/module/item/physical/data.ts#ItemActivation",
+      "kind": "object",
+      "name": "ItemActivation",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 126,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "actionCost",
+          "ref": "src/module/item/base/data/system.ts#ActionCost",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 131,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "components",
+          "ref": "src/module/item/physical/data.ts#ItemActivation.components.$object@5fdba85d4327ceb4a5df5876",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 132,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "src/module/item/physical/data.ts#ItemActivation.description.$object@6ef0bbdae3c2bc900711b195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 128,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "frequency",
+          "ref": "structural:04440ff60681f71f58350c9e",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 138,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "id",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 127,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "src/module/data.ts#ValuesList@06478830b4edeb5130a7341e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 139,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#ItemActivation.components.$object@5fdba85d4327ceb4a5df5876",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 132,
+          "column": 17
+        }
+      ],
+      "fields": [
+        {
+          "name": "cast",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 136,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "command",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 133,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "envision",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 134,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "interact",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 135,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#ItemActivation.description.$object@6ef0bbdae3c2bc900711b195",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 128,
+          "column": 18
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 129,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#ItemMaterialSource",
+      "kind": "object",
+      "name": "ItemMaterialSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 56,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "grade",
+          "ref": "structural:b1ba58dc1c7758f89ab6be67",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 57,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:2b63ac97bd1598a67ca67438",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 58,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#MystifiedData",
+      "kind": "object",
+      "name": "MystifiedData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 95,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "data",
+          "ref": "src/module/item/physical/data.ts#MystifiedData.data.$object@b89fd9e3a18fd48d50a50f3b",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 97,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#MystifiedData.data.$object.description.$object@d0d525710806b71c295b1ddf",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 99,
+          "column": 22
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 100,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#MystifiedData.data.$object@b89fd9e3a18fd48d50a50f3b",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 98,
+          "column": 11
+        }
+      ],
+      "fields": [
+        {
+          "name": "description",
+          "ref": "src/module/item/physical/data.ts#MystifiedData.data.$object.description.$object@d0d525710806b71c295b1ddf",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 99,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
       "id": "src/module/item/physical/data.ts#PartialPrice",
       "kind": "object",
       "name": "PartialPrice",
@@ -389,6 +1446,936 @@
       "indexSignatures": []
     },
     {
+      "id": "src/module/item/physical/data.ts#PhysicalItemTraits@14ae22b9f5e4cd4eec398af2",
+      "kind": "object",
+      "name": "PhysicalItemTraits",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 122,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "otherTags",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 123,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rarity",
+          "ref": "structural:bf6113eac55e1ea864797d40",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@14ae22b9f5e4cd4eec398af2",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 35,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "PhysicalItemTrait",
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/types.ts",
+              "line": 14,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "src/module/item/physical/data.ts#PhysicalSystemSource",
+      "kind": "object",
+      "name": "PhysicalSystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 19,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "src/module/data.ts#MigrationRecord",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "activations",
+          "ref": "structural:87be452d4d63faf43824f224",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "apex",
+          "ref": "structural:d1e15841442ab80ba4837b5a",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "baseItem",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 23,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "bulk",
+          "ref": "src/module/item/physical/data.ts#PhysicalSystemSource.bulk.$object@d98587eea5a1795f852fa1b3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 24,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "containerId",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "src/module/item/base/data/system.ts#ItemDescriptionSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "equipped",
+          "ref": "src/module/item/physical/data.ts#EquippedData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 30,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hardness",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 28,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hp",
+          "ref": "src/module/item/physical/data.ts#PhysicalItemHPSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 27,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "identification",
+          "ref": "src/module/item/physical/data.ts#IdentificationSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 31,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "src/module/item/physical/data.ts#PhysicalSystemSource.level.$object@51b1c0d3925d8465d4f0b425",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 20,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "material",
+          "ref": "src/module/item/physical/data.ts#ItemMaterialSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 33,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "price",
+          "ref": "src/module/item/physical/data.ts#PartialPrice",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 29,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "src/module/data.ts#PublicationData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 89,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "quantity",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 22,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "size",
+          "ref": "structural:f8f4246aae857a8e162bc4ac",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "subitems",
+          "ref": "structural:7686b0a1e72b9ff8aed8a9da",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "temporary",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 37,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "src/module/item/physical/data.ts#PhysicalItemTraits@14ae22b9f5e4cd4eec398af2",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 21,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "usage",
+          "ref": "structural:6837a658c594450e7cd04388",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 35,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/base/data/system.ts#ItemSystemSource"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#PhysicalSystemSource#authored-document#authored-document-patch",
+      "kind": "object",
+      "name": "PhysicalSystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 19,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "src/module/data.ts#MigrationRecord",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "activations",
+          "ref": "structural:87be452d4d63faf43824f224",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "apex",
+          "ref": "structural:d1e15841442ab80ba4837b5a",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "baseItem",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 23,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "bulk",
+          "ref": "src/module/item/physical/data.ts#PhysicalSystemSource.bulk.$object@d98587eea5a1795f852fa1b3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 24,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "containerId",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "src/module/item/base/data/system.ts#ItemDescriptionSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "equipped",
+          "ref": "src/module/item/physical/data.ts#EquippedData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 30,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hardness",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 28,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hp",
+          "ref": "src/module/item/physical/data.ts#PhysicalItemHPSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 27,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "identification",
+          "ref": "src/module/item/physical/data.ts#IdentificationSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 31,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "src/module/item/physical/data.ts#PhysicalSystemSource.level.$object@51b1c0d3925d8465d4f0b425",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 20,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "material",
+          "ref": "src/module/item/physical/data.ts#ItemMaterialSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 33,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "price",
+          "ref": "src/module/item/physical/data.ts#PartialPrice",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 29,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "src/module/data.ts#PublicationData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 89,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "quantity",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 22,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "size",
+          "ref": "structural:f8f4246aae857a8e162bc4ac",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "subitems",
+          "ref": "structural:7686b0a1e72b9ff8aed8a9da#authored-document#authored-document-patch",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "temporary",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 37,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "src/module/item/physical/data.ts#PhysicalItemTraits@14ae22b9f5e4cd4eec398af2",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 21,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "usage",
+          "ref": "structural:6837a658c594450e7cd04388",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 35,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/base/data/system.ts#ItemSystemSource"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#PhysicalSystemSource.apex.$object@ea529c6e200457cc59c0bbde",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 44,
+          "column": 12
+        }
+      ],
+      "fields": [
+        {
+          "name": "attribute",
+          "ref": "structural:4ad7ee4470b79a8670005dad",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 45,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "selected",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 46,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#PhysicalSystemSource.bulk.$object@d98587eea5a1795f852fa1b3",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 24,
+          "column": 11
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 25,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/physical/data.ts#PhysicalSystemSource.level.$object@51b1c0d3925d8465d4f0b425",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/data.ts",
+          "line": 20,
+          "column": 12
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 20,
+              "column": 14
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
       "id": "src/module/item/physical/data.ts#PhysicalSystemSource.usage.$object@71a25e0f497be6d0a2f2a3a9",
       "kind": "object",
       "declaredAt": [
@@ -418,6 +2405,491 @@
       "indexSignatures": []
     },
     {
+      "id": "src/module/item/physical/types.ts#PhysicalItemTrait",
+      "kind": "union",
+      "name": "PhysicalItemTrait",
+      "declaredAt": [
+        {
+          "file": "src/module/item/physical/types.ts",
+          "line": 14,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"acid\"",
+        "literal:string:\"additive\"",
+        "literal:string:\"additive0\"",
+        "literal:string:\"additive1\"",
+        "literal:string:\"additive2\"",
+        "literal:string:\"additive3\"",
+        "literal:string:\"adjusted\"",
+        "literal:string:\"adjustment\"",
+        "literal:string:\"agile\"",
+        "literal:string:\"air\"",
+        "literal:string:\"aiuvarin\"",
+        "literal:string:\"alchemical\"",
+        "literal:string:\"alchemist\"",
+        "literal:string:\"amp\"",
+        "literal:string:\"anadi\"",
+        "literal:string:\"android\"",
+        "literal:string:\"animist\"",
+        "literal:string:\"apex\"",
+        "literal:string:\"aphorite\"",
+        "literal:string:\"aquadynamic\"",
+        "literal:string:\"arcane\"",
+        "literal:string:\"ardande\"",
+        "literal:string:\"artifact\"",
+        "literal:string:\"athamaru\"",
+        "literal:string:\"attached\"",
+        "literal:string:\"attached-to-crossbow-or-firearm\"",
+        "literal:string:\"attached-to-shield\"",
+        "literal:string:\"attack\"",
+        "literal:string:\"auditory\"",
+        "literal:string:\"aura\"",
+        "literal:string:\"automaton\"",
+        "literal:string:\"awakened-animal\"",
+        "literal:string:\"azarketi\"",
+        "literal:string:\"backstabber\"",
+        "literal:string:\"backswing\"",
+        "literal:string:\"barbarian\"",
+        "literal:string:\"bard\"",
+        "literal:string:\"barding\"",
+        "literal:string:\"beast\"",
+        "literal:string:\"beastkin\"",
+        "literal:string:\"bomb\"",
+        "literal:string:\"bottled-breath\"",
+        "literal:string:\"brace\"",
+        "literal:string:\"brutal\"",
+        "literal:string:\"bugbear\"",
+        "literal:string:\"bulwark\"",
+        "literal:string:\"cantrip\"",
+        "literal:string:\"capacity-2\"",
+        "literal:string:\"capacity-3\"",
+        "literal:string:\"capacity-4\"",
+        "literal:string:\"capacity-5\"",
+        "literal:string:\"catalyst\"",
+        "literal:string:\"catfolk\"",
+        "literal:string:\"censer\"",
+        "literal:string:\"centaur\"",
+        "literal:string:\"champion\"",
+        "literal:string:\"changeling\"",
+        "literal:string:\"cleric\"",
+        "literal:string:\"climbing\"",
+        "literal:string:\"clockwork\"",
+        "literal:string:\"coagulant\"",
+        "literal:string:\"cobbled\"",
+        "literal:string:\"coda\"",
+        "literal:string:\"cold\"",
+        "literal:string:\"combination\"",
+        "literal:string:\"comfort\"",
+        "literal:string:\"companion\"",
+        "literal:string:\"composition\"",
+        "literal:string:\"concealable\"",
+        "literal:string:\"concentrate\"",
+        "literal:string:\"concussive\"",
+        "literal:string:\"conrasu\"",
+        "literal:string:\"consecration\"",
+        "literal:string:\"consumable\"",
+        "literal:string:\"contact\"",
+        "literal:string:\"contingency\"",
+        "literal:string:\"contract\"",
+        "literal:string:\"critical-fusion\"",
+        "literal:string:\"curse\"",
+        "literal:string:\"cursebound\"",
+        "literal:string:\"cursed\"",
+        "literal:string:\"darkness\"",
+        "literal:string:\"deadly-d10\"",
+        "literal:string:\"deadly-d12\"",
+        "literal:string:\"deadly-d4\"",
+        "literal:string:\"deadly-d6\"",
+        "literal:string:\"deadly-d8\"",
+        "literal:string:\"death\"",
+        "literal:string:\"deflecting-bludgeoning\"",
+        "literal:string:\"deflecting-physical-ranged\"",
+        "literal:string:\"deflecting-piercing\"",
+        "literal:string:\"deflecting-slashing\"",
+        "literal:string:\"detection\"",
+        "literal:string:\"dhampir\"",
+        "literal:string:\"disarm\"",
+        "literal:string:\"disease\"",
+        "literal:string:\"divine\"",
+        "literal:string:\"double-barrel\"",
+        "literal:string:\"dragonblood\"",
+        "literal:string:\"dream\"",
+        "literal:string:\"dromaar\"",
+        "literal:string:\"drug\"",
+        "literal:string:\"druid\"",
+        "literal:string:\"duskwalker\"",
+        "literal:string:\"dwarf\"",
+        "literal:string:\"earth\"",
+        "literal:string:\"eidolon\"",
+        "literal:string:\"electricity\"",
+        "literal:string:\"elf\"",
+        "literal:string:\"elixir\"",
+        "literal:string:\"emotion\"",
+        "literal:string:\"entrench-melee\"",
+        "literal:string:\"entrench-ranged\"",
+        "literal:string:\"exemplar\"",
+        "literal:string:\"expandable\"",
+        "literal:string:\"exploration\"",
+        "literal:string:\"extradimensional\"",
+        "literal:string:\"fatal-aim-d10\"",
+        "literal:string:\"fatal-aim-d12\"",
+        "literal:string:\"fatal-d10\"",
+        "literal:string:\"fatal-d12\"",
+        "literal:string:\"fatal-d8\"",
+        "literal:string:\"fear\"",
+        "literal:string:\"fetchling\"",
+        "literal:string:\"fey\"",
+        "literal:string:\"fighter\"",
+        "literal:string:\"figurehead\"",
+        "literal:string:\"finesse\"",
+        "literal:string:\"fire\"",
+        "literal:string:\"fleshwarp\"",
+        "literal:string:\"flexible\"",
+        "literal:string:\"focus\"",
+        "literal:string:\"focused\"",
+        "literal:string:\"foldaway\"",
+        "literal:string:\"force\"",
+        "literal:string:\"forceful\"",
+        "literal:string:\"fortune\"",
+        "literal:string:\"free-hand\"",
+        "literal:string:\"fulu\"",
+        "literal:string:\"fungus\"",
+        "literal:string:\"gadget\"",
+        "literal:string:\"ganzi\"",
+        "literal:string:\"geniekin\"",
+        "literal:string:\"ghoran\"",
+        "literal:string:\"gnoll\"",
+        "literal:string:\"gnome\"",
+        "literal:string:\"goblin\"",
+        "literal:string:\"goloma\"",
+        "literal:string:\"graft\"",
+        "literal:string:\"grapple\"",
+        "literal:string:\"grimoire\"",
+        "literal:string:\"grippli\"",
+        "literal:string:\"gunslinger\"",
+        "literal:string:\"halfling\"",
+        "literal:string:\"hampering\"",
+        "literal:string:\"harnessed\"",
+        "literal:string:\"harrow-court\"",
+        "literal:string:\"healing\"",
+        "literal:string:\"hefty-2\"",
+        "literal:string:\"hex\"",
+        "literal:string:\"hindering\"",
+        "literal:string:\"hobgoblin\"",
+        "literal:string:\"holy\"",
+        "literal:string:\"human\"",
+        "literal:string:\"hungerseed\"",
+        "literal:string:\"illusion\"",
+        "literal:string:\"incapacitation\"",
+        "literal:string:\"incarnate\"",
+        "literal:string:\"incorporeal\"",
+        "literal:string:\"infused\"",
+        "literal:string:\"ingested\"",
+        "literal:string:\"inhaled\"",
+        "literal:string:\"injection\"",
+        "literal:string:\"injury\"",
+        "literal:string:\"inscribed\"",
+        "literal:string:\"integrated-1d6-b\"",
+        "literal:string:\"integrated-1d6-p\"",
+        "literal:string:\"integrated-1d6-s\"",
+        "literal:string:\"integrated-1d6-s-versatile-p\"",
+        "literal:string:\"intelligent\"",
+        "literal:string:\"inventor\"",
+        "literal:string:\"invested\"",
+        "literal:string:\"investigator\"",
+        "literal:string:\"jousting-d10\"",
+        "literal:string:\"jousting-d4\"",
+        "literal:string:\"jousting-d6\"",
+        "literal:string:\"jousting-d8\"",
+        "literal:string:\"kashrishi\"",
+        "literal:string:\"kickback\"",
+        "literal:string:\"kineticist\"",
+        "literal:string:\"kitsune\"",
+        "literal:string:\"kobold\"",
+        "literal:string:\"laminar\"",
+        "literal:string:\"launching-dart\"",
+        "literal:string:\"leshy\"",
+        "literal:string:\"light\"",
+        "literal:string:\"linguistic\"",
+        "literal:string:\"litany\"",
+        "literal:string:\"lizardfolk\"",
+        "literal:string:\"lozenge\"",
+        "literal:string:\"magical\"",
+        "literal:string:\"magus\"",
+        "literal:string:\"manipulate\"",
+        "literal:string:\"mechanical\"",
+        "literal:string:\"mental\"",
+        "literal:string:\"merfolk\"",
+        "literal:string:\"metal\"",
+        "literal:string:\"minotaur\"",
+        "literal:string:\"misfortune\"",
+        "literal:string:\"missive\"",
+        "literal:string:\"modular\"",
+        "literal:string:\"monk\"",
+        "literal:string:\"morph\"",
+        "literal:string:\"mounted\"",
+        "literal:string:\"move\"",
+        "literal:string:\"mutagen\"",
+        "literal:string:\"mythic\"",
+        "literal:string:\"naari\"",
+        "literal:string:\"nagaji\"",
+        "literal:string:\"nephilim\"",
+        "literal:string:\"noisy\"",
+        "literal:string:\"nonlethal\"",
+        "literal:string:\"occult\"",
+        "literal:string:\"oil\"",
+        "literal:string:\"olfactory\"",
+        "literal:string:\"oracle\"",
+        "literal:string:\"orc\"",
+        "literal:string:\"oread\"",
+        "literal:string:\"parry\"",
+        "literal:string:\"plant\"",
+        "literal:string:\"poison\"",
+        "literal:string:\"polymorph\"",
+        "literal:string:\"ponderous\"",
+        "literal:string:\"poppet\"",
+        "literal:string:\"portable\"",
+        "literal:string:\"possession\"",
+        "literal:string:\"potion\"",
+        "literal:string:\"precious\"",
+        "literal:string:\"prediction\"",
+        "literal:string:\"primal\"",
+        "literal:string:\"processed\"",
+        "literal:string:\"propulsive\"",
+        "literal:string:\"psyche\"",
+        "literal:string:\"psychic\"",
+        "literal:string:\"radiation\"",
+        "literal:string:\"rage\"",
+        "literal:string:\"ranged-trip\"",
+        "literal:string:\"ranger\"",
+        "literal:string:\"ratfolk\"",
+        "literal:string:\"razing\"",
+        "literal:string:\"reach\"",
+        "literal:string:\"recovery\"",
+        "literal:string:\"reflection\"",
+        "literal:string:\"relic\"",
+        "literal:string:\"repeating\"",
+        "literal:string:\"resonant\"",
+        "literal:string:\"revelation\"",
+        "literal:string:\"rogue\"",
+        "literal:string:\"saggorak\"",
+        "literal:string:\"samsaran\"",
+        "literal:string:\"sanctified\"",
+        "literal:string:\"sarangay\"",
+        "literal:string:\"scatter-10\"",
+        "literal:string:\"scatter-15\"",
+        "literal:string:\"scatter-20\"",
+        "literal:string:\"scatter-5\"",
+        "literal:string:\"scroll\"",
+        "literal:string:\"scrying\"",
+        "literal:string:\"shadow\"",
+        "literal:string:\"shield-throw-20\"",
+        "literal:string:\"shield-throw-30\"",
+        "literal:string:\"shisk\"",
+        "literal:string:\"shoony\"",
+        "literal:string:\"shove\"",
+        "literal:string:\"skeleton\"",
+        "literal:string:\"sleep\"",
+        "literal:string:\"snare\"",
+        "literal:string:\"sonic\"",
+        "literal:string:\"sorcerer\"",
+        "literal:string:\"spellgun\"",
+        "literal:string:\"spellheart\"",
+        "literal:string:\"spellshape\"",
+        "literal:string:\"spirit\"",
+        "literal:string:\"splash\"",
+        "literal:string:\"sprite\"",
+        "literal:string:\"staff\"",
+        "literal:string:\"stance\"",
+        "literal:string:\"steam\"",
+        "literal:string:\"strix\"",
+        "literal:string:\"structure\"",
+        "literal:string:\"subtle\"",
+        "literal:string:\"suli\"",
+        "literal:string:\"summon\"",
+        "literal:string:\"summoned\"",
+        "literal:string:\"summoner\"",
+        "literal:string:\"surki\"",
+        "literal:string:\"swashbuckler\"",
+        "literal:string:\"sweep\"",
+        "literal:string:\"sylph\"",
+        "literal:string:\"talisman\"",
+        "literal:string:\"talos\"",
+        "literal:string:\"tanuki\"",
+        "literal:string:\"tattoo\"",
+        "literal:string:\"tea\"",
+        "literal:string:\"tearing\"",
+        "literal:string:\"tech\"",
+        "literal:string:\"teleportation\"",
+        "literal:string:\"tengu\"",
+        "literal:string:\"tethered\"",
+        "literal:string:\"thaumaturge\"",
+        "literal:string:\"thrown\"",
+        "literal:string:\"thrown-10\"",
+        "literal:string:\"thrown-100\"",
+        "literal:string:\"thrown-15\"",
+        "literal:string:\"thrown-20\"",
+        "literal:string:\"thrown-200\"",
+        "literal:string:\"thrown-30\"",
+        "literal:string:\"thrown-40\"",
+        "literal:string:\"thrown-50\"",
+        "literal:string:\"thrown-60\"",
+        "literal:string:\"thrown-80\"",
+        "literal:string:\"training\"",
+        "literal:string:\"trap\"",
+        "literal:string:\"trial\"",
+        "literal:string:\"trip\"",
+        "literal:string:\"true-name\"",
+        "literal:string:\"twin\"",
+        "literal:string:\"two-hand-d10\"",
+        "literal:string:\"two-hand-d12\"",
+        "literal:string:\"two-hand-d6\"",
+        "literal:string:\"two-hand-d8\"",
+        "literal:string:\"unarmed\"",
+        "literal:string:\"undine\"",
+        "literal:string:\"unholy\"",
+        "literal:string:\"vanara\"",
+        "literal:string:\"vehicular\"",
+        "literal:string:\"venomous\"",
+        "literal:string:\"versatile-acid\"",
+        "literal:string:\"versatile-b\"",
+        "literal:string:\"versatile-cold\"",
+        "literal:string:\"versatile-electricity\"",
+        "literal:string:\"versatile-fire\"",
+        "literal:string:\"versatile-force\"",
+        "literal:string:\"versatile-mental\"",
+        "literal:string:\"versatile-p\"",
+        "literal:string:\"versatile-poison\"",
+        "literal:string:\"versatile-s\"",
+        "literal:string:\"versatile-sonic\"",
+        "literal:string:\"versatile-spirit\"",
+        "literal:string:\"versatile-vitality\"",
+        "literal:string:\"versatile-void\"",
+        "literal:string:\"virulent\"",
+        "literal:string:\"vishkanya\"",
+        "literal:string:\"visual\"",
+        "literal:string:\"vitality\"",
+        "literal:string:\"void\"",
+        "literal:string:\"volley-20\"",
+        "literal:string:\"volley-30\"",
+        "literal:string:\"volley-50\"",
+        "literal:string:\"volley-60\"",
+        "literal:string:\"wand\"",
+        "literal:string:\"water\"",
+        "literal:string:\"wayang\"",
+        "literal:string:\"witch\"",
+        "literal:string:\"wizard\"",
+        "literal:string:\"wood\"",
+        "literal:string:\"yaksha\"",
+        "literal:string:\"yaoguai\""
+      ]
+    },
+    {
+      "id": "structural:04440ff60681f71f58350c9e",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/base/data/system.ts#Frequency"
+      ]
+    },
+    {
+      "id": "structural:1b0f0988cf9980a794daa26f",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".bmp"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:1bd3922854292573d04f4894",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".jpg"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:29f9f1a334bc2465b6ff0dfd",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "structural:1b0f0988cf9980a794daa26f",
+        "structural:1bd3922854292573d04f4894",
+        "structural:600f058a1ed75f71385006e9",
+        "structural:73731b9a4ed6ea4ea7ff02ab",
+        "structural:854ae32829f1ba192b1e1071",
+        "structural:a2b56a3769f70da575abea43",
+        "structural:a57b14bcc365a21b65f22c36",
+        "structural:b5e1547f1cec87f30d5d9110",
+        "structural:e1c54442d28b461d26885c9b",
+        "structural:eb49f1ec232e304fc7376b41"
+      ]
+    },
+    {
+      "id": "structural:2b63ac97bd1598a67ca67438",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"abysium\"",
+        "literal:string:\"adamantine\"",
+        "literal:string:\"cold-iron\"",
+        "literal:string:\"dawnsilver\"",
+        "literal:string:\"djezet\"",
+        "literal:string:\"dragonhide\"",
+        "literal:string:\"dreamweb\"",
+        "literal:string:\"duskwood\"",
+        "literal:string:\"grisantian-pelt\"",
+        "literal:string:\"inubrix\"",
+        "literal:string:\"keep-stone\"",
+        "literal:string:\"noqual\"",
+        "literal:string:\"orichalcum\"",
+        "literal:string:\"peachwood\"",
+        "literal:string:\"siccatite\"",
+        "literal:string:\"silver\"",
+        "literal:string:\"sisterstone\"",
+        "literal:string:\"sisterstone-dusk\"",
+        "literal:string:\"sisterstone-scarlet\"",
+        "literal:string:\"sloughstone\"",
+        "literal:string:\"sovereign-steel\"",
+        "literal:string:\"warpglass\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:2c5147d13fe69acc7a0b941d",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"action\"",
+        "literal:string:\"free\"",
+        "literal:string:\"reaction\""
+      ]
+    },
+    {
+      "id": "structural:4ad7ee4470b79a8670005dad",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"cha\"",
+        "literal:string:\"con\"",
+        "literal:string:\"dex\"",
+        "literal:string:\"int\"",
+        "literal:string:\"str\"",
+        "literal:string:\"wis\""
+      ]
+    },
+    {
       "id": "structural:51a25f49de60e2f035745d37",
       "kind": "union",
       "declaredAt": [],
@@ -425,6 +2897,18 @@
         "literal:boolean:false",
         "literal:boolean:true",
         "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:600f058a1ed75f71385006e9",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".avif"
+      ],
+      "parameters": [
+        "primitive:string"
       ]
     },
     {
@@ -437,6 +2921,65 @@
       ]
     },
     {
+      "id": "structural:73731b9a4ed6ea4ea7ff02ab",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".webp"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:7686b0a1e72b9ff8aed8a9da",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Array@6ba7fb0619d4e26452b56204",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:7686b0a1e72b9ff8aed8a9da#authored-document#authored-document-patch",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Array@6ba7fb0619d4e26452b56204#authored-document#authored-document-patch",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:78ee19ffc11ff72f4bda2cf0",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"P1M\"",
+        "literal:string:\"P1W\"",
+        "literal:string:\"P1Y\"",
+        "literal:string:\"PT10M\"",
+        "literal:string:\"PT1H\"",
+        "literal:string:\"PT1M\"",
+        "literal:string:\"PT24H\"",
+        "literal:string:\"day\"",
+        "literal:string:\"round\"",
+        "literal:string:\"turn\""
+      ]
+    },
+    {
+      "id": "structural:854ae32829f1ba192b1e1071",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".gif"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
       "id": "structural:85d60dcd51d329d46042fc59",
       "kind": "union",
       "declaredAt": [],
@@ -445,6 +2988,73 @@
         "literal:number:1",
         "literal:number:2",
         "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:87be452d4d63faf43824f224",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Record@71268a11cfdc51f54f343a2c",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:a2b56a3769f70da575abea43",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".png"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:a57b14bcc365a21b65f22c36",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".apng"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:b1ba58dc1c7758f89ab6be67",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"high\"",
+        "literal:string:\"low\"",
+        "literal:string:\"standard\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:b5e1547f1cec87f30d5d9110",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".svg"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:be59507e9004188bd6c15ef7",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:number:1",
+        "literal:number:2",
+        "literal:number:3",
+        "primitive:null"
       ]
     },
     {
@@ -460,12 +3070,58 @@
       ]
     },
     {
+      "id": "structural:d1e15841442ab80ba4837b5a",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/physical/data.ts#PhysicalSystemSource.apex.$object@ea529c6e200457cc59c0bbde"
+      ]
+    },
+    {
       "id": "structural:db517e8d19c28591a8d6aa13",
       "kind": "union",
       "declaredAt": [],
       "members": [
         "primitive:number",
         "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:e1c54442d28b461d26885c9b",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".jpeg"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:eb49f1ec232e304fc7376b41",
+      "kind": "template",
+      "declaredAt": [],
+      "text": [
+        "",
+        ".tiff"
+      ],
+      "parameters": [
+        "primitive:string"
+      ]
+    },
+    {
+      "id": "structural:f8f4246aae857a8e162bc4ac",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"grg\"",
+        "literal:string:\"huge\"",
+        "literal:string:\"lg\"",
+        "literal:string:\"med\"",
+        "literal:string:\"sm\"",
+        "literal:string:\"tiny\""
       ]
     }
   ]

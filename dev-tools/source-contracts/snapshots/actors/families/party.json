@@ -1,0 +1,4232 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "PartySystemSource",
+      "declaration": "src/module/actor/party/data.ts#PartySystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/actor/party/data.ts#PartySystemSource",
+      "valueRef": "src/module/actor/party/data.ts#PartySystemSource"
+    },
+    {
+      "name": "PartySource",
+      "declaration": "src/module/actor/party/data.ts#PartySource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/actor/party/data.ts#PartySource",
+      "valueRef": "src/module/actor/party/data.ts#PartySource#authored-document#authored-document-patch"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"agriculture\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "agriculture"
+    },
+    {
+      "id": "literal:string:\"arts\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "arts"
+    },
+    {
+      "id": "literal:string:\"boating\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "boating"
+    },
+    {
+      "id": "literal:string:\"building\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "building"
+    },
+    {
+      "id": "literal:string:\"city\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "city"
+    },
+    {
+      "id": "literal:string:\"culture\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "culture"
+    },
+    {
+      "id": "literal:string:\"defense\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "defense"
+    },
+    {
+      "id": "literal:string:\"economy\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "economy"
+    },
+    {
+      "id": "literal:string:\"engineering\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "engineering"
+    },
+    {
+      "id": "literal:string:\"fame\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fame"
+    },
+    {
+      "id": "literal:string:\"folklore\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "folklore"
+    },
+    {
+      "id": "literal:string:\"industry\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "industry"
+    },
+    {
+      "id": "literal:string:\"infamy\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "infamy"
+    },
+    {
+      "id": "literal:string:\"intrigue\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "intrigue"
+    },
+    {
+      "id": "literal:string:\"loyalty\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "loyalty"
+    },
+    {
+      "id": "literal:string:\"metropolis\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "metropolis"
+    },
+    {
+      "id": "literal:string:\"politics\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "politics"
+    },
+    {
+      "id": "literal:string:\"scholarship\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "scholarship"
+    },
+    {
+      "id": "literal:string:\"stability\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "stability"
+    },
+    {
+      "id": "literal:string:\"statecraft\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "statecraft"
+    },
+    {
+      "id": "literal:string:\"town\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "town"
+    },
+    {
+      "id": "literal:string:\"trade\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "trade"
+    },
+    {
+      "id": "literal:string:\"village\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "village"
+    },
+    {
+      "id": "literal:string:\"warfare\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "warfare"
+    },
+    {
+      "id": "literal:string:\"wilderness\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wilderness"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@542f5d103e113fee265f94f3",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "structural:542f5d103e113fee265f94f3",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@967aa902de73f1a866e21cb0",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@54a2f37439dfc984a91d1b14",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "structural:c23e9cecf6f1d444690e9195",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@c5275c188a450b36146f65c6",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "structural:c5275c188a450b36146f65c6",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Partial@c77c3e3207ccd1f7b1663264",
+      "kind": "object",
+      "name": "Partial",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1585,
+          "column": 1
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:66dfd7b2dd244f59cf8fc5fe",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "Record<string, SourceFromSchema<SettlementSchema>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "src/module/actor/party/data.ts#PartyDetailsSource",
+      "kind": "object",
+      "name": "PartyDetailsSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/party/data.ts",
+          "line": 65,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "alliance",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 41,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 67,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "members",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@967aa902de73f1a866e21cb0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 42,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@20bd3608f4b43f136cb01ade"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/party/data.ts#PartySource",
+      "kind": "intersection",
+      "name": "PartySource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/party/data.ts",
+          "line": 9,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/actor/data/base.ts#BaseActorSourcePF2e.$object@e29820500466eb6f627f34d5",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@3f34e9e776ec25efab4802d5"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:a9eaec2d4f2677516e9adefa",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 23,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "structural:f50366b1bc7c7da093247831",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 24,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/party/data.ts#PartySystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"party\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/party/data.ts#PartySource#authored-document#authored-document-patch",
+      "kind": "intersection",
+      "name": "PartySource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/party/data.ts",
+          "line": 9,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/actor/data/base.ts#BaseActorSourcePF2e.$object@e29820500466eb6f627f34d5",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@3f34e9e776ec25efab4802d5#authored-document#authored-document-patch"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:a9eaec2d4f2677516e9adefa",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 23,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "structural:f50366b1bc7c7da093247831",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/base.ts",
+              "line": 24,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/party/data.ts#PartySystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"party\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/party/data.ts#PartySystemSource",
+      "kind": "object",
+      "name": "PartySystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/party/data.ts",
+          "line": 58,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d6ebbd831ebfb5ed4ce1b0bb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/data/model.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "attributes",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 60,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "campaign",
+          "ref": "structural:86076c9012132182dba66988",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "details",
+          "ref": "src/module/actor/party/data.ts#PartyDetailsSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 59,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 62,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "primitive:undefined",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": true,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 61,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@32f03a2c2dc1b04f886b4684"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/party/kingdom/schema.ts#KingdomSchema.$object.xp.$object@a9b5d970b18be84fa31374f1",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/party/kingdom/schema.ts",
+          "line": 482,
+          "column": 9
+        }
+      ],
+      "fields": [
+        {
+          "name": "max",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 482,
+              "column": 26
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 482,
+              "column": 11
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/actor/party/kingdom/types.ts#FameType",
+      "kind": "union",
+      "name": "FameType",
+      "declaredAt": [
+        {
+          "file": "src/module/actor/party/kingdom/types.ts",
+          "line": 17,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"fame\"",
+        "literal:string:\"infamy\""
+      ]
+    },
+    {
+      "id": "structural:0e3f4f179b34be7e21f7a356",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@3ec88ce1af63d6a1e0a81acf"
+      ]
+    },
+    {
+      "id": "structural:52b832b3116ee7896d33fcf3",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:boolean:false",
+        "literal:boolean:true",
+        "literal:string:\"building\"",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:542f5d103e113fee265f94f3",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"agriculture\"",
+        "literal:string:\"arts\"",
+        "literal:string:\"boating\"",
+        "literal:string:\"defense\"",
+        "literal:string:\"engineering\"",
+        "literal:string:\"exploration\"",
+        "literal:string:\"folklore\"",
+        "literal:string:\"industry\"",
+        "literal:string:\"intrigue\"",
+        "literal:string:\"magic\"",
+        "literal:string:\"politics\"",
+        "literal:string:\"scholarship\"",
+        "literal:string:\"statecraft\"",
+        "literal:string:\"trade\"",
+        "literal:string:\"warfare\"",
+        "literal:string:\"wilderness\""
+      ]
+    },
+    {
+      "id": "structural:66dfd7b2dd244f59cf8fc5fe",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d4f79c83d4a4518e3895ccd0"
+      ]
+    },
+    {
+      "id": "structural:86076c9012132182dba66988",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@f302768fd3185651ce487342"
+      ]
+    },
+    {
+      "id": "structural:8fc5728bf9acd000af9d0784",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@cf0c640e607bd8687006d948"
+      ]
+    },
+    {
+      "id": "structural:918c19b33f1b25c48d016e7a",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b38dd4a14a72c34a0f9a7c02"
+      ]
+    },
+    {
+      "id": "structural:9322f2d2d57fff0c9e1ba22c",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"culture\"",
+        "literal:string:\"economy\"",
+        "literal:string:\"loyalty\"",
+        "literal:string:\"stability\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:c23e9cecf6f1d444690e9195",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"culture\"",
+        "literal:string:\"economy\"",
+        "literal:string:\"loyalty\"",
+        "literal:string:\"stability\""
+      ]
+    },
+    {
+      "id": "structural:c5275c188a450b36146f65c6",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"culture\"",
+        "literal:string:\"economy\"",
+        "literal:string:\"free\"",
+        "literal:string:\"loyalty\"",
+        "literal:string:\"stability\""
+      ]
+    },
+    {
+      "id": "structural:d43cd8535ca101c756e70507",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"city\"",
+        "literal:string:\"metropolis\"",
+        "literal:string:\"town\"",
+        "literal:string:\"village\""
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@088ccdfe3563fe0cd8f4a3c1",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "resource",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 432,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 430,
+              "column": 17
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, false, false, true>; resource: NumberField<number, number, false, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 428,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "rank",
+          "ref": "src/module/data.ts#ZeroToFour",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 393,
+              "column": 17
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ rank: NumberField<ZeroToFour, ZeroToFour, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 392,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@17d0a1a7326149b92059a582",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "culture",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b33a517b4f5365b82b4b2943",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "economy",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b33a517b4f5365b82b4b2943",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "loyalty",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b33a517b4f5365b82b4b2943",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "stability",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b33a517b4f5365b82b4b2943",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ culture: SchemaField<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }, SourceFromSchema<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }>, ModelPropsFromSchema<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }>, true, false, true>; economy: SchemaField<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }, SourceFromSchema<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }>, ModelPropsFromSchema<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }>, true, false, true>; loyalty: SchemaField<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }, SourceFromSchema<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }>, ModelPropsFromSchema<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }>, true, false, true>; stability: SchemaField<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }, SourceFromSchema<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }>, ModelPropsFromSchema<{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }>, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 489,
+              "column": 35
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@3ec88ce1af63d6a1e0a81acf",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "boosts",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c5275c188a450b36146f65c6",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 363,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 362,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "id",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 359,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 361,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 360,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "CHGSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 358,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@3f34e9e776ec25efab4802d5",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c19da1ea5bc6fcced3572a13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/party/data.ts#PartySystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"party\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ActorSchema<\"party\", PartySystemSource, ItemSourcePF2e>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 84,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@3f34e9e776ec25efab4802d5#authored-document#authored-document-patch",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@62899f01288c15a160c8ca52",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 114,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 104,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 112,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 106,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 96,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@4349778d2759a405c6f25770#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 102,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 110,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prototypeToken",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c19da1ea5bc6fcced3572a13",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 100,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/actor/party/data.ts#PartySystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 98,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"party\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ActorSchema<\"party\", PartySystemSource, ItemSourcePF2e>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/actor.d.ts",
+              "line": 84,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@478faedcd249c55e2324cf6c",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "max",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 461,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 460,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "RuinSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 459,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@4e027f84aa86ca60b4f24bf8",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "food",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "lumber",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "luxuries",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "ore",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "stone",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "Record<\"food\" | \"luxuries\" | \"lumber\" | \"ore\" | \"stone\", NumberField<number, number, false, false, true>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@54a2f37439dfc984a91d1b14",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "uuid",
+          "ref": "types/foundry/client/data/documents/actor.d.ts#global.ActorUUID",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 44,
+              "column": 17
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ uuid: DocumentUUIDField<ActorUUID, true, false, false>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/data.ts",
+              "line": 43,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@5f699f02e54311cc2b2e0498",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "food",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4f045d21c073706d21ec24a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "lumber",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4f045d21c073706d21ec24a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "luxuries",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4f045d21c073706d21ec24a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "ore",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4f045d21c073706d21ec24a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "stone",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4f045d21c073706d21ec24a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "Record<\"food\" | \"luxuries\" | \"lumber\" | \"ore\" | \"stone\", SchemaField<{ value: NumberField<number, number, true, false, true>; max: NumberField<number, number, true, false, true>; }, SourceFromSchema<{ value: NumberField<number, number, true, false, true>; max: NumberField<number, number, true, false, true>; }>, ModelPropsFromSchema<{ value: NumberField<number, number, true, false, true>; max: NumberField<number, number, true, false, true>; }>, true, false, true>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@636067e254f677a0f03ff4a9",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "1",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "10",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "15",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "20",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "5",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "charter",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "government",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "heartland",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c23e9cecf6f1d444690e9195",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "Record<KingdomBoostCategory, ArrayField<StringField<\"culture\" | \"economy\" | \"loyalty\" | \"stability\", \"culture\" | \"economy\" | \"loyalty\" | \"stability\", true, false, true>, (\"culture\" | \"economy\" | \"loyalty\" | \"stability\")[], (\"culture\" | \"economy\" | \"loyalty\" | \"stability\")[], true, false, true>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@760f049836174d261f7d04a2",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "boosts",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@636067e254f677a0f03ff4a9",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 398,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "charter",
+          "ref": "structural:8fc5728bf9acd000af9d0784",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 386,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "government",
+          "ref": "structural:918c19b33f1b25c48d016e7a",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 388,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "heartland",
+          "ref": "structural:0e3f4f179b34be7e21f7a356",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 387,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "manual",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 385,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "skills",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@76eb3769c367dcce8d42fea5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 389,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "BuildSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 383,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@76eb3769c367dcce8d42fea5",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "agriculture",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "arts",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "boating",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "defense",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "engineering",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "exploration",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "folklore",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "industry",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "intrigue",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "magic",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "politics",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "scholarship",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "statecraft",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "trade",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "warfare",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "wilderness",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@175b1f875921b8aa5756ac18",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "Record<\"magic\" | \"exploration\" | \"defense\" | \"agriculture\" | \"arts\" | \"boating\" | \"engineering\" | \"folklore\" | \"industry\" | \"intrigue\" | \"politics\" | \"scholarship\" | \"statecraft\" | \"trade\" | \"warfare\" | \"wilderness\", SchemaField<{ rank: NumberField<ZeroToFour, ZeroToFour, true, false, true>; }, SourceFromSchema<{ rank: NumberField<ZeroToFour, ZeroToFour, true, false, true>; }>, ModelPropsFromSchema<{ rank: NumberField<ZeroToFour, ZeroToFour, true, false, true>; }>, true, false, true>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@7d2b429ace77adc6e0a70013",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "dc",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 517,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 518,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ dc: NumberField<number, number, false, false, true>; text: StringField<string, string, false, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 516,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8b61bc9613d1756cbb7abcec",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "bonus",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 407,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "faces",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 406,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "number",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 405,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "penalty",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 408,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ number: NumberField<number, number, false, true, true>; faces: NumberField<number, number, false, true, true>; bonus: NumberField<number, number, true, false, true>; penalty: NumberField<number, number, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 404,
+              "column": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8f9b369786c29f6223ccffd2",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "food",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@088ccdfe3563fe0cd8f4a3c1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "lumber",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@088ccdfe3563fe0cd8f4a3c1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "luxuries",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@088ccdfe3563fe0cd8f4a3c1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "ore",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@088ccdfe3563fe0cd8f4a3c1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "stone",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@088ccdfe3563fe0cd8f4a3c1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "Record<\"food\" | \"luxuries\" | \"lumber\" | \"ore\" | \"stone\", SchemaField<{ value: NumberField<number, number, false, false, true>; resource: NumberField<number, number, false, false, true>; }, SourceFromSchema<{ value: NumberField<number, number, false, false, true>; resource: NumberField<number, number, false, false, true>; }>, ModelPropsFromSchema<{ value: NumberField<number, number, false, false, true>; resource: NumberField<number, number, false, false, true>; }>, true, false, true>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@91b57e1a06cad13c13705c32",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "max",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 412,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 411,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, true, false, true>; max: NumberField<number, number, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 410,
+              "column": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "invested",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 457,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "uuid",
+          "ref": "structural:765d24e1d4dd8b245b42f339",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 455,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "vacant",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 456,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "LeadershipSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 454,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a4f045d21c073706d21ec24a",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "max",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 419,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 418,
+              "column": 17
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, true, false, true>; max: NumberField<number, number, true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 417,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a835704da1593cb197dfbeef",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "army",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 508,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "breakdown",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 510,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "settlement",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 507,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 509,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ settlement: NumberField<number, number, false, false, true>; army: NumberField<number, number, false, false, true>; value: NumberField<number, number, false, false, true>; breakdown: StringField<string, string, false, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 506,
+              "column": 37
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@af0c09a099a0246233af2487",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "commodities",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@5f699f02e54311cc2b2e0498",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 414,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "dice",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8b61bc9613d1756cbb7abcec",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 404,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "fame",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@91b57e1a06cad13c13705c32",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 410,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "points",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 423,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "workSites",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@8f9b369786c29f6223ccffd2",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 425,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ResourceSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 403,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b33a517b4f5365b82b4b2943",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "mod",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 492,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "penalty",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 494,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "ruin",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@478faedcd249c55e2324cf6c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 493,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 491,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, false, false, true>; mod: NumberField<number, number, false, false, true>; ruin: SchemaField<RuinSchema, SourceFromSchema<RuinSchema>, ModelPropsFromSchema<RuinSchema>, true, false, true>; penalty: NumberField<number, number, false, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 490,
+              "column": 53
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b38dd4a14a72c34a0f9a7c02",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "boosts",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c5275c188a450b36146f65c6",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 363,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 362,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "feat",
+          "ref": "structural:765d24e1d4dd8b245b42f339",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 371,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "id",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 359,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 361,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 360,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "skills",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@542f5d103e113fee265f94f3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 370,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "GovernmentSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 369,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@cf0c640e607bd8687006d948",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "boosts",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@c5275c188a450b36146f65c6",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 363,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 362,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flaw",
+          "ref": "structural:9322f2d2d57fff0c9e1ba22c",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 367,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "id",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 359,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 361,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 360,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "CharterSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 366,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@cf80379cc4d1e4a89ded0b20",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "base",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 446,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "reduction",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 448,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "total",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 449,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ base: NumberField<number, number, false, false, true>; reduction: NumberField<number, number, false, false, true>; total: NumberField<number, number, false, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 445,
+              "column": 37
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d4f79c83d4a4518e3895ccd0",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "consumption",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@cf80379cc4d1e4a89ded0b20",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 445,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 443,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 441,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 439,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "overcrowded",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 442,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 444,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "storage",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@4e027f84aa86ca60b4f24bf8",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 451,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:d43cd8535ca101c756e70507",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 440,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "SettlementSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 438,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d93fd92724711e063205e5e6",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "anarchyThreshold",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 514,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 513,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, false, false, true>; anarchyThreshold: NumberField<number, number, false, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 512,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@ee8da881afeea46a32c0ac8a",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "counselor",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "emissary",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "general",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "magister",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "ruler",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "treasurer",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "viceroy",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "warden",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9942286d9e42abe07df5e39c",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "Record<\"general\" | \"ruler\" | \"counselor\" | \"emissary\" | \"magister\" | \"treasurer\" | \"viceroy\" | \"warden\", SchemaField<LeadershipSchema, SourceFromSchema<LeadershipSchema>, ModelPropsFromSchema<LeadershipSchema>, true, false, true>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@f302768fd3185651ce487342",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "abilities",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@17d0a1a7326149b92059a582",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 489,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "active",
+          "ref": "structural:52b832b3116ee7896d33fcf3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 466,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "aspiration",
+          "ref": "src/module/actor/party/kingdom/types.ts#FameType",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 488,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "build",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@760f049836174d261f7d04a2",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 497,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "capital",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 474,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "consumption",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@a835704da1593cb197dfbeef",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 506,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "customModifiers",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Record@5338aa03184c50cf2f6c330e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 498,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "event",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@7d2b429ace77adc6e0a70013",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 516,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 473,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "leadership",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@ee8da881afeea46a32c0ac8a",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 499,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 476,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "module",
+          "ref": "primitive:object",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 521,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 472,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "resources",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@af0c09a099a0246233af2487",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 500,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "settlements",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Partial@c77c3e3207ccd1f7b1663264",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 502,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "size",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 475,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"kingmaker\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 465,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "unrest",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d93fd92724711e063205e5e6",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 512,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "xp",
+          "ref": "src/module/actor/party/kingdom/schema.ts#KingdomSchema.$object.xp.$object@a9b5d970b18be84fa31374f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 477,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "KingdomSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/actor/party/kingdom/schema.ts",
+              "line": 464,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -125,30 +125,6 @@
       ]
     },
     {
-      "id": "primitive:null",
-      "kind": "primitive",
-      "declaredAt": [],
-      "value": "null"
-    },
-    {
-      "id": "primitive:number",
-      "kind": "primitive",
-      "declaredAt": [],
-      "value": "number"
-    },
-    {
-      "id": "primitive:object",
-      "kind": "open",
-      "declaredAt": [],
-      "domain": "object"
-    },
-    {
-      "id": "primitive:undefined",
-      "kind": "primitive",
-      "declaredAt": [],
-      "value": "undefined"
-    },
-    {
       "id": "primitive:unknown",
       "kind": "open",
       "declaredAt": [],
