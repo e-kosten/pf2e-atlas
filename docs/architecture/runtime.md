@@ -146,7 +146,7 @@ runtime evidence. See [ADR 0039](./decisions/0039-authored-rule-inputs.md) and t
 [authored-rule comparison](../research/authored-rule-source.md). These complete
 rule portfolios are diagnostic output, separate from callable production slices.
 
-Saved generator inputs live under `scripts/source-contracts/snapshots`, with source
+Saved generator inputs live under `dev-tools/source-contracts/snapshots`, with source
 identity in one manifest and graph nodes owned once across module snapshots.
 The generator loads the entire selection before assigning shared Rust owners.
 Output is partitioned under `source_model/generated` into shared Item components,

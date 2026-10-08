@@ -107,15 +107,15 @@ Exactly one more PR is not established.
 
 ## Reproduce
 
-Follow the [source package instructions](../../scripts/source-contracts/README.md)
+Follow the [source package instructions](../../dev-tools/source-contracts/README.md)
 to export the pin and run complete strict extraction. Then:
 
 ```sh
-npm --prefix scripts/source-contracts run verify
+npm --prefix dev-tools/source-contracts run verify
 cargo test -p atlas-ingest --test item_source_generation --test equipment_source_generation
 cargo build -p atlas-ingest --example item_generation_probe
 set -o pipefail
-node scripts/source-contracts/dist/sample-items.js --source scratch/pf2e | \
+node dev-tools/source-contracts/dist/src/cli/sample-items.js --source scratch/pf2e | \
   target/debug/examples/item_generation_probe > scratch/item-corpus-report.json
 ```
 
@@ -124,11 +124,11 @@ Repeat the first-blocker attempt after extraction:
 ```sh
 node --input-type=module <<'JS'
 import fs from 'node:fs';
-import { generateRustModules } from './scripts/source-contracts/dist/source-generation.js';
-import { loadGenerationInput } from './scripts/source-contracts/dist/generation-input.js';
+import { generateRustModules } from './dev-tools/source-contracts/dist/src/generation/source-generation.js';
+import { loadGenerationInput } from './dev-tools/source-contracts/dist/src/generation/generation-input.js';
 const graph = JSON.parse(fs.readFileSync('scratch/source-extraction/type-graph.json'));
 const summary = JSON.parse(fs.readFileSync('scratch/source-extraction/summary.json'));
-const input = await loadGenerationInput('scripts/source-contracts/snapshots/manifest.json');
+const input = await loadGenerationInput('dev-tools/source-contracts/snapshots/manifest.json');
 const results = graph.roots.map(root => {
   try {
     generateRustModules({ source: summary.source, nodes: graph.nodes,
