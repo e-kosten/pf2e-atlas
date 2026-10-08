@@ -22,6 +22,130 @@ mod tests {
         parse::SourceContext::new("fixture", "fixture.json", "$")
     }
     #[test]
+    fn nullable_collections_preserve_positions_nulls_numbers_and_ordered_keys() {
+        let raw = value::parse_source(br#"{"nullable":[null,18446744073709551615,null],"undefined":[null,3],"map":{"z":null,"a":2},"nulls":[null,null],"undefineds":[null],"nested":[null,[1,null],[]],"nodes":[null,{"next":{"next":null}},null]}"#).unwrap();
+        let parsed = generated::parse_collections(&raw, &context(), "$").unwrap();
+        let super::presence::SourcePresence::Value(numbers) = &parsed.nullable else {
+            panic!()
+        };
+        assert_eq!(numbers.len(), 3);
+        assert!(numbers[0].is_none() && numbers[2].is_none());
+        assert_eq!(numbers[1].as_ref().unwrap().as_u64(), Some(u64::MAX));
+        let super::presence::SourcePresence::Value(map) = &parsed.map else {
+            panic!()
+        };
+        assert_eq!(
+            map.entries
+                .iter()
+                .map(|(key, _)| key.as_str())
+                .collect::<Vec<_>>(),
+            ["z", "a"]
+        );
+        let serialized = serde_json::to_value(parsed).unwrap();
+        assert_eq!(
+            serialized["nullable"]["value"],
+            json!([null, u64::MAX, null])
+        );
+        assert_eq!(serialized["undefined"]["value"], json!([null, 3]));
+        assert_eq!(serialized["nulls"]["value"], json!([null, null]));
+        assert_eq!(serialized["undefineds"]["value"], json!([null]));
+        assert_eq!(serialized["nested"]["value"], json!([null, [1, null], []]));
+        assert_eq!(serialized["nodes"]["value"][0], json!(null));
+        assert_eq!(serialized["nodes"]["value"][2], json!(null));
+        let graph = super::rule_fidelity::FidelityGraph::new(&json!({"nodes":[
+            {"id":"number","kind":"primitive","value":"number"},
+            {"id":"null","kind":"primitive","value":"null"},
+            {"id":"undefined","kind":"primitive","value":"undefined"},
+            {"id":"maybe","kind":"union","members":["number","null","undefined"]},
+            {"id":"numbers","kind":"array","element":"maybe"},
+            {"id":"optional_numbers","kind":"union","members":["numbers","undefined"]},
+            {"id":"nested","kind":"array","element":"optional_numbers"},
+            {"id":"nulls","kind":"array","element":"null"},
+            {"id":"map","kind":"object","fields":[],"indexSignatures":[{"value":"maybe"}]}
+        ]}));
+        let value::SourceValue::Object(object) = &raw else {
+            panic!()
+        };
+        for (key, reference) in [
+            ("nullable", "numbers"),
+            ("undefined", "numbers"),
+            ("nested", "nested"),
+            ("nulls", "nulls"),
+            ("map", "map"),
+        ] {
+            let source = &object
+                .fields()
+                .iter()
+                .find(|(name, _)| name == key)
+                .unwrap()
+                .1;
+            assert!(
+                graph
+                    .compare(reference, source, &serialized[key]["value"])
+                    .is_ok(),
+                "{key}"
+            );
+        }
+    }
+
+    #[test]
+    fn collection_entry_diagnostics_and_duplicate_checks_stay_precise() {
+        for (bytes, path) in [
+            (br#"{"nullable":[null,"bad"]}"#.as_slice(), "$.nullable[1]"),
+            (br#"{"map":{"a":null,"bad":false}}"#, r#"$.map["bad"]"#),
+            (br#"{"map":{"a":null,"a":2}}"#, r#"$.map["a"]"#),
+            (br#"{"nulls":[null,1]}"#, "$.nulls[1]"),
+            (br#"{"nested":[null,[null,false]]}"#, "$.nested[1][1]"),
+        ] {
+            let raw = value::parse_source(bytes).unwrap();
+            let error = generated::parse_collections(&raw, &context(), "$").unwrap_err();
+            assert_eq!(error.json_path, path);
+            assert_eq!(*error.context, context());
+        }
+        let raw = value::parse_source(br#"{"fixed":2,"dynamic":null}"#).unwrap();
+        let bag = generated::parse_nullable_number_bag(&raw, &context(), "$").unwrap();
+        assert!(bag.indexed_fields.entries[0].1.is_none());
+        let bad = value::parse_source(br#"{"fixed":false}"#).unwrap();
+        assert!(generated::parse_nullable_number_bag(&bad, &context(), "$").is_err());
+    }
+
+    #[test]
+    fn nullable_tuple_union_guards_preserve_arity_and_literal_identity() {
+        for bytes in [b"[null]".as_slice(), br#"["a"]"#, br#"["heal"]"#] {
+            let raw = value::parse_source(bytes).unwrap();
+            let parsed = generated::parse_nullable_tuple_union(&raw, &context(), "$").unwrap();
+            assert_eq!(
+                serde_json::to_value(parsed).unwrap(),
+                serde_json::from_slice::<serde_json::Value>(bytes).unwrap()
+            );
+        }
+        for bytes in [b"[]".as_slice(), b"[null,null]", br#"["bad"]"#, b"[1]"] {
+            let raw = value::parse_source(bytes).unwrap();
+            assert!(generated::parse_nullable_tuple_union(&raw, &context(), "$").is_err());
+        }
+        let raw = value::parse_source(br#"{"tuple":[null],"numbers":[null,1]}"#).unwrap();
+        let parsed = generated::parse_collection_consumer(&raw, &context(), "$").unwrap();
+        assert_eq!(
+            serde_json::to_value(parsed).unwrap()["tuple"]["value"],
+            json!([null])
+        );
+    }
+    #[test]
+    fn nullable_array_union_keeps_null_identity_and_reports_empty_ambiguity() {
+        for bytes in [b"[null]".as_slice(), br#"[null,"a",null]"#, br#"["b"]"#] {
+            let raw = value::parse_source(bytes).unwrap();
+            let parsed = generated::parse_nullable_array_union(&raw, &context(), "$").unwrap();
+            assert_eq!(
+                serde_json::to_value(parsed).unwrap(),
+                serde_json::from_slice::<serde_json::Value>(bytes).unwrap()
+            );
+        }
+        for bytes in [b"[]".as_slice(), br#"[null,"b"]"#, b"[1]"] {
+            let raw = value::parse_source(bytes).unwrap();
+            assert!(generated::parse_nullable_array_union(&raw, &context(), "$").is_err());
+        }
+    }
+    #[test]
     fn mapped_source_keys_preserve_values_serialized_names_and_diagnostics() {
         let raw =
             value::parse_source(br#"{"_id":"abc","greater-darkvision":60,"self":"x","1st":"y"}"#)

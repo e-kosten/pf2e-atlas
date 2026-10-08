@@ -77,8 +77,9 @@ core/migration-dependent cases. Keep the current field representations and
 report these input problems; do not add case-specific parsing or repairs.
 Full Foundry admission remains unexecuted, with explicit evidence gaps rather
 than claims that every remaining value is runtime-invalid. These dispositions
-permit continued generator work. Nullable/undefined collection support for
-whole Actor/Item generation is next. Before production adoption, define how
+permit continued generator work. Persisted nullable/undefined collections are
+supported; numeric index signatures for whole Actor/Item generation are next.
+Before production adoption, define how
 ingest preserves and reports rejected source rules, and verify demonstrated
 valid authored forms without introducing record allowlists.
 
@@ -153,8 +154,14 @@ brings the 47-root attempt to 45 emitted and individually compiled roots: all 42
 rule roots plus JournalEntry, Macro and RollTable. Open/indexed domains, string
 templates, concrete generic naming and field-name mappings now have explicit
 representations. Intersection index constraints come directly from the compiler.
-Actor/Item reach an undefined-allowing array element in DeepPartial materials;
-define its persisted collection representation next, then repeat all roots.
+The [collection capability slice](../../research/collection-source-generation.md)
+adds inline Option entries for persisted nullable arrays, fixed tuples and maps,
+plus null-only entries. Undefined array positions persist as null; undefined
+object properties remain absent. Shape signatures intern shared descendants and
+validate recursive anchors without unbounded expansion. Production snapshots
+and generated modules stay unchanged. All 45 previously emitted roots still
+compile; Actor/Item now reach Record<number, ...> in BackgroundSystemSource.boosts.
+Define numeric index key semantics next, then repeat all roots.
 Optional/rest tuples and alias-only recursive collections also remain unsupported;
 first blockers are not exhaustive. Emission/compilation does not establish
 accepted or value-faithful family coverage. The authored rule corpus exposes

@@ -163,7 +163,10 @@ predicate corpus evidence. The
 [template/generic report](../research/template-source-generation.md) records
 whole-portfolio compilation, corpus discrepancies and remaining generator gaps.
 The [intersection report](../research/intersection-source-generation.md) updates
-that evidence to 45 emitted and individually compiled roots out of 47.
+that evidence to 45 emitted and individually compiled roots out of 47. The
+[collection report](../research/collection-source-generation.md) retains that
+count after adding persisted nullable entries and bounded shared-shape signatures;
+Actor/Item now reach a number-keyed map instead of the undefined array element.
 
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 

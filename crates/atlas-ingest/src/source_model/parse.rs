@@ -278,6 +278,35 @@ pub(super) fn boolean(
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "Nullable collections are exercised by generated fixtures and portfolio probes."
+)]
+pub(super) fn nullable<T>(
+    value: &SourceValue,
+    context: &SourceContext,
+    path: &str,
+    parse: impl FnOnce(&SourceValue, &SourceContext, &str) -> ParseResult<T>,
+) -> ParseResult<Option<T>> {
+    if matches!(value, SourceValue::Null) {
+        Ok(None)
+    } else {
+        parse(value, context, path).map(Some)
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Null-only collection entries are exercised by generated fixtures."
+)]
+pub(super) fn null(value: &SourceValue, context: &SourceContext, path: &str) -> ParseResult<()> {
+    if matches!(value, SourceValue::Null) {
+        Ok(())
+    } else {
+        Err(context.error(path, "null", value))
+    }
+}
+
 pub(super) fn array<T>(
     value: &SourceValue,
     context: &SourceContext,

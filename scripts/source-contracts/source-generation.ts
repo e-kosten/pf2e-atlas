@@ -65,6 +65,15 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       members.sort((a,b)=>atomicOrder.indexOf(atomicDomain(lookup(a))!)-atomicOrder.indexOf(atomicDomain(lookup(b))!));
     return { ...node, members };
   };
+  // JSON preserves nulls in all collections; undefined occupies an array/tuple
+  // position as null, but an undefined object property is omitted.
+  const collectionState = (ref: string, indexed = false) => {
+    const entry = lookup(ref);
+    const refs = entry.kind === 'union' ? entry.members : [ref];
+    const nullable = refs.includes('primitive:null') || !indexed && refs.includes('primitive:undefined');
+    const onlyNullish = refs.every(ref => ['primitive:null', 'primitive:undefined', 'primitive:never'].includes(ref));
+    return { nullable, onlyNullish };
+  };
   const templateParts = (node: GraphNode & {kind:'template'}): string => {
     if (node.text.length !== node.parameters.length + 1
       || node.parameters.some(ref => { const parameter=lookup(ref); return parameter.kind!=='primitive' || parameter.value!=='string'; }))
@@ -91,19 +100,31 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
   };
   input.selection.forEach(root=>{root.fields.filter(field=>!field.forbidden).forEach(field=>findCycles(field.ref));if(root.valueRef)findCycles(root.valueRef);});
   const validatedAnchors=new Set<string>();
-  const signature = (node: GraphNode, ancestors = new Set<string>(),canonical=true): string => {
+  // Attempt-local interned IDs retain structural sharing without repeatedly
+  // embedding descendant signatures in parent strings.
+  const signatureIds=new Map<string,string>();
+  const signatureCache=new Map<string,string>();
+  const signature = (node:GraphNode,ancestors=new Set<string>(),canonical=true):string => {
+    if(canonical && signatureCache.has(node.id))return signatureCache.get(node.id)!;
+    const shape=signatureShape(node,ancestors,canonical);
+    if(!signatureIds.has(shape))signatureIds.set(shape,'shape:'+signatureIds.size);
+    const result=signatureIds.get(shape)!;
+    if(canonical)signatureCache.set(node.id,result);
+    return result;
+  };
+  const signatureShape = (node: GraphNode, ancestors = new Set<string>(),canonical=true): string => {
     if(canonical && anchors.has(node.id)) {
-      if(!validatedAnchors.has(node.id)){signature(node,new Set(),false);validatedAnchors.add(node.id);}
+      if(!validatedAnchors.has(node.id)){validatedAnchors.add(node.id);signature(node,new Set(),false);}
       return JSON.stringify(['recursive',node.id]);
     }
     if (ancestors.has(node.id)) return JSON.stringify(['recursive',node.id]);
     const next = new Set([...ancestors, node.id]);
-    const child = (ref: string) => signature(normalized(ref), next,canonical);
+    const child = (ref: string) => signature(normalized(ref), next);
     const collectionChild = (ref: string, indexed = false) => {
-      const entry = lookup(ref);
-      if (entry.kind === 'union' && entry.members.some(ref => ref === 'primitive:null' || !indexed && ref === 'primitive:undefined'))
-        throw new Error(`Nullable collection entries need a separate model: ${ref}`);
-      return child(ref);
+      const {nullable, onlyNullish} = collectionState(ref, indexed);
+      if (onlyNullish && nullable) return 'persisted:null';
+      if (onlyNullish) throw new Error(`Collection entry has no persisted value alternatives: ${ref}`);
+      return nullable ? JSON.stringify(['nullable', child(ref)]) : child(ref);
     };
     if (node.kind === 'object' || node.kind === 'intersection') {
       if (node.kind === 'intersection' && node.impossible) throw new Error(`Impossible selected intersection: ${node.id}`);
@@ -134,7 +155,8 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       if(node.elements.some(element=>element.optional || element.rest)) throw new Error(`Optional/rest tuples are unsupported: ${node.id}`);
       return JSON.stringify(['tuple',...node.elements.map(element=>collectionChild(element.ref))]);
     }
-    if (node.kind === 'array') return `array:${openTraitArrays.has(node.id) ? JSON.stringify(['primitive', 'string']) : collectionChild(node.element)}`;
+    if (node.kind === 'array') return `array:${openTraitArrays.has(node.id) ? signature({id:'primitive:string',kind:'primitive',value:'string'})
+      : node.element === 'primitive:never' ? 'empty' : collectionChild(node.element)}`;
     if (node.kind === 'primitive' || node.kind === 'literal') return JSON.stringify([node.kind, node.value]);
     if (node.kind === 'template') { templateParts(node); return JSON.stringify(['template',node.text]); }
     if (node.kind === 'open') {
@@ -202,13 +224,13 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     if(node.kind==='tuple')return `matches!(${v}, SourceValue::Array(values) if values.len() == ${node.elements.length}${node.elements.map((element,index)=>{
       const child=normalized(element.ref),position=`&values[${index}]`;
       const scalar=child.kind==='literal' || child.kind==='primitive' || child.kind==='template' || child.kind==='union' && child.members.every(ref=>['literal','primitive','template'].includes(normalized(ref).kind));
-      return ` && ${scalar?guard(element.ref,position,next):`matches!(${position}, ${[...valueKinds(element.ref)].sort().map(kind=>`SourceValue::${kind}${kind==='Null'?'':'(_)'}`).join(' | ')})`}`;
+      return ` && ${collectionGuard(element.ref,position,next,scalar)}`;
     }).join('')})`;
     if(node.kind==='array') {
       const element=normalized(node.element);
       if(element.kind==='primitive' && element.value==='never')return `matches!(${v}, SourceValue::Array(values) if values.is_empty())`;
       const scalar=element.kind==='literal' || element.kind==='primitive' || element.kind==='template' || element.kind==='union' && element.members.every(ref=>['literal','primitive','template'].includes(normalized(ref).kind));
-      return scalar?`matches!(${v}, SourceValue::Array(values) if values.iter().all(|v| ${guard(node.element,'v',next)}))`:`matches!(${v}, SourceValue::Array(_))`;
+      return scalar?`matches!(${v}, SourceValue::Array(values) if values.iter().all(|v| ${collectionGuard(node.element,'v',next,true)}))`:`matches!(${v}, SourceValue::Array(_))`;
     }
     if(node.kind==='object' || node.kind==='intersection') {
       const required=node.fields.filter(field=>!field.forbidden && !field.optional && !field.undefinedAllowed);
@@ -219,6 +241,12 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
         +node.fields.filter(field=>field.forbidden).map(field=>` && !union_member(${v}, ${rustString(field.name)}, |_| true)`).join('');
     }
     throw new Error(`Unsupported union alternative: ${node.id}`);
+  };
+  const collectionGuard = (ref:string,v:string,seen:Set<string>,scalar:boolean):string => {
+    const {nullable,onlyNullish}=collectionState(ref);
+    if(onlyNullish && nullable)return `matches!(${v}, SourceValue::Null)`;
+    const condition=scalar?guard(ref,v,seen):`matches!(${v}, ${[...valueKinds(ref)].sort().map(kind=>`SourceValue::${kind}${kind==='Null'?'':'(_)'}`).join(' | ')})`;
+    return nullable?`(matches!(${v}, SourceValue::Null) || ${condition})`:condition;
   };
   const anchored = new Set<string>();
   const checkAliases=(ref:string,seen=new Set<string>()):void=>{
@@ -256,6 +284,28 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
       output.imports.get(owner.module)!.add(owner.type);
     }
   };
+  const collectionOwners = new Map<string,Owner>();
+  const emitCollection = (ref:string,hint:string,module:string,indexed=false):Owner => {
+    const {nullable,onlyNullish}=collectionState(ref,indexed);
+    if(onlyNullish && nullable)return depend(module,{type:'()',parser:'null',inline:true});
+    if(!nullable)return emit(ref,hint,module);
+    const key=JSON.stringify(['nullable',signature(normalized(ref))]);
+    const existing=collectionOwners.get(key);
+    if(existing)return depend(module,existing);
+    const name=allocate(hint+'Nullable');
+    const value:Owner={type:'',parser:`read_${snake(name)}`,module,inline:true};
+    collectionOwners.set(key,value);
+    const child=emit(ref,hint,module);
+    value.typeDependencies=[child];
+    Object.defineProperty(value,'type',{get:()=>`Option<${child.type}>`});
+    const output=moduleFor(module);
+    output.helpers.add('nullable');output.typeDependencies.add(child);
+    output.declarations.push(()=>`// Persisted nullable collection entry: ${ref}
+pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${value.type}> {
+    nullable(v, c, p, ${child.parser})
+}`);
+    return value;
+  };
   const emit = (ref: string, hint: string, module: string): Owner => {
     const node = normalized(ref);
     checkAliases(ref);
@@ -280,7 +330,7 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     const output = moduleFor(module);
     if(node.kind==='tuple') {
       const children=node.elements.map((element,index)=>{
-        const child=emit(element.ref,name+'Entry'+(index+1),module);
+        const child=emitCollection(element.ref,name+'Entry'+(index+1),module);
         const boxed=boxedEdge(node,element.ref);
         return {child,parse:`${child.parser}(&values[${index}], c, &format!("{p}[${index}]"))?`,boxed};
       });
@@ -302,7 +352,7 @@ ${value.inline?'':`pub type ${name} = ${tupleType()};\n`}pub(in crate::source_mo
       const childRef = array ? node.element : node.indexSignatures[0].value;
       const empty = array && lookup(childRef).kind === 'primitive' && (lookup(childRef) as GraphNode & { value: string }).value === 'never';
       const child = empty ? { type: 'String', parser: '|v, c, p| Err(c.error(p, "no array elements", v))' }
-        : array && openTraitArrays.has(node.id) ? depend(module, { type: 'String', parser: 'string' }) : emit(childRef, name + 'Entry', module);
+        : array && openTraitArrays.has(node.id) ? depend(module, { type: 'String', parser: 'string' }) : emitCollection(childRef, name + 'Entry', module, !array);
       output.types.add(name);
       output.helpers.add(array ? 'array' : 'keyed');
       output.declarations.push(()=>`// Source declaration: ${node.id}${array && openTraitArrays.has(node.id) ? '; trait identifiers intentionally remain open strings.' : ''}
@@ -321,7 +371,7 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
         return { field, child, rust: rustField(field.name),boxed };
       });
       const indexed = node.indexSignatures.length
-        ? emit(node.indexSignatures[0].value, name+'IndexedEntry', module) : undefined;
+        ? emitCollection(node.indexSignatures[0].value, name+'IndexedEntry', module, true) : undefined;
       const forbidden = node.fields.filter(field=>field.forbidden).map(field=>rustString(field.name)).join(', ');
       const names = fields.map(field => field.rust);
       if (new Set(names).size !== names.length || names.includes('additional_fields')

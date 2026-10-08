@@ -36,9 +36,11 @@ counts. Predicate execution remains future work.
 
 Fixed tuples preserve array arity and position types. Empty tuples use `[(); 0]`
 so serialization retains `[]`; single tuples retain their trailing comma. Keyword
-field names use Rust raw identifiers. Optional/rest tuples, nullable collection
-entries/value roots and recursive aliases without a nominal anchor fail explicitly
-until their representations are supported.
+field names use Rust raw identifiers. Nullable collection entries follow
+[ADR 0035](./0035-source-value-generation-policy.md), including null-aware tuple
+and scalar-array union guards. Optional/rest tuples, nullable value roots and
+recursive aliases without a nominal anchor fail explicitly until their
+representations are supported.
 
 Anonymous unions of complete persisted scalar types use member-derived names in
 String, Number, Boolean order, such as StringOrNumber or NumberOrBoolean. A complete

@@ -40,8 +40,9 @@ from their broader individual constraints. Resolved pure maps use SourceMap; nam
 indexed intersections use the same struct representation as indexed objects and
 share equivalent owners. Older graphs without resolved intersection indices must
 be re-extracted; there is no constituent-based fallback.
-Explicit nullable collection unions and multiple/non-string resolved index
-signatures remain unsupported until their representations are defined.
+Explicit nullable index values use the collection representation in
+[ADR 0035](./0035-source-value-generation-policy.md). Multiple/non-string resolved
+index signatures remain unsupported until their representations are defined.
 Indexed object identity includes the dynamic value constraint and forbidden-member
 set. Named indexed structs can anchor recursion; their map entries provide layout
 indirection, while inline recursive named fields retain the existing boxing policy.
