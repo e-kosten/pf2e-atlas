@@ -25,7 +25,9 @@
     "presample-rules": "npm run build --silent",
     "sample-rules": "node dist/sample-rules.js",
     "precompare-rules": "npm run build --silent",
-    "compare-rules": "node dist/compare-rules.js"
+    "compare-rules": "node dist/compare-rules.js",
+    "precompare-documents": "npm run build --silent",
+    "compare-documents": "node dist/compare-documents.js"
   },
   "dependencies": {
     "typescript": "5.9.3"

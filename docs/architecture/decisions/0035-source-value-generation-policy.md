@@ -48,6 +48,13 @@ present null; explicit null is required for that representation. Undefined-only
 index values still stop generation because they have no persisted value arm.
 Named object fields retain the existing SourcePresence policy.
 
+Null-only named values use `SourcePresence<()>`: missing/null states retain the
+same policy and present non-null values fail. A null/undefined-only union has the
+same persisted null value type. Literal string enums retain exact serde tokens;
+empty, digit-leading and punctuation-only tokens receive valid Rust variant names
+(`Empty`, `Value0`, `ValueU2D`). Collisions still fail explicitly rather than
+silently merging vocabulary entries.
+
 Structural signatures intern child shapes and memoize resolved nodes instead of
 expanding repeated descendants into strings. Recursive anchors validate each
 reachable shape before allocation; nominal identity still separates recursive

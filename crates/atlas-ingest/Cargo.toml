@@ -17,6 +17,7 @@ atlas-index.workspace = true
 atlas-record.workspace = true
 ego-tree.workspace = true
 rayon.workspace = true
+ryu-js.workspace = true
 scraper.workspace = true
 serde.workspace = true
 serde_json.workspace = true

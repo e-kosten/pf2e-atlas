@@ -22,6 +22,150 @@ mod tests {
         parse::SourceContext::new("fixture", "fixture.json", "$")
     }
     #[test]
+    fn numeric_key_domain_matches_typescript_without_key_coercion() {
+        let cases: Vec<(String, bool)> =
+            serde_json::from_str(include_str!("../numeric-keys.json")).unwrap();
+        for (key, expected) in cases {
+            assert_eq!(parse::is_numeric_key(&key), expected, "{key:?}");
+        }
+    }
+    #[test]
+    fn numeric_maps_preserve_unmodeled_names_order_and_duplicates() {
+        let raw = value::parse_source(
+            br#"{"1":9007199254740993,"-1":2,"label":null,"01":1,"01":2,"-0":false}"#,
+        )
+        .unwrap();
+        let parsed = generated::parse_numeric_keys(&raw, &context(), "$").unwrap();
+        assert_eq!(
+            parsed
+                .indexed_fields
+                .entries
+                .iter()
+                .map(|(key, _)| key.as_str())
+                .collect::<Vec<_>>(),
+            ["1", "-1"]
+        );
+        assert_eq!(
+            parsed.indexed_fields.entries[0].1.as_u64(),
+            Some(9007199254740993)
+        );
+        assert_eq!(
+            parsed
+                .additional_fields
+                .fields()
+                .iter()
+                .map(|(key, _)| key.as_str())
+                .collect::<Vec<_>>(),
+            ["label", "01", "01", "-0"]
+        );
+        let graph = super::rule_fidelity::FidelityGraph::new(&json!({"nodes":[
+            {"id":"number","kind":"primitive","value":"number"},
+            {"id":"numeric","kind":"object","fields":[],"indexSignatures":[{"key":"primitive:number","value":"number"}]}
+        ]}));
+        let model = serde_json::to_value(&parsed).unwrap();
+        assert!(graph.compare("numeric", &raw, &model).is_ok());
+        let mut lost = model.clone();
+        lost["additional_fields"]["fields"]
+            .as_array_mut()
+            .unwrap()
+            .pop();
+        assert!(graph.compare("numeric", &raw, &lost).is_err());
+        let mut changed = model;
+        changed["indexed_fields"]["entries"][0][0] = json!("01");
+        assert!(graph.compare("numeric", &raw, &changed).is_err());
+        for (source, path) in [
+            (br#"{"1":"bad"}"#.as_slice(), r#"$["1"]"#),
+            (br#"{"1":1,"1":2}"#, r#"$["1"]"#),
+        ] {
+            let raw = value::parse_source(source).unwrap();
+            assert_eq!(
+                generated::parse_numeric_keys(&raw, &context(), "$")
+                    .unwrap_err()
+                    .json_path,
+                path
+            );
+        }
+        let raw = value::parse_source(br#"{"keys":{"0":3,"extra":true}}"#).unwrap();
+        generated::parse_numeric_consumer(&raw, &context(), "$").unwrap();
+    }
+    #[test]
+    fn numeric_named_constraints_apply_only_to_numeric_names_and_recursion_has_a_struct_anchor() {
+        let raw =
+            value::parse_source(br#"{"label":"b","2":"a","4":"a","3":false,"3":null,"other":1}"#)
+                .unwrap();
+        let parsed = generated::parse_numeric_bag(&raw, &context(), "$").unwrap();
+        assert_eq!(parsed.indexed_fields.entries[0].0, "4");
+        assert_eq!(parsed.additional_fields.fields().len(), 3);
+        let raw = value::parse_source(br#"{"2":"b"}"#).unwrap();
+        assert_eq!(
+            generated::parse_numeric_bag(&raw, &context(), "$")
+                .unwrap_err()
+                .json_path,
+            r#"$["2"]"#
+        );
+        let raw =
+            value::parse_source(br#"{"1":{"2":{},"note":null},"note":{"future":true}}"#).unwrap();
+        generated::parse_recursive_numeric_keys(&raw, &context(), "$").unwrap();
+    }
+    #[test]
+    fn null_only_fields_and_unusual_enum_tokens_remain_exact_and_strict() {
+        for token in ["", "0", "-"] {
+            let raw = value::parse_source(
+                format!(
+                    r#"{{"only":null,"token":{}}}"#,
+                    serde_json::to_string(token).unwrap()
+                )
+                .as_bytes(),
+            )
+            .unwrap();
+            let parsed = generated::parse_null_only_fields(&raw, &context(), "$").unwrap();
+            let model = serde_json::to_value(parsed).unwrap();
+            assert_eq!(model["only"], json!("null"));
+            assert_eq!(model["maybe"], json!("missing"));
+            assert_eq!(model["token"], json!({"value":token}));
+        }
+        for (source, path) in [
+            (br#"{"only":0}"#.as_slice(), "$.only"),
+            (br#"{"maybe":"x"}"#, "$.maybe"),
+            (br#"{"token":"1"}"#, "$.token"),
+        ] {
+            let raw = value::parse_source(source).unwrap();
+            assert_eq!(
+                generated::parse_null_only_fields(&raw, &context(), "$")
+                    .unwrap_err()
+                    .json_path,
+                path
+            );
+        }
+    }
+    #[test]
+    fn tagged_documents_identify_family_before_defaults_and_check_present_payloads() {
+        for source in [
+            br#"{"type":"a"}"#.as_slice(),
+            br#"{"type":"a","payload":null,"retired":false}"#,
+            br#"{"type":"b"}"#,
+        ] {
+            let raw = value::parse_source(source).unwrap();
+            generated::parse_tagged_documents(&raw, &context(), "$").unwrap();
+        }
+        for (source, path) in [
+            (br#"{"type":"a","payload":3}"#.as_slice(), "$.payload"),
+            (br#"{"type":"b","count":"bad"}"#, "$.count"),
+            (br#"{"type":"a","type":"a"}"#, "$.type"),
+            (br#"{"type":null}"#, "$"),
+            (br#"{"type":"unknown"}"#, "$"),
+            (br#"{}"#, "$"),
+        ] {
+            let raw = value::parse_source(source).unwrap();
+            assert_eq!(
+                generated::parse_tagged_documents(&raw, &context(), "$")
+                    .unwrap_err()
+                    .json_path,
+                path
+            );
+        }
+    }
+    #[test]
     fn nullable_collections_preserve_positions_nulls_numbers_and_ordered_keys() {
         let raw = value::parse_source(br#"{"nullable":[null,18446744073709551615,null],"undefined":[null,3],"map":{"z":null,"a":2},"nulls":[null,null],"undefineds":[null],"nested":[null,[1,null],[]],"nodes":[null,{"next":{"next":null}},null]}"#).unwrap();
         let parsed = generated::parse_collections(&raw, &context(), "$").unwrap();
@@ -61,7 +205,7 @@ mod tests {
             {"id":"optional_numbers","kind":"union","members":["numbers","undefined"]},
             {"id":"nested","kind":"array","element":"optional_numbers"},
             {"id":"nulls","kind":"array","element":"null"},
-            {"id":"map","kind":"object","fields":[],"indexSignatures":[{"value":"maybe"}]}
+            {"id":"map","kind":"object","fields":[],"indexSignatures":[{"key":"primitive:string","value":"maybe"}]}
         ]}));
         let value::SourceValue::Object(object) = &raw else {
             panic!()

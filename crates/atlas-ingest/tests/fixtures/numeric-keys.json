@@ -1,0 +1,13 @@
+[
+  ["0", true], ["-0", false], ["01", false], ["+1", false],
+  ["1", true], ["-1", true], ["1.5", true], ["1.0", false],
+  ["", false], [" ", false], [" 1", false], ["1 ", false],
+  ["0x10", false], ["1e3", false], ["1000", true],
+  ["0.000001", true], ["1e-6", false], ["1e-7", true],
+  ["0.0000001", false], ["1e+21", true], ["1e21", false],
+  ["100000000000000000000", true], ["1000000000000000000000", false],
+  ["9007199254740992", true], ["9007199254740993", false],
+  ["5e-324", true], ["4e-324", false], ["1.7976931348623157e+308", true],
+  ["Infinity", true], ["-Infinity", true], ["NaN", true],
+  ["inf", false], ["nan", false], ["1e999", false], ["label", false]
+]

@@ -24,10 +24,13 @@ pub(super) use common::parse_maybe_number_map;
 pub(super) use common::parse_mixed_template;
 pub(super) use common::parse_node;
 pub(super) use common::parse_non_nullish_value;
+pub(super) use common::parse_null_only_fields;
 pub(super) use common::parse_nullable_array_union;
 pub(super) use common::parse_nullable_number_bag;
 pub(super) use common::parse_nullable_tuple_union;
 pub(super) use common::parse_number_bag;
+pub(super) use common::parse_numeric_bag;
+pub(super) use common::parse_numeric_keys;
 pub(super) use common::parse_object_union;
 pub(super) use common::parse_object_value;
 pub(super) use common::parse_one;
@@ -37,10 +40,12 @@ pub(super) use common::parse_overlapping_open;
 pub(super) use common::parse_overlapping_templates;
 pub(super) use common::parse_recursive_bag;
 pub(super) use common::parse_recursive_intersection;
+pub(super) use common::parse_recursive_numeric_keys;
 pub(super) use common::parse_scalar_envelope;
 pub(super) use common::parse_scalar_pair;
 pub(super) use common::parse_single;
 pub(super) use common::parse_strict;
+pub(super) use common::parse_tagged_documents;
 pub(super) use common::parse_template_tagged;
 pub(super) use common::parse_template_tuple_union;
 pub(super) use common::parse_tuple_entry;
@@ -54,14 +59,15 @@ pub use common::{
     CollectionsNodes, CollectionsNullable, CollectionsNulls, Color, ColorTag, ConstrainedBag,
     Discriminated, DivineFonts, DivineFontsAlternative1, Empty, Expr, GenericUnion, Harm, Heal,
     ImagePath, IntersectionBag, IntersectionMap, KnownObject, Left, Loose, MappedFields,
-    MaybeNumberMap, MixedTemplate, Node, NonNullishValue, NullableArrayUnion,
+    MaybeNumberMap, MixedTemplate, Node, NonNullishValue, NullOnlyFields, NullableArrayUnion,
     NullableArrayUnionAlternative1, NullableArrayUnionAlternative2, NullableNumberBag,
-    NullableTupleUnion, NumberBag, NumberOrBoolean, ObjectUnion, ObjectValue, One, OpenBag,
-    OpenTupleUnion, Other, OverlappingOpen, OverlappingTemplates, RecursiveBag,
-    RecursiveIntersection, Required, Right, ScalarEnvelope, ScalarEnvelopeRestricted, ScalarPair,
-    Single, SourceFromSchemaFirstSchema, SourceFromSchemaSecondSchema, Strict, StringOrBoolean,
-    StringOrNumber, StringOrNumberOrBoolean, TemplateTagged, TemplateTupleUnion, TupleEntry,
-    TupleExpr, UnknownMap, UnknownValue, Uuid, UuidTag, Yes,
+    NullableTupleUnion, NumberBag, NumberOrBoolean, NumericBag, NumericKeys, ObjectUnion,
+    ObjectValue, OddTokens, One, OpenBag, OpenTupleUnion, Other, OverlappingOpen,
+    OverlappingTemplates, RecursiveBag, RecursiveIntersection, RecursiveNumericKeys, Required,
+    Right, ScalarEnvelope, ScalarEnvelopeRestricted, ScalarPair, Single,
+    SourceFromSchemaFirstSchema, SourceFromSchemaSecondSchema, Strict, StringOrBoolean,
+    StringOrNumber, StringOrNumberOrBoolean, TaggedDocuments, TaggedOne, TaggedTwo, TemplateTagged,
+    TemplateTupleUnion, TupleEntry, TupleExpr, UnknownMap, UnknownValue, Uuid, UuidTag, Yes,
 };
 pub(super) use consumer::parse_authored_arrays;
 pub(super) use consumer::parse_authored_choice_rule;
@@ -71,6 +77,7 @@ pub(super) use consumer::parse_authored_strike_rule;
 pub(super) use consumer::parse_bool_consumer;
 pub(super) use consumer::parse_collection_consumer;
 pub(super) use consumer::parse_generic_consumer;
+pub(super) use consumer::parse_numeric_consumer;
 pub(super) use consumer::parse_open_consumer;
 pub(super) use consumer::parse_scalar_consumer;
 pub(super) use consumer::parse_template_consumer;
@@ -81,6 +88,6 @@ pub use consumer::{
     ChoiceRuleChoicesAlternative2, ChoiceSetAttacks, ChoiceSetConfig, ChoiceSetOwnedItems,
     ChoiceSetPackQuery, CollectionConsumer, DamageDiceOverride, DamageRule, FixturePickableChoice,
     FormSchema, FormSchemaImmunities, FormSchemaStrikes, GenericConsumer,
-    GenericConsumerAnonymousSourceFromSchema, NestedIwr, OpenConsumer, ScalarConsumer, StrikeRule,
-    StrikeRuleBaseType, TemplateConsumer,
+    GenericConsumerAnonymousSourceFromSchema, NestedIwr, NumericConsumer, OpenConsumer,
+    ScalarConsumer, StrikeRule, StrikeRuleBaseType, TemplateConsumer,
 };

@@ -78,7 +78,10 @@ report these input problems; do not add case-specific parsing or repairs.
 Full Foundry admission remains unexecuted, with explicit evidence gaps rather
 than claims that every remaining value is runtime-invalid. These dispositions
 permit continued generator work. Persisted nullable/undefined collections are
-supported; numeric index signatures for whole Actor/Item generation are next.
+supported. All 47 roots now generate and compile together, including Actor/Item.
+Full-document corpus parsing has a reproducible comparison command; authored
+empty sentinels, contextual spell diffs and migration/core-dependent discrepancies
+remain explicit adoption work. See the [document report](../../research/document-source-generation.md).
 Before production adoption, define how
 ingest preserves and reports rejected source rules, and verify demonstrated
 valid authored forms without introducing record allowlists.
@@ -159,11 +162,21 @@ adds inline Option entries for persisted nullable arrays, fixed tuples and maps,
 plus null-only entries. Undefined array positions persist as null; undefined
 object properties remain absent. Shape signatures intern shared descendants and
 validate recursive anchors without unbounded expansion. Production snapshots
-and generated modules stay unchanged. All 45 previously emitted roots still
-compile; Actor/Item now reach Record<number, ...> in BackgroundSystemSource.boosts.
-Define numeric index key semantics next, then repeat all roots.
-Optional/rest tuples and alias-only recursive collections also remain unsupported;
-first blockers are not exhaustive. Emission/compilation does not establish
+and generated modules stay unchanged. The
+[document capability slice](../../research/document-source-generation.md)
+adds numeric indices, null-only fields, unusual literal enum tokens and
+discriminator-only selection when required finite literal domains are disjoint.
+All 47 roots compile together. `compare-documents` samples all root Actors and
+root/embedded/nested Items, checks raw-to-model fidelity, applies open trait
+identifiers across all families and reports first-error groups and absent corpus
+families. Whole-portfolio generated output stays in scratch; no corpus value is
+repaired or allowlisted. Resolve authored-document input boundaries before
+production adoption: empty sentinels handled by upstream preparation, spell
+overlays stored as diffs and later merged, and remaining migration/core-dependent
+or malformed values. Do not call all reported rejections bad data or treat
+generation completion as complete authored admission.
+Optional/rest tuples and alias-only recursive collections remain unsupported
+general capabilities; they do not block the pinned portfolio. Emission/compilation does not establish
 accepted or value-faithful family coverage. The authored rule corpus exposes
 scalar/array, vocabulary and union-identity discrepancies; compare authored source
 interfaces and Foundry cleaning with SourceFromSchema before adopting those parsers.

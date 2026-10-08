@@ -2,6 +2,10 @@
 
 Date: 2026-10-07
 
+This records the initial collection capability. The expanded PR's
+[document report](./document-source-generation.md) supersedes the Actor/Item
+blocker and 45-root count below with complete 47-root generation and compilation.
+
 ## Source and implementation boundary
 
 This slice starts from merged PR38, integration commit
