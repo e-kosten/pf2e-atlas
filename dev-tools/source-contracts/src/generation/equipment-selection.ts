@@ -1,7 +1,7 @@
 import type { ExtractionSummary, TypeGraph } from '../contracts.js';
 import { nodeReferences, type GenerationInput } from './generation-input.js';
 
-/** The trial's four-field selection; emitter and snapshot layout are family-neutral. */
+/** The trial's four-field selection; emitter and module layout are family-neutral. */
 export function selectEquipmentInput(graph: TypeGraph, summary: ExtractionSummary): GenerationInput {
   if (!graph.complete || !summary.complete) throw new Error('Complete declaration extraction is required');
   const nodes = new Map(graph.nodes.map(node => [node.id, node]));

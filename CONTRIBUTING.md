@@ -332,8 +332,9 @@ the earlier research and product-preview reference.
 Offline declaration and trait metadata tooling lives in [dev-tools/source-contracts](./dev-tools/source-contracts/README.md). Its pinned Node dependencies, strict TypeScript build and fixture tests are separate from the Rust build and published product. Run `npm --prefix dev-tools/source-contracts ci --ignore-scripts`, then `npm --prefix dev-tools/source-contracts run verify`. Run extraction with `npm --prefix dev-tools/source-contracts run extract -- --source PATH --out PATH [--strict]`. Rust developer commands use Rust libraries; compiler research runs through this npm package.
 
 Source-model generation also requires rustfmt. Package verification
-checks that the saved graph selection reproduces checked Rust; it does not fetch
-upstream source. `generate` emits/checks the complete authored portfolio, `sample-equipment`
+uses small offline fixtures. `verify-generated` extracts the pinned upstream
+declarations and checks committed Rust, fetching into the ignored cache when needed.
+`generate` emits/checks the complete authored portfolio, `sample-equipment`
 extracts raw equipment packets and `compare-equipment` compares Rust probe results.
 `sample-items` recursively samples Item sources, including embedded/subitems;
 the Rust `item_generation_probe` example compares typed slices against raw source
@@ -349,12 +350,13 @@ schema/authored portfolios and checks raw-value fidelity in Rust. Rejections and
 unmodeled keys remain counted and exit nonzero. Foundry runtime admission is a
 separate evidence state; see the [authored-rule report](./docs/research/authored-rule-source.md).
 
-Saved declaration inputs live in `dev-tools/source-contracts/snapshots`, with one
-manifest and references across module snapshots. Generated Rust lives under
-`crates/atlas-ingest/src/source_model/generated`; handwritten source primitives
-remain beside it. Resolve the full selected graph before emitting shared owners.
-Use the package's `generate --manifest ... --out-dir ... --check` command to check
-every output file, including missing and obsolete modules.
+The small `dev-tools/source-contracts/source-pin.json` records upstream identity.
+Private `npm --prefix dev-tools/source-contracts run generate -- --check` fetches
+the pin when needed, extracts afresh into ignored `.cache/source-contracts`,
+and checks committed Rust under `crates/atlas-ingest/src/source_model/generated`.
+Omit `--check` to regenerate. `--source PATH` seeds the cache from matching local
+source without modifying that checkout. CI runs `verify-generated` separately
+from offline fixture tests. Ordinary Rust builds require neither Node nor Foundry.
 
 `compare-portfolio` checks these maintained models against all five document
 kinds and specific rules through the Rust `source_portfolio_probe` example.

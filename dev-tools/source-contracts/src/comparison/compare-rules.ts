@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { ExtractionSummary, TypeGraph } from '../contracts.js';
 import { sourceIdentity } from '../discovery/source-identity.js';
-import { loadGenerationInput } from '../generation/generation-input.js';
+import { documentTraitArrays } from '../generation/document-traits.js';
 import { authoredRuleInputs } from '../generation/rule-inputs.js';
 import { sampleRules, type RulePacket } from './sample-rules.js';
 
@@ -36,9 +36,9 @@ const contains = (parent: string, child: string) => {
   const relative = path.relative(parent, child);
   return !relative || relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
 };
-export async function compareRules(args: { source: string; graph: string; summary: string; out: string; policyManifest?: string }) {
+export async function compareRules(args: { source: string; graph: string; summary: string; out: string }) {
   const repo = fileURLToPath(new URL('../../../../..', import.meta.url));
-  if ([args.source, args.graph, args.summary, ...(args.policyManifest ? [args.policyManifest] : []), path.join(repo, 'crates'), path.join(repo, 'scripts')]
+  if ([args.source, args.graph, args.summary, path.join(repo, 'crates'), path.join(repo, 'scripts')]
     .some(input => contains(args.out, input) || contains(input, args.out))) throw new Error('Comparison output must be separate from source/code inputs');
   const graph = JSON.parse(await readFile(args.graph, 'utf8')) as TypeGraph;
   const summary = JSON.parse(await readFile(args.summary, 'utf8')) as ExtractionSummary;
@@ -47,9 +47,7 @@ export async function compareRules(args: { source: string; graph: string; summar
     || !graph.complete || !summary.complete || graph.typescript !== summary.typescript_version
     || identity.source_digest !== summary.source.source_digest || graph.source?.source_digest !== identity.source_digest)
     throw new Error('Comparison requires complete extraction of the same source bytes');
-  const policy = args.policyManifest ? await loadGenerationInput(args.policyManifest) : undefined;
-  if (policy && policy.source.source_digest !== identity.source_digest) throw new Error('Policy manifest must describe the same source bytes');
-  const openTraitArrays = policy?.openTraitArrays ?? [];
+  const openTraitArrays = documentTraitArrays(graph);
   const packets: RulePacket[] = [];
   for await (const packet of sampleRules(args.source)) packets.push(packet);
   const keys = new Set(graph.roots.flatMap(root => root.ruleKey ? [root.ruleKey] : []));

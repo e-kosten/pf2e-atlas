@@ -9,19 +9,19 @@ schemas. Actor/Item unions cover eight/24 registered families. The source pin is
 `6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8`.
 TypeScript compiler version is 5.9.3.
 
-Saved inputs retain original schema closures, serialization evidence and authored
-projections. The manifest has compiler/root/family provenance; 3,333 graph nodes
-are stored once across module snapshots. Generation emits 43,403 Rust lines in
+Fresh extraction retains original schema closures, serialization evidence and authored
+projections in ignored caches. The small source pin records upstream identity;
+the selected input contains 3,333 graph nodes. Generation emits 43,403 Rust lines in
 96 files, including module indexes. These are generated outputs, not manually
 maintained parser implementations. Regeneration and whole-file-set freshness
-checks use the same full selection recipe.
+checks use the same full selection recipe and freshly extracted pinned source.
 
 ## Structure and use
 
 Common Item/Actor/physical components precede family refinements. Explicit family
 source/system roots reserve their module even when first reached through another
 family's embedded optional source. Global structural owners reuse equivalent
-payloads; snapshots retain distinct declaration constraints. Other document
+payloads; extraction evidence retains distinct declaration constraints. Other document
 kinds and specific rules have separate modules. Existing field-level slices
 remain useful callable projections of the same source space.
 
@@ -45,7 +45,7 @@ atlas-ingest example. It does not substitute newly emitted scratch parsers.
 Sampling includes root Actors, root/embedded/nested Items, the other three pack
 document kinds, and specific rules from all sampled Items. Raw JSON payloads reach
 Rust without a JavaScript numeric round trip. The shared fidelity oracle checks
-typed values, presence and ordered additional members against saved declarations.
+typed values, presence and ordered additional members against freshly extracted declarations.
 
 | Space | Occurrences | Accepted | Rejected |
 | --- | ---: | ---: | ---: |

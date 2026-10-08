@@ -58,15 +58,15 @@ fn all_registered_actor_and_item_families_have_callable_full_models() {
 
 #[test]
 fn every_pinned_rule_key_dispatches_to_its_specific_model() {
-    let manifest: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../dev-tools/source-contracts/snapshots/manifest.json"
+    let pin: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../dev-tools/source-contracts/source-pin.json"
     ))
     .unwrap();
-    let keys: Vec<_> = manifest["portfolio"]["schemaRoots"]
+    let keys: Vec<_> = pin["ruleKeys"]
         .as_array()
         .unwrap()
         .iter()
-        .filter_map(|root| root["ruleKey"].as_str())
+        .filter_map(serde_json::Value::as_str)
         .collect();
     assert_eq!(keys.len(), 42);
     for key in keys {

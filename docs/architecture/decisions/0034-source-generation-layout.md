@@ -5,60 +5,64 @@ Date: 2026-10-06
 
 ## Context
 
-The bounded equipment trial generates four physical fields and their equipment
-refinement. As generation expands, both saved declaration evidence and Rust
-output need cohesive modules with shared owners. Generating each family
-independently would duplicate shared declarations and Rust types.
+The complete portfolio needs shared type owners and a reproducible relationship
+to upstream declarations. Committing both a complete declaration graph and its
+Rust translation adds substantial generated diff volume. Rust consumers need
+only the generated Rust, while declaration graphs remain useful developer evidence.
 
 ## Decision
 
-Private `dev-tools/source-contracts/snapshots` owns saved generation inputs. One
-manifest records source identity and ordered module files. Each module snapshot
-contains its roots, deferred field names and canonical graph nodes. Nodes occur
-once across snapshots; references retain their global declaration identities.
-The selection orders shared base roots before refinements so base modules own
-their shared closure and refinement modules add only their additional nodes.
-Roots for each module are contiguous; interleaving is rejected. Explicit value
-roots reserve their module before traversal, including references reached through
-nullable/optional unions. Family sources and systems therefore stay in their
-family module when first encountered from another family's embedded data.
-Snapshot partitioning also reserves original source references and follows the
-current owner's closure. Equivalent value shapes still reuse their first owner.
+Private `dev-tools/source-contracts/source-pin.json` records the upstream repository,
+immutable commit, source version/digest/file count, compiler version and expected
+specific rule keys. The npm lockfile pins compiler and declaration dependencies.
+Authored representation policies remain maintained TypeScript code.
 
-Load the whole selected graph before emitting Rust. A global owner table shares
-equivalent value structures under the explicit pre-default presence policy.
-Input optional/null/undefined facts and declaration provenance remain intact.
-Output partitioning follows module ownership with explicit cross-module imports;
-it is not separate per-family generation. Content modules include items/common,
-items/flags, items/traits, physical, items/equipment, actors/common,
-actors/creature, items/families/*, actors/families/*, documents/* and rules/*.
-Aggregate Actor/Item and specific-rule dispatch live in their source indexes.
-Generate only modules with definitions or existing children.
+The private `generate` command acquires the exact source into an isolated export
+under ignored `.cache/source-contracts`. A supplied source is checked against the
+pin and copied; its checkout and dependency installation are not modified. Cold
+acquisition fetches the immutable commit into a cache-owned bare repository and
+exports only the source-identity inputs. Source bytes are checked on every use.
+The isolated export resolves declarations through this package's locked dependencies.
 
-`atlas-ingest/src/source_model/generated` owns generated Rust and its explicit
-module/re-export indexes. Handwritten source presence, ordered values, parsing
-primitives and slice composition stay outside this directory. Crate entrypoints
-expose the intentional API; Rust execution has no Node dependency.
+Every generation/check invocation extracts the complete schema afresh. Type
+graphs, trait catalogs, generation inputs and extraction summaries stay in the ignored cache;
+cached graphs are never generation authority. Source identity, complete extraction,
+compiler version, rule keys and registered family sets are checked before writing
+Rust. Large declaration snapshots and their loading command are removed.
+Ordinary fixture tests are offline; the dedicated CI generation check fetches
+the source when needed and proves the complete source-to-Rust path.
 
-The private npm `generate` command replaces the single-file experimental command.
-Saved-manifest mode checks the canonical input set and checks/regenerates Rust;
-graph mode also checks/regenerates
-the partitioned snapshots using the complete authored portfolio recipe. The
-manifest retains the original extraction roots, compiler version and registered
-families; original schema closures remain beside authored projections. Freshness
-checks cover the full expected file sets, including missing/obsolete files and
-metadata changes that value-type sharing can hide. Regeneration removes obsolete
-generator-owned files and refuses unmanaged files or symlinks in artifact
-directories. Format and preflight all outputs before writing.
+Load the whole selected graph before emitting Rust. Shared base roots precede
+refinements, and a global owner table shares equivalent pre-default value shapes.
+Declaration optional/null/undefined facts and provenance remain in extraction
+evidence. Family source/system roots reserve their modules even when first reached
+through another family's embedded nullable/optional source.
+
+`atlas-ingest/src/source_model/generated` owns committed Rust and module/re-export
+indexes. Content modules include shared Item/Actor/creature/physical components,
+family sources/systems, other document kinds and specific rules. Aggregate Actor/Item
+and rule dispatch have separate modules. Handwritten source presence, ordered values,
+parsing primitives and composition stay outside the generated directory.
+Rust builds and application execution have no Node dependency.
+
+Freshness checks cover the full Rust file set, including missing/obsolete files.
+Regeneration formats and preflights outputs before writing, removes only obsolete
+generator-owned files, and refuses unmanaged files or symlinks in output directories.
+
+Corpus comparison re-extracts the pinned source, checks maintained Rust freshness,
+and gives the actual crate probe a temporary generation input for the independent
+value/presence/additional-member oracle. No saved declaration snapshot is required.
 
 ## Consequences
 
-New families extend the module layout without copying existing shared closures.
-Generated directories are exclusively tool-owned; contributor notes belong
-outside them. Source updates intentionally regenerate inputs and Rust together.
-The maintained portfolio covers all 47 extracted roots: five document kinds,
-all 24 Item/eight Actor families and 42 specific rules. Existing field-level
-slices remain useful independently callable projections, sharing value owners
-with complete sources. This establishes source models, not full Foundry
-admission or pipeline/storage/UI adoption. The corpus command reports remaining
-rejections and fidelity failures without repairing or excluding input.
+Review source-pin, generator/policy changes and Rust diffs when updating upstream.
+Declaration-only changes still alter the checked source digest even when Rust
+value sharing hides them. To inspect schema differences, extract both revisions
+and compare their ignored graphs. Cache misses require Git/network access;
+warm cached exports or a supplied matching source support offline regeneration.
+Git and tar are private contributor acquisition prerequisites.
+
+The portfolio covers all 47 extracted roots, all 24 Item/eight Actor families and
+42 specific rules. Existing field-level projections share owners with full sources.
+This establishes source models, not Foundry admission or pipeline/storage/UI adoption.
+Corpus rejections remain visible without repair, exclusion or a selected drop policy.

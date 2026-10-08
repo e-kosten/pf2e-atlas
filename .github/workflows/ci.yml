@@ -86,6 +86,8 @@ jobs:
           npm --prefix dev-tools/source-contracts ci --ignore-scripts
           cargo fetch --locked
           npm --prefix dev-tools/source-contracts run verify
+      - name: Verify Rust portfolio from the pinned Foundry source
+        run: npm --prefix dev-tools/source-contracts run verify-generated
 
   release-tools:
     name: release tools (${{ matrix.os }})
