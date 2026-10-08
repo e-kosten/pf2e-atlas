@@ -1,0 +1,2463 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "FeatSystemSource",
+      "declaration": "src/module/item/feat/data.ts#FeatSystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/feat/data.ts#FeatSystemSource",
+      "valueRef": "src/module/item/feat/data.ts#FeatSystemSource"
+    },
+    {
+      "name": "FeatSource",
+      "declaration": "src/module/item/feat/data.ts#FeatSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/feat/data.ts#FeatSource",
+      "valueRef": "src/module/item/feat/data.ts#FeatSource"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:string:\"ancestryfeature\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "ancestryfeature"
+    },
+    {
+      "id": "literal:string:\"bonus\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bonus"
+    },
+    {
+      "id": "literal:string:\"classfeature\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "classfeature"
+    },
+    {
+      "id": "literal:string:\"deityboon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "deityboon"
+    },
+    {
+      "id": "literal:string:\"feat\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "feat"
+    },
+    {
+      "id": "literal:string:\"imprecise\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "imprecise"
+    },
+    {
+      "id": "literal:string:\"pfsboon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "pfsboon"
+    },
+    {
+      "id": "literal:string:\"precise\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "precise"
+    },
+    {
+      "id": "literal:string:\"vague\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "vague"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Array@faaf733e3186d4e343e16bc9",
+      "kind": "array",
+      "name": "Array",
+      "declaredAt": [
+        {
+          "file": "node_modules/@types/node/compatibility/indexable.d.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.core.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+          "line": 92,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2016.array.include.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2019.array.d.ts",
+          "line": 53,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2022.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es2023.array.d.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1325,
+          "column": 1
+        },
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1524,
+          "column": 13
+        },
+        {
+          "file": "types/foundry/common/primitives/array.d.ts",
+          "line": 1,
+          "column": 1
+        }
+      ],
+      "element": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@caccc973fbb3d6e1646c3ead",
+      "readonly": false
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Partial@0f17fdfaabd53f3059b85e11",
+      "kind": "object",
+      "name": "Partial",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1585,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "advanced",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "alchemist",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "animist",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "barbarian",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "bard",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "champion",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "cleric",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "druid",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "exemplar",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "fighter",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "fortitude",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "gunslinger",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "heavy",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "heavy-barding",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "inventor",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "investigator",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "kineticist",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "light",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "light-barding",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "magus",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "martial",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "medium",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "monk",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "oracle",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "perception",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "psychic",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "ranger",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "reflex",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "rogue",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "simple",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "sorcerer",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "spellcasting",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "summoner",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "swashbuckler",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "thaumaturge",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "unarmed",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "unarmored",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "will",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "witch",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "wizard",
+          "ref": "structural:be99c07a336fb31c08ad9bbb",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "Record<IncreasableProficiency, SourceFromSchema<{ rank: NumberField<OneToFour, OneToFour, true, false, false>; attribute: StringField<\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", \"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", true, true, true>; }>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Partial@f38744f8cc5123b3a532b1de",
+      "kind": "object",
+      "name": "Partial",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1585,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "darkvision",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "echolocation",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "greater-darkvision",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "infrared-vision",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "lifesense",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "low-light-vision",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "magicsense",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "motion-sense",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "scent",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "see-invisibility",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "spiritsense",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "thoughtsense",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "tremorsense",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "truesight",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        },
+        {
+          "name": "wavesense",
+          "ref": "structural:b8e8542ffc6b0647d7dbb653",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": []
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "Record<\"darkvision\" | \"echolocation\" | \"greater-darkvision\" | \"infrared-vision\" | \"lifesense\" | \"low-light-vision\" | \"magicsense\" | \"motion-sense\" | \"scent\" | \"see-invisibility\" | \"spiritsense\" | \"thoughtsense\" | \"tremorsense\" | \"truesight\" | \"wavesense\", SourceFromSchema<{ acuity: StringField<SenseAcuity, SenseAcuity, false, false, false>; range: NumberField<number, number, true, true, true>; special: SchemaField<{ ancestry: BooleanField<boolean, boolean, true, false, true>; llv: BooleanField<boolean, boolean, true, false, true>; second: BooleanField<boolean, boolean, true, false, true>; }, { ancestry: boolean; llv: boolean; second: boolean; }, { ancestry: boolean; llv: boolean; second: boolean; }, false, false, false>; }>>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "src/module/data.ts#OneToFour",
+      "kind": "union",
+      "name": "OneToFour",
+      "declaredAt": [
+        {
+          "file": "src/module/data.ts",
+          "line": 45,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:number:1",
+        "literal:number:2",
+        "literal:number:3",
+        "literal:number:4"
+      ]
+    },
+    {
+      "id": "src/module/item/feat/data.ts#FeatSource",
+      "kind": "intersection",
+      "name": "FeatSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/feat/data.ts",
+          "line": 24,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/base/data/system.ts#BaseItemSourcePF2e.$object@bc7b919aa950cd0c25c28aee",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@904ac3be59f0332b177dfb37"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:3a6c2d2bead9b588f1831ea0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 12,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/feat/data.ts#FeatSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"feat\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/feat/data.ts#FeatSystemSchema.$object.selfEffect.$object@9a8222b3efb66c91dcc8be21",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/feat/data.ts",
+          "line": 313,
+          "column": 9
+        }
+      ],
+      "fields": [
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 313,
+              "column": 27
+            }
+          ]
+        },
+        {
+          "name": "uuid",
+          "ref": "types/foundry/client/data/documents/item.d.ts#global.ItemUUID",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 313,
+              "column": 11
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/feat/data.ts#FeatSystemSchema.$object.subfeatures.$object.languages.$object@1c81422874d1af054190e663",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/feat/data.ts",
+          "line": 288,
+          "column": 13
+        }
+      ],
+      "fields": [
+        {
+          "name": "granted",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@44b08c1817175b335edce8c5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 288,
+              "column": 30
+            }
+          ]
+        },
+        {
+          "name": "slots",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 288,
+              "column": 15
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/feat/data.ts#FeatSystemSource",
+      "kind": "intersection",
+      "name": "FeatSystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/feat/data.ts",
+          "line": 351,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/feat/data.ts#FeatSystemSource.$object@eee1317bfeca175aa2bb608b",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0cc1cb7375a8b6ff2a126ddd"
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d6ebbd831ebfb5ed4ce1b0bb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 81,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "actionType",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@525bc01624c839f9e6bb6c33",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 258,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "actions",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@05484940c43611113d3076f9",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 261,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "category",
+          "ref": "structural:a1d9a025b78ca2c6f48509cf",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 253,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@934e600191eb90a006c6ffa5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "frequency",
+          "ref": "structural:3eee13aa62c74b6638bae108",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 272,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9fe5b502650c224d479fb775",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 243,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "location",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 271,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "maxTakable",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 257,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "onlyLevel1",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 255,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prerequisites",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@68ee161af03aebed5a96a8f8",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 264,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@361ab3cdb18fcd916b2ca8cb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 352,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "selfEffect",
+          "ref": "structural:14ec89dc0af547468bfd6a9b",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 308,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 77,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "subfeatures",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c37f588930640a960fe2d70d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 273,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@47f257e4be751f07428d15c5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 247,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/feat/data.ts#FeatSystemSource.$object@eee1317bfeca175aa2bb608b",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/feat/data.ts",
+          "line": 351,
+          "column": 62
+        }
+      ],
+      "fields": [
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 352,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/feat/data.ts#SensesField.$object.special.$object@e7091739d81f4bca6cf650a7",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/feat/data.ts",
+          "line": 340,
+          "column": 13
+        }
+      ],
+      "fields": [
+        {
+          "name": "ancestry",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 340,
+              "column": 15
+            }
+          ]
+        },
+        {
+          "name": "llv",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 340,
+              "column": 34
+            }
+          ]
+        },
+        {
+          "name": "second",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 340,
+              "column": 48
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:019933f524cfd91c6a4c48ab",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Partial@0f17fdfaabd53f3059b85e11",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:14ec89dc0af547468bfd6a9b",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "primitive:undefined",
+        "src/module/item/feat/data.ts#FeatSystemSchema.$object.selfEffect.$object@9a8222b3efb66c91dcc8be21"
+      ]
+    },
+    {
+      "id": "structural:30c7a9f69488a65c824a5405",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"imprecise\"",
+        "literal:string:\"precise\"",
+        "literal:string:\"vague\"",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:32b3bcd9ab47919f23f6cfa4",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/feat/data.ts#SensesField.$object.special.$object@e7091739d81f4bca6cf650a7"
+      ]
+    },
+    {
+      "id": "structural:a1d9a025b78ca2c6f48509cf",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"ancestry\"",
+        "literal:string:\"ancestryfeature\"",
+        "literal:string:\"bonus\"",
+        "literal:string:\"calling\"",
+        "literal:string:\"class\"",
+        "literal:string:\"classfeature\"",
+        "literal:string:\"curse\"",
+        "literal:string:\"deityboon\"",
+        "literal:string:\"general\"",
+        "literal:string:\"pfsboon\"",
+        "literal:string:\"skill\""
+      ]
+    },
+    {
+      "id": "structural:a5c163baf7425e3e3ac3e670",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/feat/data.ts#FeatSystemSchema.$object.subfeatures.$object.languages.$object@1c81422874d1af054190e663"
+      ]
+    },
+    {
+      "id": "structural:b8e8542ffc6b0647d7dbb653",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b5bc7cc406915462566408c5"
+      ]
+    },
+    {
+      "id": "structural:be99c07a336fb31c08ad9bbb",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c2a382329c76802205e91008"
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@05484940c43611113d3076f9",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:be59507e9004188bd6c15ef7",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 262,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NullCoercingNumberField<OneToThree, OneToThree, true, true, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 261,
+              "column": 33
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@0cc1cb7375a8b6ff2a126ddd",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@d6ebbd831ebfb5ed4ce1b0bb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 81,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "actionType",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@525bc01624c839f9e6bb6c33",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 258,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "actions",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@05484940c43611113d3076f9",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 261,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "category",
+          "ref": "structural:a1d9a025b78ca2c6f48509cf",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 253,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@934e600191eb90a006c6ffa5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "frequency",
+          "ref": "structural:3eee13aa62c74b6638bae108",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 272,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9fe5b502650c224d479fb775",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 243,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "location",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 271,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "maxTakable",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 257,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "onlyLevel1",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 255,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "prerequisites",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@68ee161af03aebed5a96a8f8",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 264,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@361ab3cdb18fcd916b2ca8cb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "selfEffect",
+          "ref": "structural:14ec89dc0af547468bfd6a9b",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 308,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/model.ts",
+              "line": 77,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "subfeatures",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c37f588930640a960fe2d70d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 273,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@47f257e4be751f07428d15c5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 247,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "FeatSystemSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 242,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@47f257e4be751f07428d15c5",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "otherTags",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 250,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "rarity",
+          "ref": "structural:bf6113eac55e1ea864797d40",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 249,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "toggles",
+          "ref": "structural:edc63fd8c22ac6b06aad6f6d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 251,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@af3c7e210d4566224a48eb3b",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 248,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: ArrayField<StringField<\"class\" | \"light\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"auditory\" | \"cold\" | \"curse\" | \"detection\" | \"disease\" | \"earth\" | \"electricity\" | \"emotion\" | \"fire\" | \"force\" | \"healing\" | \"illusion\" | \"inhaled\" | \"mental\" | \"metal\" | \"olfactory\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"radiation\" | \"scrying\" | \"sleep\" | \"sonic\" | \"spirit\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"darkness\" | \"death\" | \"time\" | \"alchemist\" | \"animist\" | \"barbarian\" | \"bard\" | \"champion\" | \"cleric\" | \"druid\" | \"exemplar\" | \"fighter\" | \"gunslinger\" | \"kineticist\" | \"inventor\" | \"investigator\" | \"magus\" | \"monk\" | \"oracle\" | \"psychic\" | \"ranger\" | \"rogue\" | \"sorcerer\" | \"summoner\" | \"swashbuckler\" | \"thaumaturge\" | \"witch\" | \"wizard\" | \"artifact\" | \"extradimensional\" | \"fear\" | \"fortune\" | \"fungus\" | \"shadow\" | \"teleportation\" | \"aiuvarin\" | \"anadi\" | \"android\" | \"aphorite\" | \"ardande\" | \"athamaru\" | \"automaton\" | \"awakened-animal\" | \"azarketi\" | \"beastkin\" | \"bugbear\" | \"catfolk\" | \"centaur\" | \"changeling\" | \"conrasu\" | \"dhampir\" | \"dragonblood\" | \"dromaar\" | \"duskwalker\" | \"dwarf\" | \"elf\" | \"fetchling\" | \"fleshwarp\" | \"ganzi\" | \"geniekin\" | \"ghoran\" | \"gnoll\" | \"gnome\" | \"goblin\" | \"goloma\" | \"grippli\" | \"halfling\" | \"hobgoblin\" | \"human\" | \"hungerseed\" | \"kashrishi\" | \"kitsune\" | \"kobold\" | \"leshy\" | \"lizardfolk\" | \"merfolk\" | \"minotaur\" | \"nagaji\" | \"naari\" | \"nephilim\" | \"orc\" | \"oread\" | \"poppet\" | \"ratfolk\" | \"reflection\" | \"samsaran\" | \"sarangay\" | \"shisk\" | \"shoony\" | \"skeleton\" | \"sprite\" | \"strix\" | \"suli\" | \"surki\" | \"sylph\" | \"tanuki\" | \"talos\" | \"tengu\" | \"undine\" | \"vanara\" | \"vishkanya\" | \"wayang\" | \"yaksha\" | \"yaoguai\" | \"additive\" | \"additive1\" | \"additive2\" | \"additive3\" | \"aftermath\" | \"amp\" | \"archetype\" | \"attack\" | \"beast\" | \"cantrip\" | \"circus\" | \"coagulant\" | \"composite\" | \"composition\" | \"concentrate\" | \"dedication\" | \"deviant\" | \"eidolon\" | \"esoterica\" | \"exploration\" | \"finisher\" | \"flourish\" | \"focus\" | \"general\" | \"lineage\" | \"litany\" | \"manipulate\" | \"modification\" | \"multiclass\" | \"oath\" | \"overflow\" | \"pervasive-magic\" | \"press\" | \"reckless\" | \"reincarnated\" | \"revelation\" | \"sanctified\" | \"secret\" | \"skill\" | \"structure\" | \"subtle\" | \"talisman\" | \"tandem\" | \"unstable\" | \"vigilante\" | \"summon\" | \"aura\" | \"consecration\" | \"contingency\" | \"cursebound\" | \"dream\" | \"hex\" | \"incapacitation\" | \"incarnate\" | \"incorporeal\" | \"linguistic\" | \"misfortune\" | \"morph\" | \"move\" | \"prediction\" | \"psyche\" | \"rage\" | \"spellshape\" | \"stance\" | \"summoned\" | \"trial\" | \"true-name\" | \"injury\" | \"virulent\" | \"apparition\" | \"bravado\" | \"calling\" | \"destiny\" | \"downtime\" | \"evolution\" | \"ikon\" | \"impulse\" | \"infusion\" | \"mindshift\" | \"social\" | \"spellshot\" | \"stamina\" | \"transcendence\" | \"wandering\", \"class\" | \"light\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"auditory\" | \"cold\" | \"curse\" | \"detection\" | \"disease\" | \"earth\" | \"electricity\" | \"emotion\" | \"fire\" | \"force\" | \"healing\" | \"illusion\" | \"inhaled\" | \"mental\" | \"metal\" | \"olfactory\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"radiation\" | \"scrying\" | \"sleep\" | \"sonic\" | \"spirit\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"darkness\" | \"death\" | \"time\" | \"alchemist\" | \"animist\" | \"barbarian\" | \"bard\" | \"champion\" | \"cleric\" | \"druid\" | \"exemplar\" | \"fighter\" | \"gunslinger\" | \"kineticist\" | \"inventor\" | \"investigator\" | \"magus\" | \"monk\" | \"oracle\" | \"psychic\" | \"ranger\" | \"rogue\" | \"sorcerer\" | \"summoner\" | \"swashbuckler\" | \"thaumaturge\" | \"witch\" | \"wizard\" | \"artifact\" | \"extradimensional\" | \"fear\" | \"fortune\" | \"fungus\" | \"shadow\" | \"teleportation\" | \"aiuvarin\" | \"anadi\" | \"android\" | \"aphorite\" | \"ardande\" | \"athamaru\" | \"automaton\" | \"awakened-animal\" | \"azarketi\" | \"beastkin\" | \"bugbear\" | \"catfolk\" | \"centaur\" | \"changeling\" | \"conrasu\" | \"dhampir\" | \"dragonblood\" | \"dromaar\" | \"duskwalker\" | \"dwarf\" | \"elf\" | \"fetchling\" | \"fleshwarp\" | \"ganzi\" | \"geniekin\" | \"ghoran\" | \"gnoll\" | \"gnome\" | \"goblin\" | \"goloma\" | \"grippli\" | \"halfling\" | \"hobgoblin\" | \"human\" | \"hungerseed\" | \"kashrishi\" | \"kitsune\" | \"kobold\" | \"leshy\" | \"lizardfolk\" | \"merfolk\" | \"minotaur\" | \"nagaji\" | \"naari\" | \"nephilim\" | \"orc\" | \"oread\" | \"poppet\" | \"ratfolk\" | \"reflection\" | \"samsaran\" | \"sarangay\" | \"shisk\" | \"shoony\" | \"skeleton\" | \"sprite\" | \"strix\" | \"suli\" | \"surki\" | \"sylph\" | \"tanuki\" | \"talos\" | \"tengu\" | \"undine\" | \"vanara\" | \"vishkanya\" | \"wayang\" | \"yaksha\" | \"yaoguai\" | \"additive\" | \"additive1\" | \"additive2\" | \"additive3\" | \"aftermath\" | \"amp\" | \"archetype\" | \"attack\" | \"beast\" | \"cantrip\" | \"circus\" | \"coagulant\" | \"composite\" | \"composition\" | \"concentrate\" | \"dedication\" | \"deviant\" | \"eidolon\" | \"esoterica\" | \"exploration\" | \"finisher\" | \"flourish\" | \"focus\" | \"general\" | \"lineage\" | \"litany\" | \"manipulate\" | \"modification\" | \"multiclass\" | \"oath\" | \"overflow\" | \"pervasive-magic\" | \"press\" | \"reckless\" | \"reincarnated\" | \"revelation\" | \"sanctified\" | \"secret\" | \"skill\" | \"structure\" | \"subtle\" | \"talisman\" | \"tandem\" | \"unstable\" | \"vigilante\" | \"summon\" | \"aura\" | \"consecration\" | \"contingency\" | \"cursebound\" | \"dream\" | \"hex\" | \"incapacitation\" | \"incarnate\" | \"incorporeal\" | \"linguistic\" | \"misfortune\" | \"morph\" | \"move\" | \"prediction\" | \"psyche\" | \"rage\" | \"spellshape\" | \"stance\" | \"summoned\" | \"trial\" | \"true-name\" | \"injury\" | \"virulent\" | \"apparition\" | \"bravado\" | \"calling\" | \"destiny\" | \"downtime\" | \"evolution\" | \"ikon\" | \"impulse\" | \"infusion\" | \"mindshift\" | \"social\" | \"spellshot\" | \"stamina\" | \"transcendence\" | \"wandering\", true, false, false>, (\"class\" | \"light\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"auditory\" | \"cold\" | \"curse\" | \"detection\" | \"disease\" | \"earth\" | \"electricity\" | \"emotion\" | \"fire\" | \"force\" | \"healing\" | \"illusion\" | \"inhaled\" | \"mental\" | \"metal\" | \"olfactory\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"radiation\" | \"scrying\" | \"sleep\" | \"sonic\" | \"spirit\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"darkness\" | \"death\" | \"time\" | \"alchemist\" | \"animist\" | \"barbarian\" | \"bard\" | \"champion\" | \"cleric\" | \"druid\" | \"exemplar\" | \"fighter\" | \"gunslinger\" | \"kineticist\" | \"inventor\" | \"investigator\" | \"magus\" | \"monk\" | \"oracle\" | \"psychic\" | \"ranger\" | \"rogue\" | \"sorcerer\" | \"summoner\" | \"swashbuckler\" | \"thaumaturge\" | \"witch\" | \"wizard\" | \"artifact\" | \"extradimensional\" | \"fear\" | \"fortune\" | \"fungus\" | \"shadow\" | \"teleportation\" | \"aiuvarin\" | \"anadi\" | \"android\" | \"aphorite\" | \"ardande\" | \"athamaru\" | \"automaton\" | \"awakened-animal\" | \"azarketi\" | \"beastkin\" | \"bugbear\" | \"catfolk\" | \"centaur\" | \"changeling\" | \"conrasu\" | \"dhampir\" | \"dragonblood\" | \"dromaar\" | \"duskwalker\" | \"dwarf\" | \"elf\" | \"fetchling\" | \"fleshwarp\" | \"ganzi\" | \"geniekin\" | \"ghoran\" | \"gnoll\" | \"gnome\" | \"goblin\" | \"goloma\" | \"grippli\" | \"halfling\" | \"hobgoblin\" | \"human\" | \"hungerseed\" | \"kashrishi\" | \"kitsune\" | \"kobold\" | \"leshy\" | \"lizardfolk\" | \"merfolk\" | \"minotaur\" | \"nagaji\" | \"naari\" | \"nephilim\" | \"orc\" | \"oread\" | \"poppet\" | \"ratfolk\" | \"reflection\" | \"samsaran\" | \"sarangay\" | \"shisk\" | \"shoony\" | \"skeleton\" | \"sprite\" | \"strix\" | \"suli\" | \"surki\" | \"sylph\" | \"tanuki\" | \"talos\" | \"tengu\" | \"undine\" | \"vanara\" | \"vishkanya\" | \"wayang\" | \"yaksha\" | \"yaoguai\" | \"additive\" | \"additive1\" | \"additive2\" | \"additive3\" | \"aftermath\" | \"amp\" | \"archetype\" | \"attack\" | \"beast\" | \"cantrip\" | \"circus\" | \"coagulant\" | \"composite\" | \"composition\" | \"concentrate\" | \"dedication\" | \"deviant\" | \"eidolon\" | \"esoterica\" | \"exploration\" | \"finisher\" | \"flourish\" | \"focus\" | \"general\" | \"lineage\" | \"litany\" | \"manipulate\" | \"modification\" | \"multiclass\" | \"oath\" | \"overflow\" | \"pervasive-magic\" | \"press\" | \"reckless\" | \"reincarnated\" | \"revelation\" | \"sanctified\" | \"secret\" | \"skill\" | \"structure\" | \"subtle\" | \"talisman\" | \"tandem\" | \"unstable\" | \"vigilante\" | \"summon\" | \"aura\" | \"consecration\" | \"contingency\" | \"cursebound\" | \"dream\" | \"hex\" | \"incapacitation\" | \"incarnate\" | \"incorporeal\" | \"linguistic\" | \"misfortune\" | \"morph\" | \"move\" | \"prediction\" | \"psyche\" | \"rage\" | \"spellshape\" | \"stance\" | \"summoned\" | \"trial\" | \"true-name\" | \"injury\" | \"virulent\" | \"apparition\" | \"bravado\" | \"calling\" | \"destiny\" | \"downtime\" | \"evolution\" | \"ikon\" | \"impulse\" | \"infusion\" | \"mindshift\" | \"social\" | \"spellshot\" | \"stamina\" | \"transcendence\" | \"wandering\")[], (\"class\" | \"light\" | \"arcane\" | \"divine\" | \"occult\" | \"primal\" | \"acid\" | \"air\" | \"alchemical\" | \"auditory\" | \"cold\" | \"curse\" | \"detection\" | \"disease\" | \"earth\" | \"electricity\" | \"emotion\" | \"fire\" | \"force\" | \"healing\" | \"illusion\" | \"inhaled\" | \"mental\" | \"metal\" | \"olfactory\" | \"plant\" | \"poison\" | \"polymorph\" | \"possession\" | \"radiation\" | \"scrying\" | \"sleep\" | \"sonic\" | \"spirit\" | \"visual\" | \"vitality\" | \"void\" | \"water\" | \"wood\" | \"holy\" | \"unholy\" | \"magical\" | \"mythic\" | \"nonlethal\" | \"darkness\" | \"death\" | \"time\" | \"alchemist\" | \"animist\" | \"barbarian\" | \"bard\" | \"champion\" | \"cleric\" | \"druid\" | \"exemplar\" | \"fighter\" | \"gunslinger\" | \"kineticist\" | \"inventor\" | \"investigator\" | \"magus\" | \"monk\" | \"oracle\" | \"psychic\" | \"ranger\" | \"rogue\" | \"sorcerer\" | \"summoner\" | \"swashbuckler\" | \"thaumaturge\" | \"witch\" | \"wizard\" | \"artifact\" | \"extradimensional\" | \"fear\" | \"fortune\" | \"fungus\" | \"shadow\" | \"teleportation\" | \"aiuvarin\" | \"anadi\" | \"android\" | \"aphorite\" | \"ardande\" | \"athamaru\" | \"automaton\" | \"awakened-animal\" | \"azarketi\" | \"beastkin\" | \"bugbear\" | \"catfolk\" | \"centaur\" | \"changeling\" | \"conrasu\" | \"dhampir\" | \"dragonblood\" | \"dromaar\" | \"duskwalker\" | \"dwarf\" | \"elf\" | \"fetchling\" | \"fleshwarp\" | \"ganzi\" | \"geniekin\" | \"ghoran\" | \"gnoll\" | \"gnome\" | \"goblin\" | \"goloma\" | \"grippli\" | \"halfling\" | \"hobgoblin\" | \"human\" | \"hungerseed\" | \"kashrishi\" | \"kitsune\" | \"kobold\" | \"leshy\" | \"lizardfolk\" | \"merfolk\" | \"minotaur\" | \"nagaji\" | \"naari\" | \"nephilim\" | \"orc\" | \"oread\" | \"poppet\" | \"ratfolk\" | \"reflection\" | \"samsaran\" | \"sarangay\" | \"shisk\" | \"shoony\" | \"skeleton\" | \"sprite\" | \"strix\" | \"suli\" | \"surki\" | \"sylph\" | \"tanuki\" | \"talos\" | \"tengu\" | \"undine\" | \"vanara\" | \"vishkanya\" | \"wayang\" | \"yaksha\" | \"yaoguai\" | \"additive\" | \"additive1\" | \"additive2\" | \"additive3\" | \"aftermath\" | \"amp\" | \"archetype\" | \"attack\" | \"beast\" | \"cantrip\" | \"circus\" | \"coagulant\" | \"composite\" | \"composition\" | \"concentrate\" | \"dedication\" | \"deviant\" | \"eidolon\" | \"esoterica\" | \"exploration\" | \"finisher\" | \"flourish\" | \"focus\" | \"general\" | \"lineage\" | \"litany\" | \"manipulate\" | \"modification\" | \"multiclass\" | \"oath\" | \"overflow\" | \"pervasive-magic\" | \"press\" | \"reckless\" | \"reincarnated\" | \"revelation\" | \"sanctified\" | \"secret\" | \"skill\" | \"structure\" | \"subtle\" | \"talisman\" | \"tandem\" | \"unstable\" | \"vigilante\" | \"summon\" | \"aura\" | \"consecration\" | \"contingency\" | \"cursebound\" | \"dream\" | \"hex\" | \"incapacitation\" | \"incarnate\" | \"incorporeal\" | \"linguistic\" | \"misfortune\" | \"morph\" | \"move\" | \"prediction\" | \"psyche\" | \"rage\" | \"spellshape\" | \"stance\" | \"summoned\" | \"trial\" | \"true-name\" | \"injury\" | \"virulent\" | \"apparition\" | \"bravado\" | \"calling\" | \"destiny\" | \"downtime\" | \"evolution\" | \"ikon\" | \"impulse\" | \"infusion\" | \"mindshift\" | \"social\" | \"spellshot\" | \"stamina\" | \"transcendence\" | \"wandering\")[], true, false, true>; rarity: RarityField; otherTags: ArrayField<SlugField<true, false, false>, string[], string[], true, false, true>; toggles: EmbeddedDataField<AbilityTraitToggles, false, false, false>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 247,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@525bc01624c839f9e6bb6c33",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:42dc3208660ba4e49ad7f1f3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 259,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: StringField<\"action\" | \"reaction\" | \"free\" | \"passive\", \"action\" | \"reaction\" | \"free\" | \"passive\", true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 258,
+              "column": 36
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@68ee161af03aebed5a96a8f8",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@faaf733e3186d4e343e16bc9",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 265,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: ArrayField<SchemaField<{ value: StringField<string, string, true, false, false>; }, SourceFromSchema<{ value: StringField<string, string, true, false, false>; }>, ModelPropsFromSchema<{ value: StringField<string, string, true, false, false>; }>, true, false, true>, SourceFromSchema<{ value: StringField<string, string, true, false, false>; }>[], ModelPropsFromSchema<{ value: StringField<string, string, true, false, false>; }>[], true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 264,
+              "column": 39
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@904ac3be59f0332b177dfb37",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/feat/data.ts#FeatSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"feat\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ItemSchema<\"feat\", FeatSystemSource>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 68,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@9fe5b502650c224d479fb775",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "taken",
+          "ref": "structural:a2f64813f16a96f4975c56cd",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 245,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 244,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: NumberField<number, number, true, false, true>; taken: NumberField<number, number, false, true, false>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 243,
+              "column": 31
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@b5bc7cc406915462566408c5",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "acuity",
+          "ref": "structural:30c7a9f69488a65c824a5405",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 324,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "range",
+          "ref": "structural:db551723b3a41c137e9f5644",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 326,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "special",
+          "ref": "structural:32b3bcd9ab47919f23f6cfa4",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 328,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ acuity: StringField<SenseAcuity, SenseAcuity, false, false, false>; range: NumberField<number, number, true, true, true>; special: SchemaField<{ ancestry: BooleanField<boolean, boolean, true, false, true>; llv: BooleanField<boolean, boolean, true, false, true>; second: BooleanField<boolean, boolean, true, false, true>; }, { ancestry: boolean; llv: boolean; second: boolean; }, { ancestry: boolean; llv: boolean; second: boolean; }, false, false, false>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 323,
+              "column": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c2a382329c76802205e91008",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "attribute",
+          "ref": "structural:3e0256de69f3b9ebde15f75e",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 298,
+              "column": 17
+            }
+          ]
+        },
+        {
+          "name": "rank",
+          "ref": "src/module/data.ts#OneToFour",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 297,
+              "column": 17
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ rank: NumberField<OneToFour, OneToFour, true, false, false>; attribute: StringField<\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", \"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", true, true, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 296,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@c37f588930640a960fe2d70d",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "keyOptions",
+          "ref": "structural:0990847a43bb10e58cb78cfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 274,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "languages",
+          "ref": "structural:a5c163baf7425e3e3ac3e670",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 282,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "proficiencies",
+          "ref": "structural:019933f524cfd91c6a4c48ab",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 294,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "senses",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Partial@f38744f8cc5123b3a532b1de",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 304,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "suppressedFeatures",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@36421e9b0da962cb02b1f680",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 305,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ keyOptions: ArrayField<StringField<\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", \"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", true, false, false>, (\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\")[], (\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\")[], false, false, false>; languages: SchemaField<{ slots: NumberField<number, number, true, false, true>; granted: ArrayField<StringField<Language, Language, true, false, false>, Language[], Language[], true, false, true>; }, { slots: number; granted: Language[]; }, { slots: number; granted: Language[]; }, false, false, false>; proficiencies: RecordField<StringField<IncreasableProficiency, IncreasableProficiency, true, false, false>, SchemaField<{ rank: NumberField<OneToFour, OneToFour, true, false, false>; attribute: StringField<\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", \"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", true, true, true>; }, SourceFromSchema<{ rank: NumberField<OneToFour, OneToFour, true, false, false>; attribute: StringField<\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", \"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", true, true, true>; }>, ModelPropsFromSchema<{ rank: NumberField<OneToFour, OneToFour, true, false, false>; attribute: StringField<\"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", \"str\" | \"dex\" | \"con\" | \"int\" | \"wis\" | \"cha\", true, true, true>; }>, true, false, true>, false, false, false, false>; senses: SensesField; suppressedFeatures: ArrayField<DocumentUUIDField<ItemUUID, true, false, false>, ItemUUID[], ItemUUID[], true, false, true>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 273,
+              "column": 37
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@caccc973fbb3d6e1646c3ead",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 267,
+              "column": 17
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "{ value: StringField<string, string, true, false, false>; }",
+          "declaredAt": [
+            {
+              "file": "src/module/item/feat/data.ts",
+              "line": 266,
+              "column": 32
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

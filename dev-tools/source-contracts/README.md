@@ -1,6 +1,6 @@
 # Source contract discovery
 
-Offline developer tooling for investigating upstream PF2e declarations and authored trait metadata, plus a bounded Rust source-model generation experiment. It does not adopt generated parsing into the ingest pipeline, artifact, API or UI.
+Offline developer tooling for investigating upstream PF2e declarations and authored trait metadata, and generating the complete pinned Rust source portfolio. It does not adopt generated parsing into the ingest pipeline, artifact, API or UI.
 
 ## Run
 
@@ -27,20 +27,19 @@ live in `src/generation/`; sampling and probe comparisons live in `src/compariso
 Tests live in `tests/`, synthetic inputs in `fixtures/`, and saved generation
 inputs in `snapshots/`. The build mirrors these directories under ignored `dist/`.
 
-## Source-slice generation
+## Source portfolio generation
 
-`generate` loads the saved modular declaration selection and emits Rust under
-atlas-ingest. The graph refresh recipe in `src/generation/item-selection.ts` selects shared Item
-description, publication, core traits (value/rarity/otherTags) across all 24
-registered families, and keyed item grants. It retains the equipped, hp, price
-and usage selection from `src/generation/equipment-selection.ts`. It is a partial source model.
-`src/generation/predicate-selection.ts` adds complete PredicateStatement/Predicate arrays and
-the existing ChoiceSet constructor-input projection through value roots.
-Trait toggles, shield integrated traits and spell traditions remain explicitly
-deferred. Unsupported selected constructs stop generation; unselected fields
-remain ordered source values at parsing. SourcePresence keeps missing/null/value
-before defaults, while the input retains upstream optional/null/undefined facts.
-This policy is separate from full Foundry admission and canonical product models.
+`generate` emits all 47 extracted roots: Actor/Item sources across eight/24
+registered families, JournalEntry, Macro, RollTable, and 42 specific rule models.
+The refresh recipe in `src/generation/portfolio-selection.ts` applies the proven
+authored-input policies and retains the existing independently callable Item,
+physical/equipment and predicate components. Full sources include fields that
+those narrower slices intentionally leave as additional data.
+Unsupported constructs stop generation. SourcePresence keeps missing/null/value
+before defaults; explicit open domains and undeclared/forbidden members retain
+ordered source values. Original declarations and serialization provenance remain
+in the saved closure alongside authored projections. Parsing is separate from
+Foundry admission, preparation, canonical conversion and production ingest.
 
 From the repository root, regenerate or check using the saved input:
 
@@ -66,9 +65,16 @@ node is stored once across common Item, trait, physical and equipment snapshots.
 Roots are selected base-before-refinement. Loading
 resolves all module inputs into one graph before emission; the emitter assigns
 shared value owners globally and writes explicit cross-module Rust imports.
-Current outputs are `items/common.rs`, `items/flags.rs`, `items/traits.rs`, `physical.rs`,
-`items/equipment.rs`, `rules/predicate.rs` and their indexes. The public Rust value namespace is
-`atlas_ingest::source_model::generated`.
+Outputs include common Item/Actor/physical components, `items/families/*`,
+`actors/families/*`, `documents/*`, `rules/*` and their indexes. Family source and
+system roots reserve their modules before traversing embedded references; shared
+shapes still have one owner. Large object union payloads are boxed to bound enum
+layout without changing serialized values. The public Rust value and selected
+root-parser namespace is `atlas_ingest::source_model::generated`.
+Byte entry points in `atlas_ingest::source_model` parse the five document kinds
+and keyed `RuleSource`. Item.rules follows upstream's generic RuleElementSource;
+use the specific rule parser separately. Existing field-level slice entry points
+remain independently callable.
 Only modules with definitions or existing children are emitted. Future families
 extend this organization; [ADR 0034](../../docs/architecture/decisions/0034-source-generation-layout.md)
 records the ownership and layout rules.
@@ -138,7 +144,31 @@ records nullable-entry support. The
 [document report](../../docs/research/document-source-generation.md) records
 complete 47-root generation/compilation and the Actor/Item corpus baseline.
 
-### Complete document comparison
+### Maintained Rust corpus comparison
+
+```sh
+npm --prefix dev-tools/source-contracts run compare-portfolio -- \
+  --source scratch/pf2e \
+  --manifest dev-tools/source-contracts/snapshots/manifest.json \
+  --baseline dev-tools/source-contracts/fixtures/portfolio-corpus-baseline.json \
+  --out scratch/portfolio-comparison
+```
+
+This checks saved-file freshness, builds the actual atlas-ingest
+`source_portfolio_probe` example offline, and samples all five document kinds
+plus every specific Item rule. Output includes raw `packets.ndjson`,
+`results.ndjson` and `comparison.json` with per-root counts, every failure context,
+fidelity and a corpus/rejection baseline comparison. No scratch parser substitutes
+for the maintained crate. Unknown rule keys and document kinds fail visibly.
+The command uses the repository Cargo target directory (or CARGO_TARGET_DIR).
+
+The saved baseline detects changed corpus bytes, counts and first-error outcomes.
+It is comparison evidence, not an ingest allowlist. Matching known rejections
+still returns exit 1; fidelity failures and baseline changes also fail. A failed
+run invalidates its previous report. Full Foundry admission remains unexecuted.
+See the [maintained portfolio report](../../docs/research/maintained-source-portfolio.md).
+
+### Schema/authored document comparison
 
 ```sh
 npm --prefix dev-tools/source-contracts run compare-documents -- \

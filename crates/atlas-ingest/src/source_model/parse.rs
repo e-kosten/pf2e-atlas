@@ -227,7 +227,8 @@ impl<'a> Fields<'a> {
     }
 }
 /// TypeScript 5.9's numeric index names satisfy ToString(ToNumber(key)) == key.
-pub(super) fn is_numeric_key(key: &str) -> bool {
+/// Whether a property name belongs to a TypeScript numeric index domain.
+pub fn is_numeric_key(key: &str) -> bool {
     key.parse::<f64>()
         .is_ok_and(|number| ryu_js::Buffer::new().format(number) == key)
 }

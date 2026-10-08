@@ -1,0 +1,437 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "CriticalSpecializationRule",
+      "declaration": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@2425aa0fad0aec4ca99fe2bf",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@2425aa0fad0aec4ca99fe2bf",
+      "valueRef": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@2425aa0fad0aec4ca99fe2bf",
+      "ruleKey": "CriticalSpecialization"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "src/module/rules/rule-element/crit-spec.ts#CritSpecRuleSchema.$object.damageDice.$object@5139b32b0e3177012400a7bc",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/crit-spec.ts",
+          "line": 214,
+          "column": 9
+        }
+      ],
+      "fields": [
+        {
+          "name": "category",
+          "ref": "structural:9499bcd1e4a1762d0ad39114",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 218,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "damageType",
+          "ref": "structural:5ce31ed24efab9b7dfefac89",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 217,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "faces",
+          "ref": "src/module/rules/rule-element/crit-spec.ts#DamageDieFaces",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 216,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "number",
+          "ref": "src/module/rules/rule-element/data.ts#RuleValue",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 215,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/rules/rule-element/crit-spec.ts#CritSpecRuleSchema.$object.modifier.$object@c100c2ffb3cec22180c7c133",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/crit-spec.ts",
+          "line": 238,
+          "column": 9
+        }
+      ],
+      "fields": [
+        {
+          "name": "category",
+          "ref": "structural:9499bcd1e4a1762d0ad39114",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 241,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "damageType",
+          "ref": "structural:5ce31ed24efab9b7dfefac89",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 240,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:3f36cb525486ba450ba299bb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 239,
+              "column": 13
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "src/module/rules/rule-element/data.ts#RuleValue",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 242,
+              "column": 13
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/rules/rule-element/crit-spec.ts#DamageDieFaces",
+      "kind": "union",
+      "name": "DamageDieFaces",
+      "declaredAt": [
+        {
+          "file": "src/module/rules/rule-element/crit-spec.ts",
+          "line": 199,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:number:10",
+        "literal:number:12",
+        "literal:number:4",
+        "literal:number:6",
+        "literal:number:8"
+      ]
+    },
+    {
+      "id": "structural:3f36cb525486ba450ba299bb",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"ability\"",
+        "literal:string:\"circumstance\"",
+        "literal:string:\"item\"",
+        "literal:string:\"potency\"",
+        "literal:string:\"proficiency\"",
+        "literal:string:\"status\"",
+        "literal:string:\"untyped\""
+      ]
+    },
+    {
+      "id": "structural:4bc405fc14b211a245d5eadb",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/rules/rule-element/crit-spec.ts#CritSpecRuleSchema.$object.damageDice.$object@5139b32b0e3177012400a7bc"
+      ]
+    },
+    {
+      "id": "structural:9c2e2547fc468653397edb47",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/rules/rule-element/crit-spec.ts#CritSpecRuleSchema.$object.modifier.$object@c100c2ffb3cec22180c7c133"
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@2425aa0fad0aec4ca99fe2bf",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "alternate",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 203,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damageDice",
+          "ref": "structural:4bc405fc14b211a245d5eadb",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 207,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ignored",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 42,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "key",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "modifier",
+          "ref": "structural:9c2e2547fc468653397edb47",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 231,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "predicate",
+          "ref": "src/module/system/predication.ts#RawPredicate@49c18e8633fb418f11fc747f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 40,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "priority",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 38,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresEquipped",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "requiresInvestment",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 46,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "spinoff",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/data.ts",
+              "line": 48,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 205,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "CritSpecRuleSchema",
+          "declaredAt": [
+            {
+              "file": "src/module/rules/rule-element/crit-spec.ts",
+              "line": 201,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

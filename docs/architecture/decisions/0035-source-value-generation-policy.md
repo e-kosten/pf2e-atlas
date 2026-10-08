@@ -76,7 +76,11 @@ resolved member list alone is insufficient evidence.
 
 `atlas-ingest::source_model` exposes callable source slices and primitives; its
 public `generated` namespace exposes generated value types, aliases and enums.
-Parser implementation functions remain private to source-model composition.
+Selected root parsers are public in `generated`, taking an ordered `SourceValue`
+and contextual path. Recursive implementation functions remain private to
+source-model composition. Handwritten document entry points accept JSON bytes;
+specific rules use a generated keyed `RuleSource` dispatcher. Item.rules retains
+the generic upstream RuleElementSource and does not invoke specific rule parsers.
 The production build pipeline and public product/API/frontend models remain under
 their existing owners.
 
