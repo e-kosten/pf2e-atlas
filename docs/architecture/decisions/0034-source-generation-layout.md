@@ -18,15 +18,21 @@ contains its roots, deferred field names and canonical graph nodes. Nodes occur
 once across snapshots; references retain their global declaration identities.
 The selection orders shared base roots before refinements so base modules own
 their shared closure and refinement modules add only their additional nodes.
-Roots for each module are contiguous; interleaving would change ownership on
-manifest reload and is rejected.
+Roots for each module are contiguous; interleaving is rejected. Explicit value
+roots reserve their module before traversal, including references reached through
+nullable/optional unions. Family sources and systems therefore stay in their
+family module when first encountered from another family's embedded data.
+Snapshot partitioning also reserves original source references and follows the
+current owner's closure. Equivalent value shapes still reuse their first owner.
 
 Load the whole selected graph before emitting Rust. A global owner table shares
 equivalent value structures under the explicit pre-default presence policy.
 Input optional/null/undefined facts and declaration provenance remain intact.
 Output partitioning follows module ownership with explicit cross-module imports;
-it is not separate per-family generation. Content modules are items/common,
-items/flags, items/traits, physical, items/equipment and rules/predicate.
+it is not separate per-family generation. Content modules include items/common,
+items/flags, items/traits, physical, items/equipment, actors/common,
+actors/creature, items/families/*, actors/families/*, documents/* and rules/*.
+Aggregate Actor/Item and specific-rule dispatch live in their source indexes.
 Generate only modules with definitions or existing children.
 
 `atlas-ingest/src/source_model/generated` owns generated Rust and its explicit
@@ -37,7 +43,9 @@ expose the intentional API; Rust execution has no Node dependency.
 The private npm `generate` command replaces the single-file experimental command.
 Saved-manifest mode checks the canonical input set and checks/regenerates Rust;
 graph mode also checks/regenerates
-the partitioned snapshots using the current bounded selection recipe. Freshness
+the partitioned snapshots using the complete authored portfolio recipe. The
+manifest retains the original extraction roots, compiler version and registered
+families; original schema closures remain beside authored projections. Freshness
 checks cover the full expected file sets, including missing/obsolete files and
 metadata changes that value-type sharing can hide. Regeneration removes obsolete
 generator-owned files and refuses unmanaged files or symlinks in artifact
@@ -48,7 +56,9 @@ directories. Format and preflight all outputs before writing.
 New families extend the module layout without copying existing shared closures.
 Generated directories are exclusively tool-owned; contributor notes belong
 outside them. Source updates intentionally regenerate inputs and Rust together.
-This establishes layout and editing rules, not full-schema generation support,
-full Foundry admission or pipeline/storage/UI adoption. Shared Item fields and
-four physical/equipment fields are partial source slices; additional constructs
-and coverage need follow-up work.
+The maintained portfolio covers all 47 extracted roots: five document kinds,
+all 24 Item/eight Actor families and 42 specific rules. Existing field-level
+slices remain useful independently callable projections, sharing value owners
+with complete sources. This establishes source models, not full Foundry
+admission or pipeline/storage/UI adoption. The corpus command reports remaining
+rejections and fidelity failures without repairing or excluding input.

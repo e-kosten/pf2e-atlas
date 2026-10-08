@@ -3,13 +3,15 @@ import path from 'node:path';
 
 import { spawnSync } from 'node:child_process';
 import type { ExtractionSummary, TypeGraph } from '../contracts.js';
-import { selectSourceInput } from './predicate-selection.js';
+import { selectPortfolioInput } from './portfolio-selection.js';
 import { loadGenerationInput, snapshotFiles } from './generation-input.js';
 import { prepareGeneratedFiles } from './generated-files.js';
 import { generateRustModules, generatedHeader } from './source-generation.js';
 
 export function formatRust(text: string): string {
-  const result = spawnSync('rustfmt', ['--edition', '2024', '--config', 'skip_children=true'], { input: text, encoding: 'utf8' });
+  const result = spawnSync('rustfmt', ['--edition', '2024', '--config', 'skip_children=true'], {
+    input: text, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 60_000,
+  });
   if (result.error || result.status !== 0) throw new Error(`rustfmt failed: ${result.error?.message ?? result.stderr}`);
   return result.stdout;
 }
@@ -30,7 +32,7 @@ export async function generate(args: { manifest?: string; graph?: string; summar
       || inputs.some(file => contains(args.snapshotDir!, file)))))
     throw new Error('Output directories must be separate from inputs and each other');
   const input = args.manifest ? await loadGenerationInput(args.manifest)
-    : selectSourceInput(JSON.parse(await readFile(args.graph!, 'utf8')) as TypeGraph,
+    : selectPortfolioInput(JSON.parse(await readFile(args.graph!, 'utf8')) as TypeGraph,
       JSON.parse(await readFile(args.summary!, 'utf8')) as ExtractionSummary);
   // Resolve all roots and format all Rust before writing either artifact set.
   const rust = Object.fromEntries(Object.entries(generateRustModules(input)).map(([file, text]) => [file, formatRust(text)]));

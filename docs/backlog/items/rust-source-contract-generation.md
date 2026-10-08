@@ -23,7 +23,8 @@ defect evidence.
 
 TypeScript compiler extraction did resolve inherited envelope/system fields,
 shared type identities and family-forbidden fields for four physical families.
-Extraction is demonstrated; reliable full Rust generation remains unproven.
+Extraction and complete pinned Rust portfolio generation are implemented.
+Production adoption and full Foundry admission remain separate milestones.
 
 ## Proposed slices
 
@@ -175,8 +176,14 @@ repaired or allowlisted. The
 upstream-supported sentinels, spell area number/string forms, custom initiative
 statistic slugs and recursive patches for overrides/fixed heightening layers.
 The original declaration graph remains available beside authored results,
-recovery/regression counts and fidelity diagnostics. Whole generated portfolios
-remain scratch output. Remaining migration/core-dependent or malformed values
+recovery/regression counts and fidelity diagnostics. The complete authored
+portfolio is maintained under `crates/atlas-ingest/src/source_model/generated`,
+with reproducible modular snapshots and callable document/specific-rule parsers.
+The contributor `compare-portfolio` command tests these maintained models against
+all document kinds and specific rules, preserving every first-error context and
+checking value fidelity. A pinned corpus baseline detects changed input,
+rejection sets, counts and value loss; known rejections remain nonzero diagnostic
+outcomes. Remaining migration/core-dependent or malformed values
 retain explicit constrained dispositions; rejected-document handling and
 contextual normalization must be decided before production adoption. Do not call
 all reported rejections bad data or treat

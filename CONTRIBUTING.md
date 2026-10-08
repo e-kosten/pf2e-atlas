@@ -333,7 +333,7 @@ Offline declaration and trait metadata tooling lives in [dev-tools/source-contra
 
 Source-model generation also requires rustfmt. Package verification
 checks that the saved graph selection reproduces checked Rust; it does not fetch
-upstream source. `generate` emits/checks the modular trial, `sample-equipment`
+upstream source. `generate` emits/checks the complete authored portfolio, `sample-equipment`
 extracts raw equipment packets and `compare-equipment` compares Rust probe results.
 `sample-items` recursively samples Item sources, including embedded/subitems;
 the Rust `item_generation_probe` example compares typed slices against raw source
@@ -355,3 +355,10 @@ manifest and references across module snapshots. Generated Rust lives under
 remain beside it. Resolve the full selected graph before emitting shared owners.
 Use the package's `generate --manifest ... --out-dir ... --check` command to check
 every output file, including missing and obsolete modules.
+
+`compare-portfolio` checks these maintained models against all five document
+kinds and specific rules through the Rust `source_portfolio_probe` example.
+It reports every rejection and value difference, and compares the pinned corpus
+baseline. Known failures still return nonzero, even when the baseline matches;
+this tooling does not decide production ingest rejection policy. See the package
+README and [maintained portfolio report](./docs/research/maintained-source-portfolio.md).

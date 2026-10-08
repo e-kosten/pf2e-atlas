@@ -1,0 +1,11 @@
+{
+  "sourceDigest": "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8",
+  "corpusDigest": "b11d1bae6151272929ffc99380c7c6cd743c4a2ed440b2005b69dafa485520b7",
+  "counts": {
+    "occurrences": 136832,
+    "accepted": 136543,
+    "rejected": 289,
+    "fidelityFailures": 0
+  },
+  "rejectionDigest": "437018653a9f2c31126e91a8b0ec41e0043b0c3238c9bcf244844e1780d3727f"
+}

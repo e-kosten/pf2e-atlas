@@ -1,0 +1,6675 @@
+{
+  "format": "atlas-source-generation-module/v1",
+  "roots": [
+    {
+      "name": "WeaponSystemSource",
+      "declaration": "src/module/item/weapon/data.ts#WeaponSystemSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/weapon/data.ts#WeaponSystemSource",
+      "valueRef": "src/module/item/weapon/data.ts#WeaponSystemSource#authored-document#authored-document-patch"
+    },
+    {
+      "name": "WeaponSource",
+      "declaration": "src/module/item/weapon/data.ts#WeaponSource",
+      "fields": [],
+      "deferred": [],
+      "sourceRef": "src/module/item/weapon/data.ts#WeaponSource",
+      "valueRef": "src/module/item/weapon/data.ts#WeaponSource#authored-document#authored-document-patch"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "literal:number:100",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 100
+    },
+    {
+      "id": "literal:number:110",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 110
+    },
+    {
+      "id": "literal:number:12",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 12
+    },
+    {
+      "id": "literal:number:120",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 120
+    },
+    {
+      "id": "literal:number:140",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 140
+    },
+    {
+      "id": "literal:number:15",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 15
+    },
+    {
+      "id": "literal:number:150",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 150
+    },
+    {
+      "id": "literal:number:180",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 180
+    },
+    {
+      "id": "literal:number:20",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 20
+    },
+    {
+      "id": "literal:number:200",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 200
+    },
+    {
+      "id": "literal:number:240",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 240
+    },
+    {
+      "id": "literal:number:30",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 30
+    },
+    {
+      "id": "literal:number:300",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 300
+    },
+    {
+      "id": "literal:number:40",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 40
+    },
+    {
+      "id": "literal:number:50",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 50
+    },
+    {
+      "id": "literal:number:60",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 60
+    },
+    {
+      "id": "literal:number:70",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 70
+    },
+    {
+      "id": "literal:number:80",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 80
+    },
+    {
+      "id": "literal:number:90",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": 90
+    },
+    {
+      "id": "literal:string:\"\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": ""
+    },
+    {
+      "id": "literal:string:\"-\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "-"
+    },
+    {
+      "id": "literal:string:\"0\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "0"
+    },
+    {
+      "id": "literal:string:\"1\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "1"
+    },
+    {
+      "id": "literal:string:\"10\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "10"
+    },
+    {
+      "id": "literal:string:\"2\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "2"
+    },
+    {
+      "id": "literal:string:\"3\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "3"
+    },
+    {
+      "id": "literal:string:\"advanced\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "advanced"
+    },
+    {
+      "id": "literal:string:\"adze\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "adze"
+    },
+    {
+      "id": "literal:string:\"air-repeater\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "air-repeater"
+    },
+    {
+      "id": "literal:string:\"aklys\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "aklys"
+    },
+    {
+      "id": "literal:string:\"alchemical-bomb\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "alchemical-bomb"
+    },
+    {
+      "id": "literal:string:\"alchemical-crossbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "alchemical-crossbow"
+    },
+    {
+      "id": "literal:string:\"aldori-dueling-sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "aldori-dueling-sword"
+    },
+    {
+      "id": "literal:string:\"arbalest\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "arbalest"
+    },
+    {
+      "id": "literal:string:\"arquebus\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "arquebus"
+    },
+    {
+      "id": "literal:string:\"asp-coil\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "asp-coil"
+    },
+    {
+      "id": "literal:string:\"atlatl\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "atlatl"
+    },
+    {
+      "id": "literal:string:\"axe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "axe"
+    },
+    {
+      "id": "literal:string:\"axe-musket\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "axe-musket"
+    },
+    {
+      "id": "literal:string:\"barricade-buster\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "barricade-buster"
+    },
+    {
+      "id": "literal:string:\"bastard-sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bastard-sword"
+    },
+    {
+      "id": "literal:string:\"battle-axe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "battle-axe"
+    },
+    {
+      "id": "literal:string:\"battle-lute\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "battle-lute"
+    },
+    {
+      "id": "literal:string:\"battle-saddle\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "battle-saddle"
+    },
+    {
+      "id": "literal:string:\"bec-de-corbin\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bec-de-corbin"
+    },
+    {
+      "id": "literal:string:\"big-boom-gun\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "big-boom-gun"
+    },
+    {
+      "id": "literal:string:\"black-powder-knuckle-dusters\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "black-powder-knuckle-dusters"
+    },
+    {
+      "id": "literal:string:\"bladed-diabolo\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bladed-diabolo"
+    },
+    {
+      "id": "literal:string:\"bladed-gauntlet\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bladed-gauntlet"
+    },
+    {
+      "id": "literal:string:\"bladed-hoop\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bladed-hoop"
+    },
+    {
+      "id": "literal:string:\"bladed-scarf\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bladed-scarf"
+    },
+    {
+      "id": "literal:string:\"blowgun\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "blowgun"
+    },
+    {
+      "id": "literal:string:\"blowgun-darts\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "blowgun-darts"
+    },
+    {
+      "id": "literal:string:\"blunderbuss\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "blunderbuss"
+    },
+    {
+      "id": "literal:string:\"bo-staff\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bo-staff"
+    },
+    {
+      "id": "literal:string:\"boarding-axe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "boarding-axe"
+    },
+    {
+      "id": "literal:string:\"boarding-pike\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "boarding-pike"
+    },
+    {
+      "id": "literal:string:\"bola\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bola"
+    },
+    {
+      "id": "literal:string:\"boomerang\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "boomerang"
+    },
+    {
+      "id": "literal:string:\"bow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bow"
+    },
+    {
+      "id": "literal:string:\"bow-staff\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "bow-staff"
+    },
+    {
+      "id": "literal:string:\"brawling\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "brawling"
+    },
+    {
+      "id": "literal:string:\"breaching-pike\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "breaching-pike"
+    },
+    {
+      "id": "literal:string:\"broadspear\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "broadspear"
+    },
+    {
+      "id": "literal:string:\"butchering-axe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "butchering-axe"
+    },
+    {
+      "id": "literal:string:\"butterfly-sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "butterfly-sword"
+    },
+    {
+      "id": "literal:string:\"buugeng\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "buugeng"
+    },
+    {
+      "id": "literal:string:\"cane-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "cane-pistol"
+    },
+    {
+      "id": "literal:string:\"capturing-spetum\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "capturing-spetum"
+    },
+    {
+      "id": "literal:string:\"chain-sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "chain-sword"
+    },
+    {
+      "id": "literal:string:\"chakram\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "chakram"
+    },
+    {
+      "id": "literal:string:\"chakri\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "chakri"
+    },
+    {
+      "id": "literal:string:\"clan-dagger\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "clan-dagger"
+    },
+    {
+      "id": "literal:string:\"clan-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "clan-pistol"
+    },
+    {
+      "id": "literal:string:\"claw\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "claw"
+    },
+    {
+      "id": "literal:string:\"claw-blade\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "claw-blade"
+    },
+    {
+      "id": "literal:string:\"club\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "club"
+    },
+    {
+      "id": "literal:string:\"coat-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "coat-pistol"
+    },
+    {
+      "id": "literal:string:\"combat-fishing-pole\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "combat-fishing-pole"
+    },
+    {
+      "id": "literal:string:\"combat-grapnel\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "combat-grapnel"
+    },
+    {
+      "id": "literal:string:\"combat-lure\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "combat-lure"
+    },
+    {
+      "id": "literal:string:\"composite-longbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "composite-longbow"
+    },
+    {
+      "id": "literal:string:\"composite-shortbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "composite-shortbow"
+    },
+    {
+      "id": "literal:string:\"corset-knife\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "corset-knife"
+    },
+    {
+      "id": "literal:string:\"crescent-cross\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "crescent-cross"
+    },
+    {
+      "id": "literal:string:\"crossbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "crossbow"
+    },
+    {
+      "id": "literal:string:\"d10\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "d10"
+    },
+    {
+      "id": "literal:string:\"d12\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "d12"
+    },
+    {
+      "id": "literal:string:\"d4\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "d4"
+    },
+    {
+      "id": "literal:string:\"d6\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "d6"
+    },
+    {
+      "id": "literal:string:\"d8\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "d8"
+    },
+    {
+      "id": "literal:string:\"dagger\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dagger"
+    },
+    {
+      "id": "literal:string:\"dagger-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dagger-pistol"
+    },
+    {
+      "id": "literal:string:\"daikyu\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "daikyu"
+    },
+    {
+      "id": "literal:string:\"dancers-spear\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dancers-spear"
+    },
+    {
+      "id": "literal:string:\"dandpatta\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dandpatta"
+    },
+    {
+      "id": "literal:string:\"dart\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dart"
+    },
+    {
+      "id": "literal:string:\"dogslicer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dogslicer"
+    },
+    {
+      "id": "literal:string:\"donchak\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "donchak"
+    },
+    {
+      "id": "literal:string:\"double-barreled-musket\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "double-barreled-musket"
+    },
+    {
+      "id": "literal:string:\"double-barreled-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "double-barreled-pistol"
+    },
+    {
+      "id": "literal:string:\"dragon-mouth-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dragon-mouth-pistol"
+    },
+    {
+      "id": "literal:string:\"dueling-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dueling-pistol"
+    },
+    {
+      "id": "literal:string:\"dueling-spear\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dueling-spear"
+    },
+    {
+      "id": "literal:string:\"dwarven-dorn-dergar\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dwarven-dorn-dergar"
+    },
+    {
+      "id": "literal:string:\"dwarven-scattergun\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dwarven-scattergun"
+    },
+    {
+      "id": "literal:string:\"dwarven-war-axe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "dwarven-war-axe"
+    },
+    {
+      "id": "literal:string:\"earthbreaker\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "earthbreaker"
+    },
+    {
+      "id": "literal:string:\"elven-branched-spear\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "elven-branched-spear"
+    },
+    {
+      "id": "literal:string:\"elven-curve-blade\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "elven-curve-blade"
+    },
+    {
+      "id": "literal:string:\"explosive-dogslicer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "explosive-dogslicer"
+    },
+    {
+      "id": "literal:string:\"exquisite-sword-cane\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "exquisite-sword-cane"
+    },
+    {
+      "id": "literal:string:\"exquisite-sword-cane-sheath\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "exquisite-sword-cane-sheath"
+    },
+    {
+      "id": "literal:string:\"falcata\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "falcata"
+    },
+    {
+      "id": "literal:string:\"falchion\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "falchion"
+    },
+    {
+      "id": "literal:string:\"fangs\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fangs"
+    },
+    {
+      "id": "literal:string:\"fangwire\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fangwire"
+    },
+    {
+      "id": "literal:string:\"fauchard\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fauchard"
+    },
+    {
+      "id": "literal:string:\"feng-huo-lun\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "feng-huo-lun"
+    },
+    {
+      "id": "literal:string:\"fighting-fan\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fighting-fan"
+    },
+    {
+      "id": "literal:string:\"fighting-oar\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fighting-oar"
+    },
+    {
+      "id": "literal:string:\"fighting-stick\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fighting-stick"
+    },
+    {
+      "id": "literal:string:\"filchers-fork\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "filchers-fork"
+    },
+    {
+      "id": "literal:string:\"fire-lance\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fire-lance"
+    },
+    {
+      "id": "literal:string:\"fire-poi\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fire-poi"
+    },
+    {
+      "id": "literal:string:\"firearm\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "firearm"
+    },
+    {
+      "id": "literal:string:\"fist\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "fist"
+    },
+    {
+      "id": "literal:string:\"flail\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "flail"
+    },
+    {
+      "id": "literal:string:\"flingflenser\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "flingflenser"
+    },
+    {
+      "id": "literal:string:\"flintlock-musket\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "flintlock-musket"
+    },
+    {
+      "id": "literal:string:\"flintlock-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "flintlock-pistol"
+    },
+    {
+      "id": "literal:string:\"flying-talon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "flying-talon"
+    },
+    {
+      "id": "literal:string:\"flyssa\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "flyssa"
+    },
+    {
+      "id": "literal:string:\"forked-bipod\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "forked-bipod"
+    },
+    {
+      "id": "literal:string:\"frying-pan\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "frying-pan"
+    },
+    {
+      "id": "literal:string:\"gada\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gada"
+    },
+    {
+      "id": "literal:string:\"gaff\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gaff"
+    },
+    {
+      "id": "literal:string:\"gakgung\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gakgung"
+    },
+    {
+      "id": "literal:string:\"gauntlet\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gauntlet"
+    },
+    {
+      "id": "literal:string:\"gauntlet-bow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gauntlet-bow"
+    },
+    {
+      "id": "literal:string:\"gill-hook\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gill-hook"
+    },
+    {
+      "id": "literal:string:\"gladius\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gladius"
+    },
+    {
+      "id": "literal:string:\"glaive\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "glaive"
+    },
+    {
+      "id": "literal:string:\"gnome-amalgam-musket\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gnome-amalgam-musket"
+    },
+    {
+      "id": "literal:string:\"gnome-flickmace\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gnome-flickmace"
+    },
+    {
+      "id": "literal:string:\"gnome-hooked-hammer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gnome-hooked-hammer"
+    },
+    {
+      "id": "literal:string:\"greataxe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "greataxe"
+    },
+    {
+      "id": "literal:string:\"greatclub\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "greatclub"
+    },
+    {
+      "id": "literal:string:\"greatpick\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "greatpick"
+    },
+    {
+      "id": "literal:string:\"greatsword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "greatsword"
+    },
+    {
+      "id": "literal:string:\"griffon-cane\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "griffon-cane"
+    },
+    {
+      "id": "literal:string:\"guisarme\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "guisarme"
+    },
+    {
+      "id": "literal:string:\"gun-sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "gun-sword"
+    },
+    {
+      "id": "literal:string:\"halberd\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "halberd"
+    },
+    {
+      "id": "literal:string:\"halfling-sling-staff\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "halfling-sling-staff"
+    },
+    {
+      "id": "literal:string:\"hammer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hammer"
+    },
+    {
+      "id": "literal:string:\"hammer-gun\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hammer-gun"
+    },
+    {
+      "id": "literal:string:\"hand-adze\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hand-adze"
+    },
+    {
+      "id": "literal:string:\"hand-cannon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hand-cannon"
+    },
+    {
+      "id": "literal:string:\"hand-crossbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hand-crossbow"
+    },
+    {
+      "id": "literal:string:\"harmona-gun\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "harmona-gun"
+    },
+    {
+      "id": "literal:string:\"harpoon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "harpoon"
+    },
+    {
+      "id": "literal:string:\"hatchet\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hatchet"
+    },
+    {
+      "id": "literal:string:\"heavy-crossbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "heavy-crossbow"
+    },
+    {
+      "id": "literal:string:\"held-in-one-hand\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "held-in-one-hand"
+    },
+    {
+      "id": "literal:string:\"held-in-one-plus-hands\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "held-in-one-plus-hands"
+    },
+    {
+      "id": "literal:string:\"held-in-two-hands\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "held-in-two-hands"
+    },
+    {
+      "id": "literal:string:\"hongali-hornbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hongali-hornbow"
+    },
+    {
+      "id": "literal:string:\"hook-sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "hook-sword"
+    },
+    {
+      "id": "literal:string:\"horsechopper\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "horsechopper"
+    },
+    {
+      "id": "literal:string:\"injection-spear\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "injection-spear"
+    },
+    {
+      "id": "literal:string:\"javelin\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "javelin"
+    },
+    {
+      "id": "literal:string:\"jaws\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "jaws"
+    },
+    {
+      "id": "literal:string:\"jezail\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "jezail"
+    },
+    {
+      "id": "literal:string:\"jiu-huan-dao\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "jiu-huan-dao"
+    },
+    {
+      "id": "literal:string:\"juggling-club\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "juggling-club"
+    },
+    {
+      "id": "literal:string:\"kalis\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "kalis"
+    },
+    {
+      "id": "literal:string:\"kama\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "kama"
+    },
+    {
+      "id": "literal:string:\"karambit\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "karambit"
+    },
+    {
+      "id": "literal:string:\"katana\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "katana"
+    },
+    {
+      "id": "literal:string:\"katar\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "katar"
+    },
+    {
+      "id": "literal:string:\"kestros\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "kestros"
+    },
+    {
+      "id": "literal:string:\"khakkhara\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "khakkhara"
+    },
+    {
+      "id": "literal:string:\"khopesh\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "khopesh"
+    },
+    {
+      "id": "literal:string:\"knife\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "knife"
+    },
+    {
+      "id": "literal:string:\"knuckle-duster\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "knuckle-duster"
+    },
+    {
+      "id": "literal:string:\"kris\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "kris"
+    },
+    {
+      "id": "literal:string:\"kukri\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "kukri"
+    },
+    {
+      "id": "literal:string:\"kusarigama\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "kusarigama"
+    },
+    {
+      "id": "literal:string:\"lance\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "lance"
+    },
+    {
+      "id": "literal:string:\"lancer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "lancer"
+    },
+    {
+      "id": "literal:string:\"leiomano\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "leiomano"
+    },
+    {
+      "id": "literal:string:\"light-hammer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "light-hammer"
+    },
+    {
+      "id": "literal:string:\"light-mace\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "light-mace"
+    },
+    {
+      "id": "literal:string:\"light-pick\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "light-pick"
+    },
+    {
+      "id": "literal:string:\"lion-scythe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "lion-scythe"
+    },
+    {
+      "id": "literal:string:\"liuyedao\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "liuyedao"
+    },
+    {
+      "id": "literal:string:\"long-air-repeater\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "long-air-repeater"
+    },
+    {
+      "id": "literal:string:\"long-hammer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "long-hammer"
+    },
+    {
+      "id": "literal:string:\"longbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "longbow"
+    },
+    {
+      "id": "literal:string:\"longspear\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "longspear"
+    },
+    {
+      "id": "literal:string:\"longsword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "longsword"
+    },
+    {
+      "id": "literal:string:\"mace\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "mace"
+    },
+    {
+      "id": "literal:string:\"mace-multipistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "mace-multipistol"
+    },
+    {
+      "id": "literal:string:\"machete\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "machete"
+    },
+    {
+      "id": "literal:string:\"macuahuitl\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "macuahuitl"
+    },
+    {
+      "id": "literal:string:\"main-gauche\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "main-gauche"
+    },
+    {
+      "id": "literal:string:\"mambele\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "mambele"
+    },
+    {
+      "id": "literal:string:\"martial\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "martial"
+    },
+    {
+      "id": "literal:string:\"maul\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "maul"
+    },
+    {
+      "id": "literal:string:\"meteor-hammer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "meteor-hammer"
+    },
+    {
+      "id": "literal:string:\"mikazuki\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "mikazuki"
+    },
+    {
+      "id": "literal:string:\"mithral-tree\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "mithral-tree"
+    },
+    {
+      "id": "literal:string:\"monkeys-fist\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "monkeys-fist"
+    },
+    {
+      "id": "literal:string:\"morningstar\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "morningstar"
+    },
+    {
+      "id": "literal:string:\"naginata\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "naginata"
+    },
+    {
+      "id": "literal:string:\"nails\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "nails"
+    },
+    {
+      "id": "literal:string:\"nightstick\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "nightstick"
+    },
+    {
+      "id": "literal:string:\"nodachi\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "nodachi"
+    },
+    {
+      "id": "literal:string:\"nunchaku\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "nunchaku"
+    },
+    {
+      "id": "literal:string:\"ogre-hook\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "ogre-hook"
+    },
+    {
+      "id": "literal:string:\"orc-knuckle-dagger\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "orc-knuckle-dagger"
+    },
+    {
+      "id": "literal:string:\"orc-necksplitter\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "orc-necksplitter"
+    },
+    {
+      "id": "literal:string:\"orc-skewermaul\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "orc-skewermaul"
+    },
+    {
+      "id": "literal:string:\"palstave\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "palstave"
+    },
+    {
+      "id": "literal:string:\"panabas\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "panabas"
+    },
+    {
+      "id": "literal:string:\"pepperbox\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "pepperbox"
+    },
+    {
+      "id": "literal:string:\"phalanx-piercer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "phalanx-piercer"
+    },
+    {
+      "id": "literal:string:\"pick\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "pick"
+    },
+    {
+      "id": "literal:string:\"piercing-wind\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "piercing-wind"
+    },
+    {
+      "id": "literal:string:\"piranha-kiss\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "piranha-kiss"
+    },
+    {
+      "id": "literal:string:\"poi\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "poi"
+    },
+    {
+      "id": "literal:string:\"polearm\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "polearm"
+    },
+    {
+      "id": "literal:string:\"polytool\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "polytool"
+    },
+    {
+      "id": "literal:string:\"probing-cane\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "probing-cane"
+    },
+    {
+      "id": "literal:string:\"ranseur\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "ranseur"
+    },
+    {
+      "id": "literal:string:\"rapier\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "rapier"
+    },
+    {
+      "id": "literal:string:\"rapier-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "rapier-pistol"
+    },
+    {
+      "id": "literal:string:\"reinforced-stock\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "reinforced-stock"
+    },
+    {
+      "id": "literal:string:\"reinforced-wheels\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "reinforced-wheels"
+    },
+    {
+      "id": "literal:string:\"repeating-crossbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "repeating-crossbow"
+    },
+    {
+      "id": "literal:string:\"repeating-hand-crossbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "repeating-hand-crossbow"
+    },
+    {
+      "id": "literal:string:\"repeating-heavy-crossbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "repeating-heavy-crossbow"
+    },
+    {
+      "id": "literal:string:\"rhoka-sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "rhoka-sword"
+    },
+    {
+      "id": "literal:string:\"rope-dart\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "rope-dart"
+    },
+    {
+      "id": "literal:string:\"rotary-bow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "rotary-bow"
+    },
+    {
+      "id": "literal:string:\"rungu\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "rungu"
+    },
+    {
+      "id": "literal:string:\"sai\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sai"
+    },
+    {
+      "id": "literal:string:\"sansetsukon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sansetsukon"
+    },
+    {
+      "id": "literal:string:\"sap\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sap"
+    },
+    {
+      "id": "literal:string:\"sawtooth-saber\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sawtooth-saber"
+    },
+    {
+      "id": "literal:string:\"scimitar\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "scimitar"
+    },
+    {
+      "id": "literal:string:\"scizore\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "scizore"
+    },
+    {
+      "id": "literal:string:\"scorpion-whip\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "scorpion-whip"
+    },
+    {
+      "id": "literal:string:\"scourge\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "scourge"
+    },
+    {
+      "id": "literal:string:\"scythe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "scythe"
+    },
+    {
+      "id": "literal:string:\"shauth-lash\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shauth-lash"
+    },
+    {
+      "id": "literal:string:\"shears\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shears"
+    },
+    {
+      "id": "literal:string:\"shield-bash\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shield-bash"
+    },
+    {
+      "id": "literal:string:\"shield-boss\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shield-boss"
+    },
+    {
+      "id": "literal:string:\"shield-bow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shield-bow"
+    },
+    {
+      "id": "literal:string:\"shield-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shield-pistol"
+    },
+    {
+      "id": "literal:string:\"shield-spikes\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shield-spikes"
+    },
+    {
+      "id": "literal:string:\"shobhad-longrifle\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shobhad-longrifle"
+    },
+    {
+      "id": "literal:string:\"shortbow\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shortbow"
+    },
+    {
+      "id": "literal:string:\"shortsword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shortsword"
+    },
+    {
+      "id": "literal:string:\"shuan-ji\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shuan-ji"
+    },
+    {
+      "id": "literal:string:\"shuriken\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "shuriken"
+    },
+    {
+      "id": "literal:string:\"sickle\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sickle"
+    },
+    {
+      "id": "literal:string:\"sickle-saber\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sickle-saber"
+    },
+    {
+      "id": "literal:string:\"simple\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "simple"
+    },
+    {
+      "id": "literal:string:\"slide-pistol\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "slide-pistol"
+    },
+    {
+      "id": "literal:string:\"sling\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sling"
+    },
+    {
+      "id": "literal:string:\"sling-bullets\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sling-bullets"
+    },
+    {
+      "id": "literal:string:\"spear\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spear"
+    },
+    {
+      "id": "literal:string:\"spiked-chain\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spiked-chain"
+    },
+    {
+      "id": "literal:string:\"spiked-gauntlet\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spiked-gauntlet"
+    },
+    {
+      "id": "literal:string:\"spiral-rapier\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spiral-rapier"
+    },
+    {
+      "id": "literal:string:\"spirit-thresher\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spirit-thresher"
+    },
+    {
+      "id": "literal:string:\"spoon-gun\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spoon-gun"
+    },
+    {
+      "id": "literal:string:\"spraysling\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "spraysling"
+    },
+    {
+      "id": "literal:string:\"starknife\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "starknife"
+    },
+    {
+      "id": "literal:string:\"stiletto-pen\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "stiletto-pen"
+    },
+    {
+      "id": "literal:string:\"sukgung\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sukgung"
+    },
+    {
+      "id": "literal:string:\"sun-sling\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sun-sling"
+    },
+    {
+      "id": "literal:string:\"switchscythe\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "switchscythe"
+    },
+    {
+      "id": "literal:string:\"sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sword"
+    },
+    {
+      "id": "literal:string:\"sword-cane\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "sword-cane"
+    },
+    {
+      "id": "literal:string:\"talwar\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "talwar"
+    },
+    {
+      "id": "literal:string:\"tamchal-chakram\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tamchal-chakram"
+    },
+    {
+      "id": "literal:string:\"taw-launcher\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "taw-launcher"
+    },
+    {
+      "id": "literal:string:\"tekko-kagi\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tekko-kagi"
+    },
+    {
+      "id": "literal:string:\"temple-sword\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "temple-sword"
+    },
+    {
+      "id": "literal:string:\"tengu-gale-blade\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tengu-gale-blade"
+    },
+    {
+      "id": "literal:string:\"tetsubo\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tetsubo"
+    },
+    {
+      "id": "literal:string:\"thorn-whip\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "thorn-whip"
+    },
+    {
+      "id": "literal:string:\"three-peaked-tree\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "three-peaked-tree"
+    },
+    {
+      "id": "literal:string:\"three-section-naginata\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "three-section-naginata"
+    },
+    {
+      "id": "literal:string:\"throwing-knife\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "throwing-knife"
+    },
+    {
+      "id": "literal:string:\"thunder-sling\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "thunder-sling"
+    },
+    {
+      "id": "literal:string:\"thundermace\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "thundermace"
+    },
+    {
+      "id": "literal:string:\"tonfa\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tonfa"
+    },
+    {
+      "id": "literal:string:\"tri-bladed-katar\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tri-bladed-katar"
+    },
+    {
+      "id": "literal:string:\"tricky-pick\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "tricky-pick"
+    },
+    {
+      "id": "literal:string:\"trident\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "trident"
+    },
+    {
+      "id": "literal:string:\"triggerbrand\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "triggerbrand"
+    },
+    {
+      "id": "literal:string:\"urumi\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "urumi"
+    },
+    {
+      "id": "literal:string:\"visap\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "visap"
+    },
+    {
+      "id": "literal:string:\"wakizashi\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wakizashi"
+    },
+    {
+      "id": "literal:string:\"war-flail\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "war-flail"
+    },
+    {
+      "id": "literal:string:\"war-gavel\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "war-gavel"
+    },
+    {
+      "id": "literal:string:\"war-javelin\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "war-javelin"
+    },
+    {
+      "id": "literal:string:\"war-lance\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "war-lance"
+    },
+    {
+      "id": "literal:string:\"war-razor\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "war-razor"
+    },
+    {
+      "id": "literal:string:\"warhammer\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "warhammer"
+    },
+    {
+      "id": "literal:string:\"weapon\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "weapon"
+    },
+    {
+      "id": "literal:string:\"wheel-blades\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wheel-blades"
+    },
+    {
+      "id": "literal:string:\"wheel-spikes\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wheel-spikes"
+    },
+    {
+      "id": "literal:string:\"whip\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "whip"
+    },
+    {
+      "id": "literal:string:\"whip-claw\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "whip-claw"
+    },
+    {
+      "id": "literal:string:\"whip-staff\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "whip-staff"
+    },
+    {
+      "id": "literal:string:\"wish-blade\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wish-blade"
+    },
+    {
+      "id": "literal:string:\"wish-knife\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wish-knife"
+    },
+    {
+      "id": "literal:string:\"wooden-taws\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wooden-taws"
+    },
+    {
+      "id": "literal:string:\"worngloves\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "worngloves"
+    },
+    {
+      "id": "literal:string:\"wrecker\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wrecker"
+    },
+    {
+      "id": "literal:string:\"wrist-launcher\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "wrist-launcher"
+    },
+    {
+      "id": "literal:string:\"zhuazhi-bang\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "zhuazhi-bang"
+    },
+    {
+      "id": "literal:string:\"zulfikar\"",
+      "kind": "literal",
+      "declaredAt": [],
+      "value": "zulfikar"
+    },
+    {
+      "id": "node_modules/typescript/lib/lib.es5.d.ts#Required@89f422eb785f5ce781cb8b7a",
+      "kind": "object",
+      "name": "Required",
+      "declaredAt": [
+        {
+          "file": "node_modules/typescript/lib/lib.es5.d.ts",
+          "line": 1592,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 64,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "onDelete",
+          "ref": "src/module/item/base/data/system.ts#ItemGrantDeleteAction",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ItemGrantSource",
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 62,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "primitive:number#authored-empty-string",
+      "kind": "union",
+      "members": [
+        "primitive:number",
+        "authored-document:empty-string"
+      ]
+    },
+    {
+      "id": "src/module/item/base/data/system.ts#ItemGrantDeleteAction",
+      "kind": "union",
+      "name": "ItemGrantDeleteAction",
+      "declaredAt": [
+        {
+          "file": "src/module/item/base/data/system.ts",
+          "line": 78,
+          "column": 1
+        }
+      ],
+      "members": [
+        "literal:string:\"cascade\"",
+        "literal:string:\"detach\"",
+        "literal:string:\"restrict\""
+      ]
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#ComboWeaponMeleeUsage",
+      "kind": "object",
+      "name": "ComboWeaponMeleeUsage",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 189,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "damage",
+          "ref": "src/module/item/weapon/data.ts#ComboWeaponMeleeUsage.damage.$object@08dbdc45331b9f3252be1f28",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 190,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "group",
+          "ref": "structural:95fbb240b4d3b7d0e95544ee",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 191,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traitToggles",
+          "ref": "structural:6b4e9b1e87af74ddc3cb3713",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 193,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "structural:20cff38d45913326c11a107e",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 192,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#ComboWeaponMeleeUsage.damage.$object@08dbdc45331b9f3252be1f28",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 190,
+          "column": 13
+        }
+      ],
+      "fields": [
+        {
+          "name": "die",
+          "ref": "structural:dd36ea893f190cd6009b46e5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 190,
+              "column": 33
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:8802e25b47649f01923ba165",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 190,
+              "column": 15
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#ComboWeaponMeleeUsage.traitToggles.$object@445ed3deee361618afd81145",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 193,
+          "column": 20
+        }
+      ],
+      "fields": [
+        {
+          "name": "modular",
+          "ref": "structural:5ce31ed24efab9b7dfefac89",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 193,
+              "column": 22
+            }
+          ]
+        },
+        {
+          "name": "versatile",
+          "ref": "structural:5ce31ed24efab9b7dfefac89",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 193,
+              "column": 50
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#SpecificWeaponData",
+      "kind": "object",
+      "name": "SpecificWeaponData",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 136,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "material",
+          "ref": "src/module/item/weapon/data.ts#WeaponMaterialSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 137,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "runes",
+          "ref": "src/module/item/weapon/data.ts#WeaponRuneSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 138,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponDamage",
+      "kind": "object",
+      "name": "WeaponDamage",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 115,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "damageType",
+          "ref": "structural:8802e25b47649f01923ba165",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 120,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "dice",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 117,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "die",
+          "ref": "structural:c253792311b8e85f0cdcfc22",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 119,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "modifier",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 121,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "persistent",
+          "ref": "structural:6d04c4788777487c7f4504a6",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 123,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponDamage#authored-document:die",
+      "kind": "object",
+      "name": "WeaponDamage",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 115,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "damageType",
+          "ref": "structural:8802e25b47649f01923ba165",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 120,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "dice",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 117,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "die",
+          "ref": "structural:c253792311b8e85f0cdcfc22#authored-empty-string",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 119,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "modifier",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 121,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "persistent",
+          "ref": "structural:6d04c4788777487c7f4504a6",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 123,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponMaterialSource",
+      "kind": "object",
+      "name": "WeaponMaterialSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 141,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "grade",
+          "ref": "structural:b1ba58dc1c7758f89ab6be67",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 57,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:d4bc2b64bf5d96725adceb10",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 142,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/physical/data.ts#ItemMaterialSource"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponPersistentDamage",
+      "kind": "object",
+      "name": "WeaponPersistentDamage",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 126,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "faces",
+          "ref": "structural:fc76db7b6d44a6e0f970fdc3",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 130,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "number",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 128,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "structural:8802e25b47649f01923ba165",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 132,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSource",
+      "kind": "intersection",
+      "name": "WeaponSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 30,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/base/data/system.ts#BaseItemSourcePF2e.$object@bc7b919aa950cd0c25c28aee",
+        "src/module/item/weapon/data.ts#WeaponSource.$object@35012e6eee5367a4bac004de",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@1728842bda11f40365081cb8"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:1933297ebdb1379c80b29db9",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 12,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 31,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"weapon\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSource#authored-document#authored-document-patch",
+      "kind": "intersection",
+      "name": "WeaponSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 30,
+          "column": 1
+        }
+      ],
+      "members": [
+        "src/module/item/base/data/system.ts#BaseItemSourcePF2e.$object@bc7b919aa950cd0c25c28aee",
+        "src/module/item/weapon/data.ts#WeaponSource.$object@35012e6eee5367a4bac004de",
+        "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@1728842bda11f40365081cb8#authored-document#authored-document-patch"
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "structural:1933297ebdb1379c80b29db9",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 12,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 31,
+              "column": 5
+            },
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"weapon\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSource.$object@35012e6eee5367a4bac004de",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 30,
+          "column": 76
+        }
+      ],
+      "fields": [
+        {
+          "name": "flags",
+          "ref": "types/foundry/util.d.ts#global.DeepPartial@7024b6796c39196669b3a735",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 31,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource",
+      "kind": "object",
+      "name": "WeaponSystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 52,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "src/module/data.ts#MigrationRecord",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "activations",
+          "ref": "structural:87be452d4d63faf43824f224",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "apex",
+          "ref": "structural:d1e15841442ab80ba4837b5a",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "attribute",
+          "ref": "structural:77905958a3510400a1609692",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "baseItem",
+          "ref": "structural:a64122d1b2464cb4026be9ec",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 58,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "bonus",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.bonus.$object@7a38f857ba24fc3be882ba40",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 59,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "bonusDamage",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.bonusDamage.$object@31b73583b6cc326e28de772f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 63,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "bulk",
+          "ref": "src/module/item/physical/data.ts#PhysicalSystemSource.bulk.$object@d98587eea5a1795f852fa1b3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 24,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "category",
+          "ref": "structural:049888e881efa430ac047d1f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 55,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "containerId",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damage",
+          "ref": "src/module/item/weapon/data.ts#WeaponDamage",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 62,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "src/module/item/base/data/system.ts#ItemDescriptionSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "equipped",
+          "ref": "structural:7077b4048e61646da5c05017",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 30,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "graspingAppendage",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 87,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "group",
+          "ref": "structural:ce3c5d5ba427c1ddd2ea6b5e",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 56,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hardness",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 28,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hp",
+          "ref": "src/module/item/physical/data.ts#PhysicalItemHPSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 27,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "identification",
+          "ref": "src/module/item/physical/data.ts#IdentificationSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 31,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "src/module/item/physical/data.ts#PhysicalSystemSource.level.$object@51b1c0d3925d8465d4f0b425",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 20,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "material",
+          "ref": "src/module/item/weapon/data.ts#WeaponMaterialSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 54,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "maxRange",
+          "ref": "structural:a2f64813f16a96f4975c56cd",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "meleeUsage",
+          "ref": "structural:ab890f931abf48cf126b1d74",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "price",
+          "ref": "src/module/item/physical/data.ts#PartialPrice",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 29,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "property1",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.property1.$object@7a30b9c326877c0e75cd4eeb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 93,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "src/module/data.ts#PublicationData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 89,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "quantity",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 22,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "range",
+          "ref": "structural:12b0f4002a869c55262425be",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 69,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "reload",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.reload.$object@dfe53818b2e4487b5e427820",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 71,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "runes",
+          "ref": "src/module/item/weapon/data.ts#WeaponRuneSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "selectedAmmoId",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 103,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "size",
+          "ref": "structural:f8f4246aae857a8e162bc4ac",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "specific",
+          "ref": "structural:f4f45d414f210b4fb659c0c4",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "splashDamage",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.splashDamage.$object@b4ddb6391a285b829cfaa3b2",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "subitems",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@6ba7fb0619d4e26452b56204",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "temporary",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 37,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "src/module/item/weapon/data.ts#WeaponTraitsSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 53,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "usage",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.usage.$object@471852ab9750311e71300586",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/physical/data.ts#Investable@c8d0cc96d2381c06aeb80d9f"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource#authored-document#authored-document-patch",
+      "kind": "object",
+      "name": "WeaponSystemSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 52,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "_migration",
+          "ref": "src/module/data.ts#MigrationRecord",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 92,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "activations",
+          "ref": "structural:87be452d4d63faf43824f224",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "apex",
+          "ref": "structural:d1e15841442ab80ba4837b5a",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 44,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "attribute",
+          "ref": "structural:77905958a3510400a1609692",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "baseItem",
+          "ref": "structural:a64122d1b2464cb4026be9ec",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 58,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "bonus",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.bonus.$object@7a38f857ba24fc3be882ba40",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 59,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "bonusDamage",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.bonusDamage.$object@31b73583b6cc326e28de772f#authored-document:value",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 63,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "bulk",
+          "ref": "src/module/item/physical/data.ts#PhysicalSystemSource.bulk.$object@d98587eea5a1795f852fa1b3",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 24,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "category",
+          "ref": "structural:049888e881efa430ac047d1f",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 55,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "containerId",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 32,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "damage",
+          "ref": "src/module/item/weapon/data.ts#WeaponDamage#authored-document:die",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 62,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "ref": "src/module/item/base/data/system.ts#ItemDescriptionSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "equipped",
+          "ref": "structural:7077b4048e61646da5c05017",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 30,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "graspingAppendage",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 87,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "group",
+          "ref": "structural:ce3c5d5ba427c1ddd2ea6b5e",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 56,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hardness",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 28,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "hp",
+          "ref": "src/module/item/physical/data.ts#PhysicalItemHPSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 27,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "identification",
+          "ref": "src/module/item/physical/data.ts#IdentificationSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 31,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "level",
+          "ref": "src/module/item/physical/data.ts#PhysicalSystemSource.level.$object@51b1c0d3925d8465d4f0b425",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 20,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "material",
+          "ref": "src/module/item/weapon/data.ts#WeaponMaterialSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 54,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "maxRange",
+          "ref": "structural:a2f64813f16a96f4975c56cd",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "meleeUsage",
+          "ref": "structural:ab890f931abf48cf126b1d74",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "price",
+          "ref": "src/module/item/physical/data.ts#PartialPrice",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 29,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "property1",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.property1.$object@7a30b9c326877c0e75cd4eeb",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 93,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "publication",
+          "ref": "src/module/data.ts#PublicationData",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 89,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "quantity",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 22,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "range",
+          "ref": "structural:12b0f4002a869c55262425be",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 69,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "reload",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.reload.$object@dfe53818b2e4487b5e427820#authored-document:value",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 71,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "runes",
+          "ref": "src/module/item/weapon/data.ts#WeaponRuneSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "ref": "structural:c662705c991d677aa538bd62",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 94,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "selectedAmmoId",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 103,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "size",
+          "ref": "structural:f8f4246aae857a8e162bc4ac",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 34,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "slug",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "specific",
+          "ref": "structural:f4f45d414f210b4fb659c0c4",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "splashDamage",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.splashDamage.$object@b4ddb6391a285b829cfaa3b2#authored-document:value",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "subitems",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@6ba7fb0619d4e26452b56204#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "temporary",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/physical/data.ts",
+              "line": 37,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "traits",
+          "ref": "src/module/item/weapon/data.ts#WeaponTraitsSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 53,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "usage",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource.usage.$object@471852ab9750311e71300586",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/physical/data.ts#Investable@c8d0cc96d2381c06aeb80d9f"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.bonus.$object@7a38f857ba24fc3be882ba40",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 59,
+          "column": 12
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 60,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.bonusDamage.$object@31b73583b6cc326e28de772f",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 63,
+          "column": 18
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 64,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.bonusDamage.$object@31b73583b6cc326e28de772f#authored-document:value",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 63,
+          "column": 18
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number#authored-empty-string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 64,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.property1.$object@7a30b9c326877c0e75cd4eeb",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 93,
+          "column": 16
+        }
+      ],
+      "fields": [
+        {
+          "name": "critDamage",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 100,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "critDamageType",
+          "ref": "structural:8ba6e3adb75e47acd6375fdc",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 101,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "critDice",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 98,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "critDie",
+          "ref": "structural:dd36ea893f190cd6009b46e5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 99,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "damageType",
+          "ref": "structural:8ba6e3adb75e47acd6375fdc",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 97,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "dice",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 95,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "die",
+          "ref": "structural:dd36ea893f190cd6009b46e5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 96,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 94,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.reload.$object@dfe53818b2e4487b5e427820",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 71,
+          "column": 13
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:6f882cb933b89742cbf13c72",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 72,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.reload.$object@dfe53818b2e4487b5e427820#authored-document:value",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 71,
+          "column": 13
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "structural:6f882cb933b89742cbf13c72#authored-empty-string",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 72,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.splashDamage.$object@b4ddb6391a285b829cfaa3b2",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 66,
+          "column": 19
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 67,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.splashDamage.$object@b4ddb6391a285b829cfaa3b2#authored-document:value",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 66,
+          "column": 19
+        }
+      ],
+      "fields": [
+        {
+          "name": "value",
+          "ref": "primitive:number#authored-empty-string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 67,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponSystemSource.usage.$object@471852ab9750311e71300586",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 74,
+          "column": 12
+        }
+      ],
+      "fields": [
+        {
+          "name": "canBeAmmo",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 75,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "structural:60738ae1075f5afe86c83b41",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 76,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponTraitsSource",
+      "kind": "object",
+      "name": "WeaponTraitsSource",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 106,
+          "column": 1
+        }
+      ],
+      "fields": [
+        {
+          "name": "otherTags",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@8c36cea909794c132863a20d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 107,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "rarity",
+          "ref": "structural:bf6113eac55e1ea864797d40",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 36,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "toggles",
+          "ref": "structural:fa0a0a7410e7870818d25c9e",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 108,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "value",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@8a6260c32652ca6e14d5500d",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/data.ts",
+              "line": 35,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "extends": [
+        "src/module/item/physical/data.ts#PhysicalItemTraits@8a6260c32652ca6e14d5500d"
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.doubleBarrel.$object@795f884413ae289ef26ee2ab",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 109,
+          "column": 24
+        }
+      ],
+      "fields": [
+        {
+          "name": "selected",
+          "ref": "structural:25553ed4a96b64ee5076405e",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 109,
+              "column": 26
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.modular.$object@2f8b6cfc870f1ddc78ddfdea",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 110,
+          "column": 19
+        }
+      ],
+      "fields": [
+        {
+          "name": "selected",
+          "ref": "structural:5ce31ed24efab9b7dfefac89",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 110,
+              "column": 21
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.versatile.$object@26a498cb2f33f6e636468811",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 111,
+          "column": 21
+        }
+      ],
+      "fields": [
+        {
+          "name": "selected",
+          "ref": "structural:5ce31ed24efab9b7dfefac89",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 111,
+              "column": 23
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object@f324733bef9da83bb5a89db6",
+      "kind": "object",
+      "declaredAt": [
+        {
+          "file": "src/module/item/weapon/data.ts",
+          "line": 108,
+          "column": 15
+        }
+      ],
+      "fields": [
+        {
+          "name": "doubleBarrel",
+          "ref": "structural:150e09695ab915fb1958e7ed",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 109,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "modular",
+          "ref": "structural:11ecc73edd5e72030c471484",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 110,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "versatile",
+          "ref": "structural:81d6586a9234eb4cfeb3b110",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 111,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:049888e881efa430ac047d1f",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"advanced\"",
+        "literal:string:\"martial\"",
+        "literal:string:\"simple\"",
+        "literal:string:\"unarmed\""
+      ]
+    },
+    {
+      "id": "structural:0872d94e4977e03340d9f073",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "types/foundry/util.d.ts#global.DeepPartial@af3e2acec6d89e33141e7948"
+      ]
+    },
+    {
+      "id": "structural:11ecc73edd5e72030c471484",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.modular.$object@2f8b6cfc870f1ddc78ddfdea"
+      ]
+    },
+    {
+      "id": "structural:12b0f4002a869c55262425be",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:number:10",
+        "literal:number:100",
+        "literal:number:110",
+        "literal:number:120",
+        "literal:number:140",
+        "literal:number:15",
+        "literal:number:150",
+        "literal:number:180",
+        "literal:number:20",
+        "literal:number:200",
+        "literal:number:240",
+        "literal:number:30",
+        "literal:number:300",
+        "literal:number:40",
+        "literal:number:50",
+        "literal:number:60",
+        "literal:number:70",
+        "literal:number:80",
+        "literal:number:90",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:150e09695ab915fb1958e7ed",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.doubleBarrel.$object@795f884413ae289ef26ee2ab"
+      ]
+    },
+    {
+      "id": "structural:1933297ebdb1379c80b29db9",
+      "kind": "intersection",
+      "declaredAt": [],
+      "members": [
+        "src/module/item/base/data/system.ts#ItemSourceFlagsPF2e",
+        "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+        "types/foundry/util.d.ts#global.DeepPartial@7024b6796c39196669b3a735"
+      ],
+      "fields": [
+        {
+          "name": "pf2e",
+          "ref": "structural:671f3cea437e62fdc65a30ba",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 45,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 54,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 35,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:64e663cf67be13755171744a",
+          "readonly": false
+        }
+      ]
+    },
+    {
+      "id": "structural:20cff38d45913326c11a107e",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Array@8a6260c32652ca6e14d5500d",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:26513431e4aba534502ba26b",
+      "kind": "intersection",
+      "declaredAt": [],
+      "members": [
+        "src/module/item/base/data/system.ts#ItemSourceFlagsPF2e.pf2e.$object@d2f9dbdeef5416dcb8aaeb59",
+        "types/foundry/util.d.ts#global.DeepPartial@483cd6d9cdc1aa99f954cdd5"
+      ],
+      "fields": [
+        {
+          "name": "attackItemBonus",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 46,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "battleForm",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 37,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "comboMeleeUsage",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 39,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "damageFacesUpgraded",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 48,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "fixedAttack",
+          "ref": "structural:a2f64813f16a96f4975c56cd",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 44,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "grantedBy",
+          "ref": "structural:b8c2ee85b69c25b1bb4cb8cd",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 48,
+              "column": 9
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 57,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "itemGrants",
+          "ref": "structural:df6c1126f422069456f10dcf",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 47,
+              "column": 9
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 56,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "rulesSelections",
+          "ref": "structural:626c93be87b2301b555f5baa",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 46,
+              "column": 9
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 55,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "primitive:unknown",
+          "readonly": false
+        }
+      ]
+    },
+    {
+      "id": "structural:34991b2bbe74717a6e3bb458",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"cascade\"",
+        "literal:string:\"detach\"",
+        "literal:string:\"restrict\""
+      ]
+    },
+    {
+      "id": "structural:387f09cb6bf2d8e9bf55c055",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "primitive:number",
+        "primitive:object",
+        "primitive:string",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:4caf15d3eb9d0a5608cce826",
+      "kind": "intersection",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Record@fb71618094a0b05b6c421b69",
+        "types/foundry/util.d.ts#global.DeepPartial@59bf93d38dcba992ccb3d431"
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:4f8b9b3a19433202de1d6d32",
+          "readonly": false
+        }
+      ]
+    },
+    {
+      "id": "structural:4f8b9b3a19433202de1d6d32",
+      "kind": "intersection",
+      "declaredAt": [],
+      "members": [
+        "src/module/item/base/data/system.ts#ItemGranterSource",
+        "types/foundry/util.d.ts#global.DeepPartial@ad75dc0b70b9f25a00e867bd"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 64,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 64,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "nested",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 73,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 73,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "onDelete",
+          "ref": "structural:e3b53a5d90ec4bc7194eb114",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 66,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:5ce31ed24efab9b7dfefac89",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"acid\"",
+        "literal:string:\"bleed\"",
+        "literal:string:\"bludgeoning\"",
+        "literal:string:\"cold\"",
+        "literal:string:\"electricity\"",
+        "literal:string:\"fire\"",
+        "literal:string:\"force\"",
+        "literal:string:\"mental\"",
+        "literal:string:\"piercing\"",
+        "literal:string:\"poison\"",
+        "literal:string:\"slashing\"",
+        "literal:string:\"sonic\"",
+        "literal:string:\"spirit\"",
+        "literal:string:\"untyped\"",
+        "literal:string:\"vitality\"",
+        "literal:string:\"void\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:60738ae1075f5afe86c83b41",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"held-in-one-hand\"",
+        "literal:string:\"held-in-one-plus-hands\"",
+        "literal:string:\"held-in-two-hands\"",
+        "literal:string:\"worngloves\""
+      ]
+    },
+    {
+      "id": "structural:626c93be87b2301b555f5baa",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "structural:6935c9b939655cb7dcfa63e7"
+      ]
+    },
+    {
+      "id": "structural:671f3cea437e62fdc65a30ba",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "structural:26513431e4aba534502ba26b"
+      ]
+    },
+    {
+      "id": "structural:6935c9b939655cb7dcfa63e7",
+      "kind": "intersection",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Record@d78df2c5021c2c3436eb0f68",
+        "types/foundry/util.d.ts#global.DeepPartial@af3e2acec6d89e33141e7948"
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:c7b069aeecdb71fec02355c2",
+          "readonly": false
+        }
+      ]
+    },
+    {
+      "id": "structural:6b4e9b1e87af74ddc3cb3713",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/weapon/data.ts#ComboWeaponMeleeUsage.traitToggles.$object@445ed3deee361618afd81145"
+      ]
+    },
+    {
+      "id": "structural:6d04c4788777487c7f4504a6",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/item/weapon/data.ts#WeaponPersistentDamage"
+      ]
+    },
+    {
+      "id": "structural:6f882cb933b89742cbf13c72",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"-\"",
+        "literal:string:\"0\"",
+        "literal:string:\"1\"",
+        "literal:string:\"10\"",
+        "literal:string:\"2\"",
+        "literal:string:\"3\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:6f882cb933b89742cbf13c72#authored-empty-string",
+      "kind": "union",
+      "members": [
+        "literal:string:\"-\"",
+        "literal:string:\"0\"",
+        "literal:string:\"1\"",
+        "literal:string:\"10\"",
+        "literal:string:\"2\"",
+        "literal:string:\"3\"",
+        "primitive:null",
+        "authored-document:empty-string"
+      ]
+    },
+    {
+      "id": "structural:77905958a3510400a1609692",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"cha\"",
+        "literal:string:\"con\"",
+        "literal:string:\"dex\"",
+        "literal:string:\"int\"",
+        "literal:string:\"str\"",
+        "literal:string:\"wis\"",
+        "primitive:null",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:8156a607359d42b2065e961e",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "types/foundry/util.d.ts#global.DeepPartial@ad75dc0b70b9f25a00e867bd"
+      ]
+    },
+    {
+      "id": "structural:81d6586a9234eb4cfeb3b110",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.versatile.$object@26a498cb2f33f6e636468811"
+      ]
+    },
+    {
+      "id": "structural:86e5b784805e3e70c4253214",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "types/foundry/util.d.ts#global.DeepPartial@483cd6d9cdc1aa99f954cdd5"
+      ]
+    },
+    {
+      "id": "structural:8ba6e3adb75e47acd6375fdc",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"\"",
+        "literal:string:\"acid\"",
+        "literal:string:\"bleed\"",
+        "literal:string:\"bludgeoning\"",
+        "literal:string:\"cold\"",
+        "literal:string:\"electricity\"",
+        "literal:string:\"fire\"",
+        "literal:string:\"force\"",
+        "literal:string:\"mental\"",
+        "literal:string:\"piercing\"",
+        "literal:string:\"poison\"",
+        "literal:string:\"slashing\"",
+        "literal:string:\"sonic\"",
+        "literal:string:\"spirit\"",
+        "literal:string:\"untyped\"",
+        "literal:string:\"vitality\"",
+        "literal:string:\"void\""
+      ]
+    },
+    {
+      "id": "structural:95fbb240b4d3b7d0e95544ee",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"axe\"",
+        "literal:string:\"brawling\"",
+        "literal:string:\"club\"",
+        "literal:string:\"dart\"",
+        "literal:string:\"flail\"",
+        "literal:string:\"hammer\"",
+        "literal:string:\"knife\"",
+        "literal:string:\"pick\"",
+        "literal:string:\"polearm\"",
+        "literal:string:\"shield\"",
+        "literal:string:\"spear\"",
+        "literal:string:\"sword\""
+      ]
+    },
+    {
+      "id": "structural:9eb9cf8e563caff19d1f2a99",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "types/foundry/util.d.ts#global.DeepPartial@59bf93d38dcba992ccb3d431"
+      ]
+    },
+    {
+      "id": "structural:a520896abf91795e517f7ced",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Required@89f422eb785f5ce781cb8b7a",
+        "primitive:null",
+        "primitive:undefined"
+      ]
+    },
+    {
+      "id": "structural:a64122d1b2464cb4026be9ec",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"adze\"",
+        "literal:string:\"air-repeater\"",
+        "literal:string:\"aklys\"",
+        "literal:string:\"alchemical-bomb\"",
+        "literal:string:\"alchemical-crossbow\"",
+        "literal:string:\"aldori-dueling-sword\"",
+        "literal:string:\"arbalest\"",
+        "literal:string:\"arquebus\"",
+        "literal:string:\"asp-coil\"",
+        "literal:string:\"atlatl\"",
+        "literal:string:\"axe-musket\"",
+        "literal:string:\"barricade-buster\"",
+        "literal:string:\"bastard-sword\"",
+        "literal:string:\"battle-axe\"",
+        "literal:string:\"battle-lute\"",
+        "literal:string:\"battle-saddle\"",
+        "literal:string:\"bec-de-corbin\"",
+        "literal:string:\"big-boom-gun\"",
+        "literal:string:\"black-powder-knuckle-dusters\"",
+        "literal:string:\"bladed-diabolo\"",
+        "literal:string:\"bladed-gauntlet\"",
+        "literal:string:\"bladed-hoop\"",
+        "literal:string:\"bladed-scarf\"",
+        "literal:string:\"blowgun\"",
+        "literal:string:\"blowgun-darts\"",
+        "literal:string:\"blunderbuss\"",
+        "literal:string:\"bo-staff\"",
+        "literal:string:\"boarding-axe\"",
+        "literal:string:\"boarding-pike\"",
+        "literal:string:\"bola\"",
+        "literal:string:\"boomerang\"",
+        "literal:string:\"bow-staff\"",
+        "literal:string:\"breaching-pike\"",
+        "literal:string:\"broadspear\"",
+        "literal:string:\"buckler\"",
+        "literal:string:\"butchering-axe\"",
+        "literal:string:\"butterfly-sword\"",
+        "literal:string:\"buugeng\"",
+        "literal:string:\"cane-pistol\"",
+        "literal:string:\"capturing-spetum\"",
+        "literal:string:\"casters-targe\"",
+        "literal:string:\"chain-sword\"",
+        "literal:string:\"chakram\"",
+        "literal:string:\"chakri\"",
+        "literal:string:\"clan-dagger\"",
+        "literal:string:\"clan-pistol\"",
+        "literal:string:\"claw\"",
+        "literal:string:\"claw-blade\"",
+        "literal:string:\"club\"",
+        "literal:string:\"coat-pistol\"",
+        "literal:string:\"combat-fishing-pole\"",
+        "literal:string:\"combat-grapnel\"",
+        "literal:string:\"combat-lure\"",
+        "literal:string:\"composite-longbow\"",
+        "literal:string:\"composite-shortbow\"",
+        "literal:string:\"corset-knife\"",
+        "literal:string:\"crescent-cross\"",
+        "literal:string:\"crossbow\"",
+        "literal:string:\"dagger\"",
+        "literal:string:\"dagger-pistol\"",
+        "literal:string:\"daikyu\"",
+        "literal:string:\"dancers-spear\"",
+        "literal:string:\"dandpatta\"",
+        "literal:string:\"dart\"",
+        "literal:string:\"dart-shield\"",
+        "literal:string:\"dogslicer\"",
+        "literal:string:\"donchak\"",
+        "literal:string:\"double-barreled-musket\"",
+        "literal:string:\"double-barreled-pistol\"",
+        "literal:string:\"dragon-mouth-pistol\"",
+        "literal:string:\"dueling-pistol\"",
+        "literal:string:\"dueling-spear\"",
+        "literal:string:\"dwarven-dorn-dergar\"",
+        "literal:string:\"dwarven-scattergun\"",
+        "literal:string:\"dwarven-war-axe\"",
+        "literal:string:\"earthbreaker\"",
+        "literal:string:\"elven-branched-spear\"",
+        "literal:string:\"elven-curve-blade\"",
+        "literal:string:\"explosive-dogslicer\"",
+        "literal:string:\"exquisite-sword-cane\"",
+        "literal:string:\"exquisite-sword-cane-sheath\"",
+        "literal:string:\"falcata\"",
+        "literal:string:\"falchion\"",
+        "literal:string:\"fangs\"",
+        "literal:string:\"fangwire\"",
+        "literal:string:\"fauchard\"",
+        "literal:string:\"feng-huo-lun\"",
+        "literal:string:\"fighting-fan\"",
+        "literal:string:\"fighting-oar\"",
+        "literal:string:\"fighting-stick\"",
+        "literal:string:\"filchers-fork\"",
+        "literal:string:\"fire-lance\"",
+        "literal:string:\"fire-poi\"",
+        "literal:string:\"fist\"",
+        "literal:string:\"flail\"",
+        "literal:string:\"flingflenser\"",
+        "literal:string:\"flintlock-musket\"",
+        "literal:string:\"flintlock-pistol\"",
+        "literal:string:\"flying-talon\"",
+        "literal:string:\"flyssa\"",
+        "literal:string:\"forked-bipod\"",
+        "literal:string:\"fortress-shield\"",
+        "literal:string:\"frying-pan\"",
+        "literal:string:\"gada\"",
+        "literal:string:\"gaff\"",
+        "literal:string:\"gakgung\"",
+        "literal:string:\"gauntlet\"",
+        "literal:string:\"gauntlet-bow\"",
+        "literal:string:\"gauntlet-buckler\"",
+        "literal:string:\"gill-hook\"",
+        "literal:string:\"gladius\"",
+        "literal:string:\"glaive\"",
+        "literal:string:\"gnome-amalgam-musket\"",
+        "literal:string:\"gnome-flickmace\"",
+        "literal:string:\"gnome-hooked-hammer\"",
+        "literal:string:\"greataxe\"",
+        "literal:string:\"greatclub\"",
+        "literal:string:\"greatpick\"",
+        "literal:string:\"greatsword\"",
+        "literal:string:\"griffon-cane\"",
+        "literal:string:\"guisarme\"",
+        "literal:string:\"gun-sword\"",
+        "literal:string:\"halberd\"",
+        "literal:string:\"halfling-sling-staff\"",
+        "literal:string:\"hammer-gun\"",
+        "literal:string:\"hand-adze\"",
+        "literal:string:\"hand-cannon\"",
+        "literal:string:\"hand-crossbow\"",
+        "literal:string:\"harmona-gun\"",
+        "literal:string:\"harnessed-shield\"",
+        "literal:string:\"harpoon\"",
+        "literal:string:\"hatchet\"",
+        "literal:string:\"heavy-crossbow\"",
+        "literal:string:\"heavy-rondache\"",
+        "literal:string:\"hide-shield\"",
+        "literal:string:\"hongali-hornbow\"",
+        "literal:string:\"hook-sword\"",
+        "literal:string:\"horsechopper\"",
+        "literal:string:\"injection-spear\"",
+        "literal:string:\"javelin\"",
+        "literal:string:\"jaws\"",
+        "literal:string:\"jezail\"",
+        "literal:string:\"jiu-huan-dao\"",
+        "literal:string:\"juggling-club\"",
+        "literal:string:\"kalis\"",
+        "literal:string:\"kama\"",
+        "literal:string:\"karambit\"",
+        "literal:string:\"katana\"",
+        "literal:string:\"katar\"",
+        "literal:string:\"kestros\"",
+        "literal:string:\"khakkhara\"",
+        "literal:string:\"khopesh\"",
+        "literal:string:\"klar\"",
+        "literal:string:\"knuckle-duster\"",
+        "literal:string:\"kris\"",
+        "literal:string:\"kukri\"",
+        "literal:string:\"kusarigama\"",
+        "literal:string:\"lance\"",
+        "literal:string:\"lancer\"",
+        "literal:string:\"leiomano\"",
+        "literal:string:\"light-hammer\"",
+        "literal:string:\"light-mace\"",
+        "literal:string:\"light-pick\"",
+        "literal:string:\"lion-scythe\"",
+        "literal:string:\"liuyedao\"",
+        "literal:string:\"long-air-repeater\"",
+        "literal:string:\"long-hammer\"",
+        "literal:string:\"longbow\"",
+        "literal:string:\"longspear\"",
+        "literal:string:\"longsword\"",
+        "literal:string:\"mace\"",
+        "literal:string:\"mace-multipistol\"",
+        "literal:string:\"machete\"",
+        "literal:string:\"macuahuitl\"",
+        "literal:string:\"main-gauche\"",
+        "literal:string:\"mambele\"",
+        "literal:string:\"maul\"",
+        "literal:string:\"meteor-hammer\"",
+        "literal:string:\"meteor-shield\"",
+        "literal:string:\"mikazuki\"",
+        "literal:string:\"mithral-tree\"",
+        "literal:string:\"monkeys-fist\"",
+        "literal:string:\"morningstar\"",
+        "literal:string:\"naginata\"",
+        "literal:string:\"nails\"",
+        "literal:string:\"nightstick\"",
+        "literal:string:\"nodachi\"",
+        "literal:string:\"nunchaku\"",
+        "literal:string:\"ogre-hook\"",
+        "literal:string:\"orc-knuckle-dagger\"",
+        "literal:string:\"orc-necksplitter\"",
+        "literal:string:\"orc-skewermaul\"",
+        "literal:string:\"palstave\"",
+        "literal:string:\"panabas\"",
+        "literal:string:\"pepperbox\"",
+        "literal:string:\"phalanx-piercer\"",
+        "literal:string:\"pick\"",
+        "literal:string:\"piercing-wind\"",
+        "literal:string:\"piranha-kiss\"",
+        "literal:string:\"poi\"",
+        "literal:string:\"polytool\"",
+        "literal:string:\"probing-cane\"",
+        "literal:string:\"ranseur\"",
+        "literal:string:\"rapier\"",
+        "literal:string:\"rapier-pistol\"",
+        "literal:string:\"razor-disc\"",
+        "literal:string:\"reinforced-stock\"",
+        "literal:string:\"reinforced-wheels\"",
+        "literal:string:\"repeating-crossbow\"",
+        "literal:string:\"repeating-hand-crossbow\"",
+        "literal:string:\"repeating-heavy-crossbow\"",
+        "literal:string:\"rhoka-sword\"",
+        "literal:string:\"rope-dart\"",
+        "literal:string:\"rotary-bow\"",
+        "literal:string:\"rungu\"",
+        "literal:string:\"sai\"",
+        "literal:string:\"salvo-shield\"",
+        "literal:string:\"sansetsukon\"",
+        "literal:string:\"sap\"",
+        "literal:string:\"sawtooth-saber\"",
+        "literal:string:\"scimitar\"",
+        "literal:string:\"scizore\"",
+        "literal:string:\"scorpion-whip\"",
+        "literal:string:\"scourge\"",
+        "literal:string:\"scythe\"",
+        "literal:string:\"shauth-lash\"",
+        "literal:string:\"shears\"",
+        "literal:string:\"shield-bash\"",
+        "literal:string:\"shield-boss\"",
+        "literal:string:\"shield-bow\"",
+        "literal:string:\"shield-pistol\"",
+        "literal:string:\"shield-spikes\"",
+        "literal:string:\"shobhad-longrifle\"",
+        "literal:string:\"shortbow\"",
+        "literal:string:\"shortsword\"",
+        "literal:string:\"shuan-ji\"",
+        "literal:string:\"shuriken\"",
+        "literal:string:\"sickle\"",
+        "literal:string:\"sickle-saber\"",
+        "literal:string:\"slide-pistol\"",
+        "literal:string:\"sling\"",
+        "literal:string:\"sling-bullets\"",
+        "literal:string:\"spear\"",
+        "literal:string:\"spiked-chain\"",
+        "literal:string:\"spiked-gauntlet\"",
+        "literal:string:\"spiral-rapier\"",
+        "literal:string:\"spirit-thresher\"",
+        "literal:string:\"spoon-gun\"",
+        "literal:string:\"spraysling\"",
+        "literal:string:\"staff\"",
+        "literal:string:\"starknife\"",
+        "literal:string:\"steel-shield\"",
+        "literal:string:\"stiletto-pen\"",
+        "literal:string:\"sukgung\"",
+        "literal:string:\"sun-sling\"",
+        "literal:string:\"switchscythe\"",
+        "literal:string:\"sword-cane\"",
+        "literal:string:\"swordstealer-shield\"",
+        "literal:string:\"talwar\"",
+        "literal:string:\"tamchal-chakram\"",
+        "literal:string:\"taw-launcher\"",
+        "literal:string:\"tekko-kagi\"",
+        "literal:string:\"temple-sword\"",
+        "literal:string:\"tengu-gale-blade\"",
+        "literal:string:\"tetsubo\"",
+        "literal:string:\"thorn-whip\"",
+        "literal:string:\"three-peaked-tree\"",
+        "literal:string:\"three-section-naginata\"",
+        "literal:string:\"throwing-knife\"",
+        "literal:string:\"thunder-sling\"",
+        "literal:string:\"thundermace\"",
+        "literal:string:\"tonfa\"",
+        "literal:string:\"tower-shield\"",
+        "literal:string:\"tri-bladed-katar\"",
+        "literal:string:\"tricky-pick\"",
+        "literal:string:\"trident\"",
+        "literal:string:\"triggerbrand\"",
+        "literal:string:\"urumi\"",
+        "literal:string:\"visap\"",
+        "literal:string:\"wakizashi\"",
+        "literal:string:\"war-flail\"",
+        "literal:string:\"war-gavel\"",
+        "literal:string:\"war-javelin\"",
+        "literal:string:\"war-lance\"",
+        "literal:string:\"war-razor\"",
+        "literal:string:\"warhammer\"",
+        "literal:string:\"wheel-blades\"",
+        "literal:string:\"wheel-spikes\"",
+        "literal:string:\"whip\"",
+        "literal:string:\"whip-claw\"",
+        "literal:string:\"whip-staff\"",
+        "literal:string:\"wish-blade\"",
+        "literal:string:\"wish-knife\"",
+        "literal:string:\"wooden-shield\"",
+        "literal:string:\"wooden-taws\"",
+        "literal:string:\"wrecker\"",
+        "literal:string:\"wrist-launcher\"",
+        "literal:string:\"zhuazhi-bang\"",
+        "literal:string:\"zulfikar\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:ab890f931abf48cf126b1d74",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/weapon/data.ts#ComboWeaponMeleeUsage"
+      ]
+    },
+    {
+      "id": "structural:b8c2ee85b69c25b1bb4cb8cd",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "primitive:undefined",
+        "structural:d3982a08606b4a17f6d10869"
+      ]
+    },
+    {
+      "id": "structural:c253792311b8e85f0cdcfc22",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"d10\"",
+        "literal:string:\"d12\"",
+        "literal:string:\"d4\"",
+        "literal:string:\"d6\"",
+        "literal:string:\"d8\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:c253792311b8e85f0cdcfc22#authored-empty-string",
+      "kind": "union",
+      "members": [
+        "literal:string:\"d10\"",
+        "literal:string:\"d12\"",
+        "literal:string:\"d4\"",
+        "literal:string:\"d6\"",
+        "literal:string:\"d8\"",
+        "primitive:null",
+        "authored-document:empty-string"
+      ]
+    },
+    {
+      "id": "structural:ce3c5d5ba427c1ddd2ea6b5e",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"axe\"",
+        "literal:string:\"bomb\"",
+        "literal:string:\"bow\"",
+        "literal:string:\"brawling\"",
+        "literal:string:\"club\"",
+        "literal:string:\"crossbow\"",
+        "literal:string:\"dart\"",
+        "literal:string:\"firearm\"",
+        "literal:string:\"flail\"",
+        "literal:string:\"hammer\"",
+        "literal:string:\"knife\"",
+        "literal:string:\"pick\"",
+        "literal:string:\"polearm\"",
+        "literal:string:\"shield\"",
+        "literal:string:\"sling\"",
+        "literal:string:\"spear\"",
+        "literal:string:\"sword\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:d3982a08606b4a17f6d10869",
+      "kind": "intersection",
+      "declaredAt": [],
+      "members": [
+        "node_modules/typescript/lib/lib.es5.d.ts#Required@89f422eb785f5ce781cb8b7a",
+        "src/module/item/base/data/system.ts#ItemGrantSource"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 64,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 64,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "onDelete",
+          "ref": "structural:34991b2bbe74717a6e3bb458",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 66,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": []
+    },
+    {
+      "id": "structural:d4bc2b64bf5d96725adceb10",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"abysium\"",
+        "literal:string:\"adamantine\"",
+        "literal:string:\"cold-iron\"",
+        "literal:string:\"dawnsilver\"",
+        "literal:string:\"djezet\"",
+        "literal:string:\"duskwood\"",
+        "literal:string:\"inubrix\"",
+        "literal:string:\"keep-stone\"",
+        "literal:string:\"noqual\"",
+        "literal:string:\"orichalcum\"",
+        "literal:string:\"peachwood\"",
+        "literal:string:\"siccatite\"",
+        "literal:string:\"silver\"",
+        "literal:string:\"sisterstone\"",
+        "literal:string:\"sisterstone-dusk\"",
+        "literal:string:\"sisterstone-scarlet\"",
+        "literal:string:\"sloughstone\"",
+        "literal:string:\"sovereign-steel\"",
+        "literal:string:\"warpglass\"",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "structural:dd36ea893f190cd6009b46e5",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:string:\"d10\"",
+        "literal:string:\"d12\"",
+        "literal:string:\"d4\"",
+        "literal:string:\"d6\"",
+        "literal:string:\"d8\""
+      ]
+    },
+    {
+      "id": "structural:df6c1126f422069456f10dcf",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "structural:4caf15d3eb9d0a5608cce826"
+      ]
+    },
+    {
+      "id": "structural:f4f45d414f210b4fb659c0c4",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:null",
+        "src/module/item/weapon/data.ts#SpecificWeaponData"
+      ]
+    },
+    {
+      "id": "structural:fa0a0a7410e7870818d25c9e",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "primitive:undefined",
+        "src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object@f324733bef9da83bb5a89db6"
+      ]
+    },
+    {
+      "id": "structural:fc76db7b6d44a6e0f970fdc3",
+      "kind": "union",
+      "declaredAt": [],
+      "members": [
+        "literal:number:10",
+        "literal:number:12",
+        "literal:number:4",
+        "literal:number:6",
+        "literal:number:8",
+        "primitive:null"
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@1728842bda11f40365081cb8",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"weapon\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ItemSchema<\"weapon\", WeaponSystemSource>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 68,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@1728842bda11f40365081cb8#authored-document#authored-document-patch",
+      "kind": "object",
+      "name": "SourceFromSchema",
+      "declaredAt": [
+        {
+          "file": "types/foundry/common/data/fields.d.ts",
+          "line": 1490,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "_id",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 70,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "_stats",
+          "ref": "types/foundry/common/data/fields.d.ts#global.SourceFromSchema@230006ad1ceb5da852eaad90",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 90,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "effects",
+          "ref": "node_modules/typescript/lib/lib.es5.d.ts#Array@776fbcd13873bf802fc9afd5",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 80,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "flags",
+          "ref": "types/foundry/common/abstract/document.d.ts#global.DocumentFlags",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "folder",
+          "ref": "structural:3fa47ef745527486f0fcedd1",
+          "optional": false,
+          "nullable": true,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 82,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "img",
+          "ref": "structural:29f9f1a334bc2465b6ff0dfd",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 76,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "ref": "primitive:string",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 72,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "ownership",
+          "ref": "types/foundry/common/data/fields.d.ts#DocumentOwnershipField.$mapped@b52329d42ee901c9f694b714",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 86,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "ref": "primitive:number",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 84,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "system",
+          "ref": "src/module/item/weapon/data.ts#WeaponSystemSource#authored-document#authored-document-patch",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 78,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "type",
+          "ref": "literal:string:\"weapon\"",
+          "optional": false,
+          "nullable": false,
+          "undefinedAllowed": false,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 74,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ItemSchema<\"weapon\", WeaponSystemSource>",
+          "declaredAt": [
+            {
+              "file": "types/foundry/common/documents/item.d.ts",
+              "line": 68,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/util.d.ts#global.DeepPartial@483cd6d9cdc1aa99f954cdd5",
+      "kind": "object",
+      "name": "DeepPartial",
+      "declaredAt": [
+        {
+          "file": "types/foundry/util.d.ts",
+          "line": 7,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "attackItemBonus",
+          "ref": "structural:db517e8d19c28591a8d6aa13",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 46,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "battleForm",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 37,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "comboMeleeUsage",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 39,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "damageFacesUpgraded",
+          "ref": "structural:51a25f49de60e2f035745d37",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 48,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "fixedAttack",
+          "ref": "structural:a2f64813f16a96f4975c56cd",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 44,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "grantedBy",
+          "ref": "structural:a520896abf91795e517f7ced",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 48,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "itemGrants",
+          "ref": "structural:9eb9cf8e563caff19d1f2a99",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 47,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "name": "rulesSelections",
+          "ref": "structural:0872d94e4977e03340d9f073",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 46,
+              "column": 9
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "primitive:unknown",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "{ [key: string]: unknown; rulesSelections: Record<string, string | number | object | null>; itemGrants: Record<string, ItemGranterData>; grantedBy: Required<ItemGrantSource> | null; } & { battleForm?: boolean | undefined; comboMeleeUsage: boolean; fixedAttack?: number | null | undefined; attackItemBonus: number; damageFacesUpgraded: boolean; }",
+          "declaredAt": []
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/util.d.ts#global.DeepPartial@59bf93d38dcba992ccb3d431",
+      "kind": "object",
+      "name": "DeepPartial",
+      "declaredAt": [
+        {
+          "file": "types/foundry/util.d.ts",
+          "line": 7,
+          "column": 5
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:8156a607359d42b2065e961e",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "Record<string, ItemGranterData>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/util.d.ts#global.DeepPartial@7024b6796c39196669b3a735",
+      "kind": "object",
+      "name": "DeepPartial",
+      "declaredAt": [
+        {
+          "file": "types/foundry/util.d.ts",
+          "line": 7,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "pf2e",
+          "ref": "structural:86e5b784805e3e70c4253214",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 45,
+              "column": 5
+            },
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 35,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:64e663cf67be13755171744a",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "WeaponFlags",
+          "declaredAt": [
+            {
+              "file": "src/module/item/weapon/data.ts",
+              "line": 34,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/util.d.ts#global.DeepPartial@ad75dc0b70b9f25a00e867bd",
+      "kind": "object",
+      "name": "DeepPartial",
+      "declaredAt": [
+        {
+          "file": "types/foundry/util.d.ts",
+          "line": 7,
+          "column": 5
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "ref": "structural:e7b0c29f9e7d6629103358a0",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 64,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "nested",
+          "ref": "structural:8370691b5ffe37d8846141b0",
+          "optional": true,
+          "nullable": true,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 73,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "name": "onDelete",
+          "ref": "structural:e3b53a5d90ec4bc7194eb114",
+          "optional": true,
+          "nullable": false,
+          "undefinedAllowed": true,
+          "forbidden": false,
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 66,
+              "column": 5
+            }
+          ]
+        }
+      ],
+      "indexSignatures": [],
+      "typeArguments": [
+        {
+          "expression": "ItemGranterData",
+          "declaredAt": [
+            {
+              "file": "src/module/item/base/data/system.ts",
+              "line": 76,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "types/foundry/util.d.ts#global.DeepPartial@af3e2acec6d89e33141e7948",
+      "kind": "object",
+      "name": "DeepPartial",
+      "declaredAt": [
+        {
+          "file": "types/foundry/util.d.ts",
+          "line": 7,
+          "column": 5
+        }
+      ],
+      "fields": [],
+      "indexSignatures": [
+        {
+          "key": "primitive:string",
+          "value": "structural:387f09cb6bf2d8e9bf55c055",
+          "readonly": false
+        }
+      ],
+      "typeArguments": [
+        {
+          "expression": "Record<string, string | number | object | null>",
+          "declaredAt": [
+            {
+              "file": "node_modules/typescript/lib/lib.es5.d.ts",
+              "line": 1613,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
