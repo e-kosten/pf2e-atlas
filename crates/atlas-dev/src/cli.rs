@@ -46,6 +46,7 @@ pub(crate) fn main() -> ExitCode {
     };
     let json = match &cli.command {
         Command::Source(args) => match &args.command {
+            SourceCommand::Load(options) => options.json,
             SourceCommand::Analyze(options) => options.json,
             SourceCommand::AuditPaths(options) => options.json,
         },
@@ -60,6 +61,7 @@ pub(crate) fn main() -> ExitCode {
     });
     let result = match cli.command {
         Command::Source(args) => match args.command {
+            SourceCommand::Load(options) => commands::source::run_source_load(options),
             SourceCommand::Analyze(options) => commands::source::run_source_analyze(options),
             SourceCommand::AuditPaths(options) => commands::source::run_source_audit_paths(options),
         },

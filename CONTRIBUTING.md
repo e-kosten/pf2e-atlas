@@ -128,6 +128,7 @@ bundle, and Node:
 
 ```bash
 cargo run -p atlas-dev -- --help
+cargo run -p atlas-dev -- source load --source vendor/pf2e --json
 cargo run -p atlas-dev -- source analyze --source vendor/pf2e --json
 cargo run -p atlas-dev -- source audit-paths --source vendor/pf2e --record-type npc --json
 cargo run -p atlas-dev -- index inspect --index .cache/pf2e-index.sqlite --json
@@ -135,7 +136,18 @@ cargo test -p atlas-dev -p atlas-cli-support
 ```
 
 These commands use the same global/repo path policy, JSON envelope, and progress
-controls as atlas. Analysis runs ingest projections without writing SQLite;
+controls as atlas. `source load` reads generated authored DTOs before Atlas
+normalization, keeping original bytes, raw values, provenance and every admission
+diagnostic. Its report counts modeled, partial, raw-only and quarantined outcomes
+separately. It applies no source defaults, coercions, metric extraction or
+embedding work. Embedded children and authored links remain in their source DTOs;
+generic rule retention does not imply specific-rule interpretation.
+Partial modeled documents produce exit 0; raw-only roots, quarantine, unavailable
+packs or empty input produce exit 1 with the report on stdout. Root/manifest
+errors produce exit 2. JSON `status: ok` means a report was produced; check the
+counts and exit code for completeness. The loading API retains the full source
+corpus in memory, with quarantine bytes retained only for successful file reads.
+Analysis runs current product ingest projections without writing SQLite;
 path auditing reports source paths and known consumers; inspection reads an
 existing artifact without changing it. Source commands' `--manifest` overrides
 the Foundry input manifest. Reports go to stdout; `--json` selects JSON.

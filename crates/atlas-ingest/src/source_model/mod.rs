@@ -1,5 +1,5 @@
-//! Authored source models and callable parsers. No production pipeline adoption.
-mod admission;
+//! Authored source models and callable parsers, separate from Atlas normalization.
+pub(crate) mod admission;
 mod documents;
 pub mod generated;
 mod item;
