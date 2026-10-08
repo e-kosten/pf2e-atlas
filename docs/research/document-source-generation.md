@@ -17,8 +17,11 @@ in scratch output. Production snapshot selections/generated modules, production
 ingest, storage, metrics and UI remain unchanged. The committed generated additions
 are synthetic regression fixtures, not a second maintained schema or corpus dump.
 
-This completes generation for this pin. It establishes a measured document parser
-baseline, not complete authored-document admission or production adoption.
+This completes declaration-shaped emission/compilation for this pin. It establishes
+a measured document parser baseline. The
+[authored-document follow-up](./authored-document-source.md) resolves recurring
+authored shape differences and records remaining constrained discrepancies;
+neither report establishes complete Foundry admission or production adoption.
 
 ## Generic capabilities
 
@@ -131,9 +134,11 @@ Pinned upstream evidence:
   the compiler retains the complete heightening union there. This is an authored
   patch boundary to model explicitly, not a reason to loosen every source union.
 
-Before production adoption, define source-backed authored-document projections
-for recurring sentinels and patch semantics, keeping original declarations and
-raw values intact. Then rerun the full comparison to expose subsequent errors.
+The [authored-document follow-up](./authored-document-source.md) defines
+source-backed projections for recurring sentinels and patch semantics, retaining
+original declarations and raw values, and reruns the full comparison to expose
+subsequent errors. Before production adoption, resolve the remaining admission
+and rejected-document handling boundaries.
 Keep isolated malformed/obsolete values diagnostic; do not add record allowlists,
 speculative scalar coercions or a broad arbitrary-JSON fallback to make counts
 green. Decide how production ingest preserves and reports rejected documents

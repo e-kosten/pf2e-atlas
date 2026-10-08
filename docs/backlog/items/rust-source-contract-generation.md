@@ -170,10 +170,16 @@ All 47 roots compile together. `compare-documents` samples all root Actors and
 root/embedded/nested Items, checks raw-to-model fidelity, applies open trait
 identifiers across all families and reports first-error groups and absent corpus
 families. Whole-portfolio generated output stays in scratch; no corpus value is
-repaired or allowlisted. Resolve authored-document input boundaries before
-production adoption: empty sentinels handled by upstream preparation, spell
-overlays stored as diffs and later merged, and remaining migration/core-dependent
-or malformed values. Do not call all reported rejections bad data or treat
+repaired or allowlisted. The
+[authored-document projection](../../research/authored-document-source.md) models
+upstream-supported sentinels, spell area number/string forms, custom initiative
+statistic slugs and recursive patches for overrides/fixed heightening layers.
+The original declaration graph remains available beside authored results,
+recovery/regression counts and fidelity diagnostics. Whole generated portfolios
+remain scratch output. Remaining migration/core-dependent or malformed values
+retain explicit constrained dispositions; rejected-document handling and
+contextual normalization must be decided before production adoption. Do not call
+all reported rejections bad data or treat
 generation completion as complete authored admission.
 Optional/rest tuples and alias-only recursive collections remain unsupported
 general capabilities; they do not block the pinned portfolio. Emission/compilation does not establish

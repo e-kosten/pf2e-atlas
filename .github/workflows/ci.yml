@@ -84,6 +84,7 @@ jobs:
       - name: Source contract fixture tests
         run: |
           npm --prefix dev-tools/source-contracts ci --ignore-scripts
+          cargo fetch --locked
           npm --prefix dev-tools/source-contracts run verify
 
   release-tools:
