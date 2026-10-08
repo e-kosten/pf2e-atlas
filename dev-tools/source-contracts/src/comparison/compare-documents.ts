@@ -7,7 +7,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ExtractionSummary, TypeGraph } from '../contracts.js';
-import { loadGenerationInput } from '../generation/generation-input.js';
 import { sourceIdentity } from '../discovery/source-identity.js';
 import { sampleDocuments, type DocumentPacket } from './sample-documents.js';
 import { sourceProbe, type ProbeResult } from './source-probe.js';
@@ -48,9 +47,9 @@ const contains = (parent: string, child: string) => {
   const relative = path.relative(parent, child);
   return !relative || relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
 };
-export async function compareDocuments(args: { source: string; graph: string; summary: string; out: string; policyManifest?: string }) {
+export async function compareDocuments(args: { source: string; graph: string; summary: string; out: string }) {
   const repo = fileURLToPath(new URL('../../../../..', import.meta.url));
-  if ([args.source, args.graph, args.summary, ...(args.policyManifest ? [args.policyManifest] : []), path.join(repo, 'crates'), path.join(repo, 'scripts'), path.join(repo, 'dev-tools')]
+  if ([args.source, args.graph, args.summary, path.join(repo, 'crates'), path.join(repo, 'scripts'), path.join(repo, 'dev-tools')]
     .some(input => contains(args.out, input) || contains(input, args.out))) throw new Error('Comparison output must be separate from source/code inputs');
   await mkdir(args.out, { recursive: true });
   // A failed repeat must not leave a previous report looking like this run's result.
@@ -62,9 +61,7 @@ export async function compareDocuments(args: { source: string; graph: string; su
     || !graph.complete || !summary.complete || graph.typescript !== summary.typescript_version
     || source.source_digest !== summary.source.source_digest || graph.source?.source_digest !== source.source_digest)
     throw new Error('Comparison requires complete extraction of the same source bytes');
-  const policy = args.policyManifest ? await loadGenerationInput(args.policyManifest) : undefined;
-  if (policy && policy.source.source_digest !== source.source_digest) throw new Error('Policy manifest must describe the same source bytes');
-  const openTraitArrays = [...new Set([...(policy?.openTraitArrays ?? []), ...documentTraitArrays(graph)])].sort();
+  const openTraitArrays = [...new Set(documentTraitArrays(graph))].sort();
   // Items first establish reusable owners before Actor embedded-item references.
   const ordered = [...graph.roots.filter(root => root.documentKind === 'Item'),
     ...graph.roots.filter(root => root.documentKind === 'Actor'),

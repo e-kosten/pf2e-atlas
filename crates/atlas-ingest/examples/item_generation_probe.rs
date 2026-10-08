@@ -125,13 +125,15 @@ fn expected(
     }))
 }
 fn main() -> Result<(), Box<dyn Error>> {
-    let snapshot: Value = serde_json::from_str(include_str!(
-        "../../../dev-tools/source-contracts/snapshots/items/traits.json"
-    ))?;
-    let root_fields = snapshot["roots"]
+    let input_path = std::env::args()
+        .nth(1)
+        .ok_or("expected generation-input.json path")?;
+    let input: Value = serde_json::from_slice(&std::fs::read(input_path)?)?;
+    let root_fields = input["selection"]
         .as_array()
         .ok_or("missing roots")?
         .iter()
+        .filter(|root| root["module"] == "items/traits")
         .filter_map(|root| {
             let family = root["family"].as_str()?;
             let fields = root["fields"]
