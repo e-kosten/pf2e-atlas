@@ -86,19 +86,19 @@ nullable collection unions and other unsupported forms remain visible.
 
 ## Reproduce
 
-Follow the [source tooling instructions](../../scripts/source-contracts/README.md)
+Follow the [source tooling instructions](../../dev-tools/source-contracts/README.md)
 to export the pinned source and extract it completely, then refresh/check the
 selected snapshots and Rust output. Export packs and static/system.json from
 the same Git pin for corpus sampling. Run:
 
 ```sh
-npm --prefix scripts/source-contracts run verify
+npm --prefix dev-tools/source-contracts run verify
 scripts/verify.sh
 cargo test -p atlas-ingest --test item_source_generation \
   --test recursive_generation_fixture --example item_generation_probe
 cargo build -p atlas-ingest --example item_generation_probe
 set -o pipefail
-node scripts/source-contracts/dist/sample-items.js --source scratch/pf2e | \
+node dev-tools/source-contracts/dist/src/cli/sample-items.js --source scratch/pf2e | \
   target/debug/examples/item_generation_probe > scratch/item-corpus-report.json
 ```
 

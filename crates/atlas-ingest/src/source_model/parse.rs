@@ -162,10 +162,49 @@ impl<'a> Fields<'a> {
         forbidden: &[&str],
         parse: impl Fn(&SourceValue, &SourceContext, &str) -> ParseResult<T>,
     ) -> ParseResult<super::SourceMap<T>> {
+        self.indexed_by(known, forbidden, |_| true, parse)
+    }
+    #[allow(
+        dead_code,
+        reason = "Numeric indices are compiled by portfolio and regression probes."
+    )]
+    pub(super) fn number_indexed<T>(
+        &self,
+        known: &[&str],
+        forbidden: &[&str],
+        parse: impl Fn(&SourceValue, &SourceContext, &str) -> ParseResult<T>,
+    ) -> ParseResult<super::SourceMap<T>> {
+        self.indexed_by(known, forbidden, is_numeric_key, parse)
+    }
+    #[allow(
+        dead_code,
+        reason = "Numeric indices preserve other keys in portfolio and regression probes."
+    )]
+    pub(super) fn number_remaining(&self, known: &[&str], forbidden: &[&str]) -> SourceObject {
+        SourceObject {
+            fields: self
+                .object
+                .fields
+                .iter()
+                .filter(|(key, _)| {
+                    !known.contains(&key.as_str())
+                        && (forbidden.contains(&key.as_str()) || !is_numeric_key(key))
+                })
+                .cloned()
+                .collect(),
+        }
+    }
+    fn indexed_by<T>(
+        &self,
+        known: &[&str],
+        forbidden: &[&str],
+        matches_key: impl Fn(&str) -> bool,
+        parse: impl Fn(&SourceValue, &SourceContext, &str) -> ParseResult<T>,
+    ) -> ParseResult<super::SourceMap<T>> {
         let mut keys = std::collections::HashSet::new();
         let mut entries = Vec::new();
         for (key, value) in &self.object.fields {
-            if forbidden.contains(&key.as_str()) {
+            if forbidden.contains(&key.as_str()) || !matches_key(key) {
                 continue;
             }
             let entry_path = keyed_path(self.context, self.path, key)?;
@@ -186,6 +225,11 @@ impl<'a> Fields<'a> {
         }
         Ok(super::SourceMap { entries })
     }
+}
+/// TypeScript 5.9's numeric index names satisfy ToString(ToNumber(key)) == key.
+pub(super) fn is_numeric_key(key: &str) -> bool {
+    key.parse::<f64>()
+        .is_ok_and(|number| ryu_js::Buffer::new().format(number) == key)
 }
 pub(super) fn unknown(
     value: &SourceValue,
@@ -275,6 +319,35 @@ pub(super) fn boolean(
         Ok(*value)
     } else {
         Err(context.error(path, "boolean", value))
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Nullable collections are exercised by generated fixtures and portfolio probes."
+)]
+pub(super) fn nullable<T>(
+    value: &SourceValue,
+    context: &SourceContext,
+    path: &str,
+    parse: impl FnOnce(&SourceValue, &SourceContext, &str) -> ParseResult<T>,
+) -> ParseResult<Option<T>> {
+    if matches!(value, SourceValue::Null) {
+        Ok(None)
+    } else {
+        parse(value, context, path).map(Some)
+    }
+}
+
+#[allow(
+    dead_code,
+    reason = "Null-only collection entries are exercised by generated fixtures."
+)]
+pub(super) fn null(value: &SourceValue, context: &SourceContext, path: &str) -> ParseResult<()> {
+    if matches!(value, SourceValue::Null) {
+        Ok(())
+    } else {
+        Err(context.error(path, "null", value))
     }
 }
 

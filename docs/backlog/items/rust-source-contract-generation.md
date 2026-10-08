@@ -77,8 +77,12 @@ core/migration-dependent cases. Keep the current field representations and
 report these input problems; do not add case-specific parsing or repairs.
 Full Foundry admission remains unexecuted, with explicit evidence gaps rather
 than claims that every remaining value is runtime-invalid. These dispositions
-permit continued generator work. Nullable/undefined collection support for
-whole Actor/Item generation is next. Before production adoption, define how
+permit continued generator work. Persisted nullable/undefined collections are
+supported. All 47 roots now generate and compile together, including Actor/Item.
+Full-document corpus parsing has a reproducible comparison command; authored
+empty sentinels, contextual spell diffs and migration/core-dependent discrepancies
+remain explicit adoption work. See the [document report](../../research/document-source-generation.md).
+Before production adoption, define how
 ingest preserves and reports rejected source rules, and verify demonstrated
 valid authored forms without introducing record allowlists.
 
@@ -105,8 +109,8 @@ review chain, even when the implementation work happens in parallel.
 
 ## Extraction slice implemented
 
-Offline tooling is under `scripts/source-contracts`; see its
-[developer instructions](../../../scripts/source-contracts/README.md). The
+Offline tooling is under `dev-tools/source-contracts`; see its
+[developer instructions](../../../dev-tools/source-contracts/README.md). The
 reviewed PF2e pin produces 3,085 declaration graph nodes with 47 roots: five
 pack document kinds covering all 24 Item and eight Actor families, plus 42
 built-in rule schemas. Source discriminator sets match registered family sets.
@@ -153,10 +157,26 @@ brings the 47-root attempt to 45 emitted and individually compiled roots: all 42
 rule roots plus JournalEntry, Macro and RollTable. Open/indexed domains, string
 templates, concrete generic naming and field-name mappings now have explicit
 representations. Intersection index constraints come directly from the compiler.
-Actor/Item reach an undefined-allowing array element in DeepPartial materials;
-define its persisted collection representation next, then repeat all roots.
-Optional/rest tuples and alias-only recursive collections also remain unsupported;
-first blockers are not exhaustive. Emission/compilation does not establish
+The [collection capability slice](../../research/collection-source-generation.md)
+adds inline Option entries for persisted nullable arrays, fixed tuples and maps,
+plus null-only entries. Undefined array positions persist as null; undefined
+object properties remain absent. Shape signatures intern shared descendants and
+validate recursive anchors without unbounded expansion. Production snapshots
+and generated modules stay unchanged. The
+[document capability slice](../../research/document-source-generation.md)
+adds numeric indices, null-only fields, unusual literal enum tokens and
+discriminator-only selection when required finite literal domains are disjoint.
+All 47 roots compile together. `compare-documents` samples all root Actors and
+root/embedded/nested Items, checks raw-to-model fidelity, applies open trait
+identifiers across all families and reports first-error groups and absent corpus
+families. Whole-portfolio generated output stays in scratch; no corpus value is
+repaired or allowlisted. Resolve authored-document input boundaries before
+production adoption: empty sentinels handled by upstream preparation, spell
+overlays stored as diffs and later merged, and remaining migration/core-dependent
+or malformed values. Do not call all reported rejections bad data or treat
+generation completion as complete authored admission.
+Optional/rest tuples and alias-only recursive collections remain unsupported
+general capabilities; they do not block the pinned portfolio. Emission/compilation does not establish
 accepted or value-faithful family coverage. The authored rule corpus exposes
 scalar/array, vocabulary and union-identity discrepancies; compare authored source
 interfaces and Foundry cleaning with SourceFromSchema before adopting those parsers.

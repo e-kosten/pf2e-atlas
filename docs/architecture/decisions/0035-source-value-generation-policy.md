@@ -32,10 +32,34 @@ Ordinary arrays produce typed vectors. Pure string-indexed objects produce
 `SourceMap<T>` with typed values and authored key order. Repeated modeled map
 keys reject with contextual paths; repeated additional members remain intact.
 Named-plus-indexed objects and explicit upstream open domains follow
-[ADR 0037](./0037-open-and-indexed-source-values.md). Explicit null/undefined
-collection unions and unsupported selected
+[ADR 0037](./0037-open-and-indexed-source-values.md). Unsupported selected
 constructs stop generation until their semantics are modeled. Do not substitute
 arbitrary JSON for unsupported selected values.
+
+Nullable collection entries use inline `Option<T>` and preserve JSON nulls,
+positions, key order and the remaining value parser's constraints. Null-only
+entries use `()` with a parser that accepts only null; serde serializes this
+unit as JSON null. Array/fixed-tuple element unions containing undefined also
+allow persisted null, because ordinary JSON serialization writes undefined or
+sparse positions as null. No undefined runtime value or array hole is recreated.
+The declaration graph retains the original null/undefined evidence.
+In object index unions, undefined permits omitted keys and does not admit a
+present null; explicit null is required for that representation. Undefined-only
+index values still stop generation because they have no persisted value arm.
+Named object fields retain the existing SourcePresence policy.
+
+Null-only named values use `SourcePresence<()>`: missing/null states retain the
+same policy and present non-null values fail. A null/undefined-only union has the
+same persisted null value type. Literal string enums retain exact serde tokens;
+empty, digit-leading and punctuation-only tokens receive valid Rust variant names
+(`Empty`, `Value0`, `ValueU2D`). Collisions still fail explicitly rather than
+silently merging vocabulary entries.
+
+Structural signatures intern child shapes and memoize resolved nodes instead of
+expanding repeated descendants into strings. Recursive anchors validate each
+reachable shape before allocation; nominal identity still separates recursive
+owners. This keeps large shared declaration graphs bounded without weakening
+unsupported-shape diagnostics or adding family-specific generation paths.
 
 Rust fields preserve valid leading underscores, map punctuation to underscores,
 prefix digit-leading names with an underscore, and use raw identifiers for Rust

@@ -146,7 +146,7 @@ runtime evidence. See [ADR 0039](./decisions/0039-authored-rule-inputs.md) and t
 [authored-rule comparison](../research/authored-rule-source.md). These complete
 rule portfolios are diagnostic output, separate from callable production slices.
 
-Saved generator inputs live under `scripts/source-contracts/snapshots`, with source
+Saved generator inputs live under `dev-tools/source-contracts/snapshots`, with source
 identity in one manifest and graph nodes owned once across module snapshots.
 The generator loads the entire selection before assigning shared Rust owners.
 Output is partitioned under `source_model/generated` into shared Item components,
@@ -163,7 +163,18 @@ predicate corpus evidence. The
 [template/generic report](../research/template-source-generation.md) records
 whole-portfolio compilation, corpus discrepancies and remaining generator gaps.
 The [intersection report](../research/intersection-source-generation.md) updates
-that evidence to 45 emitted and individually compiled roots out of 47.
+that evidence to 45 emitted and individually compiled roots out of 47. The
+[collection report](../research/collection-source-generation.md) records
+persisted nullable entries and bounded shared-shape signatures. The
+[document report](../research/document-source-generation.md) establishes generation
+and combined compilation of all 47 roots, including all 24 Item/eight Actor
+families and embedded Items. Numeric indices have explicit key-domain and
+retention semantics. Disjoint required literal tags identify family arms before
+defaults. Contributor `compare-documents` and `compare-rules` share one Rust probe
+runner; full-document comparisons retain exact authored bytes, apply the existing
+open trait-identifier policy across families and report unresolved authored /
+declaration conflicts. Generated full portfolios are diagnostic artifacts;
+production model selections and pipeline adoption remain separate.
 
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 

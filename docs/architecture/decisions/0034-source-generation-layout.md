@@ -12,7 +12,7 @@ independently would duplicate shared declarations and Rust types.
 
 ## Decision
 
-Private `scripts/source-contracts/snapshots` owns saved generation inputs. One
+Private `dev-tools/source-contracts/snapshots` owns saved generation inputs. One
 manifest records source identity and ordered module files. Each module snapshot
 contains its roots, deferred field names and canonical graph nodes. Nodes occur
 once across snapshots; references retain their global declaration identities.

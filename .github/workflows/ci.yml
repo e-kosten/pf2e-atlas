@@ -76,15 +76,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: scripts/source-contracts/package-lock.json
+          cache-dependency-path: dev-tools/source-contracts/package-lock.json
       - name: Prepare repository Rust formatter
         # Node test files run concurrently; resolve/install the repo-pinned
         # toolchain before their rustfmt subprocesses can race rustup.
         run: rustfmt --version
       - name: Source contract fixture tests
         run: |
-          npm --prefix scripts/source-contracts ci --ignore-scripts
-          npm --prefix scripts/source-contracts run verify
+          npm --prefix dev-tools/source-contracts ci --ignore-scripts
+          npm --prefix dev-tools/source-contracts run verify
 
   release-tools:
     name: release tools (${{ matrix.os }})
@@ -99,12 +99,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: scripts/release/package-lock.json
+          cache-dependency-path: dev-tools/release/package-lock.json
       - name: Verify private release tools
         shell: bash
         run: |
-          npm --prefix scripts/release ci --ignore-scripts
-          npm --prefix scripts/release run verify
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix dev-tools/release run verify
       - name: Unix installer and preparation smoke tests
         if: runner.os != 'Windows'
         shell: bash
