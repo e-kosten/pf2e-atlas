@@ -1,9 +1,8 @@
-//! Compare the maintained Rust portfolio with raw packets and saved declarations.
+//! Compare the maintained Rust portfolio with raw packets and freshly extracted declarations.
 //! Contributor-only probe; no normalization or production ingest policy.
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::io::{self, BufRead};
-use std::path::Path;
 
 use atlas_ingest::source_model::{self as models, SourceContext, SourceValue};
 use serde_json::{Value, json};
@@ -21,39 +20,23 @@ mod source_model {
 mod fidelity;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let manifest_file = std::env::args()
+    let input_file = std::env::args()
         .nth(1)
-        .ok_or("Pass the generation manifest path")?;
-    let manifest: Value = serde_json::from_slice(&std::fs::read(&manifest_file)?)?;
-    let directory = Path::new(&manifest_file)
-        .parent()
-        .ok_or("Manifest directory")?;
-    let mut nodes = Vec::new();
+        .ok_or("Pass the temporary generation input path")?;
+    let input: Value = serde_json::from_slice(&std::fs::read(input_file)?)?;
     let mut roots = BTreeMap::new();
-    for module in manifest["modules"].as_array().ok_or("Manifest modules")? {
-        let snapshot: Value = serde_json::from_slice(&std::fs::read(
-            directory.join(module["file"].as_str().ok_or("Module file")?),
-        )?)?;
-        nodes.extend(
-            snapshot["nodes"]
-                .as_array()
-                .ok_or("Snapshot nodes")?
-                .iter()
-                .cloned(),
-        );
-        for root in snapshot["roots"].as_array().ok_or("Snapshot roots")? {
-            if let Some(key) = root["documentKind"].as_str().or(root["ruleKey"].as_str()) {
-                roots.insert(
-                    key.to_owned(),
-                    root["valueRef"]
-                        .as_str()
-                        .ok_or("Root value reference")?
-                        .to_owned(),
-                );
-            }
+    for root in input["selection"].as_array().ok_or("Generation roots")? {
+        if let Some(key) = root["documentKind"].as_str().or(root["ruleKey"].as_str()) {
+            roots.insert(
+                key.to_owned(),
+                root["valueRef"]
+                    .as_str()
+                    .ok_or("Root value reference")?
+                    .to_owned(),
+            );
         }
     }
-    let graph = fidelity::FidelityGraph::new(&json!({"nodes":nodes}));
+    let graph = fidelity::FidelityGraph::new(&input);
     for line in io::stdin().lock().lines() {
         let packet: Value = serde_json::from_str(&line?)?;
         let key = packet["key"].as_str().ok_or("Packet key")?;

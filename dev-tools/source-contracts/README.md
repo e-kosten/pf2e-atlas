@@ -16,7 +16,7 @@ npm --prefix dev-tools/source-contracts run verify
 
 The package is private contributor tooling. `build` replaces ignored `dist/` and emits JavaScript;
 `typecheck` checks implementation and tests without emitting; `test` builds and runs
-the fixture tests; `verify` runs both checks, including generated Rust freshness. `extract` builds before executing
+the fixture tests; `verify` runs both checks, including synthetic Rust fixture freshness. `extract` builds before executing
 the compiled entry point. Fixtures stay in the source package. Public discovery
 contracts live in `src/contracts.ts`; compiler-internal access is bounded in
 `src/discovery/compiler-types.ts`. Neither this package nor its dependencies ship with Atlas.
@@ -24,8 +24,8 @@ contracts live in `src/contracts.ts`; compiler-internal access is bounded in
 Command argument parsing and exit behavior live in `src/cli/`. Compiler extraction
 and catalog discovery live in `src/discovery/`; graph selection and Rust emission
 live in `src/generation/`; sampling and probe comparisons live in `src/comparison/`.
-Tests live in `tests/`, synthetic inputs in `fixtures/`, and saved generation
-inputs in `snapshots/`. The build mirrors these directories under ignored `dist/`.
+Tests live in `tests/`, synthetic inputs in `fixtures/`, and the small source identity
+in `source-pin.json`. Large extraction outputs belong in ignored caches. The build mirrors these directories under ignored `dist/`.
 
 ## Source portfolio generation
 
@@ -38,33 +38,51 @@ those narrower slices intentionally leave as additional data.
 Unsupported constructs stop generation. SourcePresence keeps missing/null/value
 before defaults; explicit open domains and undeclared/forbidden members retain
 ordered source values. Original declarations and serialization provenance remain
-in the saved closure alongside authored projections. Parsing is separate from
+in the ignored generation input alongside authored projections. Parsing is separate from
 Foundry admission, preparation, canonical conversion and production ingest.
 
-From the repository root, regenerate or check using the saved input:
+From the repository root, check or regenerate directly from the pinned source:
 
 ```sh
-npm --prefix dev-tools/source-contracts run generate -- \
-  --manifest dev-tools/source-contracts/snapshots/manifest.json \
-  --out-dir crates/atlas-ingest/src/source_model/generated --check
+npm --prefix dev-tools/source-contracts run generate -- --check
+npm --prefix dev-tools/source-contracts run generate
 ```
 
-Omit `--check` to write Rust. To refresh from a complete extraction, replace
-`--manifest` with `--graph scratch/source-extraction/type-graph.json --summary
-scratch/source-extraction/summary.json --snapshot-dir dev-tools/source-contracts/snapshots`.
-That mode writes the manifest and module snapshots; `--check` compares the entire
-Rust and snapshot file sets without writing. Saved-manifest mode also verifies
-the canonical input file set so unlisted/obsolete snapshots are visible. Review both when changing upstream
-versions. All Rust is formatted and both artifact directories are checked before
-writes. Overlapping input/output directories, symlinks in artifact directories
-and unmanaged files are rejected. Regeneration removes obsolete generated files;
-the two output directories are exclusively generator-owned.
+The command uses `source-pin.json` and locked TypeScript/declaration dependencies.
+A cold cache fetches the immutable upstream commit using Git and exports its
+source inputs using tar. Source exports and extraction evidence live under ignored
+`.cache/source-contracts/<commit>/`; the application does not use them.
+Source bytes/version/file count and compiler identity are checked before generation.
+Every invocation extracts afresh, so a stale graph cannot authorize Rust output.
 
-The input manifest records source identity and ordered module files. Each graph
-node is stored once across common Item, trait, physical and equipment snapshots.
-Roots are selected base-before-refinement. Loading
-resolves all module inputs into one graph before emission; the emitter assigns
-shared value owners globally and writes explicit cross-module Rust imports.
+Use `--source PATH` to seed the cache from a matching local checkout/export
+without fetching. Its source bytes must match the pin; the command copies the
+needed inputs into an isolated export and leaves the original dependencies alone.
+`--cache-dir PATH` chooses another tool-owned cache; `--out-dir PATH` chooses
+another generated Rust directory. Paths are relative to the caller's directory.
+Warm exports allow offline regeneration after npm dependencies are installed.
+Corrupt source caches fail visibly; remove the ignored cache to fetch a clean export.
+
+Ordinary `verify` runs offline synthetic fixture tests. CI separately runs:
+
+```sh
+npm --prefix dev-tools/source-contracts run verify-generated
+```
+
+This re-extracts the pinned source, compares every generated Rust file, and exercises
+whole-portfolio ownership, declaration mutations and unsupported shapes. Offline
+fixtures cover output preflight. Missing/obsolete generated files fail freshness. Regeneration removes
+only obsolete tool-owned files and refuses unmanaged files or symlinks. Formatting
+and preflight finish before writes. A normal Rust build needs neither Node nor
+upstream source. See [ADR 0034](../../docs/architecture/decisions/0034-source-generation-layout.md).
+
+To update upstream, run `extract` against the proposed source, review the graph
+and corpus results, update the pin's commit/version/digest/count/compiler/rule keys
+and dependency lock as needed, then regenerate Rust. Schema comparisons can extract
+two revisions into ignored directories and diff their graphs. No large intermediate
+graph is committed.
+
+The emitter resolves one complete selection and assigns shared value owners globally.
 Outputs include common Item/Actor/physical components, `items/families/*`,
 `actors/families/*`, `documents/*`, `rules/*` and their indexes. Family source and
 system roots reserve their modules before traversing embedded references; shared
@@ -79,7 +97,7 @@ Only modules with definitions or existing children are emitted. Future families
 extend this organization; [ADR 0034](../../docs/architecture/decisions/0034-source-generation-layout.md)
 records the ownership and layout rules.
 
-The manifest lists `openTraitArrays` by exact graph identity. These arrays retain
+The maintained selection derives explicit open trait-array policies from declaration identity. These arrays retain
 their declared vocabulary nodes in input but generate string values. A policy
 target that becomes a nonstring array rejects generation. Ordinary string arrays
 may share the same vector owner. Current finite other-tag enums, rarity, license
@@ -149,12 +167,11 @@ complete 47-root generation/compilation and the Actor/Item corpus baseline.
 ```sh
 npm --prefix dev-tools/source-contracts run compare-portfolio -- \
   --source scratch/pf2e \
-  --manifest dev-tools/source-contracts/snapshots/manifest.json \
   --baseline dev-tools/source-contracts/fixtures/portfolio-corpus-baseline.json \
   --out scratch/portfolio-comparison
 ```
 
-This checks saved-file freshness, builds the actual atlas-ingest
+This re-extracts the pinned source, checks Rust freshness, builds the actual atlas-ingest
 `source_portfolio_probe` example offline, and samples all five document kinds
 plus every specific Item rule. Output includes raw `packets.ndjson`,
 `results.ndjson` and `comparison.json` with per-root counts, every failure context,
@@ -175,7 +192,6 @@ npm --prefix dev-tools/source-contracts run compare-documents -- \
   --source scratch/pf2e \
   --graph scratch/source-extraction/type-graph.json \
   --summary scratch/source-extraction/summary.json \
-  --policy-manifest dev-tools/source-contracts/snapshots/manifest.json \
   --out scratch/document-comparison
 ```
 
@@ -187,7 +203,6 @@ existing open-string policy applies to every Actor/Item `system.traits.value`
 identifier array; generation still checks that its declaration is a string vocabulary.
 An explicit `never[]` keeps its empty-array constraint.
 Rarity, other tags and other small vocabularies keep their declared constraints.
-The optional policy manifest also supplies existing explicit trait policies.
 
 Output contains `comparison.json`, raw `packets.ndjson`, `authored-graph.json`,
 and separate `schema/` and `authored/` generated modules/probes with line-by-line
@@ -241,15 +256,18 @@ For shared Item fidelity against a pinned source export:
 ```sh
 npm --prefix dev-tools/source-contracts run build
 cargo build -p atlas-ingest --example item_generation_probe
+npm --prefix dev-tools/source-contracts run generate -- --source scratch/pf2e --check
 set -o pipefail
 node dev-tools/source-contracts/dist/src/cli/sample-items.js --source scratch/pf2e | \
-  target/debug/examples/item_generation_probe > scratch/item-corpus-report.json
+  target/debug/examples/item_generation_probe \
+    .cache/source-contracts/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/extraction/generation-input.json \
+    > scratch/item-corpus-report.json
 ```
 
 The sampler uses raw AST spans for root and recursively embedded Item sources in
 Item/Actor packs; additional payload numbers and repeated members are preserved.
 The Rust probe compares typed values, presence and ordered additional members
-against raw source projections, using saved selected field metadata. Numbers
+against raw source projections, using freshly extracted selection metadata from the ignored cache. Numbers
 remain in Rust until comparison transport. It reports per-family counts and
 exits 1 on any rejection or value difference. This proves selected-slice fidelity,
 not complete declaration coverage. See the
@@ -303,11 +321,10 @@ recursively sampled root/embedded Item. Missing/duplicate rule keys, non-object
 rules and non-array rule lists fail visibly; raw tokens and additional duplicates
 remain intact. Use direct Node execution after building when redirecting JSONL.
 
-`compare-rules --source PATH --graph PATH --summary PATH --out PATH
-[--policy-manifest PATH]` builds scratch Rust portfolios for extracted schema
+`compare-rules --source PATH --graph PATH --summary PATH --out PATH` builds scratch Rust portfolios for extracted schema
 shapes and the bounded authored scalar-or-array projection. Re-extract first:
-graph and summary must identify the same source bytes. Optional policies come
-from a saved generation manifest for that same source. Nested IWR objects reuse
+graph and summary must identify the same source bytes. Trait identifier policies
+derive from the supplied declaration graph. Nested IWR objects reuse
 the authored projection through matching compiler declaration provenance;
 `sharedIwrChanges` lists these owners without broadening unrelated arrays.
 `valueChanges` records ChoiceSet predicate optionality, DamageDice override

@@ -7,8 +7,8 @@ import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { sourceIdentity } from '../discovery/source-identity.js';
-import { loadGenerationInput } from '../generation/generation-input.js';
-import { generate } from '../generation/generate.js';
+import { generateInput, preparePortfolio } from '../generation/generate.js';
+import { defaultCache } from '../generation/pinned-source.js';
 import { sampleDocuments } from './sample-documents.js';
 import { sampleRules, type RulePacket } from './sample-rules.js';
 import type { ProbeResult } from './source-probe.js';
@@ -41,20 +41,22 @@ export function portfolioResults(contexts: Context[], results: ProbeResult[]) {
 }
 
 /** Check the maintained crate, rather than generating another scratch parser. */
-export async function comparePortfolio(args: { source: string; manifest: string; out: string; baseline?: string }) {
+export async function comparePortfolio(args: { source: string; out: string; baseline?: string; cacheDir?: string }) {
   const repo = fileURLToPath(new URL('../../../../..', import.meta.url));
   const overlaps = (a: string, b: string) => {
     const relative = path.relative(path.resolve(a), path.resolve(b));
     return !relative || !relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative);
   };
-  if ([args.source, args.manifest, ...(args.baseline ? [args.baseline] : []), path.join(repo, 'crates'), path.join(repo, 'dev-tools')]
+  if ([args.source, args.cacheDir ?? defaultCache, ...(args.baseline ? [args.baseline] : []), path.join(repo, 'crates'), path.join(repo, 'dev-tools')]
     .some(input => overlaps(input, args.out) || overlaps(args.out, input))) throw new Error('Comparison output must be separate from source/code inputs');
   await mkdir(args.out, { recursive: true });
   const reportFile = path.join(args.out, 'comparison.json');
   await writeFile(reportFile, JSON.stringify({ status: 'incomplete', runtimeAdmission: 'not-executed' }) + '\n');
-  const input = await loadGenerationInput(args.manifest), source = await sourceIdentity(args.source);
+  const { input } = await preparePortfolio({ source: args.source, cacheDir: args.cacheDir }), source = await sourceIdentity(args.source);
   if (!input.portfolio || input.source.source_digest !== source.source_digest) throw new Error('Maintained portfolio must describe the same source bytes');
-  await generate({ manifest: args.manifest, outDir: path.join(repo, 'crates/atlas-ingest/src/source_model/generated'), check: true });
+  await generateInput(input, path.join(repo, 'crates/atlas-ingest/src/source_model/generated'), true);
+  const inputFile = path.join(args.out, 'generation-input.json');
+  await writeFile(inputFile, JSON.stringify(input) + '\n');
   const contexts: Context[] = [], digest = createHash('sha256'), packets = path.join(args.out, 'packets.ndjson');
   await pipeline(Readable.from((async function* () {
     for (const stream of [sampleDocuments(args.source, true), sampleRules(args.source)]) {
@@ -72,7 +74,7 @@ export async function comparePortfolio(args: { source: string; manifest: string;
   try {
     const stdout = openSync(resultFile, 'w');
     try {
-      const run = spawnSync(path.join(target, 'debug/examples', `source_portfolio_probe${process.platform === 'win32' ? '.exe' : ''}`), [args.manifest], { stdio: [stdin, stdout, 'pipe'], encoding: 'utf8' });
+      const run = spawnSync(path.join(target, 'debug/examples', `source_portfolio_probe${process.platform === 'win32' ? '.exe' : ''}`), [inputFile], { stdio: [stdin, stdout, 'pipe'], encoding: 'utf8' });
       if (run.error || run.status !== 0) throw new Error(`Maintained probe failed: ${run.error?.message ?? run.stderr}`);
     } finally { closeSync(stdout); }
   } finally { closeSync(stdin); }

@@ -1,18 +1,16 @@
 import assert from 'node:assert/strict';
-import { readFile, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { generateRustModules } from '../src/generation/source-generation.js';
-import { loadGenerationInput, snapshotFiles, nodeReferences, type GenerationInput } from '../src/generation/generation-input.js';
-import { formatRust, generate } from '../src/generation/generate.js';
+import { validateInput, nodeReferences, type GenerationInput } from '../src/generation/generation-input.js';
+import { formatRust, preparePortfolio } from '../src/generation/generate.js';
 import { artifactFiles } from '../src/generation/generated-files.js';
-import type { TypeGraph, ExtractionSummary } from '../src/contracts.js';
 
-const manifestPath = fileURLToPath(new URL('../../snapshots/manifest.json', import.meta.url));
+
 const outputPath = fileURLToPath(new URL('../../../../crates/atlas-ingest/src/source_model/generated/', import.meta.url));
-const input = await loadGenerationInput(manifestPath);
+const { input } = await preparePortfolio();
 const rustFiles = (input: GenerationInput) => Object.fromEntries(Object.entries(generateRustModules(input)).map(([file, text]) => [file, formatRust(text)]));
 
 test('pinned modular output is fresh and equipment imports the single physical owner', async () => {
@@ -30,27 +28,13 @@ test('pinned modular output is fresh and equipment imports the single physical o
   assert.equal(input.selection.find(root => root.name === 'EquipmentFields')!.fields.find(field => field.name === 'usage')!.optional, false);
 });
 
-test('snapshots store nodes once and resolve references across input modules', async () => {
+test('fresh generation input stores nodes once and resolves every reference', () => {
+  assert.equal(new Set(input.nodes.map(node => node.id)).size, input.nodes.length);
+  const ids = new Set(input.nodes.map(node => node.id));
+  for (const node of input.nodes) for (const ref of nodeReferences(node)) assert.ok(ids.has(ref), ref);
   const interleaved = structuredClone(input);
   interleaved.selection.push({...interleaved.selection[0],name:'InterleavedFields'});
-  assert.throws(()=>snapshotFiles(interleaved),/group each module/);
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'atlas-generation-input-'));
-  try {
-    const files = snapshotFiles(input);
-    for (const [file, text] of Object.entries(files)) {
-      await mkdir(path.dirname(path.join(directory, file)), { recursive: true });
-      await writeFile(path.join(directory, file), text);
-    }
-    assert.deepEqual(await loadGenerationInput(path.join(directory, 'manifest.json')), input);
-    const physical = JSON.parse(files['physical.json']) as { nodes: GenerationInput['nodes'] };
-    const equipment = JSON.parse(files['items/equipment.json']) as { nodes: GenerationInput['nodes'] };
-    assert.equal(Object.entries(files).filter(([name]) => name !== 'manifest.json').reduce((sum,[,text]) => sum + JSON.parse(text).nodes.length,0),input.nodes.length);
-    equipment.nodes.push(physical.nodes[0]);
-    await writeFile(path.join(directory, 'items/equipment.json'), JSON.stringify({ format: 'atlas-source-generation-module/v1', roots: [], nodes: equipment.nodes }));
-    await assert.rejects(loadGenerationInput(path.join(directory, 'manifest.json')), /Duplicate generation node/);
-    await rm(path.join(directory, 'physical.json'));
-    await assert.rejects(loadGenerationInput(path.join(directory, 'manifest.json')), /ENOENT/);
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  assert.throws(()=>validateInput(interleaved),/group each module/);
 });
 
 test('maintained portfolio covers every document, family and specific rule with reserved family owners', () => {
@@ -60,12 +44,9 @@ test('maintained portfolio covers every document, family and specific rule with 
   assert.deepEqual(roots.flatMap(root => root.documentKind ? [root.documentKind] : []).sort(), ['Actor', 'Item', 'JournalEntry', 'Macro', 'RollTable']);
   assert.equal(new Set(input.selection.filter(root => root.module.startsWith('items/families/')).map(root => root.module)).size, 24);
   assert.equal(new Set(input.selection.filter(root => root.module.startsWith('actors/families/')).map(root => root.module)).size, 8);
-  const files = generateRustModules(input), snapshots = snapshotFiles(input);
+  const files = generateRustModules(input);
   for (const root of input.selection.filter(root => root.module.includes('/families/'))) {
     assert.match(files[`${root.module}.rs`], new RegExp(`pub fn parse_${root.name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()}\\(`));
-    const module = JSON.parse(snapshots[`${root.module}.json`]);
-    assert.ok(module.nodes.some((node: {id: string}) => node.id === root.valueRef));
-    assert.ok(module.nodes.some((node: {id: string}) => node.id === root.sourceRef));
   }
   assert.equal((Object.values(files).join('').match(/pub struct SpellSource \{/g) ?? []).length, 1);
   assert.match(files['rules/source.rs'], /FlatModifier\(Box<FlatModifierRule>\)/);
@@ -162,61 +143,4 @@ test('unsupported shapes, unsupported indices, dangling refs and naming collisio
   assert.throws(() => generateRustModules(collision), /collision/);
   collision.selection[1].module = '../escape';
   assert.throws(() => generateRustModules(collision), /Invalid Rust module/);
-});
-
-test('freshness covers the whole output set and removes only stale generated files', async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'atlas-generation-output-'));
-  try {
-    const outDir = path.join(directory, 'output with spaces');
-    const args = { manifest: manifestPath, outDir };
-    await generate(args);
-    await generate({ ...args, check: true });
-    await writeFile(path.join(outDir, 'obsolete.rs'), '// Generated by dev-tools/source-contracts/src/generation/generate.ts; do not edit.\n');
-    await assert.rejects(generate({ ...args, check: true }), /stale/);
-    await generate(args);
-    assert.equal((await artifactFiles(outDir)).includes('obsolete.rs'), false);
-    await writeFile(path.join(outDir, 'notes.txt'), 'human authored');
-    const before = await readFile(path.join(outDir, 'physical.rs'), 'utf8');
-    await assert.rejects(generate(args), /Unmanaged file/);
-    assert.equal(await readFile(path.join(outDir, 'physical.rs'), 'utf8'), before);
-    await assert.rejects(generate({ outDir }), /either/);
-    await assert.rejects(generate({ manifest: manifestPath, outDir: path.dirname(manifestPath) }), /separate/);
-    await rm(path.join(outDir, 'notes.txt'));
-    await rm(path.join(outDir, 'mod.rs'));
-    await mkdir(path.join(outDir, 'mod.rs'));
-    await assert.rejects(generate(args), /not a regular file/);
-    assert.equal(await readFile(path.join(outDir, 'physical.rs'), 'utf8'), before);
-  } finally { await rm(directory, { recursive: true, force: true }); }
-});
-
-test('graph refresh checks metadata changes that shared Rust value types collapse', async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'atlas-generation-metadata-'));
-  try {
-    const nodes = new Map(input.nodes.map(node => [node.id, node]));
-    const visited = new Set<string>();
-    const visit = (ref: string) => { if (visited.has(ref)) return; visited.add(ref); nodeReferences(nodes.get(ref)!).forEach(visit); };
-    input.portfolio!.schemaRoots.forEach(root => visit(root.ref!));
-    input.selection.forEach(root => { if (root.sourceRef && !root.sourceRef.includes('#authored')) visit(root.sourceRef); });
-    const graph: TypeGraph = { format: "atlas-source-type-graph/v1", typescript: input.portfolio!.typescript, source: input.source,
-      complete: true, status: "complete", roots: input.portfolio!.schemaRoots, diagnostics: [], projectDiagnostics: { selected: [], unrelated: [] },
-      portfolio: { families: input.portfolio!.families, documentKinds: input.portfolio!.schemaRoots.flatMap(root => root.documentKind ? [root.documentKind] : []),
-        ruleKeys: input.portfolio!.schemaRoots.flatMap(root => root.ruleKey ? [root.ruleKey] : []) },
-      nodes: [...nodes.values()].filter(node => visited.has(node.id)) };
-    const summary: ExtractionSummary = { format: 'atlas-source-extraction/v1', source: input.source,
-      typescript_version: '5.9.3', dependency_lock_digest: 'test', complete: true,
-      type_graph_complete: true, trait_catalog_complete: true, products: { type_graph: 'graph.json', trait_catalog: 'unused' } };
-    const graphFile = path.join(directory, 'graph.json'), summaryFile = path.join(directory, 'summary.json');
-    await writeFile(graphFile, JSON.stringify(graph));
-    await writeFile(summaryFile, JSON.stringify(summary));
-    const args = { graph: graphFile, summary: summaryFile, snapshotDir: path.join(directory, 'snapshots'), outDir: path.join(directory, 'rust') };
-    await generate(args);
-    await generate({ ...args, check: true });
-    const equipment = graph.nodes.find(node => node.id === input.selection.find(root=>root.name==='EquipmentFields')!.declaration);
-    assert.ok(equipment && equipment.kind === 'object');
-    const usage = equipment.fields.find(field => field.name === 'usage');
-    assert.ok(usage);
-    usage.optional = !usage.optional;
-    await writeFile(graphFile, JSON.stringify(graph));
-    await assert.rejects(generate({ ...args, check: true }), /stale/);
-  } finally { await rm(directory, { recursive: true, force: true }); }
 });

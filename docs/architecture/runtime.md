@@ -150,8 +150,12 @@ rule portfolios are maintained and callable, with pipeline adoption deferred.
 The keyed RuleSource dispatcher invokes the specific parser; Item.rules retains
 the generic upstream RuleElementSource and is not a specific-rule admission gate.
 
-Saved generator inputs live under `dev-tools/source-contracts/snapshots`, with source
-identity in one manifest and graph nodes owned once across module snapshots.
+The small `dev-tools/source-contracts/source-pin.json` identifies upstream source
+bytes and the compiler version. Private TypeScript generation acquires an isolated
+source export with locked dependencies, extracts declarations afresh into the
+ignored `.cache/source-contracts` directory, and checks or regenerates Rust.
+Large declaration graphs are not tracked. CI reproduces the source-to-Rust path;
+ordinary Rust builds use the committed models without Node or upstream source.
 The generator loads the entire selection before assigning shared Rust owners.
 Output is partitioned under `source_model/generated` into shared Item components,
 flags, traits, physical/equipment, Actor components, family sources, document
