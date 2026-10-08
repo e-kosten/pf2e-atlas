@@ -126,7 +126,7 @@ fn expected(
 }
 fn main() -> Result<(), Box<dyn Error>> {
     let snapshot: Value = serde_json::from_str(include_str!(
-        "../../../scripts/source-contracts/snapshots/items/traits.json"
+        "../../../dev-tools/source-contracts/snapshots/items/traits.json"
     ))?;
     let root_fields = snapshot["roots"]
         .as_array()

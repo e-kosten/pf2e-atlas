@@ -22,7 +22,7 @@ try {
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $root "LICENSE")
     Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $root "README.md")
     Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $root "THIRD-PARTY-NOTICES.md")
-    node (Join-Path $RepoRoot "scripts/release/dist/release-fixtures.js") unix-archive $archive $root
+    node (Join-Path $RepoRoot "dev-tools/release/dist/tests/release-fixtures.js") unix-archive $archive $root
   }
 
   function New-WindowsArchive($Target) {
@@ -68,8 +68,8 @@ Console.WriteLine("atlas 9.9.9");
   Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $dist "THIRD-PARTY-NOTICES.md")
   "{}" | Set-Content -Path (Join-Path $dist "dist-manifest.json")
 
-  node (Join-Path $RepoRoot "scripts/release/dist/generate-release-manifest.js") v9.9.9 $dist
-  node (Join-Path $RepoRoot "scripts/release/dist/validate-release-assets.js") v9.9.9 $dist
+  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $dist
+  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/validate-release-assets.js") v9.9.9 $dist
 
   $badManifestDist = Join-Path $tmp "bad-manifest-dist"
   Copy-Item $dist $badManifestDist -Recurse
@@ -79,7 +79,7 @@ Console.WriteLine("atlas 9.9.9");
   $manifest | ConvertTo-Json -Depth 5 | Set-Content $manifestPath
   $acceptedBadManifest = $true
   try {
-    node (Join-Path $RepoRoot "scripts/release/dist/validate-release-assets.js") v9.9.9 $badManifestDist | Out-Null
+    node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/validate-release-assets.js") v9.9.9 $badManifestDist | Out-Null
   } catch {
     $acceptedBadManifest = $false
   }
@@ -154,7 +154,7 @@ function Invoke-WebRequest {
   Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $badRoot "THIRD-PARTY-NOTICES.md")
   "not an executable" | Set-Content -Path (Join-Path $badRoot "atlas.exe")
   Compress-Archive -Path $badRoot -DestinationPath (Join-Path $rollbackDist $archive) -Force
-  node (Join-Path $RepoRoot "scripts/release/dist/generate-release-manifest.js") v9.9.9 $rollbackDist
+  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $rollbackDist
   $env:ATLAS_FAKE_RELEASE_DIR = $rollbackDist
   $failed = $false
   try {

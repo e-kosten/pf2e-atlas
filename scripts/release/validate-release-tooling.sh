@@ -10,8 +10,8 @@ sh -n \
   "$repo_root/scripts/release/test-release-tools.sh" \
   "$repo_root/scripts/release/test-prepare-release.sh"
 
-npm --prefix "$repo_root/scripts/release" run verify
-node "$repo_root/scripts/release/dist/generate-notices.js" --check >/dev/null
+npm --prefix "$repo_root/dev-tools/release" run verify
+node "$repo_root/dev-tools/release/dist/src/cli/generate-notices.js" --check >/dev/null
 
 ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path) }' \
   "$repo_root/.github/workflows/ci.yml" \
