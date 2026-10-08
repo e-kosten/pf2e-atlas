@@ -11,10 +11,30 @@ pub(crate) struct SourceArgs {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum SourceCommand {
+    #[command(about = "Load generated source DTOs before Atlas normalization or storage")]
+    Load(LoadOptions),
     #[command(about = "Analyze Foundry source ingest without writing SQLite")]
     Analyze(AnalyzeOptions),
     #[command(about = "Audit raw Foundry JSON paths and known ingest coverage")]
     AuditPaths(AuditPathsOptions),
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas-dev source load --source vendor/pf2e\n  atlas-dev source load --source vendor/pf2e --json"
+)]
+pub(crate) struct LoadOptions {
+    #[arg(long, help = "Override the PF2E source checkout path")]
+    pub(crate) source: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(long, help = "Override the Foundry manifest path")]
+    pub(crate) manifest: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Emit the loading summary and every diagnostic in the standard JSON envelope"
+    )]
+    pub(crate) json: bool,
 }
 
 #[derive(Debug, Args)]

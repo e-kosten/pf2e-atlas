@@ -29,6 +29,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0039-authored-rule-inputs.md`](./0039-authored-rule-inputs.md): separate authored collection forms, schema field provenance and contextual corpus/fidelity comparison without claiming Foundry admission.
 - [`0040-authored-document-inputs.md`](./0040-authored-document-inputs.md): separate authored document forms, recursive object patches and schema/authored corpus comparison before preparation.
 - [`0041-source-admission-and-field-retention.md`](./0041-source-admission-and-field-retention.md): retain useful documents with explicit invalid fields and diagnostics; keep specific rule interpretation atomic and separate from raw retention.
+- [`0042-typed-source-loading.md`](./0042-typed-source-loading.md): independently load generated source DTOs with raw bytes, provenance and explicit failures before normalization and storage design.
 
 ## Historical ADRs
 

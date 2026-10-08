@@ -81,6 +81,86 @@ fn data(output: &Output) -> Value {
 }
 
 #[test]
+fn load_reports_typed_partial_sources_before_normalization_without_node_or_writes() {
+    let source = Source::new("typed load");
+    fs::write(
+        source.root.join("packs/actions/action.json"),
+        br#"{"type":"action","name":"Leap","system":{"actions":{"value":"1"}}}"#,
+    )
+    .unwrap();
+    let output = dev()
+        .env("PATH", "")
+        .args(["source", "load", "--source"])
+        .arg(&source.root)
+        .arg("--json")
+        .output()
+        .unwrap();
+    let report = data(&output);
+    assert!(output.stderr.is_empty());
+    assert_eq!(report["counts"]["retained_documents"], 1);
+    assert_eq!(report["counts"]["modeled_documents"], 1);
+    assert_eq!(report["counts"]["partial_documents"], 1);
+    assert_eq!(report["counts"]["quarantined_files"], 0);
+    assert_eq!(
+        report["diagnostics"][0]["json_path"],
+        "$.system.actions.value"
+    );
+    assert_eq!(
+        report["diagnostics"][0]["context"]["source_path"],
+        "packs/actions/action.json"
+    );
+    assert_eq!(
+        report["manifest_path"],
+        source.root.join("module.json").display().to_string()
+    );
+    assert!(report.get("metrics").is_none());
+    assert!(report.get("embeddings").is_none());
+    assert!(!source.root.join("artifact.sqlite").exists());
+    let human = dev()
+        .args(["source", "load", "--source"])
+        .arg(&source.root)
+        .output()
+        .unwrap();
+    assert!(human.status.success());
+    let text = String::from_utf8(human.stdout).unwrap();
+    assert!(text.contains("partial=1"));
+    assert!(text.contains("$.system.actions.value"));
+}
+
+#[test]
+fn load_emits_a_report_and_nonzero_exit_for_quarantine_and_raw_only_roots() {
+    let source = Source::new("load failures");
+    fs::write(source.root.join("packs/actions/broken.json"), b"{").unwrap();
+    fs::write(
+        source.root.join("packs/actions/future.json"),
+        br#"{"type":"future"}"#,
+    )
+    .unwrap();
+    let manifest = source.root.join("alternate manifest.json");
+    fs::write(&manifest, br#"{"packs":[{"name":"actions","label":"Actions","type":"Item","path":"packs/actions"},{"name":"missing","label":"Missing","type":"Item","path":"packs/missing"}]}"#).unwrap();
+    let output = dev()
+        .args(["source", "load", "--source"])
+        .arg(&source.root)
+        .arg("--manifest")
+        .arg(&manifest)
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stderr.is_empty());
+    let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(envelope["status"], "ok");
+    let report = &envelope["data"];
+    assert_eq!(report["counts"]["discovered_files"], 3);
+    assert_eq!(report["counts"]["quarantined_files"], 1);
+    assert_eq!(report["counts"]["raw_only_documents"], 1);
+    assert_eq!(report["counts"]["unavailable_packs"], 1);
+    assert_eq!(report["failures"].as_array().unwrap().len(), 2);
+    assert_eq!(report["diagnostics"].as_array().unwrap().len(), 1);
+    assert_eq!(report["manifest_path"], manifest.display().to_string());
+}
+
+#[test]
 fn analyze_preserves_report_without_writing_an_artifact_or_requiring_node() {
     let source = Source::new("analyze");
     let output = dev()

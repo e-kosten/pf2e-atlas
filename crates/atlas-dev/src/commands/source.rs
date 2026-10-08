@@ -3,12 +3,75 @@ use std::process::ExitCode;
 use atlas_cli_support::write_json_data;
 use atlas_ingest::{
     SourcePathAuditOptions, SourcePathAuditReport, SourcePathCoverageStatus,
-    analyze_foundry_source, audit_source_paths,
+    analyze_foundry_source, audit_source_paths, load_foundry_documents,
 };
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 
 pub(crate) mod args;
-use args::{AnalyzeOptions, AuditPathsOptions};
+use args::{AnalyzeOptions, AuditPathsOptions, LoadOptions};
+
+pub(crate) fn run_source_load(options: LoadOptions) -> Result<ExitCode, String> {
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        path_mode: options.path_mode.into(),
+        overrides: AtlasPathOverrides {
+            source_root: options.source,
+            embedding_cache_root: None,
+            index_path: None,
+        },
+    })
+    .map_err(|error| error.to_string())?;
+    let loaded = load_foundry_documents(&runtime.paths().source_root, options.manifest.as_deref())
+        .map_err(|error| error.to_string())?;
+    let report = loaded.report();
+    if options.json {
+        write_json_data(&report)?;
+    } else {
+        let counts = &report.counts;
+        println!(
+            "loaded {} documents from {} manifest packs in {}",
+            counts.retained_documents,
+            report.pack_count,
+            report.source_root.display()
+        );
+        println!(
+            "documents: modeled={} diagnostic_free={} partial={} raw_only={} quarantined={}",
+            counts.modeled_documents,
+            counts.diagnostic_free_documents,
+            counts.partial_documents,
+            counts.raw_only_documents,
+            counts.quarantined_files
+        );
+        println!(
+            "diagnostics={} unavailable_packs={}",
+            counts.diagnostics, counts.unavailable_packs
+        );
+        for diagnostic in &report.diagnostics {
+            println!("diagnostic: {diagnostic}");
+        }
+        for failure in &report.failures {
+            println!(
+                "failure: {} {} ({:?}): {}",
+                failure.provenance.pack_name,
+                failure.provenance.source_path,
+                failure.stage,
+                failure.message
+            );
+        }
+    }
+    // Invalid fields are retained outcomes. Missing packs, quarantine and raw-only
+    // roots signal incomplete loading to scripts, while still emitting the report.
+    Ok(
+        if report.counts.quarantined_files > 0
+            || report.counts.unavailable_packs > 0
+            || report.counts.raw_only_documents > 0
+            || report.counts.retained_documents == 0
+        {
+            ExitCode::from(1)
+        } else {
+            ExitCode::SUCCESS
+        },
+    )
+}
 
 pub(crate) fn run_source_analyze(options: AnalyzeOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {

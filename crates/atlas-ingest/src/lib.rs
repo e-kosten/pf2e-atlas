@@ -12,6 +12,7 @@ mod index_build_input;
 mod records;
 mod report;
 mod source;
+mod source_loading;
 pub mod source_model;
 mod source_pipeline;
 
@@ -37,6 +38,11 @@ pub use source::model::{
     DocumentEmbeddingSectionTruncationReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, DocumentEmbeddingUnitKindTruncationReport,
     EmbeddingTimingReport, SkippedRecord,
+};
+pub use source_loading::{
+    FoundryDocumentSource, LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource,
+    QuarantinedSourceFile, SourceDocumentCounts, SourceFileProvenance, SourceLoadFailure,
+    SourceLoadFailureStage, SourceLoadingReport, load_foundry_documents,
 };
 pub use source_model::{
     Coins, EquipmentFields, EquipmentSourceSlice, EquippedData, EquippedDataCarryType,

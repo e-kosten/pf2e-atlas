@@ -22,6 +22,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Test bounded TypeScript compiler extraction and Rust generation, and capture
   upstream trait/tag metadata before storage or UI integration. Status: in_progress.
 
+- [Typed ingest normalization and database design](./items/typed-ingest-database-design.md)
+  Review normalization, storage, metrics, FTS, semantic retrieval and filters from
+  the generated source DTOs before adopting them into artifact construction.
+  Status: planned.
+
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)
   Working notes and checklist for the Rust runtime, CLI, artifact, search, graph, skill, and cutover work. Status: in_progress.
 

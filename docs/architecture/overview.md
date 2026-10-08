@@ -81,7 +81,12 @@ It should not own durable retrieval semantics, filter discovery behavior, SQLite
 
 ### Developer Commands
 
-`atlas-dev source analyze`, `atlas-dev source audit-paths`, and `atlas-dev index inspect` expose Rust diagnostics. Source reports belong to `atlas-ingest`, inspection reports belong to `atlas-index`, and path resolution belongs to `atlas-runtime`. Setup and index build/check/validate remain product operations in `atlas`.
+`atlas-dev source load` inspects generated DTO loading before normalization;
+`atlas-dev source analyze` inspects current product ingest projections;
+`atlas-dev source audit-paths` audits raw fields; `atlas-dev index inspect` inspects
+artifacts. Source reports belong to `atlas-ingest`, inspection reports belong to
+`atlas-index`, and path resolution belongs to `atlas-runtime`. Setup and index
+build/check/validate remain product operations in `atlas`.
 
 Foundry compiler discovery and declaration research run through the private TypeScript package in `dev-tools/source-contracts`. Rust developer commands do not dispatch Node. Both developer surfaces are checked in CI and excluded from release distributions. See [ADR 0033](./decisions/0033-developer-command-surfaces.md).
 
