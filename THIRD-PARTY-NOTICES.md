@@ -236,6 +236,7 @@ It is intended as release hygiene and is not legal advice.
 - rustls-webpki 0.103.13: ISC (registry+https://github.com/rust-lang/crates.io-index)
 - rustversion 1.0.22: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - ryu 1.0.23: Apache-2.0 OR BSL-1.0 (registry+https://github.com/rust-lang/crates.io-index)
+- ryu-js 1.0.3: Apache-2.0 OR BSL-1.0 (registry+https://github.com/rust-lang/crates.io-index)
 - same-file 1.0.6: Unlicense/MIT (registry+https://github.com/rust-lang/crates.io-index)
 - schannel 0.1.29: MIT (registry+https://github.com/rust-lang/crates.io-index)
 - scopeguard 1.2.0: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
