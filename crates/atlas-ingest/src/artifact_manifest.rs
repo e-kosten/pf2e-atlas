@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::error::IngestError;
-use crate::source::loader::{
+use crate::source::discovery::{
     default_manifest_path, json_files, relative_source_path, resolve_pack_path,
 };
 use crate::source::model::Manifest;

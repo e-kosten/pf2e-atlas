@@ -19,7 +19,7 @@ pub struct SourceAdmission<T> {
     pub diagnostics: Vec<SourceDiagnostic>,
 }
 
-fn source(context: &SourceContext, bytes: &[u8]) -> ParseResult<SourceValue> {
+pub(crate) fn source(context: &SourceContext, bytes: &[u8]) -> ParseResult<SourceValue> {
     let value = parse_source(bytes).map_err(|error| {
         context.message(
             &context.json_path,
@@ -35,10 +35,9 @@ fn source(context: &SourceContext, bytes: &[u8]) -> ParseResult<SourceValue> {
 
 fn admit<T>(
     mut context: SourceContext,
-    bytes: &[u8],
+    raw: SourceValue,
     parse: impl Fn(&SourceValue, &SourceContext, &str) -> ParseResult<T>,
 ) -> ParseResult<SourceAdmission<T>> {
-    let raw = source(&context, bytes)?;
     let mut diagnostics = Vec::new();
     // Re-run the unchanged parser with explicit invalid field states. Each
     // iteration marks a new field; finite input bounds the loop. Union identity,
@@ -80,34 +79,51 @@ fn admit<T>(
 }
 
 macro_rules! admission {
-    ($function:ident, $parser:ident, $model:ident) => {
+    ($function:ident, $value_function:ident, $parser:ident, $model:ident) => {
         pub fn $function(
             context: SourceContext,
             bytes: &[u8],
         ) -> ParseResult<SourceAdmission<$model>> {
-            admit(context, bytes, generated::$parser)
+            let raw = source(&context, bytes)?;
+            $value_function(context, raw)
+        }
+
+        pub(crate) fn $value_function(
+            context: SourceContext,
+            raw: SourceValue,
+        ) -> ParseResult<SourceAdmission<$model>> {
+            admit(context, raw, generated::$parser)
         }
     };
 }
 
 admission!(
     admit_actor_source_pf2e,
+    admit_actor_value,
     parse_actor_source_pf2e,
     ActorSourcePF2e
 );
 admission!(
     admit_item_source_pf2e,
+    admit_item_value,
     parse_item_source_pf2e,
     ItemSourcePF2e
 );
 admission!(
     admit_journal_entry_source,
+    admit_journal_value,
     parse_journal_entry_source,
     JournalEntrySource
 );
-admission!(admit_macro_source, parse_macro_source, MacroSource);
+admission!(
+    admit_macro_source,
+    admit_macro_value,
+    parse_macro_source,
+    MacroSource
+);
 admission!(
     admit_roll_table_source,
+    admit_roll_table_value,
     parse_roll_table_source,
     RollTableSource
 );

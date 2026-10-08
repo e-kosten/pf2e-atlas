@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::error::IngestError;
-use crate::source::loader::{
+use crate::source::discovery::{
     default_manifest_path, json_files, parse_manifest, relative_source_path, resolve_pack_path,
 };
 

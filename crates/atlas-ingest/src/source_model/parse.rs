@@ -38,7 +38,7 @@ impl SourceContext {
     ) -> SourceDiagnostic {
         self.message(path, expected, format!("{actual:?}"))
     }
-    pub(super) fn message(
+    pub(crate) fn message(
         &self,
         path: &str,
         expected: &str,
