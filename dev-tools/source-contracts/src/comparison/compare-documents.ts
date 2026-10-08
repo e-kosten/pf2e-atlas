@@ -12,10 +12,13 @@ import { sourceIdentity } from '../discovery/source-identity.js';
 import { sampleDocuments, type DocumentPacket } from './sample-documents.js';
 import { sourceProbe, type ProbeResult } from './source-probe.js';
 import { documentTraitArrays } from '../generation/document-traits.js';
+import { authoredDocumentInputs } from '../generation/document-inputs.js';
 
 type Context = Omit<DocumentPacket, 'source'>;
-export function compareDocumentResults(packets: Context[], results: ProbeResult[]) {
+export function compareDocumentResults(packets: Context[], results: ProbeResult[], baseline?: ProbeResult[]) {
   if (packets.length !== results.length) throw new Error('Document probe result count mismatch');
+  if (baseline && packets.length !== baseline.length) throw new Error('Document baseline result count mismatch');
+  const transition = { recovered: 0, regressed: 0, regressions: [] as Context[] };
   const counts = { occurrences: packets.length, accepted: 0, rejected: 0, fidelityFailures: 0 };
   const families: Record<string, typeof counts> = Object.create(null);
   const failures: { packet: Context; result: ProbeResult }[] = [];
@@ -23,6 +26,8 @@ export function compareDocumentResults(packets: Context[], results: ProbeResult[
     examples: { context: Context['context']; actual: string }[] }>();
   for (const [index, packet] of packets.entries()) {
     const result = results[index], name = `${packet.key}/${packet.family}`;
+    if (baseline && !baseline[index].ok && result.ok) transition.recovered++;
+    if (baseline?.[index].ok && !result.ok) { transition.regressed++; transition.regressions.push(packet); }
     families[name] ??= { occurrences: 0, accepted: 0, rejected: 0, fidelityFailures: 0 };
     families[name].occurrences++;
     if (result.ok) { counts.accepted++; families[name].accepted++; }
@@ -37,7 +42,7 @@ export function compareDocumentResults(packets: Context[], results: ProbeResult[
       if (group.examples.length < 3) group.examples.push({ context: packet.context, actual: result.error.actual });
     }
   }
-  return { counts, families, failures, rejectionGroups: [...grouped.values()].sort((a,b) => b.occurrences-a.occurrences || a.family.localeCompare(b.family) || a.pathPattern.localeCompare(b.pathPattern)) };
+  return { counts, families, failures, ...(baseline ? { transition } : {}), rejectionGroups: [...grouped.values()].sort((a,b) => b.occurrences-a.occurrences || a.family.localeCompare(b.family) || a.pathPattern.localeCompare(b.pathPattern)) };
 }
 const contains = (parent: string, child: string) => {
   const relative = path.relative(parent, child);
@@ -66,8 +71,7 @@ export async function compareDocuments(args: { source: string; graph: string; su
     ...graph.roots.filter(root => root.documentKind && !['Actor','Item'].includes(root.documentKind)),
     ...graph.roots.filter(root => root.ruleKey)];
   if (!['Actor','Item'].every(kind => ordered.some(root => root.documentKind === kind))) throw new Error('Actor and Item roots are required');
-  const roots = ordered.map((root,index) => ({ key: root.ruleKey ?? root.documentKind!, reference: root.ref!, name: root.ruleKey ? `${root.ruleKey}Rule` : root.name, module: `portfolio/root${index}` }));
-  const selection = roots.map(root => ({ name: root.name, declaration: root.reference, valueRef: root.reference, module: root.module, fields: [], deferred: [] }));
+  const rootsFor = (profile: TypeGraph) => ordered.map((root,index) => ({ key: root.ruleKey ?? root.documentKind!, reference: profile.roots.find(candidate => candidate.name === root.name && candidate.file === root.file)!.ref!, name: root.ruleKey ? `${root.ruleKey}Rule` : root.name, module: `portfolio/root${index}` }));
   const packetFile = path.join(args.out, 'packets.ndjson');
   const digest = createHash('sha256'), contexts: Context[] = [];
   await pipeline(Readable.from((async function* () {
@@ -77,15 +81,25 @@ export async function compareDocuments(args: { source: string; graph: string; su
       yield text;
     }
   })()), createWriteStream(packetFile));
-  const results = await sourceProbe({ graph, input: { source, nodes: graph.nodes, selection, openTraitArrays },
-    roots: roots.filter(root => ['Actor','Item'].includes(root.key)), packets: packetFile, out: path.join(args.out, 'probe'), target: path.join(args.out, 'target') });
-  const comparison = compareDocumentResults(contexts, results);
+  const run = async (profile: TypeGraph, name: string) => {
+    const roots = rootsFor(profile);
+    const selection = roots.map(root => ({ name: root.name, declaration: root.reference, valueRef: root.reference, module: root.module, fields: [], deferred: [] }));
+    return sourceProbe({ graph: profile, input: { source, nodes: profile.nodes, selection, openTraitArrays },
+      roots: roots.filter(root => ['Actor','Item'].includes(root.key)), packets: packetFile, out: path.join(args.out, name), target: path.join(args.out, 'target') });
+  };
+  const baseline = await run(graph, 'schema');
+  const authored = authoredDocumentInputs(graph, openTraitArrays);
+  await writeFile(path.join(args.out, 'authored-graph.json'), JSON.stringify(authored.graph) + '\n');
+  const results = await run(authored.graph, 'authored');
+  const roots = rootsFor(authored.graph);
+  const comparison = compareDocumentResults(contexts, results, baseline);
   const unobservedFamilies = (graph.portfolio?.families ?? []).flatMap(family => family.registered
     .filter(name => !comparison.families[`${family.documentKind}/${name}`]).map(name => `${family.documentKind}/${name}`)).sort();
   const report = { status: 'complete', source, corpusDigest: digest.digest('hex'), graphDigest: createHash('sha256').update(await readFile(args.graph)).digest('hex'),
     typescript: graph.typescript, openTraitArrays, generatedRoots: roots.length,
     roots, unobservedFamilies, runtimeAdmission: 'not-executed',
-    profile: 'persisted-declarations-before-defaults', ...comparison };
+    profile: 'authored-input-before-defaults', schema: compareDocumentResults(contexts, baseline),
+    changes: authored.changes, ruleChanges: authored.ruleChanges, ...comparison };
   await writeFile(path.join(args.out, 'comparison.json'), JSON.stringify(report, null, 2) + '\n');
-  return { report, exitCode: report.counts.rejected || report.counts.fidelityFailures ? 1 : 0 };
+  return { report, exitCode: report.counts.rejected || report.counts.fidelityFailures || report.transition?.regressed || report.schema.counts.fidelityFailures ? 1 : 0 };
 }

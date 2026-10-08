@@ -4,10 +4,13 @@ Offline developer tooling for investigating upstream PF2e declarations and autho
 
 ## Run
 
-Use Node 22 or later and Rust with rustfmt for generation/freshness checks. From the Atlas repository root:
+Use Node 22 or later and Rust with rustfmt for generation/freshness and compiled
+parser fixture checks. Prepare Rust dependencies once; fixture probes build offline.
+From the Atlas repository root:
 
 ```sh
 npm --prefix dev-tools/source-contracts ci --ignore-scripts
+cargo fetch --locked
 npm --prefix dev-tools/source-contracts run verify
 ```
 
@@ -156,22 +159,33 @@ An explicit `never[]` keeps its empty-array constraint.
 Rarity, other tags and other small vocabularies keep their declared constraints.
 The optional policy manifest also supplies existing explicit trait policies.
 
-Output contains `comparison.json`, raw `packets.ndjson`, generated modules and a
-Rust probe with line-by-line `results.ndjson`. The report records source/graph/
-corpus identity, compiled roots, unobserved registered families, acceptance,
-fidelity, grouped rejections with examples, and every first-error diagnostic.
+Output contains `comparison.json`, raw `packets.ndjson`, `authored-graph.json`,
+and separate `schema/` and `authored/` generated modules/probes with line-by-line
+`results.ndjson`. Both profiles compile all roots. The report's top-level counts
+describe authored input; `schema` retains declaration-shaped results and
+`transition` records recovered occurrences and acceptance regressions. `changes`
+identifies document field policies and upstream evidence; `ruleChanges` describes
+the emitted authored rule roots. Source/graph/corpus identity, unobserved
+registered families, fidelity, grouped examples and every first error remain
+available.
 Raw packets stream to disk; large numeric tokens and repeated payload keys are
 parsed by Rust without a JavaScript numeric round trip. This command and
 `compare-rules` share one compiler/probe implementation.
 
-Rejections or fidelity failures produce exit 1. Compilation/command failures
+Rejections, acceptance regressions or fidelity failures produce exit 1. Compilation/command failures
 also fail; the command never repairs or silently excludes an occurrence. An
 Actor rejected because of an embedded Item is counted alongside that Item's
 separate occurrence. A first error can conceal further errors in that packet.
 Accepted values are checked against raw source for modeled values, presence,
-collection order and retained additional data. This is declaration-shaped
-parsing before defaults; it does not execute Foundry cleaning, migrations,
-contextual spell merging or runtime admission. Known conflicts stay visible.
+collection order and retained additional data. The authored profile preserves
+source-backed sentinels, spell area number/string values and initiative statistic
+slugs. Spell override and fixed heightening systems use recursive object patches;
+arrays/tuples remain complete replacements. Complete source unions outside patch
+contexts retain their tag/shape constraints. Parsing does not execute Foundry
+cleaning, migrations, contextual spell merging or runtime admission. Item rules
+use upstream's generic `RuleElementSource`; run `compare-rules` to exercise the
+specific rule models. Known conflicts stay visible. See the
+[authored document report](../../docs/research/authored-document-source.md).
 Production ingest and product/storage models are unchanged.
 
 The callable Item slice now uses the generated full flags declaration, including

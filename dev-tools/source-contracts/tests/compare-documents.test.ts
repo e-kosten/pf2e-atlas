@@ -37,6 +37,16 @@ test('rejection grouping combines collection positions while retaining exact con
   assert.equal(report.rejectionGroups[0].examples[1].context.record_key, 'spell:1');
 });
 
+test('schema and authored profiles count recovered values and retain acceptance regressions', () => {
+  const packets = [0,1,2].map(index=>({key:'Item' as const, family:'weapon',context:{record_key:`weapon:${index}`,source_path:'weapon.json',json_path:'$'}}));
+  const accepted = {ok:true as const,fidelity:null};
+  const rejected = {ok:false as const,error:{json_path:'$.die',expected:'die',actual:'string'}};
+  const report = compareDocumentResults(packets,[accepted,rejected,accepted],[rejected,accepted,accepted]);
+  assert.equal(report.transition!.recovered,1); assert.equal(report.transition!.regressed,1);
+  assert.deepEqual(report.transition!.regressions,[packets[1]]);
+  assert.throws(()=>compareDocumentResults(packets,[accepted,accepted,accepted],[]),/baseline result count/);
+});
+
 test('failed repeat invalidates an old report, and overlap checks do not write into source inputs', async () => {
   const directory=await mkdtemp(path.join(os.tmpdir(),'atlas-document-comparison-'));
   try {

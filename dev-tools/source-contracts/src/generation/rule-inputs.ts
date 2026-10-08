@@ -1,16 +1,8 @@
-import type { GraphField, GraphNode, Location, TypeGraph } from '../contracts.js';
+import type { GraphField, Location, TypeGraph } from '../contracts.js';
 import { ruleValueInputs } from './rule-value-inputs.js';
 
-// Only persisted value edges change; declaration and serialization provenance stays original.
-function mapValueReferences(node: GraphNode, map: (ref: string) => string): GraphNode {
-  const result = structuredClone(node);
-  if ('fields' in result) result.fields?.forEach(field => { field.ref = map(field.ref); });
-  if ('members' in result) result.members = result.members.map(map);
-  if (result.kind === 'array') result.element = map(result.element);
-  if (result.kind === 'tuple') result.elements.forEach(element => { element.ref = map(element.ref); });
-  if ('indexSignatures' in result) result.indexSignatures?.forEach(index => { index.value = map(index.value); });
-  return result;
-}
+import { projectFields } from './authored-projection.js';
+
 function declarationKey(locations: Location[]): string {
   return JSON.stringify(locations.map(location => [location.file, location.line, location.column]).sort());
 }
@@ -85,29 +77,6 @@ export function authoredRuleInputs(schema: TypeGraph, openTraitArrays: string[] 
     }
   }
   const valueChanges = ruleValueInputs(graph, replace);
-  // Find all ancestors before copying, so recursive graphs need no provisional nodes.
-  const affected = new Set(replacements.keys());
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const node of schema.nodes) {
-      if (affected.has(node.id)) continue;
-      mapValueReferences(node, ref => {
-        if (affected.has(ref)) { affected.add(node.id); changed = true; }
-        return ref;
-      });
-    }
-  }
-  const authoredId = (id: string) => affected.has(id)
-    ? `${id}#authored-input${replacements.has(id) ? ':' + [...replacements.get(id)!.keys()].sort().join(',') : ''}` : id;
-  for (const node of schema.nodes.filter(node => affected.has(node.id))) {
-    const copy = mapValueReferences(node, authoredId);
-    copy.id = authoredId(node.id);
-    if ('fields' in copy) copy.fields?.forEach((field: GraphField) => {
-      Object.assign(field, replacements.get(node.id)?.get(field.name));
-    });
-    add(copy);
-  }
-  graph.roots.forEach(root => { if (root.ref) root.ref = authoredId(root.ref); });
+  projectFields(graph, replacements);
   return { graph, changes, sharedIwrChanges, valueChanges };
 }
