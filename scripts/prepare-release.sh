@@ -421,7 +421,7 @@ update_lockfile() {
 }
 
 update_third_party_notices() {
-  npm --prefix scripts/release run notices
+  npm --prefix dev-tools/release run notices
 }
 
 release_branch_from_current_branch() {

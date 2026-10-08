@@ -92,7 +92,11 @@ impl FidelityGraph {
                 };
                 let fields = array(node, "fields");
                 let indices = array(node, "indexSignatures");
-                if fields.is_empty() && !indices.is_empty() {
+                if fields.is_empty()
+                    && indices
+                        .first()
+                        .is_some_and(|index| index["key"] == "primitive:string")
+                {
                     return self.entries(
                         text(&indices[0], "value"),
                         raw.fields(),
@@ -143,7 +147,11 @@ impl FidelityGraph {
                     if modeled.iter().any(|field| text(field, "name") == key) {
                         continue;
                     }
-                    if !indices.is_empty() && !fields.iter().any(|field| text(field, "name") == key)
+                    if indices.first().is_some_and(|index| {
+                        index["key"] == "primitive:string"
+                            || index["key"] == "primitive:number"
+                                && crate::source_model::parse::is_numeric_key(key)
+                    }) && !fields.iter().any(|field| text(field, "name") == key)
                     {
                         indexed.push((key.clone(), value.clone()));
                     } else {
@@ -384,7 +392,7 @@ mod tests {
     fn fidelity_preserves_open_values_and_typed_map_order() {
         let graph = FidelityGraph::new(&json!({"nodes":[
             {"id":"open","kind":"open","domain":"unknown"},
-            {"id":"map","kind":"object","fields":[],"indexSignatures":[{"value":"open"}]}
+            {"id":"map","kind":"object","fields":[],"indexSignatures":[{"key":"primitive:string","value":"open"}]}
         ]}));
         let raw = parse_source(br#"{"z":null,"a":{"x":1,"x":2}}"#).unwrap();
         let context = SourceContext::new("fixture", "fixture.json", "$");

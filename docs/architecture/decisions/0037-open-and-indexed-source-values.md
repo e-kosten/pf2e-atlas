@@ -31,17 +31,33 @@ Dynamic values use the index parser directly, including its null constraints.
 Every modeled key occurs at most once; declaration-forbidden repeated members
 remain additional data. Repeated names inside an explicit open value remain intact.
 
-Pure maps remain SourceMap. Undefined in an index value union permits absent keys;
+Pure string maps remain SourceMap. A single numeric index generates a struct,
+including when it has no named fields: indexed_fields contains canonical numeric
+names, and additional_fields retains other names in source order, including
+repeated unmodeled names. Named fields satisfy the numeric index constraint only
+when their names belong to that domain. Numeric keys remain strings; there is no
+key coercion or reconstruction.
+
+Numeric names follow the pinned TypeScript compiler's
+[`isNumericLiteralName`](https://github.com/microsoft/TypeScript/blob/v5.9.3/src/compiler/utilities.ts):
+`String(Number(name)) === name`. Thus `"1"`, `"-1"`, `"1e-7"`, `"NaN"` and
+`"Infinity"` qualify; `"01"`, `"-0"` and `"1e3"` do not. Rust uses ryu-js for
+ECMAScript number formatting. Shared fixtures compare the compiler and Rust
+decisions across rounding/exponent boundaries. Numeric structs anchor recursive
+numeric maps; their ordered map entries provide layout indirection.
+
+Undefined in an index value union permits absent keys;
 persisted entries still use its remaining declared value types. Object intersections
 use the compiler's resolved fields and index signatures for the entire intersection,
 including narrowed and merged index value types. Original constituent references
 remain discovery provenance; the Rust emitter does not reconstruct conjunctions
-from their broader individual constraints. Resolved pure maps use SourceMap; named
+from their broader individual constraints. Resolved pure string maps use SourceMap; named
 indexed intersections use the same struct representation as indexed objects and
 share equivalent owners. Older graphs without resolved intersection indices must
 be re-extracted; there is no constituent-based fallback.
-Explicit nullable collection unions and multiple/non-string resolved index
-signatures remain unsupported until their representations are defined.
+Explicit nullable index values use the collection representation in
+[ADR 0035](./0035-source-value-generation-policy.md). Multiple index signatures
+and key domains other than string/number remain unsupported.
 Indexed object identity includes the dynamic value constraint and forbidden-member
 set. Named indexed structs can anchor recursion; their map entries provide layout
 indirection, while inline recursive named fields retain the existing boxing policy.

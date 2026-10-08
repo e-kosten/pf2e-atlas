@@ -18,7 +18,7 @@ artifacts when a later comparison needs both kinds of evidence.
 
 ## Implementation slices
 
-1. The private `scripts/source-contracts` package uses strictly checked TypeScript
+1. The private `dev-tools/source-contracts` package uses strictly checked TypeScript
    implementation and tests, typed discovery/catalog outputs, a normal build and
    npm entry points. Its 24 fixtures and pinned extraction output remain stable.
 2. Add `crates/atlas-dev` and move the existing ingest analysis, raw path audit and

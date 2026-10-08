@@ -120,7 +120,7 @@ cleaned source and runtime values explicitly, while keeping this evidence.
 
 ## Reproduce
 
-Use the [source tooling instructions](../../scripts/source-contracts/README.md)
+Use the [source tooling instructions](../../dev-tools/source-contracts/README.md)
 to export the pin and extract it completely. The per-root generation loop in the
 [recursive report](./recursive-source-generation.md#reproduce) works with this
 emitter. For each emitted root, write its files under a separate generated

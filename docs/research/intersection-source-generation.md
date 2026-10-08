@@ -71,7 +71,7 @@ generation and compilation. Compare authored rule source interfaces and Foundry
 cleaning with SourceFromSchema before adopting full-family parsers. Keep source
 fidelity, Foundry admission and product interpretation as separate evidence.
 
-Use the [source tooling instructions](../../scripts/source-contracts/README.md)
+Use the [source tooling instructions](../../dev-tools/source-contracts/README.md)
 for strict extraction and selected snapshot generation. Repeat the isolated
 per-root Cargo harness described in the [template report](./template-source-generation.md#reproduce),
 using this refreshed graph. Durable local artifacts are under ignored

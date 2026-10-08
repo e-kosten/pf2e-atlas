@@ -12,10 +12,19 @@ recursive identities. Allocate owners before descending. Arrays/maps already
 provide layout indirection. Box inline recursive union payloads, then detect
 remaining object/tuple cycles after removing those boxed edges.
 
-Source union identity uses value kind, required key presence, required literal
-discriminants and declaration-forbidden key absence. Forbidden keys exclude a
-union arm even when their value is null or false; ordinary standalone object
-parsing still retains these members as additional source data.
+For object alternatives with a shared required, non-null field whose finite
+literal domains are pairwise disjoint, that field identifies the arm. Choose a
+discriminator deterministically from the declarations. Validate its uniqueness
+and value without requiring other fields supplied by Foundry defaults. The
+selected payload retains missing/null/value states, and checks present values;
+declaration-forbidden members remain additional data. This supports Actor/Item
+family tags without requiring exported packs to contain runtime-populated fields.
+
+Other source union identity uses value kind, required key presence, required
+literal constraints and declaration-forbidden key absence. Forbidden keys exclude
+these arms even when their value is null or false; ordinary standalone object
+parsing still retains these members as additional source data. Overlapping or
+optional tags do not qualify for discriminator-only selection.
 
 Match anchored alternatives before broad fallbacks: open JSON domains and
 optional-only objects are fallback alternatives when their value kinds overlap
@@ -36,9 +45,11 @@ counts. Predicate execution remains future work.
 
 Fixed tuples preserve array arity and position types. Empty tuples use `[(); 0]`
 so serialization retains `[]`; single tuples retain their trailing comma. Keyword
-field names use Rust raw identifiers. Optional/rest tuples, nullable collection
-entries/value roots and recursive aliases without a nominal anchor fail explicitly
-until their representations are supported.
+field names use Rust raw identifiers. Nullable collection entries follow
+[ADR 0035](./0035-source-value-generation-policy.md), including null-aware tuple
+and scalar-array union guards. Optional/rest tuples, nullable value roots and
+recursive aliases without a nominal anchor fail explicitly until their
+representations are supported.
 
 Anonymous unions of complete persisted scalar types use member-derived names in
 String, Number, Boolean order, such as StringOrNumber or NumberOrBoolean. A complete

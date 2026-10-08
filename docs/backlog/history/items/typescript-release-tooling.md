@@ -3,7 +3,7 @@
 Status: done
 Last reviewed: 2026-10-06
 
-The private `scripts/release` npm package owns release notices, JSON manifests,
+The private `dev-tools/release` npm package owns release notices, JSON manifests,
 checksums, archive inspection and shared smoke-test fixture construction.
 Implementation and tests use strict TypeScript with emitted Node entry points.
 Shell and PowerShell retain their installer and release-preparation workflows.
