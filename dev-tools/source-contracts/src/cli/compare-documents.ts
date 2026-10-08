@@ -11,7 +11,7 @@ async function main() {
   const cwd = process.env.INIT_CWD ?? process.cwd();
   const { report, exitCode } = await compareDocuments({ source: path.resolve(cwd, values.source), graph: path.resolve(cwd, values.graph), summary: path.resolve(cwd, values.summary), out: path.resolve(cwd, values.out),
     policyManifest: values['policy-manifest'] ? path.resolve(cwd, values['policy-manifest']) : undefined });
-  console.log(JSON.stringify({ generatedRoots: report.generatedRoots, ...report.counts, families: report.families, runtimeAdmission: report.runtimeAdmission }, null, 2));
+  console.log(JSON.stringify({ generatedRoots: report.generatedRoots, schema: report.schema.counts, ...report.counts, transition: report.transition, families: report.families, runtimeAdmission: report.runtimeAdmission }, null, 2));
   process.exitCode = exitCode;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
