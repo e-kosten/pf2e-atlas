@@ -40,7 +40,16 @@ override damage types and die sizes are authored strings, and dice counts admit
 numbers or expression strings before resolution and validation. Changes identify
 reachable declaration owners and verify field origin and shape, retaining the
 original nodes. They do not evaluate expressions or assert runtime acceptance.
-When changing the source pin, recheck constructor behavior as well as declaration
+BattleForm's nested strike `baseType` is an authored string, retaining null and
+missing states. The pinned implementation stores strikes in ObjectField and
+forwards this member to `Strike.baseItem`, rather than the validated `baseType`
+member. The closed prepared interface therefore does not establish an authored
+vocabulary restriction at this boundary. This policy targets only the reachable
+BattleFormStrike declaration, verifies its original vocabulary shape and origin,
+and leaves direct Strike and shared weapon vocabularies unchanged. It does not
+repair that upstream handoff or assert that the resulting strike behaves as intended.
+
+When changing the source pin, recheck constructors and rule handoffs as well as declaration
 shape; declaration checks alone cannot prove unchanged implementation semantics.
 
 Generic union identity and open fallback behavior follow
@@ -62,6 +71,16 @@ upstream implementation evidence. A declaration mismatch alone cannot establish
 an upstream data error. Executing a pure upstream validator establishes only that
 validator's result, not complete Foundry document/rule admission. A missing
 Foundry runtime must remain visible as `runtimeAdmission: not-executed`.
+
+Corpus investigation finishes when remaining failures have an evidence-backed
+disposition, including intentional source-model rejection and explicit runtime
+evidence gaps. Corpus presence or a small failure count alone cannot establish
+validity or invalidity. A core coercion may also conceal an authoring error or
+change a rule's meaning. Keep the declared representation for the remaining
+isolated anomalies; do not add per-record repairs, admission allowlists or
+field unions solely to accept them. Preserve contextual failures and source
+provenance. Runtime uncertainty remains separate from the decision to keep a
+source field constrained, and does not block unrelated generator capabilities.
 
 ## Consequences
 

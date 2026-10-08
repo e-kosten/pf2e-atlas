@@ -69,9 +69,10 @@ pub(super) use consumer::parse_template_consumer;
 pub use consumer::{
     AuthoredArraySchema, AuthoredArraySchemaSelector, AuthoredArraySchemaSelectorAlternative1,
     AuthoredArrays, AuthoredChoiceRule, AuthoredDamageRule, AuthoredForm, AuthoredStrikeRule,
-    BoolConsumer, ChoiceRule, ChoiceRuleChoices, ChoiceRuleChoicesAlternative2, ChoiceSetAttacks,
-    ChoiceSetConfig, ChoiceSetOwnedItems, ChoiceSetPackQuery, DamageDiceOverride, DamageRule,
-    FixturePickableChoice, FormSchema, FormSchemaImmunities, GenericConsumer,
+    BattleFormStrike, BattleFormStrikeRange, BoolConsumer, ChoiceRule, ChoiceRuleChoices,
+    ChoiceRuleChoicesAlternative2, ChoiceSetAttacks, ChoiceSetConfig, ChoiceSetOwnedItems,
+    ChoiceSetPackQuery, DamageDiceOverride, DamageRule, FixturePickableChoice, FormSchema,
+    FormSchemaImmunities, FormSchemaStrikes, GenericConsumer,
     GenericConsumerAnonymousSourceFromSchema, NestedIwr, OpenConsumer, ScalarConsumer, StrikeRule,
-    TemplateConsumer,
+    StrikeRuleBaseType, TemplateConsumer,
 };

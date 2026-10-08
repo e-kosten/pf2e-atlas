@@ -67,16 +67,20 @@ No field-owner ledger, coverage receipts or new artifact readiness gate is neede
 
 The [authored-rule comparison](../../research/authored-rule-source.md) implements
 authored/cleaned input separation for selectors, nested IWR types, ChoiceSet
-predicates, DamageDice override expressions and scalar Strike traits. Generic
+predicates, DamageDice override expressions, scalar Strike traits and nested
+BattleForm strike base-type strings. Generic
 union selection distinguishes anchored shapes from open/optional-only fallbacks.
-It recovers 11,120 of 31,174 rule occurrences without measured value loss;
-17 first-error occurrences remain counted: 16 unresolved declaration/corpus/runtime
-discrepancies and one confirmed malformed predicate. Follow-ups are those
-discrepancies and nullable/undefined collection support for whole Actor/Item
-generation. Full Foundry
-admission/migration verification remains separate from declaration extraction and
-Rust corpus parsing; do not adopt full-rule pipeline parsing while these gaps
-remain unexplained.
+It recovers 11,130 of 31,174 rule occurrences without measured value loss;
+Seven first-error occurrences remain counted and have documented dispositions:
+one confirmed malformed predicate, one unsupported upstream sense and five
+core/migration-dependent cases. Keep the current field representations and
+report these input problems; do not add case-specific parsing or repairs.
+Full Foundry admission remains unexecuted, with explicit evidence gaps rather
+than claims that every remaining value is runtime-invalid. These dispositions
+permit continued generator work. Nullable/undefined collection support for
+whole Actor/Item generation is next. Before production adoption, define how
+ingest preserves and reports rejected source rules, and verify demonstrated
+valid authored forms without introducing record allowlists.
 
 - [Localization-backed rules terms](./rust-localization-backed-rules-terms.md)
   owns later product lookup, hover content and record-to-term relationships.
