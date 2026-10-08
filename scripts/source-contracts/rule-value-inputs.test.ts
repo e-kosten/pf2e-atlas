@@ -8,7 +8,7 @@ test('authored constructor projections retain schema nodes and declaration prove
   const projected = authoredRuleInputs(schema);
   assert.deepEqual(schema, before);
   for (const node of schema.nodes) assert.deepEqual(projected.graph.nodes.find(copy => copy.id === node.id), node);
-  assert.equal(projected.valueChanges.length, 6);
+  assert.equal(projected.valueChanges.length, 7);
   const config = projected.graph.nodes.find(node => node.id === 'ChoiceSetConfig#authored-input:predicate');
   assert.ok(config?.kind === 'object');
   assert.equal(config.fields.find(field => field.name === 'predicate')!.optional, true);
@@ -17,6 +17,27 @@ test('authored constructor projections retain schema nodes and declaration prove
   assert.equal(damage.fields.find(field => field.name === 'upgrade')!.ref, 'primitive:boolean');
   assert.equal(damage.fields.find(field => field.name === 'damageType')!.ref, 'primitive:string');
   assert.deepEqual(damage.fields[0].declaredAt, (schema.nodes.find(node => node.id === damage.name) as typeof damage).fields[0].declaredAt);
+});
+
+test('BattleForm authored base types widen only the reachable nested declaration', () => {
+  const schema = authoredRuleFixture(), projected = authoredRuleInputs(schema);
+  const nested = projected.graph.nodes.find(node => node.id === 'BattleFormStrike#authored-input:baseType');
+  assert.ok(nested?.kind === 'object');
+  assert.equal(nested.fields[0].ref, 'primitive:string');
+  assert.equal(nested.fields[0].nullable, true);
+  assert.equal(nested.fields[1].ref, 'FixtureRange');
+  const direct = projected.graph.nodes.find(node => node.id === 'StrikeRule#authored-input:traits');
+  assert.ok(direct?.kind === 'object');
+  assert.equal(direct.fields[1].ref, 'FixtureBaseType');
+  for (const change of ['shape', 'provenance', 'nullable', 'owner'] as const) {
+    const drift = authoredRuleFixture(), owner = drift.nodes.find(node => node.name === 'BattleFormStrike')!;
+    assert.ok(owner.kind === 'object');
+    if (change === 'shape') owner.fields[0].ref = 'primitive:number';
+    if (change === 'provenance') owner.fields[0].declaredAt[0].file = 'unrelated.ts';
+    if (change === 'nullable') owner.fields[0].nullable = false;
+    if (change === 'owner') owner.name = 'Renamed';
+    assert.throws(() => authoredRuleInputs(drift), /declaration drift|field drift/);
+  }
 });
 
 test('authored projections stop on changed or missing constructor declarations', () => {

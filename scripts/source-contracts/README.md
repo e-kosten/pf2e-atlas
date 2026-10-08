@@ -207,8 +207,9 @@ graph and summary must identify the same source bytes. Optional policies come
 from a saved generation manifest for that same source. Nested IWR objects reuse
 the authored projection through matching compiler declaration provenance;
 `sharedIwrChanges` lists these owners without broadening unrelated arrays.
-`valueChanges` records the constructor-supported ChoiceSet predicate optionality
-and DamageDice override expression shapes. Strike scalar traits follow the same
+`valueChanges` records ChoiceSet predicate optionality, DamageDice override
+expression shapes and the nested BattleForm strike base-type string projection.
+Direct Strike base types retain their extracted vocabulary. Strike scalar traits follow the same
 explicit vocabulary policy as their array form. Generic unions select anchored
 shapes before open/optional-only fallbacks; malformed anchored payloads retain
 their nested errors. Declaration-forbidden keys exclude union arms while remaining

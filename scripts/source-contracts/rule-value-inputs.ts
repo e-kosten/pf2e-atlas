@@ -1,7 +1,7 @@
 import type { GraphField, GraphNode, TypeGraph } from './contracts.js';
 import { nodeReferences } from './generation-input.js';
 
-/** Explicit source/prepared differences supported by the pinned rule constructors. */
+/** Explicit source/prepared differences supported by the pinned rule implementations. */
 export function ruleValueInputs(graph: TypeGraph, replace: (owner: string, field: string, patch: Partial<Pick<GraphField, 'ref' | 'optional'>>) => void) {
   const nodes = new Map(graph.nodes.map(node => [node.id, node]));
   const changes: { rule: string; ownerRef: string; field: string; schemaRef: string; authoredRef: string; optional: boolean; declaredAt: GraphField['declaredAt'] }[] = [];
@@ -50,6 +50,16 @@ export function ruleValueInputs(graph: TypeGraph, replace: (owner: string, field
     const id = `${field.ref}#authored-expression`;
     graph.nodes.push({ id, kind: 'union', members: ['primitive:string', 'primitive:number'] });
     return { ref: id };
+  });
+  apply('BattleForm', 'BattleFormStrike', 'src/module/rules/rule-element/battle-form/types.ts', ['baseType'], field => {
+    const node = nodes.get(field.ref);
+    const members = node?.kind === 'union' ? node.members.map(ref => nodes.get(ref)) : [node];
+    if (!field.optional || !field.nullable || !members.some(node => node?.kind === 'literal' && typeof node.value === 'string')
+      || members.some(node => !node || !(node.kind === 'literal' && typeof node.value === 'string'
+      || node.kind === 'primitive' && ['null', 'undefined'].includes(node.value))))
+      throw new Error('BattleForm strike baseType declaration drift');
+    // The pinned preparation maps this authored value to Strike.baseItem, not its closed baseType field.
+    return { ref: 'primitive:string' };
   });
   return changes;
 }
