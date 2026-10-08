@@ -75,12 +75,16 @@ entries use inline `Option<T>`; null-only entries use `()` and a null-only parse
 Undefined array/fixed-tuple entries persist as null, while undefined index values
 permit omitted keys. Explicit nullable index unions admit present null values;
 undefined alone does not. Optional/rest tuples, nullable value roots, alias-only
-recursion and multiple/non-string index signatures remain unsupported. Anchored recursion,
+recursion, multiple index signatures and key domains other than string/number
+remain unsupported. Anchored recursion,
 mixed unions and fixed tuples are supported. Union identity requires exactly one
 shape candidate; required keys count even with null/invalid payload, and required
 literal discriminants retain nullable state. Additional partial operator keys
 remain additional values when they do not identify another complete arm. This is
-declaration-shaped source modeling, not full Foundry runtime admission.
+declaration-shaped source modeling, not full Foundry runtime admission. A shared
+required literal field with pairwise disjoint domains identifies an object arm
+without requiring the other fields before defaults. Missing/overlapping tags do
+not justify selecting an arbitrary arm.
 
 Anonymous unions of complete scalar types have member-derived names in fixed
 String, Number, Boolean order (`StringOrNumber`, `StringOrBoolean`,
@@ -101,13 +105,18 @@ Atomic unions extend member-derived names to these domains, such as
 `StringOrNumberOrObject`. Unsupported declarations do not become arbitrary JSON.
 Named-plus-indexed objects retain SourcePresence named fields, typed ordered
 `indexed_fields`, and raw `additional_fields` for declaration-forbidden members.
-The index parser also checks non-null named values. Named missing/null states
+The string index parser also checks non-null named values. Named missing/null states
 remain pre-default facts; dynamic entries use the index's actual null constraints.
 Undefined in an index value union allows absent keys, not undefined JSON entries.
 Object intersections carry compiler-resolved fields and index signatures for
 the complete intersection; narrowed/merged value constraints generate through
 the same struct and pure-map representations. Re-extract older graphs without
-intersection index metadata. Multiple and non-string resolved indices remain unsupported. See
+intersection index metadata. Numeric indices generate structs whose typed ordered
+entries retain canonical TypeScript numeric names as strings; other names remain
+additional source data. Numeric named fields satisfy both their field and index
+constraints. Pure string maps retain SourceMap; pure numeric maps have a nominal
+struct owner, which also anchors recursive numeric maps. Multiple indices and
+other key domains remain unsupported. See
 [ADR 0037](../../docs/architecture/decisions/0037-open-and-indexed-source-values.md).
 
 Rust field names support leading underscores and map punctuation, digit-leading
@@ -116,7 +125,48 @@ explicit serde renames for these mappings. Name collisions, including generated
 retention slots, stop generation. See
 [ADR 0035](../../docs/architecture/decisions/0035-source-value-generation-policy.md).
 The [collection report](../../docs/research/collection-source-generation.md)
-records current 47-root results and the remaining Actor/Item numeric-index gap.
+records nullable-entry support. The
+[document report](../../docs/research/document-source-generation.md) records
+complete 47-root generation/compilation and the Actor/Item corpus baseline.
+
+### Complete document comparison
+
+```sh
+npm --prefix scripts/source-contracts run compare-documents -- \
+  --source scratch/pf2e \
+  --graph scratch/source-extraction/type-graph.json \
+  --summary scratch/source-extraction/summary.json \
+  --policy-manifest scripts/source-contracts/snapshots/manifest.json \
+  --out scratch/document-comparison
+```
+
+Use a complete source export including packs and a complete extraction of the
+same source bytes. `cargo fetch --locked` prepares Rust dependencies; the scratch
+probe builds offline. The command generates and compiles **all extracted roots
+together**, then samples every root Actor and root/embedded/nested Item. The
+existing open-string policy applies to every Actor/Item `system.traits.value`
+identifier array; generation still checks that its declaration is a string vocabulary.
+An explicit `never[]` keeps its empty-array constraint.
+Rarity, other tags and other small vocabularies keep their declared constraints.
+The optional policy manifest also supplies existing explicit trait policies.
+
+Output contains `comparison.json`, raw `packets.ndjson`, generated modules and a
+Rust probe with line-by-line `results.ndjson`. The report records source/graph/
+corpus identity, compiled roots, unobserved registered families, acceptance,
+fidelity, grouped rejections with examples, and every first-error diagnostic.
+Raw packets stream to disk; large numeric tokens and repeated payload keys are
+parsed by Rust without a JavaScript numeric round trip. This command and
+`compare-rules` share one compiler/probe implementation.
+
+Rejections or fidelity failures produce exit 1. Compilation/command failures
+also fail; the command never repairs or silently excludes an occurrence. An
+Actor rejected because of an embedded Item is counted alongside that Item's
+separate occurrence. A first error can conceal further errors in that packet.
+Accepted values are checked against raw source for modeled values, presence,
+collection order and retained additional data. This is declaration-shaped
+parsing before defaults; it does not execute Foundry cleaning, migrations,
+contextual spell merging or runtime admission. Known conflicts stay visible.
+Production ingest and product/storage models are unchanged.
 
 The callable Item slice now uses the generated full flags declaration, including
 `grantedBy`, `itemGrants`, `rulesSelections` and module namespaces. Open payloads

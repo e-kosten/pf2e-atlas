@@ -109,7 +109,7 @@ test('shared numeric literal parsers import their function while Number stays lo
   assert.doesNotMatch(rust, /generated::physical::\{[^}]*\bNumber\b/);
 });
 
-test('unsupported shapes, non-string indices, dangling refs and naming collisions reject', () => {
+test('unsupported shapes, unsupported indices, dangling refs and naming collisions reject', () => {
   for (const kind of ['unsupported', 'unresolved'] as const) {
     const changed = structuredClone(input);
     const hp = changed.nodes.findIndex(node => node.name === 'PhysicalItemHPSource');
@@ -125,7 +125,7 @@ test('unsupported shapes, non-string indices, dangling refs and naming collision
   const indexed = structuredClone(input);
   const hp = indexed.nodes.find(node => node.name === 'PhysicalItemHPSource');
   assert.ok(hp && hp.kind === 'object');
-  const indexSignatures = [{ key: 'primitive:number', value: 'primitive:number', readonly: false }];
+  const indexSignatures = [{ key: 'primitive:boolean', value: 'primitive:number', readonly: false }];
   indexed.nodes.push({ id: 'indexed', kind: 'object', fields: [], indexSignatures });
   indexed.nodes[indexed.nodes.indexOf(hp)] = { ...hp, kind: 'intersection', members: ['indexed'], fields: hp.fields, indexSignatures };
   assert.throws(() => generateRustModules(indexed), /index signature/);

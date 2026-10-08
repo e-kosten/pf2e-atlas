@@ -4,10 +4,10 @@
 // Explicit trait-array policies keep identifiers as strings; declaration vocabularies remain in snapshots.
 
 use crate::source_model::generated::common::{
-    A, CollectionsNullable, Color, ImagePath, OpenBag, SourceFromSchemaFirstSchema, StringOrNumber,
-    StringOrNumberOrBoolean, read_collections_nullable, read_color, read_image_path,
-    read_nullable_tuple_union_alternative1, read_open_bag, read_scalar_pair,
-    read_source_from_schema_first_schema, read_string_or_number, read_yes,
+    A, CollectionsNullable, Color, ImagePath, NumericKeys, OpenBag, SourceFromSchemaFirstSchema,
+    StringOrNumber, StringOrNumberOrBoolean, read_collections_nullable, read_color,
+    read_image_path, read_nullable_tuple_union_alternative1, read_numeric_keys, read_open_bag,
+    read_scalar_pair, read_source_from_schema_first_schema, read_string_or_number, read_yes,
 };
 use crate::source_model::parse::{
     Fields, ParseResult, SourceContext, array, boolean, keyed, non_primitive, number, string,
@@ -218,6 +218,34 @@ pub(in crate::source_model) fn parse_collection_consumer(
     p: &str,
 ) -> ParseResult<CollectionConsumer> {
     read_collection_consumer(v, c, p)
+}
+
+// Source declaration: NumericConsumer
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NumericConsumer {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub keys: SourcePresence<NumericKeys>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_numeric_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NumericConsumer> {
+    let f = Fields::new(v, c, p)?;
+    Ok(NumericConsumer {
+        keys: f.presence("keys", read_numeric_keys)?,
+        additional_fields: f.remaining(&["keys"]),
+    })
+}
+
+// NumericConsumer; deferred fields:
+pub(in crate::source_model) fn parse_numeric_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NumericConsumer> {
+    read_numeric_consumer(v, c, p)
 }
 
 // Source declaration: Strings

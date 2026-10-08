@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -6,12 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import type { ExtractionSummary, TypeGraph } from './contracts.js';
 import { sourceIdentity } from './source-identity.js';
-import { generateRustModules } from './source-generation.js';
 import { loadGenerationInput } from './generation-input.js';
 import { authoredRuleInputs } from './rule-inputs.js';
 import { sampleRules, type RulePacket } from './sample-rules.js';
 
-export type ProbeResult = { ok: true; fidelity: string | null } | { ok: false; error: { json_path: string; expected: string; actual: string } };
+import { sourceProbe, type ProbeResult } from './source-probe.js';
+export type { ProbeResult } from './source-probe.js';
 /** Every probed occurrence gets an acceptance and fidelity outcome. */
 export function compareRuleResults(packets: RulePacket[], schema: ProbeResult[], authored: ProbeResult[]) {
   if (schema.length !== packets.length || authored.length !== packets.length) throw new Error('Rule probe result count mismatch');
@@ -59,57 +58,12 @@ export async function compareRules(args: { source: string; graph: string; summar
   const authored = authoredRuleInputs(graph, openTraitArrays);
   await mkdir(args.out, { recursive: true });
   const json = async (name: string, value: unknown) => writeFile(path.join(args.out, name), JSON.stringify(value, null, 2) + '\n');
+  const packetFile = path.join(args.out, "packets.ndjson");
+  await writeFile(packetFile, modeled.map(packet => JSON.stringify(packet) + "\n").join(""));
   const run = async (profile: string, graph: TypeGraph): Promise<ProbeResult[]> => {
-    const directory = path.join(args.out, profile);
-    const roots = graph.roots.filter(root => root.ruleKey);
-    const selection = roots.map((root, index) => ({ name: `Rule${index}`, declaration: root.ref!, valueRef: root.ref!,
-      module: `rules/rule${index}`, fields: [], deferred: [] }));
-    const files = generateRustModules({ source: identity, nodes: graph.nodes, selection, openTraitArrays });
-    for (const [name, text] of Object.entries(files)) {
-      const file = path.join(directory, 'generated', name);
-      await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, text);
-    }
-    await writeFile(path.join(directory, 'Cargo.toml'), `[package]\nname="atlas-rule-input-probe"\nversion="0.0.0"\nedition="2024"\n[workspace]\n[[bin]]\nname="probe"\npath="main.rs"\n[dependencies]\nserde={version="1",features=["derive"]}\nserde_json="1"\n`);
-    const rustPath = (file: string) => JSON.stringify(path.join(repo, file));
-    await writeFile(path.join(directory, 'graph.json'), JSON.stringify(graph));
-    await writeFile(path.join(directory, 'main.rs'), `#![allow(dead_code, unused_imports)]
-mod source_model {
-${['keyed', 'parse', 'presence', 'union', 'value'].map(module => `#[path=${rustPath(`crates/atlas-ingest/src/source_model/${module}.rs`)}] mod ${module};`).join('\n')}
-pub use keyed::SourceMap;
-pub mod generated;
-#[path=${rustPath('crates/atlas-ingest/examples/support/rule_fidelity.rs')}] mod fidelity;
-pub fn run() {
-    use std::io::BufRead;
-    let graph: serde_json::Value = serde_json::from_str(include_str!("graph.json")).unwrap();
-    let fidelity = fidelity::FidelityGraph::new(&graph);
-    for line in std::io::stdin().lock().lines() {
-        let packet: serde_json::Value = serde_json::from_str(&line.unwrap()).unwrap();
-        let raw = value::parse_source(packet["source"].as_str().unwrap().as_bytes()).unwrap();
-        let context = parse::SourceContext::new(packet["context"]["record_key"].as_str().unwrap(), packet["context"]["source_path"].as_str().unwrap(), packet["context"]["json_path"].as_str().unwrap());
-        let (reference, result) = match packet["key"].as_str().unwrap() {
-${roots.map((root, index) => `            ${JSON.stringify(root.ruleKey)} => (${JSON.stringify(root.ref)}, generated::parse_rule${index}(&raw, &context, &context.json_path).map(|value| serde_json::to_value(value).unwrap())),`).join('\n')}
-            _ => panic!("Unmodeled rule sent to probe"),
-        };
-        let output = match result {
-            Ok(model) => serde_json::json!({"ok":true,"fidelity":fidelity.compare(reference, &raw, &model).err()}),
-            Err(error) => serde_json::json!({"ok":false,"error":error}),
-        };
-        println!("{}", output);
-    }
-}
-}
-fn main() { source_model::run(); }
-`);
-    // A single scratch executable compiles the entire rule portfolio against real primitives.
-    // Paths are absolute, so caller working directory cannot change code ownership.
-    await mkdir(path.join(directory, 'source_model'), { recursive: true });
-    // Inline module paths resolve generated beside the inline module's directory.
-    await writeFile(path.join(directory, 'source_model/generated.rs'), `include!("../generated/mod.rs");\n`);
-    const build = spawnSync('cargo', ['build', '--offline', '--quiet', '--manifest-path', path.join(directory, 'Cargo.toml'), '--target-dir', path.join(args.out, 'target')], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
-    if (build.error || build.status !== 0) throw new Error(`${profile} probe build failed: ${build.error?.message ?? build.stderr}`);
-    const result = spawnSync(path.join(args.out, `target/debug/probe${process.platform === 'win32' ? '.exe' : ''}`), [], { input: modeled.map(packet => JSON.stringify(packet) + '\n').join(''), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-    if (result.error || result.status !== 0) throw new Error(`${profile} probe failed: ${result.error?.message ?? result.stderr}`);
-    const results = result.stdout.trim().split('\n').filter(Boolean).map(line => JSON.parse(line) as ProbeResult);
+    const roots = graph.roots.filter(root => root.ruleKey).map((root, index) => ({key: root.ruleKey!, reference: root.ref!, name: `Rule${index}`, module: `rules/rule${index}`}));
+    const selection = roots.map(root => ({name: root.name, declaration: root.reference, valueRef: root.reference, module: root.module, fields: [], deferred: []}));
+    const results = await sourceProbe({graph, input: {source: identity, nodes: graph.nodes, selection, openTraitArrays}, roots, packets: packetFile, out: path.join(args.out, profile), target: path.join(args.out, "target")});
     await json(`${profile}.json`, results);
     return results;
   };

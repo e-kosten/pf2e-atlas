@@ -51,7 +51,6 @@ test('open support does not mask unresolved, structured open or unsupported inde
   for(const node of [
     {id:'gap',kind:'unsupported',reason:'fixture'}, {id:'gap',kind:'unresolved'},
     {id:'gap',kind:'open',domain:'unknown',fields:[{name:'field',ref:'primitive:string',optional:false,nullable:false,undefinedAllowed:false,forbidden:false,declaredAt:[]}]},
-    {id:'gap',kind:'object',fields:[],indexSignatures:[{key:'primitive:number',value:'primitive:string',readonly:false}]},
     {id:'gap',kind:'object',fields:[],indexSignatures:[{key:'primitive:string',value:'primitive:string',readonly:false},{key:'primitive:number',value:'primitive:string',readonly:false}]},
   ] as GraphNode[])assert.throws(()=>generateRustModules(input(node)),/Unsupported|unsupported/);
 });

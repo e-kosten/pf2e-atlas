@@ -72,6 +72,18 @@ test('literal discriminants, boolean literals and Rust keyword fields remain che
   assert.match(rust,/union_required\(v, c, p/);
 });
 
+test('disjoint declared tags identify an arm before defaults without requiring other payload fields',()=>{
+  const rust=generateRustModules(recursiveFixture())['common.rs'];
+  assert.match(rust,/union_object\(v, &\["type"\]\) && union_member\(v, "type", \|v\| matches!\(v, SourceValue::String\(value\) if value == "a"\)\)/);
+  assert.match(rust,/union_required\(v, c, p, &\[\("type", false\)\]\)/);
+  assert.doesNotMatch(rust,/union_required\(v, c, p, &\[\("type", false\), \("payload"/);
+  // Overlapping literal domains do not justify this shortcut.
+  const fixture=recursiveFixture();
+  const second=fixture.nodes.find(node=>node.id==='TaggedTwo');assert.ok(second?.kind==='object');second.fields[0].ref='A';
+  const overlap=generateRustModules(fixture)['common.rs'];
+  assert.match(overlap,/union_object\(v, &\["type", "payload"\]\)/);
+});
+
 test('source names map to Rust fields with explicit serialization names and collision checks',()=>{
   const rust=generateRustModules(recursiveFixture())['common.rs'];
   assert.match(rust,/pub _id: SourcePresence<String>/);
