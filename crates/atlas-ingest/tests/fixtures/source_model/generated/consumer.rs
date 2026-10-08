@@ -4,8 +4,9 @@
 // Explicit trait-array policies keep identifiers as strings; declaration vocabularies remain in snapshots.
 
 use crate::source_model::generated::common::{
-    Color, ImagePath, OpenBag, SourceFromSchemaFirstSchema, StringOrNumber,
-    StringOrNumberOrBoolean, read_color, read_image_path, read_open_bag, read_scalar_pair,
+    A, CollectionsNullable, Color, ImagePath, OpenBag, SourceFromSchemaFirstSchema, StringOrNumber,
+    StringOrNumberOrBoolean, read_collections_nullable, read_color, read_image_path,
+    read_nullable_tuple_union_alternative1, read_open_bag, read_scalar_pair,
     read_source_from_schema_first_schema, read_string_or_number, read_yes,
 };
 use crate::source_model::parse::{
@@ -186,6 +187,37 @@ pub(in crate::source_model) fn parse_template_consumer(
     p: &str,
 ) -> ParseResult<TemplateConsumer> {
     read_template_consumer(v, c, p)
+}
+
+// Source declaration: CollectionConsumer
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CollectionConsumer {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub tuple: SourcePresence<(Option<A>,)>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub numbers: SourcePresence<CollectionsNullable>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_collection_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<CollectionConsumer> {
+    let f = Fields::new(v, c, p)?;
+    Ok(CollectionConsumer {
+        tuple: f.presence("tuple", read_nullable_tuple_union_alternative1)?,
+        numbers: f.presence("numbers", read_collections_nullable)?,
+        additional_fields: f.remaining(&["tuple", "numbers"]),
+    })
+}
+
+// CollectionConsumer; deferred fields:
+pub(in crate::source_model) fn parse_collection_consumer(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<CollectionConsumer> {
+    read_collection_consumer(v, c, p)
 }
 
 // Source declaration: Strings

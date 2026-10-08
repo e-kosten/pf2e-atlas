@@ -71,8 +71,11 @@ may share the same vector owner. Current finite other-tag enums, rarity, license
 and grant deletion behavior remain checked. Declaration-forbidden persisted
 members remain additional data before defaults. Pure string-keyed maps preserve
 typed values and authored order, rejecting repeated modeled keys. Nullable
-collection unions, optional/rest tuples, alias-only recursion and
-indexed intersection constraints remain unsupported. Anchored recursion,
+entries use inline `Option<T>`; null-only entries use `()` and a null-only parser.
+Undefined array/fixed-tuple entries persist as null, while undefined index values
+permit omitted keys. Explicit nullable index unions admit present null values;
+undefined alone does not. Optional/rest tuples, nullable value roots, alias-only
+recursion and multiple/non-string index signatures remain unsupported. Anchored recursion,
 mixed unions and fixed tuples are supported. Union identity requires exactly one
 shape candidate; required keys count even with null/invalid payload, and required
 literal discriminants retain nullable state. Additional partial operator keys
@@ -112,8 +115,8 @@ names and reserved path keywords while retaining source keys for parsing and
 explicit serde renames for these mappings. Name collisions, including generated
 retention slots, stop generation. See
 [ADR 0035](../../docs/architecture/decisions/0035-source-value-generation-policy.md).
-The [intersection report](../../docs/research/intersection-source-generation.md)
-records current 47-root results and the remaining Actor/Item collection gap.
+The [collection report](../../docs/research/collection-source-generation.md)
+records current 47-root results and the remaining Actor/Item numeric-index gap.
 
 The callable Item slice now uses the generated full flags declaration, including
 `grantedBy`, `itemGrants`, `rulesSelections` and module namespaces. Open payloads
@@ -265,7 +268,7 @@ Direct family evidence is recorded separately for runtime getters, declaration v
 
 `complete` means supported extraction of the selected declaration closure and authored catalog expressions. It does not mean production models exist for every family, the whole upstream project type-checks, declarations agree with every corpus record, or every trait has metadata.
 
-The PF2e 6.12.4 pin has 47 roots: five document kinds (all 24 Item and eight Actor families), plus 42 built-in rule schemas. It produces 3,084 graph nodes with no selected compiler errors or unsupported nodes and 226 unrelated full-project diagnostics. The graph and trait catalog report `complete`; normal discovery and `--strict` both exit 0 on this pin. The explicit serialization projections above are part of the supported extraction boundary. The malformed corpus predicate remains a separate data discrepancy, not an extraction failure.
+The PF2e 6.12.4 pin has 47 roots: five document kinds (all 24 Item and eight Actor families), plus 42 built-in rule schemas. It produces 3,085 graph nodes with no selected compiler errors or unsupported nodes and 226 unrelated full-project diagnostics. The graph and trait catalog report `complete`; normal discovery and `--strict` both exit 0 on this pin. The explicit serialization projections above are part of the supported extraction boundary. The malformed corpus predicate remains a separate data discrepancy, not an extraction failure.
 
 The summary records a source digest, source version, Git commit/dirty state when the source is a checkout, TypeScript version and dependency lock digest. Archives have no Git identity. The source digest covers relative names and bytes of `src`, `types`, the package and system manifests, compiler config and English localization; it is independent of checkout location. The lock digest identifies the intended environment; it does not attest an arbitrary external `node_modules` installation.
 

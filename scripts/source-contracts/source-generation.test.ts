@@ -92,7 +92,7 @@ test('arrays, keyed objects and explicit trait policy retain distinct constraint
   nullable.nodes = [...new Map(nullable.nodes.map(node=>[node.id,node])).values()];
   nullable.selection.push({name:'NullableArrayFields',declaration:'fixture:nullable',module:'extra',deferred:[],
     fields:[{name:'values',ref:'nullable-array',optional:false,nullable:false,undefinedAllowed:false,forbidden:false,declaredAt:[]}]});
-  assert.throws(()=>generateRustModules(nullable),/Nullable collection entries/);
+  assert.match(Object.values(generateRustModules(nullable)).join(''), /Vec<Option<String>>/);
 });
 
 test('shared numeric literal parsers import their function while Number stays locally imported', () => {

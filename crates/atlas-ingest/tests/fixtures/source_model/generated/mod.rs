@@ -7,6 +7,7 @@ pub(in crate::source_model::generated) mod common;
 pub(in crate::source_model::generated) mod consumer;
 pub(super) use common::parse_ambiguous_fallback;
 pub(super) use common::parse_any_value;
+pub(super) use common::parse_collections;
 pub(super) use common::parse_color;
 pub(super) use common::parse_constrained_bag;
 pub(super) use common::parse_discriminated;
@@ -23,6 +24,9 @@ pub(super) use common::parse_maybe_number_map;
 pub(super) use common::parse_mixed_template;
 pub(super) use common::parse_node;
 pub(super) use common::parse_non_nullish_value;
+pub(super) use common::parse_nullable_array_union;
+pub(super) use common::parse_nullable_number_bag;
+pub(super) use common::parse_nullable_tuple_union;
 pub(super) use common::parse_number_bag;
 pub(super) use common::parse_object_union;
 pub(super) use common::parse_object_value;
@@ -46,10 +50,13 @@ pub(super) use common::parse_unknown_value;
 pub(super) use common::parse_uuid;
 pub(super) use common::parse_yes;
 pub use common::{
-    A, AmbiguousFallback, AnyValue, B, Color, ColorTag, ConstrainedBag, Discriminated, DivineFonts,
-    DivineFontsAlternative1, Empty, Expr, GenericUnion, Harm, Heal, ImagePath, IntersectionBag,
-    IntersectionMap, KnownObject, Left, Loose, MappedFields, MaybeNumberMap, MixedTemplate, Node,
-    NonNullishValue, NumberBag, NumberOrBoolean, ObjectUnion, ObjectValue, One, OpenBag,
+    A, AmbiguousFallback, AnyValue, B, Collections, CollectionsMap, CollectionsNested,
+    CollectionsNodes, CollectionsNullable, CollectionsNulls, Color, ColorTag, ConstrainedBag,
+    Discriminated, DivineFonts, DivineFontsAlternative1, Empty, Expr, GenericUnion, Harm, Heal,
+    ImagePath, IntersectionBag, IntersectionMap, KnownObject, Left, Loose, MappedFields,
+    MaybeNumberMap, MixedTemplate, Node, NonNullishValue, NullableArrayUnion,
+    NullableArrayUnionAlternative1, NullableArrayUnionAlternative2, NullableNumberBag,
+    NullableTupleUnion, NumberBag, NumberOrBoolean, ObjectUnion, ObjectValue, One, OpenBag,
     OpenTupleUnion, Other, OverlappingOpen, OverlappingTemplates, RecursiveBag,
     RecursiveIntersection, Required, Right, ScalarEnvelope, ScalarEnvelopeRestricted, ScalarPair,
     Single, SourceFromSchemaFirstSchema, SourceFromSchemaSecondSchema, Strict, StringOrBoolean,
@@ -62,6 +69,7 @@ pub(super) use consumer::parse_authored_damage_rule;
 pub(super) use consumer::parse_authored_form;
 pub(super) use consumer::parse_authored_strike_rule;
 pub(super) use consumer::parse_bool_consumer;
+pub(super) use consumer::parse_collection_consumer;
 pub(super) use consumer::parse_generic_consumer;
 pub(super) use consumer::parse_open_consumer;
 pub(super) use consumer::parse_scalar_consumer;
@@ -71,8 +79,8 @@ pub use consumer::{
     AuthoredArrays, AuthoredChoiceRule, AuthoredDamageRule, AuthoredForm, AuthoredStrikeRule,
     BattleFormStrike, BattleFormStrikeRange, BoolConsumer, ChoiceRule, ChoiceRuleChoices,
     ChoiceRuleChoicesAlternative2, ChoiceSetAttacks, ChoiceSetConfig, ChoiceSetOwnedItems,
-    ChoiceSetPackQuery, DamageDiceOverride, DamageRule, FixturePickableChoice, FormSchema,
-    FormSchemaImmunities, FormSchemaStrikes, GenericConsumer,
+    ChoiceSetPackQuery, CollectionConsumer, DamageDiceOverride, DamageRule, FixturePickableChoice,
+    FormSchema, FormSchemaImmunities, FormSchemaStrikes, GenericConsumer,
     GenericConsumerAnonymousSourceFromSchema, NestedIwr, OpenConsumer, ScalarConsumer, StrikeRule,
     StrikeRuleBaseType, TemplateConsumer,
 };

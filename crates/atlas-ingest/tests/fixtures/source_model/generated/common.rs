@@ -5,7 +5,7 @@
 
 use crate::source_model::parse::{
     Fields, ParseResult, SourceContext, array, boolean, keyed, matches_template, non_nullish,
-    non_primitive, number, string, tuple, unknown,
+    non_primitive, null, nullable, number, string, tuple, unknown,
 };
 use crate::source_model::presence::SourcePresence;
 use crate::source_model::union::{UnionCandidates, union_member, union_object, union_required};
@@ -1579,4 +1579,287 @@ pub(in crate::source_model) fn parse_recursive_intersection(
     p: &str,
 ) -> ParseResult<RecursiveIntersection> {
     read_recursive_intersection(v, c, p)
+}
+
+// Persisted nullable collection entry: NullableNumber
+pub(in crate::source_model::generated) fn read_collections_nullable_entry_nullable(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Option<Number>> {
+    nullable(v, c, p, number)
+}
+
+// Source declaration: NullableNumbers
+pub type CollectionsNullable = Vec<Option<Number>>;
+pub(in crate::source_model::generated) fn read_collections_nullable(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<CollectionsNullable> {
+    array(v, c, p, read_collections_nullable_entry_nullable)
+}
+
+// Source declaration: NullableNumberMap
+pub type CollectionsMap = crate::source_model::SourceMap<Option<Number>>;
+pub(in crate::source_model::generated) fn read_collections_map(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<CollectionsMap> {
+    keyed(v, c, p, read_collections_nullable_entry_nullable)
+}
+
+// Source declaration: Nulls
+pub type CollectionsNulls = Vec<()>;
+pub(in crate::source_model::generated) fn read_collections_nulls(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<CollectionsNulls> {
+    array(v, c, p, null)
+}
+
+// Persisted nullable collection entry: MaybeNumbers
+pub(in crate::source_model::generated) fn read_collections_nested_entry_nullable(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Option<CollectionsNullable>> {
+    nullable(v, c, p, read_collections_nullable)
+}
+
+// Source declaration: NestedNullableNumbers
+pub type CollectionsNested = Vec<Option<CollectionsNullable>>;
+pub(in crate::source_model::generated) fn read_collections_nested(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<CollectionsNested> {
+    array(v, c, p, read_collections_nested_entry_nullable)
+}
+
+// Persisted nullable collection entry: NullableNode
+pub(in crate::source_model::generated) fn read_collections_nodes_entry_nullable(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Option<Node>> {
+    nullable(v, c, p, read_node)
+}
+
+// Source declaration: NullableNodes
+pub type CollectionsNodes = Vec<Option<Node>>;
+pub(in crate::source_model::generated) fn read_collections_nodes(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<CollectionsNodes> {
+    array(v, c, p, read_collections_nodes_entry_nullable)
+}
+
+// Source declaration: Collections
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Collections {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub nullable: SourcePresence<CollectionsNullable>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub undefined: SourcePresence<CollectionsNullable>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub map: SourcePresence<CollectionsMap>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub nulls: SourcePresence<CollectionsNulls>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub undefineds: SourcePresence<CollectionsNulls>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub nested: SourcePresence<CollectionsNested>,
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub nodes: SourcePresence<CollectionsNodes>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_collections(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Collections> {
+    let f = Fields::new(v, c, p)?;
+    Ok(Collections {
+        nullable: f.presence("nullable", read_collections_nullable)?,
+        undefined: f.presence("undefined", read_collections_nullable)?,
+        map: f.presence("map", read_collections_map)?,
+        nulls: f.presence("nulls", read_collections_nulls)?,
+        undefineds: f.presence("undefineds", read_collections_nulls)?,
+        nested: f.presence("nested", read_collections_nested)?,
+        nodes: f.presence("nodes", read_collections_nodes)?,
+        additional_fields: f.remaining(&[
+            "nullable",
+            "undefined",
+            "map",
+            "nulls",
+            "undefineds",
+            "nested",
+            "nodes",
+        ]),
+    })
+}
+
+// Collections; deferred fields:
+pub(in crate::source_model) fn parse_collections(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Collections> {
+    read_collections(v, c, p)
+}
+
+// Persisted nullable collection entry: NullableA
+pub(in crate::source_model::generated) fn read_nullable_tuple_union_alternative1_entry1_nullable(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<Option<A>> {
+    nullable(v, c, p, read_a)
+}
+
+// Source declaration: NullableATuple
+pub(in crate::source_model::generated) fn read_nullable_tuple_union_alternative1(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<(Option<A>,)> {
+    let values = tuple(v, c, p, 1)?;
+    Ok((read_nullable_tuple_union_alternative1_entry1_nullable(
+        &values[0],
+        c,
+        &format!("{p}[0]"),
+    )?,))
+}
+
+// Source declaration: NullableTupleUnion
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum NullableTupleUnion {
+    Alternative1((Option<A>,)),
+    Alternative2((Heal,)),
+}
+pub(in crate::source_model::generated) fn read_nullable_tuple_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NullableTupleUnion> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::Array(values) if values.len() == 1 && (matches!(&values[0], SourceValue::Null) || matches!(&values[0], SourceValue::String(value) if value == "a")))
+    {
+        candidates.push("Alternative1", || {
+            read_nullable_tuple_union_alternative1(v, c, p).map(NullableTupleUnion::Alternative1)
+        });
+    }
+    if matches!(v, SourceValue::Array(values) if values.len() == 1 && matches!(&values[0], SourceValue::String(value) if value == "heal"))
+    {
+        candidates.push("Alternative2", || {
+            read_divine_fonts_alternative3(v, c, p).map(NullableTupleUnion::Alternative2)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// NullableTupleUnion; deferred fields:
+pub(in crate::source_model) fn parse_nullable_tuple_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NullableTupleUnion> {
+    read_nullable_tuple_union(v, c, p)
+}
+
+// Source declaration: NullableAs
+pub type NullableArrayUnionAlternative1 = Vec<Option<A>>;
+pub(in crate::source_model::generated) fn read_nullable_array_union_alternative1(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NullableArrayUnionAlternative1> {
+    array(
+        v,
+        c,
+        p,
+        read_nullable_tuple_union_alternative1_entry1_nullable,
+    )
+}
+
+// Source declaration: Bs
+pub type NullableArrayUnionAlternative2 = Vec<B>;
+pub(in crate::source_model::generated) fn read_nullable_array_union_alternative2(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NullableArrayUnionAlternative2> {
+    array(v, c, p, read_b)
+}
+
+// Source declaration: NullableArrayUnion
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum NullableArrayUnion {
+    Alternative1(NullableArrayUnionAlternative1),
+    Alternative2(NullableArrayUnionAlternative2),
+}
+pub(in crate::source_model::generated) fn read_nullable_array_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NullableArrayUnion> {
+    let mut candidates = UnionCandidates::new();
+    if matches!(v, SourceValue::Array(values) if values.iter().all(|v| (matches!(v, SourceValue::Null) || matches!(v, SourceValue::String(value) if value == "a"))))
+    {
+        candidates.push("Alternative1", || {
+            read_nullable_array_union_alternative1(v, c, p).map(NullableArrayUnion::Alternative1)
+        });
+    }
+    if matches!(v, SourceValue::Array(values) if values.iter().all(|v| matches!(v, SourceValue::String(value) if value == "b")))
+    {
+        candidates.push("Alternative2", || {
+            read_nullable_array_union_alternative2(v, c, p).map(NullableArrayUnion::Alternative2)
+        });
+    }
+    candidates.finish(v, c, p)
+}
+
+// NullableArrayUnion; deferred fields:
+pub(in crate::source_model) fn parse_nullable_array_union(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NullableArrayUnion> {
+    read_nullable_array_union(v, c, p)
+}
+
+// Source declaration: NullableNumberBag
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NullableNumberBag {
+    // Declared optional=false, nullable=false; retained before defaults.
+    pub fixed: SourcePresence<Number>,
+    pub indexed_fields: crate::source_model::SourceMap<Option<Number>>,
+    pub additional_fields: SourceObject,
+}
+pub(in crate::source_model::generated) fn read_nullable_number_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NullableNumberBag> {
+    let f = Fields::new(v, c, p)?;
+    Ok(NullableNumberBag {
+        fixed: f.presence("fixed", number)?,
+        indexed_fields: f.indexed(&["fixed"], &[], read_collections_nullable_entry_nullable)?,
+        additional_fields: f.retained(&[]),
+    })
+}
+
+// NullableNumberBag; deferred fields:
+pub(in crate::source_model) fn parse_nullable_number_bag(
+    v: &SourceValue,
+    c: &SourceContext,
+    p: &str,
+) -> ParseResult<NullableNumberBag> {
+    read_nullable_number_bag(v, c, p)
 }

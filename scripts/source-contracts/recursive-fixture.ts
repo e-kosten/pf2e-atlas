@@ -96,6 +96,27 @@ export function recursiveFixture():GenerationInput {
     {id:'NestedIwrArray',kind:'array',element:'NestedIwr',readonly:false},
     object('FormSchema',[field('immunities','NestedIwrArray'),field('strikes','FixtureBattleStrikes',true)]));
   const rules=authoredRuleFixture();
+  nodes.push(
+    {id:'NullableNumber',kind:'union',members:['primitive:number','primitive:null']},
+    {id:'NullableNumbers',kind:'array',element:'NullableNumber',readonly:false},
+    {id:'UndefinedNumbers',kind:'array',element:'MaybeNumber',readonly:false},
+    {id:'NullableNumberMap',kind:'object',fields:[],indexSignatures:[{key:'primitive:string',value:'NullableNumber',readonly:false}]},
+    {id:'Nulls',kind:'array',element:'primitive:null',readonly:false},
+    {id:'Undefineds',kind:'array',element:'primitive:undefined',readonly:false},
+    {id:'MaybeNumbers',kind:'union',members:['NullableNumbers','primitive:undefined']},
+    {id:'NestedNullableNumbers',kind:'array',element:'MaybeNumbers',readonly:false},
+    {id:'NullableATuple',kind:'tuple',elements:[{ref:'NullableA',optional:false,rest:false}],readonly:false},
+    {id:'NullableTupleUnion',name:'NullableTupleUnion',kind:'union',members:['NullableATuple','HealFont']},
+    {id:'NullableAs',kind:'array',element:'NullableA',readonly:false},
+    {id:'Bs',kind:'array',element:'B',readonly:false},
+    {id:'NullableArrayUnion',name:'NullableArrayUnion',kind:'union',members:['NullableAs','Bs']},
+    {id:'NullableNode',kind:'union',members:['Node','primitive:undefined']},
+    {id:'NullableNodes',kind:'array',element:'NullableNode',readonly:false},
+    {id:'NullableNumberBag',name:'NullableNumberBag',kind:'object',fields:[field('fixed','primitive:number')],indexSignatures:[{key:'primitive:string',value:'NullableNumber',readonly:false}]},
+    object('Collections',[field('nullable','NullableNumbers'),field('undefined','UndefinedNumbers'),field('map','NullableNumberMap'),
+      field('nulls','Nulls'),field('undefineds','Undefineds'),field('nested','NestedNullableNumbers'),field('nodes','NullableNodes')]),
+    object('CollectionConsumer',[field('tuple','NullableATuple'),field('numbers','NullableNumbers')])
+  );
   nodes.push(...rules.nodes.filter(node=>!nodes.some(existing=>existing.id===node.id)));
   const authored=authoredRuleInputs({format:'atlas-source-type-graph/v1',typescript:'fixture',complete:true,status:'complete',
     nodes,diagnostics:[],projectDiagnostics:{selected:[],unrelated:[]},roots:[{file:'fixture',name:'AuthoredArraySchema',ruleKey:'FlatModifier',ref:'AuthoredArraySchema',arrayInputs:[
@@ -112,8 +133,8 @@ export function recursiveFixture():GenerationInput {
       ...['OpenBag','NumberBag','ConstrainedBag','RecursiveBag','UnknownMap','MaybeNumberMap','ObjectUnion','OpenTupleUnion','OverlappingOpen','AmbiguousFallback'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
       ...[{name:'AnyValue',ref:'Open:any'},{name:'UnknownValue',ref:'Open:unknown'},{name:'ObjectValue',ref:'Open:object'},{name:'NonNullishValue',ref:'Open:non-nullish'}].map(({name,ref})=>({name,declaration:ref,valueRef:ref,module:'common',fields:[],deferred:[]})),
       ...['Color','ImagePath','Uuid','TemplateTupleUnion','MixedTemplate','TemplateTagged','OverlappingTemplates','GenericUnion'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
-      ...['MappedFields','IntersectionBag','IntersectionMap','RecursiveIntersection'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
-      ...['BoolConsumer','ScalarConsumer','OpenConsumer','GenericConsumer','TemplateConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]})),
+      ...['MappedFields','IntersectionBag','IntersectionMap','RecursiveIntersection','Collections','NullableTupleUnion','NullableArrayUnion','NullableNumberBag'].map(name=>({name,declaration:name,valueRef:name,module:'common',fields:[],deferred:[]})),
+      ...['BoolConsumer','ScalarConsumer','OpenConsumer','GenericConsumer','TemplateConsumer','CollectionConsumer'].map(name=>({name,declaration:name,valueRef:name,module:'consumer',fields:[],deferred:[]})),
       {name:'AuthoredArrays',declaration:'AuthoredArraySchema',valueRef:authored.graph.roots[0].ref!,module:'consumer',fields:[],deferred:[]},
       {name:'AuthoredForm',declaration:'FormSchema',valueRef:authored.graph.roots[2].ref!,module:'consumer',fields:[],deferred:[]},
       ...['Choice','Damage','Strike'].map((name,index)=>({name:`Authored${name}Rule`,declaration:rules.roots[index].ref!,

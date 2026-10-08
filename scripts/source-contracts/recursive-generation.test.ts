@@ -41,7 +41,7 @@ test('direct recursive object edges have explicit indirection and unanchored ali
     assert.throws(()=>generateRustModules(input(nodes,[{ref:'Loop',name:'Loop'}])),/anchor/);
 });
 
-test('fixed tuples preserve position types; optional, rest and nullable entries fail explicitly',()=>{
+test('fixed tuples preserve nullable position types; optional/rest tuples and nullable roots fail explicitly',()=>{
   const nodes:GraphNode[]=[primitive('string'),primitive('number'),{id:'Pair',kind:'tuple',elements:[{ref:'primitive:string',optional:false,rest:false},{ref:'primitive:number',optional:false,rest:false}],readonly:true}];
   const value=input(nodes,[{ref:'Pair',name:'Pair'}]);
   assert.match(generateRustModules(value)['fixture.rs'],/pub type Pair = \(String, Number\)/);
@@ -49,7 +49,7 @@ test('fixed tuples preserve position types; optional, rest and nullable entries 
     assert.throws(()=>generateRustModules(bad),/Optional\/rest tuples/);}
   nodes.push(primitive('null'),{id:'Nullable',kind:'union',members:['primitive:string','primitive:null']});
   const pair=nodes.find(node=>node.kind==='tuple');assert.ok(pair?.kind==='tuple');pair.elements[0].ref='Nullable';
-  assert.throws(()=>generateRustModules(value),/Nullable collection entries/);
+  assert.match(generateRustModules(value)['fixture.rs'],/pub type Pair = \(Option<String>, Number\)/);
   assert.throws(()=>generateRustModules(input(nodes,[{ref:'Nullable',name:'Nullable'}])),/Nullable value roots/);
 });
 
