@@ -640,7 +640,7 @@ ${familyRoots.map(root => `        ${rustString(root.family!)} => parse_${snake(
   const header = `${generatedHeader}
 // ${input.portfolio ? 'Authored source portfolio' : 'Partial source model'} for PF2e ${input.source.system_version}; source digest ${input.source.source_digest}.
 // SourcePresence intentionally preserves missing/null before Foundry defaults.
-${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as strings; declaration vocabularies remain in snapshots.\n' : ''}
+${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as strings; declaration vocabularies remain in the extracted graph.\n' : ''}
 `;
   const files: Record<string, string> = {};
   for (const name of new Set([...modules.keys(), ...children.keys()])) {

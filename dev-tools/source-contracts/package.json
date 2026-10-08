@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build --silent && node --test dist/tests/*.test.js",
     "verify": "npm run typecheck && npm test",
+    "verify-generated": "npm run build --silent && node --test dist/tests/pinned-generation.integration.js",
     "preextract": "npm run build --silent",
     "extract": "node dist/src/cli/extract.js",
     "pregenerate": "npm run build --silent",

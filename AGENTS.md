@@ -20,8 +20,9 @@ The first-party local-agent skill lives in `skills/pf2e-atlas-cli`. The vendored
 
 Private TypeScript contributor packages live under `dev-tools/`. Keep package
 configuration at each package root, implementation in `src/`, command parsing and
-exit behavior in `src/cli/`, and tests in `tests/`. Source-contract fixtures and
-saved declaration snapshots have separate directories. Operational shell and
+exit behavior in `src/cli/`, and tests in `tests/`. Source-contract fixtures stay
+in the package; large extracted declaration graphs belong in ignored caches and
+are regenerated from the pinned upstream source. Operational shell and
 PowerShell workflows and installers remain under `scripts/`.
 
 ## Architecture Docs

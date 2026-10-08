@@ -31,7 +31,7 @@ Maintained private TypeScript packages live under `dev-tools/`, with package
 configuration at the package root, implementation under `src/`, and tests under
 `tests/`. `src/cli/` owns command arguments, output and exit behavior; domain
 modules own the reusable implementation. Source-contract fixtures and saved
-declaration snapshots remain separate from implementation. `dev-tools/release`
+large declaration graphs live in ignored caches, separate from implementation and small fixtures. `dev-tools/release`
 owns notice, manifest, checksum and archive tooling. Operational shell and
 PowerShell workflows and installers remain under `scripts/`. Rust developer
 commands continue to live in the owning Cargo crates.

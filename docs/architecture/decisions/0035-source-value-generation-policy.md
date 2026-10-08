@@ -23,7 +23,7 @@ admission validation.
 Broad trait value arrays use an explicit `openTraitArrays` manifest policy keyed
 by the exact array node identity. Before generation, each policy must still refer
 to an array of declared string values. Original vocabulary nodes stay unchanged
-in snapshots, and the extracted trait catalog retains authored metadata. This
+in ignored extraction evidence, and the extracted trait catalog retains authored metadata. This
 policy does not widen unrelated literals or all string arrays. Current finite
 other-tag vocabularies, rarity, publication license and grant deletion behavior
 remain checked sets. An array of `never` admits only an empty array.
@@ -87,7 +87,7 @@ their existing owners.
 ## Consequences
 
 Value-shape sharing follows pre-default parsing semantics while distinct family
-declaration facts stay in snapshots. Common Item description/publication, core
+declaration facts stay in ignored extraction evidence. Common Item description/publication, core
 traits and item grants can be modeled across all registered Item families without
 requiring each family to own the same parser. Fixtures supplement families and
 states absent from the pinned corpus. Typed-value fidelity and additional-member

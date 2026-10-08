@@ -132,9 +132,9 @@ PR18 manual reference accept 4,580 pinned occurrences; selected declared values
 match throughout. Six legacy slot/deletion members are retained as ordered data
 instead of separate typed properties. Eighteen adversarial comparison cases and
 focused Rust/TypeScript tests exercise fidelity and fail-loud generation drift.
-Saved inputs now use a manifest and physical/equipment snapshots with nodes owned
-once; Rust output uses shared physical and equipment modules generated from the
-whole selected graph. Freshness checks cover complete output sets. See
+Rust output uses shared physical and equipment modules generated from the
+whole selected graph. Declaration evidence is regenerated from the source pin
+into the ignored cache. Freshness checks cover complete output sets. See
 [ADR 0034](../../architecture/decisions/0034-source-generation-layout.md).
 The production ingest pipeline remains unchanged.
 
@@ -151,7 +151,7 @@ adds anchored recursion, mixed unions and fixed tuples, using complete persisted
 predicates as the concrete model. All 18,512 accepted selected corpus values
 match raw projections; one known upstream nor/not conflict remains reported.
 Compiled generic fixtures exercise states absent from the corpus. The complete
-source graph is unchanged; original serialization provenance closes saved inputs.
+source graph is unchanged; original serialization provenance closes generation inputs.
 
 The [intersection capability slice](../../research/intersection-source-generation.md)
 brings the 47-root attempt to 45 emitted and individually compiled roots: all 42
@@ -162,8 +162,8 @@ The [collection capability slice](../../research/collection-source-generation.md
 adds inline Option entries for persisted nullable arrays, fixed tuples and maps,
 plus null-only entries. Undefined array positions persist as null; undefined
 object properties remain absent. Shape signatures intern shared descendants and
-validate recursive anchors without unbounded expansion. Production snapshots
-and generated modules stay unchanged. The
+validate recursive anchors without unbounded expansion. That capability slice
+left the then-maintained generated modules unchanged. The
 [document capability slice](../../research/document-source-generation.md)
 adds numeric indices, null-only fields, unusual literal enum tokens and
 discriminator-only selection when required finite literal domains are disjoint.
@@ -178,14 +178,19 @@ statistic slugs and recursive patches for overrides/fixed heightening layers.
 The original declaration graph remains available beside authored results,
 recovery/regression counts and fidelity diagnostics. The complete authored
 portfolio is maintained under `crates/atlas-ingest/src/source_model/generated`,
-with reproducible modular snapshots and callable document/specific-rule parsers.
+with a pinned source-to-Rust workflow and callable document/specific-rule parsers.
 The contributor `compare-portfolio` command tests these maintained models against
 all document kinds and specific rules, preserving every first-error context and
 checking value fidelity. A pinned corpus baseline detects changed input,
 rejection sets, counts and value loss; known rejections remain nonzero diagnostic
 outcomes. Remaining migration/core-dependent or malformed values
 retain explicit constrained dispositions; rejected-document handling and
-contextual normalization must be decided before production adoption. Do not call
+contextual normalization must be decided before production adoption. Before choosing
+field/node recovery or whole-document rejection, report affected unique document
+names, families and source paths, retained useful content, and losses under each
+policy. Counts of overlapping rejected occurrences alone do not justify a drop
+policy; a small number of marginal records may be acceptable, while useful or
+commonly needed records merit narrower recovery. Do not call
 all reported rejections bad data or treat
 generation completion as complete authored admission.
 Optional/rest tuples and alias-only recursive collections remain unsupported
