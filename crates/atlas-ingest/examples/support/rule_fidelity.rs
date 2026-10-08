@@ -4,7 +4,7 @@ use crate::source_model::value::SourceValue;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
-pub struct FidelityGraph(BTreeMap<String, Value>);
+pub struct FidelityGraph(BTreeMap<String, Value>, bool);
 impl FidelityGraph {
     pub fn new(graph: &Value) -> Self {
         Self(
@@ -14,10 +14,33 @@ impl FidelityGraph {
                 .iter()
                 .map(|node| (text(node, "id").to_owned(), node.clone()))
                 .collect(),
+            false,
         )
+    }
+    #[allow(
+        dead_code,
+        reason = "Admission is checked by the maintained portfolio probe; strict fixture probes share this oracle."
+    )]
+    pub fn for_admission(graph: &Value) -> Self {
+        let mut graph = Self::new(graph);
+        graph.1 = true;
+        graph
     }
     pub fn compare(&self, reference: &str, raw: &SourceValue, model: &Value) -> Result<(), String> {
         self.value(reference, raw, model, "$", 0)
+    }
+    #[allow(
+        dead_code,
+        reason = "Only the admission probe validates retained fields with embedded source paths."
+    )]
+    pub fn compare_at(
+        &self,
+        reference: &str,
+        raw: &SourceValue,
+        model: &Value,
+        path: &str,
+    ) -> Result<(), String> {
+        self.value(reference, raw, model, path, 0)
     }
     fn value(
         &self,
@@ -115,13 +138,38 @@ impl FidelityGraph {
                     let name = text(field, "name");
                     let values: Vec<_> =
                         raw.fields().iter().filter(|(key, _)| key == name).collect();
-                    if values.len() > 1 {
-                        return Err(format!("{path}.{name}: duplicate modeled source field"));
-                    }
                     let key = serialized_key(name);
                     let actual = model
                         .get(&key)
                         .ok_or_else(|| format!("{path}.{name}: modeled field lost"))?;
+                    if self.1
+                        && let Some(invalid) = actual.get("invalid")
+                    {
+                        if values.is_empty()
+                            || actual.as_object().map(|object| object.len()) != Some(1)
+                        {
+                            return Err(format!(
+                                "{path}.{name}: invalid state without authored field"
+                            ));
+                        }
+                        equal(
+                            &json!(values.iter().map(|(_, value)| value).collect::<Vec<_>>()),
+                            &invalid["values"],
+                            &format!("{path}.{name}: retained invalid values"),
+                        )?;
+                        equal(
+                            &json!(format!("{path}.{name}")),
+                            &invalid["json_path"],
+                            path,
+                        )?;
+                        if !invalid["diagnostic"]["expected"].is_string() {
+                            return Err(format!("{path}.{name}: missing invalid-field diagnostic"));
+                        }
+                        continue;
+                    }
+                    if values.len() > 1 {
+                        return Err(format!("{path}.{name}: duplicate modeled source field"));
+                    }
                     match values.first().map(|(_, value)| value) {
                         None => equal(&json!("missing"), actual, &format!("{path}.{name}"))?,
                         Some(SourceValue::Null) => {
@@ -324,6 +372,45 @@ mod tests {
         ] {
             let raw = parse_source(source.as_bytes()).unwrap();
             assert!(generated::parse_authored_form(&raw, &context, "$").is_err());
+        }
+    }
+
+    #[test]
+    fn admission_fidelity_detects_loss_in_retained_invalid_fields() {
+        let input = json!({"nodes":[
+            {"id":"number","kind":"primitive","value":"number"},
+            {"id":"record","kind":"object","fields":[{"name":"level","ref":"number","forbidden":false}],"indexSignatures":[]}
+        ]});
+        let raw = parse_source(br#"{"level":"1","level":"2"}"#).unwrap();
+        let model = json!({"level":{"invalid":{"json_path":"$.items[4].level",
+            "values":[{"String":"1"},{"String":"2"}],"diagnostic":{"expected":"one structural member"}}},
+            "additional_fields":{"fields":[]}});
+        let graph = FidelityGraph::for_admission(&input);
+        assert!(
+            graph
+                .compare_at("record", &raw, &model, "$.items[4]")
+                .is_ok()
+        );
+        assert!(
+            FidelityGraph::new(&input)
+                .compare("record", &raw, &model)
+                .is_err()
+        );
+        for (key, value) in [
+            ("values", json!([{"String":"2"},{"String":"1"}])),
+            ("values", json!([{"String":"1"}])),
+            ("values", json!([{"Number":1},{"Number":2}])),
+            ("json_path", json!("$.items[5].level")),
+            ("diagnostic", json!({})),
+        ] {
+            let mut changed = model.clone();
+            changed["level"]["invalid"][key] = value;
+            assert!(
+                graph
+                    .compare_at("record", &raw, &changed, "$.items[4]")
+                    .is_err(),
+                "{key}"
+            );
         }
     }
 

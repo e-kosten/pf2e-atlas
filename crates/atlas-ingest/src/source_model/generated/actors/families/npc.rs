@@ -61,7 +61,6 @@ use crate::source_model::parse::{
     Fields, ParseResult, SourceContext, array, boolean, non_primitive, number, string, unknown,
 };
 use crate::source_model::presence::SourcePresence;
-use crate::source_model::union::{UnionCandidates, union_member, union_object, union_required};
 use crate::source_model::value::{SourceObject, SourceValue};
 use serde::Serialize;
 use serde_json::Number;
@@ -321,80 +320,7 @@ pub(in crate::source_model::generated) fn read_npcdetails_source(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum SenseDataAlternative1Acuity {
-    #[serde(rename = "precise")]
-    Precise,
-}
-pub(in crate::source_model::generated) fn read_sense_data_alternative1_acuity(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<SenseDataAlternative1Acuity> {
-    match string(v, c, p)?.as_str() {
-        "precise" => Ok(SenseDataAlternative1Acuity::Precise),
-        _ => Err(c.error(p, "precise", v)),
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum SpecialVisionType {
-    #[serde(rename = "darkvision")]
-    Darkvision,
-    #[serde(rename = "greater-darkvision")]
-    GreaterDarkvision,
-    #[serde(rename = "low-light-vision")]
-    LowLightVision,
-    #[serde(rename = "see-invisibility")]
-    SeeInvisibility,
-}
-pub(in crate::source_model::generated) fn read_special_vision_type(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<SpecialVisionType> {
-    match string(v, c, p)?.as_str() {
-        "darkvision" => Ok(SpecialVisionType::Darkvision),
-        "greater-darkvision" => Ok(SpecialVisionType::GreaterDarkvision),
-        "low-light-vision" => Ok(SpecialVisionType::LowLightVision),
-        "see-invisibility" => Ok(SpecialVisionType::SeeInvisibility),
-        _ => Err(c.error(
-            p,
-            "darkvision | greater-darkvision | low-light-vision | see-invisibility",
-            v,
-        )),
-    }
-}
-
-// Source declaration: src/module/actor/creature/data.ts#SenseData.$object@5edb5f61896d984173388cb0
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct SenseDataAlternative1 {
-    // Declared optional=true, nullable=false; retained before defaults.
-    pub acuity: SourcePresence<SenseDataAlternative1Acuity>,
-    // Declared optional=true, nullable=false; retained before defaults.
-    pub range: SourcePresence<Number>,
-    // Declared optional=true, nullable=true; retained before defaults.
-    pub source: SourcePresence<String>,
-    // Declared optional=false, nullable=false; retained before defaults.
-    pub r#type: SourcePresence<SpecialVisionType>,
-    pub additional_fields: SourceObject,
-}
-pub(in crate::source_model::generated) fn read_sense_data_alternative1(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<SenseDataAlternative1> {
-    let f = Fields::new(v, c, p)?;
-    Ok(SenseDataAlternative1 {
-        acuity: f.presence("acuity", read_sense_data_alternative1_acuity)?,
-        range: f.presence("range", number)?,
-        source: f.presence("source", string)?,
-        r#type: f.presence("type", read_special_vision_type)?,
-        additional_fields: f.remaining(&["acuity", "range", "source", "type"]),
-    })
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum SenseDataAlternative2Type {
+pub enum SenseConstructorParamsType {
     #[serde(rename = "darkvision")]
     Darkvision,
     #[serde(rename = "echolocation")]
@@ -426,137 +352,72 @@ pub enum SenseDataAlternative2Type {
     #[serde(rename = "wavesense")]
     Wavesense,
 }
-pub(in crate::source_model::generated) fn read_sense_data_alternative2_type(
+pub(in crate::source_model::generated) fn read_sense_constructor_params_type(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<SenseDataAlternative2Type> {
+) -> ParseResult<SenseConstructorParamsType> {
     match string(v, c, p)?.as_str() {
-        "darkvision" => Ok(SenseDataAlternative2Type::Darkvision),
-        "echolocation" => Ok(SenseDataAlternative2Type::Echolocation),
-        "greater-darkvision" => Ok(SenseDataAlternative2Type::GreaterDarkvision),
-        "infrared-vision" => Ok(SenseDataAlternative2Type::InfraredVision),
-        "lifesense" => Ok(SenseDataAlternative2Type::Lifesense),
-        "low-light-vision" => Ok(SenseDataAlternative2Type::LowLightVision),
-        "magicsense" => Ok(SenseDataAlternative2Type::Magicsense),
-        "motion-sense" => Ok(SenseDataAlternative2Type::MotionSense),
-        "scent" => Ok(SenseDataAlternative2Type::Scent),
-        "see-invisibility" => Ok(SenseDataAlternative2Type::SeeInvisibility),
-        "spiritsense" => Ok(SenseDataAlternative2Type::Spiritsense),
-        "thoughtsense" => Ok(SenseDataAlternative2Type::Thoughtsense),
-        "tremorsense" => Ok(SenseDataAlternative2Type::Tremorsense),
-        "truesight" => Ok(SenseDataAlternative2Type::Truesight),
-        "wavesense" => Ok(SenseDataAlternative2Type::Wavesense),
+        "darkvision" => Ok(SenseConstructorParamsType::Darkvision),
+        "echolocation" => Ok(SenseConstructorParamsType::Echolocation),
+        "greater-darkvision" => Ok(SenseConstructorParamsType::GreaterDarkvision),
+        "infrared-vision" => Ok(SenseConstructorParamsType::InfraredVision),
+        "lifesense" => Ok(SenseConstructorParamsType::Lifesense),
+        "low-light-vision" => Ok(SenseConstructorParamsType::LowLightVision),
+        "magicsense" => Ok(SenseConstructorParamsType::Magicsense),
+        "motion-sense" => Ok(SenseConstructorParamsType::MotionSense),
+        "scent" => Ok(SenseConstructorParamsType::Scent),
+        "see-invisibility" => Ok(SenseConstructorParamsType::SeeInvisibility),
+        "spiritsense" => Ok(SenseConstructorParamsType::Spiritsense),
+        "thoughtsense" => Ok(SenseConstructorParamsType::Thoughtsense),
+        "tremorsense" => Ok(SenseConstructorParamsType::Tremorsense),
+        "truesight" => Ok(SenseConstructorParamsType::Truesight),
+        "wavesense" => Ok(SenseConstructorParamsType::Wavesense),
         _ => Err(c.error(p, "darkvision | echolocation | greater-darkvision | infrared-vision | lifesense | low-light-vision | magicsense | motion-sense | scent | see-invisibility | spiritsense | thoughtsense | tremorsense | truesight | wavesense", v)),
     }
 }
 
-// Source declaration: src/module/actor/creature/data.ts#SenseData.$object@65df6af662556a789a2dce8b
+// Source declaration: src/module/actor/creature/sense.ts#SenseConstructorParams
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct SenseDataAlternative2 {
-    // Declared optional=false, nullable=false; retained before defaults.
+pub struct SenseConstructorParams {
+    // Declared optional=true, nullable=false; retained before defaults.
     pub acuity: SourcePresence<
         FeatSystemSourceSubfeaturesSourceFromSchemaSensesPartialDarkvisionSourceFromSchemaAcuity,
     >,
-    // Declared optional=false, nullable=false; retained before defaults.
+    // Declared optional=true, nullable=true; retained before defaults.
     pub range: SourcePresence<Number>,
     // Declared optional=true, nullable=true; retained before defaults.
     pub source: SourcePresence<String>,
     // Declared optional=false, nullable=false; retained before defaults.
-    pub r#type: SourcePresence<SenseDataAlternative2Type>,
+    pub r#type: SourcePresence<SenseConstructorParamsType>,
     pub additional_fields: SourceObject,
 }
-pub(in crate::source_model::generated) fn read_sense_data_alternative2(
+pub(in crate::source_model::generated) fn read_sense_constructor_params(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
-) -> ParseResult<SenseDataAlternative2> {
+) -> ParseResult<SenseConstructorParams> {
     let f = Fields::new(v, c, p)?;
-    Ok(SenseDataAlternative2 {
+    Ok(SenseConstructorParams {
         acuity: f.presence("acuity", read_feat_system_source_subfeatures_source_from_schema_senses_partial_darkvision_source_from_schema_acuity)?,
         range: f.presence("range", number)?,
         source: f.presence("source", string)?,
-        r#type: f.presence("type", read_sense_data_alternative2_type)?,
+        r#type: f.presence("type", read_sense_constructor_params_type)?,
         additional_fields: f.remaining(&["acuity", "range", "source", "type"]),
     })
 }
 
-// Source declaration: src/module/actor/creature/data.ts#SenseData
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(untagged)]
-pub enum SenseData {
-    Alternative1(SenseDataAlternative1),
-    Alternative2(SenseDataAlternative2),
-}
-pub(in crate::source_model::generated) fn read_sense_data(
-    v: &SourceValue,
-    c: &SourceContext,
-    p: &str,
-) -> ParseResult<SenseData> {
-    let mut candidates = UnionCandidates::new();
-    if union_object(v, &["type"])
-        && union_member(v, "type", |v| {
-            (matches!(v, SourceValue::String(value) if value == "darkvision")
-                || matches!(v, SourceValue::String(value) if value == "greater-darkvision")
-                || matches!(v, SourceValue::String(value) if value == "low-light-vision")
-                || matches!(v, SourceValue::String(value) if value == "see-invisibility"))
-        })
-    {
-        candidates.push("Alternative1", || {
-            union_required(v, c, p, &[("type", false)])
-                .and_then(|()| read_sense_data_alternative1(v, c, p))
-                .map(SenseData::Alternative1)
-        });
-    }
-    if union_object(v, &["acuity", "range", "type"])
-        && union_member(v, "acuity", |v| {
-            (matches!(v, SourceValue::String(value) if value == "imprecise")
-                || matches!(v, SourceValue::String(value) if value == "precise")
-                || matches!(v, SourceValue::String(value) if value == "vague"))
-        })
-        && union_member(v, "type", |v| {
-            (matches!(v, SourceValue::String(value) if value == "darkvision")
-                || matches!(v, SourceValue::String(value) if value == "echolocation")
-                || matches!(v, SourceValue::String(value) if value == "greater-darkvision")
-                || matches!(v, SourceValue::String(value) if value == "infrared-vision")
-                || matches!(v, SourceValue::String(value) if value == "lifesense")
-                || matches!(v, SourceValue::String(value) if value == "low-light-vision")
-                || matches!(v, SourceValue::String(value) if value == "magicsense")
-                || matches!(v, SourceValue::String(value) if value == "motion-sense")
-                || matches!(v, SourceValue::String(value) if value == "scent")
-                || matches!(v, SourceValue::String(value) if value == "see-invisibility")
-                || matches!(v, SourceValue::String(value) if value == "spiritsense")
-                || matches!(v, SourceValue::String(value) if value == "thoughtsense")
-                || matches!(v, SourceValue::String(value) if value == "tremorsense")
-                || matches!(v, SourceValue::String(value) if value == "truesight")
-                || matches!(v, SourceValue::String(value) if value == "wavesense"))
-        })
-    {
-        candidates.push("Alternative2", || {
-            union_required(
-                v,
-                c,
-                p,
-                &[("acuity", false), ("range", false), ("type", false)],
-            )
-            .and_then(|()| read_sense_data_alternative2(v, c, p))
-            .map(SenseData::Alternative2)
-        });
-    }
-    candidates.finish(v, c, p)
-}
-
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@e5a89869a493e756dfe69b34
-pub type NPCPerceptionSourceSenses = Vec<SenseData>;
+// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@e5a89869a493e756dfe69b34#authored-sense-constructor
+pub type NPCPerceptionSourceSenses = Vec<SenseConstructorParams>;
 pub(in crate::source_model::generated) fn read_npcperception_source_senses(
     v: &SourceValue,
     c: &SourceContext,
     p: &str,
 ) -> ParseResult<NPCPerceptionSourceSenses> {
-    array(v, c, p, read_sense_data)
+    array(v, c, p, read_sense_constructor_params)
 }
 
-// Source declaration: src/module/actor/npc/data.ts#NPCPerceptionSource
+// Source declaration: src/module/actor/npc/data.ts#NPCPerceptionSource#authored-document:senses
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct NPCPerceptionSource {
     // Declared optional=false, nullable=false; retained before defaults.

@@ -12,6 +12,7 @@ import { defaultCache } from '../generation/pinned-source.js';
 import { sampleDocuments } from './sample-documents.js';
 import { sampleRules, type RulePacket } from './sample-rules.js';
 import type { ProbeResult } from './source-probe.js';
+import { admissionResults, admissionBaselineMatches, type AdmissionProbeResult } from './admission-results.js';
 
 type Context = Omit<RulePacket, 'source'>;
 export interface PortfolioBaseline {
@@ -41,7 +42,7 @@ export function portfolioResults(contexts: Context[], results: ProbeResult[]) {
 }
 
 /** Check the maintained crate, rather than generating another scratch parser. */
-export async function comparePortfolio(args: { source: string; out: string; baseline?: string; cacheDir?: string }) {
+export async function comparePortfolio(args: { source: string; out: string; baseline?: string; cacheDir?: string; admission?: boolean }) {
   const repo = fileURLToPath(new URL('../../../../..', import.meta.url));
   const overlaps = (a: string, b: string) => {
     const relative = path.relative(path.resolve(a), path.resolve(b));
@@ -74,11 +75,27 @@ export async function comparePortfolio(args: { source: string; out: string; base
   try {
     const stdout = openSync(resultFile, 'w');
     try {
-      const run = spawnSync(path.join(target, 'debug/examples', `source_portfolio_probe${process.platform === 'win32' ? '.exe' : ''}`), [inputFile], { stdio: [stdin, stdout, 'pipe'], encoding: 'utf8' });
+      const run = spawnSync(path.join(target, 'debug/examples', `source_portfolio_probe${process.platform === 'win32' ? '.exe' : ''}`), [inputFile, ...(args.admission ? ['--admission'] : [])], { stdio: [stdin, stdout, 'pipe'], encoding: 'utf8' });
       if (run.error || run.status !== 0) throw new Error(`Maintained probe failed: ${run.error?.message ?? run.stderr}`);
     } finally { closeSync(stdout); }
   } finally { closeSync(stdin); }
-  const results = (await readFile(resultFile, 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line) as ProbeResult);
+  const results = (await readFile(resultFile, 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+  if (args.admission) {
+    const comparison = admissionResults(contexts, results as AdmissionProbeResult[]);
+    const rootIndices = contexts.flatMap((packet,index) => input.portfolio!.schemaRoots.some(root => root.documentKind === packet.key)
+      && packet.context.json_path === '$' ? [index] : []);
+    const rootDocuments = admissionResults(rootIndices.map(index=>contexts[index]),
+      rootIndices.map(index=>results[index] as AdmissionProbeResult)).counts;
+    const baseline = { sourceDigest: source.source_digest, corpusDigest: digest.digest('hex'),
+      counts: comparison.counts, outcomeDigest: comparison.outcomeDigest };
+    const expected = args.baseline ? JSON.parse(await readFile(args.baseline, 'utf8')) as typeof baseline : undefined;
+    const baselineMatches = expected ? admissionBaselineMatches(baseline, expected) : null;
+    const report = { status: 'complete', profile: 'retained-authored-source', source,
+      generatedRoots: input.selection.filter(root => root.documentKind || root.ruleKey).length,
+      runtimeAdmission: 'not-executed', ...comparison, rootDocuments, baseline, baselineMatches };
+    await writeFile(reportFile, JSON.stringify(report, null, 2) + '\n');
+    return { report, exitCode: comparison.counts.rejected || comparison.counts.fidelityFailures || baselineMatches === false ? 1 : 0 };
+  }
   const comparison = portfolioResults(contexts, results);
   const baseline = { sourceDigest: source.source_digest, corpusDigest: digest.digest('hex'), counts: comparison.counts, rejectionDigest: comparison.rejectionDigest };
   const expected = args.baseline ? JSON.parse(await readFile(args.baseline, 'utf8')) as PortfolioBaseline : undefined;

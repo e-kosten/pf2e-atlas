@@ -314,6 +314,29 @@ export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSele
     roots.push({ ...selection, ref, ...(selection.ruleKey?{arrayInputs:arrayInputs.sort((a,b)=>compare(a.field,b.field))}:{}) });
   }
 
+  const constructorInputs: NonNullable<TypeGraph['constructorInputs']> = [];
+  // NPC source senses are passed to Sense by PerceptionStatistic before defaults.
+  // Inspect the constructor parameter with the compiler; do not translate its
+  // Partial/Omit/intersection spelling or execute Foundry modules.
+  if ([...nodes.values()].some(node => node.name === 'NPCSystemSource')) {
+    const file = 'src/module/actor/creature/sense.ts';
+    const source = program.getSourceFile(path.join(root, file));
+    const module = source && checker.getSymbolAtLocation(source);
+    const symbol = module && checker.getExportsOfModule(module).find(entry => entry.getName() === 'Sense');
+    const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0];
+    const signatures = symbol && declaration && checker.getSignaturesOfType(
+      checker.getTypeOfSymbolAtLocation(symbol, declaration), ts.SignatureKind.Construct);
+    const parameter = signatures?.length === 1 && signatures[0].parameters.length === 2
+      ? signatures[0].parameters[0] : undefined;
+    if (!parameter?.valueDeclaration || !ts.isParameter(parameter.valueDeclaration)
+      || parameter.valueDeclaration.dotDotDotToken || parameter.valueDeclaration.questionToken) {
+      problem('document-constructor-drift', 'Sense must have one constructor with a required data parameter and an options parameter');
+    } else {
+      const type = checker.getTypeOfSymbolAtLocation(parameter, parameter.valueDeclaration);
+      constructorInputs.push({ file, name: 'Sense', ref: visit(type, parameter.valueDeclaration), declaredAt: declarations(parameter) });
+    }
+  }
+
   if (portfolio) {
     for (const family of portfolio.families) {
       const ref = roots.find((entry) => entry.documentKind === family.documentKind)?.ref;
@@ -355,7 +378,7 @@ export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSele
   const complete = !diagnostics.length && !projectDiagnostics.selected.some((entry) => entry.category === 'error');
   return { format: 'atlas-source-type-graph/v1', typescript: ts.version, complete,
     status: complete ? 'complete' : 'incomplete',
-    roots, ...(portfolio ? { portfolio: { documentKinds: portfolio.documentKinds, families: portfolio.families,
+    roots, ...(constructorInputs.length ? { constructorInputs } : {}), ...(portfolio ? { portfolio: { documentKinds: portfolio.documentKinds, families: portfolio.families,
       ruleKeys: portfolio.ruleKeys } } : {}),
     nodes: [...nodes.values()].map((node): GraphNode => { if (node.kind === "pending") throw new Error(`Unfinished graph node ${node.id}`); return node; }).sort((a, b) => compare(a.id, b.id)), diagnostics, projectDiagnostics };
 

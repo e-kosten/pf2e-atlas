@@ -4,7 +4,7 @@
 // Explicit trait-array policies keep identifiers as strings; declaration vocabularies remain in the extracted graph.
 
 use crate::source_model::generated::actors::families::npc::{
-    SenseDataAlternative2Type, read_sense_data_alternative2_type,
+    SenseConstructorParamsType, read_sense_constructor_params_type,
 };
 use crate::source_model::generated::items::families::feat::{
     FeatSystemSourceSubfeaturesSourceFromSchemaSensesPartialDarkvisionSourceFromSchemaAcuity,
@@ -46,7 +46,7 @@ pub struct SourceFromSchemaSenseRuleSchema {
     // Declared optional=false, nullable=true; retained before defaults.
     pub requires_investment: SourcePresence<bool>,
     // Declared optional=false, nullable=false; retained before defaults.
-    pub selector: SourcePresence<SenseDataAlternative2Type>,
+    pub selector: SourcePresence<SenseConstructorParamsType>,
     // Declared optional=false, nullable=true; retained before defaults.
     pub slug: SourcePresence<String>,
     // Declared optional=false, nullable=false; retained before defaults.
@@ -70,7 +70,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_sense_rule_sch
         range: f.presence("range", read_jsonvalue)?,
         requires_equipped: f.presence("requiresEquipped", boolean)?,
         requires_investment: f.presence("requiresInvestment", boolean)?,
-        selector: f.presence("selector", read_sense_data_alternative2_type)?,
+        selector: f.presence("selector", read_sense_constructor_params_type)?,
         slug: f.presence("slug", string)?,
         spinoff: f.presence("spinoff", string)?,
         additional_fields: f.remaining(&["acuity", "force", "ignored", "key", "label", "predicate", "priority", "range", "requiresEquipped", "requiresInvestment", "selector", "slug", "spinoff"]),
