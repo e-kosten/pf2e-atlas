@@ -27,6 +27,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0037-open-and-indexed-source-values.md`](./0037-open-and-indexed-source-values.md): explicit open JSON domains, named fields plus typed dynamic entries, and the generated complete Item flags source model.
 - [`0038-source-templates-and-generic-names.md`](./0038-source-templates-and-generic-names.md): checked template-string domains, concrete generic-instantiation names and distinct compilation/corpus evidence.
 - [`0039-authored-rule-inputs.md`](./0039-authored-rule-inputs.md): separate authored collection forms, schema field provenance and contextual corpus/fidelity comparison without claiming Foundry admission.
+- [`0040-authored-document-inputs.md`](./0040-authored-document-inputs.md): separate authored document forms, recursive object patches and schema/authored corpus comparison before preparation.
 
 ## Historical ADRs
 

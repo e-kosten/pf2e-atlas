@@ -176,6 +176,17 @@ open trait-identifier policy across families and report unresolved authored /
 declaration conflicts. Generated full portfolios are diagnostic artifacts;
 production model selections and pipeline adoption remain separate.
 
+Document comparison now measures separate schema and authored profiles. Bounded
+upstream-supported sentinels, spell area number/string values and initiative
+statistic slugs preserve their authored representation. Spell override and fixed
+heightening systems use generic recursive object patches; replacement arrays and
+tuples retain complete element shapes. Untagged partial object unions are local
+to patch contexts, while full source unions keep their constraints. Item rules
+retain upstream's generic source interface and require the separate specific-rule
+comparison. See [ADR 0040](./decisions/0040-authored-document-inputs.md) and the
+[authored-document report](../research/authored-document-source.md) for fidelity,
+remaining constrained discrepancies and runtime evidence boundaries.
+
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 
 Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `AtlasRecord.raw_json`; reference, FTS, and embedding projections consume the normalized `RichDocument` outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.
