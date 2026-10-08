@@ -37,6 +37,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
     let graph = fidelity::FidelityGraph::new(&input);
+    let admission_graph = fidelity::FidelityGraph::for_admission(&input);
+    let admission = std::env::args().nth(2).as_deref() == Some("--admission");
     for line in io::stdin().lock().lines() {
         let packet: Value = serde_json::from_str(&line?)?;
         let key = packet["key"].as_str().ok_or("Packet key")?;
@@ -51,6 +53,38 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .ok_or("Source path")?,
             packet["context"]["json_path"].as_str().ok_or("JSON path")?,
         );
+        let json_path = context.json_path.clone();
+        if admission {
+            macro_rules! admit {
+                ($function:ident) => {
+                    models::$function(context, source.as_bytes()).map(|admitted| {
+                        let retained = admitted.raw == raw;
+                        let modeled = admitted.model.is_some();
+                        let fidelity = admitted.model.as_ref().map(|model| {
+                            admission_graph.compare_at(roots.get(key).ok_or("Missing root")?, &raw, &serde_json::to_value(model)?, &json_path).map_err(|error| error.into())
+                        }).transpose();
+                        // A fidelity mismatch is reported, rather than silently
+                        // claiming that keeping a raw root proves typed parity.
+                        let fidelity = fidelity.err().map(|error: Box<dyn Error>| error.to_string());
+                        json!({"ok":true,"retained":retained,"modeled":modeled,"fidelity":fidelity,"diagnostics":admitted.diagnostics})
+                    })
+                };
+            }
+            let result = match key {
+                "Actor" => admit!(admit_actor_source_pf2e),
+                "Item" => admit!(admit_item_source_pf2e),
+                "JournalEntry" => admit!(admit_journal_entry_source),
+                "Macro" => admit!(admit_macro_source),
+                "RollTable" => admit!(admit_roll_table_source),
+                _ => admit!(admit_rule_source),
+            };
+            let output = match result {
+                Ok(output) => output,
+                Err(error) => json!({"ok":false,"error":error}),
+            };
+            println!("{output}");
+            continue;
+        }
         let result = match key {
             "Actor" => models::parse_actor_source_pf2e(context, source.as_bytes())
                 .map(serde_json::to_value),

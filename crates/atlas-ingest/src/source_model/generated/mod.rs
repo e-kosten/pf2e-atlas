@@ -232,9 +232,8 @@ pub use actors::families::npc::{
     NPCPerceptionSource, NPCPerceptionSourceSenses, NPCSavesSource, NPCSavesSourceFortitude,
     NPCSkillSource, NPCSkillSourceSpecial, NPCSource, NPCSourceFlags, NPCSourceFlagsPf2e,
     NPCSourceType, NPCSpecialSkillSource, NPCSystemSource, NPCSystemSourceSkillsPartial,
-    NPCSystemSourceSpellcasting, NPCSystemSourceSpellcastingRituals, SenseData,
-    SenseDataAlternative1, SenseDataAlternative1Acuity, SenseDataAlternative2,
-    SenseDataAlternative2Type, SpecialVisionType,
+    NPCSystemSourceSpellcasting, NPCSystemSourceSpellcastingRituals, SenseConstructorParams,
+    SenseConstructorParamsType,
 };
 pub use actors::families::party::parse_party_source;
 pub use actors::families::party::parse_party_system_source;

@@ -15,6 +15,41 @@ const lookup = (result: TypeGraph, id: string | null) => { const node = result.n
 const rootNode = (result: TypeGraph, name: string) => { const root = result.roots.find((entry) => entry.name === name); assert.ok(root); return lookup(result, root.ref); };
 const field = (node: GraphNode, name: string) => { const found = fieldsOf(node).find((entry) => entry.name === name); assert.ok(found); return found; };
 
+test('NPC sense input comes from the compiler-resolved constructor without adding portfolio roots', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'atlas-sense-input-'));
+  try {
+    await cp(fixture, temporary, { recursive: true });
+    await mkdir(path.join(temporary, 'src/module/actor/creature'), { recursive: true });
+    await mkdir(path.join(temporary, 'src/module/actor/npc'), { recursive: true });
+    await writeFile(path.join(temporary, 'src/module/actor/creature/data.ts'),
+      'export type SenseData = {type: "lifesense" | "darkvision"; acuity: "precise" | "imprecise"; range: number; source?: string};');
+    const sense = path.join(temporary, 'src/module/actor/creature/sense.ts');
+    await writeFile(sense, `import type {SenseData} from './data.ts';
+type Input = Partial<Omit<SenseData, "range" | "type">> & {type: SenseData['type']; range?: number | null};
+export class Sense { constructor(data: Input, options: object) {} }`);
+    await writeFile(path.join(temporary, 'src/module/actor/npc/data.ts'),
+      "import type {SenseData} from '../creature/data.ts'; export interface NPCSystemSource { perception: {senses: SenseData[]} }");
+    const roots = [{file:'src/module/actor/npc/data.ts',name:'NPCSystemSource'}];
+    const result = extractTypeGraph(temporary, {roots});
+    assert.equal(result.complete, true, JSON.stringify(result.diagnostics));
+    assert.equal(result.roots.length, 1);
+    const input = lookup(result, result.constructorInputs![0].ref);
+    const declared = result.nodes.find(node => node.name === 'SenseData')!;
+    assert.equal(field(input,'acuity').optional, true);
+    assert.equal(field(input,'range').optional, true);
+    assert.equal(field(input,'range').nullable, true);
+    assert.equal(field(input,'type').optional, false);
+    assert.equal(field(declared,'range').optional, false);
+    // No runtime execution: even a top-level throw cannot affect extraction.
+    await writeFile(sense, (await readFile(sense,'utf8')) + '\nthrow new Error("must not execute");');
+    assert.equal(extractTypeGraph(temporary,{roots}).complete, true);
+    await writeFile(sense, 'export class Sense { constructor(...data: unknown[]) {} }');
+    const drift = extractTypeGraph(temporary,{roots});
+    assert.equal(drift.complete, false);
+    assert.ok(drift.diagnostics.some(diagnostic => diagnostic.code === 'document-constructor-drift'));
+  } finally { await rm(temporary, {recursive:true,force:true}); }
+});
+
 test('compiler-proven impossible intersections stay distinct from valid empty objects', () => {
   const result = extractTypeGraph(fixture, { roots: [{file:'models.ts',name:'NeverAlternatives'}] });
   assert.equal(result.complete,true);

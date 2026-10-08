@@ -91,6 +91,24 @@ export function authoredDocumentInputs(schema: TypeGraph, openTraitArrays: strin
       const node = nodes.get(ref); return node?.kind !== 'literal' || typeof node.value !== 'string';
     })) throw new Error('Creature initiative statistic declaration drift');
   replace(initiative.id, statistic, 'primitive:string', 'actor/initiative.ts: ActorInitiative resolves a string slug through actor.getStatistic, including lore and synthetic statistics');
+  const npcFile = 'src/module/actor/npc/data.ts';
+  if (schema.nodes.some(node => node.name === 'NPCSystemSource')) {
+    const npc = owner('NPCSystemSource', npcFile);
+    const perception = nodes.get(npc.fields.find(field => field.name === 'perception')?.ref ?? '');
+    const senses = perception && 'fields' in perception ? perception.fields?.find(field => field.name === 'senses') : undefined;
+    const array = senses && nodes.get(senses.ref);
+    const input = schema.constructorInputs?.find(input => input.file === 'src/module/actor/creature/sense.ts' && input.name === 'Sense');
+    const shape = input && nodes.get(input.ref);
+    if (!perception || !senses || array?.kind !== 'array' || !input?.declaredAt.length
+      || !shape || !('fields' in shape) || !shape.fields
+      || !shape.fields.some(field => field.name === 'type' && !field.optional)
+      || !['acuity', 'range'].every(name => shape.fields!.some(field => field.name === name && field.optional)))
+      throw new Error('NPC sense constructor-input drift; re-extract and inspect the Sense constructor');
+    const authoredRef = `${array.id}#authored-sense-constructor`;
+    graph.nodes.push({ ...structuredClone(array), id: authoredRef, element: input.ref });
+    replace(perception.id, senses, authoredRef,
+      'system/statistic/perception.ts: prepares NPC senses with new Sense(data); creature/sense.ts: constructor input before schema defaults');
+  }
   // Build patch shapes from the already projected value graph, including sentinels.
   const sentinels = projectFields(graph, replacements, 'authored-document');
   replacements.clear();
