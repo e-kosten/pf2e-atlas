@@ -6,6 +6,14 @@ For the broader crate and data-flow architecture around this artifact contract, 
 
 Durable mutable local state is not part of this artifact contract. Saved lists and future user-authored or agent-authored local data live in the separate local-state database owned by `atlas-local-state`; artifact rebuilds do not copy, preserve, or validate those rows.
 
+Typed authored-source loading is an independent pre-normalization stage, not a
+change to this artifact contract. Adoption requires the
+[normalization/database design review](../backlog/items/typed-ingest-database-design.md)
+of source DTOs, retained diagnostics/raw fields, relationships, metrics, FTS,
+semantic retrieval, filters and representative query plans. The current schema
+and metric abstraction are inputs to that review, not required outcomes. See
+[ADR 0042](./decisions/0042-typed-source-loading.md).
+
 ## Contract Version
 
 The first supported contract version is:

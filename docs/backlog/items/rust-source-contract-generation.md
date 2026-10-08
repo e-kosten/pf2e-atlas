@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: next source-modeling experiment
 Owner: unassigned
-Last reviewed: 2026-10-07
+Last reviewed: 2026-10-08
 
 ## Problem and evidence
 
@@ -190,6 +190,17 @@ useful documents with raw invalid fields and contextual diagnostics, using
 typed interpretation. NPC senses use compiler-resolved constructor inputs before
 defaults. See [ADR 0041](../../architecture/decisions/0041-source-admission-and-field-retention.md).
 Production normalization/storage adoption and contextual normalization remain open.
+Typed source loading is available through `load_foundry_documents` and the private
+Rust `atlas-dev source load` command. It retains generated document DTOs, original
+bytes/hashes, raw values, embedded source relationships, provenance and all
+admission diagnostics. Malformed envelopes have explicit quarantine outcomes;
+unavailable packs remain visible. No current product normalization or artifact
+writing is adopted by this stage. See
+[ADR 0042](../../architecture/decisions/0042-typed-source-loading.md).
+The next checkpoint is a
+[combined normalization and database review](./typed-ingest-database-design.md),
+including ground-up scrutiny of metrics and measured FTS, semantic and filter
+query patterns before storage commitments.
 Before choosing
 field/node recovery or whole-document rejection, report affected unique document
 names, families and source paths, retained useful content, and losses under each

@@ -125,8 +125,8 @@ while equivalent shapes share owners. See
 This models persisted shapes without executing predicates
 or enforcing all Foundry runtime constraints. Unselected
 and declaration-forbidden persisted members remain additional source data.
-The build pipeline does not call these parsers; this source portfolio is not
-full-family admission or a new record/storage contract. Rust consumers do not
+The product artifact build pipeline does not call these parsers; this source
+portfolio is not a new normalized record/storage contract. Rust consumers do not
 launch Node. See the [shared Item comparison](../research/shared-item-source-generation.md).
 
 Private TypeScript rule comparison keeps cleaned schema graphs distinct from
@@ -217,6 +217,21 @@ NPC senses use compiler-resolved `Sense` constructor inputs before defaults.
 from strict acceptance. Production normalization/storage adoption remains deferred;
 normalization must handle invalid states explicitly. See
 [ADR 0041](./decisions/0041-source-admission-and-field-retention.md).
+
+`atlas-ingest::load_foundry_documents` loads these authored DTOs independently
+of product normalization. `LoadedFoundrySource` preserves manifest pack order,
+sorted file outcomes, exact document bytes/hashes, ordered raw values, provenance
+and diagnostics. Unknown/ambiguous object roots stay raw-only. Invalid JSON,
+non-object envelopes and read failures have explicit quarantine outcomes; original
+bytes/hashes are available only when the read succeeded. Missing/unreadable packs
+remain reported. Manifest and pack discovery are shared under `source::discovery`.
+The stage retains embedded source children and authored links without resolving
+them or constructing Atlas records, metrics, content documents or embeddings.
+`atlas-dev source load` reports this stage; `source analyze` still reports the
+current product pipeline. Specific rules retain their generic Item source shape
+until separately interpreted. See [ADR 0042](./decisions/0042-typed-source-loading.md).
+Combined normalization/database design is the next checkpoint, including a
+ground-up metric review and measured FTS, semantic and filter query patterns.
 
 Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
 
