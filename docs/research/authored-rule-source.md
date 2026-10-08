@@ -93,14 +93,14 @@ Use a complete pinned source export, including `packs`, `static/system.json`,
 `src`, `types`, compiler configuration and dependencies. From the Atlas root:
 
 ```sh
-npm --prefix scripts/source-contracts ci --ignore-scripts
-npm --prefix scripts/source-contracts run extract -- \
+npm --prefix dev-tools/source-contracts ci --ignore-scripts
+npm --prefix dev-tools/source-contracts run extract -- \
   --source scratch/pf2e --out scratch/authored-rules/extraction --strict
-npm --prefix scripts/source-contracts run compare-rules -- \
+npm --prefix dev-tools/source-contracts run compare-rules -- \
   --source scratch/pf2e \
   --graph scratch/authored-rules/extraction/type-graph.json \
   --summary scratch/authored-rules/extraction/summary.json \
-  --policy-manifest scripts/source-contracts/snapshots/manifest.json \
+  --policy-manifest dev-tools/source-contracts/snapshots/manifest.json \
   --out scratch/authored-rules/comparison
 ```
 

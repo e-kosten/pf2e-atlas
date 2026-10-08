@@ -11,7 +11,7 @@ trap cleanup EXIT INT TERM
 work="$tmp/work"
 fake_bin="$tmp/bin"
 log="$tmp/commands.log"
-mkdir -p "$work/scripts/release" "$work/scripts/git-hooks" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
+mkdir -p "$work/dev-tools/release" "$work/scripts/release" "$work/scripts/git-hooks" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
 cp "$repo_root/scripts/verify.sh" "$work/scripts/verify.sh"
@@ -410,7 +410,7 @@ grep -q 'cargo check -p atlas-cli' "$log" || {
   echo "prepare-release --prepare-pr did not refresh the lockfile through cargo" >&2
   exit 1
 }
-grep -q 'npm --prefix scripts/release run notices' "$log" || {
+grep -q 'npm --prefix dev-tools/release run notices' "$log" || {
   echo "prepare-release --prepare-pr did not regenerate third-party notices" >&2
   exit 1
 }

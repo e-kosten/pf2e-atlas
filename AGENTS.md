@@ -18,6 +18,12 @@ PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 
 The first-party local-agent skill lives in `skills/pf2e-atlas-cli`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
 
+Private TypeScript contributor packages live under `dev-tools/`. Keep package
+configuration at each package root, implementation in `src/`, command parsing and
+exit behavior in `src/cli/`, and tests in `tests/`. Source-contract fixtures and
+saved declaration snapshots have separate directories. Operational shell and
+PowerShell workflows and installers remain under `scripts/`.
+
 ## Architecture Docs
 
 The architecture documents under `docs/architecture/` are part of the working source of truth for this repository, not optional reference material.

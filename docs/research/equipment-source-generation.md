@@ -32,7 +32,7 @@ physical families; the selected generation input contains 29 nodes.
   `6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8`, dependency lock
   digest `7a529fe3429ec19e948efe519f54b1ba2a2da8b45cfb07a0e8c1fd06da7b4747`.
 
-PR30's [input manifest](https://github.com/e-kosten/pf2e-atlas/blob/99aed39d8e3af5f54f5276b44a9b05ce60cc2156/scripts/source-contracts/snapshots/manifest.json)
+PR30's [input manifest](https://github.com/e-kosten/pf2e-atlas/blob/99aed39d8e3af5f54f5276b44a9b05ce60cc2156/dev-tools/source-contracts/snapshots/manifest.json)
 records source identity and points to physical/equipment snapshots. Together they
 retain selected declarations, source locations, optional/null/undefined facts and
 deferred field names. Each of the 29 graph nodes occurs once. This is a compact
@@ -127,13 +127,13 @@ contracts, production pipeline calls or product CLI commands.
 ## Reproduce
 
 Use the pinned exported source and extraction described in the
-[package instructions](../../scripts/source-contracts/README.md). Node 22+, Rust
+[package instructions](../../dev-tools/source-contracts/README.md). Node 22+, Rust
 and rustfmt are developer prerequisites. Freshness and regression checks use only
 checked fixtures:
 
 ```sh
-npm --prefix scripts/source-contracts ci --ignore-scripts
-npm --prefix scripts/source-contracts run verify
+npm --prefix dev-tools/source-contracts ci --ignore-scripts
+npm --prefix dev-tools/source-contracts run verify
 cargo test -p atlas-ingest --test equipment_source_generation
 ```
 
@@ -144,7 +144,7 @@ package. Run from the candidate repository root:
 git worktree add --detach .worktrees/equipment-manual-reference \
   1ef0ab8fd13abf02e809a8ff47dd0ee9c3f97b29
 mkdir -p scratch/equipment-comparison/manual/src
-cp scripts/source-contracts/fixtures/manual-equipment-probe.rs \
+cp dev-tools/source-contracts/fixtures/manual-equipment-probe.rs \
   scratch/equipment-comparison/manual/src/main.rs
 cat > scratch/equipment-comparison/manual/Cargo.toml <<EOF
 [package]
@@ -159,14 +159,14 @@ serde_json = "1"
 EOF
 cargo build --manifest-path scratch/equipment-comparison/manual/Cargo.toml
 cargo build -p atlas-ingest --example equipment_generation_probe
-npm --prefix scripts/source-contracts run build
-node scripts/source-contracts/dist/sample-equipment.js --source scratch/pf2e \
+npm --prefix dev-tools/source-contracts run build
+node dev-tools/source-contracts/dist/src/cli/sample-equipment.js --source scratch/pf2e \
   > scratch/equipment-comparison/packets.jsonl
 scratch/equipment-comparison/manual/target/debug/equipment-baseline-probe \
   < scratch/equipment-comparison/packets.jsonl > scratch/equipment-comparison/manual.jsonl
 target/debug/examples/equipment_generation_probe \
   < scratch/equipment-comparison/packets.jsonl > scratch/equipment-comparison/generated.jsonl
-node scripts/source-contracts/dist/compare-equipment.js \
+node dev-tools/source-contracts/dist/src/cli/compare-equipment.js \
   --packets scratch/equipment-comparison/packets.jsonl \
   --baseline scratch/equipment-comparison/manual.jsonl \
   --generated scratch/equipment-comparison/generated.jsonl \
@@ -176,5 +176,5 @@ node scripts/source-contracts/dist/compare-equipment.js \
 Comparison exits 1 for any difference, including the six expected legacy ownership
 differences. Inspect the report; there is no blanket exception or success flag
 that hides them. Repeat both probes and comparison using
-`scripts/source-contracts/fixtures/equipment-comparison.jsonl` for the 18 cases.
+`dev-tools/source-contracts/fixtures/equipment-comparison.jsonl` for the 18 cases.
 Remove the temporary reference worktree after recording results.

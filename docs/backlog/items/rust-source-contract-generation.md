@@ -109,8 +109,8 @@ review chain, even when the implementation work happens in parallel.
 
 ## Extraction slice implemented
 
-Offline tooling is under `scripts/source-contracts`; see its
-[developer instructions](../../../scripts/source-contracts/README.md). The
+Offline tooling is under `dev-tools/source-contracts`; see its
+[developer instructions](../../../dev-tools/source-contracts/README.md). The
 reviewed PF2e pin produces 3,085 declaration graph nodes with 47 roots: five
 pack document kinds covering all 24 Item and eight Actor families, plus 42
 built-in rule schemas. Source discriminator sets match registered family sets.

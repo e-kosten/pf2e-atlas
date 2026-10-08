@@ -11,7 +11,7 @@ Foundry cleaning even though packs author a scalar. Extraction records the exact
 ordinary/strict array field class and declaration location beside each rule root,
 without evaluating upstream schema constructors or changing the cleaned graph.
 
-The bounded authored projection in `scripts/source-contracts/rule-inputs.ts`
+The bounded authored projection in `dev-tools/source-contracts/src/generation/rule-inputs.ts`
 widens ordinary string-array `selector`/`selectors` fields, and IWR `type` fields
 on Immunity, Resistance and Weakness, to string-or-array unions. StrictArrayField
 remains an array. Missing provenance or changed selected element shapes stop the

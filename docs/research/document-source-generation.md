@@ -149,7 +149,7 @@ tag-based union identity, trait policy boundaries and comparison failure reporti
 Compiled Rust fixtures cover numeric maps/recursion, ordered additional duplicates,
 malformed values, fidelity corruption and union selection before defaults.
 
-Use the [contributor command instructions](../../scripts/source-contracts/README.md#complete-document-comparison)
+Use the [contributor command instructions](../../dev-tools/source-contracts/README.md#complete-document-comparison)
 with the complete pinned source export and extraction. `compare-documents` returns
 exit 1 for the reported rejections; `compare-rules` returns exit 1 for the seven
 previously documented discrepancies. These are explicit measured outcomes.
