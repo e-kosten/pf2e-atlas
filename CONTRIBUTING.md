@@ -59,6 +59,9 @@ PF2e Atlas is a Rust workspace:
 - `crates/atlas-domain`: shared request, filter, record-key, detail-level, and metadata vocabulary
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing
 - `skills/pf2e-atlas-cli`: first-party local-agent skill installed by `atlas agent skills`
+- `dev-tools/`: private TypeScript packages for source contracts and release tooling,
+  with implementation, command entry points, tests and fixtures in separate directories
+- `scripts/`: operational shell and PowerShell workflows, verification and installers
 
 Architecture notes live under [`docs/architecture`](./docs/architecture/overview.md):
 
@@ -149,7 +152,7 @@ cargo run -p atlas-cli -- index build --no-embeddings --json
 ```
 
 Foundry compiler research runs through the separate private
-[TypeScript package](./scripts/source-contracts/README.md), with npm entry points.
+[TypeScript package](./dev-tools/source-contracts/README.md), with npm entry points.
 Rust developer commands do not launch TypeScript tools. Neither developer
 surface is included in published product bundles; atlas-dev is built locally.
 
@@ -164,9 +167,9 @@ cargo install cargo-dist --locked
 ```
 
 Release tooling also requires Node 22 or later and an XZ-capable `tar`. Install the
-private maintainer package with `npm --prefix scripts/release ci --ignore-scripts`
-and validate it with `npm --prefix scripts/release run verify`. See
-[release tooling](./scripts/release/README.md) for notices, manifest, checksum and
+private maintainer package with `npm --prefix dev-tools/release ci --ignore-scripts`
+and validate it with `npm --prefix dev-tools/release run verify`. See
+[release tooling](./dev-tools/release/README.md) for notices, manifest, checksum and
 platform smoke-test commands. These dependencies stay out of product bundles.
 
 Releases use a three-step flow:
@@ -326,7 +329,7 @@ the earlier research and product-preview reference.
 
 ## Source declaration research
 
-Offline declaration and trait metadata tooling lives in [scripts/source-contracts](./scripts/source-contracts/README.md). Its pinned Node dependencies, strict TypeScript build and fixture tests are separate from the Rust build and published product. Run `npm --prefix scripts/source-contracts ci --ignore-scripts`, then `npm --prefix scripts/source-contracts run verify`. Run extraction with `npm --prefix scripts/source-contracts run extract -- --source PATH --out PATH [--strict]`. Rust developer commands use Rust libraries; compiler research runs through this npm package.
+Offline declaration and trait metadata tooling lives in [dev-tools/source-contracts](./dev-tools/source-contracts/README.md). Its pinned Node dependencies, strict TypeScript build and fixture tests are separate from the Rust build and published product. Run `npm --prefix dev-tools/source-contracts ci --ignore-scripts`, then `npm --prefix dev-tools/source-contracts run verify`. Run extraction with `npm --prefix dev-tools/source-contracts run extract -- --source PATH --out PATH [--strict]`. Rust developer commands use Rust libraries; compiler research runs through this npm package.
 
 Source-model generation also requires rustfmt. Package verification
 checks that the saved graph selection reproduces checked Rust; it does not fetch
@@ -346,7 +349,7 @@ schema/authored portfolios and checks raw-value fidelity in Rust. Rejections and
 unmodeled keys remain counted and exit nonzero. Foundry runtime admission is a
 separate evidence state; see the [authored-rule report](./docs/research/authored-rule-source.md).
 
-Saved declaration inputs live in `scripts/source-contracts/snapshots`, with one
+Saved declaration inputs live in `dev-tools/source-contracts/snapshots`, with one
 manifest and references across module snapshots. Generated Rust lives under
 `crates/atlas-ingest/src/source_model/generated`; handwritten source primitives
 remain beside it. Resolve the full selected graph before emitting shared owners.

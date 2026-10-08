@@ -19,13 +19,22 @@ The three command owners are:
 - `atlas-dev`: locally built Rust diagnostics using atlas-ingest, atlas-index,
   and atlas-runtime. Its initial tree is source analyze, source audit-paths, and
   index inspect.
-- `scripts/source-contracts`: private TypeScript compiler research exposed
+- `dev-tools/source-contracts`: private TypeScript compiler research exposed
   directly through npm commands.
 
 Rust developer commands do not launch Node and do not depend on the product CLI
 or web bundle. Tools can exchange explicit JSON artifacts for future comparisons.
 Both developer surfaces are validated in CI and excluded from releases.
 atlas-dev and atlas-cli-support are private Cargo packages with dist disabled.
+
+Maintained private TypeScript packages live under `dev-tools/`, with package
+configuration at the package root, implementation under `src/`, and tests under
+`tests/`. `src/cli/` owns command arguments, output and exit behavior; domain
+modules own the reusable implementation. Source-contract fixtures and saved
+declaration snapshots remain separate from implementation. `dev-tools/release`
+owns notice, manifest, checksum and archive tooling. Operational shell and
+PowerShell workflows and installers remain under `scripts/`. Rust developer
+commands continue to live in the owning Cargo crates.
 
 atlas-cli-support owns the presentation primitives used by both Rust CLIs:
 path/progress argument vocabulary, JSON envelopes, and progress rendering.

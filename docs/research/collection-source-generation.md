@@ -84,7 +84,7 @@ unchanged. No matching Foundry runtime was executed.
 
 ## Reproduction
 
-Use the [source tooling instructions](../../scripts/source-contracts/README.md)
+Use the [source tooling instructions](../../dev-tools/source-contracts/README.md)
 for package verification, strict extraction and the documented `compare-rules`
 command. Retry the isolated per-root harness described in the
 [template report](./template-source-generation.md#reproduce) using this fresh
