@@ -37,7 +37,7 @@ test('null-only fields and numeric, empty or punctuation enum tokens preserve ex
 });
 
 test('Rust numeric-key fixtures agree with the pinned TypeScript compiler', async () => {
-  const cases = JSON.parse(await readFile(new URL('../../../../crates/atlas-ingest/tests/fixtures/numeric-keys.json', import.meta.url), 'utf8')) as [string, boolean][];
+  const cases = JSON.parse(await readFile(new URL('../../../../crates/atlas-foundry-model/tests/fixtures/numeric-keys.json', import.meta.url), 'utf8')) as [string, boolean][];
   // This exported compiler utility defines which property names use a numeric index.
   const compiler = ts as typeof ts & { isNumericLiteralName(name: string): boolean };
   assert.equal(ts.version, '5.9.3');

@@ -1,9 +1,19 @@
 # Typed ingest normalization and database design
 
-Status: planned
+Status: in_progress
 Priority: after typed source loading
-Owner: unassigned
+Owner: Codex
 Last reviewed: 2026-10-08
+
+## Implementation checkpoint
+
+The local design study selected source-shaped authored models with focused Atlas
+enrichment and relational query projections. Shared model ownership and exact
+typed snapshots are implemented under ADR 0043; no product artifact, metric or UI
+replacement follows automatically. Remaining work is focused enrichment/content
+policy, measured body/projection storage and coherent writer/reader/consumer
+replacement. The design checkpoint remains open until implementation choices and
+validation evidence are reflected in the artifact contract.
 
 ## Intent
 
@@ -40,8 +50,8 @@ what typed consumers can use for partially modeled documents. Define replacement
 and artifact rebuild steps, validation comparisons and intended differences.
 
 The current schema, metric abstraction and search projections are evidence to
-evaluate, not constraints that must survive. Database technology and final
-normalized DTOs remain undecided until this review. Product UI and metrics
+evaluate, not constraints that must survive. Physical table layout and final enrichment/projection contracts remain to be
+validated during implementation. Product UI and metrics
 implementation follow the agreed design rather than preceding it.
 
 ## Inputs

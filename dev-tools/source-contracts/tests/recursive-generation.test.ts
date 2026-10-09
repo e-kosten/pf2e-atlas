@@ -111,7 +111,7 @@ test('compiler-resolved indexed intersections reuse named owners and pure maps',
 
 test('compiled generic fixture output is fresh and includes residual cycles and empty tuples',async()=>{
   const files=generateRustModules(recursiveFixture());
-  const dir=fileURLToPath(new URL('../../../../crates/atlas-ingest/tests/fixtures/source_model/generated/', import.meta.url));
+  const dir=fileURLToPath(new URL('../../../../crates/atlas-foundry-model/tests/fixtures/source_model/generated/', import.meta.url));
   assert.deepEqual(Object.keys(files).sort(),await artifactFiles(dir));
   for(const [file,text] of Object.entries(files))assert.equal(formatRust(text),await readFile(path.join(dir,file),'utf8'));
   assert.match(files['common.rs'],/pub next: SourcePresence<Box<Node>>/);

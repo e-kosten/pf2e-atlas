@@ -1,5 +1,10 @@
 # Artifact Contract
 
+The independently available authored-model codec lives in `atlas-foundry-model`.
+The current artifact does not store or hydrate those snapshots. Future adoption
+must update the schema, writer/readers and consumers together; the codec is not
+a fallback for old artifacts. See [ADR 0043](./decisions/0043-shared-foundry-model-and-snapshots.md).
+
 This document defines the runtime artifact boundary for PF2e Atlas. The Rust runtime opens prepared SQLite artifacts read-only for lookup and search commands. Setup and index diagnostic commands own metadata validation, vector readiness checks, and deep artifact coherence checks.
 
 For the broader crate and data-flow architecture around this artifact contract, see [runtime architecture](./runtime.md).

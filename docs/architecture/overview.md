@@ -24,13 +24,20 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the hooks needed by ingest, runtime, search, and CLI artifact diagnostics; product CLI workflows route through `atlas-search` rather than index readers. Artifact, read, write, and SQLite implementation details stay behind internal module facades.
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
 - `atlas-tags` owns tag ontology, YAML parsing, corpus loading, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs.
-- `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
+- `atlas-foundry-model` owns generated Foundry authored structures, ordered source primitives, strict parsing/admission, pure document dispatch and versioned typed snapshots. It has no ingest, artifact, embedding or runtime service dependency.
+- `atlas-ingest` owns filesystem source loading, Foundry content parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
 - `atlas-record` owns normalized records, mechanics/activity projections, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
 - `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary, including the simple product filter DTO and its one-way lowering into the canonical `SearchFilterNode` tree.
 - `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.
 
 If you remember one rule, remember this: product surfaces stay thin, and durable behavior belongs in the crate that owns the concern.
+
+Generated authored models are shared through `atlas-foundry-model`, not an
+ingest re-export. Its snapshot codec preserves the existing source-shaped types
+for future runtime consumers without admitting raw Foundry JSON again. The
+current artifact and product pipeline do not yet store these snapshots. See
+[ADR 0043](./decisions/0043-shared-foundry-model-and-snapshots.md).
 
 ## System Overview
 
@@ -149,7 +156,7 @@ See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-ta
 - Keep the SQLite artifact contract in `atlas-index`. Diesel migrations are the physical schema source of truth, checked-in Diesel schema declarations must stay validated against them, and typed schema models should own ordinary relational tables; explicit raw SQL remains appropriate for FTS5, sqlite-vec, dynamic filter/discovery relations, and SQLite validation pragmas. Filter discovery field metadata and SQLite extractor rendering belong inside `atlas-index`; shared discovery result DTOs belong in `atlas-domain`.
 - Keep durable mutable local state in `atlas-local-state`, not in generated artifact tables. `LocalStateStore` owns database lifecycle and feature handles such as `saved_lists()` and `encounters()`, while feature modules own product behavior over their rows. Cross-layer workflows that need both active artifact records and local state belong in `atlas-app-service`, not in `atlas-runtime` or CLI command code. Artifact rebuilds must not be responsible for preserving saved lists, encounters, or future user-authored local rows.
 - Keep `atlas-record` storage-agnostic. It should not own SQLite names, validation diagnostics, CLI envelopes, or source JSON parser structs.
-- Keep experimental source-only parsers and their presence/ordered-value/map primitives in `atlas-ingest::source_model`. Private `dev-tools/source-contracts` tooling emits shared Item and physical/equipment slices; source parsing remains Rust-owned. The public generated value namespace is `source_model::generated`. Pending raw members are inspection evidence, not a downstream product fallback. Generation and parser completeness remain separate from pipeline, record, storage and UI adoption. See [ADR 0035](./decisions/0035-source-value-generation-policy.md).
+- Keep experimental source-only parsers and their presence/ordered-value/map primitives in `atlas-foundry-model`. Private `dev-tools/source-contracts` tooling emits shared Item and physical/equipment slices; source parsing remains Rust-owned. The public generated value namespace is `atlas_foundry_model::generated`. Pending raw members are inspection evidence, not a downstream product fallback. Generation and parser completeness remain separate from pipeline, record, storage and UI adoption. See [ADR 0035](./decisions/0035-source-value-generation-policy.md).
 - Keep the source pin and policies in TypeScript tooling, large extracted graphs in ignored caches, and committed Rust under `source_model/generated`. CI re-extracts the pin before checking output. Load the complete selected graph before sharing and partitioning types; each input node and shared Rust value type has one owner. Family modules import shared owners. Recursive nominal identities, union selection and tuple fidelity follow [ADR 0036](./decisions/0036-recursive-source-unions.md); module ownership follows [ADR 0034](./decisions/0034-source-generation-layout.md).
 - Keep `atlas-domain` free of SQLite, CLI presentation, ingest source structs, and artifact metadata inventories.
 - Add future crates only when their first real implementation slice lands.

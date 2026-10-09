@@ -9,7 +9,7 @@ import { formatRust, preparePortfolio } from '../src/generation/generate.js';
 import { artifactFiles } from '../src/generation/generated-files.js';
 
 
-const outputPath = fileURLToPath(new URL('../../../../crates/atlas-ingest/src/source_model/generated/', import.meta.url));
+const outputPath = fileURLToPath(new URL('../../../../crates/atlas-foundry-model/src/source_model/generated/', import.meta.url));
 const { input } = await preparePortfolio();
 const rustFiles = (input: GenerationInput) => Object.fromEntries(Object.entries(generateRustModules(input)).map(([file, text]) => [file, formatRust(text)]));
 

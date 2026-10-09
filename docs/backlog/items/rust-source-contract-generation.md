@@ -177,7 +177,7 @@ upstream-supported sentinels, spell area number/string forms, custom initiative
 statistic slugs and recursive patches for overrides/fixed heightening layers.
 The original declaration graph remains available beside authored results,
 recovery/regression counts and fidelity diagnostics. The complete authored
-portfolio is maintained under `crates/atlas-ingest/src/source_model/generated`,
+portfolio is maintained under `crates/atlas-foundry-model/src/source_model/generated`,
 with a pinned source-to-Rust workflow and callable document/specific-rule parsers.
 The contributor `compare-portfolio` command tests these maintained models against
 all document kinds and specific rules, preserving every first-error context and
@@ -189,7 +189,10 @@ useful documents with raw invalid fields and contextual diagnostics, using
 `SourcePresence::Invalid`; specific rejected rules remain wholly unavailable to
 typed interpretation. NPC senses use compiler-resolved constructor inputs before
 defaults. See [ADR 0041](../../architecture/decisions/0041-source-admission-and-field-retention.md).
-Production normalization/storage adoption and contextual normalization remain open.
+Shared model/parser/admission ownership and exact typed snapshots are available
+under ADR 0043. The existing source structures are the authored mechanics
+authority; focused Atlas enrichment and query projections are subsequent work.
+Production normalization/storage adoption and contextual enrichment remain open.
 Typed source loading is available through `load_foundry_documents` and the private
 Rust `atlas-dev source load` command. It retains generated document DTOs, original
 bytes/hashes, raw values, embedded source relationships, provenance and all
