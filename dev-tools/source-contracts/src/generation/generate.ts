@@ -42,7 +42,7 @@ export async function generateInput(input: GenerationInput, outDir: string, chec
     modules: Object.keys(rust).sort(), generatedLines: Object.values(rust).reduce((sum, text) => sum + text.split('\n').length - 1, 0) };
 }
 export async function generate(args: { source?: string; cacheDir?: string; outDir?: string; check?: boolean } = {}) {
-  const outDir = args.outDir ?? path.join(repositoryRoot, 'crates/atlas-ingest/src/source_model/generated');
+  const outDir = args.outDir ?? path.join(repositoryRoot, 'crates/atlas-foundry-model/src/source_model/generated');
   const cacheDir = args.cacheDir ?? defaultCache;
   if (contains(outDir, cacheDir) || contains(cacheDir, outDir)
     || args.source && (contains(outDir, args.source) || contains(args.source, outDir)))

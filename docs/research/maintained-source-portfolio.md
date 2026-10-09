@@ -25,8 +25,8 @@ payloads; extraction evidence retains distinct declaration constraints. Other do
 kinds and specific rules have separate modules. Existing field-level slices
 remain useful callable projections of the same source space.
 
-`atlas_ingest::source_model` exposes byte parsers for the five document kinds and
-a keyed `RuleSource`. `source_model::generated` exposes typed values and selected
+`atlas_foundry_model` exposes byte parsers for the five document kinds and
+a keyed `RuleSource`. `atlas_foundry_model::generated` exposes typed values and selected
 root parsers taking an ordered SourceValue and SourceContext. These parsers retain
 missing/null/value states before defaults, ordered additional fields and ordinary
 numeric values. Small closed vocabularies remain checked; explicit broad trait
@@ -41,7 +41,7 @@ document. No fields or documents are silently discarded or repaired.
 ## Corpus evidence
 
 The contributor `compare-portfolio` command compiles the actual maintained
-atlas-ingest example. It does not substitute newly emitted scratch parsers.
+atlas-foundry-model example. It does not substitute newly emitted scratch parsers.
 Sampling includes root Actors, root/embedded/nested Items, the other three pack
 document kinds, and specific rules from all sampled Items. Raw JSON payloads reach
 Rust without a JavaScript numeric round trip. The shared fidelity oracle checks

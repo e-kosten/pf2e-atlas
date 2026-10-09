@@ -55,7 +55,7 @@ export async function comparePortfolio(args: { source: string; out: string; base
   await writeFile(reportFile, JSON.stringify({ status: 'incomplete', runtimeAdmission: 'not-executed' }) + '\n');
   const { input } = await preparePortfolio({ source: args.source, cacheDir: args.cacheDir }), source = await sourceIdentity(args.source);
   if (!input.portfolio || input.source.source_digest !== source.source_digest) throw new Error('Maintained portfolio must describe the same source bytes');
-  await generateInput(input, path.join(repo, 'crates/atlas-ingest/src/source_model/generated'), true);
+  await generateInput(input, path.join(repo, 'crates/atlas-foundry-model/src/source_model/generated'), true);
   const inputFile = path.join(args.out, 'generation-input.json');
   await writeFile(inputFile, JSON.stringify(input) + '\n');
   const contexts: Context[] = [], digest = createHash('sha256'), packets = path.join(args.out, 'packets.ndjson');
@@ -69,7 +69,7 @@ export async function comparePortfolio(args: { source: string; out: string; base
     }
   })()), createWriteStream(packets));
   const target = process.env.CARGO_TARGET_DIR ? path.resolve(process.env.CARGO_TARGET_DIR) : path.join(repo, 'target');
-  const build = spawnSync('cargo', ['build', '--offline', '--locked', '-p', 'atlas-ingest', '--example', 'source_portfolio_probe', '--target-dir', target], { cwd: repo, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  const build = spawnSync('cargo', ['build', '--offline', '--locked', '-p', 'atlas-foundry-model', '--example', 'source_portfolio_probe', '--target-dir', target], { cwd: repo, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   if (build.error || build.status !== 0) throw new Error(`Maintained probe build failed: ${build.error?.message ?? build.stderr}`);
   const resultFile = path.join(args.out, 'results.ndjson'), stdin = openSync(packets, 'r');
   try {

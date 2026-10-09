@@ -13,7 +13,6 @@ mod records;
 mod report;
 mod source;
 mod source_loading;
-pub mod source_model;
 mod source_pipeline;
 
 pub use artifact_manifest::{
@@ -40,18 +39,9 @@ pub use source::model::{
     EmbeddingTimingReport, SkippedRecord,
 };
 pub use source_loading::{
-    FoundryDocumentSource, LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource,
-    QuarantinedSourceFile, SourceDocumentCounts, SourceFileProvenance, SourceLoadFailure,
-    SourceLoadFailureStage, SourceLoadingReport, load_foundry_documents,
-};
-pub use source_model::{
-    Coins, EquipmentFields, EquipmentSourceSlice, EquippedData, EquippedDataCarryType,
-    ItemDescriptionSource, ItemGranterSource, ItemSourceFlagsPF2e, ItemSourceSlice, ItemTraits,
-    PartialPrice, PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
-    PredicateInput, PredicateStatement, PredicateStatements, PublicationData, SourceContext,
-    SourceDiagnostic, SourceMap, SourceObject, SourcePresence, SourceValue,
-    parse_equipment_source_slice, parse_item_source_slice, parse_physical_equipment_fields,
-    parse_predicate_input, parse_predicate_statement, parse_predicate_statements,
+    LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource, QuarantinedSourceFile,
+    SourceDocumentCounts, SourceFileProvenance, SourceLoadFailure, SourceLoadFailureStage,
+    SourceLoadingReport, load_foundry_documents,
 };
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {

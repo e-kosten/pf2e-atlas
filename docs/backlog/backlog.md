@@ -25,7 +25,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Typed ingest normalization and database design](./items/typed-ingest-database-design.md)
   Review normalization, storage, metrics, FTS, semantic retrieval and filters from
   the generated source DTOs before adopting them into artifact construction.
-  Status: planned.
+  Shared authored models and typed snapshots are available; focused enrichment
+  and artifact/consumer replacement remain. Status: in_progress.
 
 - [Rust CLI runtime migration research](./rust-cli-runtime/README.md)
   Working notes and checklist for the Rust runtime, CLI, artifact, search, graph, skill, and cutover work. Status: in_progress.

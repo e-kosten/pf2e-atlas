@@ -158,7 +158,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 EOF
 cargo build --manifest-path scratch/equipment-comparison/manual/Cargo.toml
-cargo build -p atlas-ingest --example equipment_generation_probe
+cargo build -p atlas-foundry-model --example equipment_generation_probe
 npm --prefix dev-tools/source-contracts run build
 node dev-tools/source-contracts/dist/src/cli/sample-equipment.js --source scratch/pf2e \
   > scratch/equipment-comparison/packets.jsonl

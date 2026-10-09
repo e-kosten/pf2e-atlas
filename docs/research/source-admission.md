@@ -1,6 +1,6 @@
 # Retained source admission
 
-The maintained `atlas-ingest::source_model::admit_*` APIs retain original ordered
+The maintained `atlas_foundry_model::admit_*` APIs retain original ordered
 source values and typed usable fields with diagnostics. Strict `parse_*` APIs
 remain available and keep their rejection boundary. See
 [ADR 0041](../architecture/decisions/0041-source-admission-and-field-retention.md).

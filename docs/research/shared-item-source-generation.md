@@ -113,7 +113,7 @@ to export the pin and run complete strict extraction. Then:
 ```sh
 npm --prefix dev-tools/source-contracts run verify
 cargo test -p atlas-ingest --test item_source_generation --test equipment_source_generation
-cargo build -p atlas-ingest --example item_generation_probe
+cargo build -p atlas-foundry-model --example item_generation_probe
 set -o pipefail
 node dev-tools/source-contracts/dist/src/cli/sample-items.js --source scratch/pf2e | \
   target/debug/examples/item_generation_probe > scratch/item-corpus-report.json

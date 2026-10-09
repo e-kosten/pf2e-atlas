@@ -352,7 +352,7 @@ extracts raw equipment packets and `compare-equipment` compares Rust probe resul
 the Rust `item_generation_probe` example compares typed slices against raw source
 projections. These private experiment commands are documented in the package README and
 [shared Item report](./docs/research/shared-item-source-generation.md). Rust tests
-remain under atlas-ingest; its source parsers need no Node runtime.
+live under atlas-foundry-model; its source parsers need no Node runtime.
 `sample-predicates` extracts selected predicate-bearing field contexts, including
 ChoiceSet constructor inputs. The Rust `predicate_generation_probe` compares
 typed values and reports source conflicts with a nonzero exit. See the
@@ -365,10 +365,26 @@ separate evidence state; see the [authored-rule report](./docs/research/authored
 The small `dev-tools/source-contracts/source-pin.json` records upstream identity.
 Private `npm --prefix dev-tools/source-contracts run generate -- --check` fetches
 the pin when needed, extracts afresh into ignored `.cache/source-contracts`,
-and checks committed Rust under `crates/atlas-ingest/src/source_model/generated`.
+and checks committed Rust under `crates/atlas-foundry-model/src/source_model/generated`.
 Omit `--check` to regenerate. `--source PATH` seeds the cache from matching local
 source without modifying that checkout. CI runs `verify-generated` separately
 from offline fixture tests. Ordinary Rust builds require neither Node nor Foundry.
+
+`atlas-foundry-model` owns pure strict/admission APIs and typed snapshots. Ingest
+owns files/provenance and calls shared admission once. Model serialization
+includes explicit union tags. `parse_source_value` reads authored JSON, while
+Serde Deserialize reads typed source values; never use it to admit source files.
+
+Run the standalone corpus proof against the authenticated source pin:
+
+```sh
+cargo run -p atlas-foundry-model --example snapshot_corpus -- /path/to/pinned/pf2e
+```
+
+It asserts exact Rust equality after encoding/decoding every root and checks
+pinned loading outcomes. It is contributor validation, not runtime loading or
+an artifact migration. Codec/source policy changes follow ADR 0043.
+
 
 `compare-portfolio` checks these maintained models against all five document
 kinds and specific rules through the Rust `source_portfolio_probe` example.

@@ -9,6 +9,7 @@ members = [
   "crates/atlas-domain",
   "crates/atlas-embedding",
   "crates/atlas-ingest",
+  "crates/atlas-foundry-model",
   "crates/atlas-index",
   "crates/atlas-local-state",
   "crates/atlas-record",
@@ -34,6 +35,7 @@ atlas-app-model = { path = "crates/atlas-app-model" }
 atlas-app-service = { path = "crates/atlas-app-service" }
 atlas-web = { path = "crates/atlas-web" }
 atlas-embedding = { path = "crates/atlas-embedding" }
+atlas-foundry-model = { path = "crates/atlas-foundry-model" }
 atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }
 atlas-local-state = { path = "crates/atlas-local-state" }
@@ -56,6 +58,7 @@ ryu-js = "1.0.3"
 rust-embed = "8.11.0"
 scraper = "0.24.0"
 serde = { version = "1.0.228", features = ["derive"] }
+serde_stacker = "0.1.14"
 serde_json = "1.0.145"
 yaml_serde = "0.10.4"
 sha2 = "0.10.9"
