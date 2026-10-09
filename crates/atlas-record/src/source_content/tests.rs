@@ -24,7 +24,15 @@ fn audience() -> ContentAudience {
 }
 
 fn prepare(markup: &str) -> PreparedSourceContent {
-    prepare_source_content(locator(), markup, audience(), None, None).unwrap()
+    prepare_source_content(
+        locator(),
+        markup,
+        audience(),
+        ContentVisibilityRule::All,
+        None,
+        None,
+    )
+    .unwrap()
 }
 
 struct Context(BTreeMap<String, String>);
@@ -99,6 +107,7 @@ fn localization_uses_the_localized_body_and_retains_ignored_label_references() {
         locator(),
         "@Localize[Outer]{@UUID[ignored]{Label}}",
         audience(),
+        ContentVisibilityRule::All,
         Some(&context),
         Some(&context),
     )
@@ -128,6 +137,7 @@ fn missing_recursive_localization_remains_literal_and_diagnosed() {
         locator(),
         "@Localize[Loop] @Localize[Missing]",
         audience(),
+        ContentVisibilityRule::All,
         Some(&context),
         None,
     )
@@ -151,7 +161,15 @@ fn occurrences_are_complete_before_visibility_and_interactions_are_projected() {
         include_owner: false,
         implicit_check_dc: ContentVisibilityRule::None,
     };
-    let content = prepare_source_content(locator(), markup, public, None, None).unwrap();
+    let content = prepare_source_content(
+        locator(),
+        markup,
+        public,
+        ContentVisibilityRule::All,
+        None,
+        None,
+    )
+    .unwrap();
     assert_eq!(content.references.len(), 4);
     assert_eq!(
         content
@@ -168,7 +186,15 @@ fn occurrences_are_complete_before_visibility_and_interactions_are_projected() {
     assert!(
         matches!(&content.interactions[0].kind, ContentInteractionKind::Check { options, .. } if !options.contains_key("dc"))
     );
-    let inspection = prepare_source_content(locator(), markup, audience(), None, None).unwrap();
+    let inspection = prepare_source_content(
+        locator(),
+        markup,
+        audience(),
+        ContentVisibilityRule::All,
+        None,
+        None,
+    )
+    .unwrap();
     assert_eq!(
         inspection
             .references
@@ -263,10 +289,24 @@ fn stable_locator_is_independent_of_display_output_and_snapshot_local_identity_i
         collection: "/items".into(),
         identity: OwnedContentIdentity::Stable("abcdefghijklmnop".into()),
     });
-    let first =
-        prepare_source_content(owned.clone(), "<p>Old name</p>", audience(), None, None).unwrap();
-    let second =
-        prepare_source_content(owned.clone(), "<p>New name</p>", audience(), None, None).unwrap();
+    let first = prepare_source_content(
+        owned.clone(),
+        "<p>Old name</p>",
+        audience(),
+        ContentVisibilityRule::All,
+        None,
+        None,
+    )
+    .unwrap();
+    let second = prepare_source_content(
+        owned.clone(),
+        "<p>New name</p>",
+        audience(),
+        ContentVisibilityRule::All,
+        None,
+        None,
+    )
+    .unwrap();
     assert_eq!(first.locator, second.locator);
     assert_ne!(first.text, second.text);
     owned.owners[0].identity = OwnedContentIdentity::SnapshotLocal { index: 0 };
@@ -316,7 +356,15 @@ fn typed_partial_source_and_owned_item_are_callable_without_ingest() {
         collection: "/items".into(),
         identity: OwnedContentIdentity::Stable(spell._id.as_value().unwrap().clone()),
     });
-    let content = prepare_source_content(owned, markup, audience(), None, None).unwrap();
+    let content = prepare_source_content(
+        owned,
+        markup,
+        audience(),
+        ContentVisibilityRule::All,
+        None,
+        None,
+    )
+    .unwrap();
     assert_eq!(content.text, "DC 21 basic reflex");
     assert_eq!(content.interactions.len(), 1);
 }

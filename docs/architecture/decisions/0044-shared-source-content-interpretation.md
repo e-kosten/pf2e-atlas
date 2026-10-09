@@ -25,7 +25,7 @@ construction and enrichment execution. Existing callers import the shared parser
 directly; there is no ingest re-export facade or copied parser.
 
 The callable preparation API accepts a source-field locator, authored HTML,
-explicit audience/implicit DC policy and optional localization/reference
+explicit audience/implicit DC policy, whole-field visibility and optional localization/reference
 providers. Callers select HTML fields using upstream format metadata; this API
 does not guess journal Markdown/plain-text formats from string contents.
 
@@ -61,6 +61,15 @@ remain identifiable with explicit visibility; unresolved and sanitizer-blocked
 destinations remain evidence, not usable links. Resolver output carries identities
 and optional display names, never hard-coded web/CLI routes or copied destination
 prose. Embed targets/options remain occurrences without automatic expansion.
+
+Whole-field visibility enters the same traversal as inline visibility; hidden
+fields retain recognized references while emitting no visible HTML/text or
+interactions. Declared plain labels/captions use a separate escaping projection
+and never enter the macro parser. Resolver targets for owned nodes carry the
+root key and typed owner chain, rather than an undocumented content-key string.
+The source-record selector retains unknown biography visibility as unavailable
+evidence and uses visibility None for interpretation, preserving hidden
+references without guessing a public default.
 
 Final application rendering binds interactions and record routes to prepared
 markers and narrow facts. It must not introduce another Foundry parser or scrape

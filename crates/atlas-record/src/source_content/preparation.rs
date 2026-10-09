@@ -19,6 +19,7 @@ pub fn prepare_source_content(
     locator: SourceContentLocator,
     markup: &str,
     audience: ContentAudience,
+    visibility: ContentVisibilityRule,
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&dyn ContentReferenceResolver>,
 ) -> Result<PreparedSourceContent, html2text::Error> {
@@ -31,7 +32,19 @@ pub fn prepare_source_content(
         interactions: Vec::new(),
         diagnostics: Vec::new(),
     };
-    let html = projection.nodes(&parsed.document.nodes, "", &[], true, false);
+    let audiences = match visibility {
+        ContentVisibilityRule::All => Vec::new(),
+        ContentVisibilityRule::Gm => vec!["gm".into()],
+        ContentVisibilityRule::Owner => vec!["owner".into()],
+        ContentVisibilityRule::None => vec!["none".into()],
+    };
+    let html = projection.nodes(
+        &parsed.document.nodes,
+        "",
+        &audiences,
+        audience.permits(visibility),
+        false,
+    );
     let html = sanitizer().clean(&html).to_string();
     let text = super::text_projection::plain_text(&html)?;
     Ok(PreparedSourceContent {
@@ -54,6 +67,25 @@ fn sanitizer() -> ammonia::Builder<'static> {
         .add_tag_attributes("td", ["colspan", "rowspan"])
         .add_tag_attributes("th", ["colspan", "rowspan"]);
     builder
+}
+
+/// A declared plain label/caption never enters the HTML or macro parser.
+pub fn prepare_plain_source_content(
+    locator: SourceContentLocator,
+    text: &str,
+    audience: ContentAudience,
+    visibility: ContentVisibilityRule,
+) -> PreparedSourceContent {
+    let visible = audience.permits(visibility);
+    PreparedSourceContent {
+        locator,
+        interpretation_version: CONTENT_INTERPRETATION_VERSION.into(),
+        html: if visible { escape(text) } else { String::new() },
+        text: if visible { text.into() } else { String::new() },
+        references: Vec::new(),
+        interactions: Vec::new(),
+        diagnostics: Vec::new(),
+    }
 }
 
 fn escape(text: &str) -> String {

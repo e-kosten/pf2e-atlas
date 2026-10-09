@@ -18,6 +18,16 @@ The snapshot codec uses serde_stacker to protect Serde recursion and a bounded
 1,024-container input guard. The source reader's existing 128-container limit
 remains unchanged; snapshot tags and ordered pair lists expand its nesting.
 
+The callable `atlas-ingest::enrich_loaded_source` consumes `LoadedFoundrySource`
+with explicit audience/DC policy and optional localization. Its two passes first
+establish identity/reference context, then call `atlas-record::source_record` to
+produce records backed by those unchanged DTOs. Pack metadata, exact bytes,
+hashes, admission diagnostics, unaddressable bodies and quarantines remain in
+ingest-owned result packets. Query views borrow typed fields; sidecars carry
+owned locators, selected prepared content and relationship occurrences without
+another comprehensive family model. This library handoff is independent of
+the current artifact build; see [ADR 0045](./decisions/0045-source-backed-record-enrichment.md).
+
 ## System Shape
 
 ```mermaid

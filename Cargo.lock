@@ -251,6 +251,7 @@ dependencies = [
  "rayon",
  "rusqlite",
  "ryu-js",
+ "scraper",
  "serde",
  "serde_json",
  "sha2",

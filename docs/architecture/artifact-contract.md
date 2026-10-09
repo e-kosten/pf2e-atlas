@@ -5,6 +5,17 @@ The current artifact does not store or hydrate those snapshots. Future adoption
 must update the schema, writer/readers and consumers together; the codec is not
 a fallback for old artifacts. See [ADR 0043](./decisions/0043-shared-foundry-model-and-snapshots.md).
 
+The database-independent `SourceBackedRecord` library now supplies one unchanged
+DTO body, owned identity, content/relationship facts and borrowed query views.
+Its bounded enrichment serialization is developer measurement, not a new
+artifact encoding or prepared-content cache contract. Physical body/sidecar
+storage, availability bindings, catalog/discovery and SQL/CEL lowering belong
+to atlas-index/domain at adoption. Keep owned scope for same-child predicates;
+do not replace the metric store with another generic scalar/EAV table. Source
+bytes/provenance stay ingest-owned. The current artifact families below remain
+active until writer/readers and consumers are replaced together. See
+[ADR 0045](./decisions/0045-source-backed-record-enrichment.md).
+
 This document defines the runtime artifact boundary for PF2e Atlas. The Rust runtime opens prepared SQLite artifacts read-only for lookup and search commands. Setup and index diagnostic commands own metadata validation, vector readiness checks, and deep artifact coherence checks.
 
 For the broader crate and data-flow architecture around this artifact contract, see [runtime architecture](./runtime.md).
