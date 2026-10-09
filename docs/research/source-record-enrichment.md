@@ -54,6 +54,15 @@ present empty rich-text results remain. Reference/relationship counts and admiss
 content diagnostic counts are unchanged. This checks emitted text fidelity for
 the supplied corpus/context, not search ranking or rendering equivalence.
 
+The subsequent checked-constructor, incremental-traversal, module and metadata
+cleanup matches that revision in every non-timing report field. All 304,533
+text-source rows, including empty rows, have the same length-prefixed SHA-256
+fingerprint, `6fa2b6b43a2baeb53dd0dd9602b8a110cbb9da8aea76e878ac684ff8d89fa3a0`.
+Retention, snapshot/projection checks, diagnostics, reference/relationship counts
+and measured output bytes are unchanged. Constructor fixtures also check that
+identity failures return the unchanged source body; loading-report fixtures
+protect the existing flat JSON shape after sharing metadata.
+
 External HTML URLs pass the sanitizer but are not checked for reachability;
 their unverified status is separate from document identity resolution.
 
@@ -90,9 +99,10 @@ existence. This evidence does not establish Foundry runtime or browser equivalen
 ## Measured cost and storage implications
 
 Environment: Darwin 25.5.0, arm64, Rust 1.98.1 (Homebrew), unoptimized developer
-build. Sizes and timings below come from the first complete revision corpus run;
-a second run verifies final text fingerprints and repeats retention/projection/
-marker checks. Largest-root preparation repeats three times with a warm
+build. Sizes and timings below come from the final API-cleanup corpus run,
+which repeats retention/projection/marker checks and compares text fingerprints.
+Initial load and preparation overlapped workspace verification, so these are not
+isolated performance measurements. Largest-root preparation repeats three times with a warm
 resolver/locale, borrowing the unchanged record in those intervals.
 Times are observations, not performance guarantees or SQLite hydration timings.
 
@@ -104,8 +114,8 @@ Times are observations, not performance guarantees or SQLite hydration timings.
 | Prepared HTML within content outputs | 52,196,570 |
 | Prepared text within content outputs | 45,746,652 |
 
-Load/admission took 2.52 seconds; identity indexing and preparation 39.56 seconds;
-checked snapshot encoding 9.53 seconds and decoding 11.72 seconds. No whole-process
+Load/admission took 5.01 seconds; identity indexing and preparation 52.26 seconds;
+checked snapshot encoding 9.89 seconds and decoding 12.64 seconds. No whole-process
 memory measurement was taken for this revision. The proof holds the whole corpus
 and evidence in memory; these are not per-record runtime hydration costs.
 
@@ -115,11 +125,11 @@ source fields are borrowed, not because their authored content is discarded.
 
 | Largest authored root | Authored bytes | Snapshot bytes | Derived output bytes | Three warm preparations, milliseconds |
 | --- | ---: | ---: | ---: | --- |
-| Journals: archetypes | 1,305,718 | 1,356,441 | 3,337,696 | 986 / 1,000 / 990 |
-| Journals: ancestries | 383,776 | 396,197 | 768,807 | 171 / 158 / 157 |
-| Journals: classes | 326,962 | 333,038 | 1,208,286 | 297 / 296 / 298 |
+| Journals: archetypes | 1,305,718 | 1,356,441 | 3,337,696 | 985 / 980 / 972 |
+| Journals: ancestries | 383,776 | 396,197 | 768,807 | 158 / 156 / 158 |
+| Journals: classes | 326,962 | 333,038 | 1,208,286 | 300 / 294 / 300 |
 | Rinnarv Bontimar | 297,232 | 323,991 | 223,213 | 40 / 39 / 39 |
-| Feiya, level 5 | 261,965 | 289,264 | 190,159 | 34 / 32 / 33 |
+| Feiya, level 5 | 261,965 | 289,264 | 190,159 | 33 / 32 / 32 |
 
 The serialized derived outputs are smaller than the typed bodies, but prepared
 strings and occurrence metadata still have a real cost. Serialization measures

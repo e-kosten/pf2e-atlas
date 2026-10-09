@@ -1,7 +1,7 @@
-use super::nodes::{SourceNodeEntry, actor_fields, item_fields};
+use super::nodes::{actor_fields, item_fields};
 use super::{FieldAvailability, ItemSourceView, SourceFieldView, SourceNodeView};
 use crate::source_content::{
-    ContentReferenceResolution, ContentReferenceResolver, SourceContentLocator,
+    ContentReferenceResolution, ContentReferenceResolver, OwnedContentLocator, SourceContentLocator,
 };
 use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
@@ -30,15 +30,16 @@ pub fn resolve_source_relationships(
     resolver: Option<&super::SourceReferenceIndex>,
 ) -> Vec<SourceRelationshipOccurrence> {
     let mut output = Vec::new();
-    for entry in super::nodes::source_nodes(&record.source) {
-        collect_relationships(&record.key, &entry, resolver, &mut output);
-    }
+    super::traversal::visit_source_nodes(record.source(), |owners, source| {
+        collect_relationships(record.key(), owners, source, resolver, &mut output);
+    });
     output
 }
 
 pub(super) fn collect_relationships(
     key: &RecordKey,
-    entry: &SourceNodeEntry<'_>,
+    owners: &[OwnedContentLocator],
+    source: SourceNodeView<'_>,
     resolver: Option<&super::SourceReferenceIndex>,
     output: &mut Vec<SourceRelationshipOccurrence>,
 ) {
@@ -51,7 +52,7 @@ pub(super) fn collect_relationships(
         }
         let locator = SourceContentLocator {
             record: key.clone(),
-            owners: entry.owners.clone(),
+            owners: owners.to_vec(),
             field: field.into(),
         };
         let authored_target = state.value().cloned();
@@ -81,7 +82,7 @@ pub(super) fn collect_relationships(
             resolution,
         });
     };
-    let provenance = match entry.source {
+    let provenance = match source {
         SourceNodeView::Item(i) => item_fields!(
             i,
             s,
@@ -114,7 +115,7 @@ pub(super) fn collect_relationships(
             false,
         );
     }
-    let SourceNodeView::Item(item) = entry.source else {
+    let SourceNodeView::Item(item) = source else {
         return;
     };
     let granted_by = item_fields!(

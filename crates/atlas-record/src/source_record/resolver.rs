@@ -1,4 +1,4 @@
-use super::nodes::source_nodes;
+use super::traversal::visit_source_nodes;
 use crate::source_content::{
     ContentReferenceResolver, ContentReferenceTarget, OwnedContentIdentity,
     ResolvedContentReference, SourceContentLocator,
@@ -23,29 +23,28 @@ impl SourceReferenceIndex {
         if !self.roots.insert(key.clone()) {
             self.duplicate_roots.insert(key.clone());
         }
-        let nodes = source_nodes(source);
-        for entry in nodes {
-            let root = format!(
-                "Compendium.pf2e.{}.{}.{}",
-                key.pack(),
-                nodes_kind(source),
-                key.id()
-            );
-            let target = if entry.owners.is_empty() {
+        let root = format!(
+            "Compendium.pf2e.{}.{}.{}",
+            key.pack(),
+            nodes_kind(source),
+            key.id()
+        );
+        visit_source_nodes(source, |owners, node| {
+            let target = if owners.is_empty() {
                 ContentReferenceTarget::Record { key: key.clone() }
             } else {
                 ContentReferenceTarget::OwnedNode {
                     key: key.clone(),
-                    owners: entry.owners.clone(),
+                    owners: owners.to_vec(),
                 }
             };
             let resolved = ResolvedContentReference {
                 target,
-                display_name: entry.source.name().value().cloned(),
+                display_name: node.name().value().cloned(),
             };
             let mut suffix = String::new();
             let mut stable = true;
-            for owner in &entry.owners {
+            for owner in owners {
                 let OwnedContentIdentity::Stable(id) = &owner.identity else {
                     stable = false;
                     break;
@@ -62,21 +61,21 @@ impl SourceReferenceIndex {
                 suffix.push_str(&format!(".{kind}.{id}"));
             }
             if stable {
-                if let super::SourceNodeView::Item(item) = entry.source {
+                if let super::SourceNodeView::Item(item) = node {
                     self.owned_item_families
                         .entry(format!("{root}{suffix}"))
                         .and_modify(|family| *family = None)
                         .or_insert(Some(item.family()));
                 }
                 self.insert(format!("{root}{suffix}"), resolved.clone());
-                if entry.owners.is_empty() {
+                if owners.is_empty() {
                     // Legacy Compendium syntax identifies the root by ID or a
                     // unique authored name, including qualified builder input.
                     self.insert(
                         format!("pf2e.{}.{}", key.pack(), key.id()),
                         resolved.clone(),
                     );
-                    if let Some(name) = entry.source.name().value() {
+                    if let Some(name) = node.name().value() {
                         for alias in name_aliases(key.pack().as_str(), nodes_kind(source), name) {
                             self.names
                                 .entry(alias)
@@ -86,7 +85,7 @@ impl SourceReferenceIndex {
                     }
                 }
             }
-        }
+        });
     }
 
     /// An unaddressable source can make a name ambiguous even though it cannot

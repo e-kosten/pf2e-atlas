@@ -4,6 +4,7 @@ use std::path::Path;
 use rayon::prelude::*;
 use sha2::{Digest, Sha256};
 
+use super::metadata::{SourceMetadata, SourcePackMetadata};
 use super::model::{
     LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource, QuarantinedSourceFile,
     SourceFileProvenance, SourceLoadFailure, SourceLoadFailureStage,
@@ -68,21 +69,25 @@ pub fn load_foundry_documents(
             }
         }
         packs.push(LoadedFoundryPack {
-            name: declared.name,
-            label: declared.label,
-            document_type: declared.document_type,
-            declared_path: declared.path,
-            resolved_path,
-            discovered_file_count: paths.len(),
+            metadata: SourcePackMetadata {
+                name: declared.name,
+                label: declared.label,
+                document_type: declared.document_type,
+                declared_path: declared.path,
+                resolved_path,
+                discovered_file_count: paths.len(),
+            },
             documents,
             quarantined_files,
             discovery_failure,
         });
     }
     Ok(LoadedFoundrySource {
-        source_root: source_root.to_path_buf(),
-        manifest_path,
-        manifest_content_hash: parsed_manifest.content_hash,
+        metadata: SourceMetadata {
+            source_root: source_root.to_path_buf(),
+            manifest_path,
+            manifest_content_hash: parsed_manifest.content_hash,
+        },
         packs,
     })
 }

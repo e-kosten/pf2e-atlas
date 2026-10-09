@@ -22,12 +22,15 @@ persisted tree. The artifact and product consumers still use RichDocument.
 
 ADR 0045 implements the database-independent minimal source-backed record and
 consuming typed ingest handoff. The record retains only its validated key and one
-DTO. Shared internal traversal establishes embedded identity; separate operations
+DTO through checked construction and read-only access. Shared incremental internal
+traversal establishes embedded identity; separate operations
 prepare present rich text and resolve structured relationship occurrences. Ingest
 packets compose those outputs with source evidence. Existing focused query/text
 views borrow source, including plain labels, without retained node/container
 inventories or exhaustive absent-field preparation rows. Broader borrowed domain
 views and public traversal/lookup APIs follow concrete consumer requirements.
+Query projection and text extraction modules remain distinct; loading and
+preparation reuse concrete ingest-owned source/pack metadata without redefining it.
 Detailed admission/preparation reports remain developer surfaces. The initial
 [projection catalog and transition inventory](../../research/source-record-query-projections.md)
 accounts for current filters and metrics without requiring a second family schema.

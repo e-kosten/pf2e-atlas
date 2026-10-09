@@ -10,6 +10,8 @@ mod relationships;
 mod resolver;
 #[cfg(test)]
 mod tests;
+mod text;
+mod traversal;
 
 pub use availability::{FieldAvailability, SourceFieldView};
 pub use content::{
@@ -17,10 +19,11 @@ pub use content::{
     prepare_record_content,
 };
 pub use identity::{SourceIdentityError, source_record_key};
-pub use model::{SourceBackedRecord, source_owned_document_count};
+pub use model::{SourceBackedRecord, SourceRecordConstructionError, source_owned_document_count};
 pub use nodes::{ItemSourceView, SourceNodeView};
-pub use query::{ActorQueryView, SourceQueryView, SourceTextKind, SourceTextSource};
+pub use query::{ActorQueryView, SourceQueryView};
 pub use relationships::{
     SourceRelationshipKind, SourceRelationshipOccurrence, resolve_source_relationships,
 };
 pub use resolver::SourceReferenceIndex;
+pub use text::{SourceTextKind, SourceTextSource};

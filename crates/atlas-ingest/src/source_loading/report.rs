@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use serde::Serialize;
 
+use super::metadata::SourceMetadata;
 use super::model::{LoadedFoundrySource, SourceLoadFailure};
 use atlas_foundry_model::SourceDiagnostic;
 
@@ -23,9 +23,8 @@ pub struct SourceDocumentCounts {
 /// raw corpus. Diagnostics and failures are complete, not sampled or suppressed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourceLoadingReport {
-    pub source_root: PathBuf,
-    pub manifest_path: PathBuf,
-    pub manifest_content_hash: String,
+    #[serde(flatten)]
+    pub metadata: SourceMetadata,
     pub pack_count: usize,
     pub counts: SourceDocumentCounts,
     pub by_document_type: BTreeMap<String, SourceDocumentCounts>,
@@ -41,10 +40,10 @@ impl LoadedFoundrySource {
         let mut failures = Vec::new();
         for pack in &self.packs {
             let group = by_document_type
-                .entry(pack.document_type.clone())
+                .entry(pack.metadata.document_type.clone())
                 .or_default();
             for counts in [&mut counts, group] {
-                counts.discovered_files += pack.discovered_file_count;
+                counts.discovered_files += pack.metadata.discovered_file_count;
                 counts.retained_documents += pack.documents.len();
                 counts.quarantined_files += pack.quarantined_files.len();
                 counts.unavailable_packs += usize::from(pack.discovery_failure.is_some());
@@ -76,9 +75,7 @@ impl LoadedFoundrySource {
             );
         }
         SourceLoadingReport {
-            source_root: self.source_root.clone(),
-            manifest_path: self.manifest_path.clone(),
-            manifest_content_hash: self.manifest_content_hash.clone(),
+            metadata: self.metadata.clone(),
             pack_count: self.packs.len(),
             counts,
             by_document_type,

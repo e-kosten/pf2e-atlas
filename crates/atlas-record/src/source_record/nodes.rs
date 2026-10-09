@@ -1,6 +1,4 @@
 use super::SourceFieldView;
-use super::identity::valid_source_id;
-use crate::source_content::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_foundry_model::{ActorSourcePF2e, FoundryDocumentSource, ItemSourcePF2e, generated::*};
 
 // Exhaustive dispatch shares declared components without cloning child bodies.
@@ -243,7 +241,7 @@ impl<'a> ItemSourceView<'a> {
             Self::WeaponSource(..) => "weapon",
         }
     }
-    fn subitems(self) -> SourceFieldView<'a, &'a [PhysicalItemSource]> {
+    pub(super) fn subitems(self) -> SourceFieldView<'a, &'a [PhysicalItemSource]> {
         match self {
             Self::ArmorSource(s) => SourceFieldView::from(&s.system)
                 .and_then(|s| (&s.subitems).into())
@@ -260,90 +258,4 @@ impl<'a> ItemSourceView<'a> {
             _ => SourceFieldView::NotApplicable,
         }
     }
-}
-
-#[derive(Debug)]
-pub struct SourceNodeEntry<'a> {
-    pub owners: Vec<OwnedContentLocator>,
-    pub source: SourceNodeView<'a>,
-}
-
-/// Typed traversal in authored order. Unavailable collections remain evidence;
-/// they never yield a salvaged subset or prove an empty collection.
-pub(super) fn source_nodes<'a>(source: &'a FoundryDocumentSource) -> Vec<SourceNodeEntry<'a>> {
-    let mut output = Vec::new();
-    let mut pending = vec![SourceNodeEntry {
-        owners: vec![],
-        source: source.into(),
-    }];
-    while let Some(entry) = pending.pop() {
-        let mut children = Vec::new();
-        let mut collect = |field: &str, state: SourceFieldView<'a, Vec<SourceNodeView<'a>>>| {
-            if let SourceFieldView::Value(nodes) = state {
-                let mut ids = std::collections::BTreeMap::new();
-                for node in &nodes {
-                    if let Some(id) = node.id().value().filter(|id| valid_source_id(id)) {
-                        *ids.entry(id.as_str()).or_insert(0usize) += 1;
-                    }
-                }
-                for (index, node) in nodes.iter().copied().enumerate() {
-                    let identity = match node.id().value() {
-                        Some(id) if valid_source_id(id) && ids[id.as_str()] == 1 => {
-                            OwnedContentIdentity::Stable(id.clone())
-                        }
-                        _ => OwnedContentIdentity::SnapshotLocal { index },
-                    };
-                    let mut owners = entry.owners.clone();
-                    owners.push(OwnedContentLocator {
-                        collection: field.into(),
-                        identity,
-                    });
-                    children.push(SourceNodeEntry {
-                        owners,
-                        source: node,
-                    });
-                }
-            }
-        };
-        match entry.source {
-            SourceNodeView::Actor(_) => collect(
-                "/items",
-                entry
-                    .source
-                    .actor_items()
-                    .map(|v| v.iter().map(|i| SourceNodeView::Item(i.into())).collect()),
-            ),
-            SourceNodeView::Item(i) => {
-                if !matches!(i.subitems(), SourceFieldView::NotApplicable) {
-                    collect(
-                        "/system/subitems",
-                        i.subitems()
-                            .map(|v| v.iter().map(|i| SourceNodeView::Item(i.into())).collect()),
-                    );
-                }
-                if let ItemSourceView::ConsumableSource(s) = i {
-                    collect(
-                        "/system/spell",
-                        SourceFieldView::from(&s.system)
-                            .and_then(|s| (&s.spell).into())
-                            .map(|s| vec![SourceNodeView::Item(ItemSourceView::SpellSource(s))]),
-                    );
-                }
-            }
-            SourceNodeView::Journal(s) => collect(
-                "/pages",
-                SourceFieldView::from(&s.pages)
-                    .map(|v| v.iter().map(SourceNodeView::JournalPage).collect()),
-            ),
-            SourceNodeView::Table(s) => collect(
-                "/results",
-                SourceFieldView::from(&s.results)
-                    .map(|v| v.iter().map(SourceNodeView::Result).collect()),
-            ),
-            _ => {}
-        }
-        pending.extend(children.into_iter().rev());
-        output.push(entry);
-    }
-    output
 }
