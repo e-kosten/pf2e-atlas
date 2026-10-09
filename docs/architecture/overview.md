@@ -25,8 +25,8 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
 - `atlas-tags` owns tag ontology, YAML parsing, corpus loading, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs.
 - `atlas-foundry-model` owns generated Foundry authored structures, ordered source primitives, strict parsing/admission, pure document dispatch and versioned typed snapshots. It has no ingest, artifact, embedding or runtime service dependency.
-- `atlas-ingest` owns filesystem source loading, Foundry content parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
-- `atlas-record` owns normalized records, mechanics/activity projections, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
+- `atlas-ingest` owns filesystem source loading, normalization, enrichment execution, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
+- `atlas-record` owns normalized records, mechanics/activity projections, shared Foundry content interpretation, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
 - `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary, including the simple product filter DTO and its one-way lowering into the canonical `SearchFilterNode` tree.
 - `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.
@@ -38,6 +38,14 @@ ingest re-export. Its snapshot codec preserves the existing source-shaped types
 for future runtime consumers without admitting raw Foundry JSON again. The
 current artifact and product pipeline do not yet store these snapshots. See
 [ADR 0043](./decisions/0043-shared-foundry-model-and-snapshots.md).
+
+`atlas-record::source_content` provides a callable HTML preparation library:
+stable source-field locators, explicit audience/context, localization and
+reference resolution inputs, sanitized HTML/text and narrow occurrence/control
+facts. Its parser is shared directly with existing ingest callers. The product
+artifact still persists RichDocument; preparation does not change that schema or
+wire new projections into runtime/UI consumers. See
+[ADR 0044](./decisions/0044-shared-source-content-interpretation.md).
 
 ## System Overview
 

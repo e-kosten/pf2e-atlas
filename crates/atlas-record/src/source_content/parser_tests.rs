@@ -1,8 +1,20 @@
-use atlas_record::{
-    FoundryLinkMacroKind, FoundryNode, RichLinkTarget, RichNode, render_plain_text,
-};
+use crate::{FoundryLinkMacroKind, FoundryNode, RichLinkTarget, RichNode, render_plain_text};
 
-use crate::source::localization::LocalizationCatalog;
+use super::LocalizationResolver;
+
+struct LocalizationCatalog(std::collections::BTreeMap<String, String>);
+
+impl LocalizationCatalog {
+    fn from_entries(entries: impl IntoIterator<Item = (String, String)>) -> Self {
+        Self(entries.into_iter().collect())
+    }
+}
+
+impl LocalizationResolver for LocalizationCatalog {
+    fn localized_value(&self, key: &str) -> Option<&str> {
+        self.0.get(key).map(String::as_str)
+    }
+}
 
 use super::{parse_foundry_content, parse_foundry_content_with_localization};
 
@@ -109,11 +121,11 @@ fn resolves_localize_macros_without_losing_key_or_label_context() {
     };
     assert_eq!(key, "PF2E.NPC.Abilities.Glossary.NegativeHealing");
     assert_eq!(
-        render_plain_text(&atlas_record::RichDocument::new(label.clone())),
+        render_plain_text(&crate::RichDocument::new(label.clone())),
         "Void Healing"
     );
     assert_eq!(
-        render_plain_text(&atlas_record::RichDocument::new(resolved.clone())),
+        render_plain_text(&crate::RichDocument::new(resolved.clone())),
         "A creature with void healing is healed by void effects."
     );
     assert_eq!(render_plain_text(&parsed.document), "Void Healing");

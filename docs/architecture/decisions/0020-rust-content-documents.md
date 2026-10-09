@@ -4,6 +4,12 @@
 
 Accepted
 
+Parser ownership is amended by [ADR 0044](./0044-shared-source-content-interpretation.md):
+the pure parser lives in atlas-record and ingest executes it with loaded context.
+The current artifact still stores RichDocument. The accepted next representation
+retains authored HTML in generated DTOs with narrow interpretation facts and
+derived HTML/text; its coherent artifact/consumer replacement is separate work.
+
 ## Context
 
 The Rust ingest path originally normalized Foundry description markup into stripped plain text. That was sufficient for early lexical search and simple presentation, but it loses information that future Rust runtime surfaces need:
@@ -43,7 +49,7 @@ All plain-text and retrieval documents are projections:
 
 Reference edges and reference occurrences must persist source kind, visibility, and relation kind so graph consumers can distinguish public primary content, embedded capability content, GM/private content, internal implementation sources, generated relationship facts, ordinary references, and Foundry embeds. Default backlink and public graph views use public primary content unless a caller explicitly asks for expanded visibility or embedded-source edges.
 
-`RichDocument` is owned by `atlas-record`. `atlas-ingest` parses Foundry source fields into rich documents, resolves record references into stored `RecordKey` and target-name data, assigns content visibility/source policy, and prepares build input rows. `atlas-embedding` owns embedding-specific chunk selection, token budgeting, model-facing rendering, unit metadata, and semantic input hashes, but it does not parse raw Foundry markup. `atlas-index` owns, writes, validates, and reads the physical content and reference-edge storage contract.
+`RichDocument` is owned by `atlas-record`. `atlas-ingest` executes the shared atlas-record parser on Foundry source fields, resolves record references into stored `RecordKey` and target-name data, assigns content visibility/source policy, and prepares build input rows. `atlas-embedding` owns embedding-specific chunk selection, token budgeting, model-facing rendering, unit metadata, and semantic input hashes, but it does not parse raw Foundry markup. `atlas-index` owns, writes, validates, and reads the physical content and reference-edge storage contract.
 
 Journal pages and rollable table results are recognized as rich content, but they are deferred to a separate child/subdocument design. They should not be flattened into broad parent records or recovered through raw JSON scanning.
 

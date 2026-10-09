@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct ContentParseDiagnostics {
-    pub(crate) dropped_macros: Vec<DroppedContentMacro>,
-    pub(crate) unsupported_tags: Vec<String>,
+pub struct ContentParseDiagnostics {
+    pub dropped_macros: Vec<DroppedContentMacro>,
+    pub unsupported_tags: Vec<String>,
 }
 
 impl ContentParseDiagnostics {
@@ -17,7 +17,7 @@ impl ContentParseDiagnostics {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct DroppedContentMacro {
-    pub(crate) name: String,
-    pub(crate) raw: String,
+pub struct DroppedContentMacro {
+    pub name: String,
+    pub raw: String,
 }

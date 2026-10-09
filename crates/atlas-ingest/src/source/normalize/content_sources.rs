@@ -1,10 +1,10 @@
+use atlas_record::source_content::{
+    ContentParseDiagnostics, LocalizationResolver, parse_foundry_content_with_localization,
+};
 use atlas_record::{ContentSourceKind, RecordContentDocument, RichDocument};
 use serde_json::Value;
 
-use super::{
-    ContentParseDiagnostics, LocalizationResolver, parse_foundry_content_with_localization,
-    pointer_string, string_field,
-};
+use super::{pointer_string, string_field};
 
 pub(super) struct SourceContentProjection {
     pub description: Option<RichDocument>,
