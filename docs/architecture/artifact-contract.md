@@ -5,6 +5,33 @@ The current artifact does not store or hydrate those snapshots. Future adoption
 must update the schema, writer/readers and consumers together; the codec is not
 a fallback for old artifacts. See [ADR 0043](./decisions/0043-shared-foundry-model-and-snapshots.md).
 
+The database-independent `SourceBackedRecord` library contains only a validated
+key and one unchanged DTO body, derived through checked construction and exposed
+read-only. Content preparation and relationship resolution
+return explicit separate outputs; focused query/text views borrow source values
+and consume compatible preparation. No embedded-node or collection-status
+inventory is required by the record contract. Bounded output serialization is
+developer measurement, not an artifact encoding or prepared-content cache
+contract. Physical body/prepared-output storage, lookup indexes, availability
+bindings, catalog/discovery and SQL/CEL lowering belong to atlas-index/domain at
+adoption. Keep owned scope for same-child predicates; do not replace the metric
+store with another generic scalar/EAV table. Source bytes/provenance and detailed
+admission/preparation reports stay ingest-owned rather than product record
+properties. The current artifact families below remain active until writer/readers
+and consumers are replaced together. See
+[ADR 0045](./decisions/0045-source-backed-record-enrichment.md).
+
+At that adoption, indexing locale defaults to English with a user override and is
+recorded with relevant localization identity in artifact metadata. FTS and document
+embedding projections use that context; changing search locale requires rebuilding
+the affected projections and vectors. Initial display uses the artifact locale.
+Retained markup and explicit preparation context permit later independent display
+localization without implicitly changing search. This policy introduces no current
+CLI option, metadata key, UI setting or multi-locale storage. Context-bound output
+must not be reused solely on RecordKey equality; source snapshot, interpretation,
+audience, localization and resolution inputs affect compatibility. Physical cache
+encoding and invalidation remain storage-design work.
+
 This document defines the runtime artifact boundary for PF2e Atlas. The Rust runtime opens prepared SQLite artifacts read-only for lookup and search commands. Setup and index diagnostic commands own metadata validation, vector readiness checks, and deep artifact coherence checks.
 
 For the broader crate and data-flow architecture around this artifact contract, see [runtime architecture](./runtime.md).

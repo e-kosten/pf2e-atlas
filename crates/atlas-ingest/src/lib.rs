@@ -12,6 +12,7 @@ mod index_build_input;
 mod records;
 mod report;
 mod source;
+mod source_enrichment;
 mod source_loading;
 mod source_pipeline;
 
@@ -38,10 +39,14 @@ pub use source::model::{
     DocumentEmbeddingTruncationExampleReport, DocumentEmbeddingUnitKindTruncationReport,
     EmbeddingTimingReport, SkippedRecord,
 };
+pub use source_enrichment::{
+    EnrichedDocumentOutcome, EnrichedFoundryDocument, EnrichedFoundryPack, EnrichedFoundrySource,
+    SourceEnrichmentContext, SourceEnrichmentReport, enrich_loaded_source,
+};
 pub use source_loading::{
     LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource, QuarantinedSourceFile,
     SourceDocumentCounts, SourceFileProvenance, SourceLoadFailure, SourceLoadFailureStage,
-    SourceLoadingReport, load_foundry_documents,
+    SourceLoadingReport, SourceMetadata, SourcePackMetadata, load_foundry_documents,
 };
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {

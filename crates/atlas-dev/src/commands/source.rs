@@ -31,7 +31,7 @@ pub(crate) fn run_source_load(options: LoadOptions) -> Result<ExitCode, String> 
             "loaded {} documents from {} manifest packs in {}",
             counts.retained_documents,
             report.pack_count,
-            report.source_root.display()
+            report.metadata.source_root.display()
         );
         println!(
             "documents: modeled={} diagnostic_free={} partial={} raw_only={} quarantined={}",

@@ -403,6 +403,28 @@ It asserts exact Rust equality after encoding/decoding every root and checks
 pinned loading outcomes. It is contributor validation, not runtime loading or
 an artifact migration. Codec/source policy changes follow ADR 0043.
 
+The database-independent record enrichment handoff is
+`atlas-ingest::enrich_loaded_source`. It consumes admitted models, retains source
+bytes/provenance and diagnostics, and calls `atlas-record::source_record` for
+owned identity, selected content, references and typed query/text views. Audience
+and implicit check-DC policy are required inputs; no product default is implied.
+
+Run its bounded corpus evidence example with the authenticated source pin and
+that pin's locale:
+
+```sh
+cargo run -p atlas-ingest --example source_enrichment_probe -- /path/to/pinned/pf2e /path/to/pinned/pf2e/static/lang/en.json
+```
+
+The JSON report checks all retained typed snapshots before/after enrichment,
+compares selected query values independently to authored JSON, checks visible
+reference/interaction markers, and measures sizes and stage/warm timings. Raw
+JSON comparison exists only in this developer proof. The probe explicitly uses
+a public audience with GM-only implicit DCs; it does not publish CLI commands,
+persist corpus receipts or validate browser behavior, search relevance or SQLite
+hydration. See [ADR 0045](./docs/architecture/decisions/0045-source-backed-record-enrichment.md)
+and the [projection inventory](./docs/research/source-record-query-projections.md).
+
 
 `compare-portfolio` checks these maintained models against all five document
 kinds and specific rules through the Rust `source_portfolio_probe` example.
