@@ -1,10 +1,9 @@
+use atlas_record::source_content::ContentParseDiagnostics;
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
 use atlas_record::{AtlasRecord, ContentSourceKind, RecordContentDocument, RichDocument};
 use serde_json::Value;
-
-use crate::source::normalize::ContentParseDiagnostics;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReferenceCandidate {

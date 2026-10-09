@@ -341,6 +341,24 @@ the earlier research and product-preview reference.
 
 ## Source declaration research
 
+The shared HTML interpretation API is in `atlas-record::source_content`. Its
+tests include typed generated-source traversal with an owned Item and invalid
+neighboring field. The developer example can prepare an explicitly inventoried
+HTML-field JSONL sample with supplied localization and a simple root-record
+lookup index:
+
+```bash
+cargo run -p atlas-record --example source_content_probe -- HTML-fields.jsonl locale.json records.jsonl output.jsonl
+```
+
+Input field packets contain `owner` (`pack.id`, optionally with an owned suffix),
+`field` (dotted source field) and `markup`; record-index packets contain `id`
+(`pack.id`) and `name`. These are probe inputs, not product CLI or artifact
+contracts. The probe explicitly uses source-inspection audience settings and
+snapshot-local child locators. The output is not a browser/Foundry acceptance
+result or an audience-safe application response. See
+[ADR 0044](./docs/architecture/decisions/0044-shared-source-content-interpretation.md).
+
 Offline declaration and trait metadata tooling lives in [dev-tools/source-contracts](./dev-tools/source-contracts/README.md). Its pinned Node dependencies, strict TypeScript build and fixture tests are separate from the Rust build and published product. Run `npm --prefix dev-tools/source-contracts ci --ignore-scripts`, then `npm --prefix dev-tools/source-contracts run verify`. Run extraction with `npm --prefix dev-tools/source-contracts run extract -- --source PATH --out PATH [--strict]`. Rust developer commands use Rust libraries; compiler research runs through this npm package.
 
 Source-model generation also requires rustfmt. Package verification
