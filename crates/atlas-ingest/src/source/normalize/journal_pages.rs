@@ -1,12 +1,12 @@
 use atlas_domain::RecordKey;
+use atlas_record::source_content::{
+    ContentParseDiagnostics, LocalizationResolver, parse_foundry_content_with_localization,
+};
 use serde_json::Value;
 
 use crate::records::{JournalPageFact, JournalPageSkipReason, SkippedJournalPageFact};
 
-use super::{
-    ContentParseDiagnostics, LocalizationResolver, normalize_text,
-    parse_foundry_content_with_localization, pointer_string, string_field,
-};
+use super::{normalize_text, pointer_string, string_field};
 
 pub(super) fn extract_journal_page_facts(
     raw: &Value,

@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use atlas_domain::{PackName, Rarity, RecordId, RecordKey};
+use atlas_record::source_content::LocalizationResolver;
 use atlas_record::{
     ActivationTimeSourceField, AtlasRecord, ContentSourceKind, DurationTimeSourceField,
     FoundryDocumentMechanics, FoundryDocumentType, FoundryRecordInfo, FoundryRecordType,
@@ -10,11 +11,7 @@ use atlas_record::{
 };
 use serde_json::Value;
 
-mod content;
-mod content_diagnostics;
 mod content_sources;
-#[cfg(test)]
-mod content_tests;
 mod embedded_items;
 mod journal_pages;
 mod json;
@@ -30,10 +27,6 @@ use content_sources::extract_content_sources;
 use embedded_items::{attach_embedded_content_refs, extract_embedded_item_facts};
 use journal_pages::extract_journal_page_facts;
 
-pub(crate) use content::{
-    LocalizationResolver, parse_foundry_content, parse_foundry_content_with_localization,
-};
-pub(crate) use content_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub(crate) use json::{
     normalized_pointer_string, pointer_bool, pointer_i64, pointer_string, string_array_at_pointer,
     string_field, typed_collection,

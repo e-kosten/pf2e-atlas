@@ -74,9 +74,9 @@ flowchart TD
 | `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives, including the simple product filter DTO and canonical `SearchFilterNode` tree. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
 | `atlas-tags` | Tag ontology, YAML parsing, corpus loading, applicability evaluation, assignment validation, evidence validation, ontology suggestions, and tagging agent contract DTOs. | Raw source normalization, SQLite schema, runtime path policy, CLI presentation, or terminal rendering. |
 | `atlas-local-state` | Durable mutable local state stored outside the generated artifact, including saved-list schema/items and encounter schema/participants with snapshots for unresolved record-backed rows. | Generated artifact schema, source ingest, retrieval/search semantics, runtime path policy, CLI presentation, or frontend state. |
-| `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, mechanics/activity projections, `RichDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
+| `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, mechanics/activity projections, shared Foundry HTML/macro interpretation and content projections, `RichDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Filesystem source loading, SQLite names, artifact validation diagnostics, CLI envelopes, embedding model execution. |
 | `atlas-foundry-model` | Generated authored models, ordered values, field presence, strict parsing, admission, document dispatch and versioned typed snapshots. | Filesystem loading, SQLite, product normalization, content interpretation, embedding and runtime service composition. |
-| `atlas-ingest` | Filesystem source loading, Foundry content parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and owned conversion into `IndexBuildInput`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, physical SQLite writer ownership. |
+| `atlas-ingest` | Filesystem source loading, content interpretation execution with loaded context, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and owned conversion into `IndexBuildInput`. | Pure content parser ownership, public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, physical SQLite writer ownership. |
 | `atlas-index` | Read-only completed-artifact access through narrow read capability traits and the composite `RetrievalReadIndex` bundle implemented by `SqliteIndexReader`, Diesel-backed relational schema and migrations, artifact writing through `IndexArtifactWriter` and `SqliteIndexWriter`, filter discovery field policy and SQLite extractor rendering, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy, runtime path policy, metric-definition ownership, shared discovery/result DTO vocabulary. |
 | `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, SQLite vector byte layout, search result collapse policy. |
 | `atlas-search` | Product-facing retrieval orchestration through `AtlasRetrievalService` and narrow capability traits for records, text search, similar records, graph context, variants, remaster links, and filter discovery. It owns lexical/semantic composition, vector-hit collapse, search ranking modes, and product-shaped filter discovery intent over read-only index handles. Semantic-only retrieval and low-level fusion controls are expert/debug APIs rather than ordinary product entrypoints. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions, preflight artifact validation, or exposing index-owned SQL/read details as product API. |
@@ -92,7 +92,7 @@ flowchart TD
 flowchart LR
     raw["Foundry source records<br/>raw JSON + manifest packs"] --> load["atlas-ingest::source<br/>load packs and source signature"]
     load --> normalize["normalize<br/>RecordKey, kind, traits,<br/>metrics, side tables"]
-    normalize --> content["Foundry content parser<br/>HTML/macros -> RichDocument"]
+    normalize --> content["Shared atlas-record content parser<br/>HTML/macros -> RichDocument"]
     content --> enrich["atlas-ingest::records<br/>aliases, variants, taxonomy,<br/>reference resolution, visibility"]
     enrich --> generated["atlas-ingest::generated<br/>source-backed generated afflictions"]
     generated --> embedPrep["atlas-ingest::embeddings<br/>prepare/run embedding-owned units"]
@@ -258,7 +258,7 @@ Source normalization emits ingest-only construction facts beside each normalized
 
 ```mermaid
 flowchart TD
-    markup["Known Foundry rich-text fields<br/>description, notes, hazard text,<br/>embedded item/spell descriptions"] --> parser["atlas-ingest parser<br/>Foundry HTML/macros"]
+    markup["Known Foundry rich-text fields<br/>description, notes, hazard text,<br/>embedded item/spell descriptions"] --> parser["atlas-record shared parser<br/>Foundry HTML/macros"]
     parser --> doc["atlas-record::RichDocument<br/>HTML elements, text,<br/>Foundry links/macros"]
 
     doc --> presentation["RecordPresentationDocument<br/>CLI/TUI-ready rich structure"]
@@ -272,7 +272,27 @@ flowchart TD
     fts --> recordsFts["records_fts<br/>weighted lexical search"]
 ```
 
-The durable source of authored rich text is `RichDocument`, not stripped text and not raw Foundry markup. `RichDocument` preserves HTML elements and Foundry enrichments together; plain text, structured presentation content for CLI JSON/terminal output, structured FTS rows, semantic chunks, and reference edges are projections from content and presentation models.
+The current product artifact stores authored rich text as `RichDocument`.
+`RichDocument` preserves HTML elements and Foundry enrichments together; current
+plain text, structured presentation content for CLI JSON/terminal output,
+structured FTS rows, semantic chunks, and reference edges are projections from
+content and presentation models.
+
+`atlas-record::source_content::prepare_source_content` is the independent
+source-backed enrichment boundary for the forthcoming artifact replacement.
+Authored HTML stays in its source DTO. Preparation uses the shared parser
+transiently and returns sanitized HTML, unwrapped text, complete reference
+occurrences, visible interaction parameters and diagnostics. It requires explicit
+audience, implicit check-DC visibility and optional localization/resolution
+providers; it does not establish product permission defaults. Generic HTML
+sanitization and text formatting use ammonia and html2text. Final app rendering
+will bind interactions and record routes to sidecar identities; source
+interpretation does not compute routes or execute expressions.
+
+Current ingest imports this parser owner directly. The new preparation contract
+is callable without ingest, indexing, runtime or embedding dependencies, but has
+not replaced the current artifact/presentation projections. There is no ingest
+parser facade or second macro parser. See [ADR 0044](./decisions/0044-shared-source-content-interpretation.md).
 
 Default public graph and backlink behavior uses the named reference graph policy in `atlas-record`: public non-embedded reference edges are in the default graph, public embedded edges require an expanded mode, and GM/private/internal edges remain excluded unless a caller explicitly asks for broader visibility. `atlas-index` lowers that policy into SQL predicates over `reference_edges`; the database does not store a separate default-edge boolean.
 

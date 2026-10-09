@@ -3,28 +3,28 @@ use std::collections::{BTreeMap, BTreeSet};
 use ego_tree::NodeRef;
 use scraper::{Html, node::Node};
 
-use atlas_record::{
+use crate::{
     DamagePart, FoundryLink, FoundryLinkBehavior, FoundryLinkMacroKind, FoundryLinkSource,
-    FoundryNode, RichDocument, RichLinkTarget, RichNode, render_plain_text,
+    FoundryNode, RichDocument, RichLinkTarget, RichNode,
 };
 
-use super::content_diagnostics::ContentParseDiagnostics;
+use super::parse_diagnostics::ContentParseDiagnostics;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ParsedContentDocument {
-    pub(crate) document: RichDocument,
-    pub(crate) diagnostics: ContentParseDiagnostics,
+pub struct ParsedContentDocument {
+    pub document: RichDocument,
+    pub diagnostics: ContentParseDiagnostics,
 }
 
-pub(crate) trait LocalizationResolver {
+pub trait LocalizationResolver {
     fn localized_value(&self, key: &str) -> Option<&str>;
 }
 
-pub(crate) fn parse_foundry_content(value: &str) -> ParsedContentDocument {
+pub fn parse_foundry_content(value: &str) -> ParsedContentDocument {
     parse_foundry_content_with_localization(value, None)
 }
 
-pub(crate) fn parse_foundry_content_with_localization(
+pub fn parse_foundry_content_with_localization(
     value: &str,
     localization: Option<&dyn LocalizationResolver>,
 ) -> ParsedContentDocument {
@@ -207,9 +207,7 @@ fn parse_inline_command(
     start: usize,
     state: &mut ParseState<'_>,
 ) -> Option<ParsedFoundryNode> {
-    let rest = &value[start..];
-    let body_end_relative = rest.find("]]")?;
-    let body_end = start + body_end_relative;
+    let body_end = inline_command_end(value, start + 3)?;
     let body = value[start + 3..body_end].trim();
     let mut end = body_end + 2;
     let label = parse_optional_label(value, &mut end, state)?;
@@ -227,6 +225,20 @@ fn parse_inline_command(
         },
         end,
     })
+}
+
+fn inline_command_end(value: &str, start: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for (relative, character) in value[start..].char_indices() {
+        let index = start + relative;
+        match character {
+            '[' => depth += 1,
+            ']' if depth > 0 => depth -= 1,
+            ']' if value[index..].starts_with("]]") => return Some(index),
+            _ => {}
+        }
+    }
+    None
 }
 
 fn parse_foundry_macro(
@@ -294,13 +306,23 @@ fn parse_foundry_macro(
         }
         "check" => RichNode::Foundry {
             node: FoundryNode::Check {
-                statistic: parsed_body.first_positional().map(ToOwned::to_owned),
+                statistic: parsed_body
+                    .options
+                    .get("type")
+                    .cloned()
+                    .or_else(|| parsed_body.first_positional().map(ToOwned::to_owned)),
                 options: parsed_body.options,
                 label,
             },
         },
         "damage" => {
-            let formula = parsed_body.first_positional().unwrap_or(body).to_string();
+            let formula = parsed_body
+                .options
+                .get("formula")
+                .map(String::as_str)
+                .or_else(|| parsed_body.first_positional())
+                .unwrap_or(body)
+                .to_string();
             RichNode::Foundry {
                 node: FoundryNode::Damage {
                     damage_parts: damage_parts(&formula),
@@ -318,26 +340,6 @@ fn parse_foundry_macro(
                     .cloned()
                     .or_else(|| parsed_body.first_positional().map(ToOwned::to_owned)),
                 options: parsed_body.options,
-                label,
-            },
-        },
-        "action" => RichNode::Foundry {
-            node: FoundryNode::ActionGlyph {
-                action: label
-                    .as_ref()
-                    .map(|label| render_plain_text(&RichDocument::new(label.clone())))
-                    .filter(|text| !text.trim().is_empty())
-                    .unwrap_or_else(|| parsed_body.first_positional().unwrap_or(body).to_string()),
-            },
-        },
-        "trait" => RichNode::Foundry {
-            node: FoundryNode::Trait {
-                traits: split_at_depth(body, ',')
-                    .into_iter()
-                    .map(str::trim)
-                    .filter(|term| !term.is_empty())
-                    .map(ToOwned::to_owned)
-                    .collect(),
                 label,
             },
         },
@@ -431,17 +433,17 @@ impl ParsedMacroBody {
         let mut positional = Vec::new();
         let mut options = BTreeMap::new();
 
-        for segment in split_at_depth(body, '|') {
+        for (index, segment) in split_at_depth(body, '|').into_iter().enumerate() {
             let segment = segment.trim();
             if segment.is_empty() {
                 continue;
             }
             if let Some((key, value)) = split_option(segment) {
                 options.insert(key.to_string(), value.to_string());
-            } else if positional.is_empty() {
+            } else if index == 0 {
                 positional.push(segment.to_string());
             } else {
-                options.insert(segment.to_string(), "true".to_string());
+                options.insert(segment.to_string(), String::new());
             }
         }
 

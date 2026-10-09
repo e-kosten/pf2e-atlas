@@ -12,6 +12,7 @@ mod presentation_recipe;
 #[cfg(test)]
 mod presentation_recipe_tests;
 mod reference_policy;
+pub mod source_content;
 
 pub use content::{
     ContentFtsField, ContentSectionNode, ContentSectionOrigin, ContentSourceKind,
