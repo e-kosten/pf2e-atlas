@@ -1,6 +1,8 @@
+use super::content::select_content;
 use super::nodes::item_fields;
+use super::nodes::source_nodes;
 use super::{ItemSourceView, SourceBackedRecord, SourceFieldView, SourceNodeView};
-use crate::source_content::{ContentVisibilityRule, OwnedContentLocator};
+use crate::source_content::{ContentAudience, ContentVisibilityRule, OwnedContentLocator};
 use atlas_domain::{RecordKey, RecordKind};
 use atlas_foundry_model::{ActorSourcePF2e, FoundryDocumentSource, PublicationData, generated::*};
 use serde_json::Number;
@@ -418,32 +420,58 @@ pub enum SourceTextKind {
 #[derive(Debug)]
 pub struct SourceTextSource<'a> {
     pub record: &'a RecordKey,
-    pub owners: &'a [OwnedContentLocator],
+    pub owners: Vec<OwnedContentLocator>,
     pub field: &'a str,
     pub kind: SourceTextKind,
     pub visibility: ContentVisibilityRule,
     pub text: &'a str,
 }
 impl SourceBackedRecord {
-    /// Prepared content is already filtered for the enrichment call's explicit
-    /// audience. Occurrence sidecars are not exposed as audience-facing text.
-    pub fn text_sources<'a>(&'a self, pack_label: &'a str) -> Vec<SourceTextSource<'a>> {
+    /// Combine source-backed plain fields with compatible prepared prose.
+    /// Callers supply output from this record's exact snapshot and audience;
+    /// preparation evidence is never exposed as audience-facing search text.
+    pub fn text_sources<'a>(
+        &'a self,
+        content: &'a [super::SourceContentOutcome],
+        audience: ContentAudience,
+        pack_label: &'a str,
+    ) -> Vec<SourceTextSource<'a>> {
         let mut out = Vec::new();
-        if let Some(name) = SourceNodeView::from(&self.source).name().value() {
-            out.push(SourceTextSource {
-                record: &self.key,
-                owners: &[],
-                field: "/name",
-                kind: SourceTextKind::Name,
-                visibility: ContentVisibilityRule::All,
-                text: name,
-            });
+        for entry in source_nodes(&self.source) {
+            for selection in select_content(entry.source) {
+                if !matches!(
+                    selection.format,
+                    SourceFieldView::Value(super::SourceContentFormat::Plain)
+                ) {
+                    continue;
+                }
+                let (Some(text), Some(visibility)) =
+                    (selection.text.value(), selection.visibility.value())
+                else {
+                    continue;
+                };
+                if !audience.permits(visibility) {
+                    continue;
+                }
+                out.push(SourceTextSource {
+                    record: &self.key,
+                    owners: entry.owners.clone(),
+                    field: selection.field,
+                    kind: if selection.role == super::SourceContentRole::Name {
+                        SourceTextKind::Name
+                    } else {
+                        SourceTextKind::Content
+                    },
+                    visibility,
+                    text,
+                });
+            }
         }
         let query = SourceQueryView::new(&self.source, self.key.pack().as_str(), pack_label);
         if let Some(title) = query.publication_title().value() {
             out.push(SourceTextSource {
                 record: &self.key,
-                owners: &[],
+                owners: vec![],
                 field: if matches!(query.source, SourceNodeView::Actor(_)) {
                     "/system/details/publication/title"
                 } else {
@@ -458,7 +486,7 @@ impl SourceBackedRecord {
             for text in traits {
                 out.push(SourceTextSource {
                     record: &self.key,
-                    owners: &[],
+                    owners: vec![],
                     field: "/system/traits/value",
                     kind: SourceTextKind::Trait,
                     visibility: ContentVisibilityRule::All,
@@ -466,15 +494,12 @@ impl SourceBackedRecord {
                 });
             }
         }
-        for field in &self.enrichment.content {
-            if field.role == super::SourceContentRole::Name && field.locator.owners.is_empty() {
-                continue;
-            }
+        for field in content {
             if let super::SourceContentStatus::Prepared(content) = &field.status {
                 out.push(SourceTextSource {
                     record: &self.key,
-                    owners: &field.locator.owners,
-                    field: &field.locator.field,
+                    owners: content.locator.owners.clone(),
+                    field: &content.locator.field,
                     kind: if field.role == super::SourceContentRole::Name {
                         SourceTextKind::Name
                     } else {

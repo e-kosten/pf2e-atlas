@@ -1,5 +1,5 @@
-use super::nodes::{actor_fields, item_fields};
-use super::{FieldAvailability, ItemSourceView, SourceFieldView, SourceNodeEntry, SourceNodeView};
+use super::nodes::{SourceNodeEntry, actor_fields, item_fields};
+use super::{FieldAvailability, ItemSourceView, SourceFieldView, SourceNodeView};
 use crate::source_content::{
     ContentReferenceResolution, ContentReferenceResolver, SourceContentLocator,
 };
@@ -21,6 +21,19 @@ pub struct SourceRelationshipOccurrence {
     pub availability: FieldAvailability,
     pub authored_target: Option<String>,
     pub resolution: ContentReferenceResolution,
+}
+
+/// Resolve declared structured links without attaching a second model to the
+/// source record. Occurrences precede graph deduplication and eligibility policy.
+pub fn resolve_source_relationships(
+    record: &super::SourceBackedRecord,
+    resolver: Option<&super::SourceReferenceIndex>,
+) -> Vec<SourceRelationshipOccurrence> {
+    let mut output = Vec::new();
+    for entry in super::nodes::source_nodes(&record.source) {
+        collect_relationships(&record.key, &entry, resolver, &mut output);
+    }
+    output
 }
 
 pub(super) fn collect_relationships(

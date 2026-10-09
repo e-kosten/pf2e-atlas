@@ -1,15 +1,11 @@
 use super::nodes::item_fields;
-use super::{
-    FieldAvailability, OwnedNodeFact, SourceBackedRecord, SourceFieldView, SourceNodeView,
-    SourceRecordEnrichment, source_nodes,
-};
+use super::nodes::source_nodes;
+use super::{FieldAvailability, SourceBackedRecord, SourceFieldView, SourceNodeView};
 use crate::source_content::{
     ContentAudience, ContentReferenceResolver, ContentVisibilityRule, LocalizationResolver,
-    PreparedSourceContent, SourceContentLocator, prepare_plain_source_content,
-    prepare_source_content,
+    PreparedSourceContent, SourceContentLocator, prepare_source_content,
 };
-use atlas_domain::RecordKey;
-use atlas_foundry_model::{ActorSourcePF2e, FoundryDocumentSource};
+use atlas_foundry_model::ActorSourcePF2e;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,121 +31,122 @@ pub enum SourceContentFormat {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SourceContentStatus {
     Prepared(Box<PreparedSourceContent>),
-    Unavailable(FieldAvailability),
-    FormatUnavailable(FieldAvailability),
-    UnsupportedFormat,
-    PreparationFailed { message: String },
+    FormatUnavailable {
+        locator: SourceContentLocator,
+        availability: FieldAvailability,
+    },
+    UnsupportedFormat {
+        locator: SourceContentLocator,
+        format: SourceContentFormat,
+    },
+    PreparationFailed {
+        locator: SourceContentLocator,
+        message: String,
+    },
 }
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceContentOutcome {
-    pub locator: SourceContentLocator,
     pub role: SourceContentRole,
-    pub format: Option<SourceContentFormat>,
     pub visibility: ContentVisibilityRule,
     pub visibility_availability: FieldAvailability,
     pub status: SourceContentStatus,
 }
 
-struct ContentSelection<'a> {
-    field: &'static str,
-    role: SourceContentRole,
-    format: SourceFieldView<'a, SourceContentFormat>,
-    visibility: SourceFieldView<'a, ContentVisibilityRule>,
-    text: SourceFieldView<'a, &'a String>,
+impl SourceContentOutcome {
+    /// Each result retains its field address once, including failed preparation.
+    pub fn locator(&self) -> &SourceContentLocator {
+        match &self.status {
+            SourceContentStatus::Prepared(prepared) => &prepared.locator,
+            SourceContentStatus::FormatUnavailable { locator, .. }
+            | SourceContentStatus::UnsupportedFormat { locator, .. }
+            | SourceContentStatus::PreparationFailed { locator, .. } => locator,
+        }
+    }
 }
 
-/// Consume the admitted source, preserving it unchanged. The resolver contains
-/// identities only; a preparation error affects one field, never the root.
-pub fn enrich_source_record(
-    key: RecordKey,
-    source: FoundryDocumentSource,
+pub(super) struct ContentSelection<'a> {
+    pub field: &'static str,
+    pub role: SourceContentRole,
+    pub format: SourceFieldView<'a, SourceContentFormat>,
+    pub visibility: SourceFieldView<'a, ContentVisibilityRule>,
+    pub text: SourceFieldView<'a, &'a String>,
+}
+
+/// Prepare the complete declared prose selection without changing its source.
+/// Every selected present rich field yields a result, including empty/hidden text
+/// and unsupported formats. Source-unavailable fields have no output row; their
+/// presence and admission diagnostics remain in the DTO. Plain fields are borrowed
+/// by text_sources instead. This is not an audience-safe application response.
+///
+/// Results are specific to this source snapshot and the supplied audience,
+/// localization and reference context. Callers retain those identities when
+/// storing/reusing results; a RecordKey alone cannot identify a prepared cache.
+pub fn prepare_record_content(
+    record: &SourceBackedRecord,
     audience: ContentAudience,
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&super::SourceReferenceIndex>,
-) -> SourceBackedRecord {
-    let (nodes, collections) = source_nodes(&key, &source);
-    let mut enrichment = SourceRecordEnrichment {
-        audience,
-        collections,
-        owned_nodes: Vec::new(),
-        content: Vec::new(),
-        relationships: Vec::new(),
-    };
-    for entry in nodes {
-        if !entry.owners.is_empty() {
-            enrichment.owned_nodes.push(OwnedNodeFact {
-                owners: entry.owners.clone(),
-                order: entry.order,
-                document_kind: entry.source.document_kind().into(),
-                source_type: entry.source.source_type().value().map(str::to_string),
-            });
-        }
+) -> Vec<SourceContentOutcome> {
+    let mut output = Vec::new();
+    for entry in source_nodes(&record.source) {
         for selection in select_content(entry.source) {
+            let SourceFieldView::Value(text) = selection.text else {
+                continue;
+            };
+            if matches!(
+                selection.format,
+                SourceFieldView::Value(SourceContentFormat::Plain)
+            ) {
+                continue;
+            }
             let locator = SourceContentLocator {
-                record: key.clone(),
+                record: record.key.clone(),
                 owners: entry.owners.clone(),
                 field: selection.field.into(),
             };
-            let format = selection.format.value();
             let visibility = selection
                 .visibility
                 .value()
                 .unwrap_or(ContentVisibilityRule::None);
             let visibility_availability = selection.visibility.availability();
-            let status = match (selection.text, selection.format) {
-                (SourceFieldView::Value(text), SourceFieldView::Value(format)) => match format {
-                    SourceContentFormat::Plain => SourceContentStatus::Prepared(Box::new(
-                        prepare_plain_source_content(locator.clone(), text, audience, visibility),
-                    )),
-                    SourceContentFormat::Html => match prepare_source_content(
-                        locator.clone(),
-                        text,
-                        audience,
-                        visibility,
-                        localization,
-                        references.map(|r| r as &dyn ContentReferenceResolver),
-                    ) {
-                        Ok(prepared) => SourceContentStatus::Prepared(Box::new(prepared)),
-                        Err(error) => SourceContentStatus::PreparationFailed {
-                            message: error.to_string(),
-                        },
+            let status = match selection.format {
+                SourceFieldView::Value(SourceContentFormat::Html) => match prepare_source_content(
+                    locator.clone(),
+                    text,
+                    audience,
+                    visibility,
+                    localization,
+                    references.map(|r| r as &dyn ContentReferenceResolver),
+                ) {
+                    Ok(prepared) => SourceContentStatus::Prepared(Box::new(prepared)),
+                    Err(error) => SourceContentStatus::PreparationFailed {
+                        locator,
+                        message: error.to_string(),
                     },
-                    SourceContentFormat::Markdown | SourceContentFormat::Unsupported => {
-                        SourceContentStatus::UnsupportedFormat
-                    }
                 },
-                (text, _) if !matches!(text, SourceFieldView::Value(_)) => {
-                    SourceContentStatus::Unavailable(text.availability())
+                SourceFieldView::Value(format) => {
+                    SourceContentStatus::UnsupportedFormat { locator, format }
                 }
-                (_, format) => SourceContentStatus::FormatUnavailable(format.availability()),
+                format => SourceContentStatus::FormatUnavailable {
+                    locator,
+                    availability: format.availability(),
+                },
             };
-            enrichment.content.push(SourceContentOutcome {
-                locator,
+            output.push(SourceContentOutcome {
                 role: selection.role,
-                format,
                 visibility,
                 visibility_availability,
                 status,
             });
         }
-        super::relationships::collect_relationships(
-            &key,
-            &entry,
-            references,
-            &mut enrichment.relationships,
-        );
     }
-    SourceBackedRecord {
-        key,
-        source,
-        enrichment,
-    }
+    output
 }
 
 // Evidence: PF2e 6.12.4 Item.description and Actor family sheet enrichHTML
 // callsites; core journal text format 1/2 and RollTable HTMLField declarations.
 // Unknown/additional/patch/rule strings are intentionally not traversed.
-fn select_content(source: SourceNodeView<'_>) -> Vec<ContentSelection<'_>> {
+pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<ContentSelection<'_>> {
     use ContentVisibilityRule::{All, Gm, Owner};
     use SourceContentFormat::{Html, Plain};
     use SourceContentRole::*;

@@ -1,8 +1,9 @@
 # Source-backed enrichment corpus evidence
 
-The database-independent record library retains the generated Foundry DTO and
-derives owned identity, selected content, references, relationships and borrowed
-query/text views. Its consuming ingest handoff preserves exact bytes, provenance,
+The database-independent record library retains only the key and generated Foundry
+DTO. Explicit preparation operations derive selected content, references and
+relationships; query/text accessors borrow source fields. Its consuming ingest
+handoff carries these separate outputs and preserves exact bytes, provenance,
 pack metadata, admission diagnostics and unavailable/quarantined outcomes. See
 [ADR 0045](../architecture/decisions/0045-source-backed-record-enrichment.md) and
 the [initial projection inventory](./source-record-query-projections.md).
@@ -23,17 +24,35 @@ this is a source-inspection choice, not a product default.
 | Exact checked snapshots unchanged before/after enrichment | 25,641 |
 | Exact decoded Rust model equality | 25,641 |
 | Selected root projection values independently compared to authored JSON | 146,620 |
-| Owned nodes, excluding roots | 82,069 |
-| Prepared content fields with checked reference/interaction markers | 230,454 |
+| Embedded documents counted through shared traversal, excluding roots | 82,069 |
+| Prepared rich-content fields with checked reference/interaction markers | 117,937 |
 | Content references / structured relationship occurrences | 85,302 / 79,356 |
 | Resolved document references / unverified HTML URLs | 85,300 / 2 |
 | Unresolved / blocked recognized content references | 0 each |
 | Content preparations returning an error | 0 |
 
-Another 99,082 selected content-field outcomes are unavailable. These are field
-states such as missing, null, invalid or non-applicable, not discarded documents.
-The retained source remains the authority for their distinct states and rejected
-values. No collection is shortened by salvaging raw neighbors.
+Source availability and rejected values remain in the DTO. Preparation no longer
+emits rows for ordinary missing/null/invalid/non-applicable text fields; present
+rich fields still produce an explicit prepared/unsupported/failed outcome,
+including valid empty and hidden content. No collection is shortened by salvaging
+raw neighbors. The developer report counts embedded documents on demand rather
+than retaining node or collection inventories on records.
+
+The previous candidate prepared 230,454 fields and retained another 99,082
+unavailable outcomes. The revision removes those unavailable rows and 112,517
+prepared copies of plain fields. Names, captions and other declared plain text
+remain available through borrowed text sources, bypassing macro interpretation.
+
+An independently compiled copy of the previous candidate and the final revision
+emit the same 272,892 nonempty text-source rows. Their sorted, length-prefixed
+SHA-256 fingerprint is
+`a3987daca28082f7b7970aa9966668abf0852978f71d284ad9c2d9f3ee5ea621`.
+The comparison includes record key, owner chain, field, text kind, visibility and
+text, preserving duplicate occurrences. Total rows change from 305,313 to 304,533
+because direct plain-field access omits 780 audience-ineligible empty placeholders;
+present empty rich-text results remain. Reference/relationship counts and admission/
+content diagnostic counts are unchanged. This checks emitted text fidelity for
+the supplied corpus/context, not search ranking or rendering equivalence.
 
 External HTML URLs pass the sanitizer but are not checked for reachability;
 their unverified status is separate from document identity resolution.
@@ -71,36 +90,40 @@ existence. This evidence does not establish Foundry runtime or browser equivalen
 ## Measured cost and storage implications
 
 Environment: Darwin 25.5.0, arm64, Rust 1.98.1 (Homebrew), unoptimized developer
-build. One complete corpus run; largest-root preparation repeated three times
-with a warm resolver/locale, excluding source cloning from those intervals.
+build. Sizes and timings below come from the first complete revision corpus run;
+a second run verifies final text fingerprints and repeats retention/projection/
+marker checks. Largest-root preparation repeats three times with a warm
+resolver/locale, borrowing the unchanged record in those intervals.
 Times are observations, not performance guarantees or SQLite hydration timings.
 
 | Serialized component | Bytes |
 | --- | ---: |
 | Original authored source | 239,431,946 |
 | Checked typed snapshots | 288,348,086 |
-| Complete enrichment JSON, including prepared content | 322,401,675 |
-| Prepared HTML within enrichment | 53,731,012 |
-| Prepared text within enrichment | 47,280,970 |
+| Separate content and relationship outputs, measured as a JSON tuple | 196,831,541 |
+| Prepared HTML within content outputs | 52,196,570 |
+| Prepared text within content outputs | 45,746,652 |
 
-Load/admission took 2.24 seconds; identity indexing and enrichment 37.18 seconds;
-checked snapshot encoding 9.01 seconds and decoding 10.97 seconds. The whole
-proof process took 114.99 seconds, including pre-enrichment hashing, independent
-comparisons, marker checks, serialization and repeated preparations. macOS
-`time -l` measured maximum resident size 2,078,883,840 bytes and peak memory
-footprint 1,775,159,240 bytes. The proof holds the whole corpus and evidence in
-memory; these are not per-record runtime hydration costs.
+Load/admission took 2.52 seconds; identity indexing and preparation 39.56 seconds;
+checked snapshot encoding 9.53 seconds and decoding 11.72 seconds. No whole-process
+memory measurement was taken for this revision. The proof holds the whole corpus
+and evidence in memory; these are not per-record runtime hydration costs.
 
-| Largest authored root | Authored bytes | Snapshot bytes | Enrichment bytes | Three warm preparations, milliseconds |
+The earlier complete enrichment JSON measured 322,401,675 bytes. Separate output
+now measures 125,570,134 bytes less (39%). Prepared HTML/text shrink because plain
+source fields are borrowed, not because their authored content is discarded.
+
+| Largest authored root | Authored bytes | Snapshot bytes | Derived output bytes | Three warm preparations, milliseconds |
 | --- | ---: | ---: | ---: | --- |
-| Journals: archetypes | 1,305,718 | 1,356,441 | 3,591,722 | 943 / 947 / 964 |
-| Journals: ancestries | 383,776 | 396,197 | 827,012 | 154 / 151 / 149 |
-| Journals: classes | 326,962 | 333,038 | 1,236,620 | 287 / 288 / 288 |
-| Rinnarv Bontimar | 297,232 | 323,991 | 325,567 | 38 / 37 / 37 |
-| Feiya, level 5 | 261,965 | 289,264 | 295,711 | 31 / 31 / 31 |
+| Journals: archetypes | 1,305,718 | 1,356,441 | 3,337,696 | 986 / 1,000 / 990 |
+| Journals: ancestries | 383,776 | 396,197 | 768,807 | 171 / 158 / 157 |
+| Journals: classes | 326,962 | 333,038 | 1,208,286 | 297 / 296 / 298 |
+| Rinnarv Bontimar | 297,232 | 323,991 | 223,213 | 40 / 39 / 39 |
+| Feiya, level 5 | 261,965 | 289,264 | 190,159 | 34 / 32 / 33 |
 
-Enrichment JSON exceeds the typed body size: repeated locators/availability and
-prepared strings have a real cost. Its serialization measures the library result;
+The serialized derived outputs are smaller than the typed bodies, but prepared
+strings and occurrence metadata still have a real cost. Serialization measures
+the library result;
 it is not the proposed artifact encoding. Physical storage must evaluate compact
 owner/field references, compression and selective prepared-content caching against
 actual hydration and query needs. Retaining source data does not require loading

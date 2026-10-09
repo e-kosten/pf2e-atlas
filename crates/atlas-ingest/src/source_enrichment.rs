@@ -4,8 +4,9 @@ use atlas_foundry_model::{FoundryDocumentSource, SourceDiagnostic, SourceValue};
 use atlas_record::{
     source_content::{ContentAudience, LocalizationResolver},
     source_record::{
-        SourceBackedRecord, SourceContentStatus, SourceIdentityError, SourceReferenceIndex,
-        enrich_source_record, source_record_key,
+        SourceBackedRecord, SourceContentOutcome, SourceContentStatus, SourceIdentityError,
+        SourceReferenceIndex, SourceRelationshipOccurrence, prepare_record_content,
+        resolve_source_relationships, source_owned_document_count, source_record_key,
     },
 };
 use serde::Serialize;
@@ -32,7 +33,11 @@ pub struct EnrichedFoundryDocument {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum EnrichedDocumentOutcome {
-    Addressed(Box<SourceBackedRecord>),
+    Addressed {
+        record: Box<SourceBackedRecord>,
+        content: Vec<SourceContentOutcome>,
+        relationships: Vec<SourceRelationshipOccurrence>,
+    },
     /// No invented key. An admitted model is still retained when only identity
     /// is unavailable; unsupported roots retain exact bytes and diagnostics.
     Unavailable {
@@ -139,13 +144,20 @@ pub fn enrich_loaded_source(
                 .map(|(document, key)| {
                     let outcome = match (key, document.admission.model) {
                         (Ok(key), Some(model)) => {
-                            EnrichedDocumentOutcome::Addressed(Box::new(enrich_source_record(
-                                key,
-                                model,
+                            let record = SourceBackedRecord { key, source: model };
+                            let content = prepare_record_content(
+                                &record,
                                 context.audience,
                                 context.localization,
                                 Some(&resolver),
-                            )))
+                            );
+                            let relationships =
+                                resolve_source_relationships(&record, Some(&resolver));
+                            EnrichedDocumentOutcome::Addressed {
+                                record: Box::new(record),
+                                content,
+                                relationships,
+                            }
                         }
                         (Err(reason), model) => EnrichedDocumentOutcome::Unavailable {
                             reason,
@@ -216,11 +228,15 @@ impl EnrichedFoundrySource {
                 report.retained_documents += 1;
                 report.admission_diagnostics += document.admission_diagnostics.len();
                 let typed = match &document.outcome {
-                    EnrichedDocumentOutcome::Addressed(record) => {
+                    EnrichedDocumentOutcome::Addressed {
+                        record,
+                        content,
+                        relationships,
+                    } => {
                         report.addressed_documents += 1;
-                        report.owned_nodes += record.enrichment.owned_nodes.len();
-                        report.relationships += record.enrichment.relationships.len();
-                        for content in &record.enrichment.content {
+                        report.owned_nodes += source_owned_document_count(record);
+                        report.relationships += relationships.len();
+                        for content in content {
                             let state = match &content.status {
                                 SourceContentStatus::Prepared(prepared) => {
                                     report.references += prepared.references.len();
@@ -232,9 +248,12 @@ impl EnrichedFoundrySource {
                                     }
                                     "prepared"
                                 }
-                                SourceContentStatus::Unavailable(_) => "unavailable",
-                                SourceContentStatus::FormatUnavailable(_) => "format_unavailable",
-                                SourceContentStatus::UnsupportedFormat => "unsupported_format",
+                                SourceContentStatus::FormatUnavailable { .. } => {
+                                    "format_unavailable"
+                                }
+                                SourceContentStatus::UnsupportedFormat { .. } => {
+                                    "unsupported_format"
+                                }
                                 SourceContentStatus::PreparationFailed { .. } => {
                                     "preparation_failed"
                                 }

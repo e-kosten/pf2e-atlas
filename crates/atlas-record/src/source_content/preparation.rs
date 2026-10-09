@@ -69,25 +69,6 @@ fn sanitizer() -> ammonia::Builder<'static> {
     builder
 }
 
-/// A declared plain label/caption never enters the HTML or macro parser.
-pub fn prepare_plain_source_content(
-    locator: SourceContentLocator,
-    text: &str,
-    audience: ContentAudience,
-    visibility: ContentVisibilityRule,
-) -> PreparedSourceContent {
-    let visible = audience.permits(visibility);
-    PreparedSourceContent {
-        locator,
-        interpretation_version: CONTENT_INTERPRETATION_VERSION.into(),
-        html: if visible { escape(text) } else { String::new() },
-        text: if visible { text.into() } else { String::new() },
-        references: Vec::new(),
-        interactions: Vec::new(),
-        diagnostics: Vec::new(),
-    }
-}
-
 fn escape(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
