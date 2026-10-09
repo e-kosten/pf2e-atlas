@@ -5,18 +5,14 @@ use rayon::prelude::*;
 use sha2::{Digest, Sha256};
 
 use super::model::{
-    FoundryDocumentSource, LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource,
-    QuarantinedSourceFile, SourceFileProvenance, SourceLoadFailure, SourceLoadFailureStage,
+    LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource, QuarantinedSourceFile,
+    SourceFileProvenance, SourceLoadFailure, SourceLoadFailureStage,
 };
 use crate::error::IngestError;
 use crate::source::discovery::{
     default_manifest_path, json_files, parse_manifest, relative_source_path, resolve_pack_path,
 };
-use crate::source_model::admission::{
-    admit_actor_value, admit_item_value, admit_journal_value, admit_macro_value,
-    admit_roll_table_value, source,
-};
-use crate::source_model::{SourceAdmission, SourceContext, SourceDiagnostic, SourceValue};
+use atlas_foundry_model::{SourceContext, admit_document_source};
 
 /// Load every manifest pack without constructing Atlas records, resolving
 /// references, applying defaults, extracting metrics or writing artifacts.
@@ -114,8 +110,7 @@ fn load_document(
         &provenance.source_path,
         "$",
     );
-    let admission = source(&context, &bytes)
-        .and_then(|raw| admit_document(&provenance.document_type, context, raw));
+    let admission = admit_document_source(&provenance.document_type, context, &bytes);
     match admission {
         Ok(admission) => Ok(LoadedFoundryDocument {
             provenance,
@@ -133,49 +128,4 @@ fn load_document(
             content_hash: Some(content_hash),
         })),
     }
-}
-
-fn admit_document(
-    document_type: &str,
-    context: SourceContext,
-    raw: SourceValue,
-) -> Result<SourceAdmission<FoundryDocumentSource>, SourceDiagnostic> {
-    fn wrap<T>(
-        admission: SourceAdmission<T>,
-        constructor: impl FnOnce(Box<T>) -> FoundryDocumentSource,
-    ) -> SourceAdmission<FoundryDocumentSource> {
-        SourceAdmission {
-            raw: admission.raw,
-            model: admission.model.map(Box::new).map(constructor),
-            diagnostics: admission.diagnostics,
-        }
-    }
-    Ok(match document_type {
-        "Actor" => wrap(
-            admit_actor_value(context, raw)?,
-            FoundryDocumentSource::Actor,
-        ),
-        "Item" => wrap(admit_item_value(context, raw)?, FoundryDocumentSource::Item),
-        "JournalEntry" => wrap(
-            admit_journal_value(context, raw)?,
-            FoundryDocumentSource::JournalEntry,
-        ),
-        "Macro" => wrap(
-            admit_macro_value(context, raw)?,
-            FoundryDocumentSource::Macro,
-        ),
-        "RollTable" => wrap(
-            admit_roll_table_value(context, raw)?,
-            FoundryDocumentSource::RollTable,
-        ),
-        _ => SourceAdmission {
-            diagnostics: vec![context.message(
-                "$",
-                "manifest document type Actor | Item | JournalEntry | Macro | RollTable",
-                document_type,
-            )],
-            raw,
-            model: None,
-        },
-    })
 }

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 
 use super::model::{LoadedFoundrySource, SourceLoadFailure};
-use crate::source_model::SourceDiagnostic;
+use atlas_foundry_model::SourceDiagnostic;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct SourceDocumentCounts {

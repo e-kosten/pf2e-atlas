@@ -25,10 +25,10 @@ export async function sourceProbe(args: { graph: TypeGraph; input: GenerationInp
   await writeFile(path.join(args.out, 'main.rs'), `#![allow(dead_code, unused_imports)]
 #![recursion_limit="512"]
 mod source_model {
-${['keyed', 'parse', 'presence', 'union', 'value'].map(module => `#[path=${rustPath(`crates/atlas-ingest/src/source_model/${module}.rs`)}] mod ${module};`).join('\n')}
+${['keyed', 'parse', 'presence', 'union', 'value'].map(module => `#[path=${rustPath(`crates/atlas-foundry-model/src/source_model/${module}.rs`)}] mod ${module};`).join('\n')}
 pub use keyed::SourceMap;
 pub mod generated;
-#[path=${rustPath('crates/atlas-ingest/examples/support/rule_fidelity.rs')}] mod fidelity;
+#[path=${rustPath('crates/atlas-foundry-model/examples/support/rule_fidelity.rs')}] mod fidelity;
 pub fn run() {
     use std::io::BufRead;
     let graph: serde_json::Value = serde_json::from_str(include_str!("graph.json")).unwrap();

@@ -88,8 +88,8 @@ Outputs include common Item/Actor/physical components, `items/families/*`,
 system roots reserve their modules before traversing embedded references; shared
 shapes still have one owner. Large object union payloads are boxed to bound enum
 layout without changing serialized values. The public Rust value and selected
-root-parser namespace is `atlas_ingest::source_model::generated`.
-Byte entry points in `atlas_ingest::source_model` parse the five document kinds
+root-parser namespace is `atlas_foundry_model::generated`.
+Byte entry points in `atlas_foundry_model` parse the five document kinds
 and keyed `RuleSource`. Item.rules follows upstream's generic RuleElementSource;
 use the specific rule parser separately. Existing field-level slice entry points
 remain independently callable.
@@ -171,13 +171,20 @@ npm --prefix dev-tools/source-contracts run compare-portfolio -- \
   --out scratch/portfolio-comparison
 ```
 
-This re-extracts the pinned source, checks Rust freshness, builds the actual atlas-ingest
+This re-extracts the pinned source, checks Rust freshness, builds the actual atlas-foundry-model
 `source_portfolio_probe` example offline, and samples all five document kinds
 plus every specific Item rule. Output includes raw `packets.ndjson`,
 `results.ndjson` and `comparison.json` with per-root counts, every failure context,
 fidelity and a corpus/rejection baseline comparison. No scratch parser substitutes
 for the maintained crate. Unknown rule keys and document kinds fail visibly.
 The command uses the repository Cargo target directory (or CARGO_TARGET_DIR).
+
+Generated unions now serialize with explicit `$variant`/`$value` tags. The
+independent declaration oracle checks authored payloads; snapshot checks assert
+exact typed variants. The codec validates generated source identity plus format
+version and never reparses retained source. `parse_source_value` is the explicit
+ordered authored-JSON reader. Filesystem loading remains in atlas-ingest.
+
 
 The saved baseline detects changed corpus bytes, counts and first-error outcomes.
 It is comparison evidence, not an ingest allowlist. Matching known rejections
@@ -280,7 +287,7 @@ For shared Item fidelity against a pinned source export:
 
 ```sh
 npm --prefix dev-tools/source-contracts run build
-cargo build -p atlas-ingest --example item_generation_probe
+cargo build -p atlas-foundry-model --example item_generation_probe
 npm --prefix dev-tools/source-contracts run generate -- --source scratch/pf2e --check
 set -o pipefail
 node dev-tools/source-contracts/dist/src/cli/sample-items.js --source scratch/pf2e | \
@@ -302,7 +309,7 @@ For predicate value discovery and fidelity:
 
 ```sh
 npm --prefix dev-tools/source-contracts run build
-cargo build -p atlas-ingest --example predicate_generation_probe
+cargo build -p atlas-foundry-model --example predicate_generation_probe
 set -o pipefail
 node dev-tools/source-contracts/dist/src/cli/sample-predicates.js --source scratch/pf2e | \
   target/debug/examples/predicate_generation_probe > scratch/predicate-corpus-report.json
@@ -320,7 +327,7 @@ than suppressing it. All other 18,512 selected occurrences have equal typed valu
 See the [recursive report](../../docs/research/recursive-source-generation.md).
 
 Synthetic regression graphs live in `fixtures/recursive-fixture.ts`; their generated
-test-only Rust files under `crates/atlas-ingest/tests/fixtures/source_model/generated`
+test-only Rust files under `crates/atlas-foundry-model/tests/fixtures/source_model/generated`
 compile against the actual source primitives. Package tests verify file freshness;
 Rust tests execute mixed recursive layouts, empty tuples, literal roots, nullable
 discriminants and optional-arm ambiguity. To refresh after an intentional fixture

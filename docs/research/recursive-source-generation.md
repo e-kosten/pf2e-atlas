@@ -16,7 +16,7 @@ production ingest, storage, metrics or UI adoption occurs.
 
 The Rust API exposes `parse_predicate_statement`, `parse_predicate_statements`
 and `parse_predicate_input` with contextual diagnostics. Generated values live
-under `source_model::generated`; owners are partitioned into `rules/predicate.rs`.
+under `atlas_foundry_model::generated`; owners are partitioned into `rules/predicate.rs`.
 Comparison operands share a typed `(String, StringOrNumber)` tuple and parser;
 the tuple appears inline in all five operator fields. Anonymous primitive unions
 use member-derived names in fixed String, Number, Boolean order. Complete
@@ -141,7 +141,7 @@ export the pin and extract it strictly. From the repository root:
 npm --prefix dev-tools/source-contracts run verify
 cargo test -p atlas-ingest --test predicate_source_generation \
   --test recursive_generation_fixture --example predicate_generation_probe
-cargo build -p atlas-ingest --example predicate_generation_probe
+cargo build -p atlas-foundry-model --example predicate_generation_probe
 set -o pipefail
 node dev-tools/source-contracts/dist/src/cli/sample-predicates.js --source scratch/pf2e | \
   target/debug/examples/predicate_generation_probe > scratch/predicate-corpus-report.json

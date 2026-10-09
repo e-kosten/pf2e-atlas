@@ -4,6 +4,20 @@ This document describes the Rust workspace architecture for deterministic ingest
 
 The Rust architecture is deliberately crate-oriented. Crates should expose only the public API needed by adjacent owners, and ingest/build-time policy should not leak into runtime query or presentation crates.
 
+`atlas-foundry-model` is the dependency-safe owner of authored source types and
+their snapshot codec. `encode_snapshot` stores the typed document without a
+second raw tree; `decode_snapshot` validates version and source identity before
+decoding explicit union tags. It runs no source admission, defaults or repairs.
+`parse_source_value` is the separate authored-JSON reader; Serde Deserialize for
+SourceValue reads its tagged typed representation. Numeric-key validation keeps
+the existing ryu-js JavaScript formatting semantics. Filesystem discovery,
+original bytes/hashes, provenance, quarantine and load reporting remain ingest
+concerns. No current artifact adoption is implied by this shared boundary.
+
+The snapshot codec uses serde_stacker to protect Serde recursion and a bounded
+1,024-container input guard. The source reader's existing 128-container limit
+remains unchanged; snapshot tags and ordered pair lists expand its nesting.
+
 ## System Shape
 
 ```mermaid
@@ -61,7 +75,8 @@ flowchart TD
 | `atlas-tags` | Tag ontology, YAML parsing, corpus loading, applicability evaluation, assignment validation, evidence validation, ontology suggestions, and tagging agent contract DTOs. | Raw source normalization, SQLite schema, runtime path policy, CLI presentation, or terminal rendering. |
 | `atlas-local-state` | Durable mutable local state stored outside the generated artifact, including saved-list schema/items and encounter schema/participants with snapshots for unresolved record-backed rows. | Generated artifact schema, source ingest, retrieval/search semantics, runtime path policy, CLI presentation, or frontend state. |
 | `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, mechanics/activity projections, `RichDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
-| `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and owned conversion into `IndexBuildInput`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, physical SQLite writer ownership. |
+| `atlas-foundry-model` | Generated authored models, ordered values, field presence, strict parsing, admission, document dispatch and versioned typed snapshots. | Filesystem loading, SQLite, product normalization, content interpretation, embedding and runtime service composition. |
+| `atlas-ingest` | Filesystem source loading, Foundry content parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and owned conversion into `IndexBuildInput`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, physical SQLite writer ownership. |
 | `atlas-index` | Read-only completed-artifact access through narrow read capability traits and the composite `RetrievalReadIndex` bundle implemented by `SqliteIndexReader`, Diesel-backed relational schema and migrations, artifact writing through `IndexArtifactWriter` and `SqliteIndexWriter`, filter discovery field policy and SQLite extractor rendering, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy, runtime path policy, metric-definition ownership, shared discovery/result DTO vocabulary. |
 | `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, SQLite vector byte layout, search result collapse policy. |
 | `atlas-search` | Product-facing retrieval orchestration through `AtlasRetrievalService` and narrow capability traits for records, text search, similar records, graph context, variants, remaster links, and filter discovery. It owns lexical/semantic composition, vector-hit collapse, search ranking modes, and product-shaped filter discovery intent over read-only index handles. Semantic-only retrieval and low-level fusion controls are expert/debug APIs rather than ordinary product entrypoints. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions, preflight artifact validation, or exposing index-owned SQL/read details as product API. |
@@ -94,7 +109,7 @@ flowchart LR
 
 `atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or the build-input handoff. The final build-input handoff consumes ingest state into an owned `atlas-index::IndexBuildInput`; it should not be a borrowed view over `SourceLoad`. Physical SQLite artifact writing belongs in `atlas-index`.
 
-`atlas-ingest::source_model` exposes callable source parsers for Actor, Item,
+`atlas-foundry-model` exposes callable source parsers for Actor, Item,
 JournalEntry, Macro, RollTable and specific built-in rules. Its maintained
 generated portfolio covers all 47 extracted roots, eight Actor families and 24
 Item families. Existing physical/equipment, shared Item and predicate slices
@@ -204,7 +219,7 @@ comparison. See [ADR 0040](./decisions/0040-authored-document-inputs.md) and the
 remaining constrained discrepancies and runtime evidence boundaries.
 
 Callable source admission is separate from strict authored parsing. The
-`source_model::admit_*` APIs preserve ordered raw source, a typed model when the
+`atlas_foundry_model::admit_*` APIs preserve ordered raw source, a typed model when the
 root is supported, and diagnostics. `SourcePresence::Invalid` retains a supplied
 but unparseable field and returns no value through `as_value()`. Structured
 children can keep their own invalid fields; malformed scalar collection entries
