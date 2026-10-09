@@ -33,7 +33,7 @@ pub enum OwnedContentIdentity {
 }
 
 /// Explicit projection inputs, not a Foundry permission/runtime emulator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContentAudience {
     pub include_gm: bool,
     pub include_owner: bool,
@@ -76,9 +76,16 @@ pub struct ResolvedContentReference {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ContentReferenceTarget {
-    Record { key: RecordKey },
-    LocalContent { content_key: String },
-    Url { url: String },
+    Record {
+        key: RecordKey,
+    },
+    OwnedNode {
+        key: RecordKey,
+        owners: Vec<OwnedContentLocator>,
+    },
+    Url {
+        url: String,
+    },
 }
 
 /// Preparation output carries no authored body or generic markup tree.

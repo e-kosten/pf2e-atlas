@@ -3,14 +3,14 @@
 Status: in_progress
 Priority: after typed source loading
 Owner: Codex
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-09
 
 ## Implementation checkpoint
 
 The local design study selected source-shaped authored models with focused Atlas
 enrichment and relational query projections. Shared model ownership and exact
 typed snapshots are implemented under ADR 0043; no product artifact, metric or UI
-replacement follows automatically. Remaining work is focused enrichment/content
+replacement follows automatically. Remaining work is product enrichment/content
 policy, measured body/projection storage and coherent writer/reader/consumer
 replacement. The design checkpoint remains open until implementation choices and
 validation evidence are reflected in the artifact contract.
@@ -20,6 +20,24 @@ atlas-record parser directly, and source-backed HTML preparation returns HTML,
 text, references, interaction parameters and diagnostics without another
 persisted tree. The artifact and product consumers still use RichDocument.
 
+ADR 0045 implements the database-independent minimal source-backed record and
+consuming typed ingest handoff. The record retains only its validated key and one
+DTO through checked construction and read-only access. Shared incremental internal
+traversal establishes embedded identity; separate operations
+prepare present rich text and resolve structured relationship occurrences. Ingest
+packets compose those outputs with source evidence. Existing focused query/text
+views borrow source, including plain labels, without retained node/container
+inventories or exhaustive absent-field preparation rows. Broader borrowed domain
+views and public traversal/lookup APIs follow concrete consumer requirements.
+Query projection and text extraction modules remain distinct; loading and
+preparation reuse concrete ingest-owned source/pack metadata without redefining it.
+Detailed admission/preparation reports remain developer surfaces. The initial
+[projection catalog and transition inventory](../../research/source-record-query-projections.md)
+accounts for current filters and metrics without requiring a second family schema.
+The [corpus probe evidence](../../research/source-record-enrichment.md) measures
+exact snapshot preservation and enrichment cost; it
+does not establish a physical storage format, product audience or search quality.
+
 Before coherent adoption:
 
 - Select product audience/implicit DC defaults, label/mechanics search projection,
@@ -27,6 +45,17 @@ Before coherent adoption:
   audience inputs and preserves authored labels without appended mechanics.
 - Measure typed body/enrichment/cache storage and hydration. Cache identity must
   cover source/model, interpretation, localization and reference context.
+- Adopt English-default user-overridable indexing locale, recording locale and
+  relevant localization identity in artifact metadata. FTS and document embedding
+  inputs use that context; changing search locale requires re-indexing. Initially
+  display uses the artifact locale. Keep preparation context explicit to allow
+  later independent display localization without adding a UI locale feature or
+  runtime preparation framework now. No locale CLI/storage change is implemented
+  by the library checkpoint.
+- Bind the initial typed projections to an index-owned discoverable filter
+  catalog and shared query compiler. Decide retain/rename/retire for functioning
+  existing filters before cutover, and prove availability/negation and same-child
+  SQL semantics. CLI CEL and structured UI filters can lower independently.
 - Replace writer/readers and affected presentation/search consumers together;
   remove persisted RichDocument authority and duplicate macro/rendering policies.
 - Correct faithful semantic text, model-specific pooling, scope-before-top-k and
