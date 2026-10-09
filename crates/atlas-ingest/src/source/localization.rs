@@ -1,3 +1,4 @@
+use atlas_record::source_content::LocalizationResolver;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,7 +7,6 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::error::IngestError;
-use crate::source::normalize::LocalizationResolver;
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct LocalizationCatalog {
@@ -41,14 +41,6 @@ impl LocalizationCatalog {
             entries,
             source_files: vec![LocalizationSourceFile { path, content_hash }],
         })
-    }
-
-    #[cfg(test)]
-    pub(crate) fn from_entries(entries: impl IntoIterator<Item = (String, String)>) -> Self {
-        Self {
-            entries: entries.into_iter().collect(),
-            source_files: Vec::new(),
-        }
     }
 
     pub(crate) fn source_files(&self) -> &[LocalizationSourceFile] {

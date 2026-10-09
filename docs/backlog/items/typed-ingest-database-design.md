@@ -15,6 +15,26 @@ policy, measured body/projection storage and coherent writer/reader/consumer
 replacement. The design checkpoint remains open until implementation choices and
 validation evidence are reflected in the artifact contract.
 
+The shared content library is implemented under ADR 0044: ingest calls the
+atlas-record parser directly, and source-backed HTML preparation returns HTML,
+text, references, interaction parameters and diagnostics without another
+persisted tree. The artifact and product consumers still use RichDocument.
+
+Before coherent adoption:
+
+- Select product audience/implicit DC defaults, label/mechanics search projection,
+  Embed expansion and asset resolution. The callable library requires explicit
+  audience inputs and preserves authored labels without appended mechanics.
+- Measure typed body/enrichment/cache storage and hydration. Cache identity must
+  cover source/model, interpretation, localization and reference context.
+- Replace writer/readers and affected presentation/search consumers together;
+  remove persisted RichDocument authority and duplicate macro/rendering policies.
+- Correct faithful semantic text, model-specific pooling, scope-before-top-k and
+  matched-unit identity; establish relevance with judged examples separately.
+- Validate source-format selection, owned-node identity, partial fields, browser
+  links/interactions and actual record routes. Foundry runtime preparation and
+  dynamic gameplay execution remain separate behavior work.
+
 ## Intent
 
 Perform a comprehensive ground-up review of Atlas normalization and database

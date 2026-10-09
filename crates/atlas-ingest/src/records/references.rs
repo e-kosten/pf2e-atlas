@@ -1,3 +1,4 @@
+use atlas_record::source_content::parse_foundry_content;
 use std::collections::BTreeSet;
 
 use atlas_domain::RecordKey;
@@ -8,7 +9,7 @@ use atlas_record::{
 };
 
 use crate::records::{LoadedSourceRecord, RecordReferenceIndex, ReferenceCandidate};
-use crate::source::normalize::{normalize_text, parse_foundry_content};
+use crate::source::normalize::normalize_text;
 
 pub(crate) fn build_record_reference_index(records: &[LoadedSourceRecord]) -> RecordReferenceIndex {
     let mut index = RecordReferenceIndex::default();

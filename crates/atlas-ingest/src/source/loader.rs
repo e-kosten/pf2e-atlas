@@ -1,3 +1,4 @@
+use atlas_record::source_content::{ContentParseDiagnostics, DroppedContentMacro};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -16,7 +17,7 @@ use crate::source::discovery::{
 };
 use crate::source::localization::{LocalizationCatalog, LocalizationSourceFile};
 use crate::source::model::SkippedRecord;
-use crate::source::normalize::{ContentParseDiagnostics, DroppedContentMacro, normalize_record};
+use crate::source::normalize::normalize_record;
 use crate::source::{LoadedPack, ManifestPack, SourceLoad};
 
 const DROPPED_INLINE_MACRO_EXAMPLE_LIMIT: usize = 5;
