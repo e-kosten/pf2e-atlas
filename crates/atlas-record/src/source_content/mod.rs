@@ -26,4 +26,4 @@ pub use parser::{
     LocalizationResolver, ParsedContentDocument, parse_foundry_content,
     parse_foundry_content_with_localization,
 };
-pub use preparation::{prepare_plain_source_content, prepare_source_content};
+pub use preparation::prepare_source_content;

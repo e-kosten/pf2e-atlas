@@ -20,10 +20,15 @@ atlas-record parser directly, and source-backed HTML preparation returns HTML,
 text, references, interaction parameters and diagnostics without another
 persisted tree. The artifact and product consumers still use RichDocument.
 
-ADR 0045 implements the database-independent source-backed envelope and consuming
-typed ingest handoff. The library retains one DTO and source evidence, establishes
-owned identity, prepares selected audience-filtered content, resolves reference
-and relationship occurrences and exposes borrowed query/text views. The initial
+ADR 0045 implements the database-independent minimal source-backed record and
+consuming typed ingest handoff. The record retains only its validated key and one
+DTO. Shared internal traversal establishes embedded identity; separate operations
+prepare present rich text and resolve structured relationship occurrences. Ingest
+packets compose those outputs with source evidence. Existing focused query/text
+views borrow source, including plain labels, without retained node/container
+inventories or exhaustive absent-field preparation rows. Broader borrowed domain
+views and public traversal/lookup APIs follow concrete consumer requirements.
+Detailed admission/preparation reports remain developer surfaces. The initial
 [projection catalog and transition inventory](../../research/source-record-query-projections.md)
 accounts for current filters and metrics without requiring a second family schema.
 The [corpus probe evidence](../../research/source-record-enrichment.md) measures
@@ -37,6 +42,13 @@ Before coherent adoption:
   audience inputs and preserves authored labels without appended mechanics.
 - Measure typed body/enrichment/cache storage and hydration. Cache identity must
   cover source/model, interpretation, localization and reference context.
+- Adopt English-default user-overridable indexing locale, recording locale and
+  relevant localization identity in artifact metadata. FTS and document embedding
+  inputs use that context; changing search locale requires re-indexing. Initially
+  display uses the artifact locale. Keep preparation context explicit to allow
+  later independent display localization without adding a UI locale feature or
+  runtime preparation framework now. No locale CLI/storage change is implemented
+  by the library checkpoint.
 - Bind the initial typed projections to an index-owned discoverable filter
   catalog and shared query compiler. Decide retain/rename/retire for functioning
   existing filters before cutover, and prove availability/negation and same-child

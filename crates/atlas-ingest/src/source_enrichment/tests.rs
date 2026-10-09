@@ -64,7 +64,7 @@ fn moves_model_and_preserves_exact_bytes_provenance_pack_context_and_diagnostics
     assert_eq!(doc.admission_diagnostics, diagnostics);
     assert_eq!(doc.content_hash, "hash:packs/test/a.json");
     assert_eq!(doc.provenance.source_path, "packs/test/a.json");
-    let EnrichedDocumentOutcome::Addressed(record) = &doc.outcome else {
+    let EnrichedDocumentOutcome::Addressed { record, .. } = &doc.outcome else {
         panic!();
     };
     assert_eq!(encode_snapshot(&record.source).unwrap(), snapshot);
@@ -213,17 +213,15 @@ fn unavailable_roots_exclude_ambiguous_names_without_poisoning_exact_ids() {
                 documents.reverse();
             }
             let source = enrich_loaded_source(loaded(documents), context());
-            let record = source.packs[0]
+            let content = source.packs[0]
                 .documents
                 .iter()
                 .find_map(|d| match &d.outcome {
-                    EnrichedDocumentOutcome::Addressed(record) => Some(record),
+                    EnrichedDocumentOutcome::Addressed { content, .. } => Some(content),
                     _ => None,
                 })
                 .unwrap();
-            let prepared = record
-                .enrichment
-                .content
+            let prepared = content
                 .iter()
                 .find_map(|c| match &c.status {
                     SourceContentStatus::Prepared(p) if p.references.len() == 2 => Some(p),
@@ -240,4 +238,31 @@ fn unavailable_roots_exclude_ambiguous_names_without_poisoning_exact_ids() {
             ));
         }
     }
+}
+
+#[test]
+fn addressed_handoff_keeps_sparse_outputs_separate_from_the_unchanged_record() {
+    let document = document(
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell","name":"Plain","system":{"description":{"value":""}}}),
+        "a.json",
+    );
+    let snapshot = encode_snapshot(document.admission.model.as_ref().unwrap()).unwrap();
+    let source = enrich_loaded_source(loaded(vec![document]), context());
+    let EnrichedDocumentOutcome::Addressed {
+        record,
+        content,
+        relationships,
+    } = &source.packs[0].documents[0].outcome
+    else {
+        panic!("addressed");
+    };
+    assert_eq!(encode_snapshot(&record.source).unwrap(), snapshot);
+    assert_eq!(content.len(), 1);
+    assert_eq!(content[0].locator().field, "/system/description/value");
+    assert!(
+        matches!(&content[0].status,atlas_record::source_record::SourceContentStatus::Prepared(p) if p.html.is_empty() && p.text.is_empty())
+    );
+    assert!(relationships.is_empty());
+    assert_eq!(source.report().content_outcomes.get("prepared"), Some(&1));
+    assert!(!source.report().content_outcomes.contains_key("unavailable"));
 }

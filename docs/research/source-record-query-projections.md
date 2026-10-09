@@ -6,6 +6,12 @@ they are not published CLI syntax or a runtime discovery registry. Runtime
 catalog/SQL/UI/CEL integration belongs to the later artifact cutover. See
 [ADR 0045](../architecture/decisions/0045-source-backed-record-enrichment.md).
 
+The authoritative record contains only its key and DTO. Existing focused query
+views dispatch on generated source variants; they do not require stored
+embedded-node/container inventories or a second family-view hierarchy. Broader
+domain accessors and public traversal/lookup APIs are deferred to concrete
+consumer work.
+
 ## Initial field set
 
 | Field intent | Type / units | Initial applicability and meaning |
@@ -52,6 +58,23 @@ Source evidence and owners:
 The enriched ingest result retains pack labels alongside document outcomes;
 SourceFileProvenance alone supplies pack name, not the label. These two metadata
 filters use explicit source-pack context, independent from the body DTO.
+
+Text-source views borrow names, publication/trait values and other selected plain
+labels directly, then combine them with explicitly prepared rich text. They retain
+root/owner/field attribution and audience visibility. Content preparation and
+structured relationship resolution return separate outputs composed by ingest;
+recognized prose references remain with prepared content. Missing/null/invalid
+text remains source availability/admission evidence, while actual rich text with
+unsupported format or failed preparation has an explicit outcome. No exhaustive
+optional-field inventory is part of query semantics.
+
+At artifact adoption, FTS text and document embedding inputs use an English-default,
+user-overridable indexing locale recorded with relevant localization identity.
+Changing search locale requires re-indexing; initial display uses that artifact
+context. A future display locale does not implicitly change search. The library
+keeps localization input explicit but publishes no locale CLI flag, storage key
+or UI setting. Detailed ingest/preparation reporting stays in developer tools,
+not normal query result DTOs.
 
 ## Existing metadata/filter inventory
 

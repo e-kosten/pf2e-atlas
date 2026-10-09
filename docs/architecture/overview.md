@@ -26,7 +26,7 @@ Read this document first when you need to understand crate ownership, then follo
 - `atlas-tags` owns tag ontology, YAML parsing, corpus loading, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs.
 - `atlas-foundry-model` owns generated Foundry authored structures, ordered source primitives, strict parsing/admission, pure document dispatch and versioned typed snapshots. It has no ingest, artifact, embedding or runtime service dependency.
 - `atlas-ingest` owns filesystem source loading, normalization, enrichment execution, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
-- `atlas-record` owns source-backed record envelopes, borrowed typed query views, owned-node/content/relationship semantics, normalized product records, mechanics/activity and section-tree projections, shared Foundry content interpretation, `RichDocument`, presentation contracts, FTS projection and graph/reference policy.
+- `atlas-record` owns minimal source-backed records, embedded addressing and internal typed traversal, focused borrowed query/text views, explicit content preparation and relationship resolution, normalized product records, mechanics/activity and section-tree projections, shared Foundry content interpretation, `RichDocument`, presentation contracts, FTS projection and graph/reference policy.
 - The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
 - `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary, including the simple product filter DTO and its one-way lowering into the canonical `SearchFilterNode` tree.
 - `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.
@@ -47,13 +47,18 @@ artifact still persists RichDocument; preparation does not change that schema or
 wire new projections into runtime/UI consumers. See
 [ADR 0044](./decisions/0044-shared-source-content-interpretation.md).
 
-`atlas-record::source_record` retains one complete shared Foundry DTO with owned
-identity and interpreted sidecars. Its focused query views borrow source values
-and availability. `atlas-ingest::enrich_loaded_source` consumes the typed loader,
-retains exact bytes/provenance/diagnostics and constructs the minimal reference
-context. These APIs run without a database. Runtime catalog/filter lowering,
-physical storage and product consumer adoption remain a subsequent coherent
-replacement. See [ADR 0045](./decisions/0045-source-backed-record-enrichment.md).
+`atlas-record::source_record::SourceBackedRecord` contains a validated key and one
+complete shared Foundry DTO. Content preparation and structured relationship
+resolution return separate derived outputs; records retain no embedded-node or
+container-status inventory. Existing focused query views borrow source values
+and availability. Broader family/domain views and public traversal/lookup APIs
+wait for concrete consumers. `atlas-ingest::enrich_loaded_source` consumes the
+typed loader, retains exact bytes/provenance/diagnostics and composes records with
+their preparation outputs in ingest-owned packets. These APIs run without a
+database. Detailed admission/preparation reports are developer surfaces rather
+than product record properties. Runtime catalog/filter lowering, physical storage
+and product adoption remain a subsequent coherent replacement. See
+[ADR 0045](./decisions/0045-source-backed-record-enrichment.md).
 
 ## System Overview
 

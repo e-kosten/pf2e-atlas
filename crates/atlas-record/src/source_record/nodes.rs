@@ -1,7 +1,6 @@
+use super::SourceFieldView;
 use super::identity::valid_source_id;
-use super::{OwnedCollectionFact, SourceFieldView};
-use crate::source_content::{OwnedContentIdentity, OwnedContentLocator, SourceContentLocator};
-use atlas_domain::RecordKey;
+use crate::source_content::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_foundry_model::{ActorSourcePF2e, FoundryDocumentSource, ItemSourcePF2e, generated::*};
 
 // Exhaustive dispatch shares declared components without cloning child bodies.
@@ -266,38 +265,20 @@ impl<'a> ItemSourceView<'a> {
 #[derive(Debug)]
 pub struct SourceNodeEntry<'a> {
     pub owners: Vec<OwnedContentLocator>,
-    pub order: usize,
     pub source: SourceNodeView<'a>,
 }
 
 /// Typed traversal in authored order. Unavailable collections remain evidence;
 /// they never yield a salvaged subset or prove an empty collection.
-pub fn source_nodes<'a>(
-    key: &RecordKey,
-    source: &'a FoundryDocumentSource,
-) -> (Vec<SourceNodeEntry<'a>>, Vec<OwnedCollectionFact>) {
+pub(super) fn source_nodes<'a>(source: &'a FoundryDocumentSource) -> Vec<SourceNodeEntry<'a>> {
     let mut output = Vec::new();
-    let mut collections = Vec::new();
     let mut pending = vec![SourceNodeEntry {
         owners: vec![],
-        order: 0,
         source: source.into(),
     }];
     while let Some(entry) = pending.pop() {
         let mut children = Vec::new();
         let mut collect = |field: &str, state: SourceFieldView<'a, Vec<SourceNodeView<'a>>>| {
-            collections.push(OwnedCollectionFact {
-                locator: SourceContentLocator {
-                    record: key.clone(),
-                    owners: entry.owners.clone(),
-                    field: field.into(),
-                },
-                availability: state.availability(),
-                length: match &state {
-                    SourceFieldView::Value(v) => Some(v.len()),
-                    _ => None,
-                },
-            });
             if let SourceFieldView::Value(nodes) = state {
                 let mut ids = std::collections::BTreeMap::new();
                 for node in &nodes {
@@ -319,7 +300,6 @@ pub fn source_nodes<'a>(
                     });
                     children.push(SourceNodeEntry {
                         owners,
-                        order: index,
                         source: node,
                     });
                 }
@@ -365,5 +345,5 @@ pub fn source_nodes<'a>(
         pending.extend(children.into_iter().rev());
         output.push(entry);
     }
-    (output, collections)
+    output
 }

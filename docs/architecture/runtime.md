@@ -20,13 +20,16 @@ remains unchanged; snapshot tags and ordered pair lists expand its nesting.
 
 The callable `atlas-ingest::enrich_loaded_source` consumes `LoadedFoundrySource`
 with explicit audience/DC policy and optional localization. Its two passes first
-establish identity/reference context, then call `atlas-record::source_record` to
-produce records backed by those unchanged DTOs. Pack metadata, exact bytes,
-hashes, admission diagnostics, unaddressable bodies and quarantines remain in
-ingest-owned result packets. Query views borrow typed fields; sidecars carry
-owned locators, selected prepared content and relationship occurrences without
-another comprehensive family model. This library handoff is independent of
-the current artifact build; see [ADR 0045](./decisions/0045-source-backed-record-enrichment.md).
+establish identity/reference context, then construct minimal records and execute
+separate content preparation and relationship resolution over their unchanged
+DTOs. An addressed ingest outcome contains `record`, `content` and `relationships`;
+only the key and DTO belong to the record. Pack metadata, exact bytes, hashes,
+admission diagnostics, unaddressable bodies and quarantines remain in ingest-owned
+result packets. Query views borrow typed fields and availability. Internal shared
+traversal supports preparation, resolution and developer counts without a retained
+node/container inventory or another family model. This library handoff is
+independent of the current artifact build; see
+[ADR 0045](./decisions/0045-source-backed-record-enrichment.md).
 
 ## System Shape
 
@@ -296,8 +299,35 @@ occurrences, visible interaction parameters and diagnostics. It requires explici
 audience, implicit check-DC visibility and optional localization/resolution
 providers; it does not establish product permission defaults. Generic HTML
 sanitization and text formatting use ammonia and html2text. Final app rendering
-will bind interactions and record routes to sidecar identities; source
+will bind interactions and record routes to prepared occurrence identities; source
 interpretation does not compute routes or execute expressions.
+
+`source_record::prepare_record_content` selects present rich-text fields across
+the root and its embedded documents and returns their preparation outcomes.
+Present empty or hidden text still has an outcome; missing/null/invalid source
+text remains represented by DTO availability and admission diagnostics. Plain
+names, captions and other labels are borrowed through text-source views rather
+than duplicated into prepared HTML/text. Structured source links use the separate
+`resolve_source_relationships` operation; recognized prose references remain with
+prepared content. Preparation results are context-bound library outputs, not
+audience-safe application response DTOs.
+
+Preparation runs during ingest/build for the initial adoption path. The agreed
+adoption policy is an English indexing default with a user override, recorded
+with localization identity in the artifact. FTS and document embedding inputs use
+that indexing context; changing search locale requires re-indexing. Initial
+display uses the artifact locale. The explicit preparation context and retained
+markup permit future display-localization work without changing record authority;
+no UI locale setting, multi-locale index or runtime preparation framework is
+implemented by this library. Locale selection resolves available catalog entries,
+not arbitrary translation of authored prose.
+
+Detailed loading/preparation diagnostics and optional traversal counts belong in
+ingest developer reports. Normal product results consume usable fields and handle
+unavailability according to the requested feature without carrying those reports.
+Ordinary operational failures, such as artifact readiness errors, remain product
+errors. Physical prepared-output storage, cache identity and runtime hydration
+remain artifact adoption decisions.
 
 Current ingest imports this parser owner directly. The new preparation contract
 is callable without ingest, indexing, runtime or embedding dependencies, but has

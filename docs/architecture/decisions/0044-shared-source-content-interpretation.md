@@ -64,18 +64,31 @@ prose. Embed targets/options remain occurrences without automatic expansion.
 
 Whole-field visibility enters the same traversal as inline visibility; hidden
 fields retain recognized references while emitting no visible HTML/text or
-interactions. Declared plain labels/captions use a separate escaping projection
-and never enter the macro parser. Resolver targets for owned nodes carry the
+interactions. Declared plain labels/captions are borrowed text sources and never
+enter the macro parser; display consumers escape them at the rendering boundary.
+Resolver targets for owned nodes carry the
 root key and typed owner chain, rather than an undocumented content-key string.
 The source-record selector retains unknown biography visibility as unavailable
 evidence and uses visibility None for interpretation, preserving hidden
 references without guessing a public default.
+
+Record-level preparation returns separate outcomes for selected present rich-text
+values, including empty or hidden text. A present value with unavailable/unsupported
+format or failed preparation has an explicit problem outcome. Missing/null/invalid
+text remains in DTO availability and source admission diagnostics rather than
+producing an exhaustive set of preparation rows. Plain names, captions, table
+labels and declared plain biography text do not acquire prepared copies. The
+record/text-source consumer combines borrowed source with compatible prepared
+rich text; absence from a result list alone is not a source-availability answer.
+These operations do not attach preparation state to the authoritative record.
 
 Final application rendering binds interactions and record routes to prepared
 markers and narrow facts. It must not introduce another Foundry parser or scrape
 HTML for mechanics. PreparedSourceContent is an enrichment result containing
 source evidence, not an audience-safe HTTP response DTO: application contracts
 must select what they expose, including occurrence visibility and diagnostics.
+Detailed loading/preparation problems belong to developer reports; normal product
+record views handle unavailable fields without exposing those reports.
 
 ## Consequences and adoption boundary
 
@@ -91,6 +104,15 @@ Embed expansion, asset resolution and cache policy; measure hydration and cache
 size. A cached projection must include interpretation/model/context identity and
 exact input hashes. Library/sample tests do not establish Foundry core runtime,
 browser or judged retrieval-quality parity.
+
+The agreed adoption policy defaults indexing to English with an explicit user
+override. FTS text and document embedding inputs use the artifact's recorded
+indexing/localization context; changing search locale requires re-indexing. Initial
+display can use that same context. Keeping the preparation inputs explicit permits
+later display preparation for another locale without changing record authority or
+search implicitly. No UI locale setting, multi-locale index or runtime preparation
+framework is required now. This library API does not implement new CLI locale
+flags or artifact metadata; those follow the coherent adoption design.
 
 Source expressions, modifier behavior and runtime preparation remain separate
 behavior work. Avoid document-specific repairs, speculative interaction schemas,

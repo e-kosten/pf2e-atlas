@@ -1,4 +1,4 @@
-use super::source_nodes;
+use super::nodes::source_nodes;
 use crate::source_content::{
     ContentReferenceResolver, ContentReferenceTarget, OwnedContentIdentity,
     ResolvedContentReference, SourceContentLocator,
@@ -23,7 +23,7 @@ impl SourceReferenceIndex {
         if !self.roots.insert(key.clone()) {
             self.duplicate_roots.insert(key.clone());
         }
-        let (nodes, _) = source_nodes(key, source);
+        let nodes = source_nodes(source);
         for entry in nodes {
             let root = format!(
                 "Compendium.pf2e.{}.{}.{}",

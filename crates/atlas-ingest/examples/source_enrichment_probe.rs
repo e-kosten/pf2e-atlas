@@ -10,7 +10,7 @@ use atlas_record::{
     },
     source_record::{
         SourceContentStatus, SourceFieldView, SourceQueryView, SourceReferenceIndex,
-        enrich_source_record,
+        prepare_record_content, resolve_source_relationships,
     },
 };
 use scraper::{Html, Selector};
@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("source accounting mismatch".into());
     }
     let mut snapshot_bytes = 0usize;
-    let mut enrichment_bytes = 0usize;
+    let mut derived_output_bytes = 0usize;
     let mut html_bytes = 0usize;
     let mut text_bytes = 0usize;
     let mut encode = Duration::ZERO;
@@ -160,6 +160,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut compared = 0usize;
     let mut prepared_fields = 0usize;
     let mut projections = 0usize;
+    let mut text_source_rows = Vec::new();
+    let mut empty_text_sources = 0usize;
     let mut diagnostic_examples = BTreeMap::<String, Vec<Value>>::new();
     let mut reference_resolutions = BTreeMap::<&str, usize>::new();
     let mut largest = Vec::new();
@@ -168,7 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for pack in &enriched.packs {
         for document in &pack.documents {
             let model = match &document.outcome {
-                EnrichedDocumentOutcome::Addressed(record) => Some(&record.source),
+                EnrichedDocumentOutcome::Addressed { record, .. } => Some(&record.source),
                 EnrichedDocumentOutcome::Unavailable { source, .. } => source.as_ref(),
             };
             if let Some(model) = model {
@@ -191,10 +193,31 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 compared += 1;
             }
-            if let EnrichedDocumentOutcome::Addressed(record) = &document.outcome {
+            if let EnrichedDocumentOutcome::Addressed {
+                record,
+                content,
+                relationships,
+            } = &document.outcome
+            {
                 resolver.insert_source(&record.key, &record.source);
-                let sidecar = serde_json::to_vec(&record.enrichment)?;
-                enrichment_bytes += sidecar.len();
+                let sidecar = serde_json::to_vec(&(content, relationships))?;
+                derived_output_bytes += sidecar.len();
+                // Keep every emitted source, including empty values. Visibility
+                // eligibility belongs to text_sources, not this evidence probe.
+                for source in record.text_sources(content, audience, &pack.label) {
+                    empty_text_sources += usize::from(source.text.is_empty());
+                    text_source_rows.push((
+                        serde_json::to_vec(&(
+                            source.record,
+                            &source.owners,
+                            source.field,
+                            format!("{:?}", source.kind),
+                            source.visibility,
+                            source.text,
+                        ))?,
+                        source.text.is_empty(),
+                    ));
+                }
                 let query = SourceQueryView::new(&record.source, &pack.name, &pack.label);
                 let raw: Value = serde_json::from_slice(&document.bytes)?;
                 if query.source.document_kind() != pack.document_type {
@@ -265,8 +288,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 let mut record_html = 0;
                 let mut record_text = 0;
-                for content in &record.enrichment.content {
-                    if let SourceContentStatus::Prepared(prepared) = &content.status {
+                for outcome in content {
+                    if let SourceContentStatus::Prepared(prepared) = &outcome.status {
                         markers(prepared)?;
                         for reference in &prepared.references {
                             let state = match reference.resolution {
@@ -287,7 +310,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                                 .entry(format!("{:?}", diagnostic.code))
                                 .or_default();
                             if samples.len() < 3 {
-                                samples.push(json!({"source_path":document.provenance.source_path,"locator":content.locator,"detail":diagnostic.detail}));
+                                samples.push(json!({"source_path":document.provenance.source_path,"locator":outcome.locator(),"detail":diagnostic.detail}));
                             }
                         }
                     }
@@ -298,6 +321,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     document.bytes.len(),
                     document.provenance.source_path.as_str(),
                     record,
+                    content,
+                    relationships,
                     sidecar.len(),
                     record_html,
                     record_text,
@@ -308,30 +333,40 @@ fn main() -> Result<(), Box<dyn Error>> {
     largest.sort_by_key(|entry| std::cmp::Reverse(entry.0));
     largest.truncate(5);
     let mut warm = Vec::new();
-    for (bytes, path, record, sidecar, html, text) in largest {
+    for (bytes, path, record, content, relationships, sidecar, html, text) in largest {
         let mut repeats = Vec::new();
         for _ in 0..3 {
-            let source = record.source.clone();
             let start = Instant::now();
-            let prepared = enrich_source_record(
-                record.key.clone(),
-                source,
-                audience,
-                Some(&locale),
-                Some(&resolver),
-            );
+            let prepared = prepare_record_content(record, audience, Some(&locale), Some(&resolver));
+            let resolved = resolve_source_relationships(record, Some(&resolver));
             let elapsed = start.elapsed();
-            if prepared.enrichment != record.enrichment {
+            if &prepared != content || &resolved != relationships {
                 return Err("warm preparation mismatch".into());
             }
             repeats.push(elapsed.as_secs_f64() * 1000.0);
         }
-        warm.push(json!({"source_path":path,"source_bytes":bytes,"snapshot_bytes":encode_snapshot(&record.source)?.len(),"enrichment_bytes":sidecar,"prepared_html_bytes":html,"prepared_text_bytes":text,"warm_preparation_ms":repeats}));
+        warm.push(json!({"source_path":path,"source_bytes":bytes,"snapshot_bytes":encode_snapshot(&record.source)?.len(),"derived_output_bytes":sidecar,"prepared_html_bytes":html,"prepared_text_bytes":text,"warm_preparation_ms":repeats}));
     }
+    // Sorting removes filesystem/pack iteration order from the comparison.
+    // Length-prefix each row so concatenation cannot hide row boundaries.
+    text_source_rows.sort_by(|a, b| a.0.cmp(&b.0));
+    let mut text_source_digest = Sha256::new();
+    let mut nonempty_text_source_digest = Sha256::new();
+    for (row, empty) in &text_source_rows {
+        let length = (row.len() as u64).to_be_bytes();
+        text_source_digest.update(length);
+        text_source_digest.update(row);
+        if !empty {
+            nonempty_text_source_digest.update(length);
+            nonempty_text_source_digest.update(row);
+        }
+    }
+    let text_source_digest = format!("{:x}", text_source_digest.finalize());
+    let nonempty_text_source_digest = format!("{:x}", nonempty_text_source_digest.finalize());
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &json!({"source_contract":atlas_foundry_model::SOURCE_CONTRACT_ID,"source_root":args[0],"audience":{"include_gm":false,"include_owner":false,"implicit_check_dc":"gm"},"report":report,"reference_resolutions":reference_resolutions,"diagnostic_examples":diagnostic_examples,"checked_source_roundtrips":compared,"verified_projection_values":projections,"verified_prepared_fields":prepared_fields,"bytes":{"authored":source_bytes,"checked_snapshots":snapshot_bytes,"enrichment_including_prepared_content":enrichment_bytes,"prepared_html":html_bytes,"prepared_text":text_bytes},"seconds":{"load_and_admit":loading.as_secs_f64(),"identity_index_and_enrichment":preparation.as_secs_f64(),"snapshot_encode":encode.as_secs_f64(),"snapshot_decode":decode.as_secs_f64()},"largest_roots":warm})
+            &json!({"source_contract":atlas_foundry_model::SOURCE_CONTRACT_ID,"source_root":args[0],"audience":{"include_gm":false,"include_owner":false,"implicit_check_dc":"gm"},"report":report,"reference_resolutions":reference_resolutions,"diagnostic_examples":diagnostic_examples,"checked_source_roundtrips":compared,"verified_projection_values":projections,"verified_prepared_fields":prepared_fields,"text_sources":{"count":text_source_rows.len(),"empty_count":empty_text_sources,"sha256":text_source_digest,"nonempty_count":text_source_rows.len()-empty_text_sources,"nonempty_sha256":nonempty_text_source_digest},"bytes":{"authored":source_bytes,"checked_snapshots":snapshot_bytes,"content_and_relationship_outputs":derived_output_bytes,"prepared_html":html_bytes,"prepared_text":text_bytes},"seconds":{"load_and_admit":loading.as_secs_f64(),"identity_index_and_enrichment":preparation.as_secs_f64(),"snapshot_encode":encode.as_secs_f64(),"snapshot_decode":decode.as_secs_f64()},"largest_roots":warm})
         )?
     );
     if enriched
