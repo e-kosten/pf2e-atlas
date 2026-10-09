@@ -48,8 +48,10 @@ wire new projections into runtime/UI consumers. See
 [ADR 0044](./decisions/0044-shared-source-content-interpretation.md).
 
 `atlas-record::source_record::SourceBackedRecord` contains a validated key and one
-complete shared Foundry DTO. Content preparation and structured relationship
-resolution return separate derived outputs; records retain no embedded-node or
+complete shared Foundry DTO, exposed read-only after a checked constructor derives
+the key. Loading and preparation share ingest-owned source/pack metadata definitions.
+Content preparation and structured relationship resolution return separate derived
+outputs; records retain no embedded-node or
 container-status inventory. Existing focused query views borrow source values
 and availability. Broader family/domain views and public traversal/lookup APIs
 wait for concrete consumers. `atlas-ingest::enrich_loaded_source` consumes the

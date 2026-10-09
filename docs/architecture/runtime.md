@@ -23,11 +23,17 @@ with explicit audience/DC policy and optional localization. Its two passes first
 establish identity/reference context, then construct minimal records and execute
 separate content preparation and relationship resolution over their unchanged
 DTOs. An addressed ingest outcome contains `record`, `content` and `relationships`;
-only the key and DTO belong to the record. Pack metadata, exact bytes, hashes,
+only the key and DTO belong to the record. Checked construction derives its key;
+public accessors borrow the immutable key/body. Loading and preparation share
+concrete source/pack metadata definitions, moved unchanged between stages.
+Pack metadata, exact bytes, hashes,
 admission diagnostics, unaddressable bodies and quarantines remain in ingest-owned
 result packets. Query views borrow typed fields and availability. Internal shared
 traversal supports preparation, resolution and developer counts without a retained
-node/container inventory or another family model. This library handoff is
+node/container inventory or another family model. The private visitor processes
+one borrowed node at a time using active ancestor frames and a reusable owner
+chain; it does not build a complete temporary node inventory. Query projections
+and audience-sensitive text extraction have separate module owners. This library handoff is
 independent of the current artifact build; see
 [ADR 0045](./decisions/0045-source-backed-record-enrichment.md).
 

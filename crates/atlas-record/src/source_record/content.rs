@@ -1,5 +1,5 @@
 use super::nodes::item_fields;
-use super::nodes::source_nodes;
+use super::traversal::visit_source_nodes;
 use super::{FieldAvailability, SourceBackedRecord, SourceFieldView, SourceNodeView};
 use crate::source_content::{
     ContentAudience, ContentReferenceResolver, ContentVisibilityRule, LocalizationResolver,
@@ -88,8 +88,8 @@ pub fn prepare_record_content(
     references: Option<&super::SourceReferenceIndex>,
 ) -> Vec<SourceContentOutcome> {
     let mut output = Vec::new();
-    for entry in source_nodes(&record.source) {
-        for selection in select_content(entry.source) {
+    visit_source_nodes(record.source(), |owners, source| {
+        for selection in select_content(source) {
             let SourceFieldView::Value(text) = selection.text else {
                 continue;
             };
@@ -100,8 +100,8 @@ pub fn prepare_record_content(
                 continue;
             }
             let locator = SourceContentLocator {
-                record: record.key.clone(),
-                owners: entry.owners.clone(),
+                record: record.key().clone(),
+                owners: owners.to_vec(),
                 field: selection.field.into(),
             };
             let visibility = selection
@@ -139,7 +139,7 @@ pub fn prepare_record_content(
                 status,
             });
         }
-    }
+    });
     output
 }
 

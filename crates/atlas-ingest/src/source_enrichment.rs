@@ -1,5 +1,8 @@
 //! Consuming handoff from typed admission to database-independent records.
-use crate::{LoadedFoundrySource, QuarantinedSourceFile, SourceFileProvenance, SourceLoadFailure};
+use crate::{
+    LoadedFoundrySource, QuarantinedSourceFile, SourceFileProvenance, SourceLoadFailure,
+    SourceMetadata, SourcePackMetadata,
+};
 use atlas_foundry_model::{FoundryDocumentSource, SourceDiagnostic, SourceValue};
 use atlas_record::{
     source_content::{ContentAudience, LocalizationResolver},
@@ -10,10 +13,7 @@ use atlas_record::{
     },
 };
 use serde::Serialize;
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    path::PathBuf,
-};
+use std::collections::{BTreeMap, BTreeSet};
 
 pub struct SourceEnrichmentContext<'a> {
     pub audience: ContentAudience,
@@ -48,12 +48,7 @@ pub enum EnrichedDocumentOutcome {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct EnrichedFoundryPack {
-    pub name: String,
-    pub label: String,
-    pub document_type: String,
-    pub declared_path: String,
-    pub resolved_path: PathBuf,
-    pub discovered_file_count: usize,
+    pub metadata: SourcePackMetadata,
     pub documents: Vec<EnrichedFoundryDocument>,
     pub quarantined_files: Vec<QuarantinedSourceFile>,
     pub discovery_failure: Option<SourceLoadFailure>,
@@ -61,9 +56,7 @@ pub struct EnrichedFoundryPack {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct EnrichedFoundrySource {
-    pub source_root: PathBuf,
-    pub manifest_path: PathBuf,
-    pub manifest_content_hash: String,
+    pub metadata: SourceMetadata,
     pub packs: Vec<EnrichedFoundryPack>,
 }
 
@@ -92,7 +85,7 @@ pub fn enrich_loaded_source(
                     .collect::<BTreeSet<_>>();
                 for id in ids {
                     *counts
-                        .entry((pack.name.clone(), id.clone()))
+                        .entry((pack.metadata.name.clone(), id.clone()))
                         .or_insert(0usize) += 1;
                 }
             }
@@ -101,7 +94,7 @@ pub fn enrich_loaded_source(
                 .model
                 .as_ref()
                 .ok_or(SourceIdentityError::UnsupportedRoot)
-                .and_then(|model| source_record_key(&pack.name, model));
+                .and_then(|model| source_record_key(&pack.metadata.name, model));
             pack_keys.push(key);
         }
         keys.push(pack_keys);
@@ -126,7 +119,11 @@ pub fn enrich_loaded_source(
                 // As with _id above, this is collision exclusion only.
                 for (name, value) in raw.fields() {
                     if let ("name", SourceValue::String(name)) = (name.as_str(), value) {
-                        resolver.exclude_root_name(&pack.name, &pack.document_type, name);
+                        resolver.exclude_root_name(
+                            &pack.metadata.name,
+                            &pack.metadata.document_type,
+                            name,
+                        );
                     }
                 }
             }
@@ -144,19 +141,26 @@ pub fn enrich_loaded_source(
                 .map(|(document, key)| {
                     let outcome = match (key, document.admission.model) {
                         (Ok(key), Some(model)) => {
-                            let record = SourceBackedRecord { key, source: model };
-                            let content = prepare_record_content(
-                                &record,
-                                context.audience,
-                                context.localization,
-                                Some(&resolver),
-                            );
-                            let relationships =
-                                resolve_source_relationships(&record, Some(&resolver));
-                            EnrichedDocumentOutcome::Addressed {
-                                record: Box::new(record),
-                                content,
-                                relationships,
+                            match SourceBackedRecord::new(key.pack().as_str(), model) {
+                                Ok(record) => {
+                                    let content = prepare_record_content(
+                                        &record,
+                                        context.audience,
+                                        context.localization,
+                                        Some(&resolver),
+                                    );
+                                    let relationships =
+                                        resolve_source_relationships(&record, Some(&resolver));
+                                    EnrichedDocumentOutcome::Addressed {
+                                        record: Box::new(record),
+                                        content,
+                                        relationships,
+                                    }
+                                }
+                                Err(error) => EnrichedDocumentOutcome::Unavailable {
+                                    reason: error.reason,
+                                    source: Some(error.source),
+                                },
                             }
                         }
                         (Err(reason), model) => EnrichedDocumentOutcome::Unavailable {
@@ -178,12 +182,7 @@ pub fn enrich_loaded_source(
                 })
                 .collect();
             EnrichedFoundryPack {
-                name: pack.name,
-                label: pack.label,
-                document_type: pack.document_type,
-                declared_path: pack.declared_path,
-                resolved_path: pack.resolved_path,
-                discovered_file_count: pack.discovered_file_count,
+                metadata: pack.metadata,
                 documents,
                 quarantined_files: pack.quarantined_files,
                 discovery_failure: pack.discovery_failure,
@@ -191,9 +190,7 @@ pub fn enrich_loaded_source(
         })
         .collect();
     EnrichedFoundrySource {
-        source_root: source.source_root,
-        manifest_path: source.manifest_path,
-        manifest_content_hash: source.manifest_content_hash,
+        metadata: source.metadata,
         packs,
     }
 }
@@ -221,7 +218,7 @@ impl EnrichedFoundrySource {
     pub fn report(&self) -> SourceEnrichmentReport {
         let mut report = SourceEnrichmentReport::default();
         for pack in &self.packs {
-            report.discovered_files += pack.discovered_file_count;
+            report.discovered_files += pack.metadata.discovered_file_count;
             report.quarantined_files += pack.quarantined_files.len();
             report.unavailable_packs += usize::from(pack.discovery_failure.is_some());
             for document in &pack.documents {

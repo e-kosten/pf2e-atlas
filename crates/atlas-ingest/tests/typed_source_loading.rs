@@ -116,7 +116,7 @@ fn dispatches_every_registered_family_and_all_five_document_kinds() {
             .iter()
             .zip(["Actor", "Item", "JournalEntry", "Macro", "RollTable"])
     {
-        assert_eq!(pack.document_type, expected);
+        assert_eq!(pack.metadata.document_type, expected);
         for document in &pack.documents {
             let kind = match document.admission.model.as_ref().unwrap() {
                 FoundryDocumentSource::Actor(_) => "Actor",
@@ -306,13 +306,23 @@ fn shares_manifest_resolution_namespaced_pack_discovery_and_folder_exclusion() {
     source.write("packs/pf2e/items/readme.txt", b"not JSON");
     assert!(load_foundry_documents(&source.0, None).is_err());
     let loaded = load_foundry_documents(&source.0, Some(&alternate)).unwrap();
-    assert_eq!(loaded.manifest_path, alternate);
+    assert_eq!(loaded.metadata.source_root, source.0);
+    assert_eq!(loaded.metadata.manifest_path, alternate);
+    let report_json = serde_json::to_value(loaded.report()).unwrap();
+    assert_eq!(report_json["source_root"], json!(source.0));
+    assert_eq!(report_json["manifest_path"], json!(alternate));
     assert_eq!(
-        loaded.manifest_content_hash,
+        report_json["manifest_content_hash"],
+        json!(loaded.metadata.manifest_content_hash)
+    );
+    assert!(report_json.get("metadata").is_none());
+    assert_eq!(report_json.as_object().unwrap().len(), 8);
+    assert_eq!(
+        loaded.metadata.manifest_content_hash,
         format!("{:x}", Sha256::digest(fs::read(&alternate).unwrap()))
     );
     assert_eq!(
-        loaded.packs[0].resolved_path,
+        loaded.packs[0].metadata.resolved_path,
         source.0.join("packs/pf2e/items")
     );
     assert_eq!(

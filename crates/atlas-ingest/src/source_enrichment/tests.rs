@@ -3,6 +3,7 @@ use crate::{LoadedFoundryDocument, LoadedFoundryPack};
 use atlas_foundry_model::{SourceContext, admit_document_source, encode_snapshot};
 use atlas_record::source_content::{ContentAudience, ContentVisibilityRule};
 use serde_json::json;
+use std::path::PathBuf;
 
 fn document(value: serde_json::Value, path: &str) -> LoadedFoundryDocument {
     let bytes = serde_json::to_vec(&value).unwrap();
@@ -20,16 +21,20 @@ fn document(value: serde_json::Value, path: &str) -> LoadedFoundryDocument {
 }
 fn loaded(documents: Vec<LoadedFoundryDocument>) -> LoadedFoundrySource {
     LoadedFoundrySource {
-        source_root: PathBuf::from("source"),
-        manifest_path: PathBuf::from("source/module.json"),
-        manifest_content_hash: "manifest-hash".into(),
+        metadata: SourceMetadata {
+            source_root: PathBuf::from("source"),
+            manifest_path: PathBuf::from("source/module.json"),
+            manifest_content_hash: "manifest-hash".into(),
+        },
         packs: vec![LoadedFoundryPack {
-            name: "test".into(),
-            label: "Test label".into(),
-            document_type: "Item".into(),
-            declared_path: "packs/test".into(),
-            resolved_path: PathBuf::from("source/packs/test"),
-            discovered_file_count: documents.len(),
+            metadata: SourcePackMetadata {
+                name: "test".into(),
+                label: "Test label".into(),
+                document_type: "Item".into(),
+                declared_path: "packs/test".into(),
+                resolved_path: PathBuf::from("source/packs/test"),
+                discovered_file_count: documents.len(),
+            },
             documents,
             quarantined_files: vec![],
             discovery_failure: None,
@@ -56,9 +61,14 @@ fn moves_model_and_preserves_exact_bytes_provenance_pack_context_and_diagnostics
     let bytes = document.bytes.clone();
     let snapshot = encode_snapshot(document.admission.model.as_ref().unwrap()).unwrap();
     let diagnostics = document.admission.diagnostics.clone();
-    let source = enrich_loaded_source(loaded(vec![document]), context());
-    assert_eq!(source.packs[0].label, "Test label");
-    assert_eq!(source.manifest_content_hash, "manifest-hash");
+    let loaded = loaded(vec![document]);
+    let source_metadata = loaded.metadata.clone();
+    let pack_metadata = loaded.packs[0].metadata.clone();
+    let source = enrich_loaded_source(loaded, context());
+    assert_eq!(source.metadata, source_metadata);
+    assert_eq!(source.packs[0].metadata, pack_metadata);
+    assert_eq!(source.packs[0].metadata.label, "Test label");
+    assert_eq!(source.metadata.manifest_content_hash, "manifest-hash");
     let doc = &source.packs[0].documents[0];
     assert_eq!(doc.bytes, bytes);
     assert_eq!(doc.admission_diagnostics, diagnostics);
@@ -67,7 +77,7 @@ fn moves_model_and_preserves_exact_bytes_provenance_pack_context_and_diagnostics
     let EnrichedDocumentOutcome::Addressed { record, .. } = &doc.outcome else {
         panic!();
     };
-    assert_eq!(encode_snapshot(&record.source).unwrap(), snapshot);
+    assert_eq!(encode_snapshot(record.source()).unwrap(), snapshot);
     let report = source.report();
     assert_eq!(report.discovered_files, 1);
     assert_eq!(report.addressed_documents, 1);
@@ -125,7 +135,7 @@ fn raw_only_invalid_id_and_quarantined_outcomes_partition_every_file() {
             bytes: Some(b"broken".to_vec()),
             content_hash: Some("broken-hash".into()),
         });
-    source.packs[0].discovered_file_count += 1;
+    source.packs[0].metadata.discovered_file_count += 1;
     let source = enrich_loaded_source(source, context());
     let report = source.report();
     assert_eq!(
@@ -147,6 +157,12 @@ fn actual_loader_and_enrichment_account_for_fixture_files_without_source_loss() 
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/foundry-source/core-record-types");
     let loaded = crate::load_foundry_documents(&root, None).unwrap();
+    let metadata = loaded.metadata.clone();
+    let pack_metadata = loaded
+        .packs
+        .iter()
+        .map(|p| p.metadata.clone())
+        .collect::<Vec<_>>();
     let before = loaded
         .packs
         .iter()
@@ -154,6 +170,15 @@ fn actual_loader_and_enrichment_account_for_fixture_files_without_source_loss() 
         .map(|d| (d.provenance.clone(), d.bytes.clone()))
         .collect::<Vec<_>>();
     let source = enrich_loaded_source(loaded, context());
+    assert_eq!(source.metadata, metadata);
+    assert_eq!(
+        source
+            .packs
+            .iter()
+            .map(|p| p.metadata.clone())
+            .collect::<Vec<_>>(),
+        pack_metadata
+    );
     let report = source.report();
     assert_eq!(
         report.discovered_files,
@@ -256,7 +281,7 @@ fn addressed_handoff_keeps_sparse_outputs_separate_from_the_unchanged_record() {
     else {
         panic!("addressed");
     };
-    assert_eq!(encode_snapshot(&record.source).unwrap(), snapshot);
+    assert_eq!(encode_snapshot(record.source()).unwrap(), snapshot);
     assert_eq!(content.len(), 1);
     assert_eq!(content[0].locator().field, "/system/description/value");
     assert!(

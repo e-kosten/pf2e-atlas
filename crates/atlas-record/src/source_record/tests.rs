@@ -1,4 +1,4 @@
-use super::nodes::source_nodes;
+use super::traversal::visit_source_nodes;
 use super::*;
 use crate::source_content::*;
 use atlas_foundry_model::{SourceContext, admit_document_source, decode_snapshot, encode_snapshot};
@@ -23,8 +23,7 @@ fn public() -> ContentAudience {
 }
 fn source_record(kind: &str, value: Value) -> SourceBackedRecord {
     let source = admitted(kind, value);
-    let key = source_record_key("test", &source).unwrap();
-    SourceBackedRecord { key, source }
+    SourceBackedRecord::new("test", source).unwrap()
 }
 fn item(family: &str) -> Value {
     json!({"_id":ROOT,"name":"Élan @Damage[1d6]","type":family,"system":{"description":{"value":"<p>Authored — 力 @Damage[1d6]</p>","gm":"@UUID[Compendium.pf2e.test.Item.aaaaaaaaaaaaaaaa] @Check[fortitude|dc:20]"},"publication":{"title":"Test","remaster":false}}})
@@ -47,18 +46,18 @@ fn dispatches_all_eight_actor_and_twenty_four_item_families() {
             json!({"_id":ROOT,"name":family,"type":family,"system":{"traits":{"value":["new-trait"],"rarity":"rare"}},"items":[]}),
         );
         assert_eq!(
-            SourceNodeView::from(&record.source).source_type().value(),
+            SourceNodeView::from(record.source()).source_type().value(),
             Some(family)
         );
         assert_eq!(
-            SourceNodeView::from(&record.source)
+            SourceNodeView::from(record.source())
                 .actor_items()
                 .value()
                 .unwrap()
                 .len(),
             0
         );
-        let query = SourceQueryView::new(&record.source, "test", "Test");
+        let query = SourceQueryView::new(record.source(), "test", "Test");
         let applicable = matches!(family, "army" | "npc" | "hazard" | "vehicle");
         assert_eq!(query.traits().value().is_some(), applicable);
         assert_eq!(query.rarity().value().is_some(), applicable);
@@ -97,7 +96,7 @@ fn dispatches_all_eight_actor_and_twenty_four_item_families() {
         }
         let record = source_record("Item", input);
         let content = prepare_record_content(&record, public(), None, None);
-        let query = SourceQueryView::new(&record.source, "test", "Test pack");
+        let query = SourceQueryView::new(record.source(), "test", "Test pack");
         assert_eq!(query.source.source_type().value(), Some(family));
         assert_eq!(query.publication_remaster().value(), Some(false));
         let body = content
@@ -140,7 +139,7 @@ fn whole_field_visibility_retains_hidden_occurrences_and_plain_names_do_not_pars
     let key = source_record_key("test", &source).unwrap();
     let mut resolver = SourceReferenceIndex::default();
     resolver.insert_source(&key, &source);
-    let record = SourceBackedRecord { key, source };
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
     let content = prepare_record_content(&record, public(), None, Some(&resolver));
     let gm = content
         .iter()
@@ -180,16 +179,16 @@ fn source_equality_and_checked_snapshot_roundtrip_preserve_invalid_and_additiona
     let source = admitted("Item", input);
     let snapshot = encode_snapshot(&source).unwrap();
     let key = source_record_key("test", &source).unwrap();
-    let record = SourceBackedRecord { key, source };
-    assert_eq!(encode_snapshot(&record.source).unwrap(), snapshot);
-    assert_eq!(decode_snapshot(&snapshot).unwrap(), record.source);
-    let SourceNodeView::Item(item) = SourceNodeView::from(&record.source) else {
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
+    assert_eq!(encode_snapshot(record.source()).unwrap(), snapshot);
+    assert_eq!(&decode_snapshot(&snapshot).unwrap(), record.source());
+    let SourceNodeView::Item(item) = SourceNodeView::from(record.source()) else {
         panic!();
     };
     assert!(matches!(item.spell_rank(), SourceFieldView::Invalid(_)));
     let content = prepare_record_content(&record, public(), None, None);
     let relationships = resolve_source_relationships(&record, None);
-    assert_eq!(encode_snapshot(&record.source).unwrap(), snapshot);
+    assert_eq!(encode_snapshot(record.source()).unwrap(), snapshot);
     let bytes = serde_json::to_vec(&content).unwrap();
     assert_eq!(
         serde_json::from_slice::<Vec<SourceContentOutcome>>(&bytes).unwrap(),
@@ -208,7 +207,7 @@ fn projections_preserve_baselines_open_sets_zero_false_and_ancestor_states() {
         "Actor",
         json!({"_id":ROOT,"type":"npc","system":{"details":{"level":{"value":0},"publication":{"remaster":false}},"attributes":{"ac":{"value":21},"hp":{"max":80,"value":12}},"traits":{"value":["brand-new-provider-trait"],"rarity":"rare"}},"items":[]}),
     );
-    let query = SourceQueryView::new(&record.source, "test", "Test");
+    let query = SourceQueryView::new(record.source(), "test", "Test");
     assert_eq!(query.actor().level().value().unwrap().as_i64(), Some(0));
     assert_eq!(
         query.actor().hp_maximum().value().unwrap().as_i64(),
@@ -235,14 +234,14 @@ fn projections_preserve_baselines_open_sets_zero_false_and_ancestor_states() {
         ),
     ] {
         let record = source_record("Actor", json!({"_id":ROOT,"type":"npc","system":system}));
-        let query = SourceQueryView::new(&record.source, "test", "Test");
+        let query = SourceQueryView::new(record.source(), "test", "Test");
         assert_eq!(query.actor().hp_maximum().availability(), availability);
     }
     let hazard = source_record(
         "Actor",
         json!({"_id":ROOT,"type":"hazard","system":{"details":{"isComplex":false},"attributes":{"hardness":0}}}),
     );
-    let query = SourceQueryView::new(&hazard.source, "test", "Test");
+    let query = SourceQueryView::new(hazard.source(), "test", "Test");
     assert_eq!(query.actor().hazard_complexity().value(), Some(false));
     assert_eq!(
         query.actor().hazard_hardness().value().unwrap().as_u64(),
@@ -256,21 +255,21 @@ fn empty_unknown_and_not_applicable_are_different() {
         "Item",
         json!({"_id":ROOT,"type":"spell","system":{"traits":{"value":[],"traditions":[]},"level":{"value":3},"location":{"heightenedLevel":8}}}),
     );
-    let SourceNodeView::Item(view) = SourceNodeView::from(&empty.source) else {
+    let SourceNodeView::Item(view) = SourceNodeView::from(empty.source()) else {
         panic!();
     };
     assert_eq!(view.traits().value(), Some([].as_slice()));
     assert_eq!(view.spell_traditions().value(), Some([].as_slice()));
     assert_eq!(view.spell_rank().value().unwrap().as_u64(), Some(3));
     let missing = source_record("Item", json!({"_id":ROOT,"type":"spell","system":{}}));
-    let query = SourceQueryView::new(&missing.source, "test", "Test");
+    let query = SourceQueryView::new(missing.source(), "test", "Test");
     assert!(matches!(query.traits(), SourceFieldView::Missing));
     let deity = source_record(
         "Item",
         json!({"_id":ROOT,"type":"deity","system":{"traits":{"otherTags":[]}}}),
     );
     assert!(matches!(
-        SourceQueryView::new(&deity.source, "test", "Test").traits(),
+        SourceQueryView::new(deity.source(), "test", "Test").traits(),
         SourceFieldView::NotApplicable
     ));
 }
@@ -282,11 +281,12 @@ fn duplicate_and_missing_child_ids_are_snapshot_local_in_authored_order() {
         json!({"_id":ROOT,"type":"npc","items":[{"_id":CHILD,"type":"spell"},{"_id":CHILD,"type":"spell"},{"type":"spell"},{"_id":"bad","type":"spell"},{"_id":OTHER,"type":"spell"}]}),
     );
     let key = source_record_key("test", &source).unwrap();
-    let nodes = source_nodes(&source);
-    assert_eq!(nodes.len(), 6);
-    for (index, entry) in nodes.iter().skip(1).enumerate() {
+    let mut paths = Vec::new();
+    visit_source_nodes(&source, |owners, _| paths.push(owners.to_vec()));
+    assert_eq!(paths.len(), 6);
+    for (index, owners) in paths.iter().skip(1).enumerate() {
         assert_eq!(
-            entry.owners[0].identity,
+            owners[0].identity,
             if index == 4 {
                 OwnedContentIdentity::Stable(OTHER.into())
             } else {
@@ -294,7 +294,7 @@ fn duplicate_and_missing_child_ids_are_snapshot_local_in_authored_order() {
             }
         );
     }
-    let record = SourceBackedRecord { key, source };
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
     assert_eq!(source_owned_document_count(&record), 5);
 }
 
@@ -304,10 +304,12 @@ fn invalid_whole_collection_does_not_salvage_neighbors() {
         "Actor",
         json!({"_id":ROOT,"type":"npc","items":[{"_id":CHILD,"type":"spell"},{"type":"unknown-family"}]}),
     );
-    let query = SourceQueryView::new(&record.source, "test", "Test");
+    let query = SourceQueryView::new(record.source(), "test", "Test");
     assert!(matches!(query.actor().items(), SourceFieldView::Invalid(_)));
     assert_eq!(source_owned_document_count(&record), 0);
-    assert_eq!(source_nodes(&record.source).len(), 1);
+    let mut visited = 0;
+    visit_source_nodes(record.source(), |_, _| visited += 1);
+    assert_eq!(visited, 1);
 }
 
 #[test]
@@ -350,12 +352,13 @@ fn nested_physical_and_consumable_spell_bodies_stay_owned_and_unchanged() {
     );
     let before = encode_snapshot(&source).unwrap();
     let key = source_record_key("test", &source).unwrap();
-    let record = SourceBackedRecord { key, source };
-    let nodes = source_nodes(&record.source);
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
+    let mut depths = Vec::new();
+    visit_source_nodes(record.source(), |owners, _| depths.push(owners.len()));
     assert_eq!(source_owned_document_count(&record), 3);
-    assert_eq!(nodes[3].owners.len(), 3);
+    assert_eq!(depths, [0, 1, 2, 3]);
     let content = prepare_record_content(&record, public(), None, None);
-    assert_eq!(encode_snapshot(&record.source).unwrap(), before);
+    assert_eq!(encode_snapshot(record.source()).unwrap(), before);
     let child = record
         .text_sources(&content, public(), "Test")
         .into_iter()
@@ -373,10 +376,7 @@ fn resolves_owned_pages_and_actor_items_and_keeps_repeated_slot_occurrences() {
     let key = source_record_key("test", &source).unwrap();
     let mut index = SourceReferenceIndex::default();
     index.insert_source(&key, &source);
-    let record = SourceBackedRecord {
-        key: key.clone(),
-        source,
-    };
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
     let relationships = resolve_source_relationships(&record, Some(&index));
     let slots = relationships
         .iter()
@@ -394,10 +394,7 @@ fn resolves_owned_pages_and_actor_items_and_keeps_repeated_slot_occurrences() {
     );
     let key = source_record_key("journals", &journal).unwrap();
     index.insert_source(&key, &journal);
-    let journal = SourceBackedRecord {
-        key,
-        source: journal,
-    };
+    let journal = SourceBackedRecord::new(key.pack().as_str(), journal).unwrap();
     let content = prepare_record_content(&journal, public(), None, Some(&index));
     assert!(content.iter().any(|c|matches!(&c.status,SourceContentStatus::Prepared(p) if p.references.iter().any(|r|matches!(r.resolution,ContentReferenceResolution::Resolved(ContentReferenceTarget::OwnedNode {..}))))));
 }
@@ -451,10 +448,7 @@ fn journal_page_fragments_resolve_identity_and_retain_authored_navigation() {
     let key = source_record_key("journals", &source).unwrap();
     let mut index = SourceReferenceIndex::default();
     index.insert_source(&key, &source);
-    let record = SourceBackedRecord {
-        key: key.clone(),
-        source,
-    };
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
     let content = prepare_record_content(&record, public(), None, Some(&index));
     let reference = content
         .iter()
@@ -489,7 +483,7 @@ fn journal_page_fragments_resolve_identity_and_retain_authored_navigation() {
             )
             .is_none()
     );
-    index.insert_source(&key, &record.source);
+    index.insert_source(&key, record.source());
     assert!(index.resolve_reference(locator, &target).is_none());
 }
 
@@ -505,10 +499,7 @@ fn relative_page_ids_use_the_current_journal_and_never_guess_other_scopes() {
     let key = source_record_key("journals", &source).unwrap();
     let mut index = SourceReferenceIndex::default();
     index.insert_source(&key, &source);
-    let record = SourceBackedRecord {
-        key: key.clone(),
-        source,
-    };
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
     let content = prepare_record_content(&record, public(), None, Some(&index));
     let prepared = content
         .iter()
@@ -648,7 +639,7 @@ fn party_html_and_army_declared_trait_states_are_selected() {
             "Actor",
             json!({"_id":ROOT,"type":"army","system":{"traits":traits}}),
         );
-        let query = SourceQueryView::new(&army.source, "test", "Test");
+        let query = SourceQueryView::new(army.source(), "test", "Test");
         assert_eq!(query.traits().availability(), expected);
         assert_eq!(query.rarity().availability(), expected);
         if let Some(traits) = query.traits().value() {
@@ -710,7 +701,7 @@ fn grants_and_provenance_are_typed_and_casting_references_check_target_family() 
     index.insert_source(&key, &source);
     let spell = admitted("Item", json!({"_id":ROOT,"type":"spell","name":"Spell"}));
     index.insert_source(&source_record_key("test", &spell).unwrap(), &spell);
-    let record = SourceBackedRecord { key, source };
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
     let relations = resolve_source_relationships(&record, Some(&index));
     for kind in [
         SourceRelationshipKind::ItemGrant,
@@ -748,7 +739,7 @@ fn resolved_embed_cycles_are_occurrences_without_expansion_and_markers_stay_loca
     let key = source_record_key("test", &source).unwrap();
     let mut index = SourceReferenceIndex::default();
     index.insert_source(&key, &source);
-    let record = SourceBackedRecord { key, source };
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
     let content = prepare_record_content(&record, public(), None, Some(&index));
     let field = content
         .iter()
@@ -791,11 +782,11 @@ fn root_identity_rejections_and_ordered_additional_pairs_survive() {
         .unwrap();
     let snapshot = encode_snapshot(&source).unwrap();
     let key = source_record_key("test", &source).unwrap();
-    let record = SourceBackedRecord { key, source };
-    assert_eq!(encode_snapshot(&record.source).unwrap(), snapshot);
-    assert_eq!(decode_snapshot(&snapshot).unwrap(), record.source);
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
+    assert_eq!(encode_snapshot(record.source()).unwrap(), snapshot);
+    assert_eq!(&decode_snapshot(&snapshot).unwrap(), record.source());
     assert_eq!(
-        source_record_key("bad:pack", &record.source),
+        source_record_key("bad:pack", record.source()),
         Err(SourceIdentityError::InvalidPack)
     );
 }
@@ -810,7 +801,7 @@ fn biography_gates_use_the_authored_section_and_unknown_visibility_retains_hidde
     let mut index = SourceReferenceIndex::default();
     let spell = admitted("Item", json!({"_id":ROOT,"name":"Spell","type":"spell"}));
     index.insert_source(&source_record_key("test", &spell).unwrap(), &spell);
-    let record = SourceBackedRecord { key, source };
+    let record = SourceBackedRecord::new(key.pack().as_str(), source).unwrap();
     let content = prepare_record_content(&record, public(), None, Some(&index));
     let allies = content
         .iter()
@@ -862,15 +853,15 @@ fn preparation_is_sparse_but_preserves_present_empty_and_hidden_fields() {
             "Item",
             json!({"_id":ROOT,"type":"spell","system":{"description":description}}),
         );
-        let before = encode_snapshot(&record.source).unwrap();
+        let before = encode_snapshot(record.source()).unwrap();
         assert!(prepare_record_content(&record, public(), None, None).is_empty());
-        assert_eq!(encode_snapshot(&record.source).unwrap(), before);
+        assert_eq!(encode_snapshot(record.source()).unwrap(), before);
     }
     let record = source_record(
         "Item",
         json!({"_id":ROOT,"name":"Plain name","type":"spell","system":{"description":{"value":"","gm":"Private text"}}}),
     );
-    let before = encode_snapshot(&record.source).unwrap();
+    let before = encode_snapshot(record.source()).unwrap();
     let content = prepare_record_content(&record, public(), None, None);
     assert_eq!(content.len(), 2);
     let empty = content
@@ -889,7 +880,7 @@ fn preparation_is_sparse_but_preserves_present_empty_and_hidden_fields() {
         matches!(&hidden.status,SourceContentStatus::Prepared(p) if p.html.is_empty() && p.text.is_empty())
     );
     assert!(!content.iter().any(|c| c.locator().field == "/name"));
-    assert_eq!(encode_snapshot(&record.source).unwrap(), before);
+    assert_eq!(encode_snapshot(record.source()).unwrap(), before);
 }
 
 #[test]
@@ -910,7 +901,7 @@ fn actor_collection_access_preserves_empty_and_unavailable_states_without_invent
             input["items"] = items;
         }
         let record = source_record("Actor", input);
-        let query = SourceQueryView::new(&record.source, "test", "Test");
+        let query = SourceQueryView::new(record.source(), "test", "Test");
         let items = query.actor().items();
         assert_eq!(items.availability(), expected);
         if let Some(items) = items.value() {
@@ -920,7 +911,7 @@ fn actor_collection_access_preserves_empty_and_unavailable_states_without_invent
     }
     let item = source_record("Item", json!({"_id":ROOT,"type":"spell"}));
     assert!(matches!(
-        SourceQueryView::new(&item.source, "test", "Test")
+        SourceQueryView::new(item.source(), "test", "Test")
             .actor()
             .items(),
         SourceFieldView::NotApplicable
@@ -939,7 +930,7 @@ fn explicit_preparation_context_can_change_output_without_changing_source() {
         "Item",
         json!({"_id":ROOT,"type":"spell","system":{"description":{"value":"@Localize[Greeting]","gm":"Private text"}}}),
     );
-    let before = encode_snapshot(&record.source).unwrap();
+    let before = encode_snapshot(record.source()).unwrap();
     let english = prepare_record_content(&record, public(), Some(&Locale("Hello")), None);
     let other_locale = prepare_record_content(&record, public(), Some(&Locale("Bonjour")), None);
     let gm_audience = ContentAudience {
@@ -962,7 +953,7 @@ fn explicit_preparation_context_can_change_output_without_changing_source() {
     assert_eq!(text(&other_locale, "/system/description/value"), "Bonjour");
     assert_eq!(text(&english, "/system/description/gm"), "");
     assert_eq!(text(&gm, "/system/description/gm"), "Private text");
-    assert_eq!(encode_snapshot(&record.source).unwrap(), before);
+    assert_eq!(encode_snapshot(record.source()).unwrap(), before);
 }
 
 #[test]
@@ -979,4 +970,70 @@ fn absent_journal_text_has_no_format_failure_outcome() {
         );
         assert!(prepare_record_content(&record, public(), None, None).is_empty());
     }
+}
+
+#[test]
+fn checked_construction_derives_identity_and_preserves_the_complete_body() {
+    let source = admitted("Item", item("spell"));
+    let before = encode_snapshot(&source).unwrap();
+    let record = SourceBackedRecord::new("spells", source).unwrap();
+    assert_eq!(record.key().pack().as_str(), "spells");
+    assert_eq!(record.key().id().as_str(), ROOT);
+    assert_eq!(encode_snapshot(record.source()).unwrap(), before);
+    for pack in ["", "bad pack", "bad:pack"] {
+        let source = admitted("Item", item("spell"));
+        let before = source.clone();
+        let error = SourceBackedRecord::new(pack, source).unwrap_err();
+        assert_eq!(error.reason, SourceIdentityError::InvalidPack);
+        assert_eq!(error.source, before);
+    }
+    for (id, expected) in [
+        (None, SourceIdentityError::MissingId),
+        (Some(json!(null)), SourceIdentityError::NullId),
+        (Some(json!(7)), SourceIdentityError::RejectedId),
+        (Some(json!("bad")), SourceIdentityError::InvalidId),
+    ] {
+        let mut input = json!({"type":"spell"});
+        if let Some(id) = id {
+            input["_id"] = id;
+        }
+        let source = admitted("Item", input);
+        let before = source.clone();
+        let error = SourceBackedRecord::new("spells", source).unwrap_err();
+        assert_eq!(error.reason, expected);
+        assert_eq!(error.source, before);
+    }
+}
+
+#[test]
+fn traversal_unwinds_owner_paths_between_nested_children_and_root_siblings() {
+    let source = admitted(
+        "Actor",
+        json!({"_id":ROOT,"type":"npc","items":[
+            {"_id":CHILD,"type":"weapon","system":{"subitems":[
+                {"_id":OTHER,"type":"equipment","system":{"subitems":[]}}
+            ]}},
+            {"_id":OTHER,"type":"spell"}
+        ]}),
+    );
+    let mut visits = Vec::new();
+    visit_source_nodes(&source, |owners, node| {
+        visits.push((node.id().value().unwrap().as_str(), owners.to_vec()));
+    });
+    let locator = |collection: &str, id: &str| OwnedContentLocator {
+        collection: collection.into(),
+        identity: OwnedContentIdentity::Stable(id.into()),
+    };
+    assert_eq!(
+        visits,
+        vec![
+            (ROOT, vec![]),
+            (CHILD, vec![locator("/items", CHILD)]),
+            (
+                OTHER,
+                vec![locator("/items", CHILD), locator("/system/subitems", OTHER)]
+            ),
+            (OTHER, vec![locator("/items", OTHER)]),
+        ]
+    );
 }

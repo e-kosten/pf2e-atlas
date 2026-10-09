@@ -170,7 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for pack in &enriched.packs {
         for document in &pack.documents {
             let model = match &document.outcome {
-                EnrichedDocumentOutcome::Addressed { record, .. } => Some(&record.source),
+                EnrichedDocumentOutcome::Addressed { record, .. } => Some(record.source()),
                 EnrichedDocumentOutcome::Unavailable { source, .. } => source.as_ref(),
             };
             if let Some(model) = model {
@@ -199,12 +199,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 relationships,
             } = &document.outcome
             {
-                resolver.insert_source(&record.key, &record.source);
+                resolver.insert_source(record.key(), record.source());
                 let sidecar = serde_json::to_vec(&(content, relationships))?;
                 derived_output_bytes += sidecar.len();
                 // Keep every emitted source, including empty values. Visibility
                 // eligibility belongs to text_sources, not this evidence probe.
-                for source in record.text_sources(content, audience, &pack.label) {
+                for source in record.text_sources(content, audience, &pack.metadata.label) {
                     empty_text_sources += usize::from(source.text.is_empty());
                     text_source_rows.push((
                         serde_json::to_vec(&(
@@ -218,13 +218,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                         source.text.is_empty(),
                     ));
                 }
-                let query = SourceQueryView::new(&record.source, &pack.name, &pack.label);
+                let query = SourceQueryView::new(
+                    record.source(),
+                    &pack.metadata.name,
+                    &pack.metadata.label,
+                );
                 let raw: Value = serde_json::from_slice(&document.bytes)?;
-                if query.source.document_kind() != pack.document_type {
+                if query.source.document_kind() != pack.metadata.document_type {
                     return Err("source kind mismatch".into());
                 }
                 projections += compare("source.type", query.source.source_type(), raw.get("type"))?;
-                let publication = if pack.document_type == "Actor" {
+                let publication = if pack.metadata.document_type == "Actor" {
                     "/system/details/publication"
                 } else {
                     "/system/publication"
@@ -345,7 +349,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             repeats.push(elapsed.as_secs_f64() * 1000.0);
         }
-        warm.push(json!({"source_path":path,"source_bytes":bytes,"snapshot_bytes":encode_snapshot(&record.source)?.len(),"derived_output_bytes":sidecar,"prepared_html_bytes":html,"prepared_text_bytes":text,"warm_preparation_ms":repeats}));
+        warm.push(json!({"source_path":path,"source_bytes":bytes,"snapshot_bytes":encode_snapshot(record.source())?.len(),"derived_output_bytes":sidecar,"prepared_html_bytes":html,"prepared_text_bytes":text,"warm_preparation_ms":repeats}));
     }
     // Sorting removes filesystem/pack iteration order from the comparison.
     // Length-prefix each row so concatenation cannot hide row boundaries.

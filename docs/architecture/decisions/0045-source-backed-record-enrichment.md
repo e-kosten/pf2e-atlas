@@ -5,7 +5,12 @@ Status: Accepted library boundary; product artifact adoption remains open.
 ## Decision
 
 `atlas-record::source_record::SourceBackedRecord` owns a validated `RecordKey`
-and one complete `FoundryDocumentSource`. Preparation never changes that source.
+and one complete `FoundryDocumentSource`. `SourceBackedRecord::new(pack, source)`
+derives and validates the key from that body. Private fields and borrowed `key()` /
+`source()` accessors prevent replacing either independently after construction.
+Failed construction returns the identity error and unchanged body for retention.
+Corpus-wide collision exclusion remains ingest-owned. Preparation never changes
+that source.
 Content and relationship interpretation return explicit derived outputs rather
 than state on every record. There is no retained embedded-node inventory,
 collection-status list, second family schema, metric/EAV replacement or old-record
@@ -29,7 +34,11 @@ bodies. An addressed ingest outcome contains `record`, `content` and
 `relationships` as separate fields. Loaded pack metadata/order and original
 bytes/hash/provenance remain in ingest-owned packets beside admission diagnostics
 and one addressed record or retained unavailable body. The admission's complete
-extra raw tree is released.
+extra raw tree is released. Loading and preparation packets share ingest-owned
+`SourceMetadata` and `SourcePackMetadata`; unchanged metadata moves between stages
+without a second field definition. Their document payloads, quarantines and
+discovery failures remain explicit stage outcomes. Developer loading reports
+flatten source metadata into their existing JSON shape.
 
 ## Identity and embedded access
 
@@ -52,6 +61,10 @@ positions must not reconcile mutable user state
 across rebuilds. Invalid whole collections remain unavailable, never shortened by
 raw neighbor salvage. Child bodies and local overrides stay in their authored
 DTO; traversal does not promote them into independent product records.
+The private visitor emits nodes incrementally, borrowing bodies and reusing the
+current owner chain. Its active ancestor frames retain sibling ID counts needed
+for ambiguity decisions; no complete temporary node inventory is constructed.
+Consumers copy owner addresses only when retaining an occurrence or index entry.
 
 Existing focused query views read collection availability directly from source.
 Developer reporting calculates owned-document counts through the same traversal;
@@ -120,6 +133,10 @@ families. Generated closed vocabularies remain closed. Authored base rank, maxim
 HP and defenses are not prepared gameplay totals. Owned queries retain same-child
 scope. New domain views, such as casting or targeting, follow concrete consumers
 rather than a complete handwritten mirror of the generated family hierarchy.
+Query projections and audience-sensitive text extraction live in separate modules.
+Private typed projection dispatch shares identical expressions with explicit
+applicable and excluded Item families; a new variant requires an applicability
+decision. This adds no public family schema, query DSL or field registry.
 
 Ingest developer reports retain meaningful admission/preparation problems with
 record/file/field attribution, grouped counts and their consequence for typed use.

@@ -46,7 +46,7 @@ pub use source_enrichment::{
 pub use source_loading::{
     LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource, QuarantinedSourceFile,
     SourceDocumentCounts, SourceFileProvenance, SourceLoadFailure, SourceLoadFailureStage,
-    SourceLoadingReport, load_foundry_documents,
+    SourceLoadingReport, SourceMetadata, SourcePackMetadata, load_foundry_documents,
 };
 
 pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {

@@ -6,7 +6,8 @@ must update the schema, writer/readers and consumers together; the codec is not
 a fallback for old artifacts. See [ADR 0043](./decisions/0043-shared-foundry-model-and-snapshots.md).
 
 The database-independent `SourceBackedRecord` library contains only a validated
-key and one unchanged DTO body. Content preparation and relationship resolution
+key and one unchanged DTO body, derived through checked construction and exposed
+read-only. Content preparation and relationship resolution
 return explicit separate outputs; focused query/text views borrow source values
 and consume compatible preparation. No embedded-node or collection-status
 inventory is required by the record contract. Bounded output serialization is

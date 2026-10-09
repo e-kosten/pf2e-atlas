@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-
 use serde::Serialize;
 
 use atlas_foundry_model::{FoundryDocumentSource, SourceAdmission};
+
+use super::metadata::{SourceMetadata, SourcePackMetadata};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourceFileProvenance {
@@ -48,13 +48,7 @@ pub struct QuarantinedSourceFile {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoadedFoundryPack {
-    pub name: String,
-    pub label: String,
-    pub document_type: String,
-    pub declared_path: String,
-    pub resolved_path: PathBuf,
-    /// Every discovered document file has a retained or quarantined outcome.
-    pub discovered_file_count: usize,
+    pub metadata: SourcePackMetadata,
     pub documents: Vec<LoadedFoundryDocument>,
     pub quarantined_files: Vec<QuarantinedSourceFile>,
     /// Missing/unreadable packs remain visible even when no files are discovered.
@@ -63,9 +57,7 @@ pub struct LoadedFoundryPack {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoadedFoundrySource {
-    pub source_root: PathBuf,
-    pub manifest_path: PathBuf,
-    pub manifest_content_hash: String,
+    pub metadata: SourceMetadata,
     /// Manifest order; document outcomes within each pack use sorted paths.
     pub packs: Vec<LoadedFoundryPack>,
 }
