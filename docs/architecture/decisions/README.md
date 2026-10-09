@@ -33,6 +33,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0043-shared-foundry-model-and-snapshots.md`](./0043-shared-foundry-model-and-snapshots.md): shared generated authored structures and exact typed snapshots support runtime reuse without ingest dependencies or a second family schema.
 - [`0044-shared-source-content-interpretation.md`](./0044-shared-source-content-interpretation.md): one shared Foundry parser and a callable HTML/text/fact preparation boundary, with explicit context and separate artifact adoption.
 
+- [`0045-source-backed-record-enrichment.md`](./0045-source-backed-record-enrichment.md): one retained DTO, owned identity/content/relationships and borrowed query views, with a consuming database-independent ingest handoff.
+
 ## Historical ADRs
 
 ADRs 0001-0017 preserve design history for earlier architecture work and migration sequencing. They are retained as context, but current implementation guidance lives in the Rust architecture docs and current ADRs above. ADR 0026 supersedes ADR 0017 for product surface and workspace layout.

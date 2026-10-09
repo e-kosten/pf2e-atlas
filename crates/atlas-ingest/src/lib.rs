@@ -12,6 +12,7 @@ mod index_build_input;
 mod records;
 mod report;
 mod source;
+mod source_enrichment;
 mod source_loading;
 mod source_pipeline;
 
@@ -37,6 +38,10 @@ pub use source::model::{
     DocumentEmbeddingSectionTruncationReport, DocumentEmbeddingTokenizationReport,
     DocumentEmbeddingTruncationExampleReport, DocumentEmbeddingUnitKindTruncationReport,
     EmbeddingTimingReport, SkippedRecord,
+};
+pub use source_enrichment::{
+    EnrichedDocumentOutcome, EnrichedFoundryDocument, EnrichedFoundryPack, EnrichedFoundrySource,
+    SourceEnrichmentContext, SourceEnrichmentReport, enrich_loaded_source,
 };
 pub use source_loading::{
     LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource, QuarantinedSourceFile,

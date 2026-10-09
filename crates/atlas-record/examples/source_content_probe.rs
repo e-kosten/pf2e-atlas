@@ -135,6 +135,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             locator,
             &packet.markup,
             audience,
+            ContentVisibilityRule::All,
             Some(&context),
             Some(&context),
         )?;
