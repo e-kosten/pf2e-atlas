@@ -1,0 +1,17 @@
+[package]
+name = "atlas-foundry-model"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[[example]]
+name = "item_generation_probe"
+test = true
+
+[dependencies]
+serde.workspace = true
+serde_json = { workspace = true, features = ["raw_value", "unbounded_depth"] }
+serde_stacker.workspace = true
+ryu-js.workspace = true

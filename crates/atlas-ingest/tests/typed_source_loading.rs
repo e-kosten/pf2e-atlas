@@ -2,8 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use atlas_ingest::source_model::{ActorSourcePF2e, ItemSourcePF2e, SourcePresence, SourceValue};
-use atlas_ingest::{FoundryDocumentSource, SourceLoadFailureStage, load_foundry_documents};
+use atlas_foundry_model::FoundryDocumentSource;
+use atlas_foundry_model::{ActorSourcePF2e, ItemSourcePF2e, SourcePresence};
+use atlas_ingest::{SourceLoadFailureStage, load_foundry_documents};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
@@ -143,7 +144,7 @@ fn preserves_authored_bytes_repeated_members_and_partial_fields_without_defaults
     );
     assert_eq!(
         document.admission.raw,
-        serde_json::from_slice::<SourceValue>(bytes).unwrap()
+        atlas_foundry_model::parse_source_value(bytes).unwrap()
     );
     assert_eq!(document.provenance.source_path, "packs/items/ancestry.json");
     assert_eq!(document.provenance.pack_name, "items");

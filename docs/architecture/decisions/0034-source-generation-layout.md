@@ -38,7 +38,7 @@ Declaration optional/null/undefined facts and provenance remain in extraction
 evidence. Family source/system roots reserve their modules even when first reached
 through another family's embedded nullable/optional source.
 
-`atlas-ingest/src/source_model/generated` owns committed Rust and module/re-export
+`atlas-foundry-model/src/source_model/generated` owns committed Rust and module/re-export
 indexes. Content modules include shared Item/Actor/creature/physical components,
 family sources/systems, other document kinds and specific rules. Aggregate Actor/Item
 and rule dispatch have separate modules. Handwritten source presence, ordered values,

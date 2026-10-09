@@ -48,6 +48,13 @@ validated or executed.
 
 ## Consequences
 
+The loader calls atlas-foundry-model::admit_document_source, which parses bytes
+once and dispatches the unchanged admission policy. Models and typed snapshot
+persistence have a shared owner under ADR 0043; filesystem discovery and loaded
+pack/file/source outcomes remain in ingest. The loader does not create snapshots
+or adopt them into the current artifact.
+
+
 The complete source inputs can guide a combined normalization and database design
 review before new storage commitments. The review must cover typed family facts,
 embedded relationships, raw/diagnostic retention, FTS, semantic retrieval, filters,

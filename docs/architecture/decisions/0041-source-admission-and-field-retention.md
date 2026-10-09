@@ -13,7 +13,7 @@ the entire record is unusable or that Foundry would reject it after cleaning.
 
 ## Decision
 
-`atlas-ingest::source_model` owns two explicit callable boundaries:
+`atlas-foundry-model` owns two explicit callable boundaries:
 
 - `parse_*` validates the modeled authored representation strictly. Discovery
   comparisons continue to count unsupported values as rejections.
@@ -66,3 +66,7 @@ field fidelity checks. Strict corpus comparison remains a separate mode.
 Neither mode proves Foundry admission or gameplay completeness. No database,
 metrics, normalized record or UI contract changes follow automatically from
 introducing these source APIs.
+
+The model/parser/admission owner is shared with future runtime consumers under
+[ADR 0043](./0043-shared-foundry-model-and-snapshots.md). Authored JSON reading and
+typed snapshot decoding remain separate; decoding does not rerun admission.

@@ -434,7 +434,8 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
         )
         throw new Error(`Invalid or unsupported Rust field names: ${node.id}`);
       output.declarations.push(()=>`// Source declaration: ${node.id}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ${name} {
 ${fields.map(({ field, child, rust, boxed }) => `    // Declared optional=${field.optional}, nullable=${field.nullable}; retained before defaults.
 ${rust.replace(/^r#/, '')!==snake(field.name)?`    #[serde(rename = ${rustString(field.name)})]\n`:''}\
@@ -478,7 +479,7 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
       });
       if (new Set(variants).size !== variants.length || variants.some(variant => !/^[A-Z][A-Za-z0-9]*$/.test(variant)))
         throw new Error(`Unrepresentable literal variants: ${node.id}`);
-      output.declarations.push(`#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+      output.declarations.push(`#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ${name} {
 ${tokens.map((token, index) => `    #[serde(rename = ${rustString(token)})]
     ${variants[index]},`).join('\n')}
@@ -538,8 +539,8 @@ ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${va
     const anchored=alternatives.filter(a=>!a.fallback);
     const hasFallback=alternatives.some(a=>a.fallback && anchored.some(other=>[...a.kinds].some(kind=>other.kinds.has(kind))));
     output.declarations.push(()=>`// Source declaration: ${node.id}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum ${name} {
 ${alternatives.map(a=>`    ${a.variant}(${a.boxed?`Box<${a.child.type}>`:a.child.type}),`).join('\n')}
 }
@@ -552,7 +553,7 @@ ${hasFallback?`    let anchored = ${anchored.map(a=>a.condition).join(' || ')};\
 }`);
     return value;
   };
-  const rootExports: string[] = [];
+  const rootExports: string[] = [`/// Upstream declaration identity; snapshot format policy is versioned separately.\npub const SOURCE_CONTRACT_ID: &str = ${rustString(String(input.source.source_digest))};`];
   for (const selection of input.selection) {
     if(selection.valueRef) {
       const root=lookup(selection.valueRef);
@@ -587,8 +588,8 @@ ${alias}${input.portfolio ? 'pub' : 'pub(in crate::source_model)'} fn parse_${sn
       output.imports.get(root.module)!.add(root.name);
       output.imports.get(root.module)!.add(`parse_${snake(root.name)}`);
     }
-    output.declarations.push(`#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(untagged)]
+    output.declarations.push(`#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum RuleSource {
 ${ruleRoots.map(root => `    ${root.ruleKey}(Box<${root.name}>),`).join('\n')}
 }
@@ -614,8 +615,8 @@ ${ruleRoots.map(root => `        ${rustString(root.ruleKey!)} => parse_${snake(r
       output.imports.get(root.module)!.add(root.name);
       output.imports.get(root.module)!.add(`parse_${snake(root.name)}`);
     }
-    output.declarations.push(`#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(untagged)]
+    output.declarations.push(`#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum ItemTraits {
 ${familyRoots.map(root => `    ${pascal(root.family!)}(${root.name}),`).join('\n')}
 }
@@ -648,7 +649,7 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
     const lines = [...(children.get(name) ?? [])].sort().map(child => `pub(in crate::source_model::generated) mod ${child};`);
     if (output) {
       output.typeDependencies.forEach(owner=>importType(name,owner));
-      if (output.serialize) lines.push('use serde::Serialize;');
+      if (output.serialize) lines.push('use serde::{Serialize, Deserialize};');
       if (output.number) lines.push('use serde_json::Number;');
       if (output.object) lines.push('use crate::source_model::presence::SourcePresence;');
       lines.push(`use crate::source_model::value::{${output.object ? 'SourceObject, ' : ''}SourceValue};`);

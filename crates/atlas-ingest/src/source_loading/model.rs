@@ -2,21 +2,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
-use crate::source_model::{
-    ActorSourcePF2e, ItemSourcePF2e, JournalEntrySource, MacroSource, RollTableSource,
-    SourceAdmission,
-};
-
-/// Generated authored DTOs. These are not normalized Atlas records or Foundry
-/// runtime-prepared documents. Embedded children remain in their source models.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FoundryDocumentSource {
-    Actor(Box<ActorSourcePF2e>),
-    Item(Box<ItemSourcePF2e>),
-    JournalEntry(Box<JournalEntrySource>),
-    Macro(Box<MacroSource>),
-    RollTable(Box<RollTableSource>),
-}
+use atlas_foundry_model::{FoundryDocumentSource, SourceAdmission};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SourceFileProvenance {

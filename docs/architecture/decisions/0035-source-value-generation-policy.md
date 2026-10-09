@@ -74,7 +74,7 @@ to the compiler's `never` type, retaining their original constituents and source
 locations. Selection can discard these impossible union alternatives. An empty
 resolved member list alone is insufficient evidence.
 
-`atlas-ingest::source_model` exposes callable source slices and primitives; its
+`atlas-foundry-model` exposes callable source slices and primitives; its
 public `generated` namespace exposes generated value types, aliases and enums.
 Selected root parsers are public in `generated`, taking an ordered `SourceValue`
 and contextual path. Recursive implementation functions remain private to
