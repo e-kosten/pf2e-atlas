@@ -1,4 +1,5 @@
-use crate::{FoundryLinkMacroKind, FoundryNode, RichLinkTarget, RichNode, render_plain_text};
+use super::parsed_markup::{ParsedLinkMacroKind, ParsedLinkTarget, ParsedMacro, ParsedNode};
+use super::parsed_text::render_plain_text;
 
 use super::LocalizationResolver;
 
@@ -16,7 +17,7 @@ impl LocalizationResolver for LocalizationCatalog {
     }
 }
 
-use super::{parse_foundry_content, parse_foundry_content_with_localization};
+use super::parser::{parse_foundry_content, parse_foundry_content_with_localization};
 
 #[test]
 fn parses_headings_strong_text_and_uuid_references() {
@@ -29,25 +30,25 @@ fn parses_headings_strong_text_and_uuid_references() {
         render_plain_text(&parsed.document),
         "Effect\nStage 1 Sickened 1"
     );
-    let RichNode::HtmlElement { tag, children, .. } = &parsed.document.nodes[1] else {
+    let ParsedNode::HtmlElement { tag, children, .. } = &parsed.document.nodes[1] else {
         panic!("second node should be paragraph");
     };
     assert_eq!(tag, "p");
     assert!(matches!(
         children[0],
-        RichNode::HtmlElement { ref tag, .. } if tag == "strong"
+        ParsedNode::HtmlElement { ref tag, .. } if tag == "strong"
     ));
-    let RichNode::FoundryLink { link } = &children[2] else {
+    let ParsedNode::ParsedLink { link } = &children[2] else {
         panic!("third child should be reference link");
     };
-    assert_eq!(link.source.macro_kind, FoundryLinkMacroKind::Uuid);
+    assert_eq!(link.source.macro_kind, ParsedLinkMacroKind::Uuid);
     assert_eq!(
         link.source.authored_target,
         "Compendium.pf2e.conditionitems.Item.Sickened"
     );
     assert!(matches!(
         &link.target,
-        RichLinkTarget::Unresolved { target, .. }
+        ParsedLinkTarget::Unresolved { target, .. }
             if target == "Compendium.pf2e.conditionitems.Item.Sickened"
     ));
 }
@@ -72,7 +73,7 @@ fn uuid_targets_can_contain_commas() {
     let parsed =
         parse_foundry_content("@UUID[Compendium.pf2e.actionspf2e.Item.Strike, Breathe, Rend]");
 
-    let RichNode::FoundryLink { link } = &parsed.document.nodes[0] else {
+    let ParsedNode::ParsedLink { link } = &parsed.document.nodes[0] else {
         panic!("first node should be reference link");
     };
     assert_eq!(
@@ -81,7 +82,7 @@ fn uuid_targets_can_contain_commas() {
     );
     assert!(matches!(
         &link.target,
-        RichLinkTarget::Unresolved { target, fallback_label }
+        ParsedLinkTarget::Unresolved { target, fallback_label }
             if target == "Compendium.pf2e.actionspf2e.Item.Strike, Breathe, Rend"
                 && fallback_label == "Strike, Breathe, Rend"
     ));
@@ -108,9 +109,9 @@ fn resolves_localize_macros_without_losing_key_or_label_context() {
         Some(&localization),
     );
 
-    let RichNode::Foundry {
+    let ParsedNode::Foundry {
         node:
-            FoundryNode::Localize {
+            ParsedMacro::Localize {
                 key,
                 label: Some(label),
                 resolved: Some(resolved),
@@ -121,11 +122,11 @@ fn resolves_localize_macros_without_losing_key_or_label_context() {
     };
     assert_eq!(key, "PF2E.NPC.Abilities.Glossary.NegativeHealing");
     assert_eq!(
-        render_plain_text(&crate::RichDocument::new(label.clone())),
+        render_plain_text(&super::parsed_markup::ParsedMarkup::new(label.clone())),
         "Void Healing"
     );
     assert_eq!(
-        render_plain_text(&crate::RichDocument::new(resolved.clone())),
+        render_plain_text(&super::parsed_markup::ParsedMarkup::new(resolved.clone())),
         "A creature with void healing is healed by void effects."
     );
     assert_eq!(render_plain_text(&parsed.document), "Void Healing");
@@ -145,8 +146,8 @@ fn parses_resolved_localization_as_foundry_rich_content() {
     );
 
     assert_eq!(render_plain_text(&parsed.document), "Use Trip or shove.");
-    let RichNode::Foundry {
-        node: FoundryNode::Localize {
+    let ParsedNode::Foundry {
+        node: ParsedMacro::Localize {
             resolved: Some(resolved),
             ..
         },
@@ -156,8 +157,8 @@ fn parses_resolved_localization_as_foundry_rich_content() {
     };
     assert!(matches!(
         &resolved[0],
-        RichNode::HtmlElement { children, .. }
-            if children.iter().any(|node| matches!(node, RichNode::FoundryLink { .. }))
+        ParsedNode::HtmlElement { children, .. }
+            if children.iter().any(|node| matches!(node, ParsedNode::ParsedLink { .. }))
     ));
 }
 

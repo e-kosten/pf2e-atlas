@@ -1,15 +1,14 @@
-import type React from "react";
-import { RecordPresentation } from "./RecordPresentation";
+import { Popover } from "antd";
+import { useEffect } from "react";
+import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type {
   RecordPreviewAnchor,
   RecordPreviewContentProps,
 } from "./recordPreviewTypes";
-
 type RecordPreviewPopoverProps = RecordPreviewContentProps & {
   anchor: RecordPreviewAnchor | null;
 };
-
 export function RecordPreviewPopover({
   anchor,
   detail,
@@ -18,71 +17,53 @@ export function RecordPreviewPopover({
   onOpenFullPage,
   onReference,
 }: RecordPreviewPopoverProps) {
-  const position = recordPreviewPosition(anchor);
-
+  useEffect(() => {
+    const close = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, [onClose]);
   return (
-    <div
-      aria-label="Reference preview overlay"
-      className="record-preview-popover__backdrop"
-      role="presentation"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
+    <Popover
+      open
+      placement="rightTop"
+      trigger="click"
+      onOpenChange={(open) => {
+        if (!open) onClose();
       }}
-    >
-      <section
-        aria-label="Reference preview"
-        className="record-preview-popover"
-        role="dialog"
-        style={position}
-      >
-        <header className="record-preview-popover__header">
+      title={
+        <div className="record-preview-popover__header">
           <span>Reference</span>
           <RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />
-        </header>
-        <div className="record-preview-popover__body">
-          <RecordPresentation
+        </div>
+      }
+      content={
+        <section
+          aria-label="Reference preview"
+          className="record-preview-popover__body"
+          role="dialog"
+        >
+          <RecordDetailPane
             detail={detail}
             loading={loading}
             onReference={onReference}
           />
-        </div>
-      </section>
-    </div>
+        </section>
+      }
+    >
+      <span
+        aria-hidden
+        className="record-preview-anchor"
+        style={{
+          position: "fixed",
+          left: anchor?.left || 0,
+          top: anchor?.top || 0,
+          width: anchor?.width || 1,
+          height: anchor?.height || 1,
+          pointerEvents: "none",
+        }}
+      />
+    </Popover>
   );
-}
-
-function recordPreviewPosition(
-  anchor: RecordPreviewAnchor | null,
-): React.CSSProperties {
-  const margin = 16;
-  const gap = 8;
-  const width = Math.min(560, Math.max(360, window.innerWidth - margin * 2));
-  const maxHeight = Math.min(560, window.innerHeight - margin * 2);
-  if (!anchor) {
-    return {
-      maxHeight,
-      right: margin,
-      top: margin,
-      width,
-    };
-  }
-  const fitsRight = anchor.right + gap + width <= window.innerWidth - margin;
-  const fitsLeft = anchor.left - gap - width >= margin;
-  const left = fitsRight
-    ? anchor.right + gap
-    : fitsLeft
-      ? anchor.left - gap - width
-      : clamp(anchor.left, margin, window.innerWidth - margin - width);
-  return {
-    left,
-    maxHeight,
-    top: clamp(anchor.top, margin, window.innerHeight - margin - maxHeight),
-    width,
-  };
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), Math.max(min, max));
 }

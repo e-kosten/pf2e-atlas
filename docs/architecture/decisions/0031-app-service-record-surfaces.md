@@ -1,6 +1,7 @@
 # ADR 0031: App-Service Record Surfaces
 
-Status: accepted  
+Status: accepted app-service composition boundary; historical normalized facts
+and presentation fallback partially superseded by ADR 0046.
 Date: 2026-06-26
 
 ## Context

@@ -1,279 +1,182 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command as ProcessCommand;
-
+//! Explicit setup is the sole runtime path allowed to inspect/fetch the source clone.
+use crate::setup_freshness::source_is_fresh;
+use crate::{ResolvedAtlasPaths, setup_model::*};
 use atlas_embedding::{
     EmbeddingRuntimeConfig, prepare_embedding_model_cache, required_embedding_model_cache_files,
 };
-use atlas_index::{ArtifactValidationReport, ValidationStatus, ValidationTarget};
-use atlas_ingest::{
-    BuildArtifactOptions, BuildArtifactReport, analyze_foundry_source, build_artifact,
-};
-use tracing::info;
-
-use crate::ResolvedAtlasPaths;
-use crate::setup_freshness::{ManifestFreshness, manifest_source_signature};
-use crate::setup_model::{
-    RuntimeSetupOptions, RuntimeSetupReport, SetupAction, SetupActionKind, SetupActionStatus,
-    SetupBuildReport, SetupEmbeddingReport, SetupPathsReport, SetupReadiness, SetupReadinessItem,
-    SetupTarget,
-};
-
-#[derive(Debug, Clone)]
-struct EmbeddingModelCacheStatus {
-    model_dir: PathBuf,
-    ready: bool,
-    missing_files: Vec<PathBuf>,
+use atlas_index::SqliteIndexReader;
+use atlas_ingest::{BuildArtifactOptions, BuildArtifactReport, build_artifact};
+use std::{path::Path, process::Command};
+fn progress(phase: &str, message: &str) {
+    tracing::info!(target:"atlas_progress",phase,"{message}");
 }
-
 pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
     options: RuntimeSetupOptions,
 ) -> RuntimeSetupReport {
-    setup_progress(
-        "setup",
-        format!(
-            "Using {} paths; index {}",
-            paths.mode.label(),
-            paths.index_path.display()
-        ),
-    );
     let mut checks = Vec::new();
     let mut actions = Vec::new();
-    let source_exists = paths.source_root.is_dir();
-    let mut source_ready = source_exists;
-    if source_exists
-        && !options.check
-        && !options.offline
-        && paths.source_root.join(".git").exists()
+    let mut source_ready = paths.source_root.is_dir();
+    let config =
+        EmbeddingRuntimeConfig::new(options.embedding_model_id, &paths.embedding_cache_root);
+    let mut model_ready = atlas_embedding::validate_embedding_model_cache(&config).is_ok();
+    if !source_ready
+        || (!options.check && !options.offline && paths.source_root.join(".git").exists())
     {
-        setup_progress(
-            "fetch_source",
-            format!("Updating PF2E source at {}", paths.source_root.display()),
-        );
-        match fetch_pf2e_source(&paths.source_root) {
-            Ok(()) => {
-                actions.push(SetupAction::new(
-                    SetupActionKind::FetchSource,
-                    SetupActionStatus::Done,
-                ));
-            }
-            Err(error) => {
-                source_ready = false;
-                actions.push(SetupAction::with_reason(
-                    SetupActionKind::FetchSource,
-                    SetupActionStatus::Failed,
-                    error,
-                ));
-            }
-        }
-    } else if source_exists {
-        actions.push(SetupAction::new(
-            SetupActionKind::FetchSource,
-            SetupActionStatus::Skipped,
-        ));
-    } else if options.check {
-        let status = if options.offline {
-            SetupActionStatus::Blocked
+        if options.check || options.offline {
+            actions.push(SetupAction::with_reason(
+                SetupActionKind::FetchSource,
+                if options.offline {
+                    SetupActionStatus::Blocked
+                } else {
+                    SetupActionStatus::Planned
+                },
+                "source checkout is missing or needs updating",
+            ));
         } else {
-            SetupActionStatus::Planned
-        };
-        actions.push(SetupAction::with_reason(
-            SetupActionKind::FetchSource,
-            status,
-            if options.offline {
-                "offline"
-            } else {
-                "source checkout is missing"
-            },
-        ));
-    } else if options.offline {
-        actions.push(SetupAction::with_reason(
-            SetupActionKind::FetchSource,
-            SetupActionStatus::Blocked,
-            "offline",
-        ));
-    } else {
-        setup_progress(
-            "fetch_source",
-            format!("Cloning PF2E source into {}", paths.source_root.display()),
-        );
-        match fetch_pf2e_source(&paths.source_root) {
-            Ok(()) => {
-                source_ready = true;
-                actions.push(SetupAction::new(
-                    SetupActionKind::FetchSource,
-                    SetupActionStatus::Done,
-                ));
-            }
-            Err(error) => {
-                source_ready = false;
-                actions.push(SetupAction::with_reason(
-                    SetupActionKind::FetchSource,
-                    SetupActionStatus::Failed,
-                    error,
-                ));
+            progress("fetch_source", "Preparing Foundry source");
+            match fetch_source(&paths.source_root) {
+                Ok(()) => {
+                    source_ready = true;
+                    actions.push(SetupAction::new(
+                        SetupActionKind::FetchSource,
+                        SetupActionStatus::Done,
+                    ));
+                }
+                Err(e) => {
+                    source_ready = false;
+                    actions.push(SetupAction::with_reason(
+                        SetupActionKind::FetchSource,
+                        SetupActionStatus::Failed,
+                        e,
+                    ));
+                }
             }
         }
     }
-
-    let embedding_config =
-        EmbeddingRuntimeConfig::new(options.embedding_model_id, &paths.embedding_cache_root);
-    let mut model_cache = embedding_model_cache_status(&embedding_config);
-    let embedding_required = options.target.requires_embeddings();
-    if !embedding_required || model_cache.ready {
-        actions.push(SetupAction::new(
-            SetupActionKind::PrepareEmbeddingModel,
-            SetupActionStatus::Skipped,
-        ));
-    } else if options.check {
-        actions.push(SetupAction::with_reason(
-            SetupActionKind::PrepareEmbeddingModel,
-            if options.offline {
-                SetupActionStatus::Blocked
-            } else {
-                SetupActionStatus::Planned
-            },
-            if options.offline {
-                "offline"
-            } else {
-                "embedding model cache is missing required files"
-            },
-        ));
-    } else if options.offline {
-        actions.push(SetupAction::with_reason(
-            SetupActionKind::PrepareEmbeddingModel,
-            SetupActionStatus::Blocked,
-            "offline",
-        ));
-    } else {
-        setup_progress(
-            "prepare_embedding_model",
-            format!(
-                "Preparing embedding model cache for {}",
-                options.embedding_model_id
-            ),
-        );
-        match prepare_embedding_model_cache(&embedding_config) {
-            Ok(_) => {
-                model_cache = embedding_model_cache_status(&embedding_config);
-                if model_cache.ready {
+    if options.target.requires_embeddings() && !model_ready {
+        if options.check || options.offline {
+            actions.push(SetupAction::with_reason(
+                SetupActionKind::PrepareEmbeddingModel,
+                if options.offline {
+                    SetupActionStatus::Blocked
+                } else {
+                    SetupActionStatus::Planned
+                },
+                "required pinned embedding assets are missing or invalid",
+            ));
+        } else {
+            progress(
+                "prepare_embedding_model",
+                "Preparing pinned embedding assets",
+            );
+            match prepare_embedding_model_cache(&config) {
+                Ok(_) => {
+                    model_ready = true;
                     actions.push(SetupAction::new(
                         SetupActionKind::PrepareEmbeddingModel,
                         SetupActionStatus::Done,
                     ));
-                } else {
-                    actions.push(SetupAction::with_reason(
-                        SetupActionKind::PrepareEmbeddingModel,
-                        SetupActionStatus::Failed,
-                        "embedding model cache is missing required files after preparation",
-                    ));
                 }
-            }
-            Err(error) => {
-                actions.push(SetupAction::with_reason(
+                Err(e) => actions.push(SetupAction::with_reason(
                     SetupActionKind::PrepareEmbeddingModel,
                     SetupActionStatus::Failed,
-                    error.to_string(),
-                ));
+                    e.to_string(),
+                )),
             }
         }
     }
-
-    setup_progress(
-        "validate_index",
-        format!(
-            "Validating existing artifact at {}",
-            paths.index_path.display()
-        ),
-    );
-    let validation = check_for_target(paths, options.target.validation_target());
-    let validation = selected_model_validation(validation, options.target, &embedding_config);
-    let needs_source_signature =
-        source_ready && !options.force_rebuild && validation.status == ValidationStatus::Ok;
-    let source_signature = if needs_source_signature {
-        current_source_signature(paths, &validation, &mut checks)
-    } else if source_ready {
-        checks.push(SetupAction::with_reason(
-            SetupActionKind::AnalyzeSource,
-            SetupActionStatus::Skipped,
-            if options.force_rebuild {
-                "force rebuild requested"
-            } else {
-                "current artifact already requires rebuild"
-            },
-        ));
-        None
+    let old = SqliteIndexReader::open_read_only(&paths.index_path);
+    let locale = options
+        .locale
+        .clone()
+        .or_else(|| {
+            old.as_ref()
+                .ok()
+                .map(|i| i.context().indexing_locale.clone())
+        })
+        .unwrap_or_else(|| "en".into());
+    let freshness = if source_ready {
+        match old.as_ref() {
+            Ok(i) => source_is_fresh(paths, i.context()),
+            Err(_) => Ok(false),
+        }
     } else {
-        checks.push(SetupAction::with_reason(
+        Err("source checkout is unavailable for explicit freshness checking".into())
+    };
+    match &freshness {
+        Ok(true) => checks.push(SetupAction::new(
+            SetupActionKind::AnalyzeSource,
+            SetupActionStatus::Done,
+        )),
+        Ok(false) => checks.push(SetupAction::with_reason(
+            SetupActionKind::AnalyzeSource,
+            SetupActionStatus::Done,
+            "source content differs from the indexed fingerprint",
+        )),
+        Err(e) => checks.push(SetupAction::with_reason(
             SetupActionKind::AnalyzeSource,
             SetupActionStatus::Blocked,
-            "source checkout is not ready",
-        ));
-        None
+            e,
+        )),
+    }
+    let old_semantic = if options.target.requires_embeddings() {
+        SqliteIndexReader::open_read_only_with_vectors(&paths.index_path).is_ok()
+    } else {
+        true
     };
-
-    let rebuild_needed = rebuild_needed(
-        &validation,
-        source_signature.as_deref(),
-        options.force_rebuild,
-    );
-    let build = if rebuild_needed {
-        let blocked_reason = build_blocked_reason(&options, source_ready, &model_cache);
-        if let Some(reason) = blocked_reason {
-            actions.push(SetupAction::with_reason(
-                SetupActionKind::BuildIndex,
-                if check_can_plan_blocked_build(&options, reason) {
-                    SetupActionStatus::Planned
-                } else {
-                    SetupActionStatus::Blocked
-                },
-                reason,
-            ));
-            None
-        } else if options.check {
+    let needs_build = options.force_rebuild
+        || old.is_err()
+        || !old_semantic
+        || freshness.as_ref().is_ok_and(|f| !*f)
+        || (source_ready && freshness.is_err())
+        || old
+            .as_ref()
+            .is_ok_and(|i| i.context().indexing_locale != locale);
+    let mut build = None;
+    let mut build_failed = false;
+    if needs_build {
+        if options.check {
             actions.push(SetupAction::with_reason(
                 SetupActionKind::BuildIndex,
                 SetupActionStatus::Planned,
-                build_reason(
-                    &validation,
-                    source_signature.as_deref(),
-                    options.force_rebuild,
-                ),
+                "artifact requires rebuild",
             ));
-            None
+        } else if !source_ready || (options.target.requires_embeddings() && !model_ready) {
+            actions.push(SetupAction::with_reason(
+                SetupActionKind::BuildIndex,
+                SetupActionStatus::Blocked,
+                "source or required embedding assets are unavailable",
+            ));
         } else {
-            setup_progress(
-                "build_index",
-                format!("Building SQLite artifact at {}", paths.index_path.display()),
-            );
-            match build_artifact(BuildArtifactOptions {
+            progress("build_index", "Building source-backed artifact");
+            let result = build_artifact(BuildArtifactOptions {
                 source_root: paths.source_root.clone(),
                 output_path: paths.index_path.clone(),
                 manifest_path: None,
-                embedding_model_id: options.embedding_model_id.to_string(),
-                embedding_cache_root: if embedding_required {
-                    Some(paths.embedding_cache_root.clone())
-                } else {
-                    None
-                },
+                locale,
+                embedding: options
+                    .target
+                    .requires_embeddings()
+                    .then_some(config.clone()),
                 reuse_embeddings: true,
                 embedding_batch_size: options.embedding_batch_size,
-            }) {
-                Ok(report) => {
+            });
+            match result {
+                Ok(r) => {
+                    build = Some(r.into());
                     actions.push(SetupAction::new(
                         SetupActionKind::BuildIndex,
                         SetupActionStatus::Done,
                     ));
-                    Some(SetupBuildReport::from(report))
                 }
-                Err(error) => {
+                Err(e) => {
+                    build_failed = true;
                     actions.push(SetupAction::with_reason(
                         SetupActionKind::BuildIndex,
                         SetupActionStatus::Failed,
-                        error.to_string(),
+                        e.to_string(),
                     ));
-                    None
                 }
             }
         }
@@ -282,93 +185,51 @@ pub(crate) fn ensure_setup(
             SetupActionKind::BuildIndex,
             SetupActionStatus::Skipped,
         ));
-        None
-    };
-
-    let final_validation = if build.is_some() {
-        setup_progress(
-            "validate_index",
-            format!(
-                "Validating final artifact at {}",
-                paths.index_path.display()
-            ),
-        );
-        selected_model_validation(
-            check_for_target(paths, options.target.validation_target()),
-            options.target,
-            &embedding_config,
-        )
-    } else {
-        validation
-    };
-    checks.push(SetupAction::new(
-        SetupActionKind::ValidateIndex,
-        if final_validation.status == ValidationStatus::Ok {
-            SetupActionStatus::Done
+    }
+    // Publication owns atomic replacement; setup never deletes the prior artifact.
+    let current = SqliteIndexReader::open_read_only(&paths.index_path);
+    let records_ready = current.is_ok() && !build_failed && (!needs_build || build.is_some());
+    let semantic_ready = records_ready
+        && model_ready
+        && SqliteIndexReader::open_read_only_with_vectors(&paths.index_path).is_ok();
+    checks.push(match &current{Ok(_)=>SetupAction::with_reason(SetupActionKind::ValidateIndex,SetupActionStatus::Done,"cheap executable schema/catalog check; full snapshot validation is a separate operation"),Err(e)=>SetupAction::with_reason(SetupActionKind::ValidateIndex,SetupActionStatus::Blocked,e.to_string())});
+    let readiness = |ready: bool, required: bool, reason: &str| {
+        if ready {
+            SetupReadinessItem::ready(required)
         } else {
-            SetupActionStatus::Blocked
-        },
-    ));
-    let record_validation = if embedding_required {
-        setup_progress("validate_index", "Validating base record readiness");
-        check_for_target(paths, ValidationTarget::BaseOnly)
-    } else {
-        final_validation.clone()
+            SetupReadinessItem::not_ready(required, reason)
+        }
     };
-
-    let ready = source_ready
-        && (!embedding_required || model_cache.ready)
-        && final_validation.status == ValidationStatus::Ok
-        && !checks.iter().chain(actions.iter()).any(|action| {
-            matches!(
-                action.status,
-                SetupActionStatus::Planned | SetupActionStatus::Blocked | SetupActionStatus::Failed
-            )
-        });
-    let report = RuntimeSetupReport {
+    RuntimeSetupReport {
         target: options.target,
-        ready,
+        ready: records_ready && (!options.target.requires_embeddings() || semantic_ready),
         path_mode: paths.mode.as_str(),
-        repo_root: paths
-            .repo_root
-            .as_ref()
-            .map(|path| path.display().to_string()),
+        repo_root: paths.repo_root.as_ref().map(|p| p.display().to_string()),
         offline: options.offline,
         check: options.check,
         force_rebuild: options.force_rebuild,
         checks,
         actions,
         readiness: SetupReadiness {
-            source: if source_ready {
-                SetupReadinessItem::ready(true)
+            source: readiness(source_ready, false, "source checkout is unavailable"),
+            embedding_model: if options.target.requires_embeddings() {
+                readiness(model_ready, true, "required pinned assets unavailable")
             } else {
-                SetupReadinessItem::not_ready(true, "source checkout is not ready")
+                SetupReadinessItem::skipped("lexical setup does not require embedding assets")
             },
-            embedding_model: if embedding_required {
-                if model_cache.ready {
-                    SetupReadinessItem::ready(true)
-                } else {
-                    SetupReadinessItem::not_ready(
-                        true,
-                        "embedding model cache is missing required files",
-                    )
-                }
+            records: readiness(
+                records_ready,
+                true,
+                "artifact is absent, stale, incompatible, or rebuild failed",
+            ),
+            semantic_search: if options.target.requires_embeddings() {
+                readiness(
+                    semantic_ready,
+                    true,
+                    "semantic vectors or query model cache unavailable",
+                )
             } else {
-                SetupReadinessItem::skipped("not required for records target")
-            },
-            records: if record_validation.status == ValidationStatus::Ok {
-                SetupReadinessItem::ready(true)
-            } else {
-                SetupReadinessItem::not_ready(true, record_validation.message.clone())
-            },
-            semantic_search: if embedding_required {
-                if final_validation.status == ValidationStatus::Ok {
-                    SetupReadinessItem::ready(true)
-                } else {
-                    SetupReadinessItem::not_ready(true, final_validation.message.clone())
-                }
-            } else {
-                SetupReadinessItem::skipped("not required for records target")
+                SetupReadinessItem::skipped("lexical setup requested")
             },
         },
         paths: SetupPathsReport {
@@ -378,368 +239,58 @@ pub(crate) fn ensure_setup(
         },
         embedding: SetupEmbeddingReport {
             model: options.embedding_model_id.to_string(),
-            model_path: model_cache.model_dir.display().to_string(),
+            model_path: config.model_dir().display().to_string(),
             cache_root: paths.embedding_cache_root.display().to_string(),
-            ready: model_cache.ready,
-            missing_files: model_cache
-                .missing_files
+            ready: model_ready,
+            missing_files: required_embedding_model_cache_files(&config)
                 .iter()
-                .map(|path| path.display().to_string())
+                .filter(|f| !f.local_path.is_file())
+                .map(|f| f.local_path.display().to_string())
                 .collect(),
         },
         build,
-    };
-    setup_progress_complete();
-    report
-}
-
-fn current_source_signature(
-    paths: &ResolvedAtlasPaths,
-    validation: &ArtifactValidationReport,
-    checks: &mut Vec<SetupAction>,
-) -> Option<String> {
-    match manifest_source_signature(paths, validation) {
-        ManifestFreshness::Fresh(source_signature) => {
-            checks.push(SetupAction::with_reason(
-                SetupActionKind::AnalyzeSource,
-                SetupActionStatus::Skipped,
-                "source position matched adjacent artifact manifest",
-            ));
-            return Some(source_signature);
-        }
-        ManifestFreshness::Stale | ManifestFreshness::Unavailable => {}
-    }
-
-    setup_progress(
-        "analyze_source",
-        format!("Analyzing PF2E source at {}", paths.source_root.display()),
-    );
-    match analyze_foundry_source(&paths.source_root, None) {
-        Ok(report) => {
-            checks.push(SetupAction::new(
-                SetupActionKind::AnalyzeSource,
-                SetupActionStatus::Done,
-            ));
-            Some(report.source.source_signature)
-        }
-        Err(error) => {
-            checks.push(SetupAction::with_reason(
-                SetupActionKind::AnalyzeSource,
-                SetupActionStatus::Failed,
-                error.to_string(),
-            ));
-            None
-        }
     }
 }
-
-fn setup_progress(phase: &'static str, message: impl AsRef<str>) {
-    let message = message.as_ref();
-    info!(target: "atlas_progress", phase, "{message}");
-}
-
-fn setup_progress_complete() {
-    info!(target: "atlas_progress", complete = true, "setup complete");
-}
-
-fn selected_model_validation(
-    validation: ArtifactValidationReport,
-    target: SetupTarget,
-    embedding_config: &EmbeddingRuntimeConfig,
-) -> ArtifactValidationReport {
-    if target != SetupTarget::Full || validation.status != ValidationStatus::Ok {
-        return validation;
-    }
-    let spec = embedding_config.model_spec();
-    if validation.embedding_model_id.as_deref() == Some(spec.model_id)
-        && validation.embedding_model_revision.as_deref() == Some(spec.model_revision)
-        && validation.embedding_tokenizer_id.as_deref() == Some(spec.tokenizer_id)
-    {
-        return validation;
-    }
-    let mut validation = validation;
-    validation.status = ValidationStatus::Error;
-    validation.code = atlas_index::ValidationCode::EmbeddingMismatch;
-    validation.message = format!(
-        "artifact embedding model does not match selected setup model `{}`",
-        embedding_config.model
-    );
-    validation
-        .diagnostics
-        .push(atlas_index::ArtifactValidationDiagnostic {
-            code: atlas_index::ValidationCode::EmbeddingMismatch,
-            family: atlas_index::ArtifactValidationFamily::Embedding,
-            message: "artifact embedding model does not match selected setup model".to_string(),
-            key: Some("embedding_model_id".to_string()),
-            expected: Some(spec.model_id.to_string()),
-            actual: validation.embedding_model_id.clone(),
-        });
-    validation
-}
-
-fn check_for_target(
-    paths: &ResolvedAtlasPaths,
-    target: ValidationTarget,
-) -> ArtifactValidationReport {
-    let base_report = match atlas_index::SqliteIndexReader::open_read_only(&paths.index_path) {
-        Ok(index) => index.check_report(),
-        Err(error) => return atlas_index::validation_report_for_error(&paths.index_path, error),
-    };
-    if base_report.status != ValidationStatus::Ok || matches!(target, ValidationTarget::BaseOnly) {
-        return base_report;
-    }
-    match atlas_index::SqliteIndexReader::open_read_only_with_vectors(&paths.index_path) {
-        Ok(index) => index.check_embedding_readiness_report(),
-        Err(error) => match atlas_index::SqliteIndexReader::open_read_only(&paths.index_path) {
-            Ok(index) => index.vector_extension_unavailable_report(
-                ValidationTarget::EmbeddingsOnly,
-                error.to_string(),
-            ),
-            Err(base_error) => {
-                atlas_index::validation_report_for_error(&paths.index_path, base_error)
-            }
-        },
-    }
-}
-
-fn rebuild_needed(
-    validation: &ArtifactValidationReport,
-    source_signature: Option<&str>,
-    force_rebuild: bool,
-) -> bool {
-    if force_rebuild {
-        return true;
-    }
-    if validation.status != ValidationStatus::Ok {
-        return true;
-    }
-    source_signature.is_some_and(|current_source_signature| {
-        validation.source_signature.as_deref() != Some(current_source_signature)
-    })
-}
-
-fn build_blocked_reason(
-    options: &RuntimeSetupOptions,
-    source_ready: bool,
-    model_cache: &EmbeddingModelCacheStatus,
-) -> Option<&'static str> {
-    if !source_ready {
-        return Some("source checkout is not ready");
-    }
-    if options.target.requires_embeddings() && !model_cache.ready {
-        return Some("embedding model cache is not ready");
-    }
-    if options.check && options.force_rebuild {
-        return Some("force rebuild requested");
-    }
-    None
-}
-
-fn check_can_plan_blocked_build(options: &RuntimeSetupOptions, reason: &str) -> bool {
-    options.check
-        && (reason == "force rebuild requested"
-            || (!options.offline
-                && matches!(
-                    reason,
-                    "source checkout is not ready" | "embedding model cache is not ready"
-                )))
-}
-
-fn build_reason(
-    validation: &ArtifactValidationReport,
-    source_signature: Option<&str>,
-    force_rebuild: bool,
-) -> String {
-    if force_rebuild {
-        return "force rebuild requested".to_string();
-    }
-    if validation.status != ValidationStatus::Ok {
-        return validation.message.clone();
-    }
-    if source_signature.is_some() && validation.source_signature.as_deref() != source_signature {
-        return "source signature changed since the artifact was built".to_string();
-    }
-    "artifact repair is required".to_string()
-}
-
 impl From<BuildArtifactReport> for SetupBuildReport {
-    fn from(report: BuildArtifactReport) -> Self {
+    fn from(r: BuildArtifactReport) -> Self {
         Self {
-            source_signature: report.source_signature,
-            source_record_count: report.source_record_count,
-            artifact_record_count: report.artifact_record_count,
-            generated_record_count: report.generated_record_count,
-            pending_document_embedding_count: report.pending_document_embedding_count,
-            document_embedding_count: report.document_embedding_count,
-            reused_document_embedding_count: report.reused_document_embedding_count,
-            generated_document_embedding_count: report.generated_document_embedding_count,
-            build_duration_ms: report.build_duration_ms,
-            embedding_tokenization_duration_ms: report.embedding_timing.tokenization_duration_ms,
-            embedding_model_load_duration_ms: report.embedding_timing.model_load_duration_ms,
-            embedding_generation_duration_ms: report.embedding_timing.generation_duration_ms,
+            pack_count: r.pack_count,
+            record_count: r.record_count,
+            product_record_count: r.product_record_count,
+            semantic_unit_count: r.semantic_unit_count,
+            inferred_inputs: r.inferred_inputs,
+            reused_inputs: r.reused_inputs,
+            context_shortened_sections: r.context_shortened_sections,
+            source_fingerprint: r.source_fingerprint,
+            build_duration_ms: r.build_duration_ms,
         }
     }
 }
-
-fn embedding_model_cache_status(config: &EmbeddingRuntimeConfig) -> EmbeddingModelCacheStatus {
-    let model_dir = config.model_dir();
-    let missing_files = required_embedding_model_cache_files(config)
-        .into_iter()
-        .map(|file| file.local_path)
-        .filter(|path| !path.is_file())
-        .collect::<Vec<_>>();
-    EmbeddingModelCacheStatus {
-        model_dir,
-        ready: missing_files.is_empty(),
-        missing_files,
-    }
-}
-
-fn fetch_pf2e_source(source_root: &Path) -> Result<(), String> {
-    if source_root.exists() {
-        if source_root.join(".git").exists() {
-            let status = ProcessCommand::new("git")
-                .args([
-                    "-C",
-                    &source_root.display().to_string(),
-                    "pull",
-                    "--ff-only",
-                    "--quiet",
-                ])
-                .status()
-                .map_err(|error| format!("failed to run git pull: {error}"))?;
-            if status.success() {
-                return Ok(());
-            }
-            return Err(format!(
-                "failed to update PF2E source at {}",
-                source_root.display()
-            ));
+fn fetch_source(path: &Path) -> Result<(), String> {
+    let mut cmd = Command::new("git");
+    if path.exists() {
+        if !path.join(".git").exists() {
+            return Err("existing source directory is not a Git checkout".into());
         }
-        return Err(format!(
-            "source path already exists but is not a git checkout: {}",
-            source_root.display()
-        ));
-    }
-    if let Some(parent) = source_root.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            format!(
-                "failed to create source parent directory {}: {error}",
-                parent.display()
-            )
-        })?;
-    }
-    let status = ProcessCommand::new("git")
-        .args([
+        cmd.arg("-C")
+            .arg(path)
+            .args(["pull", "--ff-only", "--quiet"]);
+    } else {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        cmd.args([
             "clone",
             "--depth",
             "1",
             "--quiet",
             "https://github.com/foundryvtt/pf2e.git",
-            &source_root.display().to_string(),
         ])
-        .status()
-        .map_err(|error| format!("failed to run git clone: {error}"))?;
-    if status.success() {
+        .arg(path);
+    }
+    if cmd.status().map_err(|e| e.to_string())?.success() {
         Ok(())
     } else {
-        Err(format!(
-            "failed to clone PF2E source into {}",
-            source_root.display()
-        ))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use atlas_embedding::EmbeddingModelId;
-    use atlas_index::ArtifactMetadataSummary;
-    use atlas_ingest::{
-        BuildArtifactReport, DocumentEmbeddingTokenizationReport, EmbeddingTimingReport,
-        IngestDiagnostics,
-    };
-
-    use super::*;
-
-    #[test]
-    fn full_setup_rejects_artifact_built_for_another_supported_model() {
-        let config = EmbeddingRuntimeConfig::new(EmbeddingModelId::BgeSmallEnV15, "/tmp/cache");
-        let report = ArtifactValidationReport::ok(
-            "/tmp/index.sqlite".to_string(),
-            ArtifactMetadataSummary {
-                embedding_model_id: Some("BAAI/bge-base-en-v1.5".to_string()),
-                embedding_model_revision: Some("main".to_string()),
-                embedding_tokenizer_id: Some("BAAI/bge-base-en-v1.5".to_string()),
-                ..Default::default()
-            },
-        );
-
-        let report = selected_model_validation(report, SetupTarget::Full, &config);
-
-        assert_eq!(report.status, ValidationStatus::Error);
-        assert_eq!(report.code, atlas_index::ValidationCode::EmbeddingMismatch);
-        assert_eq!(
-            report.diagnostics[0].key.as_deref(),
-            Some("embedding_model_id")
-        );
-    }
-
-    #[test]
-    fn records_setup_accepts_artifact_built_for_another_model() {
-        let config = EmbeddingRuntimeConfig::new(EmbeddingModelId::BgeSmallEnV15, "/tmp/cache");
-        let report = ArtifactValidationReport::ok(
-            "/tmp/index.sqlite".to_string(),
-            ArtifactMetadataSummary {
-                embedding_model_id: Some("BAAI/bge-base-en-v1.5".to_string()),
-                embedding_model_revision: Some("main".to_string()),
-                embedding_tokenizer_id: Some("BAAI/bge-base-en-v1.5".to_string()),
-                ..Default::default()
-            },
-        );
-
-        let report = selected_model_validation(report, SetupTarget::Records, &config);
-
-        assert_eq!(report.status, ValidationStatus::Ok);
-    }
-
-    #[test]
-    fn setup_build_report_preserves_build_counts_and_timing() {
-        let report = SetupBuildReport::from(BuildArtifactReport {
-            output_path: PathBuf::from("/tmp/index.sqlite"),
-            pack_count: 3,
-            record_count: 29,
-            source_record_count: 23,
-            artifact_record_count: 29,
-            generated_record_count: 6,
-            pending_document_embedding_count: 19,
-            document_embedding_count: 17,
-            reused_document_embedding_count: 11,
-            generated_document_embedding_count: 6,
-            document_embedding_tokenization: DocumentEmbeddingTokenizationReport::default(),
-            embedding_timing: EmbeddingTimingReport {
-                tokenization_duration_ms: 101,
-                model_load_duration_ms: 202,
-                generation_duration_ms: 303,
-                ..Default::default()
-            },
-            build_duration_ms: 404,
-            source_signature: "foundry-pf2e:fixture".to_string(),
-            diagnostics: IngestDiagnostics::default(),
-            skipped_records: Vec::new(),
-            warnings: Vec::new(),
-        });
-
-        assert_eq!(report.source_signature, "foundry-pf2e:fixture");
-        assert_eq!(report.source_record_count, 23);
-        assert_eq!(report.artifact_record_count, 29);
-        assert_eq!(report.generated_record_count, 6);
-        assert_eq!(report.pending_document_embedding_count, 19);
-        assert_eq!(report.document_embedding_count, 17);
-        assert_eq!(report.reused_document_embedding_count, 11);
-        assert_eq!(report.generated_document_embedding_count, 6);
-        assert_eq!(report.build_duration_ms, 404);
-        assert_eq!(report.embedding_tokenization_duration_ms, 101);
-        assert_eq!(report.embedding_model_load_duration_ms, 202);
-        assert_eq!(report.embedding_generation_duration_ms, 303);
+        Err("Foundry source fetch failed".into())
     }
 }

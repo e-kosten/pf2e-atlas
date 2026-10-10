@@ -15,7 +15,7 @@ pub(crate) enum SourceCommand {
     Load(LoadOptions),
     #[command(about = "Analyze Foundry source ingest without writing SQLite")]
     Analyze(AnalyzeOptions),
-    #[command(about = "Audit raw Foundry JSON paths and known ingest coverage")]
+    #[command(about = "Discover raw Foundry JSON paths, value shapes and samples")]
     AuditPaths(AuditPathsOptions),
 }
 

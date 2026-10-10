@@ -1,12 +1,11 @@
 use thiserror::Error;
-
 #[derive(Debug, Error)]
 pub enum EmbeddingError {
     #[error("failed to load tokenizer `{path}`: {message}")]
     TokenizerLoadFailed { path: String, message: String },
-    #[error("failed to tokenize query: {0}")]
+    #[error("failed to tokenize embedding input: {0}")]
     TokenizationFailed(String),
-    #[error("failed to load ONNX model `{path}`: {message}")]
+    #[error("failed to load embedding model `{path}`: {message}")]
     ModelLoadFailed { path: String, message: String },
     #[error("failed to prepare embedding model cache path `{path}`: {message}")]
     ModelCachePrepareFailed { path: String, message: String },
@@ -16,26 +15,30 @@ pub enum EmbeddingError {
         path: String,
         message: String,
     },
-    #[error("failed to prepare ONNX tensor: {0}")]
-    TensorPrepareFailed(String),
-    #[error("failed to run ONNX model: {0}")]
+    #[error("embedding asset `{path}` checksum mismatch; expected {expected}, got {actual}")]
+    AssetChecksumMismatch {
+        path: String,
+        expected: String,
+        actual: String,
+    },
+    #[error("unsupported embedding execution contract")]
+    UnsupportedModelContract,
+    #[error("failed to run embedding model: {0}")]
     ModelRunFailed(String),
-    #[error("model did not return a hidden-state tensor")]
-    MissingHiddenState,
-    #[error("expected hidden-state shape [batch, tokens, dims], got {0:?}")]
-    UnexpectedHiddenStateShape(Vec<usize>),
-    #[error("model returned {actual} dimensions, but embedding catalog expects {expected}")]
+    #[error("model returned {actual} dimensions, but expects {expected}")]
     DimensionMismatch { expected: usize, actual: usize },
     #[error("embedding model returned {actual} outputs for {expected} inputs")]
     UnexpectedEmbeddingOutputCount { expected: usize, actual: usize },
-    #[error(
-        "composed embedding input exceeded token budget: estimated {estimated}, actual {actual}, max {max}"
-    )]
-    TokenBudgetExceeded {
-        estimated: usize,
-        actual: usize,
-        max: usize,
-    },
-    #[error("failed to write embedding diagnostics to {path}: {message}")]
-    DiagnosticWriteFailed { path: String, message: String },
+    #[error("embedding input exceeded token budget: actual {actual}, max {max}")]
+    TokenBudgetExceeded { actual: usize, max: usize },
+    #[error("embedding input is empty or has no body tokens")]
+    EmptyInput,
+    #[error("embedding vector contains nonfinite values or is not normalized")]
+    InvalidVector,
+    #[error("text splitter failed: {0}")]
+    SplitterFailed(String),
+    #[error("invalid passage source address: {0}")]
+    InvalidPassageAddress(String),
+    #[error("prepared embedding input or reuse identity changed")]
+    PreparedInputMismatch,
 }

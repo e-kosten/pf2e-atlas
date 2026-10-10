@@ -1,3 +1,4 @@
+import { detailFixture } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useState } from "react";
@@ -186,35 +187,12 @@ function savedListIndexFixture() {
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  const title = recordKey.split(":")[1] ?? recordKey;
-  return {
-    record_key: recordKey,
-    title,
-    kind: "spell",
-    presentation: {
-      record_key: recordKey,
-      kind: "spell",
-      title,
-      identity: [],
-      badges: [],
-      sections: [
-        {
-          kind: "description",
-          title: "Description",
-          blocks: [
-            {
-              kind: "relationships",
-              content: [
-                {
-                  kind: "reference",
-                  label: "Linked Record",
-                  record_key: "spell:linked",
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
+  const result = detailFixture(recordKey, undefined, "spell:linked");
+  if (result.surface.sections[0].content?.body.kind === "html")
+    result.surface.sections[0].content.body.html =
+      result.surface.sections[0].content.body.html.replace(
+        "Nested Rule",
+        "Linked Record",
+      );
+  return result;
 }

@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted library boundary. Product artifact and consumer adoption remain open.
+Accepted library boundary. ADR 0046 defines product artifact and consumer
+adoption; the adoption checkpoint below records this decision's original scope.
 
 ## Context
 
@@ -124,4 +125,4 @@ compatibility facades and a second persisted/public generic HTML tree.
 - [Pinned visibility handlers](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/scripts/ui/user-visibility.ts)
 - [Pinned macro registration](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/scripts/hooks/init.ts)
 - [Pinned glyph classes](https://github.com/foundryvtt/pf2e/blob/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/src/styles/_globals.scss)
-- [Typed ingest and database follow-up](../../backlog/items/typed-ingest-database-design.md)
+- [Typed ingest and database cutover](../../backlog/history/items/typed-ingest-database-design.md)

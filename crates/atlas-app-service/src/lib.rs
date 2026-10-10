@@ -15,8 +15,11 @@ mod surfaces;
 mod windows;
 
 #[cfg(test)]
+mod source_consumer_tests;
+#[cfg(test)]
 mod test_support;
 
 pub use error::{AppServiceError, AppServiceResult};
-pub use filters::RawFilterValuesRequest;
+pub use filters::{RawFilterCountsRequest, RawFilterValuesRequest};
+pub use projection::record_summary_view;
 pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};

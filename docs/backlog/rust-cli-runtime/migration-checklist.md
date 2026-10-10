@@ -1,13 +1,16 @@
 # Rust Runtime Checklist
 
-Status: active working checklist
+Status: historical migration baseline with open follow-up links
 Primary product surface: `atlas` CLI plus first-party agent skill
 Architecture decisions: [ADR 0017](../../architecture/decisions/0017-rust-runtime-cli-first-migration.md), [ADR 0026](../../architecture/decisions/0026-rust-cli-product-surface.md)
-Roadmap: [migration-roadmap.md](./migration-roadmap.md)
+Roadmap: [migration-roadmap.md](migration-roadmap.md)
 
-This checklist tracks the current Rust runtime state and open follow-up work.
+This checklist records the original Rust runtime migration. Current storage and
+retrieval policy is defined by ADR 0046 and the architecture docs; the coordinated
+cutover and its validation are recorded in backlog history. Use the live backlog for
+current follow-up status.
 
-## Completed Baseline
+## Historical Completed Baseline
 
 - [x] Rust workspace with `atlas-domain`, `atlas-record`, `atlas-ingest`, `atlas-index`, `atlas-embedding`, `atlas-search`, `atlas-runtime`, `atlas-cli`, and `atlas-sqlite-vec`.
 - [x] Pinned Rust toolchain and tracked `Cargo.lock`.
@@ -26,20 +29,27 @@ This checklist tracks the current Rust runtime state and open follow-up work.
 - [x] First-party PF2e Atlas CLI skill package with install and doctor commands.
 - [x] Rust workspace promoted to repository root.
 
+## Completed Source-backed Cutover
+
+- [x] [Source-backed artifact and ingest cutover](../history/items/typed-ingest-database-design.md).
+
 ## Open Follow-Up
 
 - [ ] [Rust CLI and skill capability follow-through](../items/rust-cli-skill-capability-follow-through.md).
 - [ ] [Rust search quality and retrieval weight tuning](../items/rust-search-quality-tuning.md).
-- [ ] [Rust creature level filtering](../items/rust-creature-level-filtering.md).
 - [ ] [Rust CLI kind preview facts](../items/rust-cli-kind-preview-facts.md).
 - [ ] [Rust CLI typo tolerant discovery](../items/rust-cli-typo-tolerant-discovery.md).
-- [ ] [Rust Foundry JSON field audit](../items/rust-foundry-json-field-audit.md).
-- [ ] [Rust content subdocuments for journal pages and table results](../items/rust-content-subdocuments-journal-table-results.md).
-- [ ] [Rust side data and metric source fact convergence](../items/rust-side-data-metric-source-fact-convergence.md).
 - [ ] [Rust graph context deeper local graph](../items/rust-graph-context-deeper-local-graph.md).
 - [ ] [Rust FTS tokenization and stemming exploration](../items/rust-fts-tokenization-stemming.md).
 - [ ] [Rust Ratatui workbench](../items/rust-ratatui-workbench.md).
 - [ ] [Rust derived-tag runtime and editorial redesign](../items/rust-derived-tag-redesign.md).
+
+## Superseded Proposals
+
+The old creature-level flag fix, field coverage ledger, promoted journal/table
+subdocuments and metric convergence proposals are archived in
+[backlog history](../history/done-and-superseded.md). Their intent is addressed
+through the approved source-backed contract, rather than a parallel old model.
 
 ## Validation
 

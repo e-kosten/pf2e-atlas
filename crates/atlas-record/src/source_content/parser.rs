@@ -3,16 +3,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use ego_tree::NodeRef;
 use scraper::{Html, node::Node};
 
-use crate::{
-    DamagePart, FoundryLink, FoundryLinkBehavior, FoundryLinkMacroKind, FoundryLinkSource,
-    FoundryNode, RichDocument, RichLinkTarget, RichNode,
+use super::parsed_markup::{
+    ParsedDamagePart, ParsedLink, ParsedLinkBehavior, ParsedLinkMacroKind, ParsedLinkSource,
+    ParsedLinkTarget, ParsedMacro, ParsedMarkup, ParsedNode,
 };
 
 use super::parse_diagnostics::ContentParseDiagnostics;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParsedContentDocument {
-    pub document: RichDocument,
+pub(super) struct ParsedContentDocument {
+    pub document: ParsedMarkup,
     pub diagnostics: ContentParseDiagnostics,
 }
 
@@ -20,11 +20,12 @@ pub trait LocalizationResolver {
     fn localized_value(&self, key: &str) -> Option<&str>;
 }
 
-pub fn parse_foundry_content(value: &str) -> ParsedContentDocument {
+#[cfg(test)]
+pub(super) fn parse_foundry_content(value: &str) -> ParsedContentDocument {
     parse_foundry_content_with_localization(value, None)
 }
 
-pub fn parse_foundry_content_with_localization(
+pub(super) fn parse_foundry_content_with_localization(
     value: &str,
     localization: Option<&dyn LocalizationResolver>,
 ) -> ParsedContentDocument {
@@ -38,7 +39,7 @@ pub fn parse_foundry_content_with_localization(
     }
 
     ParsedContentDocument {
-        document: RichDocument::new(nodes),
+        document: ParsedMarkup::new(nodes),
         diagnostics,
     }
 }
@@ -61,7 +62,7 @@ impl<'a> ParseState<'a> {
     }
 }
 
-fn parse_fragment_nodes(fragment: &Html, state: &mut ParseState<'_>) -> Vec<RichNode> {
+fn parse_fragment_nodes(fragment: &Html, state: &mut ParseState<'_>) -> Vec<ParsedNode> {
     let mut nodes = Vec::new();
     for child in fragment.tree.root().children() {
         nodes.extend(convert_node_ref(child, state));
@@ -69,7 +70,7 @@ fn parse_fragment_nodes(fragment: &Html, state: &mut ParseState<'_>) -> Vec<Rich
     nodes
 }
 
-fn convert_node_ref(node_ref: NodeRef<'_, Node>, state: &mut ParseState<'_>) -> Vec<RichNode> {
+fn convert_node_ref(node_ref: NodeRef<'_, Node>, state: &mut ParseState<'_>) -> Vec<ParsedNode> {
     match node_ref.value() {
         Node::Text(text) => parse_text_nodes(text, state),
         Node::Element(element) => {
@@ -92,7 +93,7 @@ fn convert_node_ref(node_ref: NodeRef<'_, Node>, state: &mut ParseState<'_>) -> 
             for child in node_ref.children() {
                 children.extend(convert_node_ref(child, state));
             }
-            vec![RichNode::HtmlElement {
+            vec![ParsedNode::HtmlElement {
                 tag,
                 attributes,
                 children,
@@ -148,7 +149,7 @@ fn is_unusual_tag(tag: &str) -> bool {
     )
 }
 
-fn parse_text_nodes(value: &str, state: &mut ParseState<'_>) -> Vec<RichNode> {
+fn parse_text_nodes(value: &str, state: &mut ParseState<'_>) -> Vec<ParsedNode> {
     let mut nodes = Vec::new();
     let mut offset = 0;
     while offset < value.len() {
@@ -156,7 +157,7 @@ fn parse_text_nodes(value: &str, state: &mut ParseState<'_>) -> Vec<RichNode> {
         if rest.starts_with("[[/")
             && let Some(parsed) = parse_inline_command(value, offset, state)
         {
-            nodes.push(RichNode::Foundry { node: parsed.node });
+            nodes.push(ParsedNode::Foundry { node: parsed.node });
             offset = parsed.end;
             continue;
         }
@@ -184,21 +185,21 @@ fn parse_text_nodes(value: &str, state: &mut ParseState<'_>) -> Vec<RichNode> {
     merge_adjacent_text(nodes)
 }
 
-fn push_text(nodes: &mut Vec<RichNode>, text: &str) {
+fn push_text(nodes: &mut Vec<ParsedNode>, text: &str) {
     if !text.is_empty() {
-        nodes.push(RichNode::Text {
+        nodes.push(ParsedNode::Text {
             text: text.to_string(),
         });
     }
 }
 
-struct ParsedMacro {
-    node: RichNode,
+struct ParsedMacroMatch {
+    node: ParsedNode,
     end: usize,
 }
 
-struct ParsedFoundryNode {
-    node: FoundryNode,
+struct ParsedParsedMacro {
+    node: ParsedMacro,
     end: usize,
 }
 
@@ -206,7 +207,7 @@ fn parse_inline_command(
     value: &str,
     start: usize,
     state: &mut ParseState<'_>,
-) -> Option<ParsedFoundryNode> {
+) -> Option<ParsedParsedMacro> {
     let body_end = inline_command_end(value, start + 3)?;
     let body = value[start + 3..body_end].trim();
     let mut end = body_end + 2;
@@ -216,8 +217,8 @@ fn parse_inline_command(
         .map(|(command, arguments)| (command.trim_start_matches('/'), arguments.trim()))
         .unwrap_or_else(|| (body.trim_start_matches('/'), ""));
 
-    Some(ParsedFoundryNode {
-        node: FoundryNode::InlineCommand {
+    Some(ParsedParsedMacro {
+        node: ParsedMacro::InlineCommand {
             command: command.to_string(),
             arguments: arguments.to_string(),
             options: inline_command_options(arguments),
@@ -245,7 +246,7 @@ fn parse_foundry_macro(
     value: &str,
     start: usize,
     state: &mut ParseState<'_>,
-) -> Option<ParsedMacro> {
+) -> Option<ParsedMacroMatch> {
     let name_start = start + 1;
     let mut name_end = name_start;
     for (relative, character) in value[name_start..].char_indices() {
@@ -271,16 +272,16 @@ fn parse_foundry_macro(
     let node = match macro_name.as_str() {
         "uuid" | "compendium" => {
             let target = parsed_body.first_positional().unwrap_or(body).to_string();
-            RichNode::FoundryLink {
+            ParsedNode::ParsedLink {
                 link: unresolved_link(
                     if macro_name == "uuid" {
-                        FoundryLinkMacroKind::Uuid
+                        ParsedLinkMacroKind::Uuid
                     } else {
-                        FoundryLinkMacroKind::Compendium
+                        ParsedLinkMacroKind::Compendium
                     },
                     target,
                     label,
-                    FoundryLinkBehavior::Reference,
+                    ParsedLinkBehavior::Reference,
                 ),
             }
         }
@@ -291,12 +292,12 @@ fn parse_foundry_macro(
                 .get("inline")
                 .is_some_and(|value| value != "false");
             let hr = embed.options.get("hr").map(|value| value != "false");
-            RichNode::FoundryLink {
+            ParsedNode::ParsedLink {
                 link: unresolved_link(
-                    FoundryLinkMacroKind::Embed,
+                    ParsedLinkMacroKind::Embed,
                     embed.target,
                     label,
-                    FoundryLinkBehavior::Embed {
+                    ParsedLinkBehavior::Embed {
                         inline,
                         hr,
                         options: embed.options,
@@ -304,8 +305,8 @@ fn parse_foundry_macro(
                 ),
             }
         }
-        "check" => RichNode::Foundry {
-            node: FoundryNode::Check {
+        "check" => ParsedNode::Foundry {
+            node: ParsedMacro::Check {
                 statistic: parsed_body
                     .options
                     .get("type")
@@ -323,8 +324,8 @@ fn parse_foundry_macro(
                 .or_else(|| parsed_body.first_positional())
                 .unwrap_or(body)
                 .to_string();
-            RichNode::Foundry {
-                node: FoundryNode::Damage {
+            ParsedNode::Foundry {
+                node: ParsedMacro::Damage {
                     damage_parts: damage_parts(&formula),
                     formula,
                     options: parsed_body.options,
@@ -332,8 +333,8 @@ fn parse_foundry_macro(
                 },
             }
         }
-        "template" => RichNode::Foundry {
-            node: FoundryNode::Template {
+        "template" => ParsedNode::Foundry {
+            node: ParsedMacro::Template {
                 shape: parsed_body
                     .options
                     .get("type")
@@ -343,15 +344,15 @@ fn parse_foundry_macro(
                 label,
             },
         },
-        "localize" => RichNode::Foundry {
-            node: FoundryNode::Localize {
+        "localize" => ParsedNode::Foundry {
+            node: ParsedMacro::Localize {
                 key: body.to_string(),
                 resolved: resolve_localization(body, state),
                 label,
             },
         },
-        _ => RichNode::Foundry {
-            node: FoundryNode::UnknownFoundry {
+        _ => ParsedNode::Foundry {
+            node: ParsedMacro::UnknownFoundry {
                 name: macro_name,
                 body: Some(body.to_string()),
                 label,
@@ -360,10 +361,10 @@ fn parse_foundry_macro(
         },
     };
 
-    Some(ParsedMacro { node, end })
+    Some(ParsedMacroMatch { node, end })
 }
 
-fn resolve_localization(key: &str, state: &mut ParseState<'_>) -> Option<Vec<RichNode>> {
+fn resolve_localization(key: &str, state: &mut ParseState<'_>) -> Option<Vec<ParsedNode>> {
     const MAX_LOCALIZATION_DEPTH: usize = 8;
 
     if state.localization_depth >= MAX_LOCALIZATION_DEPTH
@@ -387,7 +388,7 @@ fn parse_optional_label(
     value: &str,
     end: &mut usize,
     state: &mut ParseState<'_>,
-) -> Option<Option<Vec<RichNode>>> {
+) -> Option<Option<Vec<ParsedNode>>> {
     if value[*end..].starts_with('{') {
         let label_start = *end + 1;
         let label_end = balanced_close(value, label_start, '{', '}')?;
@@ -402,19 +403,19 @@ fn parse_optional_label(
 }
 
 fn unresolved_link(
-    macro_kind: FoundryLinkMacroKind,
+    macro_kind: ParsedLinkMacroKind,
     target: String,
-    label: Option<Vec<RichNode>>,
-    behavior: FoundryLinkBehavior,
-) -> FoundryLink {
+    label: Option<Vec<ParsedNode>>,
+    behavior: ParsedLinkBehavior,
+) -> ParsedLink {
     let fallback_label = reference_display_fallback(&target);
-    FoundryLink {
-        target: RichLinkTarget::Unresolved {
+    ParsedLink {
+        target: ParsedLinkTarget::Unresolved {
             target: target.clone(),
             fallback_label,
         },
         label,
-        source: FoundryLinkSource {
+        source: ParsedLinkSource {
             macro_kind,
             authored_target: target,
             relation: None,
@@ -534,7 +535,7 @@ fn inline_command_options(arguments: &str) -> BTreeMap<String, String> {
         .collect()
 }
 
-fn damage_parts(formula: &str) -> Vec<DamagePart> {
+fn damage_parts(formula: &str) -> Vec<ParsedDamagePart> {
     split_at_depth(formula, ',')
         .into_iter()
         .map(str::trim)
@@ -543,12 +544,12 @@ fn damage_parts(formula: &str) -> Vec<DamagePart> {
             if let Some(open) = part.rfind('[')
                 && part.ends_with(']')
             {
-                return DamagePart {
+                return ParsedDamagePart {
                     formula: part[..open].to_string(),
                     damage_type: Some(part[open + 1..part.len() - 1].to_string()),
                 };
             }
-            DamagePart {
+            ParsedDamagePart {
                 formula: part.to_string(),
                 damage_type: None,
             }
@@ -566,11 +567,11 @@ fn reference_display_fallback(target: &str) -> String {
         .to_string()
 }
 
-fn merge_adjacent_text(nodes: Vec<RichNode>) -> Vec<RichNode> {
+fn merge_adjacent_text(nodes: Vec<ParsedNode>) -> Vec<ParsedNode> {
     let mut merged = Vec::new();
     for node in nodes {
         match (merged.last_mut(), node) {
-            (Some(RichNode::Text { text: existing }), RichNode::Text { text }) => {
+            (Some(ParsedNode::Text { text: existing }), ParsedNode::Text { text }) => {
                 existing.push_str(&text);
             }
             (_, node) => merged.push(node),

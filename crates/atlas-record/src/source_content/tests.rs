@@ -24,7 +24,7 @@ fn audience() -> ContentAudience {
 }
 
 fn prepare(markup: &str) -> PreparedSourceContent {
-    prepare_source_content(
+    let content = prepare_source_content(
         locator(),
         markup,
         audience(),
@@ -32,7 +32,155 @@ fn prepare(markup: &str) -> PreparedSourceContent {
         None,
         None,
     )
-    .unwrap()
+    .unwrap();
+    validate_prepared_reference_bindings(
+        &content.html,
+        &content.locator,
+        &content.authored_markup_sha256,
+        &content.references,
+    )
+    .unwrap();
+    content
+}
+
+#[test]
+fn reference_bindings_check_all_visible_facts_without_inventing_hidden_markers() {
+    let content=prepare_source_content(locator(),"<p data-visibility='gm'>@UUID[secret]</p><p>@UUID[public]{Public} <a href='javascript:alert(1)'>Blocked</a> <a href='https://example.com'>External</a></p>",ContentAudience {include_gm:false,include_owner:false,implicit_check_dc:ContentVisibilityRule::None},ContentVisibilityRule::All,None,None).unwrap();
+    assert!(!content.references[0].visible);
+    assert!(content.references[1].visible);
+    let check = |html: &str,
+                 loc: &SourceContentLocator,
+                 hash: &str,
+                 refs: &[ContentReferenceOccurrence]| {
+        validate_prepared_reference_bindings(html, loc, hash, refs)
+    };
+    assert!(
+        check(
+            &content.html,
+            &content.locator,
+            &content.authored_markup_sha256,
+            &content.references
+        )
+        .is_ok()
+    );
+    let visible = content
+        .references
+        .iter()
+        .filter(|r| r.visible)
+        .cloned()
+        .collect::<Vec<_>>();
+    assert!(
+        check(
+            &content.html,
+            &content.locator,
+            &content.authored_markup_sha256,
+            &visible
+        )
+        .is_ok()
+    );
+    assert!(
+        check(
+            &content.html,
+            &content.locator,
+            &content.authored_markup_sha256,
+            &visible[1..]
+        )
+        .is_err()
+    );
+    let mut changed_locator = content.locator.clone();
+    changed_locator.field = "/other".into();
+    assert!(
+        check(
+            &content.html,
+            &changed_locator,
+            &content.authored_markup_sha256,
+            &visible
+        )
+        .is_err()
+    );
+    changed_locator = content.locator.clone();
+    changed_locator.owners.push(OwnedContentLocator {
+        collection: "/items".into(),
+        identity: OwnedContentIdentity::SnapshotLocal { index: 0 },
+    });
+    assert!(
+        check(
+            &content.html,
+            &changed_locator,
+            &content.authored_markup_sha256,
+            &visible
+        )
+        .is_err()
+    );
+    assert!(check(&content.html, &content.locator, &"0".repeat(64), &visible).is_err());
+    for mutate in 0..7 {
+        let mut refs = visible.clone();
+        match mutate {
+            0 => refs[0].ordinal += 100,
+            1 => refs[0].path.push_str("/other"),
+            2 => refs[0].authored_target.push_str("other"),
+            3 => refs[0].kind = ContentReferenceKind::Compendium,
+            4 => refs[0].resolution = ContentReferenceResolution::Blocked,
+            5 => refs[0].audiences.push("gm".into()),
+            _ => refs[0].visible = false,
+        }
+        assert!(
+            check(
+                &content.html,
+                &content.locator,
+                &content.authored_markup_sha256,
+                &refs
+            )
+            .is_err(),
+            "mutation {mutate}"
+        );
+    }
+    let mut duplicated = visible.clone();
+    duplicated.push(visible[0].clone());
+    assert!(
+        check(
+            &content.html,
+            &content.locator,
+            &content.authored_markup_sha256,
+            &duplicated
+        )
+        .is_err()
+    );
+    assert!(
+        check(
+            &format!("{}{}", content.html, content.html),
+            &content.locator,
+            &content.authored_markup_sha256,
+            &visible
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn present_reference_hrefs_must_match_sidecar_destinations() {
+    let content = prepare("<p>@UUID[unresolved] <a href='https://example.com'>External</a></p>");
+    let check = |html: &str| {
+        validate_prepared_reference_bindings(
+            html,
+            &content.locator,
+            &content.authored_markup_sha256,
+            &content.references,
+        )
+    };
+    let changed = content
+        .html
+        .replace("https://example.com", "https://different.example");
+    assert_ne!(changed, content.html);
+    assert!(check(&changed).is_err());
+    let added = content.html.replace(
+        "data-atlas-reference=\"0\"",
+        "href=\"https://example.com\" data-atlas-reference=\"0\"",
+    );
+    assert_ne!(added, content.html);
+    assert!(check(&added).is_err());
+    let inert = content.html.replace("href=\"https://example.com\"", "");
+    assert!(check(&inert).is_ok());
 }
 
 struct Context(BTreeMap<String, String>);
@@ -370,15 +518,15 @@ fn typed_partial_source_and_owned_item_are_callable_without_ingest() {
 }
 
 #[test]
-fn meaningful_captions_and_explicit_numbering_survive_library_text_projection() {
+fn meaningful_captions_and_list_words_survive_undecorated_projection() {
     let content = prepare(
         "<h2>Costs</h2><ol start='4'><li>First</li><li value='7'>Next</li><li>Last</li></ol><table><caption>Targets @Damage[1d6[fire]]</caption><tr><th colspan='2'>Type</th></tr><tr><td rowspan='2'>Creature</td><td>Two</td></tr><tr><td>Three</td></tr></table>",
     );
     for text in [
         "Costs",
-        "4. First",
-        "7. Next",
-        "8. Last",
+        "First",
+        "Next",
+        "Last",
         "Targets 1d6[fire]",
         "Creature",
         "Two",
@@ -419,7 +567,7 @@ fn unusual_glyph_contents_do_not_drop_nested_reference_or_interaction_markers() 
     let content = prepare(
         "<span class='action-glyph'>@UUID[target]{Label} @Damage[1d6[fire]] <a href='https://example.com'>Source</a></span>",
     );
-    assert_eq!(content.text, "Label 1d6[fire] [Source]");
+    assert_eq!(content.text, "Label 1d6[fire] Source");
     assert!(content.html.contains("data-atlas-reference=\"0\""));
     assert!(content.html.contains("data-atlas-reference=\"1\""));
     assert!(content.html.contains("data-atlas-interaction=\"0\""));

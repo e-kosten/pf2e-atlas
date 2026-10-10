@@ -83,7 +83,8 @@ impl<'de> Deserialize<'de> for RecordId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, ts_rs::TS)]
+#[ts(type = "string")]
 pub struct RecordKey {
     pack: PackName,
     id: RecordId,

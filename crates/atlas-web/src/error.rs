@@ -56,8 +56,7 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         AppErrorCode::ArtifactNotReady
         | AppErrorCode::ArtifactIncompatible
         | AppErrorCode::SetupRequired
-        | AppErrorCode::FilterFieldNotApplicable
-        | AppErrorCode::FilterMetricAmbiguous => StatusCode::UNPROCESSABLE_ENTITY,
+        | AppErrorCode::FilterFieldNotApplicable => StatusCode::UNPROCESSABLE_ENTITY,
         AppErrorCode::IndexUnavailable
         | AppErrorCode::VectorReadinessRequired
         | AppErrorCode::EmbeddingModelUnavailable => StatusCode::SERVICE_UNAVAILABLE,

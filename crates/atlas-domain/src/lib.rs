@@ -1,34 +1,23 @@
 #![deny(unsafe_code)]
 
 pub mod categories;
-pub mod detail;
-pub mod discovery;
-pub mod metadata;
-pub mod record;
+mod name_lookup;
+pub mod query;
+pub mod query_discovery;
 pub mod record_key;
-pub mod search_filter;
+pub use query_discovery::{QueryFieldCounts, QueryStateCount, QueryValueOption, QueryValueOptions};
+pub mod source_address;
+pub mod source_summary;
+
+pub use source_summary::{SourceLevelBasis, SourceQueryFact, SourceRecordSummary};
+
+pub use query::{
+    QueryCapability, QueryCompare, QueryError, QueryExpression, QueryFieldDefinition,
+    QueryFieldState, QueryFieldType, QueryLimits, QueryLiteral, QueryPredicate, QuerySetMatch,
+    QueryTruth, QueryValueDiscovery,
+};
+pub use source_address::{InvalidSourceByteRange, SourceByteRange, SourcePassageAddress};
 
 pub use categories::RecordKind;
-pub use detail::DetailLevel;
-pub use discovery::{
-    BooleanFieldCounts, FilterDiscoveryExecution, FilterFieldDiscovery, FilterFieldGroup,
-    FilterFieldInfo, FilterFieldStats, FilterFieldType, FilterOperator, FilterSample,
-    FilterSampleExample, FilterValueCount, FilterValueDiscovery, FilterValuePayload,
-    FilterValuePolicy, FilterValueSort, MetricKeyDiscovery, MetricValuePayload, NumericFieldStats,
-};
-pub use metadata::{
-    MetadataBooleanField, MetadataBooleanMatch, MetadataEnumStringField, MetadataNumberField,
-    MetadataNumberMatch, MetadataPredicate, MetadataSetField, MetadataSetMatch,
-    MetadataStringMatch, MetadataTextMatch, MetadataTextStringField, NumericMetricOperator,
-};
-pub use record::{
-    ActionCost, Level, MetricDomain, MetricValueType, Publication, PublicationCategory, Rarity,
-    RecordSummary, RemasterLinkSource, SourceProvenance, TextStatus, TimeKind, TimeUnit,
-    normalize_record_name,
-};
+pub use name_lookup::normalize_record_name;
 pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
-pub use search_filter::{
-    MetricFilter, MetricMatch, NullableNumericMatch, NullableStringMatch, NumericMatch,
-    ScalarValue, SearchFilterNode, SearchFilterValidationError, SimpleSearchFilter,
-    SimpleSearchFilterError,
-};

@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use atlas_record::FoundryRecordType;
 use thiserror::Error;
 
 use crate::{
@@ -13,6 +12,14 @@ use crate::{
 pub enum TagValidationError {
     #[error("tag catalog must contain at least one tag")]
     EmptyCatalog,
+    #[error(
+        "{owner} applicability clause {clause_index} uses retired metric predicate `{key}`; metric predicates are unsupported"
+    )]
+    UnsupportedMetricPredicate {
+        owner: String,
+        clause_index: usize,
+        key: String,
+    },
     #[error("tag `{tag_id}` has an empty {field}")]
     EmptyTagField { tag_id: TagId, field: &'static str },
     #[error(
@@ -179,9 +186,18 @@ fn validate_applicability_clause(
             clause_index,
         });
     }
+    for fact in clause.required_facts.iter().chain(&clause.excluded_facts) {
+        if let crate::TagFactPredicate::HasMetric { key } = fact {
+            return Err(TagValidationError::UnsupportedMetricPredicate {
+                owner: tag_id.to_string(),
+                clause_index,
+                key: key.clone(),
+            });
+        }
+    }
     let mut foundry_types = BTreeSet::new();
     for foundry_type in &clause.foundry_record_types {
-        let foundry_type = foundry_record_type_key(foundry_type);
+        let foundry_type = foundry_type.clone();
         if !foundry_types.insert(foundry_type.clone()) {
             return Err(TagValidationError::DuplicateFoundryRecordType {
                 tag_id: tag_id.clone(),
@@ -224,9 +240,18 @@ fn validate_ontology_applicability_clause(
             },
         );
     }
+    for fact in clause.required_facts.iter().chain(&clause.excluded_facts) {
+        if let crate::TagFactPredicate::HasMetric { key } = fact {
+            return Err(TagValidationError::UnsupportedMetricPredicate {
+                owner: label.to_string(),
+                clause_index,
+                key: key.clone(),
+            });
+        }
+    }
     let mut foundry_types = BTreeSet::new();
     for foundry_type in &clause.foundry_record_types {
-        let foundry_type = foundry_record_type_key(foundry_type);
+        let foundry_type = foundry_type.clone();
         if !foundry_types.insert(foundry_type.clone()) {
             return Err(
                 TagValidationError::DuplicateOntologySuggestionFoundryRecordType {
@@ -389,10 +414,6 @@ fn empty_reason(value: &str, reason: &'static str) -> Option<&'static str> {
     value.trim().is_empty().then_some(reason)
 }
 
-fn foundry_record_type_key(value: &FoundryRecordType) -> String {
-    value.as_str().to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -470,6 +491,55 @@ records:
             catalog.tags[1].applicability.any_of[0].foundry_record_types[1].as_str(),
             "shield"
         );
+    }
+
+    #[test]
+    fn authored_family_strings_roundtrip_and_duplicates_are_rejected() {
+        let mut file = catalog_file_from_str(CATALOG).unwrap();
+        let clause = &mut file.tags[1].applicability.any_of[0];
+        clause.foundry_record_types = vec!["armor".into(), "futureFamily".into()];
+        let encoded = yaml_serde::to_string(&file).unwrap();
+        let decoded: crate::TagCatalogFile = yaml_serde::from_str(&encoded).unwrap();
+        assert_eq!(
+            decoded.tags[1].applicability.any_of[0].foundry_record_types,
+            vec!["armor", "futureFamily"]
+        );
+        super::validate_catalog_file(&decoded).unwrap();
+        file.tags[1].applicability.any_of[0]
+            .foundry_record_types
+            .push("futureFamily".into());
+        assert!(super::validate_catalog_file(&file).is_err());
+    }
+
+    #[test]
+    fn retired_metrics_are_explicitly_rejected_in_catalog_and_suggestions() {
+        let mut file = catalog_file_from_str(CATALOG).unwrap();
+        file.tags[0].applicability.any_of[0].required_facts.push(
+            crate::TagFactPredicate::HasMetric {
+                key: "legacy.damage".into(),
+            },
+        );
+        assert!(matches!(
+            super::validate_catalog_file(&file),
+            Err(TagValidationError::UnsupportedMetricPredicate { .. })
+        ));
+        let tag = &file.tags[0];
+        let suggestion = crate::OntologySuggestion {
+            proposed_id: Some(tag.id.clone()),
+            label: tag.label.clone(),
+            display: tag.display.clone(),
+            applicability: tag.applicability.clone(),
+            rationale: "Source-supported research".into(),
+            triggering_record_key: atlas_domain::RecordKey::parse("spells-srd:1234567890123456")
+                .unwrap(),
+            follow_up_research_needed: true,
+        };
+        assert!(matches!(
+            super::validate_ontology_suggestion_file(&crate::OntologySuggestionFile {
+                suggestions: vec![suggestion]
+            }),
+            Err(TagValidationError::UnsupportedMetricPredicate { .. })
+        ));
     }
 
     #[test]

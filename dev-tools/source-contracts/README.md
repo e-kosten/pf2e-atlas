@@ -387,6 +387,13 @@ Use the dependencies appropriate to the source version being inspected. The lock
 
 Output files are `type-graph.json`, `trait-catalog.json` and `summary.json`. Output belongs outside the source input directories. The command prints the summary. `--strict` exits 1 when either extraction is incomplete, after writing the available discovery output and diagnostics. Without it, partial discovery exits 0 with `complete: false`. Invalid arguments, unreadable required inputs and fatal errors exit 1.
 
+Pinned Rust generation also emits `trait_labels.rs`: a key-only map from verified
+trait identifiers to authored localization keys. Repeated equal memberships share
+one entry; conflicting keys or incomplete catalogs fail generation. Runtime ingest
+resolves only labels used by selected source records with the indexing locale and
+English fallback. Unknown valid trait identifiers stay open, with no guessed key.
+Descriptions and the complete discovery catalog remain developer cache evidence.
+
 ## Declaration graph
 
 `source-serialization.ts` handles the inspected runtime declarations that occur inside source types. Its bounded projections retain original declarations and serialization metadata:
@@ -421,4 +428,4 @@ The PF2e 6.12.4 pin has 47 roots: five document kinds (all 24 Item and eight Act
 
 The summary records a source digest, source version, Git commit/dirty state when the source is a checkout, TypeScript version and dependency lock digest. Archives have no Git identity. The source digest covers relative names and bytes of `src`, `types`, the package and system manifests, compiler config and English localization; it is independent of checkout location. The lock digest identifies the intended environment; it does not attest an arbitrary external `node_modules` installation.
 
-Save outputs for each source revision and use a normal JSON diff to discover field, vocabulary and metadata changes. Extraction output is developer evidence, not a runtime admission gate or a tracked generated Rust model. See the [source-contract experiment](../../docs/backlog/items/rust-source-contract-generation.md) and [selective recovery inventory](../../docs/backlog/items/rust-integration-recovery.md) for the remaining work.
+Save outputs for each source revision and use a normal JSON diff to discover field, vocabulary and metadata changes. Extraction output is developer evidence, not a runtime admission gate or a tracked generated Rust model. See the [source-contract experiment](../../docs/backlog/history/items/rust-source-contract-generation.md) and [selective recovery inventory](../../docs/backlog/items/rust-integration-recovery.md) for the remaining work.

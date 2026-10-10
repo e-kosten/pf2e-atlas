@@ -185,3 +185,13 @@
   padding: 8px;
   vertical-align: top;
 }
+
+.prepared-content [role="button"] {
+  color: var(--accent-text);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.prepared-content [role="button"]:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}

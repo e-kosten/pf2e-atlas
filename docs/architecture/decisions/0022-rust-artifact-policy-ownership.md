@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Partially superseded by [ADR 0046](./0046-source-backed-reference-artifact.md).
+
+Index schema/vector ownership remains. Generic metric definitions/storage and the
+public-only nonembedded graph default below are replaced by named source query
+projections and attributed eligible occurrences under the approved audience.
 
 ## Context
 

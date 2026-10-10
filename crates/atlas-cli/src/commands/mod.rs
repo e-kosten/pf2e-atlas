@@ -5,6 +5,7 @@ pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod index;
 pub(crate) mod lists;
+pub(crate) mod product;
 pub(crate) mod record;
 pub(crate) mod search;
 pub(crate) mod setup;

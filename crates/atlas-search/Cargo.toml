@@ -11,10 +11,16 @@ atlas-domain.workspace = true
 atlas-embedding.workspace = true
 atlas-index.workspace = true
 atlas-record.workspace = true
-rusqlite = { workspace = true, optional = true }
+atlas-foundry-model.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 thiserror.workspace = true
+tempfile = { version = "3.23.0", optional = true }
 
 [features]
-test-support = ["atlas-index/test-support", "rusqlite"]
+test-support = ["dep:tempfile", "atlas-index/test-support"]
+
+[dev-dependencies]
+atlas-index = {workspace = true, features=["test-support"]}
+tempfile = "3.23.0"

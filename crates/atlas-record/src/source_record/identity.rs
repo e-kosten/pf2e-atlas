@@ -32,7 +32,9 @@ pub fn source_record_key(
         SourceFieldView::Value(_) => return Err(SourceIdentityError::InvalidId),
         SourceFieldView::Missing => return Err(SourceIdentityError::MissingId),
         SourceFieldView::Null => return Err(SourceIdentityError::NullId),
-        SourceFieldView::Invalid(_) => return Err(SourceIdentityError::RejectedId),
+        SourceFieldView::Invalid(_) | SourceFieldView::ProjectionInvalid { .. } => {
+            return Err(SourceIdentityError::RejectedId);
+        }
         SourceFieldView::NotApplicable => return Err(SourceIdentityError::UnsupportedRoot),
     };
     Ok(RecordKey::new(

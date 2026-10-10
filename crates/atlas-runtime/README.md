@@ -1,26 +1,11 @@
 # atlas-runtime
 
-`atlas-runtime` owns runtime path resolution and shared setup policy.
+`atlas-runtime` resolves repo/global/custom source, model-cache, artifact, and separate local-state paths. It owns explicit setup/fetch policy and constructs the source-backed retrieval service.
 
-This crate decides where source data, embedding caches, and artifacts live for repo-local and global cache modes. It constructs runtime handles that CLI and future Rust surfaces can share without each surface reimplementing path or setup behavior.
+Three read modes are deliberate: full retrieval opens compatible vectors and the pinned query model; lexical/detail mode needs neither embeddings nor the source checkout; stored-vector mode supports Similar without loading a query model. Normal product opening never recomputes source fingerprints.
 
-## Owns
+Explicit setup compares the ordered content fingerprint of actual source inputs with the artifact context, including localization and manifest inputs. Repair preserves an existing indexing locale unless overridden; new artifacts default to English. Changing indexed locale requires rebuilding. Model readiness uses the embedding owner's checksum validator for all four pinned assets, without loading inference or downloading during `--check`.
 
-- Repo/global path resolution.
-- Runtime setup readiness and repair orchestration.
-- Source fetch/update policy for setup commands.
-- Setup coordination across source analysis, embedding model cache readiness, artifact build, and final validation.
-- Construction of `SqliteIndexReader` and `AtlasRetrievalService` handles.
-- Shared runtime defaults for local CLI and future Rust surfaces.
+`check_index_report` is a cheap executable schema/catalog/capability check returning artifact statistics. `validate_index_report` requests full snapshot/projection/content/unit coherence validation. These evidence scopes are distinct. Incompatible older artifacts require rebuilding; there is no migration adapter. Setup delegates atomic publication to ingest/index and preserves the previous artifact on build failure.
 
-## Should Not Own
-
-- Search semantics or ranking.
-- SQLite schema or artifact validation rules.
-- Foundry source normalization.
-- CLI-specific output formatting.
-- Embedding model execution policy beyond runtime wiring.
-
-## Boundary Notes
-
-Product surfaces should compose through this crate for paths and service construction. Durable search behavior still belongs in `atlas-search`; read access, artifact validation, and physical SQLite schema ownership belong in `atlas-index`.
+Search policy belongs to `atlas-search`, source loading/building to `atlas-ingest`, physical storage and validation to `atlas-index`, and model execution/cache contracts to `atlas-embedding`.

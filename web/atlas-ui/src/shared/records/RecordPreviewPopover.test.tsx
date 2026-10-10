@@ -1,3 +1,4 @@
+import { detailFixture } from "../../test/fixtures";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
@@ -16,44 +17,16 @@ describe("RecordPreviewPopover", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Nested Rule" }));
+    fireEvent.click(screen.getByText("Nested Rule"));
 
     expect(onReference).toHaveBeenCalledWith(
       "rules:nested",
       expect.objectContaining({ width: expect.any(Number) }),
+      expect.objectContaining({ record_key: "rules:nested" }),
     );
   });
 });
 
 function recordDetailFixture(): RecordDetailView {
-  return {
-    record_key: "conditionitems:friendly",
-    title: "Friendly",
-    kind: "rule",
-    presentation: {
-      record_key: "conditionitems:friendly",
-      kind: "rule",
-      title: "Friendly",
-      identity: [],
-      badges: [],
-      sections: [
-        {
-          kind: "references",
-          title: "References",
-          blocks: [
-            {
-              kind: "relationships",
-              content: [
-                {
-                  kind: "reference",
-                  label: "Nested Rule",
-                  record_key: "rules:nested",
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
+  return detailFixture("spell:dirge", "Dirge of Doom", "rules:nested");
 }

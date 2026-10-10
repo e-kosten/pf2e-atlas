@@ -3,21 +3,22 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-25
+Last reviewed: 2026-10-09
 
 ## Problem
 
-Encounter condition automation currently targets typed stat rows such as AC, saves, skills, and activity rolls. Several useful PF2e encounter effects target runtime surfaces that are not currently represented as first-class projections, especially movement speeds and action economy.
-
-Without these surfaces, conditions such as slowed, quickened, stunned, immobilized, grabbed, restrained, prone, and encumbered can only be tracked as notes or overfit into unrelated stat-modifier rows. Traits such as minion also affect action economy but are not conditions, which suggests the encounter runner needs a broader runtime-effect projection instead of condition-only stat mutation.
+Encounters already expose authored movement speeds and bounded condition-derived
+action counts/capabilities. Additional effect targets and richer explanations
+need explicit source and rule evidence. Traits such as minion affect action
+economy independently of conditions; turn-timed effects require a lifecycle model.
 
 ## Desired Outcome
 
-Add typed encounter runtime surfaces for movement speeds and action budget, then let deterministic conditions and future runtime effect sources modify those surfaces with clear explanations.
+Extend movement/action effect attribution and carefully scoped runtime targets.
 
 The implementation should:
 
-- derive speed facts from record-owned mechanics or metrics;
+- derive speed facts from borrowed authored DTO views;
 - derive action budget in app-service encounter projection;
 - model action counts separately from action/reaction capability, so effects such as stunned do not become misleading reaction-count math;
 - support chained modeled condition effects, so a condition such as encumbered can reuse the canonical clumsy rule while also applying its own runtime speed effect;
@@ -38,7 +39,7 @@ The implementation should:
 
 ## Related
 
-- [Encounter runtime surfaces plan](../../../scratch/plans/2026-06-25-encounter-runtime-surfaces-plan.md)
-- [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
-- [Rust encounter actor context effects](./rust-encounter-actor-context-effects.md)
-- [Rust Foundry type mechanics parsers](./rust-foundry-type-mechanics-parsers.md)
+- Encounter runtime surfaces plan (historical untracked reference: `../../../scratch/plans/2026-06-25-encounter-runtime-surfaces-plan.md`)
+- [Rust encounter condition mechanics](rust-encounter-condition-mechanics.md)
+- [Rust encounter actor context effects](rust-encounter-actor-context-effects.md)
+- [Rust Foundry type mechanics parsers](../history/items/rust-foundry-type-mechanics-parsers.md)
