@@ -1,7 +1,7 @@
 # Source-backed artifact cutover validation
 
 Status: local validation and hosted Windows publication passed; the complete
-hosted CI run is pending build-tooling remedies. Owner checks do not replace
+hosted CI run is pending route-test synchronization confirmation. Owner checks do not replace
 the independent completion reviews.
 
 ## Candidate and inputs
@@ -127,14 +127,27 @@ run corpus test ignored. This is actual Windows evidence from
 [CI run 38041300962](https://github.com/e-kosten/pf2e-atlas/actions/runs/38041300962).
 Windows release-tool checks and hosted source-contract freshness checks also passed.
 
-That first complete run failed on stale generated dependency notices and private
-npm registry URLs in the frontend lockfile. Notices were regenerated from the
+That first complete run failed on stale generated dependency notices and during
+frontend dependency installation (`Exit handler never called!`). Inspection found
+private npm registry URLs in the frontend lockfile; their role in the install
+failure is an inference, not an explicit diagnosis from that log.
+Notices were regenerated from the
 current lockfiles. All 52 private URLs were replaced with public URLs after
 verifying the tarballs against unchanged integrity hashes; versions and all other
 lockfile data are unchanged. Scoped npm configuration selects the public registry
 for each Node bundle. A clean public-registry install and the full frontend gate
 passed locally, and all 39 production bundle files remained byte-identical.
 Release-tool static, archive/installer and preparation smoke checks passed locally.
+
+The next hosted run passed public dependency installation and all three platform
+release checks, source contracts and atlas-dev. Its frontend gate passed 120 of
+121 tests; the history-navigation test checked for a heading while the real lazy
+route module was still showing its Suspense fallback. The test now explicitly
+waits for dynamic imports within React's act boundary before retaining the same
+display and no-search assertions. There is no product change or timeout increase.
+The focused tests and full 121-test frontend gate passed locally on Node 22 with
+CI settings, and production bundle bytes are unchanged. Hosted confirmation is
+still required.
 
 The two independent reviews have checked the current implementation and local
 evidence. A complete passing hosted CI run remains the final acceptance gate and
