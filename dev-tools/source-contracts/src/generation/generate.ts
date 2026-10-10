@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { TypeGraph } from '../contracts.js';
+import type { TypeGraph, TraitCatalog } from '../contracts.js';
+import { traitLabelKeys } from './trait-labels.js';
 import { extract } from '../discovery/extract.js';
 import { sourceIdentity } from '../discovery/source-identity.js';
 import { selectPortfolioInput } from './portfolio-selection.js';
@@ -28,6 +29,7 @@ export async function preparePortfolio(args: { source?: string; cacheDir?: strin
   if (!summary.complete) throw new Error('Pinned source extraction is incomplete; inspect ' + extraction);
   const graph = JSON.parse(await readFile(path.join(extraction, 'type-graph.json'), 'utf8')) as TypeGraph;
   const input = selectPortfolioInput(graph, summary);
+  input.traitLabelKeys = traitLabelKeys(JSON.parse(await readFile(path.join(extraction, 'trait-catalog.json'), 'utf8')) as TraitCatalog);
   if (JSON.stringify(input.portfolio!.schemaRoots.flatMap(root => root.ruleKey ? [root.ruleKey] : []).sort())
     !== JSON.stringify([...pin.ruleKeys].sort())) throw new Error('Extracted rule keys do not match source-pin.json');
   input.source = { ...input.source, git_commit: null, git_clean: null };

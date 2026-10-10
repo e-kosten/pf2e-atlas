@@ -768,3 +768,6 @@ pub use rules::token_mark::parse_token_mark_rule;
 pub use rules::token_name::parse_token_name_rule;
 pub use rules::weakness::parse_weakness_rule;
 pub use rules::weapon_potency::parse_weapon_potency_rule;
+
+mod trait_labels;
+pub use trait_labels::trait_label_key;
