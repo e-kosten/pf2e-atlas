@@ -1,6 +1,6 @@
 # ADR 0046: Source-backed reference artifact and query projections
 
-Status: Accepted; the coordinated implementation is in progress.
+Status: Accepted.
 
 ## Decision
 

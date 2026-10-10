@@ -1,9 +1,20 @@
 # Source-backed artifact and ingest cutover
 
-Status: in_progress
+Status: done
 Priority: current
 Owner: Codex
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
+
+## Completed implementation
+
+[PR 49](https://github.com/e-kosten/pf2e-atlas/pull/49) contains the coordinated
+replacement against `integration/source-modeling`. The full pinned corpus,
+actual-model sample, product/browser workflows, independent reviews and complete
+hosted implementation CI pass; see the
+[validation report](../../../research/source-artifact-cutover-validation.md).
+This records implementation completion, not a merge into main.
+Family-specific presentation modeling remains a
+[separate review](../../items/rust-web-ui-architecture-review.md).
 
 ## Approved direction
 
@@ -59,9 +70,9 @@ Owner tests alone do not establish completion.
 
 ## References
 
-- [Current artifact contract](../../architecture/artifact-contract.md)
-- [ADR 0046: source-backed artifact](../../architecture/decisions/0046-source-backed-reference-artifact.md)
-- [Completed source contract work](../history/items/rust-source-contract-generation.md)
-- [Query projection research](../../research/source-record-query-projections.md)
-- [Source enrichment evidence](../../research/source-record-enrichment.md)
-- [Search quality follow-up](./rust-search-quality-tuning.md)
+- [Current artifact contract](../../../architecture/artifact-contract.md)
+- [ADR 0046: source-backed artifact](../../../architecture/decisions/0046-source-backed-reference-artifact.md)
+- [Completed source contract work](./rust-source-contract-generation.md)
+- [Query projection research](../../../research/source-record-query-projections.md)
+- [Source enrichment evidence](../../../research/source-record-enrichment.md)
+- [Search quality follow-up](../../items/rust-search-quality-tuning.md)

@@ -1,8 +1,9 @@
 # Source-backed artifact cutover validation
 
-Status: local validation and hosted Windows publication passed; the complete
-hosted CI run is pending route-test synchronization confirmation. Owner checks do not replace
-the independent completion reviews.
+Status: local corpus, model and browser validation and the complete hosted
+implementation CI run passed. Two independent reviews verify completion;
+owner checks do not replace those reviews. Latest branch checks remain visible
+on [PR 49](https://github.com/e-kosten/pf2e-atlas/pull/49).
 
 ## Candidate and inputs
 
@@ -146,9 +147,16 @@ route module was still showing its Suspense fallback. The test now explicitly
 waits for dynamic imports within React's act boundary before retaining the same
 display and no-search assertions. There is no product change or timeout increase.
 The focused tests and full 121-test frontend gate passed locally on Node 22 with
-CI settings, and production bundle bytes are unchanged. Hosted confirmation is
-still required.
+CI settings, and production bundle bytes are unchanged. The complete passing
+[implementation CI run 38042408349](https://github.com/e-kosten/pf2e-atlas/actions/runs/38042408349),
+at commit 9d9b2fe64eabe361fae4e9d72c5be5ab5ec82e00 confirms the remedy.
+All eight jobs passed:
+Rust, frontend, Windows artifact publication, standalone atlas-dev, source
+contracts and release tools on Ubuntu, macOS and Windows.
 
-The two independent reviews have checked the current implementation and local
-evidence. A complete passing hosted CI run remains the final acceptance gate and
-must pass before the full draft PR becomes ready.
+The two independent reviews checked the implementation, completion coverage and
+regression evidence. Hosted implementation checks passed. Final documentation
+follow-through does not change production code or bundle bytes; the latest PR
+checks must pass before the PR becomes ready. Family-specific presentation
+modeling is a separate follow-up that reviews ingest, borrowed views, app contracts
+and CLI/UI, using the earlier integration branch as feature inspiration.

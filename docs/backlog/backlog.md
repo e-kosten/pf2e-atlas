@@ -18,11 +18,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Recover reviewed behavior in small branches from main; retain integration as
   evidence and a preview. Status: planned.
 
-- [Source-backed artifact and ingest cutover](items/typed-ingest-database-design.md)
-  Replace storage, ingest, retrieval and consumers together using checked source
-  snapshots, named query projections and prepared HTML. Preserve local state and
-  validate the complete product path before landing. Status: in_progress.
-
 - [Rust CLI runtime migration research](rust-cli-runtime/README.md)
   Working notes and checklist for the Rust runtime, CLI, artifact, search, graph, skill, and cutover work. Status: in_progress.
 
@@ -44,8 +39,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust CLI typo tolerant discovery](items/rust-cli-typo-tolerant-discovery.md)
   Track backend-independent typo suggestions, corpus-token dictionaries, and acronym expansion without weakening strict record resolution. Status: proposed.
 
-- [Rust web UI architecture review](items/rust-web-ui-architecture-review.md)
-  Review the first web UI vertical slice for DTO/API boundaries, state ownership, AntD composition, module layout, and tests before substantial follow-up feature work. Status: proposed.
+- [Record presentation and UI architecture review](items/rust-web-ui-architecture-review.md)
+  Review from ingest through borrowed views and app contracts to CLI/UI, using
+  the earlier integration branch for feature inspiration. Refine presentation
+  boundaries before family-specific UI expansion. Status: proposed.
 
 - [Rust web filter UX expansion](items/rust-web-filter-ux-expansion.md)
   Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: proposed.

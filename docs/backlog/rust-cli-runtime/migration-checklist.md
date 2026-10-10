@@ -7,7 +7,7 @@ Roadmap: [migration-roadmap.md](migration-roadmap.md)
 
 This checklist records the original Rust runtime migration. Current storage and
 retrieval policy is defined by ADR 0046 and the architecture docs; the coordinated
-cutover remains open until its validation gates pass. Use the live backlog for
+cutover and its validation are recorded in backlog history. Use the live backlog for
 current follow-up status.
 
 ## Historical Completed Baseline
@@ -29,9 +29,11 @@ current follow-up status.
 - [x] First-party PF2e Atlas CLI skill package with install and doctor commands.
 - [x] Rust workspace promoted to repository root.
 
-## Open Follow-Up
+## Completed Source-backed Cutover
 
-- [ ] [Source-backed artifact and ingest cutover](../items/typed-ingest-database-design.md).
+- [x] [Source-backed artifact and ingest cutover](../history/items/typed-ingest-database-design.md).
+
+## Open Follow-Up
 
 - [ ] [Rust CLI and skill capability follow-through](../items/rust-cli-skill-capability-follow-through.md).
 - [ ] [Rust search quality and retrieval weight tuning](../items/rust-search-quality-tuning.md).
