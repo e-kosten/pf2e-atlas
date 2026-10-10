@@ -1,5 +1,4 @@
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
-use atlas_index::ValidationTarget;
 
 #[derive(Debug, Clone)]
 pub struct RuntimeSetupOptions {
@@ -9,6 +8,8 @@ pub struct RuntimeSetupOptions {
     pub force_rebuild: bool,
     pub embedding_model_id: EmbeddingModelId,
     pub embedding_batch_size: usize,
+    /// None preserves an existing indexing locale, or uses English for a new artifact.
+    pub locale: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -28,6 +29,7 @@ impl Default for RuntimeSetupOptions {
             force_rebuild: false,
             embedding_model_id: DEFAULT_EMBEDDING_MODEL,
             embedding_batch_size: 32,
+            locale: None,
         }
     }
 }
@@ -41,13 +43,6 @@ pub enum SetupTarget {
 impl SetupTarget {
     pub const fn requires_embeddings(self) -> bool {
         matches!(self, Self::Full)
-    }
-
-    pub const fn validation_target(self) -> ValidationTarget {
-        match self {
-            Self::Full => ValidationTarget::Full,
-            Self::Records => ValidationTarget::BaseOnly,
-        }
     }
 
     pub const fn as_str(self) -> &'static str {
@@ -286,16 +281,13 @@ pub struct SetupEmbeddingReport {
 
 #[derive(Debug, Clone)]
 pub struct SetupBuildReport {
-    pub source_signature: String,
-    pub source_record_count: usize,
-    pub artifact_record_count: usize,
-    pub generated_record_count: usize,
-    pub pending_document_embedding_count: usize,
-    pub document_embedding_count: usize,
-    pub reused_document_embedding_count: usize,
-    pub generated_document_embedding_count: usize,
+    pub pack_count: usize,
+    pub record_count: usize,
+    pub product_record_count: usize,
+    pub semantic_unit_count: usize,
+    pub inferred_inputs: usize,
+    pub reused_inputs: usize,
+    pub context_shortened_sections: usize,
+    pub source_fingerprint: String,
     pub build_duration_ms: u128,
-    pub embedding_tokenization_duration_ms: u128,
-    pub embedding_model_load_duration_ms: u128,
-    pub embedding_generation_duration_ms: u128,
 }

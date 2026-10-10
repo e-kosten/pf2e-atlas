@@ -13,14 +13,13 @@ use atlas_local_state::{
     UpdateEncounter as LocalUpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition, derive_slug,
 };
-use atlas_record::FoundryRecordType;
 
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::service::AtlasAppService;
 
 use super::conditions::{condition_catalog, modeled_condition_by_ref};
-use super::hydration::{default_hp, hydrate_participant_records, resolve_record_ref};
-use super::mechanics::variant_hp_adjustment_delta;
+use super::hydration::{hydrate_participant_records, resolve_record_ref};
+use super::mechanics::{effective_max, initial_variant};
 use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
     participant_side, participant_variant, participant_view, reorder_placement,
@@ -135,9 +134,9 @@ impl AtlasAppService {
             )));
         }
         let record = resolve_record_ref(self, &request.record_ref)?;
-        let participant_kind = match record.classification.kind {
-            RecordKind::Creature => ParticipantKind::Creature,
-            RecordKind::Hazard => ParticipantKind::Hazard,
+        let participant_kind = match record.summary.record_kind.as_value().copied() {
+            Some(RecordKind::Creature) => ParticipantKind::Creature,
+            Some(RecordKind::Hazard) => ParticipantKind::Hazard,
             _ => {
                 return Err(AppServiceError::invalid_request(
                     "encounter participants must be creatures, hazards, or manually named PCs",
@@ -149,22 +148,60 @@ impl AtlasAppService {
         } else {
             ParticipantSide::Enemy
         };
-        let (max_hp, current_hp) = default_hp(&record);
+        let (inherited, variant_origin) = initial_variant(&record.source);
+        let variant = inherited.unwrap_or(atlas_local_state::ParticipantVariant::Normal);
+        let max_hp = effective_max(&record.source, inherited);
+        let current_hp = max_hp;
         let store = self.local_state_store()?;
         for index in 0..request.quantity {
             let display_name = if request.quantity == 1 {
-                record.identity.name.clone()
+                record
+                    .summary
+                    .name
+                    .as_value()
+                    .cloned()
+                    .unwrap_or_else(|| record.summary.key.to_string())
             } else {
-                format!("{} {}", record.identity.name, index + 1)
+                format!(
+                    "{} {}",
+                    record
+                        .summary
+                        .name
+                        .as_value()
+                        .cloned()
+                        .unwrap_or_else(|| record.summary.key.to_string()),
+                    index + 1
+                )
             };
             store.encounters().add_participant(
                 &request.encounter_ref,
                 AddEncounterParticipant {
-                    record_key: Some(record.identity.key.clone()),
+                    participant_variant: variant,
+                    variant_origin,
+                    hp_origin: if max_hp.is_some() {
+                        atlas_local_state::ParticipantHpOrigin::DerivedPristine
+                    } else {
+                        atlas_local_state::ParticipantHpOrigin::Unknown
+                    },
+                    record_key: Some(record.summary.key.clone()),
                     participant_kind,
                     display_name,
-                    record_title_snapshot: Some(record.identity.name.clone()),
-                    record_kind_snapshot: Some(record.classification.kind.as_str().to_string()),
+                    record_title_snapshot: Some(
+                        record
+                            .summary
+                            .name
+                            .as_value()
+                            .cloned()
+                            .unwrap_or_else(|| record.summary.key.to_string()),
+                    ),
+                    record_kind_snapshot: Some(
+                        record
+                            .summary
+                            .record_kind
+                            .as_value()
+                            .map(|k| k.as_str().to_owned())
+                            .unwrap_or_default(),
+                    ),
                     side,
                     initiative: request.initiative,
                     max_hp,
@@ -184,6 +221,9 @@ impl AtlasAppService {
         self.local_state_store()?.encounters().add_participant(
             &request.encounter_ref,
             AddEncounterParticipant {
+                participant_variant: atlas_local_state::ParticipantVariant::Normal,
+                variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,
+                hp_origin: atlas_local_state::ParticipantHpOrigin::Explicit,
                 record_key: None,
                 participant_kind: ParticipantKind::Pc,
                 display_name: request.display_name,
@@ -225,20 +265,56 @@ impl AtlasAppService {
                 )
             })?;
         let new_variant = participant_variant(request.participant_variant);
-        let mut current_hp = request.current_hp.map(|value| value.max(0));
-        if detail.encounter.status == EncounterStatus::Draft
-            && existing.participant_variant != new_variant
+        let current_edited = request.hp_edit || request.current_hp != existing.current_hp;
+        let max_edited = request.max_hp_edit || request.max_hp != existing.max_hp;
+        let variant_changed = request.variant_edit || existing.participant_variant != new_variant;
+        let mut max_hp = request.max_hp;
+        let mut current_hp = request.current_hp;
+        let mut hp_origin = existing.hp_origin;
+        if max_edited && !request.use_derived_max {
+            hp_origin = atlas_local_state::ParticipantHpOrigin::Explicit;
+        } else if request.use_derived_max
+            || (variant_changed && hp_origin != atlas_local_state::ParticipantHpOrigin::Explicit)
         {
-            let records_by_key =
-                hydrate_participant_records(self, std::slice::from_ref(&existing))?;
-            let level = existing
+            let records = hydrate_participant_records(self, std::slice::from_ref(&existing))?;
+            let derived = existing
                 .record_key
                 .as_ref()
-                .and_then(|key| records_by_key.get(key))
-                .and_then(|record| record.classification.level);
-            let hp_delta =
-                variant_hp_adjustment_delta(existing.participant_variant, new_variant, level);
-            current_hp = current_hp.map(|value| (value + hp_delta).max(0));
+                .and_then(|k| records.get(k))
+                .and_then(|r| effective_max(&r.detail.source, Some(new_variant)));
+            max_hp = derived;
+            current_hp = if detail.encounter.status == EncounterStatus::Draft
+                && hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
+                && !current_edited
+            {
+                derived
+            } else if !current_edited {
+                match (existing.max_hp, existing.current_hp, derived) {
+                    (Some(old), Some(current), Some(new))
+                        if old >= 0 && current >= 0 && current <= old =>
+                    {
+                        old.checked_sub(current)
+                            .and_then(|damage| new.checked_sub(damage))
+                            .map(|n| n.max(0))
+                    }
+                    _ => existing.current_hp,
+                }
+            } else {
+                request.current_hp
+            };
+            hp_origin = if derived.is_none() {
+                atlas_local_state::ParticipantHpOrigin::Unknown
+            } else if hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
+                && !current_edited
+                && detail.encounter.status == EncounterStatus::Draft
+            {
+                atlas_local_state::ParticipantHpOrigin::DerivedPristine
+            } else {
+                atlas_local_state::ParticipantHpOrigin::DerivedEdited
+            };
+        }
+        if current_edited && hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine {
+            hp_origin = atlas_local_state::ParticipantHpOrigin::DerivedEdited;
         }
         let participant = self
             .local_state_store()?
@@ -248,10 +324,16 @@ impl AtlasAppService {
                 display_name: request.display_name,
                 side: participant_side(request.side),
                 participant_variant: new_variant,
+                hp_origin,
+                variant_origin: if variant_changed {
+                    atlas_local_state::ParticipantVariantOrigin::Explicit
+                } else {
+                    existing.variant_origin
+                },
                 initiative: request.initiative,
-                max_hp: request.max_hp,
+                max_hp,
                 current_hp,
-                temporary_hp: request.temporary_hp.max(0),
+                temporary_hp: request.temporary_hp,
                 defeated: request.defeated,
                 hidden: request.hidden,
                 note: request.note,
@@ -482,14 +564,19 @@ fn resolve_condition_input(
             });
         }
         let record = resolve_record_ref(service, &condition_ref)?;
-        if record.foundry.record_type != FoundryRecordType::Condition {
+        if record.summary.source_type.as_value().map(String::as_str) != Some("condition") {
             return Err(AppServiceError::invalid_request(
                 "encounter conditions must resolve to condition records",
             ));
         }
         return Ok(ConditionInput {
-            key: Some(record.identity.key.to_string()),
-            name: record.identity.name,
+            key: Some(record.summary.key.to_string()),
+            name: record
+                .summary
+                .name
+                .as_value()
+                .cloned()
+                .unwrap_or_else(|| record.summary.key.to_string()),
         });
     }
 

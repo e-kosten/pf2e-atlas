@@ -2,13 +2,13 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0046](./0046-source-backed-reference-artifact.md).
 
 Parser ownership is amended by [ADR 0044](./0044-shared-source-content-interpretation.md):
 the pure parser lives in atlas-record and ingest executes it with loaded context.
-The current artifact still stores RichDocument. The accepted next representation
-retains authored HTML in generated DTOs with narrow interpretation facts and
-derived HTML/text; its coherent artifact/consumer replacement is separate work.
+The source-backed artifact retains authored markup in checked DTOs and selected
+sanitized HTML/control caches. RichDocument storage and product rendering are
+retired. The remaining decision below records the earlier implementation.
 
 ## Context
 

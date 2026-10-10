@@ -54,8 +54,6 @@ pub struct SourcePathAuditPathReport {
     pub record_count: usize,
     pub occurrence_count: usize,
     pub value_types: Vec<SourcePathAuditValueType>,
-    pub coverage_status: SourcePathCoverageStatus,
-    pub known_consumers: Vec<String>,
     pub examples: Vec<SourcePathAuditSample>,
 }
 
@@ -70,14 +68,6 @@ pub struct SourcePathAuditSample {
     pub record_key: String,
     pub source_path: String,
     pub value: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SourcePathCoverageStatus {
-    Consumed,
-    Partial,
-    Uncovered,
 }
 
 #[derive(Debug, Default)]
@@ -172,28 +162,23 @@ pub fn audit_source_paths(
         .into_iter()
         .filter_map(|(path, stats)| {
             let record_count = stats.record_keys.len();
-            (record_count >= options.min_records).then(|| {
-                let consumers = known_consumers(&path);
-                SourcePathAuditPathReport {
-                    path,
-                    record_count,
-                    occurrence_count: stats.occurrence_count,
-                    value_types: stats
-                        .value_types
-                        .into_iter()
-                        .map(|(kind, count)| SourcePathAuditValueType { kind, count })
-                        .collect(),
-                    coverage_status: coverage_status(&consumers),
-                    known_consumers: consumers,
-                    examples: stats.examples,
-                }
+            (record_count >= options.min_records).then(|| SourcePathAuditPathReport {
+                path,
+                record_count,
+                occurrence_count: stats.occurrence_count,
+                value_types: stats
+                    .value_types
+                    .into_iter()
+                    .map(|(kind, count)| SourcePathAuditValueType { kind, count })
+                    .collect(),
+                examples: stats.examples,
             })
         })
         .collect::<Vec<_>>();
     paths.sort_by(|left, right| {
-        coverage_rank(left.coverage_status)
-            .cmp(&coverage_rank(right.coverage_status))
-            .then_with(|| right.record_count.cmp(&left.record_count))
+        right
+            .record_count
+            .cmp(&left.record_count)
             .then_with(|| right.occurrence_count.cmp(&left.occurrence_count))
             .then_with(|| left.path.cmp(&right.path))
     });
@@ -350,129 +335,6 @@ fn is_simple_path_key(key: &str) -> bool {
         })
 }
 
-fn known_consumers(path: &str) -> Vec<String> {
-    let mut consumers = Vec::new();
-    push_if(
-        &mut consumers,
-        "record_identity",
-        matches!(
-            path,
-            "$._id" | "$.name" | "$.type" | "$.img" | "$.folder" | "$.sort"
-        ),
-    );
-    push_if(
-        &mut consumers,
-        "publication",
-        path.starts_with("$.system.publication.")
-            || path.starts_with("$.system.details.publication."),
-    );
-    push_if(
-        &mut consumers,
-        "traits",
-        path.starts_with("$.system.traits."),
-    );
-    push_if(
-        &mut consumers,
-        "actor_mechanics",
-        path.starts_with("$.system.abilities.")
-            || path.starts_with("$.system.attributes.allSaves.")
-            || path.starts_with("$.system.attributes.ac.")
-            || path.starts_with("$.system.attributes.hp.")
-            || path.starts_with("$.system.attributes.speed.")
-            || path.starts_with("$.system.details.languages.")
-            || path.starts_with("$.system.details.level.")
-            || path.starts_with("$.system.initiative.")
-            || path.starts_with("$.system.perception.")
-            || path.starts_with("$.system.saves.")
-            || path.starts_with("$.system.skills.")
-            || path.starts_with("$.system.traits.size."),
-    );
-    push_if(
-        &mut consumers,
-        "actor_sets",
-        path.starts_with("$.system.attributes.immunities")
-            || path.starts_with("$.system.attributes.resistances")
-            || path.starts_with("$.system.attributes.weaknesses"),
-    );
-    push_if(
-        &mut consumers,
-        "rich_content",
-        path == "$.system.description.value"
-            || path == "$.system.details.blurb"
-            || path == "$.system.details.publicNotes"
-            || path == "$.system.details.privateNotes"
-            || path == "$.items[].system.description.value",
-    );
-    push_if(
-        &mut consumers,
-        "embedded_item_facts",
-        path.starts_with("$.items[]."),
-    );
-    push_if(
-        &mut consumers,
-        "activity_mechanics",
-        path.starts_with("$.items[].system.bonus.")
-            || path.starts_with("$.items[].system.attackEffects.")
-            || path.starts_with("$.items[].system.damageRolls.")
-            || path.starts_with("$.items[].system.damage.")
-            || path.starts_with("$.items[].system.defense.")
-            || path.starts_with("$.items[].system.location.")
-            || path.starts_with("$.items[].system.overlays.")
-            || path.starts_with("$.items[].system.range.")
-            || path.starts_with("$.items[].system.target.")
-            || path.starts_with("$.items[].system.time."),
-    );
-    push_if(
-        &mut consumers,
-        "spell_mechanics",
-        path.starts_with("$.system.area.")
-            || path.starts_with("$.system.cost.")
-            || path.starts_with("$.system.defense.")
-            || path.starts_with("$.system.duration.")
-            || path.starts_with("$.system.level.")
-            || path.starts_with("$.system.range.")
-            || path.starts_with("$.system.target.")
-            || path.starts_with("$.system.time.")
-            || path.starts_with("$.system.traits.traditions."),
-    );
-    push_if(
-        &mut consumers,
-        "rules_unmodeled",
-        path.starts_with("$.items[].system.rules") || path.starts_with("$.system.rules"),
-    );
-    consumers
-}
-
-fn push_if(consumers: &mut Vec<String>, label: &str, condition: bool) {
-    if condition {
-        consumers.push(label.to_string());
-    }
-}
-
-fn coverage_status(consumers: &[String]) -> SourcePathCoverageStatus {
-    if consumers.is_empty() {
-        return SourcePathCoverageStatus::Uncovered;
-    }
-    if consumers.iter().any(|consumer| {
-        matches!(
-            consumer.as_str(),
-            "rules_unmodeled" | "embedded_item_facts" | "actor_sets"
-        )
-    }) {
-        SourcePathCoverageStatus::Partial
-    } else {
-        SourcePathCoverageStatus::Consumed
-    }
-}
-
-fn coverage_rank(status: SourcePathCoverageStatus) -> u8 {
-    match status {
-        SourcePathCoverageStatus::Uncovered => 0,
-        SourcePathCoverageStatus::Partial => 1,
-        SourcePathCoverageStatus::Consumed => 2,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -486,28 +348,6 @@ mod tests {
         assert_eq!(
             object_segment("$.system.attributes.ac", "value", 2),
             "value"
-        );
-    }
-
-    #[test]
-    fn coverage_marks_known_but_partial_families() {
-        let consumers = known_consumers("$.items[].system.rules[].key");
-        assert!(consumers.contains(&"rules_unmodeled".to_string()));
-        assert_eq!(
-            coverage_status(&consumers),
-            SourcePathCoverageStatus::Partial
-        );
-        assert_eq!(
-            coverage_status(&known_consumers("$.system.unknownFuture.value")),
-            SourcePathCoverageStatus::Uncovered
-        );
-        assert_eq!(
-            coverage_status(&known_consumers("$.system.details.publication.title")),
-            SourcePathCoverageStatus::Consumed
-        );
-        assert_eq!(
-            coverage_status(&known_consumers("$.system.details.blurb")),
-            SourcePathCoverageStatus::Consumed
         );
     }
 }

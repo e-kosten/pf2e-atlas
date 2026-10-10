@@ -7,6 +7,59 @@ use serde_json::{Value, json};
 const ROOT: &str = "aaaaaaaaaaaaaaaa";
 const CHILD: &str = "bbbbbbbbbbbbbbbb";
 const OTHER: &str = "cccccccccccccccc";
+#[test]
+fn table_results_resolve_explicit_pack_pairs_and_retain_external_or_invalid_targets() {
+    let table = source_record(
+        "RollTable",
+        json!({"_id":ROOT,"results":[
+            {"_id":CHILD,"type":"pack","documentCollection":"pf2e.test","documentId":OTHER},
+            {"_id":"dddddddddddddddd","type":"pack","documentCollection":"pf2e.test","documentId":ROOT},
+            {"_id":"eeeeeeeeeeeeeeee","type":"pack","documentCollection":"other-system.test","documentId":OTHER},
+            {"_id":"ffffffffffffffff","type":"document","documentCollection":"Actor","documentId":OTHER},
+            {"_id":"gggggggggggggggg","type":"pack","documentCollection":"pf2e.macros","documentId":OTHER},
+            {"_id":"hhhhhhhhhhhhhhhh","type":"pack","documentCollection":"pf2e.test","documentId":42},
+            {"_id":"iiiiiiiiiiiiiiii","type":"text","documentCollection":"pf2e.test","documentId":OTHER},
+            {"_id":"jjjjjjjjjjjjjjjj","type":"document","documentCollection":"pf2e.test","documentId":OTHER}
+        ]}),
+    );
+    let target = source_record("Item", json!({"_id":OTHER,"type":"equipment"}));
+    let macro_source = admitted(
+        "Macro",
+        json!({"_id":OTHER,"type":"script","command":"return;"}),
+    );
+    let macro_record = SourceBackedRecord::new("macros", macro_source).unwrap();
+    let mut index = SourceReferenceIndex::default();
+    for r in [&table, &target, &macro_record] {
+        index.insert_source(r.key(), r.source());
+    }
+    let edges = resolve_source_relationships(&table, Some(&index));
+    assert_eq!(edges.len(), 7);
+    assert!(
+        edges
+            .iter()
+            .all(|e| e.kind == SourceRelationshipKind::TableResult
+                && e.locator.field == "/documentId"
+                && e.locator.owners.len() == 1)
+    );
+    assert!(
+        matches!(&edges[0].resolution,ContentReferenceResolution::Resolved(ContentReferenceTarget::Record{key}) if key==target.key())
+    );
+    assert!(
+        matches!(&edges[1].resolution,ContentReferenceResolution::Resolved(ContentReferenceTarget::Record{key}) if key==table.key())
+    );
+    assert_eq!(edges[2].resolution, ContentReferenceResolution::Unresolved);
+    assert_eq!(edges[3].resolution, ContentReferenceResolution::Unresolved);
+    assert!(
+        matches!(&edges[4].resolution,ContentReferenceResolution::Resolved(ContentReferenceTarget::Record{key}) if key==macro_record.key())
+    );
+    assert!(matches!(
+        edges[5].availability,
+        FieldAvailability::Invalid { .. }
+    ));
+    assert_eq!(edges[6].authored_target, edges[0].authored_target);
+    assert_eq!(edges[6].availability, FieldAvailability::Value);
+    assert_eq!(edges[6].resolution, ContentReferenceResolution::Unresolved);
+}
 fn admitted(kind: &str, value: Value) -> atlas_foundry_model::FoundryDocumentSource {
     let bytes = serde_json::to_vec(&value).unwrap();
     admit_document_source(kind, SourceContext::new("fixture", "test", "$"), &bytes)
@@ -27,6 +80,81 @@ fn source_record(kind: &str, value: Value) -> SourceBackedRecord {
 }
 fn item(family: &str) -> Value {
     json!({"_id":ROOT,"name":"Élan @Damage[1d6]","type":family,"system":{"description":{"value":"<p>Authored — 力 @Damage[1d6]</p>","gm":"@UUID[Compendium.pf2e.test.Item.aaaaaaaaaaaaaaaa] @Check[fortitude|dc:20]"},"publication":{"title":"Test","remaster":false}}})
+}
+
+#[test]
+fn owned_lookup_checks_sibling_identity_instead_of_choosing_duplicate_ids() {
+    let record = source_record(
+        "Actor",
+        json!({
+            "_id": ROOT, "type": "npc", "items": [
+                {"_id": CHILD, "name": "First", "type": "spell"},
+                {"_id": CHILD, "name": "Second", "type": "spell"},
+                {"_id": OTHER, "name": "Unique", "type": "spell"}
+            ]
+        }),
+    );
+    let owner = |identity| {
+        vec![OwnedContentLocator {
+            collection: "/items".into(),
+            identity,
+        }]
+    };
+    assert!(
+        record
+            .node_at(&owner(OwnedContentIdentity::Stable(CHILD.into())))
+            .is_none()
+    );
+    assert_eq!(
+        record
+            .node_at(&owner(OwnedContentIdentity::SnapshotLocal { index: 1 }))
+            .unwrap()
+            .name()
+            .value()
+            .map(String::as_str),
+        Some("Second")
+    );
+    assert_eq!(
+        record
+            .node_at(&owner(OwnedContentIdentity::Stable(OTHER.into())))
+            .unwrap()
+            .name()
+            .value()
+            .map(String::as_str),
+        Some("Unique")
+    );
+    assert!(
+        record
+            .node_at(&owner(OwnedContentIdentity::SnapshotLocal { index: 99 }))
+            .is_none()
+    );
+    assert!(matches!(
+        record.node_at(&[]),
+        Some(SourceNodeView::Actor(_))
+    ));
+    let mut items = Vec::new();
+    assert!(
+        record
+            .visit_immediate_actor_items(|index, owner, item| {
+                items.push((index, owner.clone(), item.family()));
+            })
+            .value()
+            .is_some()
+    );
+    assert_eq!(items.len(), 3);
+    assert_eq!(
+        items[0].1.identity,
+        OwnedContentIdentity::SnapshotLocal { index: 0 }
+    );
+    assert_eq!(
+        items[1].1.identity,
+        OwnedContentIdentity::SnapshotLocal { index: 1 }
+    );
+    assert_eq!(items[2].0, 2);
+    assert_eq!(
+        items[2].1.identity,
+        OwnedContentIdentity::Stable(OTHER.into())
+    );
 }
 
 #[test]

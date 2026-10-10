@@ -35,6 +35,15 @@ jobs:
       - name: Rust verification
         run: scripts/verify.sh
 
+  windows-artifact:
+    name: Windows artifact publication
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify artifact coherence and publication
+        run: cargo test -p atlas-index --lib --locked foundation_tests
+
   atlas-dev:
     name: atlas dev (no web bundle)
     runs-on: ubuntu-24.04

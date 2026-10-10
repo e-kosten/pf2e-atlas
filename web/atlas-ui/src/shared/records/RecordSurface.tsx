@@ -1,7 +1,8 @@
-import { Popover } from "antd";
+import { Button, Popover } from "antd";
 import type React from "react";
+import { navigateToAtlasRoute } from "../../app/routes";
 import type {
-  RecordDetailView,
+  RecordRelationshipView,
   RecordSurfaceSectionKindView,
   RecordSurfaceSectionView,
   RecordSurfaceView,
@@ -11,21 +12,29 @@ import type {
   SurfaceScalarView,
   SurfaceValueView,
 } from "../../generated/atlas";
-import { PresentationContentView, RecordPresentation } from "./RecordPresentation";
+import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
 
 type RecordSurfaceProps = {
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: RecordReferenceHandler;
   surface: RecordSurfaceView;
+  relationships?: RecordRelationshipView[];
   slots?: Record<string, React.ReactNode>;
 };
 
 export function RecordSurface({
   onReference,
   surface,
+  relationships = [],
   slots = {},
 }: RecordSurfaceProps) {
   if (surface.profile === "search_compact") {
-    return <SearchCompactSurface onReference={onReference} surface={surface} />;
+    return (
+      <SearchCompactSurface
+        onReference={onReference}
+        surface={surface}
+        relationships={relationships}
+      />
+    );
   }
   if (surface.profile === "encounter_participant") {
     return (
@@ -33,15 +42,22 @@ export function RecordSurface({
         onReference={onReference}
         slots={slots}
         surface={surface}
+        relationships={relationships}
       />
     );
   }
   return (
-    <GenericRecordSurface onReference={onReference} slots={slots} surface={surface} />
+    <GenericRecordSurface
+      onReference={onReference}
+      slots={slots}
+      surface={surface}
+      relationships={relationships}
+    />
   );
 }
 
 function GenericRecordSurface({
+  relationships = [],
   onReference,
   surface,
   slots = {},
@@ -63,9 +79,7 @@ function GenericRecordSurface({
         </div>
         <div className="record-surface__header-meta">
           {surface.header.level_label && (
-            <span className="record-surface__level">
-              Level {surface.header.level_label}
-            </span>
+            <span className="record-surface__level">{surface.header.level_label}</span>
           )}
           <div className="badge-row">
             {surface.header.traits.map((trait) => (
@@ -83,23 +97,11 @@ function GenericRecordSurface({
             key={`${section.kind}-${section.title}`}
             onReference={onReference}
             section={section}
+            relationships={relationships}
             slot={slots[section.kind]}
           />
         ))}
       </div>
-      {surface.fallback_presentation && surface.profile !== "search_compact" && (
-        <details
-          className="record-surface__fallback"
-          open={surface.profile === "record_detail"}
-        >
-          <summary>Source presentation</summary>
-          <RecordPresentation
-            detail={fallbackDetail(surface)}
-            loading={false}
-            onReference={onReference}
-          />
-        </details>
-      )}
     </article>
   );
 }
@@ -107,9 +109,11 @@ function GenericRecordSurface({
 function SearchCompactSurface({
   onReference,
   surface,
+  relationships = [],
 }: {
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: RecordReferenceHandler;
   surface: RecordSurfaceView;
+  relationships?: RecordRelationshipView[];
 }) {
   const description = sectionByKind(surface, "description");
   const facts = sectionByKind(surface, "identity");
@@ -120,8 +124,9 @@ function SearchCompactSurface({
         <h2>{surface.title}</h2>
         {description?.content && (
           <div className="record-surface-search__description">
-            <PresentationContentView
+            <PreparedContent
               content={description.content}
+              relationships={relationships}
               onReference={onReference}
             />
           </div>
@@ -142,7 +147,7 @@ function SearchCompactSurface({
         </div>
       )}
       <div className="record-surface-search__meta">
-        {surface.header.level_label && <span>Level {surface.header.level_label}</span>}
+        {surface.header.level_label && <span>{surface.header.level_label}</span>}
         {(surface.header.publication ?? surface.header.pack) && (
           <small>{surface.header.publication ?? surface.header.pack}</small>
         )}
@@ -152,6 +157,7 @@ function SearchCompactSurface({
 }
 
 function EncounterParticipantSurface({
+  relationships = [],
   onReference,
   slots = {},
   surface,
@@ -166,6 +172,7 @@ function EncounterParticipantSurface({
   const activities = sectionByKind(surface, "activities");
   const description = sectionByKind(surface, "description");
   const references = sectionByKind(surface, "references");
+  const notes = sectionByKind(surface, "notes");
 
   return (
     <article className="record-surface record-surface--encounter-participant">
@@ -238,6 +245,12 @@ function EncounterParticipantSurface({
               <SurfaceNotes notes={references.notes ?? []} />
             </SurfaceCard>
           )}
+          {notes && (
+            <SurfaceCard title={notes.title}>
+              <CompactFactRows values={notes.values ?? []} />
+              <SurfaceNotes notes={notes.notes ?? []} />
+            </SurfaceCard>
+          )}
         </div>
 
         <div className="record-surface-structured__column">
@@ -255,8 +268,9 @@ function EncounterParticipantSurface({
               <details className="record-surface__description-details">
                 <summary>Description</summary>
                 <div className="record-surface__content">
-                  <PresentationContentView
+                  <PreparedContent
                     content={description.content}
+                    relationships={relationships}
                     onReference={onReference}
                   />
                 </div>
@@ -268,17 +282,6 @@ function EncounterParticipantSurface({
           )}
         </div>
       </div>
-
-      {surface.fallback_presentation && (
-        <details className="record-surface__fallback">
-          <summary>Source presentation</summary>
-          <RecordPresentation
-            detail={fallbackDetail(surface)}
-            loading={false}
-            onReference={onReference}
-          />
-        </details>
-      )}
     </article>
   );
 }
@@ -338,10 +341,12 @@ function sectionByKind(surface: RecordSurfaceView, kind: RecordSurfaceSectionKin
 function SurfaceSection({
   onReference,
   section,
+  relationships = [],
   slot,
 }: {
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: RecordReferenceHandler;
   section: RecordSurfaceSectionView;
+  relationships?: RecordRelationshipView[];
   slot: React.ReactNode;
 }) {
   const hasSlot = slot !== undefined && slot !== null;
@@ -350,8 +355,9 @@ function SurfaceSection({
       {slot}
       {!hasSlot && section.content && (
         <div className="record-surface__content">
-          <PresentationContentView
+          <PreparedContent
             content={section.content}
+            relationships={relationships}
             onReference={onReference}
           />
         </div>
@@ -409,7 +415,18 @@ function SurfaceActivity({ activity }: { activity: SurfaceActivityView }) {
   return (
     <section className="record-surface__activity">
       <header>
-        <strong>{activity.label}</strong>
+        <Button
+          type="link"
+          onClick={() =>
+            navigateToAtlasRoute({
+              kind: "record",
+              recordKey: activity.navigation.record_key,
+              selection: activity.navigation,
+            })
+          }
+        >
+          {activity.label}
+        </Button>
         <span>{activity.kind}</span>
       </header>
       {(activity.values?.length ?? 0) > 0 && (
@@ -464,14 +481,14 @@ function SurfaceValue({ value }: { value: SurfaceValueView }) {
       placement="top"
       trigger="click"
     >
-      <button
+      <Button
         aria-label={`Show explanation for ${value.label}`}
         className={className}
-        type="button"
+        type="text"
       >
         <span>{value.label}</span>
         <strong>{formatScalar(value.value, value.display)}</strong>
-      </button>
+      </Button>
     </Popover>
   );
 }
@@ -573,14 +590,4 @@ function formatSigned(value: number): string {
     return `+${value.toString()}`;
   }
   return value.toString();
-}
-
-function fallbackDetail(surface: RecordSurfaceView): RecordDetailView {
-  return {
-    record_key: surface.record_key,
-    title: surface.title,
-    kind: surface.kind,
-    presentation: surface.fallback_presentation!,
-    surface: undefined,
-  };
 }

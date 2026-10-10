@@ -1,485 +1,246 @@
-import type { AppError, OpenResultWindowRequest } from "../generated/atlas";
 import {
-  addSavedListItem,
-  AtlasApiError,
-  createSavedList,
-  deleteSavedList,
-  discoverFilterEditor,
-  discoverFilterValues,
-  filterSavedList,
   getReadiness,
   getRecordDetail,
-  getSavedList,
-  getSavedLists,
   openResultWindow,
   readResultWindowPage,
-  removeSavedListItem,
-  updateSavedList,
+  discoverFilterValues,
+  discoverFilterEditor,
+  createSavedList,
+  deleteSavedList,
+  filterSavedList,
+  AtlasApiError,
+  getEncounter,
+  updateEncounterParticipant,
+  addEncounterManualParticipant,
 } from "./atlasApi";
-
-describe("atlasApi", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("requests readiness with the expected endpoint", async () => {
-    const fetchMock = mockFetch({ status: "ready", message: "Ready" });
-
-    await expect(getReadiness()).resolves.toEqual({
-      status: "ready",
-      message: "Ready",
+import {
+  damageChanges,
+  healChanges,
+  participantUpdate,
+} from "../features/encounters/participantEdits";
+import { detailFixture } from "../test/fixtures";
+const fetchMock = vi.fn();
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+  fetchMock.mockReset();
+});
+afterEach(() => vi.unstubAllGlobals());
+function respond(value: unknown, status = 200) {
+  fetchMock.mockImplementation(() =>
+    Promise.resolve(
+      new Response(JSON.stringify(value), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ),
+  );
+}
+describe("source-backed API transport", () => {
+  const participantJson = {
+    participant_key: "ghoul",
+    position: 1,
+    initiative_order: 2,
+    temporary_hp: 0,
+    current_hp: 20,
+    max_hp: 30,
+    initiative: -1,
+    conditions: [{ condition_id: 9, value: 1, duration_rounds: 4 }],
+    display_name: "Ghoul",
+    side: "enemy",
+    participant_variant: "normal",
+    defeated: false,
+    hidden: false,
+    hp_origin: "derived",
+    variant_origin: "default_unadjusted",
+    participant_kind: "creature",
+    status: "active",
+    note_hint: null,
+  };
+  it("normalizes actual HTTP encounter integers before Damage and Heal", async () => {
+    respond({ encounter: { round_number: 1 }, participants: [participantJson] });
+    const detail = await getEncounter("test");
+    const participant = detail.participants[0];
+    expect(detail.encounter.round_number).toBe(1n);
+    expect(participant).toMatchObject({
+      position: 1n,
+      initiative_order: 2n,
+      initiative: -1n,
+      current_hp: 20n,
+      max_hp: 30n,
+      temporary_hp: 0n,
+      conditions: [{ condition_id: 9n, value: 1n, duration_rounds: 4n }],
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/readiness",
-      expect.objectContaining({
-        headers: expect.objectContaining({ "Content-Type": "application/json" }),
-      }),
-    );
+    expect(damageChanges(participant, 1).current_hp).toBe(19n);
+    expect(healChanges(participant, 1).current_hp).toBe(21n);
+    respond(participantJson);
+    expect(
+      (
+        await updateEncounterParticipant(
+          "test",
+          participantUpdate(participant, { current_hp: 19n }),
+        )
+      ).current_hp,
+    ).toBe(20n);
   });
-
-  it("posts result-window requests as JSON and normalizes bigint fields", async () => {
-    const fetchMock = mockFetch(resultWindowPayload());
-    const request: OpenResultWindowRequest = {
-      mode: {
-        kind: "list_records",
-        filter: { clauses: [] },
-        sort: { kind: "record_key" },
-      },
-      page: { number: 1, size: 25 },
-      include_diagnostics: false,
-    };
-
-    const result = await openResultWindow(request);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/result-windows",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify(request),
-      }),
-    );
-    expect(result.window_id).toBe(12n);
-    expect(result.page.total).toBe(42n);
+  it("preserves unavailable HP and rejects already-rounded integer responses", async () => {
+    const unknown = { ...participantJson, current_hp: undefined, max_hp: undefined };
+    respond({ encounter: { round_number: 1 }, participants: [unknown] });
+    const participant = (await getEncounter("test")).participants[0];
+    expect(participant.current_hp).toBeUndefined();
+    expect(damageChanges(participant, 1)).toEqual({});
+    expect(healChanges(participant, 1)).toEqual({});
+    for (const invalid of [
+      Number.MAX_SAFE_INTEGER + 1,
+      Number.MIN_SAFE_INTEGER - 1,
+      0.5,
+    ]) {
+      respond({
+        encounter: { round_number: 1 },
+        participants: [{ ...participantJson, current_hp: invalid }],
+      });
+      await expect(getEncounter("test")).rejects.toThrow("Invalid numeric field");
+    }
   });
-
-  it("serializes random sort seeds in result-window requests", async () => {
-    const fetchMock = mockFetch(resultWindowPayload());
-    const request: OpenResultWindowRequest = {
-      mode: {
-        kind: "list_records",
-        filter: { clauses: [] },
-        sort: { kind: "random", seed: 123n },
-      },
-      page: { number: 1, size: 25 },
-      include_diagnostics: false,
-    };
-
-    await openResultWindow(request);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/result-windows",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          ...request,
-          mode: {
-            ...request.mode,
-            sort: { kind: "random", seed: 123 },
-          },
+  it("rejects unsafe integer request values with either sign before serialization", async () => {
+    respond({});
+    for (const max_hp of [9007199254740992n, -9007199254740992n]) {
+      await expect(
+        addEncounterManualParticipant({
+          encounter_ref: "test",
+          display_name: "Manual",
+          max_hp,
         }),
-      }),
-    );
+      ).rejects.toThrow("safe integer range");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
   });
-
-  it("rejects request bigint fields that exceed the JSON safe integer range", async () => {
-    const request: OpenResultWindowRequest = {
+  it("rejects unsafe Number literals and integer response counters instead of rounding", async () => {
+    for (const value of [Number.MAX_SAFE_INTEGER + 1, Number.MIN_SAFE_INTEGER - 1]) {
+      await expect(
+        openResultWindow({
+          mode: {
+            kind: "list_records",
+            filter: { kind: "compare", field: "actor.level", op: "eq", value },
+          },
+          page: { number: 1, size: 25 },
+        }),
+      ).rejects.toThrow("safe numeric range");
+      respond({ window_id: value, page: { total: 0 }, rows: [] });
+      await expect(
+        openResultWindow({
+          mode: { kind: "list_records", filter: null },
+          page: { number: 1, size: 25 },
+        }),
+      ).rejects.toThrow("Invalid numeric field");
+    }
+  });
+  it("posts exact owned/passage selection without per-marker requests", async () => {
+    const detail = detailFixture("actors:ghoul", "Ghoul");
+    respond(detail);
+    const request = { ...detail.selected, fields: ["system.description.value"] };
+    await getRecordDetail(request.record_key, request);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain("/api/records/detail");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
+  });
+  it("sends typed predicates and distinguishes retrieval mode", async () => {
+    respond({
+      window_id: 5,
+      mode: { kind: "text_search", query: "ghoul", mode: "lexical" },
+      page: {
+        number: 1,
+        size: 25,
+        count: 0,
+        total: 0,
+        has_more: false,
+        next_page: null,
+      },
+      rows: [],
+      coverage: null,
+    });
+    const request = {
       mode: {
-        kind: "list_records",
-        filter: { clauses: [] },
-        sort: { kind: "random", seed: BigInt(Number.MAX_SAFE_INTEGER) + 1n },
+        kind: "text_search" as const,
+        query: "ghoul",
+        mode: "lexical" as const,
+        filter: {
+          kind: "compare" as const,
+          field: "actor.level",
+          op: "gte" as const,
+          value: 0,
+        },
       },
       page: { number: 1, size: 25 },
-      include_diagnostics: false,
     };
-
-    await expect(openResultWindow(request)).rejects.toMatchObject({
-      name: "AtlasApiError",
-      message: "Request numeric field exceeds JSON safe integer range",
-    });
+    const result = await openResultWindow(request);
+    expect(result.window_id).toBe(5n);
+    expect(result.page.total).toBe(0n);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
+    await readResultWindowPage(5n, { page: { number: 2, size: 25 } });
+    expect(fetchMock.mock.calls[1][0]).toContain("/5/page");
   });
-
-  it("posts filter-editor requests and normalizes record counts", async () => {
-    const request = {
-      context: { kind: "filtered" as const, filter: { clauses: [] } },
-    };
-    const fetchMock = mockFetch({
-      matching_record_count: 42,
+  it("normalizes only actual integer discovery counts", async () => {
+    respond({
+      values: {
+        field: "common.traits",
+        options: [{ value: "fire", distinct_roots: 4, selected: false }],
+        total_values: 1,
+        exhaustive: true,
+        count_basis: "distinct roots",
+      },
+    });
+    const result = await discoverFilterValues({
+      context: { kind: "filtered", filter: null, text: null, mode: "lexical" },
+      field_id: "common.traits",
+      clause_id: null,
+      text: null,
+      offset: 0,
+      limit: 100,
+    });
+    expect(result.values.options[0].distinct_roots).toBe(4n);
+    expect(result.values.total_values).toBe(1n);
+    respond({
+      catalog_version: 1,
+      limits: { source_bytes: 16384, nodes: 256, depth: 32, literal_list: 128 },
       groups: [],
     });
-
-    const result = await discoverFilterEditor(request);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/filters/editor",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify(request),
+    expect(
+      await discoverFilterEditor({
+        context: { kind: "filtered", filter: null, text: null, mode: "lexical" },
+        selected_field_ids: [],
       }),
-    );
-    expect(result.matching_record_count).toBe(42n);
+    ).toMatchObject({ catalog_version: 1 });
   });
-
-  it("posts filter-value discovery requests and normalizes option counts", async () => {
-    const request = {
-      context: { kind: "filtered" as const, filter: { clauses: [] } },
-      field_id: "traits",
-    };
-    const fetchMock = mockFetch({
-      field_id: "traits",
-      matching_record_count: 7,
-      options: [
-        {
-          value: "fire",
-          label: "fire",
-          count: 3,
-          selected: false,
-          disabled: false,
-          status: "available",
-        },
-      ],
+  it("preserves useful saved-list CRUD requests", async () => {
+    respond({});
+    await createSavedList({ slug: "research", name: "Research", tags: [] });
+    await filterSavedList({
+      list_ref: "Research",
+      filter: { kind: "state_match", field: "actor.level", state: "missing" },
     });
-
-    const result = await discoverFilterValues(request);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/filters/values",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify(request),
-      }),
-    );
-    expect(result.matching_record_count).toBe(7n);
-    expect(result.options[0]?.count).toBe(3n);
+    await deleteSavedList("Research");
+    expect(fetchMock.mock.calls.map((c) => c[1].method)).toEqual([
+      "POST",
+      "POST",
+      "DELETE",
+    ]);
   });
-
-  it("formats bigint window IDs when reading later pages", async () => {
-    const fetchMock = mockFetch(resultWindowPayload({ window_id: 99 }));
-
-    const result = await readResultWindowPage(99n, {
-      page: { number: 2, size: 25 },
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/result-windows/99/page",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ page: { number: 2, size: 25 } }),
-      }),
-    );
-    expect(result.window_id).toBe(99n);
-  });
-
-  it("url-encodes record keys", async () => {
-    const fetchMock = mockFetch({
-      record_key: "spell:dirge/of doom",
-      title: "Dirge",
-      kind: "spell",
-      presentation: {
-        record_key: "spell:dirge/of doom",
-        kind: "spell",
-        title: "Dirge",
-        identity: [],
-        badges: [],
-        sections: [],
+  it("preserves structured ambiguity/error information", async () => {
+    respond(
+      {
+        code: "record_resolution_ambiguous",
+        message: "Multiple records match",
+        details: null,
       },
-    });
-
-    await getRecordDetail("spell:dirge/of doom");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/records/spell%3Adirge%2Fof%20doom",
-      expect.any(Object),
+      400,
     );
-  });
-
-  it("requests saved lists with the expected endpoint", async () => {
-    const fetchMock = mockFetch({ lists: [savedListSummary()] });
-
-    const result = await getSavedLists();
-
-    expect(fetchMock).toHaveBeenCalledWith("/api/lists", expect.any(Object));
-    expect(result.lists[0]?.slug).toBe("research");
-  });
-
-  it("url-encodes saved-list refs and normalizes item positions", async () => {
-    const fetchMock = mockFetch({
-      list: savedListSummary({ slug: "campaign/research" }),
-      items: [
-        {
-          record_key: "actions:testAction1",
-          position: 2,
-          status: "active",
-          snapshot: { title: "Test Action 1", kind: "rule" },
-          record: {
-            record_key: "actions:testAction1",
-            title: "Test Action 1",
-            kind: "rule",
-            kind_label: "Rule",
-          },
-        },
-      ],
-    });
-
-    const result = await getSavedList("list_campaign/research");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/lists/list_campaign%2Fresearch",
-      expect.any(Object),
-    );
-    expect(result.items[0]?.position).toBe(2n);
-  });
-
-  it("posts saved-list filters through the encoded list route", async () => {
-    const request = {
-      list_ref: "list_campaign/research",
-      query: "Test Action 2",
-      filter: {
-        clauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any" as const,
-            values: ["action"],
-          },
-        ],
-      },
-    };
-    const fetchMock = mockFetch({
-      list: savedListSummary({ slug: "campaign/research" }),
-      items: [],
-    });
-
-    await filterSavedList(request);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/lists/list_campaign%2Fresearch/filter",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify(request),
-      }),
-    );
-  });
-
-  it("writes saved-list mutations through encoded list routes", async () => {
-    const fetchMock = mockFetch({
-      list: savedListSummary({ slug: "campaign/research" }),
-    });
-
-    await createSavedList({
-      slug: "campaign/research",
-      name: "Campaign Research",
-      description: "Session prep",
-      tags: ["arc-one"],
-    });
-
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/lists",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          slug: "campaign/research",
-          name: "Campaign Research",
-          description: "Session prep",
-          tags: ["arc-one"],
-        }),
-      }),
-    );
-
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        list: savedListSummary({
-          list_key: "list_campaign/research",
-          slug: "renamed-research",
-          name: "Renamed Research",
-          description: "Updated prep",
-          tags: ["arc-two"],
-        }),
-      }),
-    );
-    await updateSavedList({
-      list_key: "list_campaign/research",
-      slug: "renamed-research",
-      name: "Renamed Research",
-      description: "Updated prep",
-      tags: ["arc-two"],
-    });
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/lists/list_campaign%2Fresearch",
-      expect.objectContaining({
-        method: "PATCH",
-        body: JSON.stringify({
-          list_key: "list_campaign/research",
-          slug: "renamed-research",
-          name: "Renamed Research",
-          description: "Updated prep",
-          tags: ["arc-two"],
-        }),
-      }),
-    );
-
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        list_key: "list_campaign/research",
-        slug: "campaign/research",
-        deleted: true,
-      }),
-    );
-    await deleteSavedList("list_campaign/research");
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/lists/list_campaign%2Fresearch",
-      expect.objectContaining({ method: "DELETE" }),
-    );
-
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        list_key: "list_campaign/research",
-        slug: "campaign/research",
-        record_key: "spell:dirge/of doom",
-        outcome: "added",
-      }),
-    );
-    await addSavedListItem({
-      list_ref: "list_campaign/research",
-      record_ref: "spell:dirge/of doom",
-    });
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/lists/list_campaign%2Fresearch/items",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          list_ref: "list_campaign/research",
-          record_ref: "spell:dirge/of doom",
-        }),
-      }),
-    );
-
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({
-        list_key: "list_campaign/research",
-        slug: "campaign/research",
-        record_key: "spell:dirge/of doom",
-        outcome: "removed",
-      }),
-    );
-    await removeSavedListItem({
-      list_ref: "list_campaign/research",
-      record_ref: "spell:dirge/of doom",
-    });
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      "/api/lists/list_campaign%2Fresearch/items",
-      expect.objectContaining({
-        method: "DELETE",
-        body: JSON.stringify({
-          list_ref: "list_campaign/research",
-          record_ref: "spell:dirge/of doom",
-        }),
-      }),
-    );
-  });
-
-  it("throws AtlasApiError with app-error details for app error responses", async () => {
-    const appError: AppError = {
-      code: "window_expired",
-      message: "Expired",
-    };
-    mockFetch(appError, { ok: false, status: 410, statusText: "Gone" });
-
     await expect(getReadiness()).rejects.toMatchObject({
-      name: "AtlasApiError",
-      status: 410,
-      message: "Expired",
-      appError,
+      status: 400,
+      appError: { code: "record_resolution_ambiguous" },
     });
   });
-
-  it("throws AtlasApiError for non-json error responses", async () => {
-    mockFetchText("proxy failure", {
-      ok: false,
-      status: 502,
-      statusText: "Bad Gateway",
-    });
-
-    await expect(getReadiness()).rejects.toMatchObject({
-      name: "AtlasApiError",
-      status: 502,
-      message: "proxy failure",
-      appError: undefined,
-    });
-  });
-
-  it("throws AtlasApiError for malformed successful JSON", async () => {
-    mockFetchText("{", { ok: true, status: 200, statusText: "OK" });
-
+  it("surfaces invalid success JSON and response text", async () => {
+    fetchMock.mockResolvedValue(new Response("broken", { status: 200 }));
     await expect(getReadiness()).rejects.toBeInstanceOf(AtlasApiError);
   });
 });
-
-function mockFetch(
-  payload: unknown,
-  options: { ok?: boolean; status?: number; statusText?: string } = {},
-) {
-  return mockFetchText(JSON.stringify(payload), options);
-}
-
-function mockFetchText(
-  text: string,
-  options: { ok?: boolean; status?: number; statusText?: string } = {},
-) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok: options.ok ?? true,
-    status: options.status ?? 200,
-    statusText: options.statusText ?? "OK",
-    text: vi.fn().mockResolvedValue(text),
-  });
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
-}
-
-function jsonResponse(payload: unknown) {
-  return {
-    ok: true,
-    status: 200,
-    statusText: "OK",
-    text: vi.fn().mockResolvedValue(JSON.stringify(payload)),
-  };
-}
-
-function resultWindowPayload(overrides: Record<string, unknown> = {}) {
-  return {
-    window_id: 12,
-    mode: { kind: "list_records" },
-    page: {
-      number: 1,
-      size: 25,
-      count: 1,
-      total: 42,
-      has_more: false,
-    },
-    rows: [],
-    ...overrides,
-  };
-}
-
-function savedListSummary(overrides: Record<string, unknown> = {}) {
-  return {
-    list_key: "list_research",
-    slug: "research",
-    name: "Research",
-    description: "Campaign prep",
-    tags: ["arc-one"],
-    item_count: 1,
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
-    ...overrides,
-  };
-}

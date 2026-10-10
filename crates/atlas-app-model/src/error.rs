@@ -54,7 +54,6 @@ pub enum AppErrorCode {
     FilterFieldInvalid,
     FilterOptionInvalid,
     FilterFieldNotApplicable,
-    FilterMetricAmbiguous,
     FilterEditorConflict,
     QueryFailed,
     IndexUnavailable,

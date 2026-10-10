@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 
 use atlas_domain::RecordKind;
-use atlas_record::FoundryRecordType;
 use serde::{Deserialize, Serialize};
 
 use crate::TagId;
@@ -135,12 +134,8 @@ pub struct TagApplicability {
 pub struct TagApplicabilityClause {
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub record_kinds: BTreeSet<RecordKind>,
-    #[serde(
-        default,
-        with = "foundry_record_type_vec",
-        skip_serializing_if = "Vec::is_empty"
-    )]
-    pub foundry_record_types: Vec<FoundryRecordType>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub foundry_record_types: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required_facts: Vec<TagFactPredicate>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -163,31 +158,4 @@ pub enum TagFactPredicate {
 pub struct TagGuidance {
     pub applies_when: Vec<String>,
     pub does_not_apply_when: Vec<String>,
-}
-
-pub(crate) mod foundry_record_type_vec {
-    use atlas_record::FoundryRecordType;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    pub fn serialize<S>(values: &[FoundryRecordType], serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        values
-            .iter()
-            .map(FoundryRecordType::as_str)
-            .collect::<Vec<_>>()
-            .serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<FoundryRecordType>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let values = Vec::<String>::deserialize(deserializer)?;
-        Ok(values
-            .into_iter()
-            .map(|value| FoundryRecordType::from_foundry(&value))
-            .collect())
-    }
 }

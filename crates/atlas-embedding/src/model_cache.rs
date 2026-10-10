@@ -1,9 +1,26 @@
-use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
-
+use crate::catalog::{BGE_MODEL_SHA256, BGE_TOKENIZER_SHA256};
+use crate::document_input::hash_bytes;
 use crate::{EmbeddingError, EmbeddingRuntimeConfig};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 use tracing::info;
+
+/// Immutable execution assets, including the configuration required by the
+/// local-file FastEmbed API. Cached files are verified before every load.
+const ASSETS: &[(&str, &str)] = &[
+    ("tokenizer.json", BGE_TOKENIZER_SHA256),
+    ("onnx/model.onnx", BGE_MODEL_SHA256),
+    (
+        "config.json",
+        "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+    ),
+    (
+        "tokenizer_config.json",
+        "9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3",
+    ),
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddingModelCacheFile {
@@ -11,130 +28,132 @@ pub struct EmbeddingModelCacheFile {
     pub source_revision: &'static str,
     pub source_path: &'static str,
     pub local_path: PathBuf,
+    pub sha256: &'static str,
 }
-
 pub fn required_embedding_model_cache_files(
     config: &EmbeddingRuntimeConfig,
 ) -> Vec<EmbeddingModelCacheFile> {
     let spec = config.model_spec();
-    let model_dir = config.model_dir();
-    vec![
-        EmbeddingModelCacheFile {
-            source_repo: spec.tokenizer_id,
-            source_revision: spec.model_revision,
-            source_path: "tokenizer.json",
-            local_path: model_dir.join("tokenizer.json"),
-        },
-        EmbeddingModelCacheFile {
+    ASSETS
+        .iter()
+        .map(|(source_path, sha256)| EmbeddingModelCacheFile {
             source_repo: spec.model_id,
             source_revision: spec.model_revision,
-            source_path: "onnx/model.onnx",
-            local_path: model_dir.join("onnx").join("model.onnx"),
-        },
-    ]
+            source_path,
+            local_path: config.model_dir().join(source_path),
+            sha256,
+        })
+        .collect()
 }
-
+/// Verify readiness with exactly the same pinned asset policy as inference,
+/// without loading a native session or downloading missing files.
+pub fn validate_embedding_model_cache(
+    config: &EmbeddingRuntimeConfig,
+) -> Result<(), EmbeddingError> {
+    for file in required_embedding_model_cache_files(config) {
+        read_verified_asset(&config.model_dir(), file.source_path)?;
+    }
+    Ok(())
+}
+pub(crate) fn read_verified_asset(
+    model_dir: &Path,
+    source_path: &str,
+) -> Result<Vec<u8>, EmbeddingError> {
+    let expected = ASSETS
+        .iter()
+        .find(|(name, _)| *name == source_path)
+        .map(|(_, hash)| *hash)
+        .ok_or(EmbeddingError::UnsupportedModelContract)?;
+    let path = model_dir.join(source_path);
+    let bytes = fs::read(&path).map_err(|e| EmbeddingError::ModelLoadFailed {
+        path: path.display().to_string(),
+        message: e.to_string(),
+    })?;
+    verify(&path, &bytes, expected)?;
+    Ok(bytes)
+}
+fn verify(path: &Path, bytes: &[u8], expected: &str) -> Result<(), EmbeddingError> {
+    let actual = hash_bytes(bytes);
+    if actual != expected {
+        return Err(EmbeddingError::AssetChecksumMismatch {
+            path: path.display().to_string(),
+            expected: expected.into(),
+            actual,
+        });
+    }
+    Ok(())
+}
 pub fn prepare_embedding_model_cache(
     config: &EmbeddingRuntimeConfig,
 ) -> Result<Vec<PathBuf>, EmbeddingError> {
     let mut downloaded = Vec::new();
     for file in required_embedding_model_cache_files(config) {
         if file.local_path.is_file() {
-            model_cache_progress(
-                "embedding_model_cache",
-                format!("Embedding model cache already has {}", file.source_path),
-            );
+            read_verified_asset(&config.model_dir(), file.source_path)?;
             continue;
         }
-        model_cache_progress(
-            "embedding_model_cache",
-            format!("Downloading embedding model file {}", file.source_path),
-        );
-        download_model_cache_file(&file)?;
-        model_cache_progress(
-            "embedding_model_cache",
-            format!("Cached embedding model file {}", file.source_path),
-        );
+        info!(target: "atlas_progress", phase = "embedding_model_cache", asset = file.source_path, "Downloading pinned embedding asset");
+        download(&file)?;
         downloaded.push(file.local_path);
     }
     Ok(downloaded)
 }
-
-fn download_model_cache_file(file: &EmbeddingModelCacheFile) -> Result<(), EmbeddingError> {
+fn download(file: &EmbeddingModelCacheFile) -> Result<(), EmbeddingError> {
     if let Some(parent) = file.local_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| EmbeddingError::ModelCachePrepareFailed {
+        fs::create_dir_all(parent).map_err(|e| EmbeddingError::ModelCachePrepareFailed {
             path: parent.display().to_string(),
-            message: error.to_string(),
+            message: e.to_string(),
         })?;
     }
-    let temp_path = temp_download_path(&file.local_path);
-    let url = hugging_face_resolve_url(file);
-    let mut response =
-        ureq::get(&url)
-            .call()
-            .map_err(|error| EmbeddingError::ModelCacheDownloadFailed {
-                url: url.clone(),
-                path: file.local_path.display().to_string(),
-                message: error.to_string(),
+    let temporary = file.local_path.with_extension("download");
+    let result = (|| {
+        let url = format!(
+            "https://huggingface.co/{}/resolve/{}/{}",
+            file.source_repo, file.source_revision, file.source_path
+        );
+        let mut response =
+            ureq::get(&url)
+                .call()
+                .map_err(|e| EmbeddingError::ModelCacheDownloadFailed {
+                    url: url.clone(),
+                    path: file.local_path.display().to_string(),
+                    message: e.to_string(),
+                })?;
+        let mut output =
+            fs::File::create(&temporary).map_err(|e| EmbeddingError::ModelCachePrepareFailed {
+                path: temporary.display().to_string(),
+                message: e.to_string(),
             })?;
-    let mut output =
-        fs::File::create(&temp_path).map_err(|error| EmbeddingError::ModelCachePrepareFailed {
-            path: temp_path.display().to_string(),
-            message: error.to_string(),
+        io::copy(&mut response.body_mut().as_reader(), &mut output).map_err(|e| {
+            EmbeddingError::ModelCacheDownloadFailed {
+                url,
+                path: temporary.display().to_string(),
+                message: e.to_string(),
+            }
         })?;
-    io::copy(&mut response.body_mut().as_reader(), &mut output).map_err(|error| {
-        EmbeddingError::ModelCacheDownloadFailed {
-            url,
-            path: file.local_path.display().to_string(),
-            message: error.to_string(),
-        }
-    })?;
-    fs::rename(&temp_path, &file.local_path).map_err(|error| {
-        EmbeddingError::ModelCachePrepareFailed {
-            path: file.local_path.display().to_string(),
-            message: error.to_string(),
-        }
-    })?;
-    Ok(())
-}
-
-fn hugging_face_resolve_url(file: &EmbeddingModelCacheFile) -> String {
-    format!(
-        "https://huggingface.co/{}/resolve/{}/{}",
-        file.source_repo, file.source_revision, file.source_path
-    )
-}
-
-fn temp_download_path(path: &Path) -> PathBuf {
-    path.with_extension(
-        match path.extension().and_then(|extension| extension.to_str()) {
-            Some(extension) => format!("{extension}.tmp"),
-            None => "tmp".to_string(),
-        },
-    )
-}
-
-fn model_cache_progress(phase: &'static str, message: impl AsRef<str>) {
-    let message = message.as_ref();
-    info!(target: "atlas_progress", phase, "{message}");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::DEFAULT_EMBEDDING_MODEL;
-
-    #[test]
-    fn required_files_use_catalog_model_and_tokenizer_sources() {
-        let config = EmbeddingRuntimeConfig::new(DEFAULT_EMBEDDING_MODEL, "/tmp/atlas-models");
-        let files = required_embedding_model_cache_files(&config);
-
-        assert_eq!(files.len(), 2);
-        assert_eq!(files[0].source_repo, "BAAI/bge-small-en-v1.5");
-        assert_eq!(files[0].source_path, "tokenizer.json");
-        assert_eq!(files[1].source_repo, "BAAI/bge-small-en-v1.5");
-        assert_eq!(files[1].source_path, "onnx/model.onnx");
-        assert!(files[0].local_path.ends_with("tokenizer.json"));
-        assert!(files[1].local_path.ends_with("onnx/model.onnx"));
+        output
+            .sync_all()
+            .map_err(|e| EmbeddingError::ModelCachePrepareFailed {
+                path: temporary.display().to_string(),
+                message: e.to_string(),
+            })?;
+        verify(
+            &temporary,
+            &fs::read(&temporary).map_err(|e| EmbeddingError::ModelCachePrepareFailed {
+                path: temporary.display().to_string(),
+                message: e.to_string(),
+            })?,
+            file.sha256,
+        )?;
+        fs::rename(&temporary, &file.local_path).map_err(|e| {
+            EmbeddingError::ModelCachePrepareFailed {
+                path: file.local_path.display().to_string(),
+                message: e.to_string(),
+            }
+        })
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
     }
+    result
 }

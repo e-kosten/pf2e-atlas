@@ -64,7 +64,7 @@ impl SourceContentOutcome {
     }
 }
 
-pub(super) struct ContentSelection<'a> {
+pub struct SourceContentSelection<'a> {
     pub field: &'static str,
     pub role: SourceContentRole,
     pub format: SourceFieldView<'a, SourceContentFormat>,
@@ -146,13 +146,20 @@ pub fn prepare_record_content(
 // Evidence: PF2e 6.12.4 Item.description and Actor family sheet enrichHTML
 // callsites; core journal text format 1/2 and RollTable HTMLField declarations.
 // Unknown/additional/patch/rule strings are intentionally not traversed.
-pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<ContentSelection<'_>> {
+impl<'a> SourceNodeView<'a> {
+    /// Borrow the declared prose fields of this checked root or embedded node.
+    pub fn content_selections(self) -> Vec<SourceContentSelection<'a>> {
+        select_content(self)
+    }
+}
+
+pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSelection<'_>> {
     use ContentVisibilityRule::{All, Gm, Owner};
     use SourceContentFormat::{Html, Plain};
     use SourceContentRole::*;
     let mut out = Vec::new();
     let mut add = |field, role, format, visibility, text| {
-        out.push(ContentSelection {
+        out.push(SourceContentSelection {
             field,
             role,
             format: SourceFieldView::Value(format),
@@ -340,7 +347,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<ContentSelection
                         .map(|v| if *v { All } else { Owner }),
                 ),
             ] {
-                out.push(ContentSelection {
+                out.push(SourceContentSelection {
                     field,
                     role: Biography,
                     format: SourceFieldView::Value(Html),
@@ -380,7 +387,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<ContentSelection
                     visibility.and_then(|s| (&s.personality).into()),
                 ),
             ] {
-                out.push(ContentSelection {
+                out.push(SourceContentSelection {
                     field,
                     role: Biography,
                     format: SourceFieldView::Value(Plain),
@@ -410,7 +417,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<ContentSelection
                     format,
                     SourceFieldView::Value(SourceContentFormat::Markdown)
                 );
-                out.push(ContentSelection {
+                out.push(SourceContentSelection {
                     field: if markdown {
                         "/text/markdown"
                     } else {
@@ -426,7 +433,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<ContentSelection
                     },
                 });
             }
-            out.push(ContentSelection {
+            out.push(SourceContentSelection {
                 field: "/image/caption",
                 role: Caption,
                 format: SourceFieldView::Value(Plain),

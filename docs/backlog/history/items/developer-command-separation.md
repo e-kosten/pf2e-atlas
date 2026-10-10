@@ -54,7 +54,7 @@ See [ADR 0033](../../../architecture/decisions/0033-developer-command-surfaces.m
 
 ## Related follow-up
 
-- [Source-contract modeling experiment](../../items/rust-source-contract-generation.md).
+- [Source-contract modeling experiment](./rust-source-contract-generation.md).
 - [Selective integration recovery](../../items/rust-integration-recovery.md): recover JSON
   schema snapshots, diffs and field sampling into atlas-ingest and atlas-dev in a
   separate slice. Use discovery evidence rather than field-owner receipts or a

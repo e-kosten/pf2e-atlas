@@ -8,6 +8,8 @@ mod setup;
 mod setup_clean;
 mod setup_freshness;
 mod setup_model;
+#[cfg(test)]
+mod tests;
 
 pub use error::{RuntimeError, RuntimeErrorKind, RuntimePathTarget, RuntimePlatform};
 pub use paths::{AtlasPathMode, AtlasPathOverrides, ResolvedAtlasPaths, ResolvedPathMode};

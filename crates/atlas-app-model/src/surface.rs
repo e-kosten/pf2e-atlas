@@ -19,9 +19,6 @@ pub struct RecordSurfaceView {
     pub profile: RecordSurfaceProfileView,
     pub header: RecordSurfaceHeaderView,
     pub sections: Vec<RecordSurfaceSectionView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub fallback_presentation: Option<atlas_record::RecordPresentationDocument>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -71,7 +68,6 @@ pub enum RecordSurfaceSectionKindView {
     Notes,
     RichContent,
     References,
-    FallbackPresentation,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -89,7 +85,7 @@ pub struct RecordSurfaceSectionView {
     pub notes: Vec<SurfaceNoteView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub content: Option<atlas_record::PresentationContent>,
+    pub content: Option<PreparedContentFieldView>,
     pub collapsed_by_default: bool,
 }
 
@@ -124,10 +120,10 @@ pub struct SurfaceValueView {
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum SurfaceScalarView {
-    Number(i64),
+    Number(#[ts(type = "number")] serde_json::Number),
     Text(String),
     Formula(String),
-    DistanceFeet(i64),
+    DistanceFeet(#[ts(type = "number")] serde_json::Number),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -167,6 +163,7 @@ pub struct SurfaceNoteView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SurfaceActivityView {
+    pub navigation: crate::RecordNavigationView,
     pub key: String,
     pub label: String,
     pub kind: String,
@@ -179,4 +176,52 @@ pub struct SurfaceActivityView {
     pub groups: Vec<SurfaceValueGroupView>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<SurfaceNoteView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct PreparedContentFieldView {
+    pub locator: atlas_record::source_content::SourceContentLocator,
+    pub role: String,
+    pub source_fingerprint: Option<String>,
+    pub body: PreparedFieldBodyView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PreparedFieldBodyView {
+    Html {
+        html: String,
+        controls: Vec<ContentControlView>,
+    },
+    Plain {
+        text: String,
+    },
+    Unavailable {
+        state: atlas_domain::QueryFieldState,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentControlView {
+    pub ordinal: usize,
+    pub control: ContentControlKindView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ContentControlKindView {
+    Check {
+        statistic: Option<String>,
+        options: std::collections::BTreeMap<String, String>,
+    },
+    Damage {
+        formula: String,
+        options: std::collections::BTreeMap<String, String>,
+    },
+    Command {
+        command: String,
+        arguments: String,
+        options: std::collections::BTreeMap<String, String>,
+    },
+    Template {
+        shape: Option<String>,
+        options: std::collections::BTreeMap<String, String>,
+    },
 }

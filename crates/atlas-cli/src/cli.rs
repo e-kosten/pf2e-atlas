@@ -19,7 +19,6 @@ use atlas_cli_support::CliProgressMode;
 use atlas_cli_support::{ProgressOptions, init_tracing, write_json_error};
 
 pub(crate) mod args;
-pub(crate) mod parse;
 
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
@@ -87,10 +86,15 @@ pub(crate) fn main() -> ExitCode {
         json: cli.command.uses_json(),
         setup_timing: cli.command.uses_setup_timing(),
     });
+    let json = cli.command.uses_json();
     match run(cli) {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("{error}");
+            if json {
+                let _ = write_json_error("command_failed", error);
+            } else {
+                eprintln!("{error}");
+            }
             ExitCode::from(2)
         }
     }
@@ -155,7 +159,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             IndexCommand::Validate(options) => commands::index::run_index_validate(options),
         },
         Command::Record(record) => match record.command {
-            RecordCommand::Get(options) => commands::record::run_record_get(options),
+            RecordCommand::Get(options) => commands::record::run_record_get(*options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
         },
         Command::Graph(graph) => match graph.command {

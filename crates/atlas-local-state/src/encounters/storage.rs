@@ -153,9 +153,9 @@ pub(crate) fn add_participant(
                 encounter_id, participant_key, record_key, participant_kind, participant_variant, position,
                 display_name, record_title_snapshot, record_kind_snapshot, side,
                 initiative, initiative_order, max_hp, current_hp, temporary_hp,
-                defeated, hidden, note, created_at, updated_at
+                defeated, hidden, note, created_at, updated_at, hp_origin, variant_origin
              )
-             VALUES (?1, ?2, ?3, ?4, 'normal', ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16)",
+             VALUES (?1, ?2, ?3, ?4, ?19, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16, ?17, ?18)",
             params![
                 encounter_id,
                 participant_key,
@@ -173,6 +173,9 @@ pub(crate) fn add_participant(
                 participant.temporary_hp,
                 participant.note,
                 now,
+                participant.hp_origin.as_str(),
+                participant.variant_origin.as_str(),
+                participant.participant_variant.as_str(),
             ],
         );
         match result {
@@ -207,7 +210,7 @@ pub(crate) fn update_participant(
         "UPDATE encounter_participants
          SET display_name = ?1, side = ?2, participant_variant = ?3,
              initiative = ?4, initiative_order = ?5, max_hp = ?6, current_hp = ?7,
-             temporary_hp = ?8, defeated = ?9, hidden = ?10, note = ?11, updated_at = ?12
+             temporary_hp = ?8, defeated = ?9, hidden = ?10, note = ?11, updated_at = ?12, hp_origin = ?14, variant_origin = ?15
          WHERE participant_key = ?13",
         params![
             participant.display_name,
@@ -223,6 +226,8 @@ pub(crate) fn update_participant(
             participant.note,
             now,
             participant.participant_key,
+            participant.hp_origin.as_str(),
+            participant.variant_origin.as_str(),
         ],
     )?;
     if updated > 0 {
@@ -483,7 +488,7 @@ fn participants(
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
-                participant.note, participant.created_at, participant.updated_at
+                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin
          FROM encounter_participants participant
          JOIN encounters encounter ON encounter.id = participant.encounter_id
          WHERE encounter.encounter_key = ?1
@@ -541,6 +546,8 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         note: row.get(16)?,
         created_at: row.get(17)?,
         updated_at: row.get(18)?,
+        hp_origin: crate::ParticipantHpOrigin::from_str(&row.get::<_, String>(19)?),
+        variant_origin: crate::ParticipantVariantOrigin::from_str(&row.get::<_, String>(20)?),
         conditions: Vec::new(),
     })
 }
@@ -555,7 +562,7 @@ pub(crate) fn participant(
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
-                participant.note, participant.created_at, participant.updated_at
+                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin
          FROM encounter_participants participant
          WHERE participant.participant_key = ?1",
     )?;

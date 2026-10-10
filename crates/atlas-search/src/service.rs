@@ -1,26 +1,16 @@
-use std::path::{Path, PathBuf};
-
-use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder};
-use atlas_index::{RetrievalReadIndex, SqliteIndexReader};
-
 use crate::SearchError;
-
-/// Product-facing retrieval boundary for Rust runtime consumers.
-///
-/// The service owns retrieval orchestration. Runtime code constructs it from
-/// prepared index handles; callers consume its product methods or narrower
-/// capability traits rather than assembling index/embedding pieces directly.
+use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder};
+use atlas_index::SqliteIndexReader;
+use std::path::{Path, PathBuf};
 pub struct AtlasRetrievalService {
-    pub(crate) index: Box<dyn RetrievalReadIndex>,
+    pub(crate) index: SqliteIndexReader,
     pub(crate) embedder: Option<TextEmbedder>,
 }
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchEmbeddingConfig {
     model: EmbeddingModelId,
     cache_root: PathBuf,
 }
-
 impl SearchEmbeddingConfig {
     pub fn new(model: EmbeddingModelId, cache_root: impl Into<PathBuf>) -> Self {
         Self {
@@ -28,59 +18,77 @@ impl SearchEmbeddingConfig {
             cache_root: cache_root.into(),
         }
     }
-
     pub fn model(&self) -> EmbeddingModelId {
         self.model
     }
-
     pub fn cache_root(&self) -> &Path {
         &self.cache_root
     }
 }
-
 impl AtlasRetrievalService {
-    /// Low-level constructor for callers that have already applied runtime path,
-    /// readiness, and embedding-model policy.
-    ///
-    /// Product callers should normally use `AtlasRuntime::open_retrieval_service`.
+    pub fn source_fingerprint(&self) -> &str {
+        &self.index.context().source_fingerprint
+    }
+    pub fn trait_label(&self, identifier: &str) -> Option<&str> {
+        self.index
+            .context()
+            .used_trait_labels
+            .get(identifier)
+            .map(String::as_str)
+    }
     pub fn from_prepared_index(
         index: SqliteIndexReader,
-        embedding_config: &SearchEmbeddingConfig,
+        config: &SearchEmbeddingConfig,
     ) -> Result<Self, SearchError> {
-        Self::from_prepared_read_index(Box::new(index), embedding_config)
-    }
-
-    pub(crate) fn from_prepared_read_index(
-        index: Box<dyn RetrievalReadIndex>,
-        embedding_config: &SearchEmbeddingConfig,
-    ) -> Result<Self, SearchError> {
+        if index.context().semantic_model.is_none() {
+            return Err(SearchError::vector_readiness_required(
+                "artifact has no embeddings; rebuild with embeddings",
+            ));
+        }
+        if index.context().semantic_model.as_ref()
+            != Some(&atlas_index::SourceSemanticModelIdentity::current())
+        {
+            return Err(SearchError::artifact_contract_violation(
+                "artifact query model identity differs from the pinned inference contract",
+            ));
+        }
+        if let Some(reason) = index.capabilities().vector_unavailable_reason {
+            return Err(SearchError::vector_readiness_required(reason));
+        }
+        let embedder = TextEmbedder::load(&EmbeddingRuntimeConfig::new(
+            config.model,
+            config.cache_root(),
+        ))
+        .map_err(|e| SearchError::embedding(e.to_string()))?;
         Ok(Self {
-            embedder: Some(load_embedder(embedding_config)?),
             index,
+            embedder: Some(embedder),
         })
     }
-
-    /// Low-level constructor for callers that have already applied runtime path
-    /// and artifact-readiness policy and intentionally do not need embeddings.
-    ///
-    /// Product callers should normally use
-    /// `AtlasRuntime::open_retrieval_service_no_embeddings`.
     pub fn from_prepared_index_without_embeddings(index: SqliteIndexReader) -> Self {
-        Self::from_prepared_read_index_without_embeddings(Box::new(index))
-    }
-
-    pub(crate) fn from_prepared_read_index_without_embeddings(
-        index: Box<dyn RetrievalReadIndex>,
-    ) -> Self {
         Self {
             index,
             embedder: None,
         }
     }
-}
-
-fn load_embedder(embedding_config: &SearchEmbeddingConfig) -> Result<TextEmbedder, SearchError> {
-    let embedding_config =
-        EmbeddingRuntimeConfig::new(embedding_config.model(), embedding_config.cache_root());
-    TextEmbedder::load(&embedding_config).map_err(|error| SearchError::embedding(error.to_string()))
+    pub fn artifact_context(&self) -> &atlas_index::SourceArtifactBuildContext {
+        self.index.context()
+    }
+    pub fn validate_filter(
+        &self,
+        predicate: &atlas_domain::QueryPredicate,
+    ) -> Result<atlas_index::ValidatedQuery, SearchError> {
+        Ok(atlas_index::validate_query(predicate)?)
+    }
+    pub fn parse_where(&self, source: &str) -> Result<atlas_index::ValidatedQuery, SearchError> {
+        Ok(atlas_index::parse_where(source)?)
+    }
+    pub(crate) fn predicate(
+        &self,
+        predicate: Option<&atlas_domain::QueryPredicate>,
+    ) -> Result<atlas_index::ValidatedQuery, SearchError> {
+        Ok(atlas_index::validate_query(
+            predicate.unwrap_or(&atlas_domain::QueryPredicate::boolean(true)),
+        )?)
+    }
 }

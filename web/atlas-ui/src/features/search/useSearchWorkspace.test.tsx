@@ -1,3 +1,9 @@
+import {
+  summaryFixture,
+  editorFixture,
+  fieldFixture,
+  valuesFixture,
+} from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -9,7 +15,7 @@ import type {
 } from "../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
-  encodeSearchState,
+  searchStateQueryString,
 } from "../../shared/filters/searchState";
 import { useSearchWorkspace } from "./useSearchWorkspace";
 
@@ -38,15 +44,8 @@ describe("useSearchWorkspace", () => {
       status: "ready",
       message: "Ready",
     });
-    apiMocks.discoverFilterEditor.mockResolvedValue({
-      matching_record_count: 0n,
-      groups: [],
-    });
-    apiMocks.discoverFilterValues.mockResolvedValue({
-      field_id: "kind",
-      matching_record_count: 0n,
-      options: [],
-    });
+    apiMocks.discoverFilterEditor.mockResolvedValue({ ...editorFixture(), groups: [] });
+    apiMocks.discoverFilterValues.mockResolvedValue(valuesFixture("record.kind"));
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
     apiMocks.readResultWindowPage.mockResolvedValue(resultWindowPage());
     history.replaceState(null, "", "/");
@@ -77,7 +76,7 @@ describe("useSearchWorkspace", () => {
     expect(result.current.search.query).toBe("fi");
     expect(result.current.diagnostics.searchDebouncing).toBe(true);
     expect(window.location.pathname).toBe("/search");
-    expect(window.location.search).toBe("?q=fi&mode=text");
+    expect(window.location.search).toBe("?q=fi&mode=text_search");
     await delay(150);
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
 
@@ -132,15 +131,15 @@ describe("useSearchWorkspace", () => {
     act(() => result.current.openActiveResult());
     expect(result.current.selectedRecordKey).toBe("spell:heal");
     expect(window.location.pathname).toBe("/search/records/spell%3Aheal");
-    expect(window.location.search).toBe("?q=dirge&mode=text");
+    expect(window.location.search).toBe("?q=dirge&mode=text_search");
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
     expect(window.location.pathname).toBe("/search");
-    expect(window.location.search).toBe("?q=dirge&mode=text");
+    expect(window.location.search).toBe("?q=dirge&mode=text_search");
   });
 
-  it("writes simple filters as compact URL params", async () => {
+  it("writes shared structured predicates in URL state", async () => {
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
@@ -150,26 +149,32 @@ describe("useSearchWorkspace", () => {
     act(() =>
       result.current.setSearch({
         ...DEFAULT_SEARCH_STATE,
-        filterClauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any",
-            values: ["affliction", "character"],
-          },
-          {
-            id: "kind-exclude_any",
-            field: "kind",
-            operator: "exclude_any",
-            values: ["character_option"],
-          },
-        ],
+        filter: {
+          kind: "all_of",
+          children: [
+            {
+              kind: "in",
+              clause_id: "kind-include_any",
+              field: "record.kind",
+              values: ["affliction", "character"],
+            },
+            {
+              kind: "not",
+              predicate: {
+                kind: "in",
+                clause_id: "kind-exclude_any",
+                field: "record.kind",
+                values: ["character_option"],
+              },
+            },
+          ],
+        },
       }),
     );
 
     expect(window.location.pathname).toBe("/search");
     expect(window.location.search).toBe(
-      "?kind=affliction&kind=character&exclude-kind=character_option",
+      "?filter=" + encodeURIComponent(JSON.stringify(result.current.search.filter)),
     );
   });
 
@@ -181,56 +186,38 @@ describe("useSearchWorkspace", () => {
 
     await waitFor(() =>
       expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-        expect.objectContaining({ field_id: "kind" }),
+        expect.objectContaining({ field_id: "record.kind" }),
       ),
     );
     expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "pack" }),
+      expect.objectContaining({ field_id: "source.pack" }),
     );
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "level" }),
+      expect.objectContaining({ field_id: "actor.level" }),
     );
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "basic_save" }),
+      expect.objectContaining({ field_id: "spell.basic_save" }),
     );
 
     act(() =>
       result.current.setSearch({
         ...result.current.search,
-        hiddenFilterIds: ["pack"],
-        visibleFilterIds: ["basic_save"],
+        hiddenFilterIds: ["source.pack"],
+        visibleFilterIds: ["spell.basic_save"],
       }),
     );
 
     await waitFor(() =>
       expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-        expect.objectContaining({ field_id: "basic_save" }),
+        expect.objectContaining({ field_id: "spell.basic_save" }),
       ),
     );
   });
 
-  it("does not discover values for non-applicable count-backed fields", async () => {
-    apiMocks.discoverFilterEditor.mockResolvedValue({
-      matching_record_count: 1n,
-      groups: [
-        {
-          id: "standard",
-          label: "Standard",
-          fields: [
-            {
-              id: "traits",
-              label: "Traits",
-              control: { kind: "multi_select" },
-              placement: "always_visible",
-              applicability: "selected_unavailable",
-              allowed_operators: ["include_any", "exclude_any"],
-              default_operator: "include_any",
-              supports_counts: true,
-            },
-          ],
-        },
-      ],
-    } satisfies FilterEditorView);
+  it("does not query collection states as scalar values", async () => {
+    apiMocks.discoverFilterEditor.mockResolvedValue(
+      editorFixture([fieldFixture("actor.items", "collection")]),
+    );
 
     renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
@@ -240,7 +227,7 @@ describe("useSearchWorkspace", () => {
     await delay(50);
 
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "traits" }),
+      expect.objectContaining({ field_id: "common.traits" }),
     );
   });
 
@@ -254,14 +241,14 @@ describe("useSearchWorkspace", () => {
     act(() =>
       result.current.setSearch({
         ...result.current.search,
-        visibleFilterIds: ["publication_title"],
+        visibleFilterIds: ["common.publication.title"],
       }),
     );
 
     await waitFor(() =>
       expect(apiMocks.discoverFilterEditor).toHaveBeenCalledWith(
         expect.objectContaining({
-          selected_field_ids: ["publication_title"],
+          selected_field_ids: ["common.publication.title"],
         }),
       ),
     );
@@ -281,14 +268,17 @@ describe("useSearchWorkspace", () => {
     act(() =>
       result.current.setSearch({
         ...result.current.search,
-        filterClauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any",
-            values: ["creature"],
-          },
-        ],
+        filter: {
+          kind: "all_of",
+          children: [
+            {
+              kind: "in",
+              clause_id: "kind-include_any",
+              field: "record.kind",
+              values: ["creature"],
+            },
+          ],
+        },
       }),
     );
 
@@ -297,10 +287,7 @@ describe("useSearchWorkspace", () => {
     expect(result.current.filterDiscoveryLoading).toBe(true);
 
     await act(async () => {
-      nextEditor.resolve({
-        matching_record_count: 1n,
-        groups: [],
-      });
+      nextEditor.resolve({ ...editorFixture(), groups: [] });
       await nextEditor.promise;
     });
 
@@ -323,14 +310,17 @@ describe("useSearchWorkspace", () => {
     act(() =>
       result.current.setSearch({
         ...result.current.search,
-        filterClauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any",
-            values: ["creature"],
-          },
-        ],
+        filter: {
+          kind: "all_of",
+          children: [
+            {
+              kind: "in",
+              clause_id: "kind-include_any",
+              field: "record.kind",
+              values: ["creature"],
+            },
+          ],
+        },
       }),
     );
 
@@ -342,10 +332,7 @@ describe("useSearchWorkspace", () => {
     );
 
     await act(async () => {
-      nextEditor.resolve({
-        matching_record_count: 1n,
-        groups: [],
-      });
+      nextEditor.resolve({ ...editorFixture(), groups: [] });
       await nextEditor.promise;
     });
   });
@@ -356,7 +343,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
     apiMocks.discoverFilterValues.mockImplementation(
       (request: { field_id: string }) => {
-        if (request.field_id !== "kind") {
+        if (request.field_id !== "record.kind") {
           return Promise.resolve(emptyValues(request.field_id));
         }
         kindValueRequests += 1;
@@ -370,25 +357,33 @@ describe("useSearchWorkspace", () => {
     });
 
     await waitFor(() =>
-      expect(result.current.filterValuesByField.kind?.options).toHaveLength(2),
+      expect(
+        result.current.filterValuesByField["record.kind"]?.values.options,
+      ).toHaveLength(2),
     );
 
     act(() =>
       result.current.setSearch({
         ...result.current.search,
-        filterClauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any",
-            values: ["creature"],
-          },
-        ],
+        filter: {
+          kind: "all_of",
+          children: [
+            {
+              kind: "in",
+              clause_id: "kind-include_any",
+              field: "record.kind",
+              values: ["creature"],
+            },
+          ],
+        },
       }),
     );
 
     await waitFor(() => expect(kindValueRequests).toBe(2));
-    expect(result.current.filterValuesByField.kind?.options).toHaveLength(2);
+    expect(
+      result.current.filterValuesByField["record.kind:kind-include_any"]?.values
+        .options,
+    ).toHaveLength(2);
     expect(result.current.filterDiscoveryLoading).toBe(true);
 
     await act(async () => {
@@ -397,7 +392,10 @@ describe("useSearchWorkspace", () => {
     });
 
     await waitFor(() =>
-      expect(result.current.filterValuesByField.kind?.options).toHaveLength(3),
+      expect(
+        result.current.filterValuesByField["record.kind:kind-include_any"]?.values
+          .options,
+      ).toHaveLength(3),
     );
   });
 
@@ -518,7 +516,7 @@ describe("useSearchWorkspace", () => {
     history.pushState(
       null,
       "",
-      `/search/records/spell%3Aacid-arrow?s=${encodeSearchState(restoredSearch)}`,
+      `/search/records/spell%3Aacid-arrow${searchStateQueryString(restoredSearch)}`,
     );
     act(() => window.dispatchEvent(new PopStateEvent("popstate")));
 
@@ -552,7 +550,11 @@ function queryClientWrapper() {
 }
 
 function seedSearchUrl(query = "dirge") {
-  history.replaceState(null, "", `/search?q=${encodeURIComponent(query)}&mode=text`);
+  history.replaceState(
+    null,
+    "",
+    `/search?q=${encodeURIComponent(query)}&mode=text_search`,
+  );
 }
 
 function resultWindowPage(
@@ -560,118 +562,39 @@ function resultWindowPage(
   options: { pageNumber?: number; windowId?: bigint } = {},
 ): ResultWindowPage {
   return {
-    window_id: options.windowId ?? 1n,
-    mode: { kind: "text_search", query: "" },
+    window_id: options.windowId || 1n,
+    mode: { kind: "text_search", query: "", mode: "hybrid" },
     page: {
-      number: options.pageNumber ?? 1,
+      number: options.pageNumber || 1,
       size: 25,
-      count: 0,
-      total: 0n,
+      count: recordKeys.length,
+      total: BigInt(recordKeys.length),
       has_more: false,
+      next_page: null,
     },
-    rows: recordKeys.map((recordKey) => ({
-      record: {
-        record_key: recordKey,
-        title: recordKey.split(":")[1] ?? recordKey,
-        kind: "spell",
-        kind_label: "Spell",
-      },
-    })),
+    rows: recordKeys.map((key) => ({ record: summaryFixture(key), matches: [] })),
+    coverage: null,
   };
 }
 
 function filterEditor(): FilterEditorView {
-  return {
-    matching_record_count: 4n,
-    groups: [
-      {
-        id: "standard",
-        label: "Standard",
-        fields: [
-          {
-            id: "kind",
-            label: "Kinds",
-            control: { kind: "multi_select" },
-            placement: "always_visible",
-            applicability: "applicable",
-            allowed_operators: ["include_any"],
-            default_operator: "include_any",
-            supports_counts: true,
-          },
-          {
-            id: "level",
-            label: "Level",
-            control: {
-              kind: "range",
-              min_label: "Min",
-              max_label: "Max",
-              min: 0,
-              max: 30,
-              step: 1,
-            },
-            placement: "always_visible",
-            applicability: "applicable",
-            allowed_operators: ["range"],
-            default_operator: "range",
-            supports_counts: false,
-          },
-        ],
-      },
-      {
-        id: "source",
-        label: "Source",
-        fields: [
-          {
-            id: "pack",
-            label: "Pack",
-            control: { kind: "multi_select" },
-            placement: "initially_visible",
-            applicability: "applicable",
-            allowed_operators: ["include_any"],
-            default_operator: "include_any",
-            supports_counts: true,
-          },
-          {
-            id: "basic_save",
-            label: "Basic Save",
-            control: {
-              kind: "boolean",
-              true_label: "Yes",
-              false_label: "No",
-            },
-            placement: "addable",
-            applicability: "applicable",
-            allowed_operators: ["include_any"],
-            default_operator: "include_any",
-            supports_counts: true,
-          },
-        ],
-      },
-    ],
-  };
+  const editor = editorFixture([
+    fieldFixture("record.kind", "string", "Kind"),
+    fieldFixture("common.traits", "set", "Traits"),
+    fieldFixture("source.pack"),
+    fieldFixture("actor.level", "number"),
+    fieldFixture("spell.basic_save"),
+  ]);
+  editor.groups[0].fields[4].placement = "addable";
+  return editor;
 }
 
 function kindValues(values: string[]): FilterValueListView {
-  return {
-    field_id: "kind",
-    matching_record_count: BigInt(values.length),
-    options: values.map((value) => ({
-      value,
-      label: value,
-      count: 1n,
-      selected: false,
-      disabled: false,
-      status: "available",
-    })),
-  };
+  return valuesFixture("record.kind", values);
 }
 
 function emptyValues(fieldId: string): FilterValueListView {
-  return {
-    field_id: fieldId,
-    matching_record_count: 0n,
-    options: [],
-  };
+  return valuesFixture(fieldId);
 }
 
 function delay(milliseconds: number) {

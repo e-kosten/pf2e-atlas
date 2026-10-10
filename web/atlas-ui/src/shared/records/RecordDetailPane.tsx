@@ -1,15 +1,14 @@
+import { Alert, Empty, Spin } from "antd";
 import type { RecordDetailView } from "../../generated/atlas";
-import { RecordPresentation } from "./RecordPresentation";
 import { RecordSurface } from "./RecordSurface";
-
+import type { RecordReferenceHandler } from "./PreparedContent";
 type RecordDetailPaneError = Error | { message: string } | null | undefined;
-
 export function RecordDetailPane({
   detail,
-  emptyMessage,
+  emptyMessage = "Select a result to inspect it.",
   errors = [],
   loading,
-  loadingMessage,
+  loadingMessage = "Loading record...",
   onReference,
 }: {
   detail: RecordDetailView | undefined;
@@ -17,36 +16,26 @@ export function RecordDetailPane({
   errors?: RecordDetailPaneError[];
   loading: boolean;
   loadingMessage?: string;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: RecordReferenceHandler;
 }) {
   return (
     <section className="detail-panel">
       {loading ? (
-        <RecordPresentation
-          detail={detail}
-          emptyMessage={emptyMessage}
-          loading={loading}
-          loadingMessage={loadingMessage}
+        <Spin tip={loadingMessage}>
+          <div className="detail-empty">{loadingMessage}</div>
+        </Spin>
+      ) : detail ? (
+        <RecordSurface
+          surface={detail.surface}
+          relationships={detail.relationships}
           onReference={onReference}
         />
-      ) : detail?.surface ? (
-        <RecordSurface surface={detail.surface} onReference={onReference} />
       ) : (
-        <RecordPresentation
-          detail={detail}
-          emptyMessage={emptyMessage}
-          loading={loading}
-          loadingMessage={loadingMessage}
-          onReference={onReference}
-        />
+        <Empty description={emptyMessage} />
       )}
-      {errors.map((error, index) =>
-        error ? <InlineError key={index} message={error.message} /> : null,
+      {errors.map((e, i) =>
+        e ? <Alert key={i} type="error" message={e.message} /> : null,
       )}
     </section>
   );
-}
-
-function InlineError({ message }: { message: string }) {
-  return <div className="error-banner">{message}</div>;
 }

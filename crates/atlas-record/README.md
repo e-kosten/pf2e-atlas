@@ -1,26 +1,11 @@
 # atlas-record
 
-`atlas-record` owns storage-agnostic Atlas record and content models.
+`atlas-record` owns checked source records and borrowed views over the generated Foundry DTOs.
 
-This crate defines what an interpreted PF2E Atlas record is after ingest has interpreted source data, and it owns projections from those models into presentation, rich content traversal, FTS text, section trees, and reference-bearing content.
+`SourceBackedRecord` retains the typed root and checked identity of its embedded documents. Borrowed queries distinguish values, missing fields, explicit nulls, invalid fields, and fields that do not apply. Root and embedded Items use the same views.
 
-## Owns
+The source content interpreter prepares cleaned HTML with compact interaction and reference facts. Its transient parse nodes are private implementation details. Shared selection and canonical text functions provide attributable lexical and semantic input, and reconstruct selected passages from the same prepared content.
 
-- `AtlasRecord` and its identity, classification, Foundry, provenance, publication, mechanics, content, variant, and visibility sections.
-- `RichDocument` and rich-content traversal/rendering.
-- Content source and visibility semantics.
-- Record presentation documents.
-- FTS and section-tree projections from normalized content.
-- Stable typed record-side concepts that are not storage-specific.
+Reference markers carry their field-local ordinal and a compact digest binding the checked source locator/input hash to the visible occurrence facts. Shared validation requires exactly one marker per visible reference, including unresolved and blocked references; hidden references do not require markers. This checks coherent derived caches, not authentication against coordinated artifact changes or independent correctness of localized targets.
 
-## Should Not Own
-
-- Foundry raw source parser structs or HTML/macro parsing policy.
-- SQLite table names, columns, or DDL.
-- Artifact validation diagnostics.
-- Embedding provider execution.
-- CLI envelopes or terminal formatting.
-
-## Boundary Notes
-
-Use this crate for semantic record/content shape. `atlas-ingest` constructs these models from source data, `atlas-index` hydrates them from SQLite rows, `atlas-embedding` consumes their presentation/content projections, and `atlas-search` uses them for user-facing retrieval results.
+SQLite schema and artifact validation belong to `atlas-index`. Source loading and embedding execution belong to `atlas-ingest` and `atlas-embedding`. Product presentation and runtime overlays are consumer concerns; the source DTO remains their authority.

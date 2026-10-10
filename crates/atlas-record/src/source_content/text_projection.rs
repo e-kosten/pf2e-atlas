@@ -1,13 +1,10 @@
-use scraper::{
-    Html, Selector,
-    node::{Node, Text},
-};
+use scraper::{Html, Selector, node::Node};
 
-/// Library formatting with two bounded DOM fixes for verified library gaps:
-/// captions are ignored inside tables; li[value] does not reset numbering.
+/// Undecorated canonical words and useful block breaks from the library.
+/// A bounded DOM fix preserves table captions ignored by the library.
 /// Prepared browser HTML remains untouched. This is not another renderer or
 /// Foundry parser, and it never reparses authored source.
-pub(super) fn plain_text(html: &str) -> Result<String, html2text::Error> {
+pub fn plain_text(html: &str) -> Result<String, html2text::Error> {
     let mut fragment = Html::parse_fragment(html);
     if let Ok(selector) = Selector::parse("table > caption") {
         let captions = fragment
@@ -25,56 +22,37 @@ pub(super) fn plain_text(html: &str) -> Result<String, html2text::Error> {
             }
         }
     }
-    if let Ok(selector) = Selector::parse("ol") {
-        let lists = fragment
-            .select(&selector)
-            .filter_map(|list| {
-                let items = list
-                    .children()
-                    .filter_map(scraper::ElementRef::wrap)
-                    .filter(|element| element.value().name() == "li")
-                    .map(|item| {
-                        (
-                            item.id(),
-                            item.value()
-                                .attr("value")
-                                .and_then(|value| value.parse::<i64>().ok()),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                items.iter().any(|(_, value)| value.is_some()).then(|| {
-                    (
-                        list.id(),
-                        list.value()
-                            .attr("start")
-                            .and_then(|value| value.parse::<i64>().ok())
-                            .unwrap_or(1),
-                        items,
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
-        for (list, mut ordinal, items) in lists {
-            if let Some(mut node) = fragment.tree.get_mut(list)
-                && let Node::Element(element) = node.value()
-            {
-                element.name.local = "div".into();
-            }
-            for (item, reset) in items {
-                ordinal = reset.unwrap_or(ordinal);
-                if let Some(mut node) = fragment.tree.get_mut(item) {
-                    if let Node::Element(element) = node.value() {
-                        element.name.local = "p".into();
-                    }
-                    node.prepend(Node::Text(Text {
-                        text: format!("{ordinal}. ").into(),
-                    }));
-                }
-                ordinal = ordinal.saturating_add(1);
-            }
-        }
-    }
-    html2text::config::plain_no_decorate()
+    html2text::config::with_decorator(html2text::render::TrivialDecorator::new())
         .string_from_read(fragment.root_element().inner_html().as_bytes(), 1_000_000)
         .map(|text| text.trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::plain_text;
+    #[test]
+    fn canonical_words_have_no_renderer_decoration() {
+        let text=plain_text(r#"<h2>Dragon Form</h2><blockquote><strong>Bold</strong> <em>words</em></blockquote><ul><li>First</li><li>Second</li></ul><ol start="5"><li value="8">Third</li></ol><p><a href="https://example.com">Named link</a></p>"#).unwrap();
+        for word in [
+            "Dragon Form",
+            "Bold words",
+            "First",
+            "Second",
+            "Third",
+            "Named link",
+        ] {
+            assert!(text.contains(word), "{text}");
+        }
+        for marker in [
+            "##",
+            "> ",
+            "* ",
+            "8.",
+            "[Named link]",
+            "https://example.com",
+        ] {
+            assert!(!text.contains(marker), "{text}");
+        }
+        assert!(text.contains('\n'));
+    }
 }

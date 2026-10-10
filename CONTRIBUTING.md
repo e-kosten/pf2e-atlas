@@ -53,10 +53,15 @@ PF2e Atlas is a Rust workspace:
 - `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction
 - `crates/atlas-search`: product-facing retrieval orchestration
 - `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL
-- `crates/atlas-ingest`: Foundry source loading, normalization, enrichment, generated records, embeddings during builds, and SQLite artifact writing
-- `crates/atlas-embedding`: model catalog, query/document embedding generation, token budgeting, and semantic input rendering
-- `crates/atlas-record`: normalized records, content documents, presentation, FTS projection, and graph/reference policy
-- `crates/atlas-domain`: shared request, filter, record-key, detail-level, and metadata vocabulary
+- `crates/atlas-foundry-model`: generated authored DTOs, field-retaining admission and checked snapshot codecs
+- `crates/atlas-ingest`: typed Foundry loading, preparation, attributed indexing inputs, embedding execution and artifact-build composition
+- `crates/atlas-embedding`: the pinned BGE model contract, tokenizer budgets, library inference and attributed passage input preparation
+- `crates/atlas-record`: source-backed records, borrowed authored views, selected content preparation, query facts and reference policy
+- `crates/atlas-domain`: shared typed query, source address, lightweight summary and canonical record-key vocabulary
+- `crates/atlas-app-service`: saved-list and encounter workflows, local overlays and consumer presentation projections
+- `crates/atlas-app-model`: generated frontend contracts for product workflows and presentation
+- `crates/atlas-local-state`: saved lists and encounters in a separate writable database
+- `crates/atlas-web`: web transport and embedded frontend hosting
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing
 - `skills/pf2e-atlas-cli`: first-party local-agent skill installed by `atlas agent skills`
 - `dev-tools/`: private TypeScript packages for source contracts and release tooling,
@@ -132,12 +137,13 @@ cargo run -p atlas-dev -- source load --source vendor/pf2e --json
 cargo run -p atlas-dev -- source analyze --source vendor/pf2e --json
 cargo run -p atlas-dev -- source audit-paths --source vendor/pf2e --record-type npc --json
 cargo run -p atlas-dev -- index inspect --index .cache/pf2e-index.sqlite --json
+cargo run -p atlas-dev -- index record actionspf2e:1kGNdIIhuglAjIp9 --index .cache/pf2e-index.sqlite --json
 cargo test -p atlas-dev -p atlas-cli-support
 ```
 
 These commands use the same global/repo path policy, JSON envelope, and progress
-controls as atlas. `source load` reads generated authored DTOs before Atlas
-normalization, keeping original bytes, raw values, provenance and every admission
+controls as atlas. `source load` reads generated authored DTOs, keeping original
+bytes, raw values, provenance and every admission
 diagnostic. Its report counts modeled, partial, raw-only and quarantined outcomes
 separately. It applies no source defaults, coercions, metric extraction or
 embedding work. Embedded children and authored links remain in their source DTOs;
@@ -147,9 +153,12 @@ packs or empty input produce exit 1 with the report on stdout. Root/manifest
 errors produce exit 2. JSON `status: ok` means a report was produced; check the
 counts and exit code for completeness. The loading API retains the full source
 corpus in memory, with quarantine bytes retained only for successful file reads.
-Analysis runs current product ingest projections without writing SQLite;
-path auditing reports source paths and known consumers; inspection reads an
-existing artifact without changing it. Source commands' `--manifest` overrides
+Analysis reports typed source selection and admission without writing SQLite;
+path auditing reports observed paths and values. Index inspection reads an
+existing artifact without changing it. `index record` decodes its checked source
+snapshot and developer provenance; `--original --source vendor/pf2e` explicitly
+reads the original clone file only after checking its recorded path and hash.
+Source commands' `--manifest` overrides
 the Foundry input manifest. Reports go to stdout; `--json` selects JSON.
 Use Cargo's release profile for ingest performance measurements:
 

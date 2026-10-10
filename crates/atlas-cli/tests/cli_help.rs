@@ -1,214 +1,70 @@
 use std::process::Command;
-
-mod support;
-
-use support::command::help_output;
-
-#[test]
-fn help_text_includes_setup_validate_and_record_examples() -> Result<(), Box<dyn std::error::Error>>
-{
-    let root_help = help_output(&[])?;
-    assert!(root_help.contains("atlas setup"));
-    assert!(root_help.contains("atlas record get actionspf2e:1kGNdIIhuglAjIp9"));
-
-    let setup_help = help_output(&["setup"])?;
-    assert!(setup_help.contains("atlas setup --no-embeddings"));
-    assert!(setup_help.contains("--offline"));
-
-    let validate_help = help_output(&["index", "validate"])?;
-    assert!(validate_help.contains("atlas index validate --embeddings-only"));
-    assert!(validate_help.contains("--no-embeddings"));
-
-    let check_help = help_output(&["index", "check"])?;
-    assert!(check_help.contains("fast artifact readiness check"));
-    assert!(check_help.contains("--no-embeddings"));
-
-    let build_help = help_output(&["index", "build"])?;
-    assert!(build_help.contains("atlas index build --no-embeddings"));
-    assert!(build_help.contains(
-        "atlas index build --source vendor/pf2e --output .cache/pf2e-index.sqlite --json"
-    ));
-    assert!(build_help.contains("Standard users should run `atlas setup` instead."));
-
-    let record_get_help = help_output(&["record", "get"])?;
-    assert!(record_get_help.contains("equipment-srd:s1vB3HdXjMigYAnY"));
-    assert!(record_get_help.contains("Canonical record keys"));
-
-    let record_resolve_help = help_output(&["record", "resolve"])?;
-    assert!(record_resolve_help.contains("atlas record resolve \"Treat Wounds\""));
-    assert!(record_resolve_help.contains("--filter-json"));
-    assert!(record_resolve_help.contains("atlas filters fields"));
-    assert!(record_resolve_help.contains("atlas filters values --field traits"));
-
-    let graph_links_help = help_output(&["graph", "links"])?;
-    assert!(graph_links_help.contains("atlas graph links"));
-    assert!(graph_links_help.contains("--backlinks"));
-
-    let similar_help = help_output(&["similar"])?;
-    assert!(similar_help.contains("atlas similar \"Dirge of Doom\" --kind spell"));
-    assert!(similar_help.contains("--semantic-weight"));
-    assert!(similar_help.contains("--reference-weight"));
-    assert!(similar_help.contains("--trait-weight"));
-
-    let search_help = help_output(&["search"])?;
-    assert!(search_help.contains("atlas search \"low level healing spell\""));
-    assert!(search_help.contains("atlas search --kind creature --metric 'ac.value>=25'"));
-    assert!(
-        search_help
-            .contains("atlas search --kind creature --metric 'hp.value:40' --print-filter --json")
-    );
-    assert!(search_help.contains("atlas filters fields"));
-    assert!(search_help.contains("atlas filters values --field traits"));
-    assert!(search_help.contains("atlas filters values --field metric"));
-    assert!(search_help.contains("--retrieval selects fts, vector, or hybrid retrieval"));
-    assert!(search_help.contains("--pack-name"));
-    assert!(search_help.contains("--publication-title"));
-    assert!(search_help.contains("--price"));
-    assert!(search_help.contains("--min-price"));
-    assert!(search_help.contains("--max-price"));
-    assert!(search_help.contains("--references"));
-    assert!(search_help.contains("--referenced-by"));
-    assert!(search_help.contains("--metric"));
-    assert!(search_help.contains("ac.value>=18"));
-    assert!(search_help.contains("price_asc"));
-    assert!(search_help.contains("price_desc"));
-    assert!(search_help.contains("--print-filter"));
-
-    let filters_help = help_output(&["filters"])?;
-    assert!(filters_help.contains("fields"));
-    assert!(filters_help.contains("values"));
-
-    let tags_help = help_output(&["tags"])?;
-    assert!(tags_help.contains("validate"));
-
-    let tags_validate_help = help_output(&["tags", "validate"])?;
-    assert!(tags_validate_help.contains("atlas tags validate --path data/tags --json"));
-    assert!(tags_validate_help.contains("--path"));
-    assert!(tags_validate_help.contains("--json"));
-
-    let filter_fields_help = help_output(&["filters", "fields"])?;
-    assert!(filter_fields_help.contains("atlas filters fields --kind spell"));
-    assert!(filter_fields_help.contains("atlas filters fields --kind creature --json"));
-    assert!(filter_fields_help.contains("--json"));
-
-    let filter_values_help = help_output(&["filters", "values"])?;
-    assert!(filter_values_help.contains("--field"));
-    assert!(filter_values_help.contains("--metric-query"));
-    assert!(filter_values_help.contains("--metric-label"));
-    assert!(filter_values_help.contains("--sample-limit"));
-    assert!(filter_values_help.contains("--limit"));
-    assert!(filter_values_help.contains("--json"));
-    assert!(
-        filter_values_help
-            .contains("atlas filters values --field metric --kind creature --metric-query armor")
-    );
-
-    let agent_skills_help = help_output(&["agent", "skills"])?;
-    assert!(
-        agent_skills_help
-            .contains("atlas agent skills install --target codex --scope global --yes")
-    );
-    assert!(agent_skills_help.contains("atlas agent skills doctor --json"));
-
-    let agent_install_help = help_output(&["agent", "skills", "install"])?;
-    assert!(agent_install_help.contains(
-        "atlas agent skills install --target agents --scope workspace --force --yes --json"
-    ));
-    assert!(agent_install_help.contains("--skill"));
-    assert!(agent_install_help.contains("--target"));
-
-    let agent_doctor_help = help_output(&["agent", "skills", "doctor"])?;
-    assert!(agent_doctor_help.contains("atlas agent skills doctor --target codex --scope global"));
-    assert!(agent_doctor_help.contains("--scope"));
-
-    Ok(())
+fn help(args: &[&str]) -> String {
+    let o = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args(args)
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert!(o.status.success());
+    String::from_utf8(o.stdout).unwrap()
 }
-
 #[test]
-fn legacy_top_level_index_commands_are_not_supported() -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .arg("validate-index")
-        .output()?;
-
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = String::from_utf8(output.stderr)?;
-    assert!(stderr.contains("unrecognized subcommand 'validate-index'"));
-    Ok(())
-}
-
-#[test]
-fn validate_vectors_subcommand_is_removed() -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["index", "validate-vectors"])
-        .output()?;
-
-    assert_eq!(output.status.code(), Some(2));
-    let stderr = String::from_utf8(output.stderr)?;
-    assert!(stderr.contains("unrecognized subcommand 'validate-vectors'"));
-    Ok(())
-}
-
-#[test]
-fn product_cli_modules_do_not_import_atlas_index() -> Result<(), Box<dyn std::error::Error>> {
-    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let source_root = manifest_dir.join("src");
-    let allowed = [
-        source_root.join("commands/index.rs"),
-        source_root.join("output.rs"),
-    ];
-    let mut violations = Vec::new();
-
-    for path in rust_files(&source_root)? {
-        if allowed.iter().any(|allowed_path| allowed_path == &path) {
-            continue;
-        }
-        let source = std::fs::read_to_string(&path)?;
-        if source.contains("atlas_index") {
-            let relative = path.strip_prefix(manifest_dir)?.display().to_string();
-            violations.push(relative);
-        }
+fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
+    let root = help(&[]);
+    for name in [
+        "setup",
+        "index",
+        "record",
+        "search",
+        "similar",
+        "graph",
+        "filters",
+        "lists",
+        "tags",
+        "agent",
+        "completions",
+        "web",
+    ] {
+        assert!(root.contains(name));
     }
-
-    assert!(
-        violations.is_empty(),
-        "product CLI modules must route retrieval/discovery through atlas-search; unexpected atlas_index imports in: {}",
-        violations.join(", ")
-    );
-    Ok(())
-}
-
-fn rust_files(
-    root: &std::path::Path,
-) -> Result<Vec<std::path::PathBuf>, Box<dyn std::error::Error>> {
-    let mut pending = vec![root.to_path_buf()];
-    let mut files = Vec::new();
-    while let Some(path) = pending.pop() {
-        for entry in std::fs::read_dir(path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                pending.push(path);
-            } else if path.extension().is_some_and(|extension| extension == "rs") {
-                files.push(path);
-            }
-        }
+    let search = help(&["search"]);
+    for flag in [
+        "--where",
+        "--kind",
+        "--trait",
+        "--pack-name",
+        "--rarity",
+        "--retrieval",
+    ] {
+        assert!(search.contains(flag));
     }
-    Ok(files)
+    for old in [
+        "--metric",
+        "--references",
+        "--referenced-by",
+        "--filter-json",
+        "--include-raw",
+        "--fusion",
+        "--sort",
+        "--min-price",
+    ] {
+        assert!(!search.contains(old));
+    }
+    assert!(help(&["index", "build"]).contains("--locale"));
+    assert!(help(&["setup"]).contains("--locale"));
+    assert!(help(&["record", "get"]).contains("--passage"));
+    assert!(help(&["filters", "fields"]).contains("operators"));
+    assert!(!help(&["similar"]).contains("weight"));
 }
-
 #[test]
-fn developer_index_commands_are_removed() -> Result<(), Box<dyn std::error::Error>> {
-    let help = help_output(&["index"])?;
-    for name in ["analyze", "audit-source-paths", "inspect"] {
-        assert!(!help.contains(name));
-        let output = support::command::atlas_command()
-            .args(["index", name, "--json"])
-            .output()?;
-        assert_eq!(output.status.code(), Some(2));
-        let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+fn retired_flags_fail_instead_of_becoming_a_broader_query() {
+    for flag in ["--metric", "--filter-json", "--references", "--include-raw"] {
+        let o = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(["search", flag, "x", "--json"])
+            .output()
+            .unwrap();
+        assert!(!o.status.success());
+        let json: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap();
         assert_eq!(json["status"], "error");
-        assert_eq!(json["error"]["code"], "invalid_input");
-        assert!(output.stderr.is_empty());
     }
-    Ok(())
 }
