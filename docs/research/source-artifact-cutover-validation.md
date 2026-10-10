@@ -1,7 +1,8 @@
 # Source-backed artifact cutover validation
 
-Status: local validation passed; hosted CI, including Windows publication,
-is pending. Owner checks do not replace the independent completion reviews.
+Status: local validation and hosted Windows publication passed; the complete
+hosted CI run is pending build-tooling remedies. Owner checks do not replace
+the independent completion reviews.
 
 ## Candidate and inputs
 
@@ -120,9 +121,21 @@ through an adjustment, condition update and reload. Nested marker click and
 keyboard ownership also have focused regression coverage. Representative actual
 screenshots were inspected; this is automated/agent evidence, not human approval.
 
-Windows in-use atomic publication has a platform-specific foundation test and a
-dedicated CI job. Local macOS checks do not establish its Windows result.
+The dedicated Windows 2022 artifact-publication job passed 23 foundation tests,
+including in-use publication preserving the previous artifact, with one separately
+run corpus test ignored. This is actual Windows evidence from
+[CI run 38041300962](https://github.com/e-kosten/pf2e-atlas/actions/runs/38041300962).
+Windows release-tool checks and hosted source-contract freshness checks also passed.
+
+That first complete run failed on stale generated dependency notices and private
+npm registry URLs in the frontend lockfile. Notices were regenerated from the
+current lockfiles. All 52 private URLs were replaced with public URLs after
+verifying the tarballs against unchanged integrity hashes; versions and all other
+lockfile data are unchanged. Scoped npm configuration selects the public registry
+for each Node bundle. A clean public-registry install and the full frontend gate
+passed locally, and all 39 production bundle files remained byte-identical.
+Release-tool static, archive/installer and preparation smoke checks passed locally.
 
 The two independent reviews have checked the current implementation and local
-evidence. Hosted CI, including actual Windows publication behavior, remains the
-final acceptance gate and must pass before the full draft PR becomes ready.
+evidence. A complete passing hosted CI run remains the final acceptance gate and
+must pass before the full draft PR becomes ready.
