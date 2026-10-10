@@ -22,6 +22,7 @@ function page(overrides: Partial<SearchPageView>): SearchPageView {
     count: 25,
     total: 100n,
     has_more: true,
+    next_page: 2,
     ...overrides,
   };
 }

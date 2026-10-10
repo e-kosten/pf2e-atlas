@@ -3,34 +3,37 @@
 Status: deferred
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-07
+Last reviewed: 2026-10-09
 
 ## Problem
 
-The Atlas web prototype exposes dynamic filter discovery and counts, but V1 counts are scoped only by the current `BasicSearchFilter`. In text-search mode, filter counts do not account for the query text or ranked text-result space.
-
-That is acceptable for the first vertical integration because true query-scoped facet counts require a deeper search/discovery design. The app layer should not duplicate text retrieval, fusion, or ranking semantics just to compute counts.
+Source-backed discovery already shares typed eligibility and text scope with
+retrieval. Supported facet contexts freeze the clause-removed candidate universe;
+unsupported Boolean contexts return explicit errors. Further UX work should make
+these limits and semantic candidate coverage clear without duplicating retrieval
+or ranking in the app layer.
 
 ## Desired Outcome
 
-Design and implement text-search-scoped filter discovery/counts for the web search experience.
+Refine text-scoped facet presentation and evaluate broader supported contexts.
 
-The design should decide:
+Follow-up work should address:
 
-- whether counts are computed over the complete ranked candidate set, a bounded result window, or another query-derived eligible-record relation;
+- how to explain complete lexical and bounded semantic candidate universes;
+- whether broader Boolean facet contexts are useful enough to support;
 - how text-search count semantics should be labelled when they differ from browse/list counts;
 - how to keep selected zero-count values visible;
 - how to avoid duplicating retrieval/fusion semantics in frontend or app-service code;
-- what `atlas-search` API shape should expose query-aware discovery to app-service.
+- which refinements belong in the existing `atlas-search` discovery API.
 
 ## Constraints
 
 - Keep discovery semantics owned by `atlas-search` and app-service, not frontend code.
 - Do not make `atlas-app-service` assemble index internals or bypass runtime/search boundaries.
-- Preserve the V1 filter-scoped discovery contract until query-scoped semantics are designed.
+- Preserve shared typed discovery semantics; do not add a second facet compiler.
 
 ## Related
 
 - [Architecture overview](../../architecture/overview.md)
 - [ADR 0029: Local web app boundary](../../architecture/decisions/0029-local-web-app-boundary.md)
-- [Rust search retrieval and fusion controls](../../architecture/decisions/0024-rust-search-retrieval-and-fusion-controls.md)
+- [Source-backed artifact decision](../../architecture/decisions/0046-source-backed-reference-artifact.md)

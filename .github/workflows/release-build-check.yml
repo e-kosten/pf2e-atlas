@@ -32,6 +32,16 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dev-tools/release/package-lock.json
+      - name: Build private release tools
+        shell: bash
+        run: |
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix dev-tools/release run build
       - name: Release tool smoke tests
         shell: bash
         run: |
@@ -84,7 +94,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/atlas-ui/package-lock.json
+          cache-dependency-path: |
+            dev-tools/release/package-lock.json
+            web/atlas-ui/package-lock.json
+      - name: Build private release tools
+        shell: bash
+        run: |
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix dev-tools/release run build
       - name: Install cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
@@ -99,13 +116,8 @@ jobs:
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run build
       - name: Generate notices
-        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
-        run: python3 scripts/release/generate-notices.py
-      - name: Generate notices on Windows
-        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
-        shell: pwsh
-        run: python scripts/release/generate-notices.py
+        run: node dev-tools/release/dist/src/cli/generate-notices.js
       - name: Validate PowerShell installer
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh
@@ -138,6 +150,16 @@ jobs:
       TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dev-tools/release/package-lock.json
+      - name: Build private release tools
+        shell: bash
+        run: |
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix dev-tools/release run build
       - name: Download packaged artifacts
         uses: actions/download-artifact@v7
         with:
@@ -151,7 +173,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/release/generate-notices.py
+          node dev-tools/release/dist/src/cli/generate-notices.js
           cp scripts/install/atlas-installer.sh target/distrib/atlas-installer.sh
           cp scripts/install/atlas-installer.ps1 target/distrib/atlas-installer.ps1
           cp THIRD-PARTY-NOTICES.md target/distrib/THIRD-PARTY-NOTICES.md
@@ -159,14 +181,14 @@ jobs:
         shell: bash
         run: |
           dist manifest --artifacts local --tag "$TAG" --allow-dirty --no-local-paths --output-format json > dist-manifest.json
-          scripts/release/prune-dist-manifest.py dist-manifest.json target/distrib
+          node dev-tools/release/dist/src/cli/prune-dist-manifest.js dist-manifest.json target/distrib
           mv dist-manifest.json target/distrib/dist-manifest.json
       - name: Generate manifest and checksums
         shell: bash
-        run: scripts/release/generate-release-manifest.py "$TAG" target/distrib
+        run: node dev-tools/release/dist/src/cli/generate-release-manifest.js "$TAG" target/distrib
       - name: Validate required assets
         shell: bash
-        run: scripts/release/validate-release-assets.sh "$TAG" target/distrib
+        run: node dev-tools/release/dist/src/cli/validate-release-assets.js "$TAG" target/distrib
       - name: Upload assembled release assets
         uses: actions/upload-artifact@v6
         with:

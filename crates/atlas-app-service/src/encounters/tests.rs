@@ -1,1023 +1,964 @@
-use atlas_app_model::{
-    AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest, AppErrorCode,
-    CreateEncounterRequest, EncounterConditionApplicabilityView,
-    EncounterConditionAutomationLevelView, EncounterConditionCategoryView,
-    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterStatusView,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
-};
-use atlas_domain::RecordKey;
-use atlas_local_state::{
-    AddEncounterParticipant, EncounterParticipant, ParticipantKind, ParticipantSide,
-};
+use crate::test_support::encounter_fixture_worker;
+use atlas_app_model::*;
 
-use crate::test_support::{encounter_fixture_worker, fixture_worker};
-
-use super::projection::{participant_side_view, participant_variant_view};
-
+fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
+    UpdateEncounterParticipantRequest {
+        hp_edit: false,
+        max_hp_edit: false,
+        variant_edit: false,
+        use_derived_max: false,
+        participant_key: p.participant_key.clone(),
+        display_name: p.display_name.clone(),
+        side: p.side,
+        participant_variant: p.participant_variant,
+        initiative: p.initiative,
+        max_hp: p.max_hp,
+        current_hp: p.current_hp,
+        temporary_hp: p.temporary_hp,
+        defeated: p.defeated,
+        hidden: p.hidden,
+        note: p.note.clone(),
+    }
+}
 #[test]
-fn set_encounter_turn_starts_advances_and_wraps_rounds() {
-    let fixture = fixture_worker();
-    let encounter = fixture
+fn encounter_surface_keeps_non_hp_sections_outside_the_replaceable_vitals_slot() {
+    let f = encounter_fixture_worker();
+    let e = f
         .worker
         .create_encounter(CreateEncounterRequest {
-            name: "Turn Test".to_string(),
+            name: "Grouped surface".into(),
             description: None,
             note: None,
         })
-        .expect("encounter should create")
+        .unwrap()
         .encounter;
-    let store = fixture
+    let d = f
         .worker
-        .local_state_store()
-        .expect("local state should open");
-    store
-        .encounters()
-        .add_participant(&encounter.slug, pc("Unset", None))
-        .expect("unset participant should add");
-    let high = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("High", Some(20)))
-        .expect("high participant should add");
-    let low = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("Low", Some(10)))
-        .expect("low participant should add");
-
-    let started = fixture
-        .worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: encounter.slug.clone(),
-            participant_key: None,
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key,
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
         })
-        .expect("encounter should start");
-    let advanced = fixture
-        .worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: encounter.slug.clone(),
-            participant_key: None,
-        })
-        .expect("encounter should advance");
-    let wrapped = fixture
-        .worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: encounter.slug,
-            participant_key: None,
-        })
-        .expect("encounter should wrap");
-
-    assert_eq!(
-        started.current_turn_participant_key.as_deref(),
-        Some(high.participant_key.as_str())
+        .unwrap();
+    let p = &d.participants[0];
+    let surface = p.surface.as_ref().unwrap();
+    for (kind, key) in [
+        (RecordSurfaceSectionKindView::Defenses, "ac"),
+        (RecordSurfaceSectionKindView::Saves, "save.fortitude"),
+        (RecordSurfaceSectionKindView::Abilities, "ability.str"),
+        (RecordSurfaceSectionKindView::Skills, "skill.athletics"),
+        (RecordSurfaceSectionKindView::Movement, "speed.land"),
+        (RecordSurfaceSectionKindView::Runtime, "actions"),
+    ] {
+        assert!(
+            surface
+                .sections
+                .iter()
+                .any(|s| s.kind == kind && s.values.iter().any(|v| v.key == key)),
+            "missing {kind:?}/{key}"
+        );
+    }
+    assert!(
+        surface
+            .sections
+            .iter()
+            .filter(|s| s.kind == RecordSurfaceSectionKindView::Vitals)
+            .flat_map(|s| &s.values)
+            .all(|v| v.key == "hp.max")
     );
-    assert_eq!(started.encounter.round_number, 1);
-    assert_eq!(
-        advanced.current_turn_participant_key.as_deref(),
-        Some(low.participant_key.as_str())
+    assert!(
+        surface
+            .sections
+            .iter()
+            .filter(|s| s.kind == RecordSurfaceSectionKindView::Notes)
+            .flat_map(|s| &s.notes)
+            .any(|n| n.label == "Identifying spells")
     );
-    assert_eq!(advanced.encounter.round_number, 1);
-    assert_eq!(
-        wrapped.current_turn_participant_key.as_deref(),
-        Some(high.participant_key.as_str())
+    assert!(
+        surface
+            .sections
+            .iter()
+            .flat_map(|s| &s.activities)
+            .any(|a| a.label == "Breath Weapon")
     );
-    assert_eq!(wrapped.encounter.round_number, 2);
 }
 
 #[test]
-fn set_encounter_turn_falls_back_to_pcs_when_everyone_is_defeated() {
-    let fixture = fixture_worker();
-    let encounter = fixture
+fn derived_capacity_changes_clamp_valid_damage_at_zero_and_preserve_manual_outliers() {
+    let f = encounter_fixture_worker();
+    let e = f
         .worker
         .create_encounter(CreateEncounterRequest {
-            name: "Defeated Test".to_string(),
+            name: "HP boundaries".into(),
             description: None,
             note: None,
         })
-        .expect("encounter should create")
+        .unwrap()
         .encounter;
-    let store = fixture
+    let d = f
         .worker
-        .local_state_store()
-        .expect("local state should open");
-    let enemy = store
-        .encounters()
-        .add_participant(&encounter.slug, creature("Enemy", Some(18)))
-        .expect("enemy participant should add");
-    let pc = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("PC", Some(12)))
-        .expect("pc participant should add");
-    fixture
-        .worker
-        .update_encounter_participant(&encounter.slug, participant_update(&enemy, true))
-        .expect("enemy should update");
-    fixture
-        .worker
-        .update_encounter_participant(&encounter.slug, participant_update(&pc, true))
-        .expect("pc should update");
-
-    let started = fixture
-        .worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: encounter.slug,
-            participant_key: None,
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
         })
-        .expect("encounter should still start on pc");
+        .unwrap();
+    let mut change = update(&d.participants[0]);
+    change.participant_variant = EncounterParticipantVariantView::Elite;
+    change.variant_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&e.encounter_key, change)
+        .unwrap();
+    let mut change = update(&p);
+    change.current_hp = Some(3);
+    change.hp_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&e.encounter_key, change)
+        .unwrap();
+    let mut change = update(&p);
+    change.participant_variant = EncounterParticipantVariantView::Normal;
+    change.variant_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&e.encounter_key, change)
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (Some(60), Some(0)));
+    for current in [400, -5] {
+        let mut change = update(&p);
+        change.current_hp = Some(current);
+        change.hp_edit = true;
+        let p = f
+            .worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .unwrap();
+        let mut change = update(&p);
+        change.participant_variant = EncounterParticipantVariantView::Elite;
+        change.variant_edit = true;
+        let p = f
+            .worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .unwrap();
+        assert_eq!(p.current_hp, Some(current));
+    }
+}
 
-    assert_eq!(
-        started.current_turn_participant_key.as_deref(),
-        Some(pc.participant_key.as_str())
+#[test]
+fn known_normal_hp_does_not_require_level_and_runtime_level_uses_foundry_bounds() {
+    use atlas_local_state::ParticipantVariant;
+    let input = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"attributes":{"adjustment":null,"hp":{"max":60}}}}),
     );
-    let pc_view = started
+    assert_eq!(
+        super::mechanics::effective_max(&input.record, Some(ParticipantVariant::Normal)),
+        Some(60)
+    );
+    assert_eq!(
+        super::mechanics::effective_max(&input.record, Some(ParticipantVariant::Elite)),
+        None
+    );
+    for (level, variant, expected) in [
+        (i64::MIN, ParticipantVariant::Normal, -1),
+        (-5, ParticipantVariant::Elite, 1),
+        (0, ParticipantVariant::Elite, 2),
+        (1, ParticipantVariant::Weak, -1),
+        (i64::MAX, ParticipantVariant::Normal, 100),
+        (200, ParticipantVariant::Elite, 101),
+        (200, ParticipantVariant::Weak, 99),
+    ] {
+        assert_eq!(
+            super::mechanics::adjusted_npc_level(level, variant),
+            expected
+        );
+    }
+}
+#[test]
+fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capacity() {
+    let f = encounter_fixture_worker();
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "HP policy".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let detail = f
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let p = &detail.participants[0];
+    assert_eq!((p.max_hp, p.current_hp), (Some(60), Some(60)));
+    assert_eq!(p.hp_origin, "derived_pristine");
+    assert_eq!(p.variant_origin, "inherited_known");
+    let mut change = update(p);
+    change.participant_variant = EncounterParticipantVariantView::Elite;
+    change.variant_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, change)
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (Some(80), Some(80)));
+    let block = p.stat_block.as_ref().unwrap();
+    assert_eq!(
+        block
+            .values
+            .iter()
+            .find(|v| v.target == "ac")
+            .unwrap()
+            .adjusted_value,
+        serde_json::Number::from(24)
+    );
+    assert_eq!(
+        block
+            .activities
+            .iter()
+            .find(|a| a.label == "Claw")
+            .unwrap()
+            .damage[0]
+            .formula,
+        "1d6+4"
+    );
+    assert!(
+        block
+            .unapplied_effects
+            .iter()
+            .any(|n| n.label == "Identifying spells")
+    );
+    let mut change = update(&p);
+    change.current_hp = Some(55);
+    change.hp_edit = true;
+    change.temporary_hp = 9;
+    let p = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, change)
+        .unwrap();
+    assert_eq!(p.hp_origin, "derived_edited");
+    let mut change = update(&p);
+    change.participant_variant = EncounterParticipantVariantView::Weak;
+    change.variant_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, change)
+        .unwrap();
+    assert_eq!(
+        (p.max_hp, p.current_hp, p.temporary_hp),
+        (Some(45), Some(20), 9)
+    );
+    let mut change = update(&p);
+    change.max_hp = Some(200);
+    change.max_hp_edit = true;
+    change.current_hp = Some(-5);
+    change.hp_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, change)
+        .unwrap();
+    assert_eq!(p.hp_origin, "explicit");
+    let mut change = update(&p);
+    change.participant_variant = EncounterParticipantVariantView::Normal;
+    change.variant_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, change)
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (Some(200), Some(-5)));
+    let read = f.worker.encounter(&encounter.encounter_key).unwrap();
+    assert_eq!(
+        (read.participants[0].max_hp, read.participants[0].current_hp),
+        (Some(200), Some(-5))
+    );
+}
+
+#[test]
+fn same_value_hp_edit_is_preserved_and_manual_hp_is_never_clamped() {
+    let f = encounter_fixture_worker();
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Manual HP".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let detail = f
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let mut change = update(&detail.participants[0]);
+    change.hp_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, change)
+        .unwrap();
+    assert_eq!(p.hp_origin, "derived_edited");
+    let mut change = update(&p);
+    change.current_hp = Some(400);
+    change.hp_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, change)
+        .unwrap();
+    assert_eq!(p.current_hp, Some(400));
+    let detail = f
+        .worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: encounter.encounter_key,
+            display_name: "PC".into(),
+            max_hp: Some(10),
+            current_hp: Some(-2),
+            initiative: None,
+        })
+        .unwrap();
+    let p = detail
         .participants
         .iter()
-        .find(|participant| participant.participant_key == pc.participant_key)
-        .expect("pc should remain in encounter");
-    let pc_stats = pc_view
-        .stat_block
-        .as_ref()
-        .expect("manual pc should project runtime state");
-    assert!(pc_stats.values.is_empty());
-    assert!(pc_stats.speeds.is_empty());
-    let action_budget = pc_stats
-        .action_budget
-        .as_ref()
-        .expect("manual pc should have action budget");
-    assert_eq!(action_budget.actions.adjusted_value, 3);
-    assert_eq!(action_budget.reactions.adjusted_value, 1);
+        .find(|p| p.display_name == "PC")
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (Some(10), Some(-2)));
+    assert_eq!(p.hp_origin, "explicit");
 }
 
 #[test]
-fn removing_current_turn_advances_to_next_participant() {
-    let fixture = fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Remove Current".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-    let store = fixture
-        .worker
-        .local_state_store()
-        .expect("local state should open");
-    let first = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("First", Some(20)))
-        .expect("first should add");
-    let second = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("Second", Some(10)))
-        .expect("second should add");
-    fixture
-        .worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: encounter.slug.clone(),
-            participant_key: Some(first.participant_key.clone()),
-        })
-        .expect("turn should set");
-
-    let detail = fixture
-        .worker
-        .remove_encounter_participant(&encounter.slug, &first.participant_key)
-        .expect("participant should remove");
-
+fn hp_numeric_policy_does_not_coerce_fractional_or_unsigned_out_of_range_values() {
+    for n in [
+        serde_json::Number::from(u64::MAX),
+        serde_json::Number::from_f64(1.5).unwrap(),
+    ] {
+        assert_eq!(super::mechanics::integer(&n), None);
+    }
     assert_eq!(
-        detail.current_turn_participant_key.as_deref(),
-        Some(second.participant_key.as_str())
+        super::mechanics::integer(&serde_json::Number::from(i64::MAX)),
+        Some(i64::MAX)
+    );
+    assert_eq!(
+        super::mechanics::integer(&serde_json::Number::from_f64(60.0).unwrap()),
+        Some(60)
     );
 }
 
 #[test]
-fn explicit_turn_selection_does_not_change_encounter_status() {
-    let fixture = fixture_worker();
-    let encounter = fixture
+fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_preserves_damage() {
+    use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"elite00000000000","name":"Elite source","type":"npc","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":"elite","hp":{"max":60},"ac":{"value":22}}}}),
+                ),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"unknown000000000","name":"Unknown adjustment","type":"npc","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":"bad","hp":{"max":60}}}}),
+                ),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"fraction00000000","name":"Fractional HP","type":"npc","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"hp":{"max":60.5}}}}),
+                ),
+            ],
+            false,
+        )?)
+    });
+    let f = fixture_worker_with_executor(executor);
+    let e = f
         .worker
         .create_encounter(CreateEncounterRequest {
-            name: "Manual Turn".to_string(),
+            name: "Source adjustment".into(),
             description: None,
             note: None,
         })
-        .expect("encounter should create")
+        .unwrap()
         .encounter;
-    let store = fixture
-        .worker
-        .local_state_store()
-        .expect("local state should open");
-    let participant = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("Hero", Some(20)))
-        .expect("participant should add");
-    fixture
-        .worker
-        .update_encounter(UpdateEncounterRequest {
-            encounter_key: encounter.encounter_key,
-            slug: encounter.slug.clone(),
-            name: encounter.name,
-            description: encounter.description,
-            note: None,
-            status: EncounterStatusView::Complete,
-        })
-        .expect("encounter status should update");
-
-    let detail = fixture
-        .worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: encounter.slug,
-            participant_key: Some(participant.participant_key.clone()),
-        })
-        .expect("turn should set");
-
-    assert_eq!(detail.encounter.status, EncounterStatusView::Complete);
-    assert_eq!(
-        detail.current_turn_participant_key.as_deref(),
-        Some(participant.participant_key.as_str())
-    );
-}
-
-#[test]
-fn zero_hp_participant_can_be_marked_active() {
-    let fixture = fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Active At Zero".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-    let participant = fixture
-        .worker
-        .local_state_store()
-        .expect("local state should open")
-        .encounters()
-        .add_participant(&encounter.slug, pc("Persistent Hero", Some(20)))
-        .expect("participant should add");
-    let mut update = participant_update(&participant, false);
-    update.current_hp = Some(0);
-
-    let updated = fixture
-        .worker
-        .update_encounter_participant(&encounter.slug, update)
-        .expect("participant should update");
-
-    assert_eq!(updated.current_hp, Some(0));
-    assert!(!updated.defeated);
-}
-
-#[test]
-fn record_participant_add_rejects_invalid_quantity_without_mutating() {
-    let fixture = fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Quantity Test".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-
-    for quantity in [0, 51] {
-        let error = fixture
-            .worker
+    let add = |name: &str| {
+        f.worker
             .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-                encounter_ref: encounter.slug.clone(),
-                record_ref: "actions:testAction1".to_string(),
-                quantity,
+                encounter_ref: e.encounter_key.clone(),
+                record_ref: name.into(),
+                quantity: 1,
                 initiative: None,
             })
-            .expect_err("invalid quantity should fail");
-
-        assert!(error.into_app_error().message.contains("quantity must be"));
-    }
-
-    let detail = fixture
-        .worker
-        .encounter(&encounter.slug)
-        .expect("encounter should remain readable");
-    assert!(detail.participants.is_empty());
-}
-
-#[test]
-fn record_participant_add_rejects_unsupported_record_kind() {
-    let fixture = fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Unsupported Kind".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-
-    let error = fixture
-        .worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actions:testAction1".to_string(),
-            quantity: 1,
-            initiative: None,
-        })
-        .expect_err("actions are not encounter participants");
-
-    assert!(
-        error
-            .into_app_error()
-            .message
-            .contains("encounter participants must be creatures")
-    );
-    let detail = fixture
-        .worker
-        .encounter(&encounter.slug)
-        .expect("encounter should remain readable");
-    assert!(detail.participants.is_empty());
-}
-
-#[test]
-fn draft_variant_change_adjusts_current_hp_and_projects_stats() {
-    let fixture = encounter_fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Variant Draft".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-    let detail = fixture
-        .worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:testCreature".to_string(),
-            quantity: 1,
-            initiative: Some(18),
-        })
-        .expect("creature should add");
-    let participant = &detail.participants[0];
-    let base_stats = participant
-        .stat_block
-        .as_ref()
-        .expect("stats should project");
-    assert_eq!(base_stats.level, Some(5));
-
-    let mut update = participant_update(
-        &local_participant(&fixture, &encounter.slug, &participant.participant_key),
-        false,
-    );
-    update.participant_variant = EncounterParticipantVariantView::Elite;
-    let updated = fixture
-        .worker
-        .update_encounter_participant(&encounter.slug, update)
-        .expect("participant should update");
+            .unwrap()
+    };
+    let detail = add("Elite source");
+    let p = &detail.participants[0];
+    assert_eq!((p.max_hp, p.current_hp), (Some(80), Some(80)));
     assert_eq!(
-        updated.participant_variant,
+        p.participant_variant,
         EncounterParticipantVariantView::Elite
     );
-    assert_eq!(updated.current_hp, Some(37));
-    let stats = updated.stat_block.as_ref().expect("stats should project");
-    assert_eq!(stats.adjusted_level, Some(6));
-    let ac = stats
-        .values
-        .iter()
-        .find(|value| value.target == "ac")
-        .expect("ac should project");
-    assert_eq!(ac.adjusted_value, 21);
-    let hp = stats
-        .values
-        .iter()
-        .find(|value| value.target == "hp.max")
-        .expect("hp should project");
-    assert_eq!(hp.adjusted_value, 45);
-
-    fixture
-        .worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: encounter.slug.clone(),
-            participant_key: None,
-        })
-        .expect("encounter should start");
-    let mut running_update = participant_update(
-        &local_participant(&fixture, &encounter.slug, &participant.participant_key),
-        false,
-    );
-    running_update.participant_variant = EncounterParticipantVariantView::Weak;
-    let running_updated = fixture
-        .worker
-        .update_encounter_participant(&encounter.slug, running_update)
-        .expect("participant should update");
     assert_eq!(
-        running_updated.participant_variant,
-        EncounterParticipantVariantView::Weak
+        p.stat_block
+            .as_ref()
+            .unwrap()
+            .values
+            .iter()
+            .find(|v| v.target == "ac")
+            .unwrap()
+            .adjusted_value,
+        serde_json::Number::from(24)
     );
-    assert_eq!(running_updated.current_hp, Some(37));
-}
-
-fn local_participant(
-    fixture: &crate::test_support::FixtureWorker,
-    encounter_ref: &str,
-    participant_key: &str,
-) -> EncounterParticipant {
-    fixture
+    f.worker
+        .update_encounter(UpdateEncounterRequest {
+            encounter_key: e.encounter_key.clone(),
+            slug: e.slug.clone(),
+            name: e.name.clone(),
+            description: None,
+            note: None,
+            status: EncounterStatusView::Running,
+        })
+        .unwrap();
+    let mut change = update(p);
+    change.participant_variant = EncounterParticipantVariantView::Normal;
+    change.variant_edit = true;
+    let p = f
         .worker
-        .local_state_store()
-        .expect("store should open")
-        .encounters()
-        .get_with_participants(encounter_ref)
-        .expect("encounter lookup should succeed")
-        .expect("encounter should exist")
+        .update_encounter_participant(&e.encounter_key, change)
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (Some(60), Some(60)));
+    assert_eq!(p.hp_origin, "derived_edited");
+    let detail = add("Unknown adjustment");
+    let p = detail
         .participants
-        .into_iter()
-        .find(|participant| participant.participant_key == participant_key)
-        .expect("participant should exist")
+        .iter()
+        .find(|p| p.display_name == "Unknown adjustment")
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (None, None));
+    assert_eq!(p.variant_origin, "inherited_unknown");
+    assert!(
+        p.stat_block
+            .as_ref()
+            .unwrap()
+            .unapplied_effects
+            .iter()
+            .any(|n| n.source == "npc-adjustment")
+    );
+    let mut unrelated = update(p);
+    unrelated.display_name = "Renamed".into();
+    let p = f
+        .worker
+        .update_encounter_participant(&e.encounter_key, unrelated)
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (None, None));
+    assert_eq!(p.variant_origin, "inherited_unknown");
+    let mut explicit = update(&p);
+    explicit.variant_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&e.encounter_key, explicit)
+        .unwrap();
+    assert_eq!(p.max_hp, Some(60));
+    assert_eq!(p.current_hp, None);
+    assert_eq!(p.variant_origin, "explicit");
+    let detail = add("Fractional HP");
+    let p = detail
+        .participants
+        .iter()
+        .find(|p| p.display_name == "Fractional HP")
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (None, None));
 }
 
 #[test]
-fn record_participant_add_hydrates_creature_instances_and_hazard_defaults() {
-    let fixture = encounter_fixture_worker();
-    let encounter = fixture
+fn conditions_stack_known_penalties_and_preserve_unapplied_context() {
+    let f = encounter_fixture_worker();
+    let e = f
         .worker
         .create_encounter(CreateEncounterRequest {
-            name: "Record-backed".to_string(),
+            name: "Conditions".into(),
             description: None,
             note: None,
         })
-        .expect("encounter should create")
+        .unwrap()
         .encounter;
-
-    let creature_detail = fixture
+    let detail = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:testCreature".to_string(),
-            quantity: 2,
-            initiative: Some(18),
-        })
-        .expect("creatures should add");
-    assert_eq!(creature_detail.participants.len(), 2);
-    assert_eq!(
-        creature_detail
-            .participants
-            .iter()
-            .map(|participant| participant.display_name.as_str())
-            .collect::<Vec<_>>(),
-        vec!["Test Creature 1", "Test Creature 2"]
-    );
-    for participant in &creature_detail.participants {
-        assert_eq!(
-            participant.record_key.as_deref(),
-            Some("actors:testCreature")
-        );
-        assert_eq!(participant.max_hp, Some(25));
-        assert_eq!(participant.current_hp, Some(17));
-        assert_eq!(
-            participant.side,
-            atlas_app_model::EncounterParticipantSideView::Enemy
-        );
-        assert!(participant.record.is_some());
-        let surface = participant
-            .surface
-            .as_ref()
-            .expect("creature participant should expose a composed surface");
-        assert_eq!(
-            surface.profile,
-            atlas_app_model::RecordSurfaceProfileView::EncounterParticipant
-        );
-        assert!(surface.fallback_presentation.is_some());
-        assert!(
-            surface.sections.iter().any(
-                |section| section.kind == atlas_app_model::RecordSurfaceSectionKindView::Vitals
-            )
-        );
-    }
-
-    let hazard_detail = fixture
-        .worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: encounter.slug,
-            record_ref: "hazards:testHazard".to_string(),
+            encounter_ref: e.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
             quantity: 1,
             initiative: None,
         })
-        .expect("hazard should add");
-    let hazard = hazard_detail
-        .participants
-        .iter()
-        .find(|participant| participant.record_key.as_deref() == Some("hazards:testHazard"))
-        .expect("hazard participant should exist");
-    assert_eq!(hazard.display_name, "Test Hazard");
+        .unwrap();
+    let key = detail.participants[0].participant_key.clone();
+    for (reference, value) in [
+        ("conditionitems:TBSHQspnbcqxsmjL", 2),
+        ("conditionitems:fesd1n5eVhpCSS18", 1),
+    ] {
+        f.worker
+            .add_encounter_participant_condition(
+                &e.encounter_key,
+                AddEncounterParticipantConditionRequest {
+                    participant_key: key.clone(),
+                    condition_ref: Some(reference.into()),
+                    name: None,
+                    value: Some(value),
+                    source_participant_key: None,
+                    duration_rounds: None,
+                    note: None,
+                },
+            )
+            .unwrap();
+    }
+    let detail = f.worker.encounter(&e.encounter_key).unwrap();
+    let block = detail.participants[0].stat_block.as_ref().unwrap();
+    let ac = block.values.iter().find(|v| v.target == "ac").unwrap();
+    assert_eq!(ac.adjusted_value, serde_json::Number::from(20));
+    assert_eq!(ac.suppressed_modifiers.len(), 1);
     assert_eq!(
-        hazard.side,
-        atlas_app_model::EncounterParticipantSideView::Hazard
+        block
+            .activities
+            .iter()
+            .find(|a| a.label == "Claw")
+            .unwrap()
+            .rolls[0]
+            .adjusted_value,
+        serde_json::Number::from(10)
     );
-    assert_eq!(hazard.max_hp, Some(30));
-    assert_eq!(hazard.current_hp, Some(30));
-    assert!(hazard.record.is_some());
-    assert!(hazard.surface.is_none());
-}
-
-#[test]
-fn condition_add_resolves_condition_records_and_rejects_other_records() {
-    let fixture = encounter_fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Resolved Conditions".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-    let participant = fixture
-        .worker
-        .local_state_store()
-        .expect("local state should open")
-        .encounters()
-        .add_participant(&encounter.slug, pc("Hero", Some(20)))
-        .expect("participant should add");
-
-    let with_condition = fixture
-        .worker
-        .add_encounter_participant_condition(
-            &encounter.slug,
-            AddEncounterParticipantConditionRequest {
-                participant_key: participant.participant_key.clone(),
-                condition_ref: Some("conditionitems:testCondition".to_string()),
-                name: None,
-                value: Some(1),
-                source_participant_key: None,
-                duration_rounds: Some(2),
-                note: None,
-            },
-        )
-        .expect("condition record should add");
-    let condition = &with_condition.participants[0].conditions[0];
-    assert_eq!(
-        condition.condition_key.as_deref(),
-        Some("conditionitems:testCondition")
-    );
-    assert_eq!(condition.name, "Test Condition");
-    assert_eq!(condition.value, Some(1));
-
-    let error = fixture
-        .worker
-        .add_encounter_participant_condition(
-            &encounter.slug,
-            AddEncounterParticipantConditionRequest {
-                participant_key: participant.participant_key,
-                condition_ref: Some("actors:testCreature".to_string()),
-                name: None,
-                value: None,
-                source_participant_key: None,
-                duration_rounds: None,
-                note: None,
-            },
-        )
-        .expect_err("non-condition record should reject");
-
-    assert!(error.into_app_error().message.contains("condition records"));
-}
-
-#[test]
-fn encounter_condition_definitions_expose_modeled_canonical_conditions() {
-    let fixture = fixture_worker();
-
-    let catalog = fixture
-        .worker
-        .encounter_condition_definitions()
-        .expect("condition catalog should load");
-
-    assert_eq!(catalog.conditions.len(), 43);
-
-    let frightened = catalog
-        .conditions
-        .iter()
-        .find(|condition| condition.name == "Frightened")
-        .expect("frightened should be in catalog");
-    assert_eq!(frightened.condition_ref, "conditionitems:TBSHQspnbcqxsmjL");
-    assert_eq!(
-        frightened.automation_level,
-        EncounterConditionAutomationLevelView::Automated
-    );
-    assert_eq!(frightened.default_value, Some(1));
     assert!(
-        frightened
-            .categories
-            .contains(&EncounterConditionCategoryView::StatModifier)
-    );
-
-    let broken = catalog
-        .conditions
-        .iter()
-        .find(|condition| condition.name == "Broken")
-        .expect("broken should be in catalog");
-    assert_eq!(
-        broken.automation_level,
-        EncounterConditionAutomationLevelView::Tracked
-    );
-    assert_eq!(
-        broken.applies_to,
-        vec![EncounterConditionApplicabilityView::Object]
-    );
-
-    let persistent_damage = catalog
-        .conditions
-        .iter()
-        .find(|condition| condition.name == "Persistent Damage")
-        .expect("persistent damage should be in catalog");
-    assert_eq!(
-        persistent_damage.automation_level,
-        EncounterConditionAutomationLevelView::Tracked
+        block
+            .activities
+            .iter()
+            .any(|a| a.label == "Breath Weapon" && a.rolls.is_empty() && a.damage.is_empty())
     );
 }
 
 #[test]
-fn condition_update_preserves_and_replaces_resolved_condition_keys() {
-    let fixture = encounter_fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Condition Updates".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-    let participant = fixture
-        .worker
-        .local_state_store()
-        .expect("local state should open")
-        .encounters()
-        .add_participant(&encounter.slug, pc("Hero", Some(20)))
-        .expect("participant should add");
-
-    let added = fixture
-        .worker
-        .add_encounter_participant_condition(
-            &encounter.slug,
-            AddEncounterParticipantConditionRequest {
-                participant_key: participant.participant_key.clone(),
-                condition_ref: Some("conditionitems:testCondition".to_string()),
-                name: None,
-                value: Some(1),
-                source_participant_key: None,
-                duration_rounds: Some(2),
-                note: None,
-            },
-        )
-        .expect("record-backed condition should add");
-    let condition = &added.participants[0].conditions[0];
-    let condition_id = condition.condition_id;
-    assert_eq!(
-        condition.condition_key.as_deref(),
-        Some("conditionitems:testCondition")
-    );
-
-    let manual_update = fixture
-        .worker
-        .update_encounter_participant_condition(
-            &encounter.slug,
-            &participant.participant_key,
-            UpdateEncounterParticipantConditionRequest {
-                condition_id,
-                condition_ref: None,
-                name: "Renamed Condition".to_string(),
-                value: Some(2),
-                source_participant_key: None,
-                duration_rounds: Some(1),
-                note: None,
-            },
-        )
-        .expect("manual condition update should preserve key");
-    let condition = &manual_update.participants[0].conditions[0];
-    assert_eq!(condition.name, "Renamed Condition");
-    assert_eq!(
-        condition.condition_key.as_deref(),
-        Some("conditionitems:testCondition")
-    );
-
-    let resolved_update = fixture
-        .worker
-        .update_encounter_participant_condition(
-            &encounter.slug,
-            &participant.participant_key,
-            UpdateEncounterParticipantConditionRequest {
-                condition_id,
-                condition_ref: Some("conditionitems:testCondition".to_string()),
-                name: "Ignored Name".to_string(),
-                value: Some(3),
-                source_participant_key: None,
-                duration_rounds: Some(4),
-                note: None,
-            },
-        )
-        .expect("condition ref update should resolve stored key and name");
-    let condition = &resolved_update.participants[0].conditions[0];
-    assert_eq!(condition.name, "Test Condition");
-    assert_eq!(
-        condition.condition_key.as_deref(),
-        Some("conditionitems:testCondition")
-    );
-
-    let error = fixture
-        .worker
-        .update_encounter_participant_condition(
-            &encounter.slug,
-            &participant.participant_key,
-            UpdateEncounterParticipantConditionRequest {
-                condition_id,
-                condition_ref: Some("actors:testCreature".to_string()),
-                name: "Invalid".to_string(),
-                value: None,
-                source_participant_key: None,
-                duration_rounds: None,
-                note: None,
-            },
-        )
-        .expect_err("non-condition ref should reject on update");
-    assert!(error.into_app_error().message.contains("condition records"));
-}
-
-#[test]
-fn unresolved_record_backed_participant_preserves_stored_state() {
-    let fixture = fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Unresolved Creature".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-    fixture
-        .worker
-        .local_state_store()
-        .expect("local state should open")
-        .encounters()
-        .add_participant(&encounter.slug, creature("Missing Creature", Some(16)))
-        .expect("participant should add");
-
-    let detail = fixture
-        .worker
-        .encounter(&encounter.slug)
-        .expect("encounter should load unresolved participant");
-    let participant = &detail.participants[0];
-
-    assert_eq!(participant.display_name, "Missing Creature");
-    assert_eq!(
-        participant.record_key.as_deref(),
-        Some("actors:testCreature")
-    );
-    assert_eq!(
-        participant.status,
-        EncounterParticipantStatusView::Unresolved
-    );
-    assert!(participant.record.is_none());
-    assert!(participant.stat_block.is_none());
-}
-
-#[test]
-fn encounter_conditions_and_reorder_route_through_app_service() {
-    let fixture = fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Condition Test".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-    let store = fixture
-        .worker
-        .local_state_store()
-        .expect("local state should open");
-    let high = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("High", Some(20)))
-        .expect("high should add");
-    let low = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("Low", Some(10)))
-        .expect("low should add");
-
-    let reordered = fixture
-        .worker
-        .reorder_encounter_participant(
-            &encounter.slug,
-            ReorderEncounterParticipantRequest {
-                participant_key: high.participant_key.clone(),
-                target_participant_key: low.participant_key.clone(),
-                placement: ReorderEncounterParticipantPlacementView::After,
-            },
-        )
-        .expect("reorder should succeed");
-    assert_eq!(
-        reordered.participants[0].participant_key,
-        low.participant_key
-    );
-    assert_eq!(
-        reordered.participants[1].participant_key,
-        high.participant_key
-    );
-
-    let added = fixture
-        .worker
-        .add_encounter_participant_condition(
-            &encounter.slug,
-            AddEncounterParticipantConditionRequest {
-                participant_key: high.participant_key.clone(),
-                condition_ref: None,
-                name: Some("Frightened".to_string()),
-                value: Some(1),
-                source_participant_key: Some(low.participant_key.clone()),
-                duration_rounds: Some(2),
-                note: Some("spell".to_string()),
-            },
-        )
-        .expect("condition should add");
-    let condition = &added.participants[1].conditions[0];
-    assert_eq!(condition.name, "Frightened");
-    assert_eq!(
-        condition.source_participant_key.as_deref(),
-        Some(low.participant_key.as_str())
-    );
-
-    let updated = fixture
-        .worker
-        .update_encounter_participant_condition(
-            &encounter.slug,
-            &high.participant_key,
-            UpdateEncounterParticipantConditionRequest {
-                condition_id: condition.condition_id,
-                condition_ref: None,
-                name: "Frightened".to_string(),
-                value: Some(2),
-                source_participant_key: None,
-                duration_rounds: Some(1),
-                note: None,
-            },
-        )
-        .expect("condition should update");
-    assert_eq!(updated.participants[1].conditions[0].value, Some(2));
-
-    let removed = fixture
-        .worker
-        .remove_encounter_participant_condition(
-            &encounter.slug,
-            &high.participant_key,
-            condition.condition_id,
-        )
-        .expect("condition should remove");
-    assert!(removed.participants[1].conditions.is_empty());
-}
-
-#[test]
-fn condition_update_and_delete_reject_wrong_participant_without_mutating() {
-    let fixture = fixture_worker();
-    let encounter = fixture
-        .worker
-        .create_encounter(CreateEncounterRequest {
-            name: "Condition Ownership".to_string(),
-            description: None,
-            note: None,
-        })
-        .expect("encounter should create")
-        .encounter;
-    let store = fixture
-        .worker
-        .local_state_store()
-        .expect("local state should open");
-    let owner = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("Owner", Some(20)))
-        .expect("owner should add");
-    let other = store
-        .encounters()
-        .add_participant(&encounter.slug, pc("Other", Some(10)))
-        .expect("other should add");
-    let added = fixture
-        .worker
-        .add_encounter_participant_condition(
-            &encounter.slug,
-            AddEncounterParticipantConditionRequest {
-                participant_key: owner.participant_key.clone(),
-                condition_ref: None,
-                name: Some("Frightened".to_string()),
-                value: Some(1),
-                source_participant_key: None,
-                duration_rounds: Some(2),
-                note: Some("original".to_string()),
-            },
-        )
-        .expect("condition should add");
-    let condition_id = added.participants[0].conditions[0].condition_id;
-
-    let update_error = fixture
-        .worker
-        .update_encounter_participant_condition(
-            &encounter.slug,
-            &other.participant_key,
-            UpdateEncounterParticipantConditionRequest {
-                condition_id,
-                condition_ref: None,
-                name: "Changed".to_string(),
-                value: Some(3),
-                source_participant_key: None,
-                duration_rounds: None,
-                note: None,
-            },
-        )
-        .expect_err("wrong participant update should reject")
-        .into_app_error();
-    assert_eq!(
-        update_error.code,
-        AppErrorCode::EncounterParticipantNotFound
-    );
-
-    let delete_error = fixture
-        .worker
-        .remove_encounter_participant_condition(
-            &encounter.slug,
-            &other.participant_key,
-            condition_id,
-        )
-        .expect_err("wrong participant delete should reject")
-        .into_app_error();
-    assert_eq!(
-        delete_error.code,
-        AppErrorCode::EncounterParticipantNotFound
-    );
-
-    let detail = fixture
-        .worker
-        .encounter(&encounter.slug)
-        .expect("encounter should reload");
-    let owner = detail
-        .participants
-        .iter()
-        .find(|participant| participant.participant_key == owner.participant_key)
-        .expect("owner should remain");
-    assert_eq!(owner.conditions.len(), 1);
-    assert_eq!(owner.conditions[0].name, "Frightened");
-    assert_eq!(owner.conditions[0].value, Some(1));
-    assert_eq!(owner.conditions[0].note.as_deref(), Some("original"));
-}
-
-fn pc(name: &str, initiative: Option<i64>) -> AddEncounterParticipant {
-    AddEncounterParticipant {
-        record_key: None,
-        participant_kind: ParticipantKind::Pc,
-        display_name: name.to_string(),
-        record_title_snapshot: None,
-        record_kind_snapshot: None,
-        side: ParticipantSide::Pc,
-        initiative,
-        max_hp: Some(10),
-        current_hp: Some(10),
-        temporary_hp: 0,
-        note: None,
+fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
+    use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::{Number, json};
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture([30i64, i64::MAX,4,0].into_iter().enumerate().map(|(i,speed)| record("actors","Actor",json!({"_id":format!("speed{i:011}"),"type":"npc","name":format!("Speed {speed}"),"system":{"attributes":{"adjustment":null,"speed":{"value":speed,"otherSpeeds":[]}}}}))).collect(),false)?)
+        },
+    ));
+    for baseline in [30i64, i64::MAX, 4, 0] {
+        for immobilized_order in [None, Some(0), Some(2)] {
+            let encounter = f
+                .worker
+                .create_encounter(CreateEncounterRequest {
+                    name: format!("Movement {baseline} {immobilized_order:?}"),
+                    description: None,
+                    note: None,
+                })
+                .unwrap()
+                .encounter;
+            let detail = f
+                .worker
+                .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                    encounter_ref: encounter.encounter_key.clone(),
+                    record_ref: format!("Speed {baseline}"),
+                    quantity: 3,
+                    initiative: None,
+                })
+                .unwrap();
+            let participants = detail.participants;
+            let mut conditions = vec![
+                "conditionitems:D5mg6Tc7Jzrj6ro7",
+                "conditionitems:D5mg6Tc7Jzrj6ro7",
+            ];
+            if let Some(position) = immobilized_order {
+                conditions.insert(position, "conditionitems:eIcWbB5o3pP6OIMe");
+            }
+            for (i, condition) in conditions.iter().enumerate() {
+                f.worker
+                    .add_encounter_participant_condition(
+                        &encounter.encounter_key,
+                        AddEncounterParticipantConditionRequest {
+                            participant_key: participants[0].participant_key.clone(),
+                            condition_ref: Some((*condition).into()),
+                            name: None,
+                            value: None,
+                            source_participant_key: Some(
+                                participants[1 + i % 2].participant_key.clone(),
+                            ),
+                            duration_rounds: None,
+                            note: None,
+                        },
+                    )
+                    .unwrap();
+            }
+            let detail = f.worker.encounter(&encounter.encounter_key).unwrap();
+            let participant = &detail.participants[0];
+            let block = participant.stat_block.as_ref().unwrap();
+            let speed = &block.speeds[0];
+            let expected = if immobilized_order.is_some() {
+                0
+            } else if baseline > 0 {
+                (baseline - 10).max(5)
+            } else {
+                baseline
+            };
+            assert_eq!(speed.base_value_feet, Number::from(baseline));
+            assert_eq!(
+                speed.adjusted_value_feet,
+                Number::from(expected),
+                "{baseline} {immobilized_order:?}"
+            );
+            assert_eq!(speed.notes.len(), 1);
+            assert_eq!(
+                participant
+                    .conditions
+                    .iter()
+                    .filter(
+                        |c| c.condition_key.as_deref() == Some("conditionitems:D5mg6Tc7Jzrj6ro7")
+                    )
+                    .count(),
+                2
+            );
+        }
     }
 }
 
-fn creature(name: &str, initiative: Option<i64>) -> AddEncounterParticipant {
-    AddEncounterParticipant {
-        record_key: Some(RecordKey::parse("actors:testCreature").expect("key should parse")),
-        participant_kind: ParticipantKind::Creature,
-        display_name: name.to_string(),
-        record_title_snapshot: Some(name.to_string()),
-        record_kind_snapshot: Some("creature".to_string()),
-        side: ParticipantSide::Enemy,
-        initiative,
-        max_hp: Some(10),
-        current_hp: Some(10),
-        temporary_hp: 0,
-        note: None,
-    }
+#[test]
+fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
+    use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+    let before = encounter_fixture_worker();
+    let e = before
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Rebuild".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let d = before
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let mut change = update(&d.participants[0]);
+    change.current_hp = Some(17);
+    change.hp_edit = true;
+    change.temporary_hp = 4;
+    before
+        .worker
+        .update_encounter_participant(&e.encounter_key, change)
+        .unwrap();
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![record(
+                "actors",
+                "Actor",
+                json!({"_id":"testCreature1000","type":"npc","name":"Updated creature","system":{"details":{"level":{"value":6}},"attributes":{"adjustment":null,"hp":{"max":120},"ac":{"value":24}}}}),
+            )],
+            false,
+        )?)
+    });
+    let mut after = fixture_worker_with_executor(executor);
+    after.worker.local_state_path = before.worker.local_state_path.clone();
+    let d = after.worker.encounter(&e.encounter_key).unwrap();
+    let p = &d.participants[0];
+    assert_eq!(
+        (p.max_hp, p.current_hp, p.temporary_hp),
+        (Some(60), Some(17), 4)
+    );
+    assert_eq!(p.hp_origin, "derived_edited");
+    assert_eq!(p.record.as_ref().unwrap().title, "Updated creature");
+    assert_eq!(
+        p.stat_block
+            .as_ref()
+            .unwrap()
+            .values
+            .iter()
+            .find(|v| v.target == "hp.max")
+            .unwrap()
+            .base_value,
+        serde_json::Number::from(120)
+    );
 }
 
-fn participant_update(
-    participant: &EncounterParticipant,
-    defeated: bool,
-) -> UpdateEncounterParticipantRequest {
-    UpdateEncounterParticipantRequest {
-        participant_key: participant.participant_key.clone(),
-        display_name: participant.display_name.clone(),
-        side: participant_side_view(participant.side),
-        participant_variant: participant_variant_view(participant.participant_variant),
-        initiative: participant.initiative,
-        max_hp: participant.max_hp,
-        current_hp: participant.current_hp,
-        temporary_hp: participant.temporary_hp,
-        defeated,
-        hidden: participant.hidden,
-        note: participant.note.clone(),
+#[test]
+fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
+    let f = encounter_fixture_worker();
+    let e = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Hazard".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let d = f
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key.clone(),
+            record_ref: "Test Hazard 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let p = &d.participants[0];
+    assert_eq!((p.max_hp, p.current_hp), (Some(40), Some(40)));
+    let block = p.stat_block.as_ref().unwrap();
+    assert_eq!(
+        block
+            .values
+            .iter()
+            .find(|v| v.target == "hazard.hardness")
+            .unwrap()
+            .base_value,
+        serde_json::Number::from(8)
+    );
+    assert_eq!(
+        block
+            .values
+            .iter()
+            .find(|v| v.target == "hazard.stealth")
+            .unwrap()
+            .base_value,
+        serde_json::Number::from(12)
+    );
+    assert!(
+        !block
+            .unapplied_effects
+            .iter()
+            .any(|n| n.source == "npc-adjustment")
+    );
+    let mut change = update(p);
+    change.participant_variant = EncounterParticipantVariantView::Elite;
+    change.variant_edit = true;
+    let p = f
+        .worker
+        .update_encounter_participant(&e.encounter_key, change)
+        .unwrap();
+    assert_eq!((p.max_hp, p.current_hp), (Some(40), Some(40)));
+    assert_eq!(
+        p.stat_block
+            .as_ref()
+            .unwrap()
+            .values
+            .iter()
+            .find(|v| v.target == "ac")
+            .unwrap()
+            .adjusted_value,
+        serde_json::Number::from(18)
+    );
+}
+
+#[test]
+fn authored_lore_variants_and_nondamaging_casting_entries_remain_context() {
+    let input = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{"_id":"bbbbbbbbbbbbbbbb","type":"lore","name":"Sailing Lore","system":{"mod":{"value":14},"variants":{"storm":{"label":"Storm navigation","options":"Only while navigating a storm"}}}},{"_id":"cccccccccccccccc","type":"spellcastingEntry","name":"Arcane Spells","system":{"description":{"value":"<p>Cast authored spells</p>"}}}]}),
+    );
+    let block = super::mechanics::record_stat_block(&input.record, "fixture-fingerprint").unwrap();
+    let lore = block
+        .values
+        .iter()
+        .find(|v| v.label == "Sailing Lore")
+        .unwrap();
+    assert_eq!(lore.base_value, serde_json::Number::from(14));
+    assert!(
+        block
+            .unapplied_effects
+            .iter()
+            .any(|n| n.label == "Storm navigation" && n.reason == "Only while navigating a storm")
+    );
+    let casting = block
+        .activities
+        .iter()
+        .find(|a| a.label == "Arcane Spells")
+        .unwrap();
+    assert!(casting.rolls.is_empty() && casting.damage.is_empty());
+    assert_eq!(casting.navigation.owners.len(), 1);
+}
+
+#[test]
+fn nondamaging_owned_effects_keep_checked_navigation() {
+    let input = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{"type":"effect","name":"Aura","system":{"description":{"value":"<p>Authored effect</p>"}}}]}),
+    );
+    let block = super::mechanics::record_stat_block(&input.record, "fixture-fingerprint").unwrap();
+    let effect = &block.activities[0];
+    assert_eq!(effect.label, "Aura");
+    assert!(effect.rolls.is_empty() && effect.damage.is_empty());
+    assert_eq!(
+        effect.navigation.source_fingerprint.as_deref(),
+        Some("fixture-fingerprint")
+    );
+}
+
+#[test]
+fn omitted_adjustment_under_known_attributes_defaults_local_hp_without_rewriting_source() {
+    use atlas_local_state::{ParticipantVariant, ParticipantVariantOrigin};
+    use atlas_record::source_record::{SourceFieldView, SourceQueryView};
+    for (attributes, origin, max) in [
+        (
+            serde_json::json!({"hp":{"max":20}}),
+            ParticipantVariantOrigin::DefaultUnadjusted,
+            Some(20),
+        ),
+        (
+            serde_json::json!({"adjustment":"bad","hp":{"max":20}}),
+            ParticipantVariantOrigin::InheritedUnknown,
+            None,
+        ),
+        (
+            serde_json::Value::Null,
+            ParticipantVariantOrigin::InheritedUnknown,
+            None,
+        ),
+    ] {
+        let input = atlas_search::test_support::record(
+            "actors",
+            "Actor",
+            serde_json::json!({"_id":"LHHgGSs0ELCR4CYK","type":"npc","name":"Ghoul","system":{"attributes":attributes}}),
+        );
+        let (variant, actual_origin) = super::mechanics::initial_variant(&input.record);
+        assert_eq!(actual_origin, origin);
+        assert_eq!(super::mechanics::effective_max(&input.record, variant), max);
+        if origin == ParticipantVariantOrigin::DefaultUnadjusted {
+            assert_eq!(variant, Some(ParticipantVariant::Normal));
+            assert!(matches!(
+                SourceQueryView::new(input.record.source(), "actors", "")
+                    .actor()
+                    .authored_adjustment(),
+                SourceFieldView::Missing
+            ));
+        }
     }
+    let executor = crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(atlas_search::test_support::open_source_fixture(
+            vec![atlas_search::test_support::record(
+                "actors",
+                "Actor",
+                serde_json::json!({"_id":"LHHgGSs0ELCR4CYK","type":"npc","name":"Ghoul","system":{"attributes":{"hp":{"max":20}}}}),
+            )],
+            false,
+        )?)
+    });
+    let f = crate::test_support::fixture_worker_with_executor(executor);
+    let e = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Default adjustment".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let d = f
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key,
+            record_ref: "Ghoul".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    assert_eq!(
+        (d.participants[0].max_hp, d.participants[0].current_hp),
+        (Some(20), Some(20))
+    );
+    assert_eq!(d.participants[0].variant_origin, "default_unadjusted");
+}
+
+#[test]
+#[ignore = "requires the pinned source corpus; run explicitly for cutover evidence"]
+fn corpus_npc_adjustment_defaults_preserve_typed_ghoul_hp() {
+    use atlas_foundry_model::{SourceContext, admit_document_source};
+    use atlas_local_state::ParticipantVariantOrigin;
+    use atlas_record::source_record::SourceBackedRecord;
+    let current = std::env::current_dir().unwrap();
+    let source = current
+        .ancestors()
+        .find_map(|p| {
+            let path = p.join("scratch/source-contracts-full/pf2e/packs");
+            path.is_dir().then_some(path)
+        })
+        .expect("pinned corpus path available in checkout ancestor");
+    let mut pending = vec![source.clone()];
+    let (mut total, mut defaults, mut inherited, mut unknown) = (0, 0, 0, 0);
+    let mut ghoul = None;
+    while let Some(path) = pending.pop() {
+        if path.is_dir() {
+            pending.extend(std::fs::read_dir(path).unwrap().map(|e| e.unwrap().path()));
+            continue;
+        }
+        if path.extension().is_none_or(|e| e != "json") {
+            continue;
+        }
+        let bytes = std::fs::read(&path).unwrap();
+        let raw: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        if raw["type"] != "npc" {
+            continue;
+        }
+        let pack = path
+            .strip_prefix(&source)
+            .unwrap()
+            .components()
+            .next()
+            .unwrap()
+            .as_os_str()
+            .to_str()
+            .unwrap();
+        let admitted = admit_document_source(
+            "Actor",
+            SourceContext::new(pack, path.to_str().unwrap(), "$"),
+            &bytes,
+        )
+        .unwrap()
+        .model
+        .unwrap();
+        let record = SourceBackedRecord::new(pack, admitted).unwrap();
+        let (variant, origin) = super::mechanics::initial_variant(&record);
+        let max = super::mechanics::effective_max(&record, variant);
+        total += 1;
+        match origin {
+            ParticipantVariantOrigin::DefaultUnadjusted => {
+                defaults += 1;
+                assert!(max.is_some(), "{}", record.key());
+            }
+            ParticipantVariantOrigin::InheritedKnown => inherited += 1,
+            ParticipantVariantOrigin::InheritedUnknown => unknown += 1,
+            ParticipantVariantOrigin::Explicit => panic!("source initialization is never explicit"),
+        }
+        if record.key().to_string() == "pathfinder-bestiary:LHHgGSs0ELCR4CYK" {
+            ghoul = Some((origin, max));
+        }
+    }
+    assert_eq!((total, defaults, inherited, unknown), (5492, 5237, 252, 3));
+    assert_eq!(
+        ghoul,
+        Some((ParticipantVariantOrigin::DefaultUnadjusted, Some(20)))
+    );
+    eprintln!(
+        "NPC defaults: roots={total} default_unadjusted={defaults} inherited={inherited} unknown={unknown}; actual Ghoul HP=20"
+    );
 }

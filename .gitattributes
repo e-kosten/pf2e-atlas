@@ -1,0 +1,2 @@
+# Reproducible source-model artifacts; review the generator and expand as needed.
+crates/atlas-ingest/src/source_model/generated/** linguist-generated=true

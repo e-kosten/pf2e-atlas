@@ -1,12 +1,15 @@
 [workspace]
 members = [
   "crates/atlas-cli",
+  "crates/atlas-cli-support",
+  "crates/atlas-dev",
   "crates/atlas-app-model",
   "crates/atlas-app-service",
   "crates/atlas-web",
   "crates/atlas-domain",
   "crates/atlas-embedding",
   "crates/atlas-ingest",
+  "crates/atlas-foundry-model",
   "crates/atlas-index",
   "crates/atlas-local-state",
   "crates/atlas-record",
@@ -26,11 +29,13 @@ homepage = "https://github.com/e-kosten/pf2e-atlas"
 rust-version = "1.95"
 
 [workspace.dependencies]
+atlas-cli-support = { path = "crates/atlas-cli-support" }
 atlas-domain = { path = "crates/atlas-domain" }
 atlas-app-model = { path = "crates/atlas-app-model" }
 atlas-app-service = { path = "crates/atlas-app-service" }
 atlas-web = { path = "crates/atlas-web" }
 atlas-embedding = { path = "crates/atlas-embedding" }
+atlas-foundry-model = { path = "crates/atlas-foundry-model" }
 atlas-ingest = { path = "crates/atlas-ingest" }
 atlas-index = { path = "crates/atlas-index" }
 atlas-local-state = { path = "crates/atlas-local-state" }
@@ -39,6 +44,7 @@ atlas-runtime = { path = "crates/atlas-runtime" }
 atlas-search = { path = "crates/atlas-search" }
 atlas-sqlite-vec = { path = "crates/atlas-sqlite-vec" }
 atlas-tags = { path = "crates/atlas-tags" }
+ammonia = "=4.2.1"
 axum = "0.8.7"
 clap = { version = "4.5.53", features = ["derive"] }
 clap_complete = "4.5.60"
@@ -46,12 +52,15 @@ diesel = { version = "2.3.3", features = ["sqlite", "returning_clauses_for_sqlit
 indicatif = "0.18.3"
 inquire = { version = "0.9.4", default-features = false, features = ["crossterm"] }
 ego-tree = "0.10.0"
+html2text = "=0.15.5"
 rand = "0.9.2"
 rayon = "1.12.0"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+ryu-js = "1.0.3"
 rust-embed = "8.11.0"
 scraper = "0.24.0"
 serde = { version = "1.0.228", features = ["derive"] }
+serde_stacker = "0.1.14"
 serde_json = "1.0.145"
 yaml_serde = "0.10.4"
 sha2 = "0.10.9"
@@ -62,8 +71,11 @@ tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread", "net"] }
 tracing = "0.1.41"
 tracing-subscriber = "0.3.20"
 ts-rs = { version = "11.1.0", features = ["serde-json-impl"] }
-ort = { version = "=2.0.0-rc.12", features = ["ndarray"] }
 tokenizers = { version = "=0.22.2", default-features = false, features = ["onig"] }
+fastembed = { version = "=5.15.0", default-features = false, features = ["ort-download-binaries-rustls-tls"] }
+text-splitter = { version = "=0.29.3", default-features = false, features = ["tokenizers"] }
+unicode-normalization = "0.1.24"
+cel = { version = "=0.14.5", default-features = false }
 ureq = "3.3.0"
 
 # The profile that 'dist' will build with

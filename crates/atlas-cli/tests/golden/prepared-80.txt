@@ -1,0 +1,28 @@
+## Ghoul Fever
+
+**Saving Throw** DC 23 Fortitude
+
+────────────
+* Stage one
+* Stage two
+
+Local stages
+
+─────┬──────
+Stage│Effect
+─────┼──────
+1    │Fever
+─────┴──────
+
+8. Stage eight
+
+9. Stage nine
+
+[Reference][1]DC 23 Fortitude
+
+[image unavailable: Foundry portrait]
+
+The creature carries the affliction within its own ability description, so
+opening this passage preserves its local saving throw and all stages.
+
+[1]: https://example.com

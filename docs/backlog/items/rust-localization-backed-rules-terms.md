@@ -3,11 +3,15 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-07
+Last reviewed: 2026-10-09
 
 ## Problem
 
-PF2e source localization contains reusable rules vocabulary such as trait labels, trait descriptions, and NPC ability glossary entries. Atlas now resolves `@Localize[...]` macros during ingest and preserves localization key context inside `RichDocument`, but it does not persist selected localization-backed vocabulary as canonical product concepts.
+PF2e source localization contains reusable rules vocabulary such as trait labels,
+trait descriptions and NPC ability glossary entries. Source-backed preparation
+resolves `@Localize[...]`; the artifact context retains only verified trait labels
+used by selected vocabulary. Labels do not create canonical product terms,
+description hover cards or executable mechanics.
 
 That means web and future TUI surfaces can render localized text correctly, but they still cannot offer AoN-style trait or glossary hover cards, detail pages, or explicit relationships from records to reusable rules terms.
 
@@ -18,9 +22,25 @@ Design and implement a canonical rules-term layer for high-value localization-ba
 The implementation should support:
 
 - canonical term identity such as `trait:halfling` or `npc-ability-glossary:negative-healing`
-- term kind, slug, label, localization keys, and parsed `RichDocument` description content
+- term kind, slug, label, localization keys and selected prepared HTML description content
 - relationships from normal records to terms through trait membership, localized macros, rule-option labels, or authored references
 - web/TUI-ready lookup and hover-card data without making runtime consumers resolve raw localization keys
+
+## Source discovery prerequisite
+
+The completed [source-contract generation and catalog work](../history/items/rust-source-contract-generation.md)
+proposes extracting upstream trait and other-tag identifiers, authoritative labels,
+localization keys, authored description text and catalog/family membership first.
+That source-only catalog can be inspected independently of storage or app models.
+Catalog extraction does not complete this item's product lookup, hover content or
+record-to-term relationships.
+
+Use the explicit upstream trait-description mappings, including parameterized
+variants, rather than assuming every label key has a mechanically matching
+description key. Preserve missing descriptions. Foundry otherTags can have
+family-specific vocabularies and remain distinct from traits and Atlas authored
+tags. Description prose does not itself supply structured implication edges or
+executable mechanics. AoN-style citations/links require a separate source review.
 
 ## Initial Scope
 
@@ -40,11 +60,13 @@ Potential table families:
 - `rules_term_content`
 - `record_term_occurrences`
 
-Keep `record_traits` as the filterable trait facet table. `rules_terms` should answer "what is this trait or glossary entry?", while `record_traits` should answer "which records have this trait?"
+Keep catalog-bound trait projections as the filter surface. A rules-term layer
+should answer "what is this trait or glossary entry?" without replacing the
+authored trait identifiers or duplicating record identity.
 
 ## Constraints
 
-- Preserve `RichDocument` macro context for `@Localize[...]`; do not replace localized macro provenance with plain text.
+- Preserve relevant authored localization and source provenance; do not introduce a persisted document tree for term rendering.
 - Keep generic localization loading ingest-owned.
 - Avoid turning broad localization catalogs into runtime product data.
 - Add validation for term identity, content coverage, and occurrence references if artifact tables are added.
@@ -52,4 +74,4 @@ Keep `record_traits` as the filterable trait facet table. `rules_terms` should a
 ## Related
 
 - [Rust artifact contract](../../architecture/artifact-contract.md)
-- [Rust artifact JSON content model review](./rust-artifact-json-content-model-review.md)
+- [Rust artifact JSON content model review](../history/items/rust-artifact-json-content-model-review.md)

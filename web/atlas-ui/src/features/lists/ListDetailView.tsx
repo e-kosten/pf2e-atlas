@@ -14,7 +14,7 @@ import {
   type AtlasRoute,
 } from "../../app/routes";
 import {
-  buildBasicFilter,
+  buildFilter,
   DEFAULT_SEARCH_STATE,
   encodeSearchExecutionState,
   type SearchFormState,
@@ -63,7 +63,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       return filterSavedList({
         list_ref: route.slug,
         ...(query ? { query } : {}),
-        filter: buildBasicFilter(activeFilters),
+        ...(buildFilter(activeFilters) ? { filter: buildFilter(activeFilters)! } : {}),
       });
     },
   });

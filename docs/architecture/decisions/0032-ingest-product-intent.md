@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted.
+Partially superseded by ADR 0046 and the generated source-model decisions.
+The full checked authored DTO is retained independently of product use; selected
+query/presentation projections still require a concrete product purpose. Persisted
+original JSON, metric authority and heuristic coverage ledgers below are retired.
 
 ## Context
 

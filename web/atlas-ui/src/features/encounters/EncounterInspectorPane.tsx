@@ -1,4 +1,4 @@
-import { Button, Form, Input, Select } from "antd";
+import { Button, Form, Input, Select, Modal } from "antd";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 import type { getRecordDetail } from "../../api/atlasApi";
@@ -16,6 +16,8 @@ import {
   participantUpdate,
 } from "./participantEdits";
 import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
+import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
+import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { RecordSurface } from "../../shared/records/RecordSurface";
 import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
@@ -61,10 +63,9 @@ export function EncounterInspectorPane({
       <section className="encounter-pane detail-empty">Select a participant.</section>
     );
   }
-  const surface = participant.surface;
   return (
     <section className="encounter-pane encounter-record-pane">
-      {surface ? (
+      {
         <EncounterParticipantSurface
           conditionDefinitions={conditionDefinitions}
           onAddCondition={onAddCondition}
@@ -75,8 +76,12 @@ export function EncounterInspectorPane({
           participant={participant}
           participants={participants}
         />
-      ) : (
-        <SurfaceUnavailable participant={participant} />
+      }
+      {participant.record_key && (
+        <ParticipantSourceContent
+          recordKey={participant.record_key}
+          onReference={onReference}
+        />
       )}
       {previewRecordKey && (
         <RecordPreviewPopover
@@ -88,23 +93,6 @@ export function EncounterInspectorPane({
           onReference={onReference}
         />
       )}
-    </section>
-  );
-}
-
-function SurfaceUnavailable({
-  participant,
-}: {
-  participant: EncounterParticipantView;
-}) {
-  return (
-    <section className="encounter-surface-unavailable">
-      <p className="eyebrow">{participantKindLabel(participant.participant_kind)}</p>
-      <h2>{participant.display_name}</h2>
-      <p>
-        This participant does not have a composed record surface yet. This is a
-        projection gap rather than a fallback UI.
-      </p>
     </section>
   );
 }
@@ -150,62 +138,67 @@ function EncounterParticipantSurface({
     onUpdate(request);
   };
   const surface = activeCurrent.surface ?? participant.surface;
-  if (!surface) {
-    return null;
-  }
-  return (
-    <RecordSurface
-      onReference={onReference}
-      surface={surface}
-      slots={{
-        header: (
-          <ParticipantEditStrip
-            participant={activeCurrent}
-            onUpdate={updateParticipant}
-          />
-        ),
-        header_actions: (
-          <>
-            <Button
-              aria-label="Participant note"
-              icon={<Pencil size={14} />}
-              onClick={() => setNoteOpen((open) => !open)}
-              size="small"
-              type={noteOpen ? "primary" : "default"}
-            />
-            <ParticipantVariantControl
+  const slots = {
+    header: (
+      <ParticipantEditStrip participant={activeCurrent} onUpdate={updateParticipant} />
+    ),
+    header_actions: (
+      <>
+        <Button
+          aria-label="Participant note"
+          icon={<Pencil size={14} />}
+          onClick={() => setNoteOpen((open) => !open)}
+          size="small"
+          type={noteOpen ? "primary" : "default"}
+        />
+        <ParticipantVariantControl
+          participant={activeCurrent}
+          onUpdate={updateParticipant}
+        />
+      </>
+    ),
+    vitals: (
+      <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
+    ),
+    conditions: (
+      <EncounterConditionControls
+        conditionDefinitions={conditionDefinitions}
+        current={activeCurrent}
+        onAddCondition={onAddCondition}
+        onReference={onReference}
+        onRemoveCondition={onRemoveCondition}
+        onUpdateCondition={onUpdateCondition}
+        participants={participants}
+      />
+    ),
+    ...(noteOpen
+      ? {
+          notes: (
+            <ParticipantNoteEditor
               participant={activeCurrent}
               onUpdate={updateParticipant}
             />
-          </>
-        ),
-        vitals: (
-          <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
-        ),
-        conditions: (
-          <EncounterConditionControls
-            conditionDefinitions={conditionDefinitions}
-            current={activeCurrent}
-            onAddCondition={onAddCondition}
-            onReference={onReference}
-            onRemoveCondition={onRemoveCondition}
-            onUpdateCondition={onUpdateCondition}
-            participants={participants}
-          />
-        ),
-        ...(noteOpen
-          ? {
-              notes: (
-                <ParticipantNoteEditor
-                  participant={activeCurrent}
-                  onUpdate={updateParticipant}
-                />
-              ),
-            }
-          : {}),
-      }}
-    />
-  );
+          ),
+        }
+      : {}),
+  };
+  if (!surface)
+    return (
+      <section aria-label="Participant controls">
+        <h2>{activeCurrent.display_name}</h2>
+        {activeCurrent.status === "unresolved" && (
+          <p>
+            Authored record unavailable. Saved participant settings remain editable.
+          </p>
+        )}
+        {slots.header}
+        {slots.header_actions}
+        {slots.vitals}
+        {slots.conditions}
+        {slots.notes}
+      </section>
+    );
+  return <RecordSurface onReference={onReference} surface={surface} slots={slots} />;
 }
 
 function ParticipantVariantControl({
@@ -306,11 +299,31 @@ function ParticipantNoteEditor({
   );
 }
 
-function participantKindLabel(
-  kind: EncounterParticipantView["participant_kind"],
-): string {
-  if (kind === "pc") {
-    return "PC";
-  }
-  return kind.charAt(0).toUpperCase() + kind.slice(1);
+function ParticipantSourceContent({
+  recordKey,
+  onReference,
+}: {
+  recordKey: string;
+  onReference: (key: string, anchorRect?: DOMRect) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const detail = useRecordDetail(open ? recordKey : null);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>Source content</Button>
+      <Modal
+        open={open}
+        onCancel={() => setOpen(false)}
+        footer={null}
+        title="Authored source content"
+      >
+        <RecordDetailPane
+          detail={detail.data}
+          loading={detail.isLoading}
+          errors={[detail.error]}
+          onReference={onReference}
+        />
+      </Modal>
+    </>
+  );
 }

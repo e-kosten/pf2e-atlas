@@ -1,30 +1,11 @@
 # atlas-search
 
-`atlas-search` owns product-facing retrieval orchestration for the Rust runtime.
+`AtlasRetrievalService` coordinates source-backed product retrieval through the checked `atlas-index` reader. Methods expose typed requests, `SourceRecordSummary` results, selected source detail, attributed passage witnesses, graph occurrences, and explicit candidate coverage.
 
-This crate coordinates read-only index handles, query embedding, vector/lexical retrieval, result assembly, ranking modes, graph context, variants, remaster links, and similar-record retrieval behind `AtlasRetrievalService`.
+All product operations exclude Macro tooling. Browse uses the executable filter catalog and stable name/key ordering. Names and verified aliases resolve strictly, with ambiguity preserved. Source details decode one root snapshot and load selected prepared HTML/control fields in bounded batches; product reads never scan the source checkout.
 
-## Owns
+Lexical search groups the complete eligible posting relation by root. Semantic search filters before KNN, groups by maximum unit similarity, and expands fixed unit windows of 1024, 2048, and 4096 before paging. Hybrid combines one rank per root and lane using RRF with constant 60. Results carry at most three attributed witnesses and report bounded semantic coverage. Similar uses the seed's stored identity vector and excludes the seed before KNN; it requires no query embedder.
 
-- `AtlasRetrievalService` as the product-facing retrieval boundary.
-- Narrow capability traits such as `RecordRetrieval`, `TextRetrieval`, `SimilarRetrieval`, `GraphRetrieval`, `VariantRetrieval`, and `RemasterRetrieval`.
-- Semantic, lexical, hybrid, filter-only, graph context, similar-record, variant, and remaster retrieval orchestration.
-- Query embedding composition with `atlas-embedding`.
-- Vector-hit collapse and search ranking modes.
-- User-facing search result DTOs.
+Verified remaster pairs suppress a legacy result only when the counterpart belongs to the same complete request candidate set. Exact access and legacy-only matches remain available. Suggested variants use constrained name conventions within one pack and family, with known physical compatibility and explicit ambiguity. They create no aliases, canonical records, or remaster evidence.
 
-## Should Not Own
-
-- Opening source files or building artifacts.
-- Raw SQLite schema definitions.
-- Artifact validation or row-loading internals.
-- Embedding model catalog definitions.
-- CLI command presentation.
-
-## Boundary Notes
-
-Product surfaces should use this crate for retrieval instead of assembling `atlas-index` and `atlas-embedding` directly. Public APIs should expose search-owned request/result types and collapse implementation details into `SearchErrorKind` when callers need error classification. Keep lower-level index, SQL, semantic/vector, and filter compiler details private unless they are durable product boundaries.
-
-The crate root is the ordinary product surface. Semantic-only retrieval DTOs and low-level fusion controls are available under `atlas_search::expert` for CLI diagnostics, tuning, and validation workflows, but normal callers should prefer `TextRetrieval` with default `TextSearchRequest` tuning.
-
-Text-search diagnostics are explain-scoped. `TextSearchResult::diagnostics` and per-match diagnostics are populated only when the caller sets `TextSearchRequest::explain`; ordinary search responses carry records, pagination, retrieval mode, and resolved fusion settings without query-token or rank-evidence details.
+Filter discovery uses the same typed predicate/compiler and a separately frozen clause-removed candidate universe. Candidate values are restored before conditional pair preference. SQL, schema ownership, validation, and row loading remain in `atlas-index`; source admission remains in `atlas-ingest` and generated DTO ownership in `atlas-foundry-model`.

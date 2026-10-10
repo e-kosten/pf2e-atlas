@@ -5,206 +5,32 @@
   padding: var(--panel-padding);
   overflow: auto;
 }
-
-.control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.control-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.filter-search-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-}
-
-.control-group label {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.control-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.filter-section {
-  display: grid;
-  gap: 10px;
-}
-
-.filter-option-row.ant-btn {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  align-items: center;
-  justify-content: stretch;
-  width: 100%;
-  min-height: 28px;
-  height: auto;
-  padding: 4px 6px;
-  text-align: left;
-  gap: 8px;
-}
-
-.filter-option-row.ant-btn > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.filter-option-row.ant-btn:disabled {
-  opacity: 0.55;
-}
-
-.filter-option-state-marker {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: transparent;
-  line-height: 1;
-}
-
-.filter-option-state-marker svg {
-  display: block;
-}
-
-.filter-option-row.is-included .filter-option-state-marker {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent);
-}
-
-.filter-option-row.is-excluded .filter-option-state-marker {
-  border-color: color-mix(in srgb, var(--muted) 55%, var(--line));
-  background: var(--panel-subtle);
-  color: var(--muted);
-}
-
-.tri-state-filter-trigger {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-height: 32px;
-  width: 100%;
-  padding: 3px 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--panel);
-  cursor: pointer;
-}
-
-.tri-state-filter-trigger:hover,
-.tri-state-filter-trigger.is-open,
-.tri-state-filter-trigger:focus-visible {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-  outline: none;
-}
-
-.tri-state-filter-placeholder {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.tri-state-filter-menu {
-  display: grid;
-  min-width: min(280px, calc(100vw - 32px));
-  max-width: calc(100vw - 32px);
-  gap: 8px;
-}
-
-.tri-state-filter-content {
-  display: grid;
-  gap: 8px;
-}
-
-.tri-state-filter-options {
-  display: grid;
-  gap: 2px;
-  max-height: 260px;
-  overflow: auto;
-}
-
-.tri-state-filter-empty {
-  margin: 8px 0;
-}
-
-.filter-value-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 100%;
-  margin-inline-end: 0;
-}
-
-.filter-value-tag-marker {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
-}
-
-.filter-value-tag-marker svg {
-  display: block;
-}
-
-.filter-value-tag-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.filter-value-tag .ant-tag-close-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: inherit;
+.filter-panel .ruleGroup {
   background: transparent;
-  cursor: pointer;
+  border-color: var(--line);
+  max-width: 100%;
 }
-
-.filter-value-tag .ant-tag-close-icon:hover {
-  background: color-mix(in srgb, currentColor 12%, transparent);
+.filter-panel .ruleGroup-header,
+.filter-panel .rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
-
-.filter-value-tag .ant-tag-close-icon svg {
-  display: block;
+.filter-panel .ruleGroup-body {
+  min-width: 0;
 }
-
-.filter-value-tag.is-included {
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  color: var(--accent);
+.filter-panel .rule > .rule-fields {
+  flex: 1 1 100%;
+  min-width: 0;
 }
-
-.filter-value-tag.is-excluded {
-  border-color: color-mix(in srgb, var(--muted) 42%, transparent);
-  background: var(--panel-subtle);
-  color: var(--muted);
+.filter-panel .rule > .rule-operators {
+  flex: 1 1 80px;
+  min-width: 0;
 }
-
-.filter-empty-note {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
+.filter-panel .rule > .ant-input,
+.filter-panel .rule > .ant-select,
+.filter-panel .rule > .ant-space {
+  min-width: 0;
+  max-width: 100%;
 }

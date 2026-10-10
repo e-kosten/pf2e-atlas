@@ -1,3 +1,10 @@
+import {
+  detailFixture,
+  summaryFixture,
+  editorFixture,
+  fieldFixture,
+  valuesFixture,
+} from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -49,11 +56,7 @@ describe("list views", () => {
     apiMocks.filterSavedList.mockResolvedValue(savedListDetailFixture());
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditorFixture());
     apiMocks.discoverFilterValues.mockImplementation((request: { field_id: string }) =>
-      Promise.resolve({
-        field_id: request.field_id,
-        matching_record_count: 1n,
-        options: [],
-      }),
+      Promise.resolve(valuesFixture(request.field_id)),
     );
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
@@ -180,11 +183,11 @@ describe("list views", () => {
     expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
     expect(screen.getByText("List")).toBeInTheDocument();
     expect(screen.getByText("Items")).toBeInTheDocument();
-    expect(screen.getByText("Standard filters")).toBeInTheDocument();
+    expect(screen.getByText("Filters")).toBeInTheDocument();
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
-        filter: { clauses: [] },
+        filter: undefined,
       }),
     );
     expect(
@@ -242,7 +245,7 @@ describe("list views", () => {
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
-        filter: { clauses: [] },
+        filter: undefined,
       }),
     );
     fireEvent.change(await screen.findByPlaceholderText("Search records"), {
@@ -253,7 +256,7 @@ describe("list views", () => {
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
         query: "Test Action 2",
-        filter: { clauses: [] },
+        filter: undefined,
       }),
     );
   });
@@ -432,91 +435,26 @@ function savedListDetailFixture(): SavedListDetailView {
           title: "Test Action 1",
           kind: "rule",
         },
-        record: {
-          record_key: "actions:testAction1",
-          title: "Test Action 1",
-          kind: "rule",
-          kind_label: "Rule",
-        },
+        record: summaryFixture("actions:testAction1", "Test Action 1"),
       },
     ],
   };
 }
 
 function filterEditorFixture() {
-  return {
-    matching_record_count: 1n,
-    groups: [
-      {
-        id: "standard",
-        label: "Standard filters",
-        fields: [
-          filterField("level", "Level", "range"),
-          filterField("rarity", "Rarity", "option"),
-          filterField("kind", "Kind", "option"),
-          filterField("traits", "Traits", "option"),
-          filterField("pack", "Pack", "option"),
-        ],
-      },
-    ],
-  };
-}
-
-function filterField(id: string, label: string, controlKind: "option" | "range") {
-  return {
-    id,
-    label,
-    placement: "always_visible",
-    applicability: "applicable",
-    supports_counts: true,
-    allowed_operators: ["include_any", "include_all", "exclude_any"],
-    default_operator: "include_any",
-    control:
-      controlKind === "range"
-        ? {
-            kind: "range",
-            min: 0,
-            max: 25,
-            step: 1,
-            min_label: "Min",
-            max_label: "Max",
-          }
-        : { kind: "option" },
-  };
+  return editorFixture([
+    fieldFixture("actor.level", "number", "Level"),
+    fieldFixture("common.rarity", "string", "Rarity"),
+    fieldFixture("record.kind", "string", "Kind"),
+    fieldFixture("common.traits", "set", "Traits"),
+    fieldFixture("source.pack", "string", "Pack"),
+  ]);
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  return {
-    record_key: recordKey,
-    title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-    kind: "rule",
-    presentation: {
-      record_key: recordKey,
-      kind: "rule",
-      title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-      identity: [],
-      badges: [],
-      sections:
-        recordKey === "rules:nested"
-          ? []
-          : [
-              {
-                kind: "references",
-                title: "References",
-                blocks: [
-                  {
-                    kind: "relationships",
-                    content: [
-                      {
-                        kind: "reference",
-                        label: "Nested Rule",
-                        record_key: "rules:nested",
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-    },
-  };
+  return detailFixture(
+    recordKey,
+    recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
+    recordKey === "rules:nested" ? undefined : "rules:nested",
+  );
 }

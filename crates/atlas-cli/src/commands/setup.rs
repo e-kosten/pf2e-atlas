@@ -8,7 +8,8 @@ use atlas_runtime::{
 };
 use serde::Serialize;
 
-use crate::output::{format_duration_ms, write_json_data, write_json_error};
+use crate::output::format_duration_ms;
+use atlas_cli_support::{write_json_data, write_json_error};
 
 pub(crate) mod args;
 
@@ -72,6 +73,7 @@ fn run_setup_install(
         force_rebuild: options.force_rebuild,
         embedding_model_id: options.embedding_model,
         embedding_batch_size: options.embedding_batch_size,
+        locale: options.locale,
     };
     let report = runtime.ensure_setup(setup_options);
     let exit_class = report.exit_code_class();
@@ -227,18 +229,14 @@ struct SetupEmbeddingData {
 
 #[derive(Debug, Serialize)]
 struct SetupBuildData {
-    source_signature: String,
-    source_record_count: usize,
-    artifact_record_count: usize,
-    generated_record_count: usize,
-    pending_document_embedding_count: usize,
-    document_embedding_count: usize,
-    reused_document_embedding_count: usize,
-    generated_document_embedding_count: usize,
+    source_fingerprint: String,
+    record_count: usize,
+    product_record_count: usize,
+    semantic_unit_count: usize,
+    reused_inputs: usize,
+    inferred_inputs: usize,
+    context_shortened_sections: usize,
     build_duration_ms: u128,
-    embedding_tokenization_duration_ms: u128,
-    embedding_model_load_duration_ms: u128,
-    embedding_generation_duration_ms: u128,
 }
 
 #[derive(Debug, Serialize)]
@@ -309,21 +307,15 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
             format_duration_ms(build.build_duration_ms)
         );
         println!(
-            "  records: source={} generated={} artifact={}",
-            build.source_record_count, build.generated_record_count, build.artifact_record_count
+            "  records: {} ({} products)",
+            build.record_count, build.product_record_count
         );
         println!(
-            "  embeddings: pending_document={} document={} reused={} generated={}",
-            build.pending_document_embedding_count,
-            build.document_embedding_count,
-            build.reused_document_embedding_count,
-            build.generated_document_embedding_count
-        );
-        println!(
-            "  embedding timing: tokenization={} model_load={} generation={}",
-            format_duration_ms(build.embedding_tokenization_duration_ms),
-            format_duration_ms(build.embedding_model_load_duration_ms),
-            format_duration_ms(build.embedding_generation_duration_ms)
+            "  semantic units={} reused inputs={} inferred inputs={} shortened contexts={}",
+            build.semantic_unit_count,
+            build.reused_inputs,
+            build.inferred_inputs,
+            build.context_shortened_sections
         );
     }
 }
@@ -378,18 +370,14 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
             missing_files: report.embedding.missing_files.clone(),
         },
         build: report.build.as_ref().map(|build| SetupBuildData {
-            source_signature: build.source_signature.clone(),
-            source_record_count: build.source_record_count,
-            artifact_record_count: build.artifact_record_count,
-            generated_record_count: build.generated_record_count,
-            pending_document_embedding_count: build.pending_document_embedding_count,
-            document_embedding_count: build.document_embedding_count,
-            reused_document_embedding_count: build.reused_document_embedding_count,
-            generated_document_embedding_count: build.generated_document_embedding_count,
+            source_fingerprint: build.source_fingerprint.clone(),
+            record_count: build.record_count,
+            product_record_count: build.product_record_count,
+            semantic_unit_count: build.semantic_unit_count,
+            reused_inputs: build.reused_inputs,
+            inferred_inputs: build.inferred_inputs,
+            context_shortened_sections: build.context_shortened_sections,
             build_duration_ms: build.build_duration_ms,
-            embedding_tokenization_duration_ms: build.embedding_tokenization_duration_ms,
-            embedding_model_load_duration_ms: build.embedding_model_load_duration_ms,
-            embedding_generation_duration_ms: build.embedding_generation_duration_ms,
         }),
     }
 }

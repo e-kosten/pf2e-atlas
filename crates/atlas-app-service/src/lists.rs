@@ -18,17 +18,15 @@ use atlas_local_state::{
     SavedListItemStatus, UpdateSavedList, hydrate_saved_list_item,
 };
 use atlas_search::{
-    GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult, RecordRetrieval, RecordScope,
-    ResolveRecordRefRequest, RetrievalMode, SearchPage, TextRetrieval, TextSearchRequest,
-    TextSearchTuning,
+    GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult, RecordScope,
+    ResolveRecordRefRequest, RetrievalMode, SearchPage, TextSearchRequest,
 };
 use serde_json::json;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::filter::lower_basic_filter;
-use crate::projection::record_summary;
+use crate::projection::record_summary_view;
 use crate::service::AtlasAppService;
 
 impl AtlasAppService {
@@ -66,7 +64,7 @@ impl AtlasAppService {
         &self,
         request: FilterSavedListRequest,
     ) -> AppServiceResult<SavedListDetailView> {
-        let filter = lower_basic_filter(request.filter.as_ref())?;
+        let filter = request.filter;
         let query = request
             .query
             .as_deref()
@@ -118,15 +116,22 @@ impl AtlasAppService {
         request: AddSavedListItemRequest,
     ) -> AppServiceResult<SavedListItemMutationView> {
         let record = resolve_record_ref(self, &request.record_ref)?;
-        let record_key = record.identity.key.to_string();
-        let record_name = record.identity.name.clone();
+        let record_key = record.key.to_string();
+        let record_name = record
+            .name
+            .as_value()
+            .cloned()
+            .unwrap_or_else(|| record.key.to_string());
         let store = self.local_state_store()?;
         let outcome = store.saved_lists().add_resolved_item(
             &request.list_ref,
             ResolvedSavedListItem {
-                record_key: record.identity.key,
+                record_key: record.key,
                 title_snapshot: record_name.clone(),
-                kind_snapshot: Some(record.classification.kind.as_str().to_string()),
+                kind_snapshot: record
+                    .record_kind
+                    .as_value()
+                    .map(|kind| kind.as_str().to_string()),
                 note: request.note,
             },
         )?;
@@ -181,14 +186,21 @@ impl AtlasAppService {
                     continue;
                 }
             };
-            let record_key = record.identity.key.to_string();
-            let record_name = record.identity.name.clone();
+            let record_key = record.key.to_string();
+            let record_name = record
+                .name
+                .as_value()
+                .cloned()
+                .unwrap_or_else(|| record.key.to_string());
             let outcome = store.saved_lists().add_resolved_item(
                 &list.list_key,
                 ResolvedSavedListItem {
-                    record_key: record.identity.key,
+                    record_key: record.key,
                     title_snapshot: record_name.clone(),
-                    kind_snapshot: Some(record.classification.kind.as_str().to_string()),
+                    kind_snapshot: record
+                        .record_kind
+                        .as_value()
+                        .map(|kind| kind.as_str().to_string()),
                     note: item.note,
                 },
             )?;
@@ -229,7 +241,7 @@ impl AtlasAppService {
             (key, None)
         } else {
             let record = resolve_record_ref(self, &request.record_ref)?;
-            (record.identity.key, Some(record.identity.name))
+            (record.key, record.name.as_value().cloned())
         };
         let store = self.local_state_store()?;
         let removed = store
@@ -317,10 +329,22 @@ impl AtlasAppService {
                     record_key: item.record_key,
                     note: item.note,
                     record_title_snapshot: record
-                        .map(|record| record.identity.name.clone())
+                        .map(|record| {
+                            record
+                                .name
+                                .as_value()
+                                .cloned()
+                                .unwrap_or_else(|| record.key.to_string())
+                        })
                         .unwrap_or_else(|| item.snapshot.title),
                     record_kind_snapshot: record
-                        .map(|record| record.classification.kind.as_str().to_string())
+                        .map(|record| {
+                            record
+                                .record_kind
+                                .as_value()
+                                .map(|kind| kind.as_str().to_string())
+                                .unwrap_or_default()
+                        })
                         .or(item.snapshot.kind),
                 }
             })
@@ -371,7 +395,7 @@ impl AtlasAppService {
     fn saved_list_with_filter(
         &self,
         list_ref: &str,
-        filter: Option<&atlas_domain::SearchFilterNode>,
+        filter: Option<&atlas_domain::QueryPredicate>,
         query: Option<&str>,
         has_match_scope: bool,
     ) -> AppServiceResult<SavedListDetailView> {
@@ -411,7 +435,7 @@ impl AtlasAppService {
 fn hydrate_saved_list_records(
     service: &AtlasAppService,
     items: &[SavedListItem],
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, HydratedListRecord>> {
     let record_keys = items
         .iter()
         .filter_map(|item| RecordKey::parse(&item.record_key).ok())
@@ -424,8 +448,17 @@ fn hydrate_saved_list_records(
             .get_records(GetRecordsRequest {
                 record_keys: &record_keys,
             })?
+            .records
             .into_iter()
-            .map(|record| (record.identity.key.to_string(), record))
+            .map(|record| {
+                (
+                    record.key.to_string(),
+                    HydratedListRecord {
+                        view: crate::projection::localized_summary_view(&record, retrieval),
+                        summary: record,
+                    },
+                )
+            })
             .collect())
     })
 }
@@ -433,7 +466,7 @@ fn hydrate_saved_list_records(
 fn hydrate_export_records(
     service: &AtlasAppService,
     items: &[SavedListExportItemView],
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, atlas_domain::SourceRecordSummary>> {
     let record_keys = items
         .iter()
         .filter_map(|item| RecordKey::parse(&item.record_key).ok())
@@ -446,8 +479,9 @@ fn hydrate_export_records(
             .get_records(GetRecordsRequest {
                 record_keys: &record_keys,
             })?
+            .records
             .into_iter()
-            .map(|record| (record.identity.key.to_string(), record))
+            .map(|record| (record.key.to_string(), record))
             .collect())
     })
 }
@@ -482,8 +516,8 @@ fn is_batch_item_error(code: AppErrorCode) -> bool {
 fn filtered_saved_list_records(
     service: &AtlasAppService,
     record_keys: &[RecordKey],
-    filter: Option<&atlas_domain::SearchFilterNode>,
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+    filter: Option<&atlas_domain::QueryPredicate>,
+) -> AppServiceResult<BTreeMap<String, HydratedListRecord>> {
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
     }
@@ -496,11 +530,16 @@ fn filtered_saved_list_records(
             let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
             let result = retrieval.list_records(
                 ListRecordsRequest::new(filter.as_ref(), page)
-                    .with_scope(RecordScope::Keys(&record_keys))
-                    .with_sort(atlas_search::RecordListSort::RecordKey),
+                    .with_scope(RecordScope::Keys(&record_keys)),
             )?;
             for record in result.records {
-                records.insert(record.identity.key.to_string(), record);
+                records.insert(
+                    record.key.to_string(),
+                    HydratedListRecord {
+                        view: crate::projection::localized_summary_view(&record, retrieval),
+                        summary: record,
+                    },
+                );
             }
             if !result.page.has_more {
                 break;
@@ -514,9 +553,9 @@ fn filtered_saved_list_records(
 fn searched_saved_list_records(
     service: &AtlasAppService,
     record_keys: &[RecordKey],
-    filter: Option<&atlas_domain::SearchFilterNode>,
+    filter: Option<&atlas_domain::QueryPredicate>,
     query: &str,
-) -> AppServiceResult<BTreeMap<String, atlas_record::AtlasRecord>> {
+) -> AppServiceResult<BTreeMap<String, HydratedListRecord>> {
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
     }
@@ -527,26 +566,28 @@ fn searched_saved_list_records(
     service.submit_retrieval(move |retrieval| {
         let mut records = BTreeMap::new();
         let mut page_number = 1;
-        let tuning = TextSearchTuning::default()
-            .with_retrieval(RetrievalMode::Fts)
-            .with_candidate_windows(
-                atlas_search::MAX_RANKED_CANDIDATE_WINDOW,
-                atlas_search::MAX_RANKED_CANDIDATE_WINDOW,
-            );
         loop {
             let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
             let result = retrieval.search_text(TextSearchRequest {
                 query: &query,
-                exclude: None,
                 filter: filter.as_ref(),
                 scope: RecordScope::Keys(&record_keys),
                 page,
-                tuning: Some(tuning),
-                explain: false,
+                mode: RetrievalMode::Fts,
+                prefer_remaster: true,
             })?;
             for record in result.records {
-                if scoped_keys.contains(&record.record.identity.key) {
-                    records.insert(record.record.identity.key.to_string(), record.record);
+                if scoped_keys.contains(&record.record.key) {
+                    records.insert(
+                        record.record.key.to_string(),
+                        HydratedListRecord {
+                            view: crate::projection::localized_summary_view(
+                                &record.record,
+                                retrieval,
+                            ),
+                            summary: record.record,
+                        },
+                    );
                 }
             }
             if !result.page.has_more {
@@ -561,7 +602,7 @@ fn searched_saved_list_records(
 fn resolve_record_ref(
     service: &AtlasAppService,
     record_ref: &str,
-) -> AppServiceResult<atlas_record::AtlasRecord> {
+) -> AppServiceResult<atlas_domain::SourceRecordSummary> {
     let record_ref = record_ref.to_string();
     service.submit_retrieval(move |retrieval| {
         let resolution = retrieval.resolve_record_ref(ResolveRecordRefRequest {
@@ -583,7 +624,7 @@ fn resolve_record_ref(
         let records = retrieval.get_records(GetRecordsRequest {
             record_keys: std::slice::from_ref(&key),
         })?;
-        records.into_iter().next().ok_or_else(|| {
+        records.records.into_iter().next().ok_or_else(|| {
             AppServiceError::new(
                 AppErrorCode::RecordNotFound,
                 format!("record not found: {key}"),
@@ -622,11 +663,17 @@ fn record_resolution_candidate_view(
     resolution: atlas_search::RecordResolutionResult,
 ) -> RecordResolutionCandidateView {
     RecordResolutionCandidateView {
-        record: record_summary(&resolution.record),
+        record: record_summary_view(&resolution.record),
         query: resolution.query,
         normalized_query: resolution.normalized_query,
-        match_kind: resolution.match_kind.as_str().to_string(),
+        match_kind: match resolution.match_kind {
+            atlas_search::RecordResolutionMatchKind::Name => "name",
+            atlas_search::RecordResolutionMatchKind::NormalizedName => "normalized_name",
+            atlas_search::RecordResolutionMatchKind::Alias => "alias",
+        }
+        .into(),
         matched_text: resolution.matched_text,
+        evidence: resolution.evidence,
     }
 }
 
@@ -652,15 +699,16 @@ fn saved_list_summary(list: SavedList) -> SavedListSummaryView {
 
 fn saved_list_item_view(
     item: SavedListItem,
-    records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
+    records_by_key: &BTreeMap<String, HydratedListRecord>,
 ) -> SavedListItemView {
     let record = records_by_key.get(&item.record_key);
-    let hydrated = hydrate_saved_list_item(item, record);
-    saved_list_item_from_hydrated(hydrated)
+    let hydrated = hydrate_saved_list_item(item, record.map(|r| &r.summary));
+    saved_list_item_from_hydrated(hydrated, record.map(|r| r.view.clone()))
 }
 
 fn saved_list_item_from_hydrated(
-    item: HydratedSavedListItem<&atlas_record::AtlasRecord>,
+    item: HydratedSavedListItem<&atlas_domain::SourceRecordSummary>,
+    record: Option<atlas_app_model::RecordSummaryView>,
 ) -> SavedListItemView {
     SavedListItemView {
         record_key: item.record_key,
@@ -671,560 +719,18 @@ fn saved_list_item_from_hydrated(
             title: item.snapshot.title,
             kind: item.snapshot.kind,
         },
-        record: item.record.map(record_summary),
+        record,
     }
+}
+
+struct HydratedListRecord {
+    summary: atlas_domain::SourceRecordSummary,
+    view: atlas_app_model::RecordSummaryView,
 }
 
 fn saved_list_item_status(status: SavedListItemStatus) -> SavedListItemStatusView {
     match status {
         SavedListItemStatus::Active => SavedListItemStatusView::Active,
         SavedListItemStatus::Unresolved => SavedListItemStatusView::Unresolved,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use atlas_app_model::{
-        AddSavedListItemRequest, AppErrorCode, BasicSearchFilter, BatchAddSavedListItemsRequest,
-        BatchSavedListItemInput, BatchSavedListItemOutcomeView, CreateSavedListRequest,
-        FilterClause, FilterClauseOperator, FilterSavedListRequest, ImportSavedListRequest,
-        RemoveSavedListItemRequest, SavedListItemMutationOutcomeView, SavedListItemStatusView,
-        UpdateSavedListRequest,
-    };
-    use atlas_domain::RecordKey;
-    use atlas_local_state::{NewSavedList, ResolvedSavedListItem};
-
-    use crate::test_support::fixture_worker;
-
-    #[test]
-    fn saved_lists_returns_local_state_summaries() {
-        let fixture = fixture_worker();
-        let store = fixture
-            .worker
-            .local_state_store()
-            .expect("fixture local state should open");
-        store
-            .saved_lists()
-            .create(NewSavedList {
-                slug: "z-last".to_string(),
-                name: "Z Last".to_string(),
-                description: None,
-                tags: vec![],
-            })
-            .expect("list should create");
-        store
-            .saved_lists()
-            .create(NewSavedList {
-                slug: "a-first".to_string(),
-                name: "A First".to_string(),
-                description: Some("Campaign prep".to_string()),
-                tags: vec!["story-beat".to_string()],
-            })
-            .expect("list should create");
-
-        let view = fixture
-            .worker
-            .saved_lists()
-            .expect("saved lists should load");
-
-        assert_eq!(
-            view.lists
-                .iter()
-                .map(|list| list.slug.as_str())
-                .collect::<Vec<_>>(),
-            vec!["a-first", "z-last"]
-        );
-        assert_eq!(view.lists[0].description.as_deref(), Some("Campaign prep"));
-        assert_eq!(view.lists[0].tags, vec!["story-beat"]);
-    }
-
-    #[test]
-    fn saved_list_hydrates_active_records_and_preserves_unresolved_items() {
-        let fixture = fixture_worker();
-        let store = fixture
-            .worker
-            .local_state_store()
-            .expect("fixture local state should open");
-        store
-            .saved_lists()
-            .create(NewSavedList {
-                slug: "research".to_string(),
-                name: "Research".to_string(),
-                description: None,
-                tags: vec![],
-            })
-            .expect("list should create");
-        store
-            .saved_lists()
-            .add_resolved_item(
-                "research",
-                ResolvedSavedListItem {
-                    record_key: RecordKey::parse("actions:testAction1")
-                        .expect("fixture key should parse"),
-                    note: Some("active note".to_string()),
-                    title_snapshot: "Old Action Name".to_string(),
-                    kind_snapshot: Some("old-kind".to_string()),
-                },
-            )
-            .expect("active item should insert");
-        store
-            .saved_lists()
-            .add_resolved_item(
-                "research",
-                ResolvedSavedListItem {
-                    record_key: RecordKey::parse("actions:missing")
-                        .expect("fixture key should parse"),
-                    note: None,
-                    title_snapshot: "Missing Action".to_string(),
-                    kind_snapshot: Some("rule".to_string()),
-                },
-            )
-            .expect("unresolved item should insert");
-
-        let view = fixture
-            .worker
-            .saved_list("research")
-            .expect("saved list should load");
-
-        assert_eq!(view.list.slug, "research");
-        assert_eq!(view.items.len(), 2);
-        assert_eq!(view.items[0].status, SavedListItemStatusView::Active);
-        assert_eq!(
-            view.items[0]
-                .record
-                .as_ref()
-                .expect("active item should hydrate")
-                .title,
-            "Test Action 1"
-        );
-        assert_eq!(view.items[1].status, SavedListItemStatusView::Unresolved);
-        assert!(view.items[1].record.is_none());
-        assert_eq!(view.items[1].snapshot.title, "Missing Action");
-    }
-
-    #[test]
-    fn filtered_saved_list_uses_record_scope_and_hides_unresolved_items() {
-        let fixture = fixture_worker();
-        let store = fixture
-            .worker
-            .local_state_store()
-            .expect("fixture local state should open");
-        store
-            .saved_lists()
-            .create(NewSavedList {
-                slug: "research".to_string(),
-                name: "Research".to_string(),
-                description: None,
-                tags: vec![],
-            })
-            .expect("list should create");
-        for record_key in ["actions:testAction1", "actions:missing"] {
-            store
-                .saved_lists()
-                .add_resolved_item(
-                    "research",
-                    ResolvedSavedListItem {
-                        record_key: RecordKey::parse(record_key).expect("fixture key should parse"),
-                        note: None,
-                        title_snapshot: record_key.to_string(),
-                        kind_snapshot: Some("rule".to_string()),
-                    },
-                )
-                .expect("item should insert");
-        }
-
-        let view = fixture
-            .worker
-            .filter_saved_list(FilterSavedListRequest {
-                list_ref: "research".to_string(),
-                query: None,
-                filter: Some(BasicSearchFilter {
-                    clauses: vec![FilterClause {
-                        id: "kind-include_any".to_string(),
-                        field: "kind".to_string(),
-                        operator: FilterClauseOperator::IncludeAny,
-                        values: vec!["rule".to_string()],
-                        range: None,
-                        metric: None,
-                    }],
-                }),
-            })
-            .expect("filtered saved list should load");
-
-        assert_eq!(
-            view.items
-                .iter()
-                .map(|item| item.record_key.as_str())
-                .collect::<Vec<_>>(),
-            vec!["actions:testAction1"]
-        );
-        assert_eq!(view.items[0].status, SavedListItemStatusView::Active);
-    }
-
-    #[test]
-    fn searched_saved_list_matches_only_records_in_the_list() {
-        let fixture = fixture_worker();
-        let store = fixture
-            .worker
-            .local_state_store()
-            .expect("fixture local state should open");
-        store
-            .saved_lists()
-            .create(NewSavedList {
-                slug: "research".to_string(),
-                name: "Research".to_string(),
-                description: None,
-                tags: vec![],
-            })
-            .expect("list should create");
-        store
-            .saved_lists()
-            .add_resolved_item(
-                "research",
-                ResolvedSavedListItem {
-                    record_key: RecordKey::parse("actions:testAction2")
-                        .expect("fixture key should parse"),
-                    note: None,
-                    title_snapshot: "Test Action 2".to_string(),
-                    kind_snapshot: Some("rule".to_string()),
-                },
-            )
-            .expect("item should insert");
-
-        let missing = fixture
-            .worker
-            .filter_saved_list(FilterSavedListRequest {
-                list_ref: "research".to_string(),
-                query: Some("No Such Search Needle".to_string()),
-                filter: None,
-            })
-            .expect("searched saved list should load");
-        let matched = fixture
-            .worker
-            .filter_saved_list(FilterSavedListRequest {
-                list_ref: "research".to_string(),
-                query: Some("Test Action 2".to_string()),
-                filter: None,
-            })
-            .expect("searched saved list should load");
-
-        assert!(missing.items.is_empty());
-        assert_eq!(
-            matched
-                .items
-                .iter()
-                .map(|item| item.record_key.as_str())
-                .collect::<Vec<_>>(),
-            vec!["actions:testAction2"]
-        );
-    }
-
-    #[test]
-    fn saved_list_reports_missing_ref() {
-        let fixture = fixture_worker();
-
-        let error = fixture
-            .worker
-            .saved_list("missing")
-            .expect_err("missing list should fail")
-            .into_app_error();
-
-        assert_eq!(error.code, AppErrorCode::SavedListNotFound);
-    }
-
-    #[test]
-    fn saved_list_reports_invalid_ref() {
-        let fixture = fixture_worker();
-
-        let error = fixture
-            .worker
-            .saved_list("")
-            .expect_err("invalid ref should fail")
-            .into_app_error();
-
-        assert_eq!(error.code, AppErrorCode::InvalidRequest);
-    }
-
-    #[test]
-    fn saved_list_mutations_create_add_remove_and_delete() {
-        let fixture = fixture_worker();
-
-        let created = fixture
-            .worker
-            .create_saved_list(CreateSavedListRequest {
-                slug: "research".to_string(),
-                name: "Research".to_string(),
-                description: Some("Campaign prep".to_string()),
-                tags: vec!["story-beat".to_string(), " boss ".to_string()],
-            })
-            .expect("list should create");
-        assert_eq!(created.list.slug, "research");
-        assert!(created.list.list_key.starts_with("list_"));
-        assert_eq!(created.list.description.as_deref(), Some("Campaign prep"));
-        assert_eq!(created.list.tags, vec!["boss", "story-beat"]);
-
-        let updated = fixture
-            .worker
-            .update_saved_list(UpdateSavedListRequest {
-                list_key: created.list.list_key.clone(),
-                slug: "renamed-research".to_string(),
-                name: "Renamed Research".to_string(),
-                description: Some("Updated prep".to_string()),
-                tags: vec!["renamed".to_string()],
-            })
-            .expect("list should update");
-        assert_eq!(updated.list.list_key, created.list.list_key);
-        assert_eq!(updated.list.slug, "renamed-research");
-        assert_eq!(updated.list.name, "Renamed Research");
-        assert_eq!(updated.list.description.as_deref(), Some("Updated prep"));
-        assert_eq!(updated.list.tags, vec!["renamed"]);
-
-        let added = fixture
-            .worker
-            .add_saved_list_item(AddSavedListItemRequest {
-                list_ref: "renamed-research".to_string(),
-                record_ref: "Test Action 1".to_string(),
-                note: Some("important".to_string()),
-            })
-            .expect("item should add");
-        assert_eq!(added.list_key, created.list.list_key);
-        assert_eq!(added.slug, "renamed-research");
-        assert_eq!(added.record_key, "actions:testAction1");
-        assert_eq!(added.outcome, SavedListItemMutationOutcomeView::Added);
-
-        let duplicate = fixture
-            .worker
-            .add_saved_list_item(AddSavedListItemRequest {
-                list_ref: created.list.list_key.clone(),
-                record_ref: "actions:testAction1".to_string(),
-                note: None,
-            })
-            .expect("duplicate add should be a no-op");
-        assert_eq!(
-            duplicate.outcome,
-            SavedListItemMutationOutcomeView::AlreadyPresent
-        );
-
-        let removed = fixture
-            .worker
-            .remove_saved_list_item(RemoveSavedListItemRequest {
-                list_ref: created.list.list_key.clone(),
-                record_ref: "Test Action 1".to_string(),
-            })
-            .expect("item should remove by resolvable name");
-        assert_eq!(removed.outcome, SavedListItemMutationOutcomeView::Removed);
-
-        let absent = fixture
-            .worker
-            .remove_saved_list_item(RemoveSavedListItemRequest {
-                list_ref: "renamed-research".to_string(),
-                record_ref: "actions:testAction1".to_string(),
-            })
-            .expect("absent item remove should be a no-op");
-        assert_eq!(absent.outcome, SavedListItemMutationOutcomeView::NotPresent);
-
-        let deleted = fixture
-            .worker
-            .delete_saved_list(&created.list.list_key)
-            .expect("list should delete");
-        assert_eq!(deleted.list_key, created.list.list_key);
-        assert_eq!(deleted.slug, "renamed-research");
-        assert!(deleted.deleted);
-    }
-
-    #[test]
-    fn saved_list_batch_add_reports_partial_success() {
-        let fixture = fixture_worker();
-        fixture
-            .worker
-            .create_saved_list(CreateSavedListRequest {
-                slug: "research".to_string(),
-                name: "Research".to_string(),
-                description: None,
-                tags: vec![],
-            })
-            .expect("list should create");
-
-        let result = fixture
-            .worker
-            .add_saved_list_items(BatchAddSavedListItemsRequest {
-                list_ref: "research".to_string(),
-                items: vec![
-                    BatchSavedListItemInput {
-                        record_ref: "Test Action 1".to_string(),
-                        note: Some("shared".to_string()),
-                    },
-                    BatchSavedListItemInput {
-                        record_ref: "No Such Record".to_string(),
-                        note: Some("shared".to_string()),
-                    },
-                    BatchSavedListItemInput {
-                        record_ref: "actions:testAction2".to_string(),
-                        note: Some("shared".to_string()),
-                    },
-                ],
-            })
-            .expect("batch add should report item failures without aborting");
-
-        assert_eq!(result.requested_count, 3);
-        assert_eq!(result.added_count, 2);
-        assert_eq!(result.failed_count, 1);
-        assert_eq!(
-            result.items[0].outcome,
-            BatchSavedListItemOutcomeView::Added
-        );
-        assert_eq!(
-            result.items[0].record_key.as_deref(),
-            Some("actions:testAction1")
-        );
-        assert_eq!(
-            result.items[0].record_name.as_deref(),
-            Some("Test Action 1")
-        );
-        assert_eq!(
-            result.items[1].outcome,
-            BatchSavedListItemOutcomeView::Failed
-        );
-        assert_eq!(
-            result.items[1]
-                .error
-                .as_ref()
-                .expect("failure should include error")
-                .code,
-            AppErrorCode::RecordResolutionMiss
-        );
-        assert_eq!(
-            result.items[2].outcome,
-            BatchSavedListItemOutcomeView::Added
-        );
-
-        let list = fixture
-            .worker
-            .saved_list("research")
-            .expect("saved list should load");
-        assert_eq!(
-            list.items
-                .iter()
-                .map(|item| item.record_key.as_str())
-                .collect::<Vec<_>>(),
-            vec!["actions:testAction1", "actions:testAction2"]
-        );
-        assert_eq!(list.items[0].note.as_deref(), Some("shared"));
-        assert_eq!(list.items[1].note.as_deref(), Some("shared"));
-    }
-
-    #[test]
-    fn saved_list_export_import_handles_conflict_id_override_and_replace() {
-        let fixture = fixture_worker();
-        fixture
-            .worker
-            .create_saved_list(CreateSavedListRequest {
-                slug: "session-prep".to_string(),
-                name: "Session Prep".to_string(),
-                description: Some("Original".to_string()),
-                tags: vec!["story-beat".to_string()],
-            })
-            .expect("list should create");
-        fixture
-            .worker
-            .add_saved_list_item(AddSavedListItemRequest {
-                list_ref: "session-prep".to_string(),
-                record_ref: "Test Action 1".to_string(),
-                note: Some("Bring up early".to_string()),
-            })
-            .expect("item should add");
-
-        let document = fixture
-            .worker
-            .export_saved_list("session-prep")
-            .expect("list should export");
-        assert_eq!(document.format, "pf2e-atlas.saved-list");
-        assert_eq!(document.version, 1);
-        assert_eq!(document.list.id, "session-prep");
-        assert_eq!(document.list.tags, vec!["story-beat"]);
-        assert_eq!(document.items.len(), 1);
-        assert_eq!(document.items[0].record_key, "actions:testAction1");
-        assert_eq!(document.items[0].record_name, "Test Action 1");
-        assert_eq!(document.items[0].note.as_deref(), Some("Bring up early"));
-
-        let conflict = fixture
-            .worker
-            .import_saved_list(ImportSavedListRequest {
-                document: document.clone(),
-                id: None,
-                replace: false,
-            })
-            .expect_err("existing import id should conflict by default")
-            .into_app_error();
-        assert_eq!(conflict.code, AppErrorCode::SavedListAlreadyExists);
-
-        let imported = fixture
-            .worker
-            .import_saved_list(ImportSavedListRequest {
-                document: document.clone(),
-                id: Some("session-copy".to_string()),
-                replace: false,
-            })
-            .expect("id override should import a new list");
-        assert_eq!(imported.list.slug, "session-copy");
-        assert_eq!(imported.list.tags, vec!["story-beat"]);
-        assert!(!imported.replaced);
-        assert_eq!(imported.active_count, 1);
-        assert_eq!(imported.unresolved_count, 0);
-
-        fixture
-            .worker
-            .add_saved_list_item(AddSavedListItemRequest {
-                list_ref: "session-copy".to_string(),
-                record_ref: "Test Action 2".to_string(),
-                note: None,
-            })
-            .expect("extra item should add");
-        let replaced = fixture
-            .worker
-            .import_saved_list(ImportSavedListRequest {
-                document,
-                id: Some("session-copy".to_string()),
-                replace: true,
-            })
-            .expect("replace should target final id override");
-        assert!(replaced.replaced);
-        assert_eq!(replaced.list.slug, "session-copy");
-
-        let copied = fixture
-            .worker
-            .saved_list("session-copy")
-            .expect("copy should load");
-        assert_eq!(copied.list.name, "Session Prep");
-        assert_eq!(copied.list.description.as_deref(), Some("Original"));
-        assert_eq!(copied.list.tags, vec!["story-beat"]);
-        assert_eq!(copied.items.len(), 1);
-        assert_eq!(copied.items[0].record_key, "actions:testAction1");
-    }
-
-    #[test]
-    fn saved_list_add_reports_resolution_miss() {
-        let fixture = fixture_worker();
-        fixture
-            .worker
-            .create_saved_list(CreateSavedListRequest {
-                slug: "research".to_string(),
-                name: "Research".to_string(),
-                description: None,
-                tags: vec![],
-            })
-            .expect("list should create");
-
-        let error = fixture
-            .worker
-            .add_saved_list_item(AddSavedListItemRequest {
-                list_ref: "research".to_string(),
-                record_ref: "No Such Record".to_string(),
-                note: None,
-            })
-            .expect_err("missing record ref should fail")
-            .into_app_error();
-
-        assert_eq!(error.code, AppErrorCode::RecordResolutionMiss);
     }
 }

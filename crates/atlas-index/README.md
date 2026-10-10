@@ -6,13 +6,15 @@ This crate opens validated artifacts, loads persisted rows, validates artifact c
 
 ## Owns
 
-- Focused read capability traits, the composite `RetrievalReadIndex` contract, and `SqliteIndexReader` read handles.
+- Concrete `SqliteIndexReader` handles tied to a validated artifact generation.
 - `IndexArtifactWriter` write contract and `SqliteIndexWriter` artifact writes.
 - Artifact validation diagnostics and validation reports.
 - Diesel migrations, checked-in schema declarations validated against those migrations, and ordinary relational writer/reader row models.
-- Row readers and hydration into `atlas-record` models.
+- Bounded checked source snapshots, summaries, selected prepared HTML and attributed relationship reads.
 - Filter-to-SQL keyset compilation.
-- Vector query SQL over `document_embedding_cache` and `record_vector_index`.
+- Curated lexical units and FTS5, semantic unit attribution, deduplicated input vectors, and sqlite-vec query SQL.
+- Typed query catalog discovery, exact numeric projections, and shared eligibility keysets.
+- Bounded old-source/cache/alias batches for ingest to verify reusable embeddings.
 - Index inspection summaries.
 
 ## Should Not Own
@@ -24,4 +26,6 @@ This crate opens validated artifacts, loads persisted rows, validates artifact c
 
 ## Boundary Notes
 
-Runtime surfaces should reach SQLite through `SqliteIndexReader` and retrieval-facing traits, not by opening their own connections. Ingest should write artifacts through `IndexArtifactWriter` implementations rather than owning database-specific writers. `atlas-index` owns the SQLite artifact contract; migration files under `migrations/` are the schema source of truth, artifact creation embeds those migrations, and the test suite checks the checked-in Diesel schema against them. Ordinary relational access should use Diesel, while FTS5, sqlite-vec, dynamic filter relations, and validation pragmas may stay as explicit raw SQL. Product-facing retrieval behavior should compose through `atlas-search`.
+Runtime surfaces reach SQLite through `SqliteIndexReader`, rather than opening their own connections. Ingest writes completed artifacts through `IndexArtifactWriter`. The artifact is rebuilt from source when its contract changes; local lists and encounters live in a separate store. `atlas-index` owns the SQLite artifact contract: migration files under `migrations/` define the schema, artifact creation embeds those migrations, and tests check the Diesel declarations against them. Ordinary relational access uses Diesel; FTS5, sqlite-vec, dynamic filter relations, and validation pragmas use explicit SQL. Product-facing retrieval composes through `atlas-search`.
+
+Offline validation checks source addresses, cache safety and coherence, semantic coverage, hash syntax, and vector shape. It does not require model assets or reproduce tokenization. Before reusing vectors, `atlas-ingest` reconstructs each old input with the pinned tokenizer and verifies its hash, token count, and attribution. The index crate supplies bounded batches for that check without depending on embedding execution.

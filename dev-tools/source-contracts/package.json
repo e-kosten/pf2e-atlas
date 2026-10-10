@@ -1,0 +1,45 @@
+{
+  "name": "atlas-source-contracts",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build --silent && node --test dist/tests/*.test.js",
+    "verify": "npm run typecheck && npm test",
+    "verify-generated": "npm run build --silent && node --test dist/tests/pinned-generation.integration.js",
+    "preextract": "npm run build --silent",
+    "extract": "node dist/src/cli/extract.js",
+    "pregenerate": "npm run build --silent",
+    "generate": "node dist/src/cli/generate.js",
+    "presample-equipment": "npm run build --silent",
+    "sample-equipment": "node dist/src/cli/sample-equipment.js",
+    "presample-items": "npm run build --silent",
+    "sample-items": "node dist/src/cli/sample-items.js",
+    "presample-predicates": "npm run build --silent",
+    "sample-predicates": "node dist/src/cli/sample-predicates.js",
+    "precompare-equipment": "npm run build --silent",
+    "compare-equipment": "node dist/src/cli/compare-equipment.js",
+    "presample-rules": "npm run build --silent",
+    "sample-rules": "node dist/src/cli/sample-rules.js",
+    "precompare-rules": "npm run build --silent",
+    "compare-rules": "node dist/src/cli/compare-rules.js",
+    "precompare-documents": "npm run build --silent",
+    "compare-documents": "node dist/src/cli/compare-documents.js",
+    "precompare-portfolio": "npm run build --silent",
+    "compare-portfolio": "node dist/src/cli/compare-portfolio.js"
+  },
+  "dependencies": {
+    "typescript": "5.9.3"
+  },
+  "devDependencies": {
+    "@types/jest": "29.5.14",
+    "@types/jquery": "3.5.32",
+    "@types/node": "22.13.10",
+    "@types/tooltipster": "0.0.35",
+    "remeda": "2.21.0"
+  }
+}

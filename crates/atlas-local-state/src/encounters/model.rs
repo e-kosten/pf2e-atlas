@@ -46,6 +46,8 @@ impl EncounterStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EncounterParticipant {
+    pub hp_origin: ParticipantHpOrigin,
+    pub variant_origin: ParticipantVariantOrigin,
     pub participant_key: String,
     pub record_key: Option<String>,
     pub participant_kind: ParticipantKind,
@@ -191,6 +193,9 @@ pub struct UpdateEncounter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddEncounterParticipant {
+    pub participant_variant: ParticipantVariant,
+    pub hp_origin: ParticipantHpOrigin,
+    pub variant_origin: ParticipantVariantOrigin,
     pub record_key: Option<RecordKey>,
     pub participant_kind: ParticipantKind,
     pub display_name: String,
@@ -206,6 +211,8 @@ pub struct AddEncounterParticipant {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateEncounterParticipant {
+    pub hp_origin: ParticipantHpOrigin,
+    pub variant_origin: ParticipantVariantOrigin,
     pub participant_key: String,
     pub display_name: String,
     pub side: ParticipantSide,
@@ -252,4 +259,59 @@ pub struct UpdateEncounterParticipantCondition {
     pub source_participant_key: Option<String>,
     pub duration_rounds: Option<i64>,
     pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ParticipantHpOrigin {
+    DerivedPristine,
+    DerivedEdited,
+    #[default]
+    Explicit,
+    Unknown,
+}
+impl ParticipantHpOrigin {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::DerivedPristine => "derived_pristine",
+            Self::DerivedEdited => "derived_edited",
+            Self::Explicit => "explicit",
+            Self::Unknown => "unknown",
+        }
+    }
+    pub(crate) fn from_str(value: &str) -> Self {
+        match value {
+            "derived_pristine" => Self::DerivedPristine,
+            "derived_edited" => Self::DerivedEdited,
+            "unknown" => Self::Unknown,
+            _ => Self::Explicit,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ParticipantVariantOrigin {
+    DefaultUnadjusted,
+    InheritedKnown,
+    InheritedUnknown,
+    #[default]
+    Explicit,
+}
+impl ParticipantVariantOrigin {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::DefaultUnadjusted => "default_unadjusted",
+            Self::InheritedKnown => "inherited_known",
+            Self::InheritedUnknown => "inherited_unknown",
+            Self::Explicit => "explicit",
+        }
+    }
+    pub(crate) fn from_str(value: &str) -> Self {
+        match value {
+            "default_unadjusted" => Self::DefaultUnadjusted,
+            "inherited_known" => Self::InheritedKnown,
+            "inherited_unknown" => Self::InheritedUnknown,
+            _ => Self::Explicit,
+        }
+    }
 }

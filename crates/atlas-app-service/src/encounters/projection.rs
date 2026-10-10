@@ -12,9 +12,7 @@ use atlas_local_state::{
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::projection::record_summary;
 use crate::service::AtlasAppService;
-use crate::surfaces::encounter_participant_surface;
 
 use super::hydration::hydrate_participant_records;
 use super::mechanics::{participant_runtime_block, participant_stat_block};
@@ -58,15 +56,21 @@ pub(super) fn encounter_summary(
 
 pub(super) fn participant_view(
     participant: EncounterParticipant,
-    records_by_key: &BTreeMap<String, atlas_record::AtlasRecord>,
+    records_by_key: &BTreeMap<String, super::hydration::HydratedParticipantRecord>,
 ) -> EncounterParticipantView {
     let record_detail = participant
         .record_key
         .as_ref()
         .and_then(|key| records_by_key.get(key));
-    let record = record_detail.map(record_summary);
+    let record = record_detail.map(|r| r.view.clone());
     let stat_block = record_detail
-        .and_then(|record| participant_stat_block(&participant, record))
+        .and_then(|record| {
+            participant_stat_block(
+                &participant,
+                &record.detail.source,
+                &record.source_fingerprint,
+            )
+        })
         .or_else(|| {
             (participant.participant_kind == ParticipantKind::Pc)
                 .then(|| participant_runtime_block(&participant))
@@ -83,6 +87,20 @@ pub(super) fn participant_view(
         .as_ref()
         .map(|note| note.chars().take(40).collect::<String>().trim().to_string());
     let mut view = EncounterParticipantView {
+        hp_origin: match participant.hp_origin {
+            atlas_local_state::ParticipantHpOrigin::DerivedPristine => "derived_pristine",
+            atlas_local_state::ParticipantHpOrigin::DerivedEdited => "derived_edited",
+            atlas_local_state::ParticipantHpOrigin::Explicit => "explicit",
+            atlas_local_state::ParticipantHpOrigin::Unknown => "unknown",
+        }
+        .into(),
+        variant_origin: match participant.variant_origin {
+            atlas_local_state::ParticipantVariantOrigin::DefaultUnadjusted => "default_unadjusted",
+            atlas_local_state::ParticipantVariantOrigin::InheritedKnown => "inherited_known",
+            atlas_local_state::ParticipantVariantOrigin::InheritedUnknown => "inherited_unknown",
+            atlas_local_state::ParticipantVariantOrigin::Explicit => "explicit",
+        }
+        .into(),
         participant_key: participant.participant_key,
         record_key: participant.record_key,
         participant_kind: participant_kind(participant.participant_kind),
@@ -109,12 +127,11 @@ pub(super) fn participant_view(
         surface: None,
         record,
     };
-    view.surface = match participant_kind(participant.participant_kind) {
-        EncounterParticipantKindView::Creature | EncounterParticipantKindView::Pc => {
-            encounter_participant_surface(&view, record_detail, view.stat_block.as_ref())
-        }
-        EncounterParticipantKindView::Hazard => None,
-    };
+
+    view.surface = crate::surfaces::encounter_participant_surface(
+        &view,
+        record_detail.map(|r| &r.detail.source),
+    );
     view
 }
 

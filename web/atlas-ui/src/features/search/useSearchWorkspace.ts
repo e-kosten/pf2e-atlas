@@ -71,6 +71,10 @@ export type SearchWorkspaceState = {
   recordDetail: RecordDetailView | undefined;
   filterEditor: FilterEditorView | undefined;
   filterValuesByField: Record<string, FilterValueListView | undefined>;
+  filterCountsByField?: Record<
+    string,
+    import("../../generated/atlas").FilterCountsView | undefined
+  >;
   readiness: UseQueryResult<Awaited<ReturnType<typeof getReadiness>>, Error>;
   resultsLoading: boolean;
   resultsRefreshing: boolean;
@@ -302,6 +306,7 @@ export function useSearchWorkspace({
     resultPage: canRunResultSearch ? resultsQuery.data : undefined,
     recordDetail: detailQuery.data,
     filterEditor: filterDiscovery.filterEditor,
+    filterCountsByField: filterDiscovery.filterCountsByField,
     filterValuesByField: filterDiscovery.filterValuesByField,
     readiness,
     resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),

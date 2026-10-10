@@ -1,72 +1,76 @@
+use crate::cli::args::FilterOptions;
+use atlas_cli_support::CliPathMode;
+use atlas_domain::SourcePassageAddress;
+use atlas_record::source_content::OwnedContentLocator;
+use clap::{Args, Subcommand, ValueEnum};
 use std::path::PathBuf;
-
-use atlas_domain::DetailLevel;
-use clap::{Args, Subcommand};
-
-use crate::cli::args::{CliPathMode, FilterOptions};
-use crate::cli::parse::{DETAIL_HELP, parse_detail_level};
-
 #[derive(Debug, Args)]
 pub(crate) struct RecordArgs {
     #[command(subcommand)]
     pub(crate) command: RecordCommand,
 }
-
 #[derive(Debug, Subcommand)]
 pub(crate) enum RecordCommand {
-    #[command(about = "Fetch one or more records by canonical record key")]
-    Get(RecordGetOptions),
-    #[command(about = "Resolve one or more strict record names or aliases")]
+    Get(Box<RecordGetOptions>),
     Resolve(Box<RecordResolveOptions>),
 }
-
 #[derive(Debug, Args)]
-#[command(
-    after_help = "Examples:\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record get equipment-srd:s1vB3HdXjMigYAnY\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail standard --json"
-)]
 pub(crate) struct RecordGetOptions {
-    #[arg(required = true, num_args = 1.., help = "Canonical record keys in pack:id form; this command does not resolve names")]
+    #[arg(required=true,num_args=1..,help="Foundry keys in pack:id form")]
     pub(crate) keys: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = DETAIL_HELP)]
-    pub(crate) detail: DetailLevel,
-    #[arg(long, help = "Include raw source JSON in JSON output")]
-    pub(crate) include_raw: bool,
-    #[arg(long, help = "Override the SQLite artifact path")]
+    #[arg(
+        long,
+        value_enum,
+        default_value = "standard",
+        help = "Terminal detail: summary or standard; JSON returns the full selected detail DTO"
+    )]
+    pub(crate) detail: TerminalDetail,
+    #[arg(long,help="Checked owner chain JSON from a search witness",value_parser=parse_owners)]
+    pub(crate) owners: Option<OwnerChainArgument>,
+    #[arg(long, help = "Selected field path, relative to the requested owner")]
+    pub(crate) field: Option<String>,
+    #[arg(long,help="Exact passage address JSON from a search witness",value_parser=parse_passage,requires="field")]
+    pub(crate) passage: Option<SourcePassageAddress>,
+    #[arg(
+        long,
+        help = "Artifact source fingerprint accompanying snapshot-local owners"
+    )]
+    pub(crate) source_fingerprint: Option<String>,
+    #[arg(long)]
     pub(crate) index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    #[arg(long,value_enum,default_value_t=CliPathMode::Global)]
     pub(crate) path_mode: CliPathMode,
-    #[arg(long, help = "Emit the standard JSON envelope")]
+    #[arg(long)]
     pub(crate) json: bool,
 }
-
 #[derive(Debug, Args)]
-#[command(
-    after_help = "Examples:\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e\n  atlas record resolve \"Treat Wounds\" --alternatives 3 --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --kind rule"
-)]
 pub(crate) struct RecordResolveOptions {
-    #[arg(required = true, num_args = 1.., help = "Strict record names or verified aliases to resolve")]
+    #[arg(required=true,num_args=1..,help="Strict names or verified aliases")]
     pub(crate) queries: Vec<String>,
-    #[arg(long, value_parser = parse_detail_level, default_value = "standard", help = DETAIL_HELP)]
-    pub(crate) detail: DetailLevel,
-    #[arg(
-        long,
-        help = "Canonical SearchFilterNode JSON used to narrow strict resolution"
-    )]
-    pub(crate) filter_json: Option<String>,
     #[command(flatten)]
     pub(crate) filter_options: FilterOptions,
-    #[arg(
-        long,
-        default_value_t = 5,
-        help = "Return up to this many alternatives when a strict query is ambiguous"
-    )]
-    pub(crate) alternatives: u8,
-    #[arg(long, help = "Include raw source JSON in JSON output")]
-    pub(crate) include_raw: bool,
-    #[arg(long, help = "Override the SQLite artifact path")]
+    #[arg(long, default_value_t = 5)]
+    pub(crate) alternatives: usize,
+    #[arg(long)]
     pub(crate) index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    #[arg(long,value_enum,default_value_t=CliPathMode::Global)]
     pub(crate) path_mode: CliPathMode,
-    #[arg(long, help = "Emit the standard JSON envelope")]
+    #[arg(long)]
     pub(crate) json: bool,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum TerminalDetail {
+    Summary,
+    Standard,
+}
+#[derive(Debug, Clone)]
+pub(crate) struct OwnerChainArgument(pub(crate) Vec<OwnedContentLocator>);
+
+fn parse_owners(value: &str) -> Result<OwnerChainArgument, String> {
+    serde_json::from_str(value)
+        .map(OwnerChainArgument)
+        .map_err(|e| e.to_string())
+}
+fn parse_passage(value: &str) -> Result<SourcePassageAddress, String> {
+    serde_json::from_str(value).map_err(|e| e.to_string())
 }

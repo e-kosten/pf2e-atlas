@@ -8,10 +8,10 @@ pub enum IngestError {
     ManifestParseFailed(String),
     #[error("source record failed to parse: {0}")]
     RecordParseFailed(String),
-    #[error("record normalization failed for {path}: {message}")]
-    RecordNormalizationFailed { path: String, message: String },
-    #[error("generated affliction build failed: {0}")]
-    GeneratedAfflictionFailed(String),
+    #[error("source content selection failed: {0}")]
+    SourceSelectionFailed(String),
+    #[error("localization catalog is unavailable or invalid: {0}")]
+    LocalizationFailed(String),
     #[error("source contains no loadable Foundry records")]
     NoRecordsLoaded,
     #[error("invalid embedding model `{model}`: {message}")]

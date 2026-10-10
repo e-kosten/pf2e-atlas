@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
 use clap::{Args, Subcommand};
 
-use crate::cli::args::CliPathMode;
+use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 #[command(
@@ -67,6 +67,11 @@ pub(crate) struct SetupPathOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct SetupRunOptions {
+    #[arg(
+        long,
+        help = "Indexing locale; defaults to English for a new artifact and preserves an existing artifact locale"
+    )]
+    pub(crate) locale: Option<String>,
     #[arg(
         long,
         help = "Prepare a record/resolve-ready artifact without semantic embeddings"

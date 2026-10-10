@@ -1,332 +1,502 @@
+// Named relational schema; numeric ANY uses a checked integer/real reader.
+diesel::allow_tables_to_appear_in_same_query!(records, record_bodies);
 diesel::table! {
-    artifact_metadata (key) {
-        key -> Text,
-        value -> Text,
-    }
-}
-
-diesel::table! {
-    packs (name) {
-        name -> Text,
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    packs (pack_id) {
+        pack_id -> Text,
         label -> Text,
-        document_type -> Text,
-        declared_path -> Text,
-        resolved_path -> Text,
-        record_count -> BigInt,
     }
 }
-
 diesel::table! {
-    records (record_key) {
-        record_key -> Text,
-        id -> Text,
-        name -> Text,
-        normalized_name -> Text,
-        record_kind -> Text,
-        pack_name -> Text,
-        pack_label -> Text,
-        foundry_document_type -> Text,
-        foundry_record_type -> Text,
-        level -> Nullable<BigInt>,
-        rarity -> Nullable<Text>,
-        traits_json -> Text,
-        prerequisites_json -> Text,
-        system_category -> Nullable<Text>,
-        system_group -> Nullable<Text>,
-        system_base_item -> Nullable<Text>,
-        system_usage -> Nullable<Text>,
-        system_price_json -> Nullable<Text>,
-        system_actions_value -> Nullable<BigInt>,
-        system_time_value -> Nullable<Text>,
-        system_duration_value -> Nullable<Text>,
-        price_cp -> Nullable<BigInt>,
-        activation_time_kind -> Nullable<Text>,
-        activation_time_actions -> Nullable<BigInt>,
-        activation_time_duration_value -> Nullable<BigInt>,
-        activation_time_duration_unit -> Nullable<Text>,
-        activation_time_text -> Nullable<Text>,
-        duration_kind -> Nullable<Text>,
-        duration_value -> Nullable<BigInt>,
-        duration_unit -> Nullable<Text>,
-        duration_text -> Nullable<Text>,
-        publication_title -> Nullable<Text>,
-        publication_remaster -> Bool,
-        publication_family -> Text,
-        folder_id -> Nullable<Text>,
-        taxonomy_families_json -> Text,
-        variant_group_key -> Nullable<Text>,
-        variant_base_name -> Nullable<Text>,
-        variant_label -> Nullable<Text>,
-        variant_axes_json -> Text,
-        variant_confidence -> Nullable<Double>,
-        variant_source -> Text,
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    records (record_id) {
+        record_id -> BigInt,
+        key -> Text,
+        pack_id -> Text,
+        document_kind -> Text,
         source_path -> Text,
-        is_default_visible -> Bool,
-        raw_json -> Text,
-    }
-}
-
-diesel::table! {
-    record_content (record_key, content_key) {
-        record_key -> Text,
-        content_key -> Text,
-        ordinal -> BigInt,
-        source_kind -> Text,
-        visibility -> Text,
-        contributes_to_search -> Bool,
-        contributes_to_references -> Bool,
-        label -> Nullable<Text>,
-        content_json -> Text,
-    }
-}
-
-diesel::table! {
-    record_traits (record_key, trait_) {
-        record_key -> Text,
-        #[sql_name = "trait"]
-        trait_ -> Text,
-    }
-}
-
-diesel::table! {
-    reference_edges (from_record_key, to_record_key, reference_text, relation_kind, source_kind) {
-        from_record_key -> Text,
-        to_record_key -> Text,
-        display_text -> Nullable<Text>,
-        reference_text -> Text,
-        relation_kind -> Text,
-        source_kind -> Text,
-        visibility -> Text,
-    }
-}
-
-diesel::table! {
-    reference_occurrences (record_key, content_key, occurrence_ordinal) {
-        record_key -> Text,
-        content_key -> Text,
-        occurrence_ordinal -> BigInt,
-        target_record_key -> Text,
-        source_kind -> Text,
-        visibility -> Text,
-        display_text -> Nullable<Text>,
-        reference_text -> Text,
-        relation_kind -> Text,
-    }
-}
-
-diesel::table! {
-    record_aliases (canonical_record_key, normalized_alias, source_kind, source_ref) {
-        canonical_record_key -> Text,
-        alias_text -> Text,
-        normalized_alias -> Text,
-        source_kind -> Text,
-        source_ref -> Text,
-    }
-}
-
-diesel::table! {
-    remaster_links (remaster_record_key, legacy_record_key, source_kind, source_ref) {
-        remaster_record_key -> Text,
-        legacy_record_key -> Text,
-        source_kind -> Text,
-        source_ref -> Text,
-    }
-}
-
-diesel::table! {
-    record_metrics (record_key, metric_domain, metric_key) {
-        record_key -> Text,
-        metric_domain -> Text,
-        metric_key -> Text,
-        value_type -> Text,
-        number_value -> Nullable<Double>,
-        text_value -> Nullable<Text>,
-        bool_value -> Nullable<Bool>,
-    }
-}
-
-diesel::table! {
-    metric_key_catalog (metric_domain, record_kind, metric_key) {
-        metric_domain -> Text,
+        content_hash -> Text,
+        name_state -> Text,
+        name -> Nullable<Text>,
+        name_lookup_key -> Nullable<Text>,
+        source_type_state -> Text,
+        source_type -> Nullable<Text>,
+        record_kind_state -> Text,
         record_kind -> Nullable<Text>,
-        namespace_prefix -> Text,
-        metric_key -> Text,
-        value_type -> Text,
-        catalog_count -> BigInt,
-        numeric_min -> Nullable<Double>,
-        numeric_max -> Nullable<Double>,
-    }
-}
-
-diesel::table! {
-    metric_value_catalog (metric_domain, record_kind, metric_key, value) {
-        metric_domain -> Text,
-        record_kind -> Nullable<Text>,
-        metric_key -> Text,
-        value -> Text,
-        catalog_count -> BigInt,
-    }
-}
-
-diesel::table! {
-    filter_field_catalog (field, record_kind) {
-        field -> Text,
-        record_kind -> Nullable<Text>,
-        field_type -> Text,
-        field_group -> Text,
-        value_policy -> Text,
-        operators_json -> Text,
-        cli_flags_json -> Text,
-        applicable_kinds_json -> Text,
-        value_count -> BigInt,
-        matching_record_count -> BigInt,
-        null_count -> BigInt,
-        distinct_count -> BigInt,
-        singleton_count -> BigInt,
-        singleton_ratio -> Nullable<Double>,
-        observation_singleton_ratio -> Nullable<Double>,
-        policy_reason -> Text,
-    }
-}
-
-diesel::table! {
-    filter_value_catalog (field, record_kind, value) {
-        field -> Text,
-        record_kind -> Nullable<Text>,
-        value -> Text,
-        catalog_count -> BigInt,
-    }
-}
-
-diesel::table! {
-    filter_sample_catalog (field, record_kind, value) {
-        field -> Text,
-        record_kind -> Nullable<Text>,
-        value -> Text,
-        catalog_count -> BigInt,
-        sample_rank -> BigInt,
-    }
-}
-
-diesel::table! {
-    filter_numeric_catalog (field, record_kind, metric_domain, metric_key) {
-        field -> Text,
-        record_kind -> Nullable<Text>,
-        metric_domain -> Nullable<Text>,
-        metric_key -> Nullable<Text>,
-        catalog_count -> BigInt,
-        null_count -> BigInt,
-        min -> Nullable<Double>,
-        p05 -> Nullable<Double>,
-        p25 -> Nullable<Double>,
-        p50 -> Nullable<Double>,
-        mean -> Nullable<Double>,
-        p75 -> Nullable<Double>,
-        p95 -> Nullable<Double>,
-        max -> Nullable<Double>,
-    }
-}
-
-diesel::table! {
-    actor_records (record_key) {
-        record_key -> Text,
+        rarity_state -> Text,
+        rarity -> Nullable<Text>,
+        publication_title_state -> Text,
+        publication_title -> Nullable<Text>,
+        publication_remaster_state -> Text,
+        publication_remaster -> Nullable<BigInt>,
+        traits_state -> Text,
+        level_state -> Text,
+        level -> Nullable<SourceNumberSql>,
+        size_state -> Text,
         size -> Nullable<Text>,
-        languages_json -> Text,
-        speed_types_json -> Text,
-        senses_json -> Text,
-        immunities_json -> Text,
-        resistances_json -> Text,
-        weaknesses_json -> Text,
-        disable_text -> Nullable<Text>,
-        disable_skills_json -> Text,
-        is_complex -> Bool,
     }
 }
-
 diesel::table! {
-    item_records (record_key) {
-        record_key -> Text,
-        system_category -> Nullable<Text>,
-        system_base_item -> Nullable<Text>,
-        system_group -> Nullable<Text>,
-        system_usage -> Nullable<Text>,
-        system_price_json -> Nullable<Text>,
-        price_cp -> Nullable<BigInt>,
-        bulk_value -> Nullable<Double>,
-        hands_requirement -> Nullable<Text>,
-        damage_types_json -> Text,
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    record_traits (record_id, value) {
+        record_id -> BigInt,
+        value -> Text,
     }
 }
-
 diesel::table! {
-    spell_records (record_key) {
-        record_key -> Text,
-        traditions_json -> Text,
-        spell_kinds_json -> Text,
-        range_text -> Nullable<Text>,
-        range_value -> Nullable<Double>,
-        target_text -> Nullable<Text>,
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    actor_projection (record_id) {
+        record_id -> BigInt,
+        armor_class_state -> Text,
+        armor_class -> Nullable<SourceNumberSql>,
+        hp_maximum_state -> Text,
+        hp_maximum -> Nullable<SourceNumberSql>,
+        hardness_state -> Text,
+        hardness -> Nullable<SourceNumberSql>,
+        complexity_state -> Text,
+        complexity -> Nullable<BigInt>,
+        items_state -> Text,
+        fortitude_state -> Text,
+        fortitude -> Nullable<SourceNumberSql>,
+        reflex_state -> Text,
+        reflex -> Nullable<SourceNumberSql>,
+        will_state -> Text,
+        will -> Nullable<SourceNumberSql>,
+        immunities_state -> Text,
+        weaknesses_state -> Text,
+        resistances_state -> Text,
+        perception_state -> Text,
+        perception -> Nullable<SourceNumberSql>,
+        land_speed_state -> Text,
+        land_speed -> Nullable<SourceNumberSql>,
+        languages_state -> Text,
+        speeds_state -> Text,
+        senses_state -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    actor_items (id) {
+        id -> BigInt,
+        record_id -> BigInt,
+        original_index -> BigInt,
+        owner_selector_json -> Text,
+        authored_id_state -> Text,
+        authored_id -> Nullable<Text>,
+        source_type_state -> Text,
+        source_type -> Nullable<Text>,
+        traits_state -> Text,
+        rarity_state -> Text,
+        rarity -> Nullable<Text>,
+        level_state -> Text,
+        level -> Nullable<SourceNumberSql>,
+        size_state -> Text,
+        size -> Nullable<Text>,
+        publication_title_state -> Text,
+        publication_title -> Nullable<Text>,
+        publication_remaster_state -> Text,
+        publication_remaster -> Nullable<BigInt>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    actor_item_traits (item_id, value) {
+        item_id -> BigInt,
+        value -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    actor_iwr_entries (entry_id) {
+        entry_id -> BigInt,
+        record_id -> BigInt,
+        kind -> Text,
+        original_index -> BigInt,
+        type_state -> Text,
+        r#type -> Nullable<Text>,
+        value_state -> Text,
+        value -> Nullable<SourceNumberSql>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    actor_languages (record_id, value) {
+        record_id -> BigInt,
+        value -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    actor_speeds (id) {
+        id -> BigInt,
+        record_id -> BigInt,
+        original_index -> BigInt,
+        type_state -> Text,
+        r#type -> Nullable<Text>,
+        value_state -> Text,
+        value -> Nullable<SourceNumberSql>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    actor_senses (id) {
+        id -> BigInt,
+        record_id -> BigInt,
+        original_index -> BigInt,
+        type_state -> Text,
+        r#type -> Nullable<Text>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    spell_projection (id) {
+        id -> BigInt,
+        root_record_id -> Nullable<BigInt>,
+        actor_item_id -> Nullable<BigInt>,
+        rank_state -> Text,
+        rank -> Nullable<SourceNumberSql>,
+        traditions_state -> Text,
+        focus_state -> Text,
+        focus -> Nullable<BigInt>,
+        ritual_state -> Text,
+        ritual -> Nullable<BigInt>,
+        casting_time_state -> Text,
+        casting_time -> Nullable<Text>,
+        casting_form_state -> Text,
+        casting_form -> Nullable<Text>,
+        save_state -> Text,
+        save -> Nullable<Text>,
+        basic_save_state -> Text,
+        basic_save -> Nullable<BigInt>,
+        passive_defense_state -> Text,
+        passive_defense -> Nullable<Text>,
+        area_type_state -> Text,
         area_type -> Nullable<Text>,
-        area_value -> Nullable<Double>,
-        save_type -> Nullable<Text>,
-        sustained -> Bool,
-        basic_save -> Bool,
-        damage_types_json -> Text,
+        area_size_state -> Text,
+        area_size -> Nullable<SourceNumberSql>,
+        duration_text_state -> Text,
+        duration_text -> Nullable<Text>,
+        sustained_state -> Text,
+        sustained -> Nullable<BigInt>,
+        damage_state -> Text,
     }
 }
-
 diesel::table! {
-    records_fts (record_key) {
-        record_key -> Text,
-        title -> Nullable<Text>,
-        aliases -> Nullable<Text>,
-        traits -> Nullable<Text>,
-        taxonomy_terms -> Nullable<Text>,
-        constraint_terms -> Nullable<Text>,
-        mechanic_terms -> Nullable<Text>,
-        source_terms -> Nullable<Text>,
-        metric_terms -> Nullable<Text>,
-        headings -> Nullable<Text>,
-        body -> Nullable<Text>,
-        facts -> Nullable<Text>,
-        reference_terms -> Nullable<Text>,
-        embedded_content -> Nullable<Text>,
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    spell_traditions (spell_id, value) {
+        spell_id -> BigInt,
+        value -> Text,
     }
 }
-
 diesel::table! {
-    document_embedding_cache (embedding_unit_key) {
-        embedding_unit_key -> Text,
-        record_key -> Text,
-        unit_kind -> Text,
-        label -> Nullable<Text>,
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    spell_damage_entries (id) {
+        id -> BigInt,
+        spell_id -> BigInt,
+        original_index -> BigInt,
+        type_state -> Text,
+        r#type -> Nullable<Text>,
+        kinds_state -> Text,
+        original_key -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    spell_damage_kinds (entry_id, value) {
+        entry_id -> BigInt,
+        value -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    physical_projection (id) {
+        id -> BigInt,
+        root_record_id -> Nullable<BigInt>,
+        actor_item_id -> Nullable<BigInt>,
+        price_per_item_cp_state -> Text,
+        price_per_item_cp -> Nullable<SourceNumberSql>,
+        bulk_state -> Text,
+        bulk -> Nullable<SourceNumberSql>,
+        usage_state -> Text,
+        usage -> Nullable<Text>,
+        consumable_category_state -> Text,
+        consumable_category -> Nullable<Text>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    weapon_projection (physical_id) {
+        physical_id -> BigInt,
+        category_state -> Text,
+        category -> Nullable<Text>,
+        weapon_group_state -> Text,
+        weapon_group -> Nullable<Text>,
+        damage_type_state -> Text,
+        damage_type -> Nullable<Text>,
+        range_state -> Text,
+        range -> Nullable<SourceNumberSql>,
+        reload_state -> Text,
+        reload -> Nullable<Text>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    armor_projection (physical_id) {
+        physical_id -> BigInt,
+        category_state -> Text,
+        category -> Nullable<Text>,
+        ac_bonus_state -> Text,
+        ac_bonus -> Nullable<SourceNumberSql>,
+        dex_cap_state -> Text,
+        dex_cap -> Nullable<SourceNumberSql>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    shield_projection (physical_id) {
+        physical_id -> BigInt,
+        hardness_state -> Text,
+        hardness -> Nullable<SourceNumberSql>,
+        hp_maximum_state -> Text,
+        hp_maximum -> Nullable<SourceNumberSql>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    ability_projection (id) {
+        id -> BigInt,
+        root_record_id -> Nullable<BigInt>,
+        actor_item_id -> Nullable<BigInt>,
+        action_type_state -> Text,
+        action_type -> Nullable<Text>,
+        action_count_state -> Text,
+        action_count -> Nullable<SourceNumberSql>,
+        category_state -> Text,
+        category -> Nullable<Text>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    heritage_projection (id) {
+        id -> BigInt,
+        root_record_id -> Nullable<BigInt>,
+        actor_item_id -> Nullable<BigInt>,
+        ancestry_uuid_state -> Text,
+        ancestry_uuid -> Nullable<Text>,
+        ancestry_slug_state -> Text,
+        ancestry_slug -> Nullable<Text>,
+        versatile_state -> Text,
+        versatile -> Nullable<BigInt>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    effect_projection (id) {
+        id -> BigInt,
+        root_record_id -> Nullable<BigInt>,
+        actor_item_id -> Nullable<BigInt>,
+        duration_unit_state -> Text,
+        duration_unit -> Nullable<Text>,
+        duration_value_state -> Text,
+        duration_value -> Nullable<SourceNumberSql>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    condition_projection (id) {
+        id -> BigInt,
+        root_record_id -> Nullable<BigInt>,
+        actor_item_id -> Nullable<BigInt>,
+        is_valued_state -> Text,
+        is_valued -> Nullable<BigInt>,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    deity_projection (id) {
+        id -> BigInt,
+        root_record_id -> Nullable<BigInt>,
+        actor_item_id -> Nullable<BigInt>,
+        primary_domains_state -> Text,
+        alternate_domains_state -> Text,
+        fonts_state -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    deity_domains (deity_id, kind, value) {
+        deity_id -> BigInt,
+        kind -> Text,
+        value -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    deity_fonts (deity_id, value) {
+        deity_id -> BigInt,
+        value -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    artifact_context (singleton) {
+        singleton -> BigInt,
+        format_version -> BigInt,
+        context_hash -> Text,
+        context_json -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    record_bodies (record_id) {
+        record_id -> BigInt,
+        codec_version -> BigInt,
+        encoding -> Text,
+        snapshot -> Binary,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    prepared_content (content_id) {
+        content_id -> BigInt,
+        record_id -> BigInt,
+        owners_json -> Text,
+        field_path -> Text,
+        role -> Text,
+        visibility -> Text,
+        authored_markup_sha256 -> Text,
+        preparation_context_hash -> Text,
+        outcome -> Text,
+        html_gzip -> Nullable<Binary>,
+        interactions_json -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    developer_diagnostics (diagnostic_id) {
+        diagnostic_id -> BigInt,
+        record_id -> BigInt,
+        owners_json -> Nullable<Text>,
+        field_path -> Nullable<Text>,
+        stage -> Text,
+        details_json -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    relationship_occurrences (occurrence_id) {
+        occurrence_id -> BigInt,
+        record_id -> BigInt,
+        owners_json -> Text,
+        field_path -> Text,
         ordinal -> BigInt,
-        semantic_input_hash -> Text,
-        dimensions -> BigInt,
-        vector_blob -> Binary,
+        origin -> Text,
+        kind -> Text,
+        authored_target -> Nullable<Text>,
+        occurrence_path -> Nullable<Text>,
+        details_json -> Nullable<Text>,
+        resolution -> Text,
+        target_record_id -> Nullable<BigInt>,
+        target_owners_json -> Nullable<Text>,
+        target_url -> Nullable<Text>,
     }
 }
-
-diesel::allow_tables_to_appear_in_same_query!(
-    actor_records,
-    artifact_metadata,
-    document_embedding_cache,
-    filter_field_catalog,
-    filter_numeric_catalog,
-    filter_sample_catalog,
-    filter_value_catalog,
-    item_records,
-    metric_key_catalog,
-    metric_value_catalog,
-    packs,
-    record_aliases,
-    record_content,
-    record_metrics,
-    record_traits,
-    records,
-    records_fts,
-    reference_edges,
-    reference_occurrences,
-    remaster_links,
-    spell_records,
-);
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    verified_aliases (record_id, alias) {
+        record_id -> BigInt,
+        alias -> Text,
+        alias_lookup_key -> Text,
+        evidence_json -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    remaster_pairs (legacy_record_id) {
+        legacy_record_id -> BigInt,
+        remaster_record_id -> BigInt,
+        evidence_json -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    query_field_catalog (field) {
+        field -> Text,
+        definition_json -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    lexical_units (unit_id) {
+        unit_id -> BigInt,
+        record_id -> BigInt,
+        owners_json -> Text,
+        field_path -> Nullable<Text>,
+        section_json -> Nullable<Text>,
+        unit_kind -> Text,
+        identity_terms -> Text,
+        alias_terms -> Text,
+        structured_terms -> Text,
+        definition_terms -> Text,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    semantic_models (model_id) {
+        model_id -> BigInt,
+        identity_json -> Text,
+        dimensions -> BigInt,
+        unit_policy_version -> BigInt,
+    }
+}
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::numeric::SourceNumberSql;
+    semantic_units (unit_id) {
+        unit_id -> BigInt,
+        record_id -> BigInt,
+        model_id -> BigInt,
+        owners_json -> Text,
+        unit_kind -> Text,
+        field_path -> Nullable<Text>,
+        section_json -> Text,
+        chunk_ordinal -> BigInt,
+        input_token_count -> BigInt,
+        input_hash -> Text,
+    }
+}

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use crate::cli::args::CliPathMode;
+use atlas_cli_support::CliPathMode;
 
 pub(crate) const DEFAULT_WEB_PORT: u16 = 4727;
 

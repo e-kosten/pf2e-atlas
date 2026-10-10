@@ -35,9 +35,32 @@ jobs:
       - name: Rust verification
         run: scripts/verify.sh
 
+  windows-artifact:
+    name: Windows artifact publication
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Verify artifact coherence and publication
+        run: cargo test -p atlas-index --lib --locked foundation_tests
+
+  atlas-dev:
+    name: atlas dev (no web bundle)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build and test standalone Rust diagnostics
+        run: |
+          test ! -d web/atlas-ui/dist
+          cargo build -p atlas-dev --locked
+          cargo test -p atlas-dev -p atlas-cli-support --locked
+
   web-ui:
     name: web ui
     runs-on: ubuntu-24.04
+    env:
+      VITEST_MAX_WORKERS: '1'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -49,3 +72,60 @@ jobs:
         run: |
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run verify
+
+  source-contracts:
+    name: source contracts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dev-tools/source-contracts/package-lock.json
+      - name: Prepare repository Rust formatter
+        # Node test files run concurrently; resolve/install the repo-pinned
+        # toolchain before their rustfmt subprocesses can race rustup.
+        run: rustfmt --version
+      - name: Source contract fixture tests
+        run: |
+          npm --prefix dev-tools/source-contracts ci --ignore-scripts
+          cargo fetch --locked
+          npm --prefix dev-tools/source-contracts run verify
+      - name: Verify Rust portfolio from the pinned Foundry source
+        run: npm --prefix dev-tools/source-contracts run verify-generated
+
+  release-tools:
+    name: release tools (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dev-tools/release/package-lock.json
+      - name: Verify private release tools
+        shell: bash
+        run: |
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix dev-tools/release run verify
+      - name: Unix installer and preparation smoke tests
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          scripts/release/validate-release-tooling.sh
+          scripts/release/test-release-tools.sh
+          scripts/release/test-prepare-release.sh
+      - name: Windows installer smoke tests
+        if: runner.os == 'Windows'
+        # Git Bash supplies XZ-capable tar; Windows' bundled tar cannot create XZ.
+        shell: bash
+        run: pwsh -NoProfile -File scripts/release/test-installer.ps1

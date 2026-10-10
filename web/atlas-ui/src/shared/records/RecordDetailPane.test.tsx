@@ -1,3 +1,4 @@
+import { detailFixture } from "../../test/fixtures";
 import { render, screen } from "@testing-library/react";
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordDetailPane } from "./RecordDetailPane";
@@ -54,8 +55,8 @@ describe("RecordDetailPane", () => {
                   {
                     key: "ac",
                     label: "AC",
-                    value: { kind: "number", value: 25n },
-                    base_value: { kind: "number", value: 25n },
+                    value: { kind: "number", value: 25 },
+                    base_value: { kind: "number", value: 25 },
                     adjusted: false,
                     display: "static_number",
                   },
@@ -63,7 +64,6 @@ describe("RecordDetailPane", () => {
                 collapsed_by_default: false,
               },
             ],
-            fallback_presentation: recordDetailFixture().presentation,
           },
         }}
         loading={false}
@@ -71,25 +71,13 @@ describe("RecordDetailPane", () => {
       />,
     );
 
-    expect(screen.getAllByRole("heading", { name: "Test Creature" })).toHaveLength(2);
+    expect(screen.getAllByRole("heading", { name: "Test Creature" })).toHaveLength(1);
     expect(screen.getByText("AC")).toBeInTheDocument();
     expect(screen.getByText("25")).toBeInTheDocument();
-    expect(screen.getByText("Source presentation")).toBeInTheDocument();
+    expect(screen.queryByText("Source presentation")).toBeNull();
   });
 });
 
 function recordDetailFixture(): RecordDetailView {
-  return {
-    record_key: "spell:dirge-of-doom",
-    title: "Dirge of Doom",
-    kind: "spell",
-    presentation: {
-      record_key: "spell:dirge-of-doom",
-      kind: "spell",
-      title: "Dirge of Doom",
-      identity: [],
-      badges: [],
-      sections: [],
-    },
-  };
+  return detailFixture("spell:dirge", "Dirge of Doom");
 }

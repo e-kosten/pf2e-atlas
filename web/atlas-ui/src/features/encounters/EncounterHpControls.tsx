@@ -13,6 +13,19 @@ import {
   healChanges,
 } from "./participantEdits";
 
+const hpOriginLabels: Record<string, string> = {
+  derived_pristine: "Derived maximum and current HP",
+  derived_edited: "Derived maximum; current HP edited",
+  explicit: "HP set manually",
+  unknown: "HP unavailable",
+};
+const adjustmentOriginLabels: Record<string, string> = {
+  default_unadjusted: "Unadjusted by default",
+  inherited_known: "Adjustment from source",
+  inherited_unknown: "Source adjustment unavailable",
+  explicit: "Adjustment selected",
+};
+
 export function EncounterHpControls({
   current,
   onUpdate,
@@ -42,6 +55,8 @@ export function EncounterHpControls({
       : (current.temporary_hp?.toString() ?? "");
   const amount =
     amountDraft?.participantKey === current.participant_key ? amountDraft.value : null;
+  const hpKnown = current.current_hp !== undefined;
+  const maxKnown = current.max_hp !== undefined;
   const currentHp = asNumber(current.current_hp);
   const maxHp = asNumber(current.max_hp);
   const temporaryHp = asNumber(current.temporary_hp);
@@ -72,10 +87,7 @@ export function EncounterHpControls({
         current_hp: BigInt(clampedHp),
         defeated: clampedHp === 0 ? true : current.defeated,
       });
-      setHpDraft({
-        participantKey: current.participant_key,
-        value: clampedHp.toString(),
-      });
+      setHpDraft(null);
     }
   };
   const applyTempHpInput = () => {
@@ -84,14 +96,11 @@ export function EncounterHpControls({
       onUpdate({
         temporary_hp: BigInt(temporaryHp),
       });
-      setTempHpDraft({
-        participantKey: current.participant_key,
-        value: temporaryHp.toString(),
-      });
+      setTempHpDraft(null);
     }
   };
   const applyHpChangeInput = () => {
-    if (amount === null || amount === 0) {
+    if (!hpKnown || amount === null || amount === 0) {
       return;
     }
     onUpdate(
@@ -111,29 +120,37 @@ export function EncounterHpControls({
         <h3>HP</h3>
         <span>{hpSummary}</span>
       </div>
-      <div className="encounter-hp-meter" aria-label={`HP remaining: ${hpSummary}`}>
-        <span
-          className={["encounter-hp-meter__current", hpMeterTone]
-            .filter(Boolean)
-            .join(" ")}
-          style={{ width: `${hpPercent}%` }}
-        />
-        {missingHp > 0 && (
+      {hpKnown && maxKnown && (
+        <div className="encounter-hp-meter" aria-label={`HP remaining: ${hpSummary}`}>
           <span
-            className="encounter-hp-meter__missing"
-            style={{ left: `${hpPercent}%`, width: `${missingHpPercent}%` }}
+            className={["encounter-hp-meter__current", hpMeterTone]
+              .filter(Boolean)
+              .join(" ")}
+            style={{ width: `${hpPercent}%` }}
           />
-        )}
-        {temporaryHp > 0 && (
-          <span
-            className="encounter-hp-meter__temporary"
-            style={{
-              left: `${hpPercent + missingHpPercent}%`,
-              width: `${tempHpPercent}%`,
-            }}
-          />
-        )}
-      </div>
+          {missingHp > 0 && (
+            <span
+              className="encounter-hp-meter__missing"
+              style={{ left: `${hpPercent}%`, width: `${missingHpPercent}%` }}
+            />
+          )}
+          {temporaryHp > 0 && (
+            <span
+              className="encounter-hp-meter__temporary"
+              style={{
+                left: `${hpPercent + missingHpPercent}%`,
+                width: `${tempHpPercent}%`,
+              }}
+            />
+          )}
+        </div>
+      )}
+      <p>
+        {hpOriginLabels[current.hp_origin] ?? "HP origin unavailable"};{" "}
+        {adjustmentOriginLabels[current.variant_origin] ??
+          "Adjustment origin unavailable"}
+      </p>
+      <CapacityControl current={current} onUpdate={onUpdate} />
       <div className="encounter-hp-grid">
         <div className="encounter-hp-control">
           <span className="encounter-hp-control__label">HP</span>
@@ -193,6 +210,7 @@ export function EncounterHpControls({
             <Form.Item layout="vertical">
               <InputNumber
                 aria-label="HP change"
+                disabled={!hpKnown}
                 value={amount}
                 onChange={(value) =>
                   setAmountDraft({
@@ -210,6 +228,7 @@ export function EncounterHpControls({
             </Form.Item>
             <div className="encounter-hp-actions">
               <Button
+                disabled={!hpKnown}
                 onClick={() => {
                   if (amount !== null) {
                     onUpdate(damageChanges(current, Math.abs(amount)));
@@ -223,6 +242,7 @@ export function EncounterHpControls({
                 Damage
               </Button>
               <Button
+                disabled={!hpKnown}
                 onClick={() => {
                   if (amount !== null) {
                     onUpdate(healChanges(current, Math.abs(amount)));
@@ -248,4 +268,40 @@ function hpLabel(participant: EncounterParticipantView): string {
   const max = displayNumber(participant.max_hp);
   const temporaryHp = asNumber(participant.temporary_hp);
   return `${current}/${max}${temporaryHp > 0 ? ` +${temporaryHp}` : ""}`;
+}
+
+function CapacityControl({
+  current,
+  onUpdate,
+}: {
+  current: EncounterParticipantView;
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? current.max_hp?.toString() ?? "";
+  return (
+    <Form.Item label="Maximum HP">
+      <Input
+        aria-label="Maximum HP"
+        value={value}
+        onChange={(e) => setDraft(e.target.value)}
+      />
+      <Button
+        onClick={() => {
+          const hp = evaluateHpFormula(value);
+          if (hp !== null) onUpdate({ max_hp: BigInt(hp), max_hp_edit: true });
+        }}
+      >
+        Override maximum
+      </Button>
+      <Button
+        onClick={() => {
+          setDraft(null);
+          onUpdate({ use_derived_max: true });
+        }}
+      >
+        Use authored maximum
+      </Button>
+    </Form.Item>
+  );
 }

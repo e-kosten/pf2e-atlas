@@ -14,7 +14,7 @@ use crate::agent_skills::package::{bundled_skill, bundled_skills};
 use crate::agent_skills::plan::{InstallStatus, SkillInstallPlan, build_plan};
 use crate::agent_skills::prompt::{confirm_install, prompt_scope, prompt_targets};
 use crate::agent_skills::registry::{SkillScope, SkillTargetId, selected_scopes, selected_targets};
-use crate::output::{write_json_data, write_json_error};
+use atlas_cli_support::{write_json_data, write_json_error};
 
 pub(crate) mod args;
 

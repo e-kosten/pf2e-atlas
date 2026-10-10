@@ -1,147 +1,122 @@
-# Architecture Overview
+# Architecture overview
 
-PF2e Atlas is a Rust workspace that builds and queries a local SQLite artifact from the Foundry PF2E source data. The primary product surfaces are the `atlas` CLI, the local web service launched by `atlas web`, and the first-party local-agent skill package installed by `atlas agent skills`.
+PF2e Atlas builds and queries a local SQLite reference artifact from Foundry PF2E
+source data. Product surfaces are the `atlas` CLI, the local web service launched
+by `atlas web`, and the first-party agent skill installed by `atlas agent skills`.
 
-Read this document first when you need to understand crate ownership, then follow the focused docs:
+Read this document first, then the [runtime architecture](./runtime.md),
+[artifact contract](./artifact-contract.md), [tagging architecture](./tagging.md)
+and [ADR index](./decisions/README.md) for the relevant owner.
 
-- [Runtime architecture](./runtime.md): crate ownership, ingest flow, content/search/reference projections, and runtime query flow.
-- [Artifact contract](./artifact-contract.md): SQLite schema, table families, validation contract, and embedding/vector artifact boundary.
-- [Tagging architecture](./tagging.md): Rust-owned tag ontology, assignment corpus, agent workflow, context packets, and future `record_tags` artifact integration.
-- [Architecture decisions](./decisions/README.md): accepted durable design decisions.
+## Crate ownership
 
-## Crate Map
+| Crate | Responsibility |
+| --- | --- |
+| `atlas-foundry-model` | Generated authored Foundry DTOs, admission/field retention and versioned checked snapshots. No ingest/runtime/SQLite dependency. |
+| `atlas-record` | Minimal source-backed record, checked embedded addressing, consumer-required borrowed source views, content interpretation/selection and attributed relationship policies. Storage and presentation neutral. |
+| `atlas-domain` | Shared keys, predicates, query catalog/discovery vocabulary, summary facts and passage addresses. No SQLite or source parser ownership. |
+| `atlas-embedding` | One pinned BGE model, tokenizer/input budgets, library inference/segmentation, exact vector reuse identity and query/document embeddings. |
+| `atlas-ingest` | Source filesystem loading/provenance, admission reporting, explicit content/reference context, index inputs and build-time embedding execution. |
+| `atlas-index` | Executable SQLite schema, checked artifact publication/validation, row readers, query catalog/bindings/discovery, parameterized filter SQL and vector queries. |
+| `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, attributable witnesses, graph, verified edition preference and Suggested variants. |
+| `atlas-runtime` | Paths, setup/source-fetch/cache policy, artifact readiness and retrieval service construction. |
+| `atlas-local-state` | Durable mutable saved lists and encounters in a separate SQLite database, with independent migrations. |
+| `atlas-app-model` | Intentional app DTOs and generated TypeScript contracts for filters, result windows, record content, lists and encounters. |
+| `atlas-app-service` | Cross-layer app workflows, bounded retrieval execution, catalog editor presentation, source-based product projections and local-state hydration. |
+| `atlas-web` | Thin Axum transport over app-service and static frontend serving. |
+| `atlas-cli` | Product grammar, terminal/JSON presentation, progress/exit behavior, web startup and agent skill installation. |
+| `atlas-dev` | Private Rust source discovery/audit/artifact inspection. Builds independently of the web UI and Node. |
+| `atlas-cli-support` | Shared path/progress argument and JSON/output primitives for both Rust CLIs. No runtime/ingest policy. |
+| `atlas-tags` | File-owned tag ontology, assignments, validation and agent contracts. Artifact tag search remains deferred. |
+| `atlas-sqlite-vec` | sqlite-vec registration and capability probing. |
 
-- `atlas-app-model` owns interactive app DTOs for local web/TUI-style workflows, including app errors, readiness, filter editor contracts, basic filters, result windows, record surface views, and record view wrappers. It is the default Rust-to-TypeScript export boundary for app contracts.
-- `atlas-app-service` owns application workflow orchestration over `atlas-runtime`, `atlas-search`, and `atlas-local-state`. Web startup uses full pooled retrieval services through runtime setup/readiness policy; short-lived local CLI clients may choose explicit on-demand retrieval modes for workflows that do not need query embeddings. App-service owns result-window metadata, projects app filter editor groups/controls from product discovery, lowers app filters to canonical filters, hydrates saved-list and encounter rows from local state against the active artifact, composes final app-facing record surfaces from source facts plus product context, and exposes native methods to web, CLI client, and future TUI surfaces.
-- `atlas-web` owns the Axum local HTTP surface, adapting `/api/*` routes and future static frontend serving to `atlas-app-service`.
-- `web/atlas-ui` owns the TypeScript/React frontend. It consumes generated app DTOs, uses a thin API client over `atlas-web`, and uses Ant Design as the selected component library for the current web UI. It should not own retrieval semantics or duplicate Rust DTO contracts.
-- `atlas-local-state` owns durable mutable local state stored outside the generated artifact, including saved-list schema/items and encounter schema/participants.
-- `atlas-cli` owns command parsing, output, progress, exit codes, `atlas web` startup, and agent skill installation.
-- `atlas-runtime` owns path/setup policy and runtime handle construction.
-- `atlas-search` owns retrieval orchestration, filter discovery orchestration, and result assembly.
-- `atlas-index` owns artifact validation, Diesel-backed relational schema and migrations, row readers, SQLite artifact writing, filter discovery, filter compilation, reference queries, and vector SQL. Its crate root exposes only the hooks needed by ingest, runtime, search, and CLI artifact diagnostics; product CLI workflows route through `atlas-search` rather than index readers. Artifact, read, write, and SQLite implementation details stay behind internal module facades.
-- `atlas-embedding` owns model catalog, embedding text rendering, token budgeting, document units, and query/document vectors.
-- `atlas-tags` owns tag ontology, YAML parsing, corpus loading, applicability, assignment validation, evidence validation, ontology suggestions, and agent contract DTOs.
-- `atlas-ingest` owns source loading, Foundry parsing, normalization, enrichment, generation, reference resolution, retrieval visibility, embedding execution during builds, and handoff into index-owned artifact writers.
-- `atlas-record` owns normalized records, mechanics/activity projections, `RichDocument`, presentation contracts, FTS projection, graph/reference policy, and section-tree projection.
-- The former `atlas-artifact` crate has been retired; SQLite artifact schema ownership lives in `atlas-index` so the crate that validates, reads, and writes the artifact owns the database contract.
-- `atlas-domain` owns shared request, filter, record-key, detail-level, and metadata vocabulary, including the simple product filter DTO and its one-way lowering into the canonical `SearchFilterNode` tree.
-- `atlas-sqlite-vec` owns sqlite-vec registration and capability probing.
+`web/atlas-ui` renders generated app contracts with React and Ant Design. Private
+TypeScript compiler research/generation lives under `dev-tools`; Rust developer
+commands do not dispatch those scripts. Product record identity remains Foundry
+pack plus source ID. Embedded documents stay in one checked parent snapshot.
 
-If you remember one rule, remember this: product surfaces stay thin, and durable behavior belongs in the crate that owns the concern.
+## Data flow
 
-## System Overview
+1. Ingest loads the source checkout into admitted authored DTOs with compact
+   provenance and developer diagnostics. `SourceBackedRecord` retains a key and
+   one DTO; it does not duplicate or normalize every source field.
+2. Pure record policies select content and useful facts. Ingest supplies explicit
+   locale, audience and reference resolution inputs, prepares sanitized HTML and
+   builds query/search/relationship inputs. Embedding independently covers selected
+   explanatory prose and compact identity units.
+3. Index writes and validates a temporary source-backed artifact, then publishes
+   atomically. Checked snapshots are authoritative; named relational query rows,
+   HTML caches, lookup evidence and lexical/vector units are rebuildable projections.
+4. Runtime resolves paths and constructs concrete search services over read-only
+   index readers, with query embeddings only when the chosen workflow needs them.
+   Ordinary reads work without the source checkout and never run ingest admission.
+5. Search applies SQL eligibility before lexical/vector ranking, aggregates roots
+   with attributable witnesses and reports bounded semantic coverage honestly.
+6. App-service composes product views and saved-list/encounter workflows. Thin CLI
+   and web transports present those views; the browser does not infer source rules
+   or gameplay values from raw JSON/prose.
 
-```mermaid
-flowchart TD
-    pf2e["Foundry PF2E source<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, build input"]
-    ingest --> indexWriter["atlas-index<br/>SqliteIndexWriter"]
-    indexWriter --> artifactDb["SQLite artifact<br/>pf2e-atlas-artifact/v1"]
-    localStateDb["SQLite local state<br/>pf2e-local-state.sqlite"]
+The artifact stores selected sanitized HTML/control caches, not RichDocument or
+a second plain-text corpus. html2text formats terminal output at read time.
+Precision FTS differs from semantic prose selection. GM/owner prose and DCs are
+included; explicit None is excluded. Locale defaults to English at indexing and
+can be overridden; changing search locale requires a rebuild. Initial display
+uses the artifact locale. Macros remain developer-only; RollTables are products.
 
-    skill["PF2e Atlas agent skill"] --> cli["atlas-cli"]
-    cli --> web["atlas-web<br/>local Axum API"]
-    browser["web/atlas-ui<br/>React frontend"] --> web
-    web --> appService["atlas-app-service<br/>application workflow service"]
-    appService --> appModel["atlas-app-model<br/>interactive DTOs"]
-    appService --> runtime
-    appService --> search
-    appService --> localState["atlas-local-state<br/>saved lists, encounters,<br/>and mutable local state"]
-    cli --> cliClient["atlas-cli client<br/>local app-service / future HTTP"]
-    cliClient --> appService
-    cli --> runtime["atlas-runtime<br/>setup/index control plane"]
-    runtime --> search["atlas-search"]
-    runtime --> index["atlas-index"]
-    runtime --> localStateDb
-    localState --> localStateDb
-    search --> index
-    search --> embedding["atlas-embedding"]
-    index --> artifactDb
-    embedding --> artifactDb
-    ingest --> record["atlas-record"]
-    index --> record
-```
+## Editing guidance
 
-## Product Surfaces
+Keep entrypoints focused on module declarations, intentional re-exports and
+composition. Put parsing, projection, storage and workflow logic in cohesive
+named modules. Promote shared helpers only for an existing stable concern with
+at least two owners; avoid generic utility modules.
 
-### CLI
+Keep source DTO generation and snapshot admission in `atlas-foundry-model`.
+Runtime readers decode the checked codec without admitting JSON again. Invalid
+members retained by admission are explicit unavailable source values, not a
+catch-all product raw-JSON fallback. Do not add a separately maintained family
+schema or convert DTOs through the retired normalized AtlasRecord model.
 
-`atlas-cli` is the user and agent command surface. It owns:
+Keep record policies storage agnostic. Add borrowed common/family views only for
+actual consumers. Do not add a global embedded-node/status/content inventory to
+every record. Content preparation and relationship resolution return separate
+derived outputs. Authored source stays authoritative for runtime display.
 
-- command parsing
-- JSON and terminal output
-- progress output
-- exit codes
-- shell completions
-- first-party agent skill installation and diagnostics
+Keep schema and SQL in index. The tracked schema is the physical source of truth;
+Diesel declarations must stay checked against it. Focused raw SQL is appropriate
+for FTS5/sqlite-vec/dynamic eligibility/validation. Query catalog metadata must
+match executable bindings, never artifact-supplied SQL. CLI CEL and the structured
+UI builder lower independently to the shared predicate. Do not invent another
+expression parser, filter authority, per-field CLI flag set or metric EAV store.
 
-It should not own durable retrieval semantics, filter discovery behavior, SQLite schema, model execution policy, or artifact mutation rules.
+Keep product retrieval in search. Surfaces do not open SQLite, implement ranking,
+scan source clones or load models. Summary reads are body free; explicit detail
+decodes one root and batches selected cache reads. Filters and key scopes apply
+before KNN/FTS ranking. Search witnesses retain actual owner/field/passage addresses.
+Verified remaster preference applies only when both records match the complete
+request; variants are separate derived suggestions.
 
-### Local Web Service
+Keep application workflows in app-service. It uses runtime/search/local-state,
+not index imports or handcrafted SQL readers. Retain the bounded retrieval
+executor rather than serializing all read-only web requests behind one lane.
+App-service owns useful catalog control presentation, result windows, composed
+record surfaces and hydration. App-model stays a DTO/export boundary; run
+`cargo test -p atlas-app-model` and regenerate checked bindings intentionally
+with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
 
-`atlas web` starts a long-lived localhost service for the interactive web app. CLI startup owns process flags such as path overrides, port selection, and `--open`; `atlas-web` owns HTTP routing; `atlas-app-service` owns long-lived retrieval workflow state.
+Keep local state separate from artifact generation. Unknown saved keys retain
+their snapshots. NPC variants/conditions are read-time participant overlays over
+authored baselines. New HP uses known integral effective maxima; saved HP,
+explicit overrides and edit intent survive rebuilds. Missing values stay unknown.
+Do not implement a Foundry world/rule/macro execution engine through presentation.
 
-For `atlas web`, the app service starts a bounded pool of full `AtlasRetrievalService` workers through `AtlasRuntime::open_retrieval_service` and should fail startup when artifact, vector, or embedding readiness is not satisfied. The CLI local client may start app-service in explicit on-demand modes: no-embeddings for record/list/filter/graph reads and stored-vectors for similar-record reads. Those modes are for short-lived local CLI workflows, not for the web service. `atlas-web` must apply explicit backpressure before dispatching blocking app-service work so frontend HTTP requests cannot accumulate in an unbounded transport-side queue ahead of the app-service executor. Saved-list and encounter web reads go through app-service methods that open the runtime-resolved local-state database and hydrate active records through the app-service retrieval pool, preserving unresolved local-state rows with snapshots.
+Keep CLI/web thin and frontend semantics Rust-owned. The browser uses Ant controls
+and a maintained structured query builder, generated contracts and backend catalog
+operators. It renders sanitized HTML and supported narrow controls, without a
+Foundry parser, mechanics inference or CEL editor translation. Follow
+[`web/atlas-ui/AGENTS.md`](../../web/atlas-ui/AGENTS.md) and
+[frontend guidelines](../../web/atlas-ui/docs/frontend-guidelines.md).
 
-`web/atlas-ui` is a Vite/React frontend package. Vite remains the frontend development and build tool, but normal `atlas web` usage serves the built frontend from `atlas-web` through embedded static assets. During frontend prototyping, contributors may still run the Vite dev server and proxy `/api/*` to the local `atlas-web` service for hot reload. The frontend imports the Rust-generated TypeScript DTO surface through `web/atlas-ui/src/generated/atlas.ts`; frontend code should use those generated contracts rather than hand-written duplicate app DTOs. The filter palette is driven by the app-owned `FilterEditorView` contract from `/api/filters/editor`; the frontend may own local visibility, pending values, URL state, and component rendering, but not field grouping, control kind, labels, placement, discovery-scope semantics, or option ordering policy. Authored filter state in the UI should use app-model `FilterClause` values directly, including range and metric comparison clauses, rather than parallel field-specific buckets.
-
-### Agent Skill
-
-The first-party PF2e Atlas CLI skill lives under `skills/pf2e-atlas-cli` and is packaged by `atlas-cli`. The skill teaches local agents how to choose between record lookup, strict resolution, search, graph context, filter discovery, and readiness diagnostics.
-
-Skill guidance should use installed `atlas` commands. Contributor-only `cargo run ...` examples belong in contributor docs, not normal skill instructions.
-
-### Future TUI
-
-A future Ratatui workbench should consume `atlas-app-model` and `atlas-app-service` for shared interactive workflow contracts. TUI screen code should not open SQLite, load embedding models, or duplicate artifact/readiness policy.
-
-### Local State
-
-Durable mutable local state lives in a separate local-state SQLite database resolved beside the active generated artifact. The generated artifact remains rebuildable source-derived data; local state owns user-authored or agent-authored data such as saved lists and runnable encounters.
-
-Saved lists expose a stable generated `list_key` for product identity plus a unique user-friendly slug for URL, CLI, and scriptable references. Saved-list operations accept list refs that resolve by `list_key` or slug, while responses include both values. Browser routes should use slugs for readability; update workflows can use `list_key` internally when they need stable identity across a slug change. Saved-list metadata includes user-authored grouping tags stored in local state and projected through app-service for CLI and web filtering; these tags are independent of the Rust-owned record taxonomy described below. Saved-list items store canonical record keys plus display snapshots. Adding a saved-list item requires strict resolution to one active record key, but later artifact rebuilds may leave that key unresolved. Product surfaces must preserve unresolved local-state rows and report them explicitly rather than deleting them during artifact rebuilds or hydration.
-
-Encounters expose a stable generated `encounter_key` plus a unique slug for URL and script-friendly references. Encounter participants are instance rows with their own `participant_key`, so multiple copies of the same creature or hazard can coexist with independent initiative, HP, notes, and defeated state. Record-backed encounter participants store canonical record keys plus snapshots and are hydrated through app-service when possible; manual PC participants are local-state rows without record keys.
-
-### Tags
-
-Tags are a Rust-owned product surface with an accepted architecture model and an initial authored-corpus validation command. Tags are global concepts with typed applicability over record kind, optional Foundry record type refinements, and small normalized fact predicates. They are authored as YAML, assigned through an agent-first workflow, and validated with `atlas tags validate`. They will become authoritative runtime filters through `record_tags` rows written during regular `atlas index build`.
-
-See [Tagging architecture](./tagging.md) and [ADR 0028](./decisions/0028-rust-tagging-model.md).
-
-## Data Flow
-
-1. `atlas-ingest` loads Foundry PF2E source data from `vendor/pf2e` or the resolved global source path.
-2. Ingest normalizes source records, parses rich content into `RichDocument`, resolves rich-content references, extracts traits/metrics/aliases, generates source-backed records, runs build-time embedding work, and prepares `IndexBuildInput`.
-3. `atlas-index` writes the complete SQLite artifact through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`.
-4. `atlas-runtime` resolves source, embedding cache, artifact, and local-state paths for setup and query commands.
-5. `atlas-index` opens completed artifacts read-only, validates contract/readiness, and provides typed row/query APIs.
-6. `atlas-local-state` opens and migrates mutable local-state storage and exposes product APIs for saved lists, encounters, and future durable local data.
-7. `atlas-search` orchestrates lookup, search, graph context, lexical/vector retrieval, and result assembly.
-8. `atlas-cli` presents command results and errors through stable terminal or JSON output, or starts the local Axum web service through `atlas web`. Commands that need application workflows should call the CLI client facade, which currently has an in-process app-service implementation and a stubbed future HTTP implementation.
-9. `atlas-app-service` holds retrieval state for application workflows, adapts app DTOs into `atlas-search` requests, composes local-state product APIs with retrieval, and projects saved lists and encounters into app-facing views. It is an application workflow service, not a web-only service.
-10. `atlas-web` exposes app-service workflows through local JSON routes for the TypeScript frontend.
-11. `web/atlas-ui` consumes those JSON routes through a thin API client and renders the local browser experience.
-
-## Editing Guidance
-
-- Keep `atlas-cli` thin. Durable search, lookup, graph, validation, setup, artifact behavior, and cross-layer local-state workflows belong below the CLI. CLI commands should own argument grammar, terminal/JSON envelopes, and exit-code mapping. When a command needs app workflow behavior, prefer the CLI client facade over direct runtime/search/local-state composition so future local and remote clients can share the same contracts.
-- Keep `atlas-app-model` thin. It should contain interactive workflow DTOs and generated TypeScript contracts, not duplicate domain logic or record presentation models.
-- Run `cargo test -p atlas-app-model` after app DTO changes; it fails when checked-in TypeScript bindings drift. Regenerate bindings intentionally with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
-- Keep `atlas-app-service` behind runtime/search boundaries. It should not import `atlas-index` or assemble SQLite readers. Web service construction must use full pooled retrieval; the CLI local client may opt into explicit on-demand app-service modes when a short-lived command does not need query embeddings. App-service owns the app filter editor projection, including field grouping, typed controls, placement, labels, discovery-scope semantics, selected-field preservation, and display ordering over product discovery results. App-service also owns final app-facing record surface composition: source facts from `atlas-record`, active retrieval context, and local encounter/list state are composed into profile-specific DTOs before the browser renders them. The service facade owns shared app state and a bounded retrieval executor; workflow modules such as result windows, record detail, and filters own their orchestration and tests. Result-window metadata may be serialized through app-service state, but web read-only retrieval execution should run through the bounded pool rather than a single global request lane.
-- Keep `atlas-web` as transport glue. It adapts HTTP requests/errors to app-service methods and should not own retrieval semantics or compose record presentation.
-- Keep `web/atlas-ui` focused on browser presentation, frontend state, component-library composition, and the thin API client. It should import generated DTOs from the app-model binding surface rather than redefining Rust-owned contracts. The frontend renders composed record surfaces and hosts interactions through feature-owned slots; it should not parse Foundry JSON or prose to compute mechanics, reconcile static source facts against runtime adjustments, or decide product semantics that belong in app-service. Filter UI code should render the backend-provided editor model instead of hard-coding field catalogs, fallback option lists, control kinds, or product field labels. Reusable browser layout primitives such as pane frames, resizable workspaces, modal/popover record previews, and similar cross-surface interaction patterns belong in shared frontend modules. Repeated product interaction primitives over Ant Design, such as index tables, entity index pages, pane icon actions, danger confirmation buttons, editable commit fields, and search picker modals, belong under `web/atlas-ui/src/shared/ui` once a second surface needs the behavior. Feature modules should own only feature-specific composition and controls, not one-off copies of general layout, overlay, or product interaction behavior. See `web/atlas-ui/docs/frontend-guidelines.md` and `web/atlas-ui/AGENTS.md` for concrete frontend editing rules.
-- Keep `atlas-cli/src/main.rs` as the binary entrypoint only. Top-level command composition and dispatch belong in `atlas-cli/src/cli.rs`; shared CLI argument groups and parsers belong under `atlas-cli/src/cli/`; command-specific argument grammar, execution, and presentation belong under `atlas-cli/src/commands/`.
-- Keep `atlas-ingest/src/lib.rs` as a facade. New ingest policy belongs under the phase that owns it.
-- Keep the SQLite artifact contract in `atlas-index`. Diesel migrations are the physical schema source of truth, checked-in Diesel schema declarations must stay validated against them, and typed schema models should own ordinary relational tables; explicit raw SQL remains appropriate for FTS5, sqlite-vec, dynamic filter/discovery relations, and SQLite validation pragmas. Filter discovery field metadata and SQLite extractor rendering belong inside `atlas-index`; shared discovery result DTOs belong in `atlas-domain`.
-- Keep durable mutable local state in `atlas-local-state`, not in generated artifact tables. `LocalStateStore` owns database lifecycle and feature handles such as `saved_lists()` and `encounters()`, while feature modules own product behavior over their rows. Cross-layer workflows that need both active artifact records and local state belong in `atlas-app-service`, not in `atlas-runtime` or CLI command code. Artifact rebuilds must not be responsible for preserving saved lists, encounters, or future user-authored local rows.
-- Keep `atlas-record` storage-agnostic. It should not own SQLite names, validation diagnostics, CLI envelopes, or source JSON parser structs.
-- Keep `atlas-domain` free of SQLite, CLI presentation, ingest source structs, and artifact metadata inventories.
-- Add future crates only when their first real implementation slice lands.
-
-## Further Reading
-
-- [Runtime architecture](./runtime.md)
-- [Artifact contract](./artifact-contract.md)
-- [Tagging architecture](./tagging.md)
-- [Architecture decisions](./decisions/README.md)
+Architectural replacements land with every call site and matching docs updated.
+Generated reference artifacts rebuild directly: no legacy adapter, bridge or
+mixed old/new authority. Local-state migration is a separate durable-data concern.
+See ADR0046 for the source-backed artifact decision and prior ADRs for history.
