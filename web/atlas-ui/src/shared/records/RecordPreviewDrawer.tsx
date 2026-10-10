@@ -1,5 +1,5 @@
 import { Drawer } from "antd";
-import { RecordPresentation } from "./RecordPresentation";
+import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
 
@@ -29,11 +29,7 @@ export function RecordPreviewDrawer({
       onClose={onClose}
     >
       <section aria-label="Reference preview" role="dialog">
-        <RecordPresentation
-          detail={detail}
-          loading={loading}
-          onReference={onReference}
-        />
+        <RecordDetailPane detail={detail} loading={loading} onReference={onReference} />
       </section>
     </Drawer>
   );

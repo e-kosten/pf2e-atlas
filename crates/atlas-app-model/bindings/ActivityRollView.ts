@@ -2,4 +2,4 @@
 import type { ActivityRollSurfaceView } from "./ActivityRollSurfaceView";
 import type { StatModifierView } from "./StatModifierView";
 
-export type ActivityRollView = { roll_id: string, label: string, base_value: bigint, adjusted_value: bigint, surface: ActivityRollSurfaceView, modifiers: Array<StatModifierView>, suppressed_modifiers: Array<StatModifierView>, };
+export type ActivityRollView = { roll_id: string, label: string, base_value: number, adjusted_value: number, surface: ActivityRollSurfaceView, modifiers: Array<StatModifierView>, suppressed_modifiers: Array<StatModifierView>, };

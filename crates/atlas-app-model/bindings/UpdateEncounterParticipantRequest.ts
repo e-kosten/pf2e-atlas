@@ -2,4 +2,4 @@
 import type { EncounterParticipantSideView } from "./EncounterParticipantSideView";
 import type { EncounterParticipantVariantView } from "./EncounterParticipantVariantView";
 
-export type UpdateEncounterParticipantRequest = { participant_key: string, display_name: string, side: EncounterParticipantSideView, participant_variant: EncounterParticipantVariantView, initiative?: bigint, max_hp?: bigint, current_hp?: bigint, temporary_hp: bigint, defeated: boolean, hidden: boolean, note?: string, };
+export type UpdateEncounterParticipantRequest = { hp_edit: boolean, max_hp_edit: boolean, variant_edit: boolean, use_derived_max: boolean, participant_key: string, display_name: string, side: EncounterParticipantSideView, participant_variant: EncounterParticipantVariantView, initiative?: bigint, max_hp?: bigint, current_hp?: bigint, temporary_hp: bigint, defeated: boolean, hidden: boolean, note?: string, };

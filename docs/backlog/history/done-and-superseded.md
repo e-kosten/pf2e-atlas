@@ -6,6 +6,11 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Compiler-based source contracts and trait catalog](./items/rust-source-contract-generation.md)
+  Complete pinned declaration extraction, generated Rust portfolio, trait/tag
+  catalogs, field-retaining admission and checked snapshots. Production artifact
+  adoption has its own cutover completion gate. Status: done.
+
 - [Developer command separation](./items/developer-command-separation.md)
   Product operations use atlas, Rust diagnostics use atlas-dev, and Foundry
   compiler research uses private TypeScript npm commands. Status: done.
@@ -16,9 +21,6 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 - [Rust web UI frontend architecture cleanup](./items/rust-web-ui-frontend-architecture-cleanup.md)
   The React frontend now uses `app`, `features`, and `shared` module ownership with shared filter discovery, record/detail primitives, and feature-local route modules. Status: done.
-
-- [Rust rich source content model](../items/rust-rich-source-content-model.md)
-  The lossy `ContentDocument` storage model has been replaced by canonical `RichDocument` content stored in `record_content`, with projections for CLI presentation, FTS, references, and embedding units. Status: done.
 
 - [Core architecture convergence](./items/core-architecture-convergence.md)
   The long-term non-tag architecture cleanup from the May 2026 codebase architecture review is landed across data/search retrieval, canonical TUI query editing, typed indexing stages, and search-discovery/ontology ownership. Status: done.
@@ -102,6 +104,23 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
   Short-lived app/editorial index access now routes through the shared application storage owner instead of parallel helper seams. Status: done.
 
 ## Superseded
+
+- [Rust rich source content model](./items/rust-rich-source-content-model.md)
+  Historical completed RichDocument migration; source-backed checked DTOs and
+  prepared HTML replace its persisted document authority in ADR 0046. Status: superseded.
+
+The following proposals are superseded by the approved source-backed artifact
+contract in ADR 0046. Their original rationale remains archived; implementation
+completion is tracked by the active cutover item until its gates pass.
+
+- [Side data and metric convergence](./items/rust-side-data-metric-source-fact-convergence.md): named typed projections replace metric authority.
+- [Artifact JSON content review](./items/rust-artifact-json-content-model-review.md): checked snapshots and prepared HTML/control caches replace persisted RichDocument.
+- [RichDocument child retrieval](./items/rust-rich-document-child-retrieval-policy.md): independently attributed root and owned prose replace overflow-only selection.
+- [Manual family mechanics parsers](./items/rust-foundry-type-mechanics-parsers.md): generated DTOs and focused borrowed views replace separate family models.
+- [Creature level filtering](./items/rust-creature-level-filtering.md): catalog-bound authored level replaces the old metadata/flag path.
+- [Foundry field coverage audit](./items/rust-foundry-json-field-audit.md): schema discovery and field sampling replace owner/omission receipts.
+- [Journal and Table subdocuments](./items/rust-content-subdocuments-journal-table-results.md): checked owned locators preserve nested content without promoted identities.
+- [Legacy web filter mutation hardening](./items/rust-web-filter-state-policy-hardening.md): maintained query-builder predicates replace FilterClause helpers.
 
 - [Node-era backlog retirement](./items/node-era-backlog-retirement.md)
   Implementation-specific terminal, tagging, and transport backlog entries were retired from the active backlog and consolidated into Rust-era CLI, skill, Ratatui, and derived-tag follow-up items. Status: superseded.

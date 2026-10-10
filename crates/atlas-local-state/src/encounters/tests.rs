@@ -46,6 +46,9 @@ fn encounters_support_manual_pc_participants() -> Result<(), Box<dyn std::error:
     let pc = encounters.add_participant(
         "boss-fight",
         AddEncounterParticipant {
+            hp_origin: crate::ParticipantHpOrigin::Explicit,
+            variant_origin: crate::ParticipantVariantOrigin::Explicit,
+            participant_variant: crate::ParticipantVariant::Normal,
             record_key: None,
             participant_kind: ParticipantKind::Pc,
             display_name: "Asta".to_string(),
@@ -237,6 +240,8 @@ fn participant_variant_defaults_and_updates() -> Result<(), Box<dyn std::error::
 
     let updated = encounters
         .update_participant(UpdateEncounterParticipant {
+            hp_origin: crate::ParticipantHpOrigin::Explicit,
+            variant_origin: crate::ParticipantVariantOrigin::Explicit,
             participant_key: participant.participant_key.clone(),
             display_name: participant.display_name,
             side: participant.side,
@@ -264,6 +269,9 @@ fn participant_variant_defaults_and_updates() -> Result<(), Box<dyn std::error::
 
 fn creature(name: &str, initiative: Option<i64>, hp: i64) -> AddEncounterParticipant {
     AddEncounterParticipant {
+        hp_origin: crate::ParticipantHpOrigin::Explicit,
+        variant_origin: crate::ParticipantVariantOrigin::Explicit,
+        participant_variant: crate::ParticipantVariant::Normal,
         record_key: Some(RecordKey::parse("actors:goblinWarrior").expect("key should parse")),
         participant_kind: ParticipantKind::Creature,
         display_name: name.to_string(),

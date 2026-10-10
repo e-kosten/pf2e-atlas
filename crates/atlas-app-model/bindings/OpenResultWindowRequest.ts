@@ -2,4 +2,4 @@
 import type { ResultWindowMode } from "./ResultWindowMode";
 import type { SearchPageRequest } from "./SearchPageRequest";
 
-export type OpenResultWindowRequest = { mode: ResultWindowMode, page: SearchPageRequest, include_diagnostics: boolean, };
+export type OpenResultWindowRequest = { mode: ResultWindowMode, page: SearchPageRequest, };

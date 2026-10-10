@@ -1,6 +1,8 @@
 import type React from "react";
+import type { RecordNavigationView } from "../generated/atlas";
 
 export type AtlasRoute =
+  | { kind: "invalid"; message: string }
   | { kind: "search"; selectedRecordKey: string | null }
   | { kind: "presentationMocks" }
   | { kind: "encounters" }
@@ -9,12 +11,28 @@ export type AtlasRoute =
   | { kind: "lists" }
   | { kind: "list"; slug: string; selectedRecordKey: string | null }
   | { kind: "listEdit"; slug: string }
-  | { kind: "record"; recordKey: string }
-  | { kind: "reader"; recordKey: string; previewRecordKey: string | null };
+  | { kind: "record"; recordKey: string; selection?: RecordNavigationView }
+  | {
+      kind: "reader";
+      recordKey: string;
+      previewRecordKey: string | null;
+      selection?: RecordNavigationView;
+    };
 
 export const ATLAS_ROUTE_CHANGE_EVENT = "atlas-route-change";
 
 export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
+  try {
+    return parseRoute(pathname, search);
+  } catch (error) {
+    return {
+      kind: "invalid",
+      message: error instanceof Error ? error.message : "Invalid navigation URL",
+    };
+  }
+}
+
+function parseRoute(pathname: string, search = ""): AtlasRoute {
   const searchRecord = pathname.match(/^\/search\/records\/(.+)$/);
   if (searchRecord) {
     return {
@@ -25,7 +43,11 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
 
   const record = pathname.match(/^\/records\/(.+)$/);
   if (record) {
-    return { kind: "record", recordKey: decodeURIComponent(record[1]) };
+    return {
+      kind: "record",
+      recordKey: decodeURIComponent(record[1]),
+      selection: selectedNavigation(search),
+    };
   }
 
   if (pathname === "/presentation-mocks") {
@@ -86,6 +108,7 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
       kind: "reader",
       recordKey: decodeURIComponent(reader[1]),
       previewRecordKey,
+      selection: selectedNavigation(search),
     };
   }
 
@@ -98,6 +121,8 @@ export function currentAtlasRoute(): AtlasRoute {
 
 export function atlasRoutePath(route: AtlasRoute): string {
   switch (route.kind) {
+    case "invalid":
+      return "/search";
     case "search":
       return searchPath(route.selectedRecordKey);
     case "presentationMocks":
@@ -115,12 +140,18 @@ export function atlasRoutePath(route: AtlasRoute): string {
     case "listEdit":
       return listEditPath(route.slug);
     case "record":
-      return recordPath(route.recordKey);
+      return (
+        recordPath(route.recordKey) +
+        (route.selection
+          ? "?selection=" + encodeURIComponent(JSON.stringify(route.selection))
+          : "")
+      );
     case "reader": {
       const path = readerPath(route.recordKey);
-      return route.previewRecordKey === null
-        ? path
-        : `${path}?preview=${encodeURIComponent(route.previewRecordKey)}`;
+      const params = new URLSearchParams();
+      if (route.previewRecordKey) params.set("preview", route.previewRecordKey);
+      if (route.selection) params.set("selection", JSON.stringify(route.selection));
+      return path + (params.size ? "?" + params.toString() : "");
     }
   }
 }
@@ -184,4 +215,17 @@ export function recordPath(recordKey: string): string {
 
 export function readerPath(recordKey: string): string {
   return `/reader/${encodeURIComponent(recordKey)}`;
+}
+
+function selectedNavigation(search: string): RecordNavigationView | undefined {
+  const value = new URLSearchParams(search).get("selection");
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed.record_key !== "string" || !Array.isArray(parsed.owners))
+      throw new Error("Invalid record navigation");
+    return parsed as RecordNavigationView;
+  } catch {
+    throw new Error("Invalid record navigation URL");
+  }
 }

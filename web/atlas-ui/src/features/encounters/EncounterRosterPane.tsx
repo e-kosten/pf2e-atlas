@@ -288,14 +288,9 @@ export function EncounterRosterPane({
 
 function encounterRecordPickerRequest(query: string): OpenResultWindowRequest {
   const filter = {
-    clauses: [
-      {
-        id: "encounter-participant-kind",
-        field: "kind",
-        operator: "include_any" as const,
-        values: ["creature", "hazard"],
-      },
-    ],
+    kind: "in" as const,
+    field: "record.kind",
+    values: ["creature", "hazard"],
   };
   const trimmed = query.trim();
   return {
@@ -305,14 +300,13 @@ function encounterRecordPickerRequest(query: string): OpenResultWindowRequest {
             kind: "text_search",
             query: trimmed,
             filter,
+            mode: "hybrid",
           }
         : {
             kind: "list_records",
             filter,
-            sort: { kind: "alphabetical" },
           },
     page: { number: 1, size: 25 },
-    include_diagnostics: false,
   };
 }
 

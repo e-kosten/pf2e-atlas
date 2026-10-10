@@ -1,13 +1,14 @@
+use super::parser::parse_foundry_content_with_localization;
 use scraper::{Html, Selector};
 
-use crate::{FoundryLink, FoundryLinkBehavior, FoundryNode, RichNode};
+use super::parsed_markup::{ParsedLink, ParsedLinkBehavior, ParsedMacro, ParsedNode};
 
 use super::{
     CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentDiagnosticCode, ContentInteraction,
     ContentInteractionKind, ContentInterpretationDiagnostic, ContentReferenceKind,
     ContentReferenceOccurrence, ContentReferenceResolution, ContentReferenceResolver,
     ContentReferenceTarget, ContentVisibilityRule, LocalizationResolver, PreparedSourceContent,
-    SourceContentLocator, parse_foundry_content_with_localization,
+    SourceContentLocator,
 };
 
 /// Interpret an authored HTML field once for all projections. Callers must use
@@ -23,9 +24,14 @@ pub fn prepare_source_content(
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&dyn ContentReferenceResolver>,
 ) -> Result<PreparedSourceContent, html2text::Error> {
+    let authored_hash = format!(
+        "{:x}",
+        <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
+    );
     let parsed = parse_foundry_content_with_localization(markup, localization);
     let mut projection = Projection {
         locator: &locator,
+        authored_hash: &authored_hash,
         audience,
         resolver: references,
         references: Vec::new(),
@@ -50,6 +56,7 @@ pub fn prepare_source_content(
     Ok(PreparedSourceContent {
         locator: locator.clone(),
         interpretation_version: CONTENT_INTERPRETATION_VERSION.to_string(),
+        authored_markup_sha256: authored_hash.clone(),
         html,
         text,
         references: projection.references,
@@ -58,10 +65,15 @@ pub fn prepare_source_content(
     })
 }
 
-fn sanitizer() -> ammonia::Builder<'static> {
+pub(super) fn sanitizer() -> ammonia::Builder<'static> {
     let mut builder = ammonia::Builder::default();
     builder
-        .add_generic_attributes(["data-atlas-reference", "data-atlas-interaction"])
+        .add_generic_attributes([
+            "data-atlas-reference",
+            "data-atlas-reference-binding",
+            "data-atlas-interaction",
+            "data-atlas-interaction-kind",
+        ])
         .add_tag_attributes("ol", ["start"])
         .add_tag_attributes("li", ["value"])
         .add_tag_attributes("td", ["colspan", "rowspan"])
@@ -78,6 +90,7 @@ fn escape(text: &str) -> String {
 
 struct Projection<'a> {
     locator: &'a SourceContentLocator,
+    authored_hash: &'a str,
     audience: ContentAudience,
     resolver: Option<&'a dyn ContentReferenceResolver>,
     references: Vec<ContentReferenceOccurrence>,
@@ -96,7 +109,7 @@ impl Projection<'_> {
 
     fn nodes(
         &mut self,
-        nodes: &[RichNode],
+        nodes: &[ParsedNode],
         path: &str,
         audiences: &[String],
         visible: bool,
@@ -119,18 +132,18 @@ impl Projection<'_> {
 
     fn node(
         &mut self,
-        node: &RichNode,
+        node: &ParsedNode,
         path: &str,
         audiences: &[String],
         visible: bool,
         in_link: bool,
     ) -> String {
         match node {
-            RichNode::Text { text } => {
+            ParsedNode::Text { text } => {
                 self.literal_diagnostics(path, text);
                 if visible { escape(text) } else { String::new() }
             }
-            RichNode::HtmlElement {
+            ParsedNode::HtmlElement {
                 tag,
                 attributes,
                 children,
@@ -162,6 +175,14 @@ impl Projection<'_> {
                         let (ordinal, _, _) =
                             self.reference(path, &audiences, visible, kind, &target);
                         attributes.insert("data-atlas-reference".into(), Some(ordinal.to_string()));
+                        attributes.insert(
+                            "data-atlas-reference-binding".into(),
+                            Some(super::marker_validation::reference_binding(
+                                self.locator,
+                                self.authored_hash,
+                                &self.references[ordinal],
+                            )),
+                        );
                         if has_uuid {
                             // Product routes bind to the sidecar target at rendering.
                             attributes.remove("href");
@@ -172,6 +193,26 @@ impl Projection<'_> {
                     self.nodes(children, path, &audiences, visible, in_link || tag == "a");
                 if !visible {
                     return String::new();
+                }
+                if tag == "img" {
+                    let src = attributes
+                        .get("src")
+                        .and_then(Option::as_deref)
+                        .unwrap_or_default();
+                    if !available_remote_image(src) {
+                        self.issue(path, ContentDiagnosticCode::UnavailableImageAsset, src);
+                        let alt = attributes
+                            .get("alt")
+                            .and_then(Option::as_deref)
+                            .filter(|value| !value.is_empty());
+                        return format!(
+                            "<span>{}</span>",
+                            escape(
+                                &alt.map(|value| format!("[image unavailable: {value}]"))
+                                    .unwrap_or_else(|| "[image unavailable]".into())
+                            )
+                        );
+                    }
                 }
                 let glyph = tag == "pf2-action"
                     || attributes
@@ -233,8 +274,8 @@ impl Projection<'_> {
                     format!("<{tag}{attributes}>{children_html}</{tag}>")
                 }
             }
-            RichNode::FoundryLink { link } => self.link(link, path, audiences, visible, in_link),
-            RichNode::Foundry { node } => self.foundry(node, path, audiences, visible, in_link),
+            ParsedNode::ParsedLink { link } => self.link(link, path, audiences, visible, in_link),
+            ParsedNode::Foundry { node } => self.foundry(node, path, audiences, visible, in_link),
         }
     }
 
@@ -292,7 +333,7 @@ impl Projection<'_> {
             .and_then(|resolved| resolved.display_name.clone());
         let resolution = if let Some(resolved) = resolved {
             if let ContentReferenceTarget::Url { url } = &resolved.target {
-                if safe_url(url) {
+                if is_safe_content_url(url) {
                     ContentReferenceResolution::Resolved(resolved.target)
                 } else {
                     ContentReferenceResolution::Blocked
@@ -301,7 +342,7 @@ impl Projection<'_> {
                 ContentReferenceResolution::Resolved(resolved.target)
             }
         } else if matches!(kind, ContentReferenceKind::HtmlLink) {
-            if safe_url(target) {
+            if is_safe_content_url(target) {
                 ContentReferenceResolution::UnverifiedUrl {
                     url: target.to_string(),
                 }
@@ -335,14 +376,14 @@ impl Projection<'_> {
 
     fn link(
         &mut self,
-        link: &FoundryLink,
+        link: &ParsedLink,
         path: &str,
         audiences: &[String],
         visible: bool,
         in_link: bool,
     ) -> String {
         let kind = match &link.behavior {
-            FoundryLinkBehavior::Embed { options, .. } => {
+            ParsedLinkBehavior::Embed { options, .. } => {
                 self.issue(
                     path,
                     ContentDiagnosticCode::EmbedNotExpanded,
@@ -352,8 +393,8 @@ impl Projection<'_> {
                     options: options.clone(),
                 }
             }
-            FoundryLinkBehavior::Reference => match link.source.macro_kind {
-                crate::FoundryLinkMacroKind::Uuid => ContentReferenceKind::Uuid,
+            ParsedLinkBehavior::Reference => match link.source.macro_kind {
+                super::parsed_markup::ParsedLinkMacroKind::Uuid => ContentReferenceKind::Uuid,
                 _ => ContentReferenceKind::Compendium,
             },
         };
@@ -377,18 +418,25 @@ impl Projection<'_> {
             _ => String::new(),
         };
         let tag = if href.is_empty() { "span" } else { "a" };
-        format!("<{tag}{href} data-atlas-reference=\"{ordinal}\">{label}</{tag}>")
+        let binding = super::marker_validation::reference_binding(
+            self.locator,
+            self.authored_hash,
+            &self.references[ordinal],
+        );
+        format!(
+            "<{tag}{href} data-atlas-reference=\"{ordinal}\" data-atlas-reference-binding=\"{binding}\">{label}</{tag}>"
+        )
     }
 
     fn foundry(
         &mut self,
-        node: &FoundryNode,
+        node: &ParsedMacro,
         path: &str,
         audiences: &[String],
         visible: bool,
         in_link: bool,
     ) -> String {
-        if let FoundryNode::Localize {
+        if let ParsedMacro::Localize {
             key,
             resolved,
             label,
@@ -418,15 +466,14 @@ impl Projection<'_> {
             };
         }
         let label = match node {
-            FoundryNode::Check { label, .. }
-            | FoundryNode::Damage { label, .. }
-            | FoundryNode::InlineCommand { label, .. }
-            | FoundryNode::Template { label, .. }
-            | FoundryNode::Trait { label, .. }
-            | FoundryNode::UnknownFoundry { label, .. } => label.as_deref(),
+            ParsedMacro::Check { label, .. }
+            | ParsedMacro::Damage { label, .. }
+            | ParsedMacro::InlineCommand { label, .. }
+            | ParsedMacro::Template { label, .. }
+            | ParsedMacro::UnknownFoundry { label, .. } => label.as_deref(),
             _ => None,
         };
-        let unknown = matches!(node, FoundryNode::UnknownFoundry { .. });
+        let unknown = matches!(node, ParsedMacro::UnknownFoundry { .. });
         let label_html = label.map(|nodes| {
             self.nodes(
                 nodes,
@@ -438,7 +485,7 @@ impl Projection<'_> {
         });
         let mut interaction = None;
         let text = match node {
-            FoundryNode::Check {
+            ParsedMacro::Check {
                 statistic, options, ..
             } => {
                 let mut options = options.clone();
@@ -469,7 +516,7 @@ impl Projection<'_> {
                 interaction = Some(ContentInteractionKind::Check { statistic, options });
                 text
             }
-            FoundryNode::Damage {
+            ParsedMacro::Damage {
                 formula, options, ..
             } => {
                 self.dynamic(path, std::iter::once(formula.as_str()));
@@ -479,7 +526,7 @@ impl Projection<'_> {
                 });
                 formula.clone()
             }
-            FoundryNode::InlineCommand {
+            ParsedMacro::InlineCommand {
                 command,
                 arguments,
                 options,
@@ -493,7 +540,7 @@ impl Projection<'_> {
                 });
                 format!("/{command} {arguments}")
             }
-            FoundryNode::Template { shape, options, .. } => {
+            ParsedMacro::Template { shape, options, .. } => {
                 let distance = options.get("distance").map(String::as_str).unwrap_or("");
                 let valid = shape.as_deref().is_some_and(|shape| {
                     matches!(
@@ -528,25 +575,26 @@ impl Projection<'_> {
                 });
                 text
             }
-            FoundryNode::ActionGlyph { action } => self.action(path, action),
-            FoundryNode::Trait { traits, .. } => traits.join(", "),
-            FoundryNode::UnknownFoundry { raw, .. } => {
+            ParsedMacro::UnknownFoundry { raw, .. } => {
                 self.issue(path, ContentDiagnosticCode::UnknownMacro, raw);
                 raw.clone()
             }
-            FoundryNode::Localize { .. } => String::new(),
+            ParsedMacro::Localize { .. } => String::new(),
         };
         if !visible {
             return String::new();
         }
         let marker = if let Some(kind) = interaction {
             let ordinal = self.interactions.len();
+            let marker_kind = kind.marker_kind();
             self.interactions.push(ContentInteraction {
                 ordinal,
                 path: path.to_string(),
                 kind,
             });
-            format!(" data-atlas-interaction=\"{ordinal}\"")
+            format!(
+                " data-atlas-interaction=\"{ordinal}\" data-atlas-interaction-kind=\"{marker_kind}\""
+            )
         } else {
             String::new()
         };
@@ -593,7 +641,7 @@ impl Projection<'_> {
 }
 
 // Let the same URL sanitizer decide both navigation and occurrence status.
-fn safe_url(url: &str) -> bool {
+pub fn is_safe_content_url(url: &str) -> bool {
     let html = sanitizer()
         .clean(&format!("<a href=\"{}\">link</a>", escape(url)))
         .to_string();
@@ -608,22 +656,27 @@ fn safe_url(url: &str) -> bool {
         })
         .unwrap_or(false)
 }
+pub(super) fn available_remote_image(src: &str) -> bool {
+    src.split_once(':').is_some_and(|(scheme, _)| {
+        scheme.eq_ignore_ascii_case("https") || scheme.eq_ignore_ascii_case("http")
+    }) && is_safe_content_url(src)
+}
 
-fn simple_text(nodes: &[RichNode]) -> String {
+fn simple_text(nodes: &[ParsedNode]) -> String {
     nodes
         .iter()
         .map(|node| match node {
-            RichNode::Text { text } => text.clone(),
-            RichNode::HtmlElement { children, .. } => simple_text(children),
+            ParsedNode::Text { text } => text.clone(),
+            ParsedNode::HtmlElement { children, .. } => simple_text(children),
             _ => String::new(),
         })
         .collect()
 }
 
-fn contains_interpretation(nodes: &[RichNode]) -> bool {
+fn contains_interpretation(nodes: &[ParsedNode]) -> bool {
     nodes.iter().any(|node| match node {
-        RichNode::Text { .. } => false,
-        RichNode::HtmlElement {
+        ParsedNode::Text { .. } => false,
+        ParsedNode::HtmlElement {
             tag,
             attributes,
             children,
@@ -632,6 +685,6 @@ fn contains_interpretation(nodes: &[RichNode]) -> bool {
                 && (attributes.contains_key("href") || attributes.contains_key("data-uuid")))
                 || contains_interpretation(children)
         }
-        RichNode::FoundryLink { .. } | RichNode::Foundry { .. } => true,
+        ParsedNode::ParsedLink { .. } | ParsedNode::Foundry { .. } => true,
     })
 }

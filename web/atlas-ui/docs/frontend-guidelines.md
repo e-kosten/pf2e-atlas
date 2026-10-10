@@ -56,3 +56,21 @@ npm --prefix web/atlas-ui run verify
 ```
 
 For refactors, run focused tests for touched surfaces first, then the full verify.
+
+## Source-backed records and filters
+
+Render generated app DTOs. Prepared content is sanitized HTML with field-local reference and interaction sidecars; use DOMPurify at the browser boundary and make supported markers keyboard accessible. Unknown commands and unavailable targets remain visible inert labels. Never execute Foundry commands, scripts, or rules. Selected owner and passage routes carry backend navigation, including its source fingerprint for snapshot-local addresses.
+
+Use react-querybuilder with its maintained Ant integration for structured predicates. Backend descriptors supply fields, operators, units, choices, and discovery policy. The adapter translates presentation state to the shared QueryPredicate; it does not parse CEL or infer fields from records. Reject unsafe integer input before creating numeric literals. Unsupported contextual facet requests display the backend error while leaving supported query execution available.
+
+Reference previews use native Ant Popover positioning. Source content in an encounter loads only on an explicit request. HP mutations carry explicit edit intent; unknown current HP disables arithmetic and remains unknown until explicitly set.
+
+Live browser checks use the maintained Playwright runner against a separately started real Atlas server and isolated local state:
+
+```sh
+npm --prefix web/atlas-ui run test:e2e
+```
+
+The default server URL is http://127.0.0.1:8765 (optionally overridden with ATLAS_BROWSER_BASE_URL). Build the real frontend and CLI first, then start `atlas web --port 8765 --index <current-sample-artifact> --embedding-cache-path <verified-model-cache>` with an isolated artifact directory so its local state is temporary.
+
+The browser suite does not manufacture readiness, start a mock API, or substitute screenshot success for interactions. Its artifact must contain the current source-grounded sample records; screenshots and traces stay under ignored scratch/browser-validation.

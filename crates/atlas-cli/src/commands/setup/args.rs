@@ -69,6 +69,11 @@ pub(crate) struct SetupPathOptions {
 pub(crate) struct SetupRunOptions {
     #[arg(
         long,
+        help = "Indexing locale; defaults to English for a new artifact and preserves an existing artifact locale"
+    )]
+    pub(crate) locale: Option<String>,
+    #[arg(
+        long,
         help = "Prepare a record/resolve-ready artifact without semantic embeddings"
     )]
     pub(crate) no_embeddings: bool,

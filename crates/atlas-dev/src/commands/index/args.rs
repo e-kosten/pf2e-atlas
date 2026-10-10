@@ -13,6 +13,28 @@ pub(crate) struct IndexArgs {
 pub(crate) enum IndexCommand {
     #[command(about = "Inspect artifact table and field coverage")]
     Inspect(IndexPathOptions),
+    #[command(
+        about = "Inspect a checked source snapshot and provenance; optionally verify original JSON from a configured clone"
+    )]
+    Record(RecordInspectOptions),
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct RecordInspectOptions {
+    pub(crate) key: String,
+    #[arg(long)]
+    pub(crate) index: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Explicitly read original JSON from the configured source clone after checking its path and hash"
+    )]
+    pub(crate) original: bool,
+    #[arg(long, help = "Override the configured source clone path")]
+    pub(crate) source: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(long)]
+    pub(crate) json: bool,
 }
 
 #[derive(Debug, Args)]

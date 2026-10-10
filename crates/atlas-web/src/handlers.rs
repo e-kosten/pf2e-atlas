@@ -7,6 +7,8 @@ use atlas_app_model::{
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
+use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
+use atlas_domain::QueryPredicate;
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
@@ -373,5 +375,95 @@ pub(crate) async fn record_detail(
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || service.record_detail(&record_key)).await?,
+    ))
+}
+pub(crate) async fn record_detail_at(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<RecordDetailRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.record_detail_at(request)).await?,
+    ))
+}
+pub(crate) async fn discover_filter_counts(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<DiscoverFilterCountsRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.discover_filter_counts(request)).await?,
+    ))
+}
+pub(crate) async fn validate_filter(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<QueryPredicate>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.validate_filter(request)).await?,
+    ))
+}
+
+pub(crate) async fn graph_context(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::GraphContextViewRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.graph_context(request)).await?,
+    ))
+}
+pub(crate) async fn remaster_links(
+    State(state): State<AtlasWebState>,
+    Path(key): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    let key = atlas_domain::RecordKey::parse(&key).map_err(|e| {
+        WebError(atlas_app_model::AppError::new(
+            atlas_app_model::AppErrorCode::InvalidRecordKey,
+            e.to_string(),
+        ))
+    })?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.remaster_links(key)).await?,
+    ))
+}
+pub(crate) async fn variant_group(
+    State(state): State<AtlasWebState>,
+    Path(key): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    let key = atlas_domain::RecordKey::parse(&key).map_err(|e| {
+        WebError(atlas_app_model::AppError::new(
+            atlas_app_model::AppErrorCode::InvalidRecordKey,
+            e.to_string(),
+        ))
+    })?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.variant_group(key)).await?,
+    ))
+}
+pub(crate) async fn similar_records(
+    State(state): State<AtlasWebState>,
+    Path(key): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.similar_records(
+                key,
+                None,
+                atlas_app_model::SearchPageRequest {
+                    number: 1,
+                    size: 25,
+                },
+            )
+        })
+        .await?,
     ))
 }

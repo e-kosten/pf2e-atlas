@@ -5,7 +5,6 @@ mod cli;
 mod client;
 mod commands;
 mod output;
-mod terminal;
 
 fn main() -> std::process::ExitCode {
     cli::main()

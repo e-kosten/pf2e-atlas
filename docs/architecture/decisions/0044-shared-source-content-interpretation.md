@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted library boundary. Product artifact and consumer adoption remain open.
+Accepted library boundary. ADR 0046 defines product artifact and consumer
+adoption; the adoption checkpoint below records this decision's original scope.
 
 ## Context
 

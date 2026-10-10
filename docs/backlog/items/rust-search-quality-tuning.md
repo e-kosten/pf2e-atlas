@@ -1,53 +1,42 @@
-# Rust Search Quality And Retrieval Weight Tuning
+# Source-backed search quality evaluation
 
 Status: proposed
-Priority: soon
+Priority: after the artifact cutover
 Owner: unassigned
-Last reviewed: 2026-05-17
+Last reviewed: 2026-10-09
 
-## Problem
+## Current baseline
 
-The Phase 6 Rust search runtime should land the retrieval architecture first: FTS, vector retrieval, default hybrid RRF, weighted RRF plumbing, and exact identity handling. Full live-index quality fixtures, parity reports, default weights, and retrieval windows should be tuned after that baseline is measurable rather than guessed during initial implementation.
+ADR 0046 replaces the old weighted-fusion, weak-match demotion and overflow-only
+RichDocument policies. Precision FTS uses identity, verified aliases, typed
+vocabulary and named definitions. Semantic units independently cover selected root
+and owned prose. One maximum accepted unit score represents a root; hybrid RRF
+combines one root rank per lane. Eligibility is applied before ranking, and
+semantic candidate windows are bounded.
 
-Without a dedicated follow-up, tuning work can leak into ad hoc rerank rules or repeated one-off constants. That risks accumulating quality hacks instead of evaluating the Rust retrieval axes directly.
+The cutover requires a judged real-model sample and attributable witnesses.
+That acceptance check does not settle every future relevance tradeoff.
 
-## Desired Outcome
+## Follow-up
 
-Evaluate and choose Rust search defaults from measured search-quality runs after Phase 6 lands.
+Build a repeatable source-backed evaluation set with expected records and
+explanatory passages. Include creature lore, owned afflictions, spell mechanics,
+long documents, copied embedded spells, multilingual labels and noise-prone small
+sections. Measure recall, rank, winning-witness quality, duplicate-root pressure
+and latency separately.
 
-The tuning pass should cover:
+Evaluate changes to lexical vocabulary, section selection, context, token
+budgets, overlap, FTS weights, RRF constants and candidate windows one at a time.
+Compare proposed changes against the current pinned model and artifact policies.
+Record intended differences and corpus costs rather than adding one-query
+reranking exceptions.
 
-- Whether the broad weighted FTS path should be removed entirely or retained only as a diagnostic/tuning primitive now that precision FTS is the product default.
-- Precision FTS lane tuning, including whether kind/type/source facets should join the current title/alias and trait/taxonomy lanes.
-- Whether selected high-signal rich-content fields, especially authored headings, should be reintroduced into precision FTS after the RichDocument migration intentionally removes rich prose from default FTS.
-- FTS confidence policy tuning, including the current `demote-weak` default and whether weak/medium lexical evidence should be discounted differently in hybrid fusion.
-- Candidate hydration cost in ranked search. Precision FTS confidence currently hydrates bounded FTS/vector candidates before final fusion; if larger candidate windows become necessary, consider a lighter ranking-facts load instead of full record hydration.
-- FTS column and BM25 weights for any retained broad weighted FTS diagnostic path.
-- Top-k search-quality fixtures from the bakeoff set.
-- Rust-owned embedding and ranking comparison harnesses for repeatable model, query, and fusion experiments.
-- accepted-difference reports against observed task quality.
-- FTS token composition policy, including OR versus AND behavior and prefix matching.
-- RRF rank constant.
-- FTS and vector candidate windows.
-- Weighted RRF lane weights.
-- Vector unit participation and collapse policy, if fixture failures point there.
-- Whether any generic rerank adjustment is still justified after retrieval weights are tuned.
+Alternative embedding models, inference upgrades, learned rerankers and new search
+backends require their own evidence and decision. Do not restore old user-facing
+fusion knobs or heuristics merely because they existed in the prior pipeline.
 
-The outcome should be documented defaults plus the smallest stable configuration surface needed for future tuning.
+## References
 
-## Constraints
-
-- Do not add Tantivy, LanceDB, learned rerankers, or non-default embedding model switches as part of this item unless a separate quality decision justifies expanding scope.
-- Do not expose individual FTS component weights as stable user-facing CLI flags before they have proven durable.
-- Prefer fixture-backed changes over subjective one-query adjustments.
-- Keep comparison tooling Rust-owned or language-neutral. Do not reintroduce retired scratch harnesses for search-quality runs.
-- Preserve the Phase 6 product model: one opinionated default search, with advanced retrieval/fusion controls for diagnostics and evaluation.
-
-## Notes
-
-Phase 6 should centralize FTS weights in code so this item can tune them cleanly. Initial Phase 6 defaults should use precision FTS, weighted RRF with equal FTS/vector lane weights, and a weak-evidence demotion policy.
-
-## Related
-
-- [Rust Phase 6 Search Runtime Plan](../../../scratch/plans/2026-05-17-rust-phase-6-search-runtime.md)
-- [Rust CLI runtime migration research](../rust-cli-runtime/README.md)
+- [Artifact contract](../../architecture/artifact-contract.md)
+- [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md)
+- [FTS tokenization exploration](./rust-fts-tokenization-stemming.md)

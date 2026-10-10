@@ -24,6 +24,7 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
         validate_v2_tables(connection)?;
         validate_v3_tables(connection)?;
         validate_v6_tables(connection)?;
+        validate_v7_tables(connection)?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -34,6 +35,7 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
         ));
     }
     create_v6_schema(connection)?;
+    add_v7_columns(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
@@ -180,12 +182,27 @@ fn validate_metadata(connection: &Connection) -> LocalStateResult<()> {
 }
 
 fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
+    migrate_through_v6(connection)?;
+    if metadata_value(connection, METADATA_SCHEMA_VERSION)?.as_deref() == Some("6") {
+        let transaction = connection.unchecked_transaction()?;
+        add_v7_columns(&transaction)?;
+        transaction.execute(
+            "UPDATE local_state_metadata SET value='7' WHERE key='schema_version'",
+            [],
+        )?;
+        transaction.commit()?;
+    }
+    Ok(())
+}
+
+fn migrate_through_v6(connection: &Connection) -> LocalStateResult<()> {
     let Some(schema_version) = metadata_value(connection, METADATA_SCHEMA_VERSION)? else {
         return Err(LocalStateError::IncompatibleSchema(
             "missing required local-state metadata `schema_version`".to_string(),
         ));
     };
     match schema_version.as_str() {
+        "6" => Ok(()),
         LOCAL_STATE_SCHEMA_VERSION => Ok(()),
         "1" => {
             migrate_v1_to_v2(connection)?;
@@ -476,6 +493,15 @@ fn metadata_value(connection: &Connection, key: &str) -> rusqlite::Result<Option
         .optional()
 }
 
+fn add_v7_columns(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch("ALTER TABLE encounter_participants ADD COLUMN hp_origin TEXT NOT NULL DEFAULT 'explicit' CHECK(hp_origin IN ('derived_pristine','derived_edited','explicit','unknown')); ALTER TABLE encounter_participants ADD COLUMN variant_origin TEXT NOT NULL DEFAULT 'explicit' CHECK(variant_origin IN ('default_unadjusted','inherited_known','inherited_unknown','explicit'));")?;
+    Ok(())
+}
+fn validate_v7_tables(connection: &Connection) -> LocalStateResult<()> {
+    connection.prepare("SELECT hp_origin,variant_origin FROM encounter_participants LIMIT 0")?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -500,6 +526,58 @@ mod tests {
         assert_eq!(
             metadata_value(&connection, METADATA_SCHEMA_VERSION)?,
             Some(LOCAL_STATE_SCHEMA_VERSION.to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn v6_capacities_and_variants_survive_as_explicit_without_pristine_guessing()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let connection = Connection::open_in_memory()?;
+        create_v6_schema(&connection)?;
+        connection.execute(
+            "INSERT INTO local_state_metadata VALUES('local_state_contract_version',?1)",
+            [LOCAL_STATE_CONTRACT_VERSION],
+        )?;
+        connection.execute(
+            "INSERT INTO local_state_metadata VALUES('schema_version','6')",
+            [],
+        )?;
+        connection.execute("INSERT INTO encounters(id,encounter_key,slug,name,status,round_number,created_at,updated_at) VALUES(1,'encounter-1','legacy','Legacy','draft',1,'now','now')",[])?;
+        for (index, current) in [(1, 60), (2, -5), (3, 100)] {
+            connection.execute("INSERT INTO encounter_participants(encounter_id,participant_key,participant_kind,participant_variant,position,display_name,initiative_order,max_hp,current_hp,temporary_hp,created_at,updated_at) VALUES(1,?1,'creature','elite',?2,'Legacy actor',?2,60,?3,7,'now','now')",params![format!("participant-{index}"),index,current])?;
+        }
+        initialize(&connection)?;
+        let mut statement=connection.prepare("SELECT max_hp,current_hp,temporary_hp,participant_variant,hp_origin,variant_origin FROM encounter_participants ORDER BY position")?;
+        let rows = statement
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, String>(4)?,
+                    r.get::<_, String>(5)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(rows.len(), 3);
+        for (row, current) in rows.iter().zip([60, -5, 100]) {
+            assert_eq!(
+                row,
+                &(
+                    60,
+                    current,
+                    7,
+                    "elite".into(),
+                    "explicit".into(),
+                    "explicit".into()
+                )
+            );
+        }
+        assert_eq!(
+            metadata_value(&connection, METADATA_SCHEMA_VERSION)?,
+            Some("7".into())
         );
         Ok(())
     }

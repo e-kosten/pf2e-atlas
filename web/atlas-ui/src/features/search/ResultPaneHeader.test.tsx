@@ -67,7 +67,7 @@ function workspace(
 function resultWindowPage(): ResultWindowPage {
   return {
     window_id: 1n,
-    mode: { kind: "text_search", query: "" },
+    mode: { kind: "text_search", query: "", mode: "hybrid" },
     page: {
       number: 13,
       size: 25,
@@ -77,5 +77,6 @@ function resultWindowPage(): ResultWindowPage {
       next_page: 14,
     },
     rows: [],
+    coverage: null,
   };
 }

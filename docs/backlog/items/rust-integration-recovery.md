@@ -33,7 +33,7 @@ is useful recovery guidance, not a statement that main already implements it.
 
 ### Declaration extraction and trait metadata — implement independently
 
-The first PR follows [source generation and catalog research](./rust-source-contract-generation.md):
+The first PR follows [source generation and catalog research](../history/items/rust-source-contract-generation.md):
 extract inspectable common/physical declarations and upstream trait/other-tag
 metadata without changing ingest, storage or UI. It needs the pinned upstream
 TypeScript environment, configuration and localization inputs; it does not need

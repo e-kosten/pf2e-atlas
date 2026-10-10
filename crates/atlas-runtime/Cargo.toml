@@ -12,3 +12,8 @@ atlas-ingest.workspace = true
 atlas-index.workspace = true
 atlas-search.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+atlas-search = {workspace = true, features=["test-support"]}
+tempfile = "3.23.0"
+serde_json.workspace = true

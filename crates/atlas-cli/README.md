@@ -1,24 +1,41 @@
-# atlas-cli
+# Atlas CLI
 
-`atlas-cli` owns the command-line surface for the Rust runtime.
+`atlas` is the product CLI for local PF2e reference data. Start with `atlas setup`
+or `atlas setup --no-embeddings`; inspect readiness using `atlas setup --check`.
 
-This crate should stay thin: it parses arguments, routes commands, formats text or JSON output, reports progress, and chooses exit codes. Durable behavior belongs in the runtime, search, index, ingest, record, or embedding crate that owns the underlying concern.
+```sh
+atlas search 'Ghoul Fever' --retrieval fts --json
+atlas search --kind creature --trait undead --where 'actor.hp.maximum >= 80'
+atlas filters fields --json
+atlas filters values --field traits --kind spell --json
+atlas record resolve 'Treat Wounds' --json
+atlas record get actionspf2e:1kGNdIIhuglAjIp9
+atlas graph uses 'Frightened' --json
+atlas similar 'Dirge of Doom' --kind spell --json
+atlas lists create research --name Research
+atlas web
+```
 
-## Owns
+Filters use the maintained CEL grammar's supported catalog subset. Common flags
+compile to the same shared predicate. `filters fields` exposes types, operators,
+applicability, units and closed choices; `filters values` exposes samples and
+availability counts. Unsupported syntax fails before execution.
 
-- Clap command definitions and CLI argument parsing.
-- Command routing and exit-code mapping.
-- Terminal and JSON presentation for CLI results.
-- Progress and tracing setup for long-running commands.
+Search returns root summaries and up to three source-attributed witnesses.
+Semantic counts describe bounded candidate windows. Names resolve strictly with
+verified alias evidence. Embedded definitions retain their parent keys and checked
+owner/field/passage addresses. `record get --owners JSON --field PATH --passage
+JSON` focuses a returned witness. Terminal prose is formatted from sanitized HTML
+at read time with html2text; no terminal document is stored in SQLite.
 
-## Should Not Own
+Use `index build --locale LOCALE` to set the preparation/search locale (English by
+default), or `setup --locale LOCALE` to change it through setup. Setup preserves an
+existing artifact locale when no override is given. Changing locale requires a
+rebuild. `index check` is a readiness check; `index validate` checks all typed
+snapshots and derived caches/projections. Both accept `--no-embeddings` for lexical
+artifacts. Old artifacts require rebuilding.
 
-- SQLite access policy or raw artifact queries.
-- Search semantics, ranking, or result collapse policy.
-- Ingest normalization or artifact-writing rules.
-- Embedding provider setup beyond exposing user-facing flags.
-- Durable path/setup policy that future surfaces also need.
-
-## Boundary Notes
-
-CLI commands should compose through `atlas-runtime` and product-facing service crates where possible. Direct calls into build-time crates such as `atlas-ingest` are acceptable for explicit build/analyze commands, but command modules should keep that orchestration narrow and presentation-focused.
+`atlas-dev` is a separate unpublished developer CLI for typed source loading,
+analysis, raw path/value discovery and checked artifact/source inspection. It has
+no web UI/Node build dependency and does not invoke TypeScript tooling. Private
+TypeScript source-contract generation lives under `dev-tools/source-contracts`.

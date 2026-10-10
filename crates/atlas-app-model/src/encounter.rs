@@ -130,10 +130,12 @@ pub struct StatBlockView {
     pub title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub level: Option<i64>,
+    #[ts(type = "number")]
+    pub level: Option<serde_json::Number>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub adjusted_level: Option<i64>,
+    #[ts(type = "number")]
+    pub adjusted_level: Option<serde_json::Number>,
     pub values: Vec<StatValueView>,
     pub speeds: Vec<MovementSpeedView>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -148,8 +150,10 @@ pub struct StatBlockView {
 pub struct MovementSpeedView {
     pub movement_type: String,
     pub label: String,
-    pub base_value_feet: i64,
-    pub adjusted_value_feet: i64,
+    #[ts(type = "number")]
+    pub base_value_feet: serde_json::Number,
+    #[ts(type = "number")]
+    pub adjusted_value_feet: serde_json::Number,
     pub adjustments: Vec<RuntimeAdjustmentView>,
     pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
     pub notes: Vec<RuntimeEffectNoteView>,
@@ -223,8 +227,10 @@ pub struct RuntimeEffectNoteView {
 pub struct StatValueView {
     pub target: String,
     pub label: String,
-    pub base_value: i64,
-    pub adjusted_value: i64,
+    #[ts(type = "number")]
+    pub base_value: serde_json::Number,
+    #[ts(type = "number")]
+    pub adjusted_value: serde_json::Number,
     pub modifiers: Vec<StatModifierView>,
     pub suppressed_modifiers: Vec<StatModifierView>,
 }
@@ -252,26 +258,9 @@ pub struct MechanicActivityView {
     pub activity_id: String,
     pub label: String,
     pub kind: MechanicActivityKindView,
-    pub usage: MechanicActivityUsageView,
+    pub navigation: crate::RecordNavigationView,
+    pub notes: Vec<RuntimeEffectNoteView>,
     pub rolls: Vec<ActivityRollView>,
-    pub damage: Vec<DamageExpressionView>,
-    pub modes: Vec<MechanicActivityModeView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct MechanicActivityModeView {
-    pub mode_id: String,
-    pub label: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub target: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub range: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub time: Option<String>,
     pub damage: Vec<DamageExpressionView>,
 }
 
@@ -284,22 +273,15 @@ pub enum MechanicActivityKindView {
     Other,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum MechanicActivityUsageView {
-    Unlimited,
-    Limited,
-    Ambiguous,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ActivityRollView {
     pub roll_id: String,
     pub label: String,
-    pub base_value: i64,
-    pub adjusted_value: i64,
+    #[ts(type = "number")]
+    pub base_value: serde_json::Number,
+    #[ts(type = "number")]
+    pub adjusted_value: serde_json::Number,
     pub surface: ActivityRollSurfaceView,
     pub modifiers: Vec<StatModifierView>,
     pub suppressed_modifiers: Vec<StatModifierView>,
@@ -405,6 +387,8 @@ pub struct EncounterUpdateView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
+    pub hp_origin: String,
+    pub variant_origin: String,
     pub participant_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -498,6 +482,16 @@ pub struct AddEncounterManualParticipantRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateEncounterParticipantRequest {
+    // Explicit manual HP edit even when the entered value is unchanged.
+    #[serde(default)]
+    pub hp_edit: bool,
+    #[serde(default)]
+    pub max_hp_edit: bool,
+    #[serde(default)]
+    pub variant_edit: bool,
+    // Discard an explicit capacity override and derive it from authored data.
+    #[serde(default)]
+    pub use_derived_max: bool,
     pub participant_key: String,
     pub display_name: String,
     pub side: EncounterParticipantSideView,

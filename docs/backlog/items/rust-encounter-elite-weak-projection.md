@@ -3,11 +3,13 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-24
+Last reviewed: 2026-10-09
 
 ## Problem
 
-Encounter v1 tracks creature state and can project basic elite/weak adjustments for typed creature stats. PF2e elite and weak adjustments also affect attacks, damage, DCs, spells, and offensive abilities, and projecting those incorrectly would be worse than leaving the base record untouched.
+Encounters derive a bounded adjusted view from authored Foundry DTOs. Broader
+PF2e automation for spells, offensive abilities and situational effects needs
+explicit typed targets and reliable rule evidence.
 
 ## Desired Outcome
 
@@ -23,11 +25,17 @@ Elite/weak is stored as a first-class participant variant (`normal`, `elite`, or
 - Do not persist copied or mutated stat blocks.
 - Do not silently rewrite freeform text unless the projection model can identify the value being changed.
 - Base typed stat extraction belongs in `atlas-record`; encounter-specific variant and condition application belongs in `atlas-app-service`.
-- In draft encounters, changing participant variant may update current HP by the projected HP delta; in running or completed encounters, changing participant variant must preserve current HP unless an explicit future mutation asks otherwise.
-- Attack, damage, spellcasting, and formula-bearing effects must remain unapplied notes until the underlying typed targets exist.
+- Use the current HP policy in ADR 0046: pristine draft HP follows a known derived
+  maximum; edited/active HP preserves known damage when a known maximum changes.
+  Unknown, explicit override and out-of-range manual values remain explicit.
+  Rebuilds never reinitialize durable HP. A known authored NPC adjustment applies
+  once; an explicit participant choice replaces it.
+- Preserve authored attack modifiers and damage formulas. Additional automation
+  requires identified typed targets and rule evidence; unavailable or situational
+  effects remain explicit notes.
 
 ## Related
 
-- [Runnable encounters design](../../../scratch/plans/2026-06-22-runnable-encounters-design.md)
-- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
+- Runnable encounters design (historical untracked reference: `../../../scratch/plans/2026-06-22-runnable-encounters-design.md`)
+- Encounter mechanics activity model (historical untracked reference: `../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md`)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
