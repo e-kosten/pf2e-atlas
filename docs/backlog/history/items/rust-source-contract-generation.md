@@ -207,7 +207,7 @@ unavailable packs remain visible. No current product normalization or artifact
 writing is adopted by this stage. See
 [ADR 0042](../../../architecture/decisions/0042-typed-source-loading.md).
 The next checkpoint is a
-[combined normalization and database review](../../items/typed-ingest-database-design.md),
+[combined normalization and database review](./typed-ingest-database-design.md),
 including ground-up scrutiny of metrics and measured FTS, semantic and filter
 query patterns before storage commitments.
 Before choosing

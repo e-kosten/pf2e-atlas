@@ -6,6 +6,11 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Source-backed artifact and ingest cutover](./items/typed-ingest-database-design.md)
+  Coordinated checked-source storage, ingest, search and consumer replacement
+  with full corpus, actual-model, browser and hosted platform validation.
+  Family-specific presentation design remains a separate review. Status: done.
+
 - [Compiler-based source contracts and trait catalog](./items/rust-source-contract-generation.md)
   Complete pinned declaration extraction, generated Rust portfolio, trait/tag
   catalogs, field-retaining admission and checked snapshots. Production artifact
