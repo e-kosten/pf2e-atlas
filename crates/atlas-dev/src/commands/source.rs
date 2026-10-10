@@ -2,8 +2,8 @@ use std::process::ExitCode;
 
 use atlas_cli_support::write_json_data;
 use atlas_ingest::{
-    SourcePathAuditOptions, SourcePathAuditReport, SourcePathCoverageStatus,
-    analyze_foundry_source, audit_source_paths, load_foundry_documents,
+    SourcePathAuditOptions, SourcePathAuditReport, analyze_foundry_source, audit_source_paths,
+    load_foundry_documents,
 };
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 
@@ -91,30 +91,24 @@ pub(crate) fn run_source_analyze(options: AnalyzeOptions) -> Result<ExitCode, St
         write_json_data(&report)?;
     } else {
         println!(
-            "ok: analyzed {} records from {} packs in {}",
-            report.record_count, report.pack_count, report.source.root
-        );
-        println!("source signature: {}", report.source.source_signature);
-        println!(
-            "records: source={} generated={} default_visible={} hidden={}",
-            report.loaded_source_record_count,
-            report.generated_record_count,
-            report.default_visible_record_count,
-            report.hidden_record_count
+            "ok: analyzed {} source records in {}",
+            report.source.retained_documents,
+            paths.source_root.display()
         );
         println!(
-            "relationships: references={} aliases={} remaster_links={}",
-            report.relationships.reference_edges,
-            report.relationships.record_aliases,
-            report.relationships.remaster_links
+            "products={} selected fields={} sections={} prose bytes={} named definitions={} locale={}",
+            report.product_records,
+            report.selected_fields,
+            report.selected_sections,
+            report.selected_body_bytes,
+            report.lexical_definitions,
+            report.indexing_locale
         );
         println!(
-            "dropped inline macros: {}",
-            report
-                .diagnostics
-                .get("dropped_inline_macros")
-                .and_then(serde_json::Value::as_array)
-                .map_or(0, Vec::len)
+            "source diagnostics={} partial documents={} quarantined={}",
+            report.source.admission_diagnostics,
+            report.source.partial_documents,
+            report.source.quarantined_files
         );
     }
 
@@ -163,18 +157,9 @@ fn print_source_path_audit(report: &SourcePathAuditReport) {
         report.filters.min_records
     );
     for path in &report.paths {
-        let consumers = if path.known_consumers.is_empty() {
-            "none".to_string()
-        } else {
-            path.known_consumers.join(",")
-        };
         println!(
-            "{} records={} occurrences={} status={} consumers={}",
-            path.path,
-            path.record_count,
-            path.occurrence_count,
-            coverage_status_label(path.coverage_status),
-            consumers
+            "{} records={} occurrences={}",
+            path.path, path.record_count, path.occurrence_count
         );
         for example in &path.examples {
             println!(
@@ -182,13 +167,5 @@ fn print_source_path_audit(report: &SourcePathAuditReport) {
                 example.record_key, example.source_path, example.value
             );
         }
-    }
-}
-
-fn coverage_status_label(status: SourcePathCoverageStatus) -> &'static str {
-    match status {
-        SourcePathCoverageStatus::Consumed => "consumed",
-        SourcePathCoverageStatus::Partial => "partial",
-        SourcePathCoverageStatus::Uncovered => "uncovered",
     }
 }

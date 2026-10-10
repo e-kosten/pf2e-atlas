@@ -156,7 +156,6 @@ function recordPickerColumns(
           tabIndex={0}
         >
           <span>{row.record.title}</span>
-          {row.record.preview ? <small>{row.record.preview}</small> : null}
         </span>
       ),
     },

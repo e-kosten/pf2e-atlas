@@ -54,9 +54,7 @@ impl AtlasRuntime {
         &self.paths.local_state_path
     }
 
-    pub fn open_index(
-        &self,
-    ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexValidationError> {
+    pub fn open_index(&self) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexError> {
         atlas_index::SqliteIndexReader::open_read_only(&self.paths.index_path)
     }
 
@@ -70,67 +68,28 @@ impl AtlasRuntime {
 
     pub fn validate_index_report(
         &self,
-        target: atlas_index::ValidationTarget,
-    ) -> atlas_index::ArtifactValidationReport {
-        if matches!(
-            target,
-            atlas_index::ValidationTarget::Full | atlas_index::ValidationTarget::EmbeddingsOnly
-        ) {
-            return self.validate_vector_target_report(target);
+        target: crate::SetupTarget,
+    ) -> Result<atlas_index::ArtifactValidationReport, atlas_index::IndexError> {
+        if target.requires_embeddings() {
+            self.open_search_index()?;
         }
-        match self.open_index() {
-            Ok(index) => index.validate_target_report(target),
-            Err(error) => atlas_index::validation_report_for_error(&self.paths.index_path, error),
-        }
+        atlas_index::validate_artifact(&self.paths.index_path)
     }
-
     pub fn check_index_report(
         &self,
-        target: atlas_index::ValidationTarget,
-    ) -> atlas_index::ArtifactValidationReport {
-        let base_report = match self.open_index() {
-            Ok(index) => index.check_report(),
-            Err(error) => {
-                return atlas_index::validation_report_for_error(&self.paths.index_path, error);
-            }
+        target: crate::SetupTarget,
+    ) -> Result<atlas_index::SourceArtifactStatistics, atlas_index::IndexError> {
+        let index = if target.requires_embeddings() {
+            self.open_search_index()?
+        } else {
+            self.open_index()?
         };
-        if base_report.status != atlas_index::ValidationStatus::Ok
-            || matches!(target, atlas_index::ValidationTarget::BaseOnly)
-        {
-            return base_report;
-        }
-        match self.open_search_index() {
-            Ok(index) => index.check_embedding_readiness_report(),
-            Err(error) => match self.open_index() {
-                Ok(index) => index.vector_extension_unavailable_report(
-                    atlas_index::ValidationTarget::EmbeddingsOnly,
-                    error.to_string(),
-                ),
-                Err(base_error) => {
-                    atlas_index::validation_report_for_error(&self.paths.index_path, base_error)
-                }
-            },
-        }
-    }
-
-    fn validate_vector_target_report(
-        &self,
-        target: atlas_index::ValidationTarget,
-    ) -> atlas_index::ArtifactValidationReport {
-        match self.open_search_index() {
-            Ok(index) => index.validate_target_report(target),
-            Err(error) => match self.open_index() {
-                Ok(index) => index.vector_extension_unavailable_report(target, error.to_string()),
-                Err(base_error) => {
-                    atlas_index::validation_report_for_error(&self.paths.index_path, base_error)
-                }
-            },
-        }
+        index.statistics()
     }
 
     pub(crate) fn open_search_index(
         &self,
-    ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexValidationError> {
+    ) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexError> {
         atlas_index::SqliteIndexReader::open_read_only_with_vectors(&self.paths.index_path)
     }
 }

@@ -1,7 +1,7 @@
 use crate::SearchError;
 
 pub const DEFAULT_SEARCH_PAGE_SIZE: u32 = 20;
-pub const MAX_SEARCH_PAGE_SIZE: u32 = 250;
+pub const MAX_SEARCH_PAGE_SIZE: u32 = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SearchPage {
@@ -45,14 +45,6 @@ impl SearchPage {
                     "page request is too large for this search request".to_string(),
                 )
             })
-    }
-
-    pub(crate) fn required_window(self) -> Result<u32, SearchError> {
-        self.number.checked_mul(self.size).ok_or_else(|| {
-            SearchError::invalid_search_options(
-                "ranked search result window is too large for this search request".to_string(),
-            )
-        })
     }
 }
 
@@ -114,14 +106,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn search_page_derives_offset_and_required_window() {
+    fn search_page_derives_offset() {
         let page = SearchPage::new(3, 25).expect("page should be valid");
 
         assert_eq!(page.offset().expect("offset should fit"), 50);
-        assert_eq!(
-            page.required_window().expect("required window should fit"),
-            75
-        );
     }
 
     #[test]

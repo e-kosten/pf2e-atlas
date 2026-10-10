@@ -52,6 +52,7 @@ pub(crate) fn main() -> ExitCode {
         },
         Command::Index(args) => match &args.command {
             IndexCommand::Inspect(options) => options.json,
+            IndexCommand::Record(options) => options.json,
         },
     };
     init_tracing(ProgressOptions {
@@ -67,12 +68,17 @@ pub(crate) fn main() -> ExitCode {
         },
         Command::Index(args) => match args.command {
             IndexCommand::Inspect(options) => commands::index::run_index_inspect(options),
+            IndexCommand::Record(options) => commands::index::run_index_record(options),
         },
     };
     match result {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("{error}");
+            if json {
+                let _ = write_json_error("command_failed", error);
+            } else {
+                eprintln!("{error}");
+            }
             ExitCode::from(2)
         }
     }

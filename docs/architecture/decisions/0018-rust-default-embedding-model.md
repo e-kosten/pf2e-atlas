@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Partially superseded by [ADR 0046](./0046-source-backed-reference-artifact.md).
+
+BGE-small remains the default. The historical mean-pooling, weighted-child modes,
+mutable model revision and alternate-model compatibility below are replaced by
+the pinned CLS/L2 model and attributed max-per-root retrieval contract.
 
 ## Context
 

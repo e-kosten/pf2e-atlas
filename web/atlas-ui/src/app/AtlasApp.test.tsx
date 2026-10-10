@@ -1,5 +1,13 @@
+import { detailFixture, summaryFixture, editorFixture } from "../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   FilterEditorView,
@@ -73,7 +81,10 @@ describe("AtlasApp routing", () => {
     vi.clearAllMocks();
 
     history.pushState(null, "", "/records/spell%3Aheal");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    fireEvent.popState(window);
+    // Wait for the real lazy route import before starting the data/render assertion.
+    // Cold module transforms on CI are independent of the mocked request latency.
+    await act(() => vi.dynamicImportSettled());
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
@@ -83,7 +94,8 @@ describe("AtlasApp routing", () => {
 
     vi.clearAllMocks();
     history.pushState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    fireEvent.popState(window);
+    await act(() => vi.dynamicImportSettled());
 
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();
@@ -173,31 +185,23 @@ function queryClientWrapper() {
 }
 
 function emptyFilterEditor(): FilterEditorView {
-  return {
-    matching_record_count: 0n,
-    groups: [],
-  };
+  return editorFixture();
 }
 
 function resultWindowPage(recordKeys: string[] = []): ResultWindowPage {
   return {
     window_id: 1n,
-    mode: { kind: "text_search", query: "" },
+    mode: { kind: "text_search", query: "", mode: "hybrid" },
     page: {
       number: 1,
       size: 25,
-      count: 0,
-      total: 0n,
+      count: recordKeys.length,
+      total: BigInt(recordKeys.length),
       has_more: false,
+      next_page: null,
     },
-    rows: recordKeys.map((recordKey) => ({
-      record: {
-        record_key: recordKey,
-        title: recordKey.split(":")[1] ?? recordKey,
-        kind: "spell",
-        kind_label: "Spell",
-      },
-    })),
+    rows: recordKeys.map((key) => ({ record: summaryFixture(key), matches: [] })),
+    coverage: null,
   };
 }
 
@@ -219,18 +223,5 @@ function savedListIndexFixture() {
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  const title = recordKey.split(":")[1] ?? recordKey;
-  return {
-    record_key: recordKey,
-    title,
-    kind: "spell",
-    presentation: {
-      record_key: recordKey,
-      kind: "spell",
-      title,
-      identity: [],
-      badges: [],
-      sections: [],
-    },
-  };
+  return detailFixture(recordKey);
 }

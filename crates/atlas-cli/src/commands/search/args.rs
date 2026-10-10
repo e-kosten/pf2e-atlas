@@ -1,150 +1,50 @@
-use std::path::PathBuf;
-
-use atlas_domain::DetailLevel;
-use atlas_search::{DEFAULT_SEARCH_PAGE_SIZE, RetrievalMode, expert::FusionMethod};
-use clap::{ArgAction, Args, ValueEnum};
-
 use crate::cli::args::FilterOptions;
-use crate::cli::parse::{DETAIL_HELP, parse_detail_level};
+use atlas_app_model::RetrievalModeView;
 use atlas_cli_support::CliPathMode;
-
+use atlas_search::DEFAULT_SEARCH_PAGE_SIZE;
+use clap::{Args, ValueEnum};
+use std::path::PathBuf;
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --kind spell --rarity uncommon --json\n  atlas search \"low level healing spell\" --json\n  atlas search --kind creature --metric 'ac.value>=25' --detail preview --limit 8\n  atlas search --kind creature --metric 'hp.value:40' --print-filter --json\n  atlas search \"low level healing spell\" --retrieval fts --json\n  atlas search \"healing\" --page 2 --limit 10 --json\n\nFilter discovery:\n  atlas filters fields\n  atlas filters values --field traits --kind spell\n  atlas filters values --field metric --kind creature --metric-query armor\n\nAdvanced retrieval controls:\n  --retrieval selects fts, vector, or hybrid retrieval.\n  --fusion selects rrf or weighted-rrf. weighted-rrf is the default with equal lane weights."
+    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search --where 'actor.hp.maximum >= 80 && \"undead\" in traits'\n  atlas filters fields"
 )]
 pub(crate) struct SearchOptions {
-    #[arg(help = "Plain-text query for ranked retrieval; omit for filter-only listing")]
+    #[arg(help = "Text query; omit to browse eligible records alphabetically")]
     pub(crate) query: Option<String>,
-    #[arg(long, help = "Override the SQLite artifact path")]
+    #[arg(long)]
     pub(crate) index: Option<PathBuf>,
-    #[arg(
-        long,
-        default_value_t = DEFAULT_SEARCH_PAGE_SIZE,
-        help = "Records per page; must be between 1 and 250"
-    )]
+    #[arg(long,default_value_t=DEFAULT_SEARCH_PAGE_SIZE)]
     pub(crate) limit: u32,
-    #[arg(long, default_value_t = 1, help = "1-based result page number")]
+    #[arg(long, default_value_t = 1)]
     pub(crate) page: u32,
-    #[arg(
-        long,
-        help = "Canonical SearchFilterNode JSON; do not combine with convenience filter flags"
-    )]
-    pub(crate) filter_json: Option<String>,
     #[command(flatten)]
     pub(crate) filter_options: FilterOptions,
-    #[arg(long, value_parser = parse_detail_level, default_value = "summary", help = DETAIL_HELP)]
-    pub(crate) detail: DetailLevel,
-    #[arg(long, value_enum, default_value_t = CliSearchSort::default(), help = "Sort order for filter-only searches; text queries are ranked")]
-    pub(crate) sort: CliSearchSort,
-    #[arg(long, help = "Seed for --sort random; generated when omitted")]
-    pub(crate) seed: Option<u64>,
-    #[arg(long, help = "Include raw source JSON in JSON output")]
-    pub(crate) include_raw: bool,
-    #[arg(long, help = "Override the embedding model cache root")]
+    #[arg(long,value_enum,default_value_t=CliRetrievalMode::Hybrid)]
+    pub(crate) retrieval: CliRetrievalMode,
+    #[arg(long)]
     pub(crate) embedding_cache_path: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    #[arg(long,value_enum,default_value_t=CliPathMode::Global)]
     pub(crate) path_mode: CliPathMode,
     #[arg(
         long,
-        value_enum,
-        help = "Rank text queries with fts, vector, or hybrid retrieval"
-    )]
-    pub(crate) retrieval: Option<CliRetrievalMode>,
-    #[arg(long, value_enum, help = "Fusion algorithm for hybrid retrieval")]
-    pub(crate) fusion: Option<CliFusionMethod>,
-    #[arg(long, help = "FTS lane weight for weighted-rrf hybrid retrieval")]
-    pub(crate) fts_weight: Option<f64>,
-    #[arg(long, help = "Vector lane weight for weighted-rrf hybrid retrieval")]
-    pub(crate) vector_weight: Option<f64>,
-    #[arg(long, help = "Reciprocal-rank fusion constant")]
-    pub(crate) rank_constant: Option<f64>,
-    #[arg(
-        long,
-        help = "FTS candidate window for ranked text search; capped at 5000"
-    )]
-    pub(crate) fts_top_k: Option<u32>,
-    #[arg(
-        long,
-        help = "Vector candidate window for ranked text search; capped at 5000"
-    )]
-    pub(crate) vector_top_k: Option<u32>,
-    #[arg(
-        long,
-        help = "Exclude records whose indexed search text matches this plain-text query"
-    )]
-    pub(crate) exclude: Option<String>,
-    #[arg(long, action = ArgAction::SetTrue, help = "Include query analysis, rank scores, and retrieval lane diagnostics")]
-    pub(crate) explain: bool,
-    #[arg(
-        long,
-        action = ArgAction::SetTrue,
-        help = "Print the lowered canonical filter and exit before opening the runtime"
+        help = "Print the validated shared predicate without opening an artifact"
     )]
     pub(crate) print_filter: bool,
-    #[arg(long, help = "Emit the standard JSON envelope")]
+    #[arg(long)]
     pub(crate) json: bool,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub(crate) enum CliRetrievalMode {
     Fts,
     Vector,
     Hybrid,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum CliFusionMethod {
-    Rrf,
-    WeightedRrf,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum CliSearchSort {
-    #[value(name = "alphabetical")]
-    Alphabetical,
-    #[value(name = "level_asc")]
-    LevelAsc,
-    #[value(name = "level_desc")]
-    LevelDesc,
-    #[value(name = "price_asc")]
-    PriceAsc,
-    #[value(name = "price_desc")]
-    PriceDesc,
-    #[value(name = "record_key")]
-    RecordKey,
-    #[value(name = "random")]
-    Random,
-}
-
-impl Default for CliSearchSort {
-    fn default() -> Self {
-        match atlas_search::RecordListSort::default() {
-            atlas_search::RecordListSort::Alphabetical => Self::Alphabetical,
-            atlas_search::RecordListSort::LevelAsc => Self::LevelAsc,
-            atlas_search::RecordListSort::LevelDesc => Self::LevelDesc,
-            atlas_search::RecordListSort::PriceAsc => Self::PriceAsc,
-            atlas_search::RecordListSort::PriceDesc => Self::PriceDesc,
-            atlas_search::RecordListSort::RecordKey => Self::RecordKey,
-            atlas_search::RecordListSort::Random { .. } => Self::Random,
-        }
-    }
-}
-
-impl From<CliRetrievalMode> for RetrievalMode {
-    fn from(mode: CliRetrievalMode) -> Self {
-        match mode {
-            CliRetrievalMode::Fts => Self::Fts,
-            CliRetrievalMode::Vector => Self::Vector,
+impl From<CliRetrievalMode> for RetrievalModeView {
+    fn from(value: CliRetrievalMode) -> Self {
+        match value {
+            CliRetrievalMode::Fts => Self::Lexical,
+            CliRetrievalMode::Vector => Self::Semantic,
             CliRetrievalMode::Hybrid => Self::Hybrid,
-        }
-    }
-}
-
-impl From<CliFusionMethod> for FusionMethod {
-    fn from(method: CliFusionMethod) -> Self {
-        match method {
-            CliFusionMethod::Rrf => Self::Rrf,
-            CliFusionMethod::WeightedRrf => Self::WeightedRrf,
         }
     }
 }

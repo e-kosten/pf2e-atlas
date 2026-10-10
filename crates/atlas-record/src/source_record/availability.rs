@@ -8,6 +8,12 @@ pub enum SourceFieldView<'a, T> {
     Missing,
     Null,
     Invalid(&'a SourceFieldRejection),
+    /// The source was admitted, but cannot supply this narrower query meaning.
+    /// This does not change the source field or manufacture an admission error.
+    ProjectionInvalid {
+        source_path: &'static str,
+        reason: &'static str,
+    },
     NotApplicable,
 }
 
@@ -44,6 +50,13 @@ impl<'a, T> SourceFieldView<'a, T> {
             Self::Missing => SourceFieldView::Missing,
             Self::Null => SourceFieldView::Null,
             Self::Invalid(error) => SourceFieldView::Invalid(error),
+            Self::ProjectionInvalid {
+                source_path,
+                reason,
+            } => SourceFieldView::ProjectionInvalid {
+                source_path,
+                reason,
+            },
             Self::NotApplicable => SourceFieldView::NotApplicable,
         }
     }
@@ -67,6 +80,9 @@ impl<'a, T> SourceFieldView<'a, T> {
             Self::Null => FieldAvailability::Null,
             Self::Invalid(error) => FieldAvailability::Invalid {
                 source_path: error.json_path.clone(),
+            },
+            Self::ProjectionInvalid { source_path, .. } => FieldAvailability::Invalid {
+                source_path: (*source_path).to_owned(),
             },
             Self::NotApplicable => FieldAvailability::NotApplicable,
         }

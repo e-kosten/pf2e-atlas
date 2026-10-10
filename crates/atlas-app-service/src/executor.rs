@@ -95,27 +95,13 @@ impl RetrievalExecutor {
 
     #[cfg(test)]
     pub(super) fn from_fixture_workers(worker_count: usize, queue_capacity: usize) -> Self {
-        use atlas_search::test_support::minimal_fixture_retrieval_service_without_embeddings;
+        use crate::test_support::fixture_retrieval;
 
-        Self::from_test_fixture_factory(worker_count, queue_capacity, || {
-            minimal_fixture_retrieval_service_without_embeddings()
-        })
+        Self::from_test_fixture_factory(worker_count, queue_capacity, fixture_retrieval)
     }
 
     #[cfg(test)]
-    pub(super) fn from_encounter_fixture_workers(
-        worker_count: usize,
-        queue_capacity: usize,
-    ) -> Self {
-        use atlas_search::test_support::encounter_fixture_retrieval_service_without_embeddings;
-
-        Self::from_test_fixture_factory(worker_count, queue_capacity, || {
-            encounter_fixture_retrieval_service_without_embeddings()
-        })
-    }
-
-    #[cfg(test)]
-    fn from_test_fixture_factory(
+    pub(super) fn from_test_fixture_factory(
         worker_count: usize,
         queue_capacity: usize,
         open_fixture: impl Fn() -> Result<
@@ -126,7 +112,7 @@ impl RetrievalExecutor {
             Box<dyn std::error::Error>,
         > + Send
         + Sync
-        + Copy
+        + Clone
         + 'static,
     ) -> Self {
         let worker_count = worker_count.max(1);
@@ -136,6 +122,7 @@ impl RetrievalExecutor {
         for index in 0..worker_count {
             let receiver = Arc::clone(&receiver);
             let (startup_sender, startup_receiver) = mpsc::channel();
+            let open_fixture = open_fixture.clone();
             thread::Builder::new()
                 .name(format!("atlas-app-test-retrieval-{index}"))
                 .spawn(move || {

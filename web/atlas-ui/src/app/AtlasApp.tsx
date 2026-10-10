@@ -1,4 +1,4 @@
-import { ConfigProvider } from "antd";
+import { ConfigProvider, Alert } from "antd";
 import { Suspense, lazy, useEffect, useState } from "react";
 import {
   COLOR_SCHEME_STORAGE_KEY,
@@ -118,6 +118,7 @@ export function AtlasApp() {
         workspace={workspace}
       >
         <Suspense fallback={<RouteLoading />}>
+          {route.kind === "invalid" && <Alert type="error" message={route.message} />}
           {route.kind === "search" && <SearchView workspace={workspace} />}
           {route.kind === "presentationMocks" && <PresentationMocksView />}
           {route.kind === "encounters" && <EncounterIndexView route={route} />}

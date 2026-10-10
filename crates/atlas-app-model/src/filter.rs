@@ -1,241 +1,92 @@
+//! The editor sends the shared typed predicate; CEL is an independent CLI surface.
+use crate::RetrievalModeView;
+use atlas_domain::{
+    QueryError, QueryFieldCounts, QueryFieldDefinition, QueryLimits, QueryPredicate,
+    QueryValueOptions,
+};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct BasicSearchFilter {
-    pub clauses: Vec<FilterClause>,
-}
-
-impl BasicSearchFilter {
-    pub fn is_empty(&self) -> bool {
-        self.clauses.is_empty()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct FilterClause {
-    pub id: String,
-    pub field: String,
-    pub operator: FilterClauseOperator,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub values: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub range: Option<FilterRange>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub metric: Option<MetricComparison>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum FilterClauseOperator {
-    IncludeAny,
-    IncludeAll,
-    ExcludeAny,
-    Range,
-    MetricCompare,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct FilterRange {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub min: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub max: Option<f64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct MetricComparison {
-    pub key: String,
-    pub op: String,
-    pub value: f64,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
 pub enum FilterDiscoveryContext {
     Filtered {
-        filter: BasicSearchFilter,
+        filter: Option<QueryPredicate>,
+        text: Option<String>,
+        mode: RetrievalModeView,
     },
     SavedList {
         list_ref: String,
-        filter: BasicSearchFilter,
+        filter: Option<QueryPredicate>,
+        text: Option<String>,
+        mode: RetrievalModeView,
     },
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
 pub struct DiscoverFilterEditorRequest {
     pub context: FilterDiscoveryContext,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub selected_field_ids: Vec<String>,
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
 pub struct DiscoverFilterValuesRequest {
     pub context: FilterDiscoveryContext,
     pub field_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub metric_query: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub metric_domain: Option<String>,
+    pub clause_id: Option<String>,
+    pub text: Option<String>,
+    #[serde(default)]
+    pub offset: usize,
+    pub limit: usize,
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
+pub struct DiscoverFilterCountsRequest {
+    pub context: FilterDiscoveryContext,
+    pub field_id: String,
+    pub clause_id: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterEditorView {
-    pub matching_record_count: u64,
+    pub catalog_version: u32,
+    pub limits: QueryLimits,
     pub groups: Vec<FilterEditorGroupView>,
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
 pub struct FilterEditorGroupView {
     pub id: String,
     pub label: String,
     pub fields: Vec<FilterEditorFieldView>,
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
 pub struct FilterEditorFieldView {
-    pub id: String,
-    pub label: String,
+    pub definition: QueryFieldDefinition,
     pub control: FilterControlView,
     pub placement: FilterFieldPlacement,
-    pub applicability: FilterFieldApplicability,
-    pub allowed_operators: Vec<FilterClauseOperator>,
-    pub default_operator: FilterClauseOperator,
-    pub supports_counts: bool,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum FilterFieldApplicability {
-    Applicable,
-    SelectedUnavailable,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
 pub enum FilterControlView {
-    MultiSelect,
-    Range {
-        min_label: String,
-        max_label: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        min: Option<f64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        max: Option<f64>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        step: Option<f64>,
-    },
-    Boolean {
-        true_label: String,
-        false_label: String,
-    },
-    MetricComparison {
-        key_label: String,
-        operator_label: String,
-        value_label: String,
-    },
+    Text,
+    Numeric,
+    Boolean,
+    Set,
+    Collection,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
 pub enum FilterFieldPlacement {
-    AlwaysVisible,
     InitiallyVisible,
     Addable,
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct FilterValueListView {
-    pub field_id: String,
-    pub matching_record_count: u64,
-    pub options: Vec<FilterValueOption>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct FilterValueOption {
-    pub value: String,
-    pub label: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub count: Option<u64>,
-    pub selected: bool,
-    pub disabled: bool,
-    pub status: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
 pub struct FilterValidationResult {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional, type = "unknown")]
-    pub compiled_filter: Option<serde_json::Value>,
-    pub messages: Vec<FilterValidationMessage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub normalized_filter: Option<BasicSearchFilter>,
+    pub predicate: Option<QueryPredicate>,
+    pub errors: Vec<QueryError>,
 }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub struct FilterValidationMessage {
-    pub severity: String,
-    pub code: FilterValidationCode,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub clause_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub field_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub value: Option<String>,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub recoverable_action: Option<String>,
+pub struct FilterValueListView {
+    pub values: QueryValueOptions,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
-pub enum FilterValidationCode {
-    FieldUnknown,
-    FieldNotApplicable,
-    OperatorNotSupported,
-    ValueUnknown,
-    ValueNotApplicable,
-    ValueZeroCount,
-    RangeInvalid,
-    RangeEmpty,
-    MetricUnknown,
-    MetricAmbiguous,
-    MetricNotNumeric,
-    ClauseEmpty,
-    ClauseConflict,
-    FilterTooComplex,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct FilterCountsView {
+    pub counts: QueryFieldCounts,
 }

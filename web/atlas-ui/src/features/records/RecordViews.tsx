@@ -2,6 +2,7 @@ import { ExternalLink, X } from "lucide-react";
 import type React from "react";
 import { AddToListButton } from "../lists/AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
+import { RelatedRecords } from "../../shared/records/RelatedRecords";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconButton, PaneIconLink } from "../../shared/ui/actions/PaneAction";
@@ -25,7 +26,7 @@ const RECORD_VIEW_WIDTH_SPECS = {
 };
 
 export function RecordView({ route }: RecordViewProps) {
-  const detail = useRecordDetail(route.recordKey);
+  const detail = useRecordDetail(route.recordKey, route.selection);
   return (
     <RecordViewLayout
       primary={
@@ -38,6 +39,7 @@ export function RecordView({ route }: RecordViewProps) {
                   kind: "reader",
                   recordKey: route.recordKey,
                   previewRecordKey: null,
+                  selection: route.selection,
                 }}
               >
                 Reader view
@@ -54,6 +56,7 @@ export function RecordView({ route }: RecordViewProps) {
               navigateToAtlasRoute({ kind: "record", recordKey })
             }
           />
+          {detail.data && <RelatedRecords key={route.recordKey} detail={detail.data} />}
         </RecordPane>
       }
     />
@@ -61,7 +64,7 @@ export function RecordView({ route }: RecordViewProps) {
 }
 
 export function ReaderView({ route }: ReaderViewProps) {
-  const detail = useRecordDetail(route.recordKey);
+  const detail = useRecordDetail(route.recordKey, route.selection);
   const preview = useRecordDetail(route.previewRecordKey);
   return (
     <RecordViewLayout
@@ -70,7 +73,13 @@ export function ReaderView({ route }: ReaderViewProps) {
           actions={
             <>
               <AddToListButton recordKey={route.recordKey} />
-              <RouteLink route={{ kind: "record", recordKey: route.recordKey }}>
+              <RouteLink
+                route={{
+                  kind: "record",
+                  recordKey: route.recordKey,
+                  selection: route.selection,
+                }}
+              >
                 Detail page
               </RouteLink>
             </>
@@ -86,6 +95,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                 kind: "reader",
                 recordKey: route.recordKey,
                 previewRecordKey,
+                selection: route.selection,
               })
             }
           />

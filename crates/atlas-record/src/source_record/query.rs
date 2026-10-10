@@ -1,3 +1,4 @@
+use super::actor_query::ActorQueryView;
 use super::nodes::item_fields;
 use super::{ItemSourceView, SourceFieldView, SourceNodeView};
 use atlas_domain::RecordKind;
@@ -157,7 +158,7 @@ impl<'a> SourceQueryView<'a> {
             SourceNodeView::Journal(_) | SourceNodeView::JournalPage(_) => {
                 SourceFieldView::Value(Lore)
             }
-            SourceNodeView::Table(_) => SourceFieldView::Value(Tooling),
+            SourceNodeView::Table(_) => SourceFieldView::Value(RollTable),
             SourceNodeView::Macro(_) => self.source.source_type().and_then(|t| {
                 if t == "script" {
                     SourceFieldView::Value(Tooling)
@@ -277,86 +278,5 @@ impl<'a> ItemSourceView<'a> {
                 .map(Vec::as_slice),
             _ => SourceFieldView::NotApplicable,
         }
-    }
-}
-#[derive(Debug, Clone, Copy)]
-pub struct ActorQueryView<'a> {
-    pub source: SourceNodeView<'a>,
-}
-impl<'a> ActorQueryView<'a> {
-    pub fn level(self) -> SourceFieldView<'a, &'a Number> {
-        match self.source {
-            SourceNodeView::Actor(ActorSourcePF2e::NPCSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.details).into())
-                    .and_then(|s| (&s.level).into())
-                    .and_then(|s| (&s.value).into())
-            }
-            SourceNodeView::Actor(ActorSourcePF2e::HazardSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.details).into())
-                    .and_then(|s| (&s.level).into())
-                    .and_then(|s| (&s.value).into())
-            }
-            _ => SourceFieldView::NotApplicable,
-        }
-    }
-    pub fn armor_class(self) -> SourceFieldView<'a, &'a Number> {
-        match self.source {
-            SourceNodeView::Actor(ActorSourcePF2e::NPCSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.attributes).into())
-                    .and_then(|s| (&s.ac).into())
-                    .and_then(|s| (&s.value).into())
-            }
-            SourceNodeView::Actor(ActorSourcePF2e::HazardSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.attributes).into())
-                    .and_then(|s| (&s.ac).into())
-                    .and_then(|s| (&s.value).into())
-            }
-            _ => SourceFieldView::NotApplicable,
-        }
-    }
-    pub fn hp_maximum(self) -> SourceFieldView<'a, &'a Number> {
-        match self.source {
-            SourceNodeView::Actor(ActorSourcePF2e::NPCSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.attributes).into())
-                    .and_then(|s| (&s.hp).into())
-                    .and_then(|s| (&s.max).into())
-            }
-            SourceNodeView::Actor(ActorSourcePF2e::HazardSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.attributes).into())
-                    .and_then(|s| (&s.hp).into())
-                    .and_then(|s| (&s.max).into())
-            }
-            _ => SourceFieldView::NotApplicable,
-        }
-    }
-    pub fn hazard_hardness(self) -> SourceFieldView<'a, &'a Number> {
-        match self.source {
-            SourceNodeView::Actor(ActorSourcePF2e::HazardSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.attributes).into())
-                    .and_then(|s| (&s.hardness).into())
-            }
-            _ => SourceFieldView::NotApplicable,
-        }
-    }
-    pub fn hazard_complexity(self) -> SourceFieldView<'a, bool> {
-        match self.source {
-            SourceNodeView::Actor(ActorSourcePF2e::HazardSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.details).into())
-                    .and_then(|s| (&s.is_complex).into())
-                    .map(|v| *v)
-            }
-            _ => SourceFieldView::NotApplicable,
-        }
-    }
-    pub fn items(self) -> SourceFieldView<'a, &'a [atlas_foundry_model::ItemSourcePF2e]> {
-        self.source.actor_items()
     }
 }

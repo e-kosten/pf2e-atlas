@@ -11,10 +11,14 @@ PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 - `crates/atlas-search`: product-facing retrieval orchestration.
 - `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL.
 - `crates/atlas-foundry-model`: generated authored DTOs, ordered source primitives, strict parsing/admission, pure document dispatch and typed snapshot codec.
-- `crates/atlas-ingest`: Foundry source loading, normalization, enrichment, generated records, embedding execution during builds, and artifact writing.
-- `crates/atlas-embedding`: model catalog, query/document embedding generation, token budgeting, and semantic text rendering.
-- `crates/atlas-record`: normalized records, content documents, presentation contracts, FTS projection, and reference graph policy.
-- `crates/atlas-domain`: shared request, filter, record-key, detail-level, and metadata vocabulary.
+- `crates/atlas-ingest`: typed Foundry loading, content/reference preparation, attributed indexing inputs, embedding execution and artifact-build composition.
+- `crates/atlas-embedding`: the pinned BGE model contract, library inference, tokenizer budgets and attributed passage inputs.
+- `crates/atlas-record`: source-backed records, borrowed authored views, selected content, typed query facts and reference policy.
+- `crates/atlas-domain`: shared typed query, source address, lightweight summary and canonical record-key vocabulary.
+- `crates/atlas-app-service`: product workflows, local overlays and consumer presentation projections.
+- `crates/atlas-app-model`: generated frontend contracts for workflows and presentation.
+- `crates/atlas-local-state`: saved lists and encounters in their separate writable database.
+- `crates/atlas-web`: web transport and embedded frontend hosting.
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing.
 
 The first-party local-agent skill lives in `skills/pf2e-atlas-cli`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
@@ -75,8 +79,9 @@ Prefer descriptive module names and explicit ownership:
 - runtime path/setup policy belongs in `atlas-runtime`
 - SQLite reading and validation belong in `atlas-index`
 - retrieval orchestration belongs in `atlas-search`
-- source loading, normalization, enrichment, and writing belong in `atlas-ingest`
-- presentation-neutral record/content models belong in `atlas-record`
+- typed source loading, preparation and artifact-build composition belong in `atlas-ingest`
+- source-backed record/content policies and borrowed authored views belong in `atlas-record`
+- consumer presentation and local gameplay overlays belong in `atlas-app-service`
 - Product command presentation and exit behavior belong in `atlas-cli`; developer command presentation belongs in `atlas-dev`
 - Shared CLI argument vocabulary, JSON envelopes, and progress rendering belong in `atlas-cli-support`; runtime path policy stays in `atlas-runtime`
 

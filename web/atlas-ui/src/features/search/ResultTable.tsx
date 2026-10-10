@@ -1,4 +1,5 @@
-import { Table, Tag, Typography } from "antd";
+import { Button, Table, Tag, Typography } from "antd";
+import { navigateToAtlasRoute } from "../../app/routes";
 import type { ColumnsType } from "antd/es/table";
 import type { ResultWindowRow } from "../../generated/atlas";
 import { handleResultKeyboard, useActiveResultScroll } from "./resultKeyboard";
@@ -45,7 +46,26 @@ const RESULT_COLUMNS: ColumnsType<ResultWindowRow> = [
   {
     title: "Match",
     key: "match",
-    render: (_value, row) => row.match_summary?.label ?? row.record.preview ?? "",
+    render: (_value, row) => (
+      <div>
+        {row.matches.map((match, i) => (
+          <Button
+            type="link"
+            key={i}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigateToAtlasRoute({
+                kind: "record",
+                recordKey: match.navigation.record_key,
+                selection: match.navigation,
+              });
+            }}
+          >
+            {match.label || match.navigation.field || match.lane}
+          </Button>
+        ))}
+      </div>
+    ),
   },
 ];
 

@@ -18,6 +18,8 @@ export default defineConfig({
     },
   },
   test: {
+    include: ["src/**/*.test.{ts,tsx}"],
+    server: { deps: { inline: [/@react-querybuilder/, /antd/] } },
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globals: true,

@@ -92,7 +92,12 @@ function encounterColumns(
       ),
     },
     { title: "Status", dataIndex: "status", width: 120 },
-    { title: "Round", dataIndex: "round_number", width: 90 },
+    {
+      title: "Round",
+      dataIndex: "round_number",
+      width: 90,
+      render: (round: bigint) => round.toLocaleString(),
+    },
     { title: "Participants", dataIndex: "participant_count", width: 120 },
     { title: "Updated", dataIndex: "updated_at", width: 220 },
     {

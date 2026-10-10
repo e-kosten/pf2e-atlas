@@ -1,59 +1,48 @@
 #![deny(unsafe_code)]
-
-mod artifact;
+mod codec;
 mod discovery;
-mod embedding_cache;
-mod inspect;
-mod metadata;
-mod read;
-mod schema;
-mod sql;
-mod sqlite;
-#[cfg(feature = "test-support")]
-pub mod test_support;
+mod error;
 #[cfg(test)]
-mod tests;
+mod foundation_tests;
+mod input;
+mod numeric;
+mod persistence;
+mod projections;
+pub mod query;
+mod read_content;
+mod read_reuse;
+mod read_units;
+mod reader;
+mod schema;
 mod validation;
-mod write;
+mod validation_units;
+mod writer;
 
-pub use artifact::metadata::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, EXPECTED_SOURCE_KIND,
+pub use discovery::{QueryCountsRequest, QueryFacetContext, QueryValuesRequest, facet_base_query};
+pub use error::IndexError;
+pub use input::{
+    ARTIFACT_CONTRACT_VERSION, ARTIFACT_FORMAT_VERSION, ARTIFACT_SCHEMA_VERSION,
+    ASSET_POLICY_VERSION, EXPECTED_SOURCE_KIND, IndexBuildInput, IndexBuildPack,
+    LEXICAL_SELECTION_VERSION, LOCALIZATION_POLICY_VERSION, RELATIONSHIP_POLICY_VERSION,
+    SOURCE_LOOKUP_VERSION, SOURCE_PROJECTION_VERSION, SourceAliasInput, SourceArtifactBuildContext,
+    SourceArtifactDiagnostic, SourceArtifactRecordInput, SourceLexicalUnitInput,
+    SourceLexicalUnitKind, SourcePreparedContent, SourceRelationshipDetails,
+    SourceRemasterPairInput, SourceSemanticModelIdentity, SourceSemanticUnitInput,
+    SourceStoredRelationship, SourceUnitLocation,
 };
-pub use artifact::validation::validation_report_for_error;
-pub use embedding_cache::{DocumentEmbeddingCacheError, DocumentEmbeddingCacheReader};
-pub use inspect::{
-    IndexInspectionReport, MetricCoverageReport, RecordCoverageReport, RelationshipCoverageReport,
-    TaxonomyCoverageReport, TextCoverageReport, VariantCoverageReport,
+pub use query::{ValidatedQuery, parse_where, query_capabilities, validate_query};
+pub use read_content::{
+    SourceContentBundle, SourceRelationshipBundle, SourceRelationshipDirection,
+    SourceRelationshipRequest,
 };
-pub use read::RetrievalReadIndex;
-pub use read::discovery::{
-    DiscoveryError, DiscoveryReadIndex, DiscoveryValueSort, FilterValueRequest,
+pub use read_units::{
+    SourceIdentityMatch, SourceIdentityVector, SourceKeyPage, SourceLexicalHit,
+    SourceLexicalRootHit, SourceRemasterPair, SourceReuseCandidate, SourceVectorHit,
 };
-pub use read::graph::edges::GraphReferenceEdge;
-pub use read::graph::product::{
-    IndexRemasterLinkRecord, IndexRemasterLinks, IndexVariantGroup, ReferenceReadIndex,
-    RemasterReadIndex, VariantReadIndex,
+#[cfg(any(test, feature = "test-support"))]
+pub use reader::SourceReadMetrics;
+pub use reader::{
+    SourceArtifactStatistics, SourceReadCapabilities, SourceSummaryBatch, SqliteIndexReader,
 };
-pub use read::records::RecordLoadError;
-pub use read::search::filters::FilterCompileError;
-pub use read::search::vector::{RecordEmbeddingVector, VectorQueryError, VectorSearchHit};
-pub use read::search::{
-    FilterReadIndex, FtsReadIndex, IdentityReadIndex, RecordIdentityMatch, RecordIdentityMatchKind,
-    RecordReadIndex, SearchCandidateRecord, VectorReadIndex,
-};
-pub use sqlite::{
-    FilteredRecordKeyPage, FilteredRecordSort, FtsColumnWeights, FtsQuery, FtsSearchHit,
-    FtsSearchLane, ReferenceEdgeDirection, SqliteIndexReader, SqliteIndexWriter,
-};
-pub use validation::{
-    ArtifactMetadataSummary, ArtifactValidationDiagnostic, ArtifactValidationFamily,
-    ArtifactValidationReport, IndexValidationError, ValidationCode, ValidationStatus,
-    ValidationTarget,
-};
-pub use write::input::{IndexBuildInput, IndexBuildInputError, IndexBuildPack};
-pub use write::{IndexArtifactWriter, IndexWriteError};
-
-pub(crate) use artifact::validation::{
-    check_index_connection, validate_index_connection, validate_index_metadata_connection,
-    validation_report_from_error,
-};
+pub use validation::{ArtifactValidationReport, validate_artifact};
+pub use writer::{IndexArtifactWriter, SqliteIndexWriter};

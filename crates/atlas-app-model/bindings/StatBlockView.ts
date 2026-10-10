@@ -5,4 +5,4 @@ import type { MovementSpeedView } from "./MovementSpeedView";
 import type { StatValueView } from "./StatValueView";
 import type { UnappliedEffectView } from "./UnappliedEffectView";
 
-export type StatBlockView = { record_key: string, title: string, level?: bigint, adjusted_level?: bigint, values: Array<StatValueView>, speeds: Array<MovementSpeedView>, action_budget?: ActionBudgetView, activities: Array<MechanicActivityView>, unapplied_effects: Array<UnappliedEffectView>, };
+export type StatBlockView = { record_key: string, title: string, level?: number, adjusted_level?: number, values: Array<StatValueView>, speeds: Array<MovementSpeedView>, action_budget?: ActionBudgetView, activities: Array<MechanicActivityView>, unapplied_effects: Array<UnappliedEffectView>, };

@@ -1,3 +1,4 @@
+import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -312,9 +313,10 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
-    fireEvent.click(await screen.findByText("Source presentation"));
-    const linkedRuleButton = (await screen.findByText("Linked Rule")).closest("button");
+    fireEvent.click(await screen.findByText("Source content"));
+    const linkedRuleButton = (await screen.findByText("Linked Rule")).closest(
+      "[role=button]",
+    );
     if (!linkedRuleButton) {
       throw new Error("Linked Rule button was not rendered");
     }
@@ -335,11 +337,11 @@ describe("encounter views", () => {
     );
 
     fireEvent.click(await screen.findByText("Goblin"));
-    expect(apiMocks.getRecordDetail).not.toHaveBeenCalledWith("actors:goblin");
-    fireEvent.click(await screen.findByText("Source presentation"));
+
+    fireEvent.click(await screen.findByText("Source content"));
     const linkedRuleButtonAfterReselect = (
       await screen.findByText("Linked Rule")
-    ).closest("button");
+    ).closest("[role=button]");
     if (!linkedRuleButtonAfterReselect) {
       throw new Error("Linked Rule button was not rendered after reselection");
     }
@@ -348,7 +350,7 @@ describe("encounter views", () => {
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
     );
 
-    fireEvent.click(screen.getByLabelText("Reference preview overlay"));
+    fireEvent.keyDown(document, { key: "Escape" });
 
     await waitFor(() =>
       expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
@@ -817,6 +819,8 @@ function encounterDetailFixture(
         participant_key: "participant_a",
         display_name: "Goblin",
         record_key: "actors:goblin",
+        hp_origin: "explicit",
+        variant_origin: "explicit",
         participant_kind: "creature",
         side: "enemy",
         initiative: 18n,
@@ -835,15 +839,15 @@ function encounterDetailFixture(
         stat_block: {
           record_key: "actors:goblin",
           title: "Goblin Warrior",
-          level: 1n,
-          adjusted_level: 1n,
+          level: 1,
+          adjusted_level: 1,
           values: [],
           speeds: [
             {
               movement_type: "land",
               label: "Land Speed",
-              base_value_feet: 25n,
-              adjusted_value_feet: 15n,
+              base_value_feet: 25,
+              adjusted_value_feet: 15,
               adjustments: [
                 {
                   source: "Encumbered",
@@ -904,6 +908,8 @@ function encounterDetailFixture(
       participantFixture({
         participant_key: "participant_b",
         display_name: "Kyra",
+        hp_origin: "explicit",
+        variant_origin: "explicit",
         participant_kind: "pc",
         status: "manual",
         side: "pc",
@@ -959,6 +965,8 @@ function participantFixture(
 ): EncounterParticipantView {
   return {
     participant_key: "participant",
+    hp_origin: "explicit",
+    variant_origin: "explicit",
     participant_kind: "creature",
     participant_variant: "normal",
     status: "active",
@@ -978,12 +986,20 @@ function participantFixture(
 function resultWindowFixture(): ResultWindowPage {
   return {
     window_id: 1n,
-    mode: { kind: "text_search", query: "goblin" },
-    page: { number: 1, size: 25, count: 1, total: 1n, has_more: false },
+    mode: { kind: "text_search", query: "goblin", mode: "hybrid" },
+    page: {
+      number: 1,
+      size: 25,
+      count: 1,
+      total: 1n,
+      has_more: false,
+      next_page: null,
+    },
+    coverage: null,
     rows: [
       {
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
-        match_summary: undefined,
+        matches: [],
       },
     ],
   };
@@ -991,17 +1007,11 @@ function resultWindowFixture(): ResultWindowPage {
 
 function recordSummaryFixture(recordKey: string, title: string): RecordSummaryView {
   return {
-    record_key: recordKey,
-    title,
+    ...summaryFixture(recordKey, title),
     kind: "creature",
     kind_label: "Creature",
     level_label: "1",
-    rarity: undefined,
-    traits: [],
-    taxonomy: [],
-    publication: undefined,
     pack: "Bestiary",
-    preview: "A small enemy.",
   };
 }
 
@@ -1060,9 +1070,9 @@ function recordSurfaceFixture({
         {
           key: "actions",
           label: "Actions",
-          value: { kind: "number" as const, value: actions },
+          value: { kind: "number" as const, value: Number(actions) },
           ...(actionBase !== undefined
-            ? { base_value: { kind: "number" as const, value: actionBase } }
+            ? { base_value: { kind: "number" as const, value: Number(actionBase) } }
             : {}),
           adjusted: actionBase !== undefined && actions !== actionBase,
           display: "static_number" as const,
@@ -1072,7 +1082,7 @@ function recordSurfaceFixture({
                   {
                     label: "Reduced actions regained",
                     source: "Slowed 1",
-                    delta: { kind: "number" as const, value: actionAdjustment },
+                    delta: { kind: "number" as const, value: Number(actionAdjustment) },
                   },
                 ],
               }
@@ -1081,7 +1091,7 @@ function recordSurfaceFixture({
         {
           key: "reactions",
           label: "Reactions",
-          value: { kind: "number" as const, value: reactions },
+          value: { kind: "number" as const, value: Number(reactions) },
           adjusted: false,
           display: "static_number" as const,
         },
@@ -1097,9 +1107,14 @@ function recordSurfaceFixture({
         {
           key: "speed.land",
           label: "Land Speed",
-          value: { kind: "distance_feet" as const, value: speed },
+          value: { kind: "distance_feet" as const, value: Number(speed) },
           ...(speedBase !== undefined
-            ? { base_value: { kind: "distance_feet" as const, value: speedBase } }
+            ? {
+                base_value: {
+                  kind: "distance_feet" as const,
+                  value: Number(speedBase),
+                },
+              }
             : {}),
           adjusted: speedBase !== undefined && speed !== speedBase,
           display: "distance" as const,
@@ -1109,7 +1124,10 @@ function recordSurfaceFixture({
                   {
                     label: "Speed penalty",
                     source: "Encumbered",
-                    delta: { kind: "distance_feet" as const, value: speedAdjustment },
+                    delta: {
+                      kind: "distance_feet" as const,
+                      value: Number(speedAdjustment),
+                    },
                   },
                 ],
               }
@@ -1125,6 +1143,13 @@ function recordSurfaceFixture({
       collapsed_by_default: false,
       activities: [
         {
+          navigation: {
+            record_key: recordKey,
+            owners: [],
+            field: null,
+            passage: null,
+            source_fingerprint: null,
+          },
           key: "claw",
           label: "Claw",
           kind: "strike",
@@ -1133,8 +1158,8 @@ function recordSurfaceFixture({
             {
               key: "activity.claw.roll.attack",
               label: "Attack",
-              value: { kind: "number" as const, value: 12n },
-              base_value: { kind: "number" as const, value: 12n },
+              value: { kind: "number" as const, value: 12 },
+              base_value: { kind: "number" as const, value: 12 },
               adjusted: false,
               display: "signed_modifier" as const,
             },
@@ -1162,54 +1187,17 @@ function recordSurfaceFixture({
       traits,
     },
     sections,
-    ...(recordKey.startsWith("actors:")
-      ? { fallback_presentation: recordDetailFixture(recordKey).presentation }
-      : {}),
   };
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  const linked = recordKey === "rules:linked";
-  const condition = recordKey.startsWith("conditionitems:");
-  return {
-    record_key: recordKey,
-    title: condition
-      ? "Frightened Condition"
-      : linked
-        ? "Linked Rule"
-        : "Goblin Warrior",
-    kind: condition || linked ? "rule" : "creature",
-    presentation: {
-      record_key: recordKey,
-      kind: condition || linked ? "rule" : "creature",
-      title: condition
-        ? "Frightened Condition"
-        : linked
-          ? "Linked Rule"
-          : "Goblin Warrior",
-      identity: [],
-      badges: [],
-      sections:
-        linked || condition
-          ? []
-          : [
-              {
-                kind: "references",
-                title: "References",
-                blocks: [
-                  {
-                    kind: "relationships",
-                    content: [
-                      {
-                        kind: "reference",
-                        label: "Linked Rule",
-                        record_key: "rules:linked",
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-    },
-  };
+  const result = detailFixture(
+    recordKey,
+    recordKey.startsWith("conditionitems:") ? "Frightened Condition" : "Goblin Warrior",
+    "rules:linked",
+  );
+  const body = result.surface.sections[0].content?.body;
+  if (body?.kind === "html")
+    body.html = body.html.replace("Nested Rule", "Linked Rule");
+  return result;
 }

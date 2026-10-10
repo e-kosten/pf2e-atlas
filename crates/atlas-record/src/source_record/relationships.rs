@@ -13,6 +13,7 @@ pub enum SourceRelationshipKind {
     ItemGrant,
     SpellcastingEntry,
     PreparedSpell,
+    TableResult,
 }
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceRelationshipOccurrence {
@@ -43,6 +44,19 @@ pub(super) fn collect_relationships(
     resolver: Option<&super::SourceReferenceIndex>,
     output: &mut Vec<SourceRelationshipOccurrence>,
 ) {
+    // World-document identity remains separate even when its collection spells
+    // the exact same package.pack as a compendium target.
+    let resolver = match source {
+        SourceNodeView::Result(result)
+            if !matches!(
+                SourceFieldView::from(&result.r#type),
+                SourceFieldView::Value(atlas_foundry_model::generated::TableResultType::Pack)
+            ) =>
+        {
+            None
+        }
+        _ => resolver,
+    };
     let mut add = |field: &str, kind, state: SourceFieldView<'_, &String>, local: bool| {
         if matches!(
             state,
@@ -55,33 +69,74 @@ pub(super) fn collect_relationships(
             owners: owners.to_vec(),
             field: field.into(),
         };
-        let authored_target = state.value().cloned();
-        let resolution = authored_target
-            .as_ref()
-            .and_then(|target| {
-                resolver.and_then(|r| {
-                    if local {
-                        let family = match kind {
-                            SourceRelationshipKind::SpellcastingEntry => Some("spellcastingEntry"),
-                            SourceRelationshipKind::PreparedSpell => Some("spell"),
-                            _ => None,
-                        };
-                        r.resolve_local_item(&locator, target, family)
-                    } else {
-                        r.resolve_reference(&locator, target)
-                    }
-                })
-            })
-            .map(|r| ContentReferenceResolution::Resolved(r.target))
-            .unwrap_or(ContentReferenceResolution::Unresolved);
-        output.push(SourceRelationshipOccurrence {
+        let mut occurrence = SourceRelationshipOccurrence {
             locator,
             kind,
             availability: state.availability(),
-            authored_target,
-            resolution,
-        });
+            authored_target: state.value().cloned(),
+            resolution: ContentReferenceResolution::Unresolved,
+        };
+        if occurrence.availability == FieldAvailability::Value {
+            occurrence.resolution = occurrence
+                .authored_target
+                .as_ref()
+                .and_then(|target| {
+                    resolver.and_then(|r| {
+                        if local {
+                            let family = match kind {
+                                SourceRelationshipKind::SpellcastingEntry => {
+                                    Some("spellcastingEntry")
+                                }
+                                SourceRelationshipKind::PreparedSpell => Some("spell"),
+                                _ => None,
+                            };
+                            r.resolve_local_item(&occurrence.locator, target, family)
+                        } else {
+                            r.resolve_reference(&occurrence.locator, target)
+                        }
+                    })
+                })
+                .map(|r| ContentReferenceResolution::Resolved(r.target))
+                .unwrap_or(ContentReferenceResolution::Unresolved);
+        }
+        output.push(occurrence);
     };
+    if let SourceNodeView::Result(result) = source {
+        use atlas_foundry_model::generated::TableResultType;
+        // A pack result's collection is the authored package.pack pair. World
+        // document targets retain their authored collection, but cannot resolve
+        // against a compendium-only reference artifact.
+        let target = SourceFieldView::from(&result.r#type).and_then(|kind| match kind {
+            TableResultType::Text => SourceFieldView::NotApplicable,
+            TableResultType::Pack | TableResultType::Document => {
+                SourceFieldView::from(&result.document_collection).and_then(|collection| {
+                    SourceFieldView::from(&result.document_id)
+                        .map(|id| format!("{collection}.{id}"))
+                })
+            }
+        });
+        let state = match &target {
+            SourceFieldView::Value(v) => SourceFieldView::Value(v),
+            SourceFieldView::Missing => SourceFieldView::Missing,
+            SourceFieldView::Null => SourceFieldView::Null,
+            SourceFieldView::Invalid(e) => SourceFieldView::Invalid(e),
+            SourceFieldView::ProjectionInvalid {
+                source_path,
+                reason,
+            } => SourceFieldView::ProjectionInvalid {
+                source_path,
+                reason,
+            },
+            SourceFieldView::NotApplicable => SourceFieldView::NotApplicable,
+        };
+        add(
+            "/documentId",
+            SourceRelationshipKind::TableResult,
+            state,
+            false,
+        );
+        return;
+    }
     let provenance = match source {
         SourceNodeView::Item(i) => item_fields!(
             i,

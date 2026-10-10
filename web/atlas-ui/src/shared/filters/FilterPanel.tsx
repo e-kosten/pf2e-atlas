@@ -1,58 +1,30 @@
 import {
   Alert,
+  AutoComplete,
   Button,
-  Checkbox,
-  Collapse,
-  Empty,
   Form,
   Input,
   InputNumber,
-  Popover,
   Select,
-  Tag,
-  Tooltip,
+  Space,
+  Typography,
 } from "antd";
-import { Minus, Plus, Search, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { FilterEditorFieldView } from "../../generated/atlas";
-import type { MetricComparisonState } from "./searchState";
-import { SORT_OPTIONS } from "./searchState";
+import { useMemo } from "react";
 import {
-  addVisibleFilter,
-  additionalFilterGroups,
-  additionalVisibleFilterIds,
-  booleanForField,
-  clearAllFilters,
-  clearFieldFilter,
-  clearSelectedValueForField,
-  controlKindForField,
-  cycleSelectedValueForField,
-  discoveredOptions,
-  editorFieldForId,
-  excludedValuesForField,
-  hasActiveFieldFilter,
-  hasActiveFilters,
-  includeOperatorForField,
-  labelForField,
-  metricComparisonForField,
-  rangeForField,
-  removeVisibleFilter,
-  setBooleanForField,
-  setIncludeOperatorForField,
-  setMetricComparisonForField,
-  setRangeForField,
-  valuesForField,
-  valueFilterOperatorPolicy,
-  visibleEditorFilterFields,
-  type FilterSelectOption,
-  type FilterPanelState,
-} from "./filterControls";
+  QueryBuilder,
+  type RuleGroupType,
+  type ValueEditorProps,
+} from "react-querybuilder";
+import { QueryBuilderAntD } from "@react-querybuilder/antd";
+import type { QueryFieldDefinition } from "../../generated/atlas";
 import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
-
+import { builderPredicate, emptyGroup, predicateBuilder } from "./queryBuilder";
+import { clearAllFilters, type FilterPanelState } from "./filterControls";
+import { useState } from "react";
+import "react-querybuilder/dist/query-builder.css";
 export function FilterPanel({ workspace }: { workspace: SearchWorkspaceState }) {
   return <FilterControls filterState={workspace} />;
 }
-
 export function FilterControls({
   filterState: workspace,
   includeSearch = true,
@@ -63,649 +35,263 @@ export function FilterControls({
   includeResultOptions?: boolean;
 }) {
   const { search, setSearch } = workspace;
-  const standardFilterFields = visibleEditorFilterFields(workspace);
-  const optionalFilterIds = additionalVisibleFilterIds(workspace);
-  const addFilterGroups = additionalFilterGroups(workspace);
-  const activeFilters = hasActiveFilters(search);
-  const textSearchActive =
-    search.mode === "text_search" && search.query.trim().length > 0;
-
+  const fields = useMemo(
+    () =>
+      workspace.filterEditor?.groups.flatMap((g) =>
+        g.fields.map((f) => f.definition),
+      ) || [],
+    [workspace.filterEditor],
+  );
+  const [draft, setDraft] = useState<RuleGroupType>(emptyGroup);
+  const [error, setError] = useState<string | null>(null);
+  const prepared = useMemo(() => {
+    if (search.filterError) return { query: draft, error: search.filterError };
+    try {
+      return { query: predicateBuilder(search.filter, fields), error: null };
+    } catch (e) {
+      return { query: null, error: e instanceof Error ? e.message : String(e) };
+    }
+  }, [fields, search.filter, search.filterError, draft]);
+  function change(group: RuleGroupType) {
+    setDraft(group);
+    try {
+      const filter = builderPredicate(group, fields);
+      setError(null);
+      const selected = new Set<string>();
+      const visit = (g: RuleGroupType) =>
+        g.rules.forEach((r) => {
+          if ("rules" in r) visit(r as RuleGroupType);
+          else {
+            selected.add(r.field);
+            if (r.operator === "exists" && r.value && "rules" in r.value)
+              visit(r.value);
+          }
+        });
+      visit(group);
+      setSearch({
+        ...search,
+        filter,
+        filterError: null,
+        visibleFilterIds: [...selected],
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      setSearch({ ...search, filterError: message });
+    }
+  }
   return (
     <aside className="filter-panel">
-      {workspace.errorMessage ? (
-        <Alert showIcon type="error" message={workspace.errorMessage} />
-      ) : null}
-      <Form className="ant-filter-form" layout="vertical" size="middle">
-        {includeSearch ? (
-          <Form.Item label="Search">
-            <div className="filter-search-row">
-              <Input.Search
-                allowClear
-                enterButton={<Search size={16} />}
+      <Form layout="vertical">
+        {includeSearch && (
+          <>
+            <Form.Item label="Search">
+              <Input
                 placeholder="Search records"
                 value={search.query}
-                onChange={(event) =>
+                onChange={(e) =>
                   setSearch({
                     ...search,
-                    query: event.target.value,
-                    mode: event.target.value.trim() ? "text_search" : "browse",
-                  })
-                }
-                onSearch={(query) =>
-                  setSearch({
-                    ...search,
-                    query,
-                    mode: query.trim() ? "text_search" : "browse",
+                    query: e.target.value,
+                    mode: e.target.value.trim() ? "text_search" : "browse",
                   })
                 }
               />
-              <Tooltip title="Clear search and filters">
-                <Button
-                  aria-label="Clear search and filters"
-                  icon={<X size={14} />}
-                  disabled={!activeFilters}
-                  onClick={() => setSearch(clearAllFilters(search))}
-                />
-              </Tooltip>
-            </div>
+            </Form.Item>
+            <Form.Item label="Retrieval">
+              <Select
+                value={search.retrievalMode}
+                options={[
+                  { value: "hybrid", label: "Hybrid" },
+                  { value: "lexical", label: "Names and definitions" },
+                  { value: "semantic", label: "Meaning" },
+                ]}
+                onChange={(retrievalMode) => setSearch({ ...search, retrievalMode })}
+              />
+            </Form.Item>
+          </>
+        )}
+        <Typography.Title level={5}>Filters</Typography.Title>
+        {fields.length > 0 && prepared.query && (
+          <StructuredBuilder
+            fields={fields}
+            query={prepared.query}
+            onChange={change}
+            facets={workspace.filterValuesByField}
+          />
+        )}
+        {Object.entries(workspace.filterCountsByField || {}).map(([id, result]) =>
+          result ? (
+            <Typography.Paragraph key={id} type="secondary">
+              {fields.find((f) => f.id === result.counts.field)?.label}:{" "}
+              {result.counts.minimum ?? "unknown"} –{" "}
+              {result.counts.maximum ?? "unknown"}; {result.counts.count_basis}
+            </Typography.Paragraph>
+          ) : null,
+        )}
+        <Button
+          onClick={() => {
+            setDraft(emptyGroup());
+            setSearch(clearAllFilters(search));
+          }}
+        >
+          Clear filters
+        </Button>
+        {(error || prepared.error) && (
+          <Alert type="error" message={error || prepared.error} />
+        )}
+        {workspace.errorMessage && (
+          <Alert type="info" message={workspace.errorMessage} />
+        )}
+        {includeResultOptions && (
+          <Form.Item label="Page size">
+            <InputNumber
+              min={1}
+              max={100}
+              value={search.pageSize}
+              onChange={(v) => setSearch({ ...search, pageSize: v || 25 })}
+            />
           </Form.Item>
-        ) : null}
-        <Collapse
-          className="ant-filter-collapse"
-          defaultActiveKey={
-            includeResultOptions ? ["standard", "options"] : ["standard"]
-          }
-          ghost
-          items={[
-            {
-              key: "standard",
-              label: "Standard filters",
-              children: (
-                <div className="filter-section">
-                  {standardFilterFields.map((field) => (
-                    <FilterFieldControl
-                      key={field.id}
-                      workspace={workspace}
-                      field={field}
-                    />
-                  ))}
-                </div>
-              ),
-            },
-            {
-              key: "more",
-              label: `Added filters${
-                optionalFilterIds.length > 0 ? ` (${optionalFilterIds.length})` : ""
-              }`,
-              children: (
-                <div className="filter-section">
-                  {optionalFilterIds.length === 0 ? (
-                    <p className="filter-empty-note">No additional filters added.</p>
-                  ) : (
-                    optionalFilterIds.map((fieldId) => (
-                      <Form.Item
-                        key={fieldId}
-                        label={
-                          <div className="control-heading">
-                            <span>{labelForField(workspace, fieldId)}</span>
-                            <Button
-                              size="small"
-                              type="text"
-                              onClick={() => removeVisibleFilter(workspace, fieldId)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        }
-                      >
-                        <OptionalFilterControl
-                          workspace={workspace}
-                          fieldId={fieldId}
-                        />
-                      </Form.Item>
-                    ))
-                  )}
-                  <Form.Item label="Add filter">
-                    <Select
-                      loading={workspace.filterDiscoveryLoading}
-                      notFoundContent={
-                        <Empty
-                          description="No filters available"
-                          image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        />
-                      }
-                      options={addFilterGroups}
-                      placeholder="Choose a filter"
-                      value={null}
-                      onChange={(fieldId) => addVisibleFilter(workspace, fieldId)}
-                    />
-                  </Form.Item>
-                </div>
-              ),
-            },
-            includeResultOptions
-              ? {
-                  key: "options",
-                  label: "Result options",
-                  children: (
-                    <div className="control-row">
-                      {textSearchActive ? null : (
-                        <Form.Item label="Sort">
-                          <Select
-                            options={SORT_OPTIONS}
-                            value={search.sort}
-                            onChange={(sort) => setSearch({ ...search, sort })}
-                          />
-                        </Form.Item>
-                      )}
-                      <Form.Item label="Page size">
-                        <InputNumber
-                          min={10}
-                          max={100}
-                          step={5}
-                          value={search.pageSize}
-                          onChange={(pageSize) =>
-                            setSearch({ ...search, pageSize: pageSize ?? 25 })
-                          }
-                        />
-                      </Form.Item>
-                    </div>
-                  ),
-                }
-              : null,
-          ].filter((item) => item !== null)}
-        />
+        )}
       </Form>
     </aside>
   );
 }
-
-function FilterFieldControl({
-  workspace,
-  field,
+function StructuredBuilder({
+  fields,
+  query,
+  onChange,
+  scope = null,
+  facets,
 }: {
-  workspace: FilterPanelState;
-  field: FilterEditorFieldView;
+  fields: QueryFieldDefinition[];
+  query: RuleGroupType;
+  onChange: (q: RuleGroupType) => void;
+  scope?: string | null;
+  facets: FilterPanelState["filterValuesByField"];
 }) {
-  const { search, setSearch } = workspace;
-  const controlKind = controlKindForField(workspace, field.id);
-  const fieldLabel = (
-    <FilterFieldLabel workspace={workspace} fieldId={field.id} label={field.label} />
-  );
-
-  if (controlKind === "range") {
-    const range = rangeForField(search, field.id);
-    const minLabel = field.control.kind === "range" ? field.control.min_label : "Min";
-    const maxLabel = field.control.kind === "range" ? field.control.max_label : "Max";
-    return (
-      <Form.Item label={fieldLabel}>
-        <div className="control-row">
-          <Form.Item label={`${minLabel} ${field.label.toLowerCase()}`}>
-            <InputNumber
-              min={field.control.kind === "range" ? field.control.min : undefined}
-              max={field.control.kind === "range" ? field.control.max : undefined}
-              step={field.control.kind === "range" ? field.control.step : undefined}
-              value={range.min}
-              onChange={(min) =>
-                setSearch(
-                  setRangeForField(search, field.id, {
-                    ...range,
-                    min: min ?? null,
-                  }),
-                )
-              }
-            />
-          </Form.Item>
-          <Form.Item label={`${maxLabel} ${field.label.toLowerCase()}`}>
-            <InputNumber
-              min={field.control.kind === "range" ? field.control.min : undefined}
-              max={field.control.kind === "range" ? field.control.max : undefined}
-              step={field.control.kind === "range" ? field.control.step : undefined}
-              value={range.max}
-              onChange={(max) =>
-                setSearch(
-                  setRangeForField(search, field.id, {
-                    ...range,
-                    max: max ?? null,
-                  }),
-                )
-              }
-            />
-          </Form.Item>
-        </div>
-      </Form.Item>
-    );
-  }
-
-  if (controlKind === "boolean") {
-    return (
-      <Form.Item label={fieldLabel}>
-        <Select
-          allowClear
-          loading={workspace.filterDiscoveryLoading}
-          options={discoveredOptions(workspace, field.id)}
-          value={booleanForField(search, field.id)}
-          onChange={(value) =>
-            setSearch(setBooleanForField(search, field.id, value ?? null))
-          }
-        />
-      </Form.Item>
-    );
-  }
-
-  if (controlKind === "metric") {
-    return <MetricFilterControl workspace={workspace} field={field} />;
-  }
+  const visible = fields.filter((f) => f.scope === scope);
 
   return (
-    <>
-      <Form.Item label={fieldLabel}>
-        <TriStateOptionFilter workspace={workspace} fieldId={field.id} />
-      </Form.Item>
-      {field.id === "traits" ? (
-        <Checkbox
-          checked={includeOperatorForField(search, field.id) === "include_any"}
-          onChange={(event) =>
-            setSearch(
-              setIncludeOperatorForField(
-                search,
-                field.id,
-                event.target.checked ? "include_any" : "include_all",
-              ),
-            )
-          }
-        >
-          Match any selected trait
-        </Checkbox>
-      ) : null}
-    </>
+    <QueryBuilderAntD>
+      <QueryBuilder
+        query={query}
+        onQueryChange={onChange}
+        showNotToggle
+        fields={visible.map((f) => ({
+          name: f.id,
+          label: f.label + (f.units ? " (" + f.units + ")" : ""),
+        }))}
+        getOperators={(id) =>
+          (visible.find((f) => f.id === id)?.operators || []).map((name) => ({
+            name,
+            label: name.replace(/_/g, " "),
+          }))
+        }
+        context={{ fields, facets, scope }}
+        controlElements={{ valueEditor: BuilderValueEditor }}
+      />
+    </QueryBuilderAntD>
   );
 }
 
-function FilterFieldLabel({
-  workspace,
-  fieldId,
-  label,
-}: {
-  workspace: FilterPanelState;
-  fieldId: string;
-  label: string;
-}) {
-  const active = hasActiveFieldFilter(workspace.search, fieldId);
-  return (
-    <div className="control-heading">
-      <span>{label}</span>
-      {active ? (
-        <Button
-          aria-label={`Clear ${label} filter`}
-          icon={<X size={12} />}
-          size="small"
-          type="text"
-          onClick={() =>
-            workspace.setSearch(clearFieldFilter(workspace.search, fieldId))
-          }
-        >
-          Clear
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-function OptionalFilterControl({
-  workspace,
-  fieldId,
-}: {
-  workspace: FilterPanelState;
-  fieldId: string;
-}) {
-  const { search, setSearch } = workspace;
-  const controlKind = controlKindForField(workspace, fieldId);
-
-  if (controlKind === "range") {
-    const range = rangeForField(search, fieldId);
-    const field = editorFieldForId(workspace, fieldId);
+type BuilderContext = {
+  fields: QueryFieldDefinition[];
+  facets: FilterPanelState["filterValuesByField"];
+  scope: string | null;
+};
+function BuilderValueEditor(props: ValueEditorProps) {
+  const { fields, facets, scope } = props.context as BuilderContext;
+  const visible = fields.filter((f) => f.scope === scope);
+  const field = visible.find((f) => f.id === props.field);
+  if (!field) return null;
+  if (props.operator === "exists")
     return (
-      <div className="control-row">
-        <InputNumber
-          placeholder="Min"
-          min={field?.control.kind === "range" ? field.control.min : undefined}
-          max={field?.control.kind === "range" ? field.control.max : undefined}
-          step={field?.control.kind === "range" ? field.control.step : undefined}
-          value={range.min}
-          onChange={(min) =>
-            setSearch(
-              setRangeForField(search, fieldId, {
-                ...range,
-                min: min ?? null,
-              }),
-            )
-          }
-        />
-        <InputNumber
-          placeholder="Max"
-          min={field?.control.kind === "range" ? field.control.min : undefined}
-          max={field?.control.kind === "range" ? field.control.max : undefined}
-          step={field?.control.kind === "range" ? field.control.step : undefined}
-          value={range.max}
-          onChange={(max) =>
-            setSearch(
-              setRangeForField(search, fieldId, {
-                ...range,
-                max: max ?? null,
-              }),
-            )
-          }
-        />
-      </div>
+      <StructuredBuilder
+        fields={fields}
+        query={props.value || emptyGroup()}
+        onChange={props.handleOnChange}
+        scope={field.path}
+        facets={facets}
+      />
     );
-  }
-
-  if (controlKind === "boolean") {
+  if (props.operator === "state")
     return (
       <Select
-        allowClear
-        loading={workspace.filterDiscoveryLoading}
-        options={discoveredOptions(workspace, fieldId)}
-        value={booleanForField(search, fieldId)}
-        onChange={(value) =>
-          setSearch(setBooleanForField(search, fieldId, value ?? null))
-        }
+        aria-label="Field state"
+        value={props.value || undefined}
+        options={["value", "missing", "null", "invalid", "not_applicable"].map(
+          (value) => ({ value, label: value.replace(/_/g, " ") }),
+        )}
+        onChange={props.handleOnChange}
       />
     );
-  }
-
-  if (controlKind === "metric") {
-    const field = editorFieldForId(workspace, fieldId);
-    return field ? <MetricFilterControl workspace={workspace} field={field} /> : null;
-  }
-
-  return <TriStateOptionFilter workspace={workspace} fieldId={fieldId} />;
-}
-
-function TriStateOptionFilter({
-  workspace,
-  fieldId,
-}: {
-  workspace: FilterPanelState;
-  fieldId: string;
-}) {
-  const { search, setSearch } = workspace;
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const field = editorFieldForId(workspace, fieldId);
-  const operatorPolicy = valueFilterOperatorPolicy(field);
-  const options = discoveredOptions(workspace, fieldId);
-  const [openedOptions, setOpenedOptions] = useState(options);
-  const includedValues = valuesForField(search, fieldId);
-  const excludedValues = excludedValuesForField(search, fieldId);
-  const includedValueSet = new Set(includedValues);
-  const excludedValueSet = new Set(excludedValues);
-  const selectedValues = [...includedValues, ...excludedValues];
-  const displayedOptions = open
-    ? refreshedOptionSnapshot(openedOptions, options)
-    : options;
-  const filteredOptions = displayedOptions.filter((option) =>
-    option.label.toLowerCase().includes(query.trim().toLowerCase()),
-  );
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function handleClick(event: MouseEvent) {
-      if (!(event.target instanceof Node)) {
-        return;
-      }
-      if (triggerRef.current?.contains(event.target)) {
-        return;
-      }
-      if (
-        event.target instanceof Element &&
-        event.target.closest(".tri-state-filter-popover")
-      ) {
-        return;
-      }
-      setOpen(false);
-      setQuery("");
-    }
-
-    document.addEventListener("click", handleClick);
-    return () => {
-      document.removeEventListener("click", handleClick);
-    };
-  }, [open]);
-
-  function setMenuOpen(nextOpen: boolean) {
-    if (nextOpen) {
-      setOpenedOptions(options);
-    }
-    setOpen(nextOpen);
-    if (!nextOpen) {
-      setQuery("");
-    }
-  }
-
-  function stateIcon(state: "included" | "excluded" | "neutral") {
-    if (state === "included") {
-      return <Plus aria-hidden="true" size={12} strokeWidth={2.5} />;
-    }
-    if (state === "excluded") {
-      return <Minus aria-hidden="true" size={12} strokeWidth={2.5} />;
-    }
-    return null;
-  }
-
-  function optionState(value: string): "included" | "excluded" | "neutral" {
-    if (includedValueSet.has(value)) {
-      return "included";
-    }
-    if (excludedValueSet.has(value)) {
-      return "excluded";
-    }
-    return "neutral";
-  }
-
-  function optionLabel(value: string): string {
+  if (field.field_type === "boolean")
     return (
-      displayedOptions.find((option) => option.value === value)?.label ??
-      options.find((option) => option.value === value)?.label ??
-      value
+      <Select
+        aria-label={field.label}
+        value={props.value === "" ? undefined : String(props.value)}
+        options={[
+          { value: "true", label: "True" },
+          { value: "false", label: "False" },
+        ]}
+        onChange={props.handleOnChange}
+      />
+    );
+  const options = field.choices.length
+    ? field.choices
+    : (facets[`${field.id}:${props.rule.id}`] ?? facets[field.id])?.values.options.map(
+        (o) => String(o.value),
+      ) || [];
+  if (field.field_type === "string" && !field.choices.length && props.operator !== "in")
+    return (
+      <AutoComplete
+        aria-label={field.label}
+        value={props.value || ""}
+        options={options.map((value) => ({ value }))}
+        onChange={props.handleOnChange}
+      />
+    );
+  if (field.field_type !== "number" && options.length) {
+    const multiple = field.field_type === "set" || props.operator === "in";
+    return (
+      <Select
+        aria-label={field.label}
+        mode={multiple ? (field.choices.length ? "multiple" : "tags") : undefined}
+        showSearch
+        value={props.value || undefined}
+        options={options.map((value) => ({ value, label: value }))}
+        onChange={props.handleOnChange}
+      />
     );
   }
-
-  const content = (
-    <div className="tri-state-filter-content">
-      <Input
-        allowClear
-        placeholder="Search options"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-      />
-      <div className="tri-state-filter-options">
-        {filteredOptions.length > 0 ? (
-          filteredOptions.map((option) => {
-            const state = optionState(option.value);
-            return (
-              <Button
-                key={option.value}
-                aria-label={option.label}
-                className={`filter-option-row is-${state}`}
-                disabled={option.disabled}
-                type="text"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setSearch(
-                    cycleSelectedValueForField(
-                      search,
-                      fieldId,
-                      option.value,
-                      operatorPolicy,
-                    ),
-                  );
-                }}
-              >
-                <span className="filter-option-state-marker">{stateIcon(state)}</span>
-                <span>{option.label}</span>
-              </Button>
-            );
-          })
-        ) : (
-          <Empty
-            description="No options"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            className="tri-state-filter-empty"
-          />
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <Popover
-      arrow={false}
-      classNames={{
-        body: "tri-state-filter-menu",
-        root: "tri-state-filter-popover",
-      }}
-      content={content}
-      destroyOnHidden
-      open={open}
-      placement="bottomLeft"
-      trigger="click"
-      onOpenChange={setMenuOpen}
-    >
-      <div
-        ref={triggerRef}
-        className={`tri-state-filter-trigger ${open ? "is-open" : ""}`}
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-label={`Edit ${labelForField(workspace, fieldId)} filter`}
-        onClick={() => setMenuOpen(true)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            setMenuOpen(true);
-          }
-          if (event.key === "Escape") {
-            setMenuOpen(false);
-          }
-        }}
-      >
-        {selectedValues.length > 0 ? (
-          selectedValues.map((value) => {
-            const excluded = excludedValueSet.has(value);
-            return (
-              <Tag
-                key={value}
-                className={`filter-value-tag ${
-                  excluded ? "is-excluded" : "is-included"
-                }`}
-                closable
-                closeIcon={
-                  <button
-                    type="button"
-                    className="filter-value-tag-close"
-                    aria-label={`Remove ${optionLabel(value)} filter`}
-                  >
-                    <X aria-hidden="true" size={12} strokeWidth={2.25} />
-                  </button>
-                }
-                onClose={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setSearch(clearSelectedValueForField(search, fieldId, value));
-                }}
-              >
-                <span className="filter-value-tag-marker">
-                  {stateIcon(excluded ? "excluded" : "included")}
-                </span>
-                <span className="filter-value-tag-label">{optionLabel(value)}</span>
-              </Tag>
-            );
-          })
-        ) : (
-          <span className="tri-state-filter-placeholder">
-            {workspace.filterDiscoveryLoading ? "Loading options" : "Select options"}
-          </span>
-        )}
-      </div>
-    </Popover>
-  );
-}
-
-function refreshedOptionSnapshot(
-  openedOptions: FilterSelectOption[],
-  currentOptions: FilterSelectOption[],
-): FilterSelectOption[] {
-  if (openedOptions.length === 0) {
-    return currentOptions;
+  if (props.operator === "between") {
+    const range = Array.isArray(props.value) ? props.value : ["", ""];
+    return (
+      <Space>
+        <Input
+          aria-label="Minimum"
+          value={range[0]}
+          onChange={(e) => props.handleOnChange([e.target.value, range[1]])}
+        />
+        <Input
+          aria-label="Maximum"
+          value={range[1]}
+          onChange={(e) => props.handleOnChange([range[0], e.target.value])}
+        />
+      </Space>
+    );
   }
-  const currentByValue = new Map(
-    currentOptions.map((option) => [option.value, option] as const),
-  );
-  return openedOptions.map((option) => currentByValue.get(option.value) ?? option);
-}
-
-function MetricFilterControl({
-  workspace,
-  field,
-}: {
-  workspace: FilterPanelState;
-  field: FilterEditorFieldView;
-}) {
-  const { search, setSearch } = workspace;
-  const current = metricComparisonForField(search, field.id);
-  const [draft, setDraft] = useState<MetricComparisonState>(current);
-  const keyLabel =
-    field.control.kind === "metric_comparison" ? field.control.key_label : "Metric";
-  const operatorLabel =
-    field.control.kind === "metric_comparison"
-      ? field.control.operator_label
-      : "Operator";
-  const valueLabel =
-    field.control.kind === "metric_comparison" ? field.control.value_label : "Value";
-
-  function update(next: MetricComparisonState) {
-    setDraft(next);
-    setSearch(setMetricComparisonForField(search, field.id, next));
-  }
-
   return (
-    <div className="control-row metric-filter-control">
-      <Form.Item label={keyLabel}>
-        <Select
-          showSearch
-          allowClear
-          loading={workspace.filterDiscoveryLoading}
-          optionFilterProp="label"
-          options={discoveredOptions(workspace, field.id)}
-          value={draft.key}
-          onChange={(key) => update({ ...draft, key: key ?? null })}
-        />
-      </Form.Item>
-      <Form.Item label={operatorLabel}>
-        <Select
-          options={[
-            { value: "gte", label: ">=" },
-            { value: "lte", label: "<=" },
-            { value: "gt", label: ">" },
-            { value: "lt", label: "<" },
-            { value: "eq", label: "=" },
-          ]}
-          value={draft.op}
-          onChange={(op) => update({ ...draft, op })}
-        />
-      </Form.Item>
-      <Form.Item label={valueLabel}>
-        <InputNumber
-          value={draft.value}
-          onChange={(value) => update({ ...draft, value: value ?? null })}
-        />
-      </Form.Item>
-    </div>
+    <Input
+      aria-label={field.label}
+      inputMode={field.field_type === "number" ? "decimal" : undefined}
+      placeholder={
+        field.units ||
+        (field.field_type === "set" ? "Comma-separated values" : undefined)
+      }
+      value={Array.isArray(props.value) ? props.value.join(", ") : (props.value ?? "")}
+      onChange={(e) => props.handleOnChange(e.target.value)}
+    />
   );
 }

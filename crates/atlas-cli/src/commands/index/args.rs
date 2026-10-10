@@ -34,8 +34,14 @@ pub(crate) struct BuildIndexOptions {
     pub(crate) output: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
-    #[arg(long, help = "Write the ingest manifest report to this path")]
+    #[arg(long, help = "Override the Foundry source manifest path")]
     pub(crate) manifest: Option<PathBuf>,
+    #[arg(
+        long,
+        default_value = "en",
+        help = "Locale used to prepare display and search text; changing it requires rebuilding"
+    )]
+    pub(crate) locale: String,
     #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL, help = "Embedding model to use for semantic search rows")]
     pub(crate) embedding_model: EmbeddingModelId,
     #[arg(long, help = "Override the embedding model cache root")]
@@ -57,18 +63,14 @@ pub(crate) struct BuildIndexOptions {
 }
 
 #[derive(Debug, Args)]
-#[command(
-    after_help = "Examples:\n  atlas index validate\n  atlas index validate --no-embeddings\n  atlas index validate --embeddings-only"
-)]
+#[command(after_help = "Examples:\n  atlas index validate\n  atlas index validate --no-embeddings")]
 pub(crate) struct ValidateIndexOptions {
     #[arg(long, help = "Override the SQLite artifact path")]
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
-    #[arg(long, action = ArgAction::SetTrue, conflicts_with = "embeddings_only", help = "Validate only the base record artifact and skip sqlite-vec/vector readiness")]
+    #[arg(long, action = ArgAction::SetTrue, help = "Validate the lexical artifact without requiring semantic readiness")]
     pub(crate) no_embeddings: bool,
-    #[arg(long, action = ArgAction::SetTrue, help = "Run the focused embedding/vector readiness diagnostics")]
-    pub(crate) embeddings_only: bool,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
 }

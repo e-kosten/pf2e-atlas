@@ -3,6 +3,7 @@
 mod encounter;
 mod error;
 mod filter;
+mod graph;
 mod list;
 mod readiness;
 mod record;
@@ -19,22 +20,25 @@ pub use encounter::{
     EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
     EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView, MechanicActivityModeView,
-    MechanicActivityUsageView, MechanicActivityView, MovementSpeedView,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
-    RuntimeEffectNoteView, SetEncounterTurnRequest, StatBlockView, StatModifierTypeView,
-    StatModifierView, StatValueView, UnappliedEffectView,
+    EncounterSummaryView, EncounterUpdateView, MechanicActivityKindView, MechanicActivityView,
+    MovementSpeedView, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
+    RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
+    StatBlockView, StatModifierTypeView, StatModifierView, StatValueView, UnappliedEffectView,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
-    BasicSearchFilter, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterClause,
-    FilterClauseOperator, FilterControlView, FilterDiscoveryContext, FilterEditorFieldView,
-    FilterEditorGroupView, FilterEditorView, FilterFieldApplicability, FilterFieldPlacement,
-    FilterRange, FilterValidationCode, FilterValidationMessage, FilterValidationResult,
-    FilterValueListView, FilterValueOption, MetricComparison,
+    DiscoverFilterCountsRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
+    FilterControlView, FilterCountsView, FilterDiscoveryContext, FilterEditorFieldView,
+    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterValidationResult,
+    FilterValueListView,
+};
+pub use graph::{
+    GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView, RemasterLinkView,
+    RemasterLinksView, SearchResultsView, SimilarRecordsView, VariantEvidenceView,
+    VariantGroupView,
 };
 pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
@@ -48,15 +52,17 @@ pub use list::{
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{
-    RecordBadgeView, RecordDetailView, RecordResolutionAmbiguousView,
-    RecordResolutionCandidateView, RecordSummaryView,
+    RecordBadgeView, RecordDetailRequest, RecordDetailView, RecordNavigationView,
+    RecordRefResolutionView, RecordRelationshipView, RecordResolutionAmbiguousView,
+    RecordResolutionCandidateView, RecordSummaryView, RecordSurfaceRequest,
 };
 pub use result_window::{
-    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordListSortView, ResultMatchSummary,
-    ResultWindowMode, ResultWindowModeSummary, ResultWindowPage, ResultWindowRow,
-    SearchPageRequest, SearchPageView,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, ResultWindowMode,
+    ResultWindowModeSummary, ResultWindowPage, ResultWindowRow, RetrievalModeView,
+    SearchCoverageView, SearchLaneView, SearchPageRequest, SearchPageView, SearchWitnessView,
 };
 pub use surface::{
+    ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
     RecordSurfaceHeaderView, RecordSurfaceProfileView, RecordSurfaceSectionKindView,
     RecordSurfaceSectionView, RecordSurfaceView, SurfaceActivityView, SurfaceAdjustmentView,
     SurfaceBadgeView, SurfaceNoteView, SurfaceScalarView, SurfaceValueDisplayView,
@@ -93,30 +99,39 @@ mod tests {
     fn export_typescript_bindings() {
         let bindings = binding_dir();
         fs::create_dir_all(&bindings).expect("binding directory should be creatable");
+        for entry in fs::read_dir(&bindings).expect("bindings") {
+            let path = entry.expect("binding").path();
+            if path.extension().and_then(|s| s.to_str()) == Some("ts") {
+                fs::remove_file(path).expect("remove retired binding");
+            }
+        }
         export_bindings_to(&bindings);
     }
 
     fn export_bindings_to(path: &Path) {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
+        RecordListView::export_all_to(path).expect("graph bindings");
+        RecordRefResolutionView::export_all_to(path).expect("resolution bindings");
+        GraphContextViewRequest::export_all_to(path).expect("graph request bindings");
+        GraphContextView::export_all_to(path).expect("graph bindings");
+        RemasterLinksView::export_all_to(path).expect("remaster bindings");
+        VariantGroupView::export_all_to(path).expect("variants bindings");
+        SimilarRecordsView::export_all_to(path).expect("similar bindings");
         AppError::export_all_to(path).expect("AppError bindings should export");
         AppReadinessView::export_all_to(path).expect("AppReadinessView bindings should export");
         ActionBudgetView::export_all_to(path).expect("ActionBudgetView bindings should export");
         ActivityRollSurfaceView::export_all_to(path)
             .expect("ActivityRollSurfaceView bindings should export");
         ActivityRollView::export_all_to(path).expect("ActivityRollView bindings should export");
-        BasicSearchFilter::export_all_to(path).expect("BasicSearchFilter bindings should export");
-        DiscoverFilterEditorRequest::export_all_to(path)
-            .expect("DiscoverFilterEditorRequest bindings should export");
-        DiscoverFilterValuesRequest::export_all_to(path)
-            .expect("DiscoverFilterValuesRequest bindings should export");
-        FilterEditorView::export_all_to(path).expect("FilterEditorView bindings should export");
-        FilterDiscoveryContext::export_all_to(path)
-            .expect("FilterDiscoveryContext bindings should export");
-        FilterValidationResult::export_all_to(path)
-            .expect("FilterValidationResult bindings should export");
-        FilterValueListView::export_all_to(path)
-            .expect("FilterValueListView bindings should export");
-        FilterValueOption::export_all_to(path).expect("FilterValueOption bindings should export");
+        DiscoverFilterEditorRequest::export_all_to(path).expect("editor bindings");
+        DiscoverFilterValuesRequest::export_all_to(path).expect("values bindings");
+        DiscoverFilterCountsRequest::export_all_to(path).expect("counts bindings");
+        FilterEditorView::export_all_to(path).expect("editor bindings");
+        FilterValidationResult::export_all_to(path).expect("validation bindings");
+        FilterValueListView::export_all_to(path).expect("values bindings");
+        FilterCountsView::export_all_to(path).expect("counts bindings");
+        RecordDetailRequest::export_all_to(path).expect("detail request bindings");
+        RecordSurfaceRequest::export_all_to(path).expect("surface request bindings");
         AddEncounterManualParticipantRequest::export_all_to(path)
             .expect("AddEncounterManualParticipantRequest bindings should export");
         AddEncounterParticipantConditionRequest::export_all_to(path)
@@ -154,10 +169,6 @@ mod tests {
             .expect("EncounterUpdateView bindings should export");
         MechanicActivityKindView::export_all_to(path)
             .expect("MechanicActivityKindView bindings should export");
-        MechanicActivityUsageView::export_all_to(path)
-            .expect("MechanicActivityUsageView bindings should export");
-        MechanicActivityModeView::export_all_to(path)
-            .expect("MechanicActivityModeView bindings should export");
         MechanicActivityView::export_all_to(path)
             .expect("MechanicActivityView bindings should export");
         MovementSpeedView::export_all_to(path).expect("MovementSpeedView bindings should export");

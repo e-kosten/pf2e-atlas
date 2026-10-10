@@ -23,6 +23,10 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
+        .route("/api/graph",post(crate::handlers::graph_context))
+        .route("/api/records/{key}/remaster",get(crate::handlers::remaster_links))
+        .route("/api/records/{key}/variants",get(crate::handlers::variant_group))
+        .route("/api/records/{key}/similar",get(crate::handlers::similar_records))
         .route("/api/encounters", get(encounters).post(create_encounter))
         .route(
             "/api/encounters/condition-definitions",
@@ -75,12 +79,15 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         )
         .route("/api/filters/editor", post(discover_filter_editor))
         .route("/api/filters/values", post(discover_filter_values))
+        .route("/api/filters/counts", post(crate::handlers::discover_filter_counts))
+        .route("/api/filters/validate", post(crate::handlers::validate_filter))
         .route("/api/result-windows", post(open_result_window))
         .route(
             "/api/result-windows/{window_id}/page",
             post(read_result_window_page),
         )
         .route("/api/records/{record_key}", get(record_detail))
+        .route("/api/records/detail", post(crate::handlers::record_detail_at))
         .fallback(get(static_asset))
         .with_state(state)
 }

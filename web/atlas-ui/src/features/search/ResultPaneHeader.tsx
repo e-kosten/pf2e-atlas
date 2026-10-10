@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "antd";
+import { Button, Tooltip } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
@@ -21,9 +21,17 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         {workspace.resultsRefreshing
           ? "Updating results"
           : page
-            ? `${page.total.toLocaleString()} records`
+            ? `${page.total.toLocaleString()} ${workspace.resultPage?.coverage?.exhaustive === false ? "candidate records" : "records"}`
             : "No result window yet"}
       </span>
+      {workspace.resultPage?.coverage?.exhaustive === false && (
+        <Tooltip title={workspace.resultPage.coverage.count_basis}>
+          <span>
+            Bounded semantic search (
+            {workspace.resultPage.coverage.semantic_unit_window} units)
+          </span>
+        </Tooltip>
+      )}
       <div className="pager pager--compact">
         <Button
           aria-label="Previous page"

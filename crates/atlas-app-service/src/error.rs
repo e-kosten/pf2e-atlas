@@ -87,22 +87,8 @@ impl From<SearchError> for AppServiceError {
     }
 }
 
-impl From<atlas_search::FilterDiscoveryError> for AppServiceError {
-    fn from(error: atlas_search::FilterDiscoveryError) -> Self {
-        let code = match error {
-            atlas_search::FilterDiscoveryError::InvalidField(_) => AppErrorCode::FilterFieldInvalid,
-            atlas_search::FilterDiscoveryError::InvalidOption(_) => {
-                AppErrorCode::FilterOptionInvalid
-            }
-            atlas_search::FilterDiscoveryError::FieldNotApplicable(_) => {
-                AppErrorCode::FilterFieldNotApplicable
-            }
-            atlas_search::FilterDiscoveryError::AmbiguousMetric(_) => {
-                AppErrorCode::FilterMetricAmbiguous
-            }
-            atlas_search::FilterDiscoveryError::InvalidFilter(_) => AppErrorCode::FilterInvalid,
-            atlas_search::FilterDiscoveryError::QueryFailed(_) => AppErrorCode::InternalError,
-        };
-        Self::new(code, error.to_string())
+impl From<atlas_domain::QueryError> for AppServiceError {
+    fn from(error: atlas_domain::QueryError) -> Self {
+        Self::new(AppErrorCode::FilterInvalid, error.to_string())
     }
 }

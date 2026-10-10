@@ -4,27 +4,27 @@ use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
 /// Interpretation identity, independent of source DTO or artifact versions.
-pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v1";
+pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v4";
 
 /// A source field, never an output hash, display label or HTML node ordinal.
 /// Callers establish identity from their admitted source and retain this locator
 /// alongside the authored DTO. Snapshot-local owners must not reconcile user
 /// state across rebuilds by position.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// `field` is relative to the last owner, for example /system/description/value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct SourceContentLocator {
     pub record: RecordKey,
     pub owners: Vec<OwnedContentLocator>,
-    /// Field path relative to the last owner (for example /system/description/value).
     pub field: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct OwnedContentLocator {
     pub collection: String,
     pub identity: OwnedContentIdentity,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub enum OwnedContentIdentity {
     /// A source ID whose validity and uniqueness were checked by the caller.
     Stable(String),
@@ -95,6 +95,8 @@ pub enum ContentReferenceTarget {
 pub struct PreparedSourceContent {
     pub locator: SourceContentLocator,
     pub interpretation_version: String,
+    /// Hash of the exact authored field interpreted by this preparation call.
+    pub authored_markup_sha256: String,
     pub html: String,
     /// Unwrapped plain text derived from the same audience-filtered HTML.
     pub text: String,
@@ -164,6 +166,17 @@ pub enum ContentInteractionKind {
     },
 }
 
+impl ContentInteractionKind {
+    pub fn marker_kind(&self) -> &'static str {
+        match self {
+            Self::Check { .. } => "check",
+            Self::Damage { .. } => "damage",
+            Self::Command { .. } => "command",
+            Self::Template { .. } => "template",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContentInterpretationDiagnostic {
     pub path: String,
@@ -184,6 +197,7 @@ pub enum ContentDiagnosticCode {
     UnknownActionGlyph,
     UnknownVisibility,
     ExcludedHtmlContent,
+    UnavailableImageAsset,
     InvalidTemplate,
     MissingCheckType,
 }
