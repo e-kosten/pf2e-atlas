@@ -129,6 +129,7 @@ export function detailFixture(
   const record = summaryFixture(record_key, title);
   const locator = { record: record_key, owners: [], field: "system.description.value" };
   return {
+    artifact_generation: "test-generation",
     record,
     selected: {
       record_key,

@@ -280,6 +280,7 @@ fn address() -> RecordNavigationView {
 }
 fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
+        artifact_generation: "test-generation".into(),
         record: summary("Local Caster", "creature"),
         presentation: RecordPresentationView {
             classification: "creature 2".into(),

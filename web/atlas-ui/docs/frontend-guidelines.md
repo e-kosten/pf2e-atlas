@@ -218,12 +218,21 @@ associated customized spells; base and authored cast ranks do not imply executed
 rank or form changes. A hazard's backend defense-block fact controls its primary
 AC/HP/hardness display; keep independent zero saves and unavailable facts intact.
 
-`RelatedRecords` starts closed and requests only the selected tab when opened. Comparison panes
-reuse family presentation without recursively mounting related disclosures.
+`RelatedRecords` starts closed and requests one bounded availability response on
+opening, cached by complete selection and artifact generation. Render only content
+categories; keep loading, unavailable checks and local retryable errors distinct
+from known empty categories. Similar is a separate root discovery preview using
+existing result windows, with a native link into the ordinary search workspace.
+Similarity URLs preserve the root seed and canonical filters. Keyword entry replaces
+the seed; clearing it preserves filters. Contextual text counts are disabled while
+catalog choices and vocabulary remain available. Label bounded pages Top matches.
+Comparison panes reuse family presentation without recursively mounting related disclosures.
 Incoming references use checked `source_navigation`, outgoing references use the
 checked target, and separate occurrence ordinals remain attribution metadata;
-they do not imply automatic scrolling to an individual marker. Remaster, variant
-and similar suggestions are root-scoped and must say so for embedded selections.
+they do not imply automatic scrolling to an individual marker. Counterparts and variants apply only to root selections; they never appear as
+relationships of an embedded selection. A separate Similar action can name the
+parent root explicitly. Exact root references use an empty owner path, not an
+all-owners graph query.
 
 Live browser checks use the maintained Playwright runner against a separately started real Atlas server and isolated local state:
 

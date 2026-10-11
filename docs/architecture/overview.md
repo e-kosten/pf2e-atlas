@@ -98,6 +98,12 @@ request; variants are separate derived suggestions.
 Keep application workflows in app-service. It uses runtime/search/local-state,
 not index imports or handcrafted SQL readers. Retain the bounded retrieval
 executor rather than serializing all read-only web requests behind one lane.
+Stored-vector Similar is a mode of the existing app result window, carrying its
+root seed and canonical filters. Related availability is a bounded app-service
+workflow over exact selected-owner graph reads and root-only verified suggestions,
+with complete artifact-generation cache identity and truthful empty/unavailable
+outcomes. It does not add a retrieval, ranking or stored-record model.
+
 App-service owns useful catalog control presentation, result windows, semantic
 family presentation and hydration. Reference reads project authored facts directly;
 encounters compose the existing bounded runtime overlays into one presentation.

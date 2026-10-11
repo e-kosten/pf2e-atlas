@@ -21,9 +21,20 @@ preview, comparison and encounters.
 The current repair reuses shared record insets, wrapping identity/traits and
 measured prose across detail and compact previews. Shared detail recovery retains
 valid content during refresh of the same complete address, keeps failures local,
-and offers retry and back navigation. One closed secondary disclosure owns lazy
-references, remaster, variant and similar tabs; incoming references navigate the
-actual referring owner and field, while comparison reuses the same family renderer.
+and offers retry and back navigation. One closed secondary disclosure requests
+bounded Related availability for the complete selected address and immutable
+artifact generation. Only nonempty reference, verified counterpart and suggested
+variant categories appear; known empty, unavailable and failed checks remain
+distinct. References use the exact selected owner, and incoming references
+navigate the actual referring owner and field. Root-only counterpart and variant
+categories do not appear as relationships of an owned selection. Comparison reuses
+the same family renderer, and generation changes offer local record reload.
+
+Similar is separate root discovery: a bounded five-record preview links into the
+existing search workspace with a removable seed criterion and ordinary filters.
+The shared result window uses the stored root vector and existing filter, remaster
+and seed-exclusion policy. Top matches and available pages describe its bounded
+results; Similar does not become a relationship category.
 
 Authored action costs use shared accessible glyphs in typed facts and prepared
 content. Dedicated
@@ -43,9 +54,14 @@ without hiding required, zero, false or unavailable facts. Explicit authored
 clear/empty changes remain readable. Physical currency and table result
 availability stay intact in transient family responses. Compact typed identity
 captions, one selected ability glyph, modifiers before skills and literal-colon
-record paths apply across reference consumers. Continuous owned reading,
-encounter ability previews and Similar result windows remain open workflow work;
-these fact repairs do not complete this backlog item or add family models.
+record paths apply across reference consumers. These fact repairs retain the
+existing family model and shared presentation owners.
+
+Similar windows and Related availability have local automated coverage. This
+item remains in progress pending integrated full verification, real-browser and
+independent visual acceptance. Progressive owned reading and encounter-specific
+ability composition remain separate unfinished work; this slice does not complete
+them.
 
 ## Desired Outcome
 

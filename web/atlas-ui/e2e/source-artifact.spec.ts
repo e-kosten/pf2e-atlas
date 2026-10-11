@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import type { GraphContextView, SimilarRecordsView } from "../src/generated/atlas";
+import type { RelatedRecordsView, ResultWindowPage } from "../src/generated/atlas";
 
 test("narrow preview restores focus after closing during opening, reopening and nested Escape", async ({
   page,
@@ -399,10 +399,7 @@ test("suggested variants compare authored details and Similar uses its real rout
   const relatedRequests: string[] = [];
   page.on("request", (request) => {
     const path = new URL(request.url()).pathname;
-    if (
-      path === "/api/graph" ||
-      /\/api\/records\/[^/]+\/(variants|remaster|similar)$/.test(path)
-    ) {
+    if (path === "/api/related") {
       relatedRequests.push(path);
     }
   });
@@ -413,29 +410,18 @@ test("suggested variants compare authored details and Similar uses its real rout
   const related = page.getByRole("region", { name: "Related records", exact: true });
   await expect(related.getByRole("tab")).toHaveCount(0);
   expect(relatedRequests).toEqual([]);
-  const graphResponse = page.waitForResponse(
+  const relatedResponse = page.waitForResponse(
     (response) =>
-      new URL(response.url()).pathname === "/api/graph" &&
+      new URL(response.url()).pathname === "/api/related" &&
       response.request().method() === "POST",
   );
   await related.getByRole("button", { name: "Related records", exact: true }).click();
-  await expect(
-    related.getByRole("tab", { name: "References", exact: true }),
-  ).toBeVisible();
-  const graphResult = await graphResponse;
-  expect(graphResult.ok()).toBeTruthy();
-  const graph: GraphContextView = await graphResult.json();
-  expect(relatedRequests).toEqual(["/api/graph"]);
-  const variantsResponse = page.waitForResponse((response) =>
-    new URL(response.url()).pathname.endsWith("/variants"),
-  );
+  const response = await relatedResponse;
+  expect(response.ok()).toBeTruthy();
+  const availability: RelatedRecordsView = await response.json();
+  expect(relatedRequests).toEqual(["/api/related"]);
+  expect(availability.variants.kind).toBe("content");
   await related.getByRole("tab", { name: "Variants", exact: true }).click();
-  expect((await variantsResponse).ok()).toBeTruthy();
-  expect(
-    relatedRequests.some(
-      (path) => path.endsWith("/similar") || path.endsWith("/remaster"),
-    ),
-  ).toBe(false);
   await expect(
     related.getByText(
       /These records share a naming pattern and compatible source facts|These suggestions are uncertain; compare the records/,
@@ -481,59 +467,77 @@ test("suggested variants compare authored details and Similar uses its real rout
   ).toBeVisible();
   await comparison.getByRole("button", { name: "Close", exact: true }).click();
   await expect(comparison).not.toBeVisible();
-  await related.getByRole("tab", { name: "References", exact: true }).click();
-  await expect(
-    related.getByRole("heading", { name: "Referenced here", exact: true }),
-  ).toBeVisible();
-  await expect(
-    related.getByRole("heading", { name: "References to this record", exact: true }),
-  ).toBeVisible();
-  const referenceHrefs = await related
-    .locator("a[href]")
-    .evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).href));
-  for (const occurrence of graph.backlinks.occurrences) {
-    expect(
-      referenceHrefs.some((href) => {
-        const url = new URL(href);
-        const selection = url.searchParams.get("selection");
-        return (
-          decodeURIComponent(url.pathname) ===
-            "/records/" + occurrence.source_navigation.record_key &&
-          selection !== null &&
-          JSON.stringify(JSON.parse(selection)) ===
-            JSON.stringify(occurrence.source_navigation)
-        );
-      }),
-    ).toBeTruthy();
-  }
-  const similarResponse = page.waitForResponse((response) =>
-    new URL(response.url()).pathname.endsWith("/similar"),
-  );
-  await related.getByRole("tab", { name: "Similar", exact: true }).click();
-  const similarResult = await similarResponse;
-  expect(similarResult.ok()).toBeTruthy();
-  const similar: SimilarRecordsView = await similarResult.json();
-  if (!similar.results.coverage.exhaustive) {
-    const explanation = related.getByRole("button", {
-      name: "About these suggestions",
-      exact: true,
-    });
-    await expect(explanation).toBeVisible();
-    await expect(related.getByText("More matches may exist.")).not.toBeVisible();
-    await explanation.click();
-    await expect(related.getByText("More matches may exist.")).toBeVisible();
-  }
-  if (similar.results.rows.length) {
-    for (const row of similar.results.rows) {
-      await expect(
-        related.getByRole("link", { name: row.record.title, exact: true }),
-      ).toBeVisible();
+  if (availability.references.kind === "content") {
+    await related.getByRole("tab", { name: "References", exact: true }).click();
+    const graph = availability.references.content;
+    const referenceHrefs = await related
+      .locator("a[href]")
+      .evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).href));
+    for (const occurrence of graph.backlinks.occurrences) {
+      expect(
+        referenceHrefs.some((href) => {
+          const url = new URL(href);
+          const selection = url.searchParams.get("selection");
+          return (
+            decodeURIComponent(url.pathname) ===
+              "/records/" + occurrence.source_navigation.record_key &&
+            selection !== null &&
+            JSON.stringify(JSON.parse(selection)) ===
+              JSON.stringify(occurrence.source_navigation)
+          );
+        }),
+      ).toBeTruthy();
     }
   } else {
     await expect(
-      related.getByText("No suggestions found.", { exact: true }),
-    ).toBeVisible();
+      related.getByRole("tab", { name: "References", exact: true }),
+    ).toHaveCount(0);
   }
+  const similarResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/result-windows" &&
+      response.request().postDataJSON()?.mode?.kind === "similar_records",
+  );
+  await related.getByRole("button", { name: "Similar records", exact: true }).click();
+  const similarResult = await similarResponse;
+  expect(similarResult.ok()).toBeTruthy();
+  const similar: ResultWindowPage = await similarResult.json();
+  expect(similar.mode.kind).toBe("similar_records");
+  expect(similar.page.size).toBe(5);
+  expect(
+    similar.rows.every(
+      (row) => row.record.record_key !== "equipment-srd:7jolv0cuttvjI1JD",
+    ),
+  ).toBeTruthy();
+  await expect(
+    related.getByRole("button", { name: "About these suggestions" }),
+  ).toHaveCount(0);
+  await related.getByRole("link", { name: "See more similar records" }).click();
+  await expect(page).toHaveURL(/\/search\?similar=/);
+  await expect(
+    page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Top matches", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Search records", exact: true })
+    .fill("dragon");
+  await expect(page).not.toHaveURL(/similar=/);
+  await page.goBack();
+  await expect(page).toHaveURL(/similar=/);
+  await expect(
+    page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
+  ).toBeVisible();
+  await page.goForward();
+  await expect(
+    page.getByRole("textbox", { name: "Search records", exact: true }),
+  ).toHaveValue("dragon");
+  await page.goBack();
+  await page.getByRole("button", { name: "Clear similar criterion" }).click();
+  await expect(page).not.toHaveURL(/similar=/);
   await page.screenshot({
     path: "../../scratch/browser-validation/similar.png",
     fullPage: true,

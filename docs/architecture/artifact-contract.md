@@ -182,12 +182,22 @@ Search collapses semantic units by maximum similarity per root. Hybrid uses one
 rank per root per lane with RRF60; sibling appearance does not penalize a passage.
 Semantic candidate windows are bounded and reported as such. Similar uses the
 stored root identity seed and semantic candidates, excluding the seed. No invented
-trait/graph reranking weights apply.
+trait/graph reranking weights apply. App result windows expose the same bounded
+Similar request and body-free seed summary; they do not extend the stored schema.
+
+The full serialized `SourceArtifactBuildContext` SHA-256 identifies the immutable
+artifact generation for detail envelopes and Related availability. It covers
+locale, preparation policies and semantic model as well as source identity.
+Snapshot-local navigation continues to use the source fingerprint; these identities
+serve different purposes and are not interchangeable.
 
 Legacy suppression occurs only when its verified remaster also matches the complete
 current request, before paging. A legacy-only match remains visible, and exact key
 lookup remains available. Suggested variants are bounded evidence-backed same-pack,
-family and compatible-category candidates; they never change identity or suppression.
+family and compatible-category candidates. Verification distinguishes a complete
+empty result from unavailable seed/candidate compatibility or an incomplete
+bounded check; nonempty results retain ambiguity and truncation. These suggestions
+never change identity or suppression.
 
 ## Publication, readers and validation
 

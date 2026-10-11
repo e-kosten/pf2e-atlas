@@ -37,4 +37,6 @@ pub use text::{
     RetrievalMode, SearchCoverage, SearchLane, SearchWitness, TextSearchRecord, TextSearchRequest,
     TextSearchResult,
 };
-pub use variants::{VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence};
+pub use variants::{
+    VariantGroupOutcome, VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence,
+};

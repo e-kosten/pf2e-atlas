@@ -1,13 +1,8 @@
 import { Alert, Button, Collapse, Modal, Select, Spin, Tabs, Typography } from "antd";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
-import {
-  getRecordGraph,
-  getRecordRemaster,
-  getRecordVariants,
-  getSimilarRecords,
-} from "../../api/atlasApi";
+import { AtlasApiError, getRelatedRecords, openResultWindow } from "../../api/atlasApi";
 import {
   atlasRoutePath,
   navigateToAtlasRoute,
@@ -19,8 +14,10 @@ import type {
   RecordNavigationView,
   RecordSummaryView,
 } from "../../generated/atlas";
+import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
+import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { useRecordDetail } from "./useRecordDetail";
 
 export function RelatedRecords({
@@ -39,7 +36,13 @@ export function RelatedRecords({
           {
             key: "related",
             label: "Related records",
-            children: <RelatedTabs detail={detail} onReference={onReference} />,
+            children: (
+              <RelatedTabs
+                key={JSON.stringify([detail.selected, detail.artifact_generation])}
+                detail={detail}
+                onReference={onReference}
+              />
+            ),
           },
         ]}
       />
@@ -54,41 +57,36 @@ function RelatedTabs({
   detail: RecordDetailView;
   onReference: RecordReferenceHandler;
 }) {
+  const queryClient = useQueryClient();
   const [active, setActive] = useState("references");
   const [comparison, setComparison] = useState<string | null>(null);
   const key = detail.record.record_key;
-  const graph = useQuery({
-    queryKey: ["graph", detail.selected],
-    enabled: active === "references",
+  const related = useQuery({
+    queryKey: ["related", detail.selected, detail.artifact_generation],
+    staleTime: Infinity,
     queryFn: () =>
-      getRecordGraph(key, detail.selected.owners, detail.selected.source_fingerprint),
+      getRelatedRecords({
+        selection: detail.selected,
+        artifact_generation: detail.artifact_generation,
+      }),
   });
-  const remaster = useQuery({
-    queryKey: ["remaster", key],
-    enabled: active === "remaster",
-    queryFn: () => getRecordRemaster(key),
-  });
-  const variants = useQuery({
-    queryKey: ["variants", key],
-    enabled: active === "variants",
-    queryFn: () => getRecordVariants(key),
-  });
-  const similar = useQuery({
-    queryKey: ["similar", key],
-    enabled: active === "similar",
-    queryFn: () => getSimilarRecords(key),
-  });
-  const query =
-    active === "references"
-      ? graph
-      : active === "remaster"
-        ? remaster
-        : active === "variants"
-          ? variants
-          : similar;
+  const reloadRecord =
+    related.error instanceof AtlasApiError &&
+    related.error.appError?.recoverable_action === "reload_record";
+  const graph =
+    related.data?.references.kind === "content"
+      ? related.data.references.content
+      : undefined;
+  const remaster =
+    related.data?.counterparts.kind === "content"
+      ? related.data.counterparts.content
+      : undefined;
+  const variants =
+    related.data?.variants.kind === "content"
+      ? related.data.variants.content
+      : undefined;
   const variantChoices =
-    variants.data?.variants.filter((record) => record.record_key !== key) ?? [];
-  const rootScope = detail.selected.owners.length > 0 && active !== "references";
+    variants?.variants.filter((record) => record.record_key !== key) ?? [];
 
   function link(label: string, selection: RecordNavigationView) {
     return (
@@ -187,137 +185,178 @@ function RelatedTabs({
     );
   }
 
-  const tabContent = (
-    <>
-      {rootScope && (
-        <Typography.Paragraph type="secondary">
-          These suggestions are for the parent record, {detail.record.title}.
-        </Typography.Paragraph>
-      )}
-      {query.isFetching && (
+  const items = [
+    ...(graph
+      ? [
+          {
+            key: "references",
+            label: "References",
+            children: (
+              <>
+                {graph.outgoing.occurrences.length > 0 && (
+                  <>
+                    <h3>Referenced here</h3>
+                    {references(graph.outgoing, false)}
+                  </>
+                )}
+                {graph.backlinks.occurrences.length > 0 && (
+                  <>
+                    <h3>References to this record</h3>
+                    {references(graph.backlinks, true)}
+                  </>
+                )}
+              </>
+            ),
+          },
+        ]
+      : []),
+    ...(remaster
+      ? [
+          {
+            key: "remaster",
+            label: "Remaster",
+            children: (
+              <ul className="related-records__list">
+                {remaster.links.map((pair) => (
+                  <li
+                    key={
+                      pair.legacy_record.record_key +
+                      ":" +
+                      pair.remaster_record.record_key
+                    }
+                  >
+                    {records([pair.legacy_record, pair.remaster_record], "")}
+                  </li>
+                ))}
+              </ul>
+            ),
+          },
+        ]
+      : []),
+    ...(variants
+      ? [
+          {
+            key: "variants",
+            label: "Variants",
+            children: (
+              <>
+                <Typography.Paragraph type="secondary">
+                  {variants.ambiguous
+                    ? "These suggestions are uncertain; compare the records before treating them as variants."
+                    : "These records share a naming pattern and compatible source facts."}
+                </Typography.Paragraph>
+                {records(variantChoices, "No suggested variants were found.")}
+                <Select
+                  className="related-records__compare"
+                  aria-label="Compare variant"
+                  placeholder="Choose a variant to compare…"
+                  value={comparison}
+                  showSearch={{ optionFilterProp: "label" }}
+                  options={variantChoices.map((record) => ({
+                    value: record.record_key,
+                    label: record.title,
+                  }))}
+                  onChange={setComparison}
+                />
+                {variants.truncated && (
+                  <Typography.Paragraph type="secondary">
+                    Showing a limited set of suggested variants; others may exist.
+                  </Typography.Paragraph>
+                )}
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
+  const selectedTab = items.some((item) => item.key === active)
+    ? active
+    : items[0]?.key;
+  const failures = related.data
+    ? ([
+        ["References", related.data.references],
+        ["Remaster", related.data.counterparts],
+        ["Variants", related.data.variants],
+      ] as const)
+    : [];
+  return (
+    <div className="related-records__body">
+      {related.isFetching && (
         <div role="status" className="related-records__status">
           <Spin size="small" /> Loading related records…
         </div>
       )}
-      {query.error && (
+      {related.error && (
         <Alert
           type="error"
           showIcon
           title="Unable to load related records"
-          description={query.error.message}
+          description={related.error.message}
           action={
             <Button
               size="small"
-              loading={query.isFetching}
               onClick={() => {
-                void query.refetch();
+                if (reloadRecord)
+                  void queryClient.invalidateQueries({
+                    queryKey: recordDetailQueryOptions(
+                      detail.selected.record_key,
+                      detail.selected,
+                    ).queryKey,
+                    exact: true,
+                  });
+                else void related.refetch();
               }}
             >
-              Retry
+              {reloadRecord ? "Reload record" : "Retry"}
             </Button>
           }
         />
       )}
-      {active === "references" && graph.data && (
-        <>
-          <h3>Referenced here</h3>
-          {references(graph.data.outgoing, false)}
-          <h3>References to this record</h3>
-          {references(graph.data.backlinks, true)}
-        </>
-      )}
-      {active === "remaster" &&
-        remaster.data &&
-        (remaster.data.links.length ? (
-          <ul className="related-records__list">
-            {remaster.data.links.map((pair) => (
-              <li
-                key={
-                  pair.legacy_record.record_key + ":" + pair.remaster_record.record_key
-                }
-              >
-                {records([pair.legacy_record, pair.remaster_record], "")}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Typography.Paragraph type="secondary">
-            No verified legacy or remastered counterpart was found.
-          </Typography.Paragraph>
-        ))}
-      {active === "variants" && variants.data && (
-        <>
-          {variantChoices.length > 0 && (
-            <Typography.Paragraph type="secondary">
-              {variants.data.ambiguous
-                ? "These suggestions are uncertain; compare the records before treating them as variants."
-                : "These records share a naming pattern and compatible source facts."}
-            </Typography.Paragraph>
-          )}
-          {records(variantChoices, "No suggested variants were found.")}
-          {variantChoices.length > 0 && (
-            <Select
-              className="related-records__compare"
-              aria-label="Compare variant"
-              placeholder="Choose a variant to compare…"
-              value={comparison}
-              showSearch={{ optionFilterProp: "label" }}
-              options={variantChoices.map((record) => ({
-                value: record.record_key,
-                label: record.title,
-              }))}
-              onChange={setComparison}
-            />
-          )}
-          {variants.data.truncated && (
-            <Typography.Paragraph type="secondary">
-              Showing a limited set of suggested variants; others may exist.
-            </Typography.Paragraph>
-          )}
-        </>
-      )}
-      {active === "similar" && similar.data && (
-        <>
-          {!similar.data.results.coverage.exhaustive && (
-            <Typography.Paragraph type="secondary">
-              <Collapse
+      {failures.map(([label, category]) =>
+        category.kind === "error" ? (
+          <Alert
+            key={label}
+            type="error"
+            title={`${label} could not be checked`}
+            description={category.error.message}
+            action={
+              <Button
                 size="small"
-                ghost
-                items={[
-                  {
-                    key: "coverage",
-                    label: "About these suggestions",
-                    children: "More matches may exist.",
-                  },
-                ]}
-              />
-            </Typography.Paragraph>
-          )}
-          {records(
-            similar.data.results.rows.map((row) => row.record),
-            "No suggestions found.",
-          )}
-        </>
+                onClick={() => {
+                  void related.refetch();
+                }}
+              >
+                Retry
+              </Button>
+            }
+          />
+        ) : category.kind === "unavailable" && detail.selected.owners.length === 0 ? (
+          <Typography.Paragraph key={label} type="secondary">
+            {label}: {category.reason}
+          </Typography.Paragraph>
+        ) : null,
       )}
-      {!query.isFetching && !query.error && query.data === null && (
-        <Typography.Paragraph type="secondary">
-          Related records are unavailable for this selection.
-        </Typography.Paragraph>
+      {items.length > 0 && (
+        <Tabs
+          activeKey={selectedTab}
+          onChange={setActive}
+          destroyOnHidden
+          items={items}
+        />
       )}
-    </>
-  );
-  return (
-    <div className="related-records__body">
-      <Tabs
-        activeKey={active}
-        onChange={setActive}
+      <Collapse
+        size="small"
+        ghost
         destroyOnHidden
         items={[
-          { key: "references", label: "References" },
-          { key: "remaster", label: "Remaster" },
-          { key: "variants", label: "Variants" },
-          { key: "similar", label: "Similar" },
-        ].map((tab) => ({ ...tab, children: tab.key === active ? tabContent : null }))}
+          {
+            key: "similar",
+            label: detail.selected.owners.length
+              ? `Similar to parent record: ${detail.record.title}`
+              : "Similar records",
+            children: <SimilarPreview detail={detail} onReference={onReference} />,
+          },
+        ]}
       />
       {comparison && (
         <Comparison
@@ -327,6 +366,99 @@ function RelatedTabs({
         />
       )}
     </div>
+  );
+}
+
+function SimilarPreview({
+  detail,
+  onReference,
+}: {
+  detail: RecordDetailView;
+  onReference: RecordReferenceHandler;
+}) {
+  const seed = detail.record.record_key;
+  const similar = useQuery({
+    queryKey: ["similar-preview", seed, detail.artifact_generation],
+    staleTime: Infinity,
+    queryFn: ({ signal }) =>
+      openResultWindow(
+        {
+          mode: { kind: "similar_records", seed_record_key: seed, filter: null },
+          page: { number: 1, size: 5 },
+        },
+        signal,
+      ),
+  });
+  const route = {
+    kind: "search",
+    selectedRecordKey: null,
+    query: searchStateQueryString({
+      ...DEFAULT_SEARCH_STATE,
+      mode: "similar_records",
+      similarSeed: seed,
+    }),
+  } as const;
+  return (
+    <>
+      {similar.isFetching && (
+        <div role="status">
+          <Spin size="small" /> Loading similar records…
+        </div>
+      )}
+      {similar.error && (
+        <Alert
+          type="error"
+          title="Unable to load similar records"
+          description={similar.error.message}
+          action={
+            <Button
+              size="small"
+              onClick={() => {
+                void similar.refetch();
+              }}
+            >
+              Retry
+            </Button>
+          }
+        />
+      )}
+      {similar.data &&
+        (similar.data.rows.length ? (
+          <ul className="related-records__list">
+            {similar.data.rows.map((row) => (
+              <li key={row.record.record_key}>
+                <Typography.Link
+                  href={atlasRoutePath({
+                    kind: "record",
+                    recordKey: row.record.record_key,
+                  })}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
+                    onReference(row.record.record_key, event.currentTarget);
+                  }}
+                >
+                  {row.record.title}
+                </Typography.Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Typography.Paragraph type="secondary">
+            No similar records found.
+          </Typography.Paragraph>
+        ))}
+      <Typography.Link
+        href={atlasRoutePath(route)}
+        onClick={(event) => {
+          if (!shouldHandleAtlasRouteClick(event)) return;
+          event.preventDefault();
+          navigateToAtlasRoute(route);
+        }}
+      >
+        See more similar records
+      </Typography.Link>
+    </>
   );
 }
 

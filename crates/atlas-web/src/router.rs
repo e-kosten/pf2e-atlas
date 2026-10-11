@@ -23,10 +23,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
-        .route("/api/graph",post(crate::handlers::graph_context))
-        .route("/api/records/{key}/remaster",get(crate::handlers::remaster_links))
-        .route("/api/records/{key}/variants",get(crate::handlers::variant_group))
-        .route("/api/records/{key}/similar",get(crate::handlers::similar_records))
+        .route("/api/related",post(crate::handlers::related_records))
         .route("/api/encounters", get(encounters).post(create_encounter))
         .route(
             "/api/encounters/condition-definitions",

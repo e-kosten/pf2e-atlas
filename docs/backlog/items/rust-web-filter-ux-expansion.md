@@ -53,6 +53,14 @@ keyboard focus during edits, including selected literals outside the current
 vocabulary page. Scoped vocabulary remains count-free with bounded server search
 and paging; complex Any/All conditions retain the maintained advanced editor.
 
+Similar search reuses the existing result window, table and canonical predicate.
+Its URL preserves the root seed and filters through reload, Back/Forward and
+expired-window recovery. Keyword entry replaces the seed; clearing the criterion
+preserves filters. Similarity uses catalog choices and count-free vocabulary,
+with contextual text counts disabled. Top matches and available pages retain
+bounded-search meaning without an exhaustive total claim or a hidden same-kind
+filter. The related-record preview links to this same search workflow.
+
 Focused frontend tests and read-only real API/browser workflows are implemented.
 Completion requires integrated verification, independent Astra task/visual review,
 and product feedback on the common and advanced workflows. Local tests alone do

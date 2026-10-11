@@ -18,6 +18,7 @@ import {
   searchStateQueryString,
 } from "../../shared/filters/searchState";
 import { KIND_PREFERENCE_KEY } from "./workspaceState";
+import { AtlasApiError } from "../../api/atlasApi";
 import { useSearchWorkspace } from "./useSearchWorkspace";
 
 const apiMocks = vi.hoisted(() => ({
@@ -30,7 +31,8 @@ const apiMocks = vi.hoisted(() => ({
   readResultWindowPage: vi.fn(),
 }));
 
-vi.mock("../../api/atlasApi", () => ({
+vi.mock("../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../api/atlasApi")>()),
   discoverFilterEditor: apiMocks.discoverFilterEditor,
   discoverFilterValues: apiMocks.discoverFilterValues,
   discoverFilterCounts: apiMocks.discoverFilterCounts,
@@ -56,6 +58,103 @@ describe("useSearchWorkspace", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
     apiMocks.readResultWindowPage.mockResolvedValue(resultWindowPage());
     history.replaceState(null, "", "/");
+  });
+
+  it("restores similarity URLs, disables contextual counts, recovers expired pages, and replaces or clears the criterion", async () => {
+    localStorage.setItem(
+      KIND_PREFERENCE_KEY,
+      JSON.stringify({ include: ["creature"], exclude: [] }),
+    );
+    const filter = { kind: "in" as const, field: "record.kind", values: ["spell"] };
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: "items:seed",
+      mode: "similar_records" as const,
+      filter,
+    };
+    const similarUrl = "/search" + searchStateQueryString(state);
+    history.replaceState(null, "", similarUrl);
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    apiMocks.openResultWindow.mockImplementation((request: OpenResultWindowRequest) =>
+      Promise.resolve({
+        ...resultWindowPage(),
+        page: { ...resultWindowPage().page, number: request.page.number },
+        mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
+      }),
+    );
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(result.current.resultPage).toBeDefined());
+    expect(result.current.search.filter).toEqual(filter);
+    expect(apiMocks.openResultWindow.mock.calls[0][0].mode).toEqual({
+      kind: "similar_records",
+      seed_record_key: "items:seed",
+      filter,
+    });
+    expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
+    expect(result.current.filterEditor).toBeDefined();
+    apiMocks.readResultWindowPage.mockRejectedValueOnce(
+      new AtlasApiError(410, "expired", { code: "window_expired", message: "expired" }),
+    );
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
+    expect(apiMocks.openResultWindow.mock.calls[1][0]).toEqual({
+      mode: { kind: "similar_records", seed_record_key: "items:seed", filter },
+      page: { number: 2, size: 25 },
+    });
+    act(() => result.current.setSearch({ ...result.current.search, query: "dragon" }));
+    expect(result.current.search.similarSeed).toBeNull();
+    expect(window.location.search).not.toContain("similar=");
+    // Back/Forward use the same popstate restoration owner as real browser history.
+    act(() => {
+      history.replaceState(null, "", similarUrl);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(result.current.search.similarSeed).toBe("items:seed");
+    expect(result.current.pageNumber).toBe(1);
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        similarSeed: null,
+        mode: "browse",
+      }),
+    );
+    expect(result.current.search.filter).toEqual(filter);
+    expect(result.current.search.query).toBe("");
+  });
+
+  it("does not replace the current window handle when an abandoned seed finishes late", async () => {
+    history.replaceState(null, "", "/search?similar=items:first");
+    let finishFirst!: (page: ResultWindowPage) => void;
+    apiMocks.openResultWindow.mockImplementationOnce(
+      () =>
+        new Promise<ResultWindowPage>((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage([], { windowId: 9n }));
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        similarSeed: "items:second",
+      }),
+    );
+    await waitFor(() => expect(result.current.diagnostics.activeWindowId).toBe("9"));
+    await act(async () => finishFirst(resultWindowPage([], { windowId: 3n })));
+    expect(result.current.diagnostics.activeWindowId).toBe("9");
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() =>
+      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(
+        9n,
+        expect.any(Object),
+        expect.any(AbortSignal),
+      ),
+    );
   });
 
   it("keeps remembered Kind while editing an authoritative text URL, then clears it on a Kind edit", async () => {
@@ -295,9 +394,13 @@ describe("useSearchWorkspace", () => {
     act(() => result.current.setPageNumber(2));
 
     await waitFor(() =>
-      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(7n, {
-        page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
-      }),
+      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(
+        7n,
+        {
+          page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
+        },
+        expect.any(AbortSignal),
+      ),
     );
     expect(result.current.pageNumber).toBe(2);
     expect(result.current.diagnostics.resultRequest).toMatchObject({

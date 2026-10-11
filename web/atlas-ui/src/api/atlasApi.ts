@@ -79,8 +79,10 @@ export async function discoverFilterValues(
 
 export async function openResultWindow(
   request: OpenResultWindowRequest,
+  signal?: AbortSignal,
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>("/api/result-windows", {
+    signal,
     method: "POST",
     body: jsonBody(request),
   });
@@ -90,10 +92,12 @@ export async function openResultWindow(
 export async function readResultWindowPage(
   windowId: bigint,
   request: ReadResultWindowPageRequest,
+  signal?: AbortSignal,
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>(
     `/api/result-windows/${windowId.toString()}/page`,
     {
+      signal,
       method: "POST",
       body: jsonBody(request),
     },
@@ -555,36 +559,10 @@ function isAppError(value: unknown): value is AppError {
   );
 }
 
-export async function getRecordGraph(
-  record_key: string,
-  owners: import("../generated/atlas").OwnedContentLocator[] = [],
-  source_fingerprint: string | null = null,
-): Promise<import("../generated/atlas").GraphContextView | null> {
-  return atlasFetch("/api/graph", {
-    method: "POST",
-    body: jsonBody({
-      record_key,
-      owners: owners.length ? owners : null,
-      source_fingerprint,
-      outgoing_limit: 100,
-      backlink_limit: 100,
-    }),
-  });
-}
-export async function getRecordRemaster(
-  key: string,
-): Promise<import("../generated/atlas").RemasterLinksView | null> {
-  return atlasFetch("/api/records/" + encodeURIComponent(key) + "/remaster");
-}
-export async function getRecordVariants(
-  key: string,
-): Promise<import("../generated/atlas").VariantGroupView | null> {
-  return atlasFetch("/api/records/" + encodeURIComponent(key) + "/variants");
-}
-export async function getSimilarRecords(
-  key: string,
-): Promise<import("../generated/atlas").SimilarRecordsView | null> {
-  return atlasFetch("/api/records/" + encodeURIComponent(key) + "/similar");
+export async function getRelatedRecords(
+  request: import("../generated/atlas").RelatedRecordsRequest,
+): Promise<import("../generated/atlas").RelatedRecordsView> {
+  return atlasFetch("/api/related", { method: "POST", body: jsonBody(request) });
 }
 export async function discoverFilterCounts(
   request: import("../generated/atlas").DiscoverFilterCountsRequest,

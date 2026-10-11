@@ -3,7 +3,7 @@ import type { RecordNavigationView } from "../generated/atlas";
 
 export type AtlasRoute =
   | { kind: "invalid"; message: string }
-  | { kind: "search"; selectedRecordKey: string | null }
+  | { kind: "search"; selectedRecordKey: string | null; query?: string }
   | { kind: "encounters" }
   | { kind: "encounter"; slug: string }
   | { kind: "encounterEdit"; slug: string }
@@ -121,7 +121,7 @@ export function atlasRoutePath(route: AtlasRoute): string {
     case "invalid":
       return "/search";
     case "search":
-      return searchPath(route.selectedRecordKey);
+      return searchPath(route.selectedRecordKey) + (route.query ?? "");
     case "encounters":
       return encountersPath();
     case "encounter":

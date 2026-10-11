@@ -140,15 +140,7 @@ pub(crate) fn run_graph_variants(o: GraphVariantsOptions) -> Result<ExitCode, St
     let Some(r) = app_result(s.variant_group(key), o.json)? else {
         return Ok(ExitCode::from(3));
     };
-    let Some(r) = r else {
-        if o.json {
-            write_json_data(serde_json::json!({"label":"Suggested variants","group":null}))?;
-        } else {
-            println!("No suggested variants");
-        }
-        return Ok(ExitCode::SUCCESS);
-    };
-    let data = serde_json::json!({"label":"Suggested variants","group":r});
+    let data = serde_json::json!({"label":"Suggested variants","availability":r});
     if o.json {
         write_json_data(data)?;
     } else {

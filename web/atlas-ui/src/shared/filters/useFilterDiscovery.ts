@@ -36,11 +36,13 @@ export function findClauseIds(
 export function useFilterDiscovery({
   context,
   enabled = true,
+  countsEnabled = true,
   queryKeyPrefix,
   vocabularyScope = { kind: "artifact" },
 }: {
   context: FilterDiscoveryContext;
   enabled?: boolean;
+  countsEnabled?: boolean;
   queryKeyPrefix: readonly unknown[];
   vocabularyScope?: FilterVocabularyScope;
 }) {
@@ -53,7 +55,7 @@ export function useFilterDiscovery({
   const definitions = (editor.data?.groups ?? []).flatMap((group) =>
     group.fields.map((field) => field.definition),
   );
-  const requests = definitions.flatMap((field) =>
+  const requests = (countsEnabled ? definitions : []).flatMap((field) =>
     findClauseIds(context.filter, field.path, field.scope).map((clauseId) => ({
       fieldId: field.id,
       clauseId,

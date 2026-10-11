@@ -23,7 +23,7 @@ use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
 };
 use atlas_app_service::AppServiceError;
-use atlas_domain::{QueryPredicate, RecordKey};
+use atlas_domain::QueryPredicate;
 use axum::Router;
 use axum::body::Body;
 use axum::body::to_bytes;
@@ -826,9 +826,20 @@ impl AtlasWebService for MockService {
 
     fn open_result_window(
         &self,
-        _request: OpenResultWindowRequest,
+        request: OpenResultWindowRequest,
     ) -> Result<ResultWindowPage, AppServiceError> {
-        Ok(result_window_page(42, 1))
+        let mut page = result_window_page(42, request.page.number);
+        if let atlas_app_model::ResultWindowMode::SimilarRecords {
+            seed_record_key, ..
+        } = request.mode
+        {
+            let mut seed = record_summary();
+            seed.record_key = seed_record_key;
+            page.mode = ResultWindowModeSummary::SimilarRecords {
+                seed: Box::new(seed),
+            };
+        }
+        Ok(page)
     }
 
     fn read_result_window_page(
@@ -848,34 +859,21 @@ impl AtlasWebService for MockService {
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         let mut record = record_summary();
         record.record_key = record_key.to_string();
-        Ok(serde_json::from_value(json!({"record":record.clone(),"presentation":{"classification":record.kind_label,"identity":record,"content":[],"owned":[],"body":{"kind":"content"}},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
+        Ok(serde_json::from_value(json!({"artifact_generation":"test-generation","record":record.clone(),"presentation":{"classification":record.kind_label,"identity":record,"content":[],"owned":[],"body":{"kind":"content"}},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
     }
 
-    fn graph_context(
+    fn related_records(
         &self,
-        _request: atlas_app_model::GraphContextViewRequest,
-    ) -> Result<Option<atlas_app_model::GraphContextView>, AppServiceError> {
-        Ok(None)
-    }
-    fn remaster_links(
-        &self,
-        _key: RecordKey,
-    ) -> Result<Option<atlas_app_model::RemasterLinksView>, AppServiceError> {
-        Ok(None)
-    }
-    fn variant_group(
-        &self,
-        _key: RecordKey,
-    ) -> Result<Option<atlas_app_model::VariantGroupView>, AppServiceError> {
-        Ok(None)
-    }
-    fn similar_records(
-        &self,
-        _key: String,
-        _filter: Option<QueryPredicate>,
-        _page: atlas_app_model::SearchPageRequest,
-    ) -> Result<Option<atlas_app_model::SimilarRecordsView>, AppServiceError> {
-        Ok(None)
+        request: atlas_app_model::RelatedRecordsRequest,
+    ) -> Result<atlas_app_model::RelatedRecordsView, AppServiceError> {
+        Ok(atlas_app_model::RelatedRecordsView {
+            selection: request.selection,
+            artifact_generation: request.artifact_generation,
+            seed: record_summary(),
+            references: atlas_app_model::RelatedCategoryView::Empty,
+            counterparts: atlas_app_model::RelatedCategoryView::Empty,
+            variants: atlas_app_model::RelatedCategoryView::Empty,
+        })
     }
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
         Ok(EncounterIndexView {
@@ -1326,4 +1324,36 @@ async fn filter_discovery_transport_keeps_explicit_vocabulary_and_optional_unava
     assert_eq!(body["counts"]["status"], "unavailable");
     let (status,_)=route_json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon","mode":"hybrid"}}))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn related_request_transports_complete_selection_and_generation() {
+    let selection = json!({"record_key":"actors:test000000000000","owners":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"field":"/system/description/value","passage":null,"source_fingerprint":"source-fingerprint"});
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/related",
+        Some(json!({"selection":selection,"artifact_generation":"full-generation"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["selection"], selection);
+    assert_eq!(body["artifact_generation"], "full-generation");
+    assert_eq!(body["references"]["kind"], "empty");
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/related",
+        Some(json!({"selection":selection})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn similar_window_transport_carries_exact_seed_and_body_free_summary() {
+    let (status, body) = route_json(Method::POST, "/api/result-windows", Some(json!({"mode":{"kind":"similar_records","seed_record_key":"items:seed000000000000","filter":null},"page":{"number":2,"size":5}}))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["mode"]["kind"], "similar_records");
+    assert_eq!(body["mode"]["seed"]["record_key"], "items:seed000000000000");
+    assert!(body["mode"]["seed"].get("presentation").is_none());
+    assert_eq!(body["page"]["number"], 2);
 }

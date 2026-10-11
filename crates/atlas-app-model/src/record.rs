@@ -44,6 +44,7 @@ pub struct RecordDetailRequest {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordDetailView {
+    pub artifact_generation: String,
     pub record: RecordSummaryView,
     pub presentation: RecordPresentationView,
     pub selected: RecordNavigationView,

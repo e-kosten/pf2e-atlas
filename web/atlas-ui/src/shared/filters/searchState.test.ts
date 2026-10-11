@@ -81,3 +81,35 @@ describe("source query state", () => {
     expect(state.filter).toMatchObject({ value: 0 });
   });
 });
+
+it("round trips a root similar criterion and filters without adding a kind filter", () => {
+  const state = {
+    ...DEFAULT_SEARCH_STATE,
+    similarSeed: "spells:root000000000000",
+    mode: "similar_records" as const,
+    filter: {
+      kind: "compare" as const,
+      field: "item.level",
+      op: "gte" as const,
+      value: 2,
+    },
+  };
+  expect(
+    decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(state))),
+  ).toEqual(state);
+  expect(buildOpenRequest(state, 3)).toEqual({
+    page: { number: 3, size: 25 },
+    mode: {
+      kind: "similar_records",
+      seed_record_key: state.similarSeed,
+      filter: state.filter,
+    },
+  });
+  expect(hasExecutableSearch({ ...state, filter: null })).toBe(true);
+  expect(buildFilterDiscoveryContext(state).text).toBeNull();
+  const invalid = decodeSearchStateFromParams(
+    new URLSearchParams("similar=items:seed&q=dragon"),
+  );
+  expect(hasExecutableSearch(invalid)).toBe(false);
+  expect(() => buildOpenRequest(invalid, 1)).toThrow();
+});
