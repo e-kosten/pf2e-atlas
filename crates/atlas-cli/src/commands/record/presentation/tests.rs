@@ -2,6 +2,15 @@ use super::*;
 use atlas_app_model::*;
 use atlas_record::source_content::{OwnedContentIdentity, OwnedContentLocator};
 
+// Most fact fixtures have no separately loaded owned prose.
+fn render_record(
+    record: &RecordDetailView,
+    detail: TerminalDetail,
+    width: usize,
+) -> Result<String, String> {
+    super::render_record(record, detail, width, &[])
+}
+
 fn known<T>(value: T) -> FactView<T> {
     FactView {
         state: QueryFieldState::Value,
@@ -141,7 +150,7 @@ fn optional_spell_structures_show_unknown_parents_and_omit_inapplicable_baseline
 
 #[test]
 fn optional_spell_prose_keeps_unavailable_parents_without_exposing_known_absent_leaves() {
-    let labels = ["Requirements", "Cost", "Casting entry"];
+    let labels = ["Requirements", "Cost"];
     for state in [
         QueryFieldState::Missing,
         QueryFieldState::Null,
@@ -349,7 +358,7 @@ fn selected_spell_preserves_parent_casting_damage_and_authored_heightening() {
     let rendered = render_record(&record, TerminalDetail::Standard, 80).unwrap();
     for expected in [
         "Custom Fireball — spell Rank 2",
-        "From Local Caster (creatures:caster)",
+        "From Local Caster",
         "Rarity: uncommon",
         "Traits: Fire",
         "Source: Local Bestiary",
@@ -363,10 +372,9 @@ fn selected_spell_preserves_parent_casting_damage_and_authored_heightening() {
         "Sustained: false",
         "2d6+1; fire",
         "category: persistent",
-        "Authored cast rank: 4",
-        "Authored heightening (+1)",
-        "Damage [local-damage]: 1d6",
-        "--owners '[{\"collection\":\"/items\",\"identity\":{\"Stable\":\"custom-spell\"}}]'",
+        "Cast rank: 4",
+        "Heightening (+1)",
+        "Damage increase: 1d6",
     ] {
         assert!(
             rendered.contains(expected),
@@ -374,6 +382,8 @@ fn selected_spell_preserves_parent_casting_damage_and_authored_heightening() {
         );
     }
     let summary = render_record(&record, TerminalDetail::Summary, 80).unwrap();
+    assert!(!rendered.contains("atlas record get"));
+    assert!(!rendered.contains("Casting entry:"));
     assert!(!rendered.contains("apply modifier: false"));
     assert!(!rendered.contains("materials: none"));
     assert!(summary.contains("Custom Fireball"));
@@ -422,8 +432,8 @@ fn fixed_heightening_and_forms_remain_authored_changes_with_no_formula_execution
         80,
     )
     .unwrap();
-    assert!(output.contains("Authored heightening (rank 5)"));
-    assert!(output.contains("Authored form [blue]: Blue dragon"));
+    assert!(output.contains("Heightening (rank 5)"));
+    assert!(output.contains("Blue dragon"));
     assert!(output.contains("Damage: Empty"));
     assert!(output.contains("2d6+1"));
 }
@@ -441,7 +451,7 @@ fn absent_baseline_spell_area_and_defense_have_no_rows_but_unavailable_facts_sta
     .unwrap();
     assert!(!output.contains("Area:"));
     assert!(!output.contains("Defense:"));
-    assert!(output.contains("Casting entry: entry-local"));
+    assert!(!output.contains("Casting entry:"));
     for state in [
         QueryFieldState::Missing,
         QueryFieldState::Null,
@@ -481,7 +491,7 @@ fn unavailable_spell_parents_remain_unknown_and_empty_damage_remains_known() {
     assert!(!output.contains("Damage:"));
     assert!(output.contains("Heightening: [invalid]"));
     assert!(!output.contains("Save: reflex"));
-    assert!(!output.contains("Authored heightening"));
+    assert!(!output.contains("Heightening ("));
 }
 
 fn actor() -> ActorPresentationView {
@@ -614,27 +624,34 @@ fn selected_strike_retains_attack_damage_usage_and_parent_context() {
 }
 
 #[test]
-fn snapshot_local_reopen_command_preserves_generation_and_exact_field() {
+fn human_reading_omits_internal_navigation_while_json_retains_exact_selection() {
     let mut record = detail(RecordBodyView::Content);
     record.selected.owners[0].identity = OwnedContentIdentity::SnapshotLocal { index: 42 };
     record.selected.source_fingerprint = Some("a".repeat(64));
     record.selected.field = Some("/system/description/value".into());
     let output = render_record(&record, TerminalDetail::Summary, 80).unwrap();
-    assert!(output.contains("\"SnapshotLocal\":{\"index\":42}"));
-    assert!(output.contains(&format!("--source-fingerprint '{}'", "a".repeat(64))));
-    assert!(output.contains("--field '/system/description/value'"));
+    assert!(!output.contains("atlas record get"));
+    assert!(!output.contains("SnapshotLocal"));
+    let json = serde_json::to_value(record).unwrap();
+    assert_eq!(
+        json["selected"]["owners"][0]["identity"]["SnapshotLocal"]["index"],
+        42
+    );
+    assert_eq!(json["selected"]["source_fingerprint"], "a".repeat(64));
+    assert_eq!(json["selected"]["field"], "/system/description/value");
 }
 #[test]
 fn hazard_uses_known_zero_and_dedicated_detection_structure_facts() {
     let record = detail(RecordBodyView::Hazard(Box::new(HazardPresentationView {
         defense_block: known(true),
+        show_saves: true,
         actor: actor(),
         complex: known(false),
         stealth: numeric(0),
         hardness: numeric(10),
     })));
     let output = render_record(&record, TerminalDetail::Standard, 80).unwrap();
-    assert!(output.contains("Complex: false"));
+    assert!(output.contains("Hazard: Simple"));
     assert!(output.contains("Stealth: +0"));
     assert!(output.contains("Hardness: 10"));
 }
@@ -684,6 +701,7 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
     actor.language_details = known("   ".into());
     let mut record = detail(RecordBodyView::Hazard(Box::new(HazardPresentationView {
         defense_block: known(true),
+        show_saves: true,
         actor,
         complex: known(false),
         stealth: numeric(0),
@@ -722,7 +740,7 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
         "Fortitude: +0",
         "Stealth: +0",
         "Hardness: 0",
-        "Complex: false",
+        "Hazard: Simple",
     ] {
         assert!(output.contains(expected), "{expected}: {output}");
     }
@@ -793,11 +811,11 @@ fn sparse_forms_show_authored_changes_explicit_clears_and_heightening_formula() 
     )
     .unwrap();
     for expected in [
-        "Authored form [two-actions]: 2 actions",
-        "Authored changes to base",
+        "2 actions",
+        "Changes to base",
         "Defense: cleared (null)",
-        "Damage component changes [0]: kinds: damage",
-        "Damage increment [0]: 1d8+8",
+        "Damage component changes: kinds: damage",
+        "Damage increase: 1d8+8",
     ] {
         assert!(output.contains(expected), "{expected}: {output}");
     }

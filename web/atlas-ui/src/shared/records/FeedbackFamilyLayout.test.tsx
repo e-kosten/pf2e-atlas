@@ -103,6 +103,51 @@ it.each([false, true])(
   },
 );
 
+it("omits the service-selected empty hazard defense block without hiding IWR", () => {
+  const actor = actorFixture();
+  actor.immunities = knownFact([]);
+  actor.weaknesses = knownFact([]);
+  actor.resistances = knownFact([]);
+  const detail = detailFixture("hazards:nightmare", "Waking Nightmare");
+  detail.presentation.body = {
+    kind: "hazard",
+    value: {
+      actor,
+      complex: knownFact(true),
+      stealth: numberFact(18),
+      hardness: numberFact(0),
+      defense_block: knownFact(false),
+      show_saves: false,
+    },
+  };
+  const { rerender } = render(
+    <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
+  );
+  for (const label of [
+    "AC",
+    "HP",
+    "Hardness",
+    "Fortitude",
+    "Reflex",
+    "Will",
+    "Defenses",
+  ]) {
+    expect(screen.queryByText(label)).toBeNull();
+  }
+  actor.immunities = knownFact([
+    {
+      damage_type: knownFact("mental"),
+      magnitude: { state: "not_applicable", value: null, adjustment: null },
+      exceptions: knownFact([]),
+      double_against: knownFact([]),
+    },
+  ]);
+  rerender(
+    <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
+  );
+  expect(screen.getByText("mental")).toBeVisible();
+});
+
 it("renders selected casting membership with parent context, ranks and exact customized navigation", () => {
   const entry = {
     ...activityFixture("Occult Innate Spells"),
@@ -193,7 +238,7 @@ it("omits known-empty optional headings while preserving unavailable and control
 });
 
 it.each([false, true])(
-  "keeps hazard zero saves visible and exposes raw omitted defenses (knownAbsent=%s)",
+  "keeps independently applicable hazard zero saves visible (knownAbsent=%s)",
   (knownAbsent) => {
     const actor = actorFixture();
     actor.armor_class = numberFact(0);
@@ -212,6 +257,7 @@ it.each([false, true])(
         stealth: numberFact(18),
         hardness: numberFact(0),
         defense_block: knownAbsent ? knownFact(false) : unavailableFact("invalid"),
+        show_saves: true,
       },
     };
     render(
@@ -222,9 +268,9 @@ it.each([false, true])(
     ).toBeVisible();
     expect(screen.queryByText("AC") === null).toBe(knownAbsent);
     if (knownAbsent) {
-      fireEvent.click(screen.getByRole("button", { name: "Defense details" }));
-      expect(screen.getByText("AC").parentElement).toHaveTextContent("0");
-      expect(screen.getByText("HP").parentElement).toHaveTextContent("0");
+      expect(screen.queryByText("HP")).toBeNull();
+      expect(screen.queryByText("Hardness")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Defense details" })).toBeNull();
     } else {
       expect(screen.getByText("Defense block").parentElement).toHaveTextContent(
         "invalid",
@@ -278,6 +324,7 @@ it.each([false, true])(
         stealth: numberFact(18),
         hardness: numberFact(0),
         defense_block: knownFact(true),
+        show_saves: true,
       },
     };
     const { rerender } = render(

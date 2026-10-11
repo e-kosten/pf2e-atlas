@@ -361,6 +361,16 @@ impl AtlasRetrievalService {
             .collect::<Vec<_>>();
         let keys = selected.iter().map(|r| r.key.clone()).collect::<Vec<_>>();
         let summaries = self.summaries(&keys)?;
+        let owned_locations = selected
+            .iter()
+            .flat_map(|root| &root.witnesses)
+            .filter(|witness| !witness.location.owners.is_empty())
+            .map(|witness| witness.location.clone())
+            .collect::<Vec<_>>();
+        let mut owned_labels = vec![];
+        for batch in owned_locations.chunks(256) {
+            owned_labels.extend(self.index.owned_search_labels(batch)?);
+        }
         let mut locators = selected
             .iter()
             .flat_map(|r| &r.witnesses)
@@ -410,6 +420,20 @@ impl AtlasRetrievalService {
                 None
             };
             for witness in &mut matches {
+                if !witness.location.owners.is_empty()
+                    && let Some((_, _, owner_label)) =
+                        owned_labels.iter().find(|(key, owners, _)| {
+                            key == &root.key && owners == &witness.location.owners
+                        })
+                    && !owner_label.trim().is_empty()
+                {
+                    witness.label = Some(match witness.label.as_deref() {
+                        Some(section) if !section.trim().is_empty() && section != owner_label => {
+                            format!("{owner_label} — {section}")
+                        }
+                        _ => owner_label.clone(),
+                    });
+                }
                 if witness.label.is_none() && witness.location.owners.is_empty() {
                     witness.label = record.name.as_value().cloned();
                 }
@@ -428,13 +452,10 @@ impl AtlasRetrievalService {
                     let plain = source
                         .as_ref()
                         .and_then(|s| s.authored_content_at(&locator).value());
-                    witness.snippet = Some(
-                        atlas_record::source_record::recover_source_passage(html, plain, address)
-                            .map_err(|e| SearchError::artifact_contract_violation(e.to_string()))?
-                            .chars()
-                            .take(240)
-                            .collect(),
-                    );
+                    witness.snippet = Some(reading_excerpt(
+                        &atlas_record::source_record::recover_source_passage(html, plain, address)
+                            .map_err(|e| SearchError::artifact_contract_violation(e.to_string()))?,
+                    ));
                 }
             }
             records.push(TextSearchRecord {
@@ -461,5 +482,38 @@ impl AtlasRetrievalService {
                 .to_owned(),
             },
         })
+    }
+}
+
+/// Compact prose for both product surfaces; preserve words and mark shortening.
+fn reading_excerpt(text: &str) -> String {
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let limit = 240;
+    let Some((boundary, _)) = text.char_indices().nth(limit) else {
+        return text;
+    };
+    let prefix = &text[..boundary];
+    let end = prefix
+        .rfind(char::is_whitespace)
+        .filter(|end| *end > 0)
+        .unwrap_or(boundary);
+    format!("{}…", prefix[..end].trim_end())
+}
+
+#[cfg(test)]
+mod excerpt_tests {
+    use super::reading_excerpt;
+
+    #[test]
+    fn excerpts_collapse_layout_and_shorten_on_a_unicode_word_boundary() {
+        assert_eq!(
+            reading_excerpt("\nEffect\t\tA creature.\n"),
+            "Effect A creature."
+        );
+        let input = "créature ".repeat(40);
+        let excerpt = reading_excerpt(&input);
+        assert!(excerpt.ends_with("créature…"));
+        assert!(excerpt.chars().count() <= 241);
+        assert!(!reading_excerpt("Complete short sentence.").ends_with('…'));
     }
 }

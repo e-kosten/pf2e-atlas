@@ -817,6 +817,105 @@ fn hazard_primary_defense_presence_requires_known_hp_and_ac_and_preserves_zero_s
 }
 
 #[test]
+fn hazard_save_omission_requires_the_complete_known_zero_blank_detail_shape() {
+    let baseline = json!({"attributes":{"hp":{"max":0},"ac":{"value":0}},"saves":{"fortitude":{"value":0,"saveDetail":""},"reflex":{"value":0,"saveDetail":" \n"},"will":{"value":0,"saveDetail":""}}});
+    let mut cases = vec![(baseline.clone(), false)];
+    for value in [json!(null), json!(42), json!("resistance to magic")] {
+        let mut system = baseline.clone();
+        system["saves"]["will"]["saveDetail"] = value;
+        cases.push((system, true));
+    }
+    let mut system = baseline.clone();
+    system["saves"]["will"]
+        .as_object_mut()
+        .unwrap()
+        .remove("saveDetail");
+    cases.push((system, true));
+    for value in [json!(1), json!(null), json!("broken")] {
+        let mut system = baseline.clone();
+        system["saves"]["will"]["value"] = value;
+        cases.push((system, true));
+    }
+    for value in [json!(1), json!(null)] {
+        let mut system = baseline.clone();
+        system["attributes"]["hp"]["max"] = value;
+        cases.push((system, true));
+    }
+    for (system, expected) in cases {
+        let input = record(
+            "hazards",
+            "Actor",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"hazard","system":system}),
+        );
+        let node = SourceQueryView::new(input.record.source(), "hazards", "").source;
+        assert_eq!(hazard_show_saves(node), expected);
+        let actor = actor::authored_actor(&input.record, node, "fixture");
+        assert_eq!(actor.saves.fortitude.value, Some(0.into()));
+        assert_eq!(actor.saves.reflex.value, Some(0.into()));
+    }
+}
+
+#[test]
+fn encounter_save_adjustments_restore_an_omitted_legacy_hazard_block() {
+    use crate::encounters::mechanics::{StatBlockView, StatValueView};
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![record(
+                "hazards",
+                "Actor",
+                json!({"_id":"aaaaaaaaaaaaaaaa","name":"Haunt","type":"hazard","system":{"attributes":{"hp":{"max":0},"ac":{"value":0}},"saves":{"fortitude":{"value":0,"saveDetail":""},"reflex":{"value":0,"saveDetail":""},"will":{"value":0,"saveDetail":""}}}}),
+            )],
+            false,
+        ).unwrap())
+    });
+    let fixture = fixture_worker_with_executor(executor);
+    let detail = fixture
+        .worker
+        .record_detail("hazards:aaaaaaaaaaaaaaaa")
+        .unwrap();
+    let RecordBodyView::Hazard(authored) = &detail.presentation.body else {
+        panic!("hazard")
+    };
+    assert!(!authored.show_saves);
+    for (effective, explanation, expected) in [(0, false, false), (1, false, true), (0, true, true)]
+    {
+        let block = StatBlockView {
+            record_key: detail.record.record_key.clone(),
+            title: "Haunt".into(),
+            level: None,
+            adjusted_level: None,
+            values: vec![StatValueView {
+                target: "save.will".into(),
+                label: "Will".into(),
+                base_value: 0.into(),
+                adjusted_value: effective.into(),
+                modifiers: vec![],
+                suppressed_modifiers: if explanation {
+                    vec![StatModifierView {
+                        source: "test".into(),
+                        label: "Suppressed effect".into(),
+                        modifier_type: StatModifierTypeView::Status,
+                        value: 1,
+                    }]
+                } else {
+                    vec![]
+                },
+            }],
+            speeds: vec![],
+            action_budget: None,
+            activities: vec![],
+            unapplied_effects: vec![],
+        };
+        let composed = compose_participant(detail.presentation.clone(), &block);
+        let RecordBodyView::Hazard(hazard) = composed.body else {
+            panic!("hazard")
+        };
+        assert_eq!(hazard.show_saves, expected);
+        assert_eq!(hazard.actor.saves.will.value, Some(effective.into()));
+    }
+}
+
+#[test]
 fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_owner() {
     let entry = json!({"_id":"eeeeeeeeeeeeeeee","type":"spellcastingEntry","name":"Duplicate entry","system":{"spelldc":{"dc":25,"value":15}}});
     let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","items":[entry.clone(),entry,{"_id":"ssssssssssssssss","type":"spell","name":"Unresolved local spell","system":{"level":{"value":2},"location":{"value":"eeeeeeeeeeeeeeee"}}}]});

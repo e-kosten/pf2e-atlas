@@ -1,13 +1,23 @@
 use super::{
-    damage, fact, fact_string, known_value, line, list_text, navigation, number, number_text,
+    content_field, damage, fact, fact_string, known_value, line, list_text, number, number_text,
     optional_number, optional_text, unavailable,
 };
+use crate::commands::record::args::TerminalDetail;
 use atlas_app_model::{
     ActorActivityKindView, ActorActivityView, ActorPresentationView, FactView, IwrEntryView,
+    OwnedReadingEntryView,
 };
 use atlas_domain::QueryFieldState;
 
-pub(super) fn render(out: &mut String, actor: &ActorPresentationView) -> Result<(), String> {
+pub(super) fn render(
+    out: &mut String,
+    actor: &ActorPresentationView,
+    primary_defenses: bool,
+    saves: bool,
+    reading: &[OwnedReadingEntryView],
+    width: usize,
+    detail: TerminalDetail,
+) -> Result<(), String> {
     number(out, "Perception", &actor.perception, true, "");
     optional_text(out, "Perception details", &actor.perception_details);
     fact(out, "Senses", &actor.senses, |senses| {
@@ -73,11 +83,15 @@ pub(super) fn render(out: &mut String, actor: &ActorPresentationView) -> Result<
         }
     }
     line(out, "");
-    number(out, "AC", &actor.armor_class, false, "");
-    number(out, "Fortitude", &actor.saves.fortitude, true, "");
-    number(out, "Reflex", &actor.saves.reflex, true, "");
-    number(out, "Will", &actor.saves.will, true, "");
-    number(out, "HP", &actor.maximum_hp, false, "");
+    if primary_defenses {
+        number(out, "AC", &actor.armor_class, false, "");
+        number(out, "HP", &actor.maximum_hp, false, "");
+    }
+    if saves {
+        number(out, "Fortitude", &actor.saves.fortitude, true, "");
+        number(out, "Reflex", &actor.saves.reflex, true, "");
+        number(out, "Will", &actor.saves.will, true, "");
+    }
     iwr(out, "Immunities", &actor.immunities);
     iwr(out, "Weaknesses", &actor.weaknesses);
     iwr(out, "Resistances", &actor.resistances);
@@ -102,32 +116,42 @@ pub(super) fn render(out: &mut String, actor: &ActorPresentationView) -> Result<
         (ActorActivityKindView::Strike, "Strikes"),
         (ActorActivityKindView::Ability, "Abilities"),
         (ActorActivityKindView::CastingEntry, "Spellcasting"),
-        (ActorActivityKindView::Spell, "Spells"),
         (ActorActivityKindView::Lore, "Lore"),
         (ActorActivityKindView::Gear, "Gear"),
         (ActorActivityKindView::Other, "Other owned entries"),
     ] {
-        let activities = activities
+        if detail == TerminalDetail::Full && kind != ActorActivityKindView::Ability {
+            continue;
+        }
+        if kind == ActorActivityKindView::CastingEntry {
+            spellcasting(out, activities);
+            continue;
+        }
+        let group = activities
             .iter()
             .filter(|v| v.kind == kind)
             .collect::<Vec<_>>();
-        if activities.is_empty() {
+        if group.is_empty() {
             continue;
         }
         line(out, format!("\n{heading}"));
-        for activity in activities {
-            activity_facts(out, activity, true)?;
-            navigation(out, &activity.navigation)?;
+        for activity in group {
+            line(out, "");
+            activity_facts(out, activity, true);
+            if let Some(entry) = reading
+                .iter()
+                .find(|entry| entry.navigation == activity.navigation)
+            {
+                for field in &entry.content {
+                    content_field(out, field, width, field.role != "description")?;
+                }
+            }
         }
     }
     Ok(())
 }
 
-pub(super) fn activity_facts(
-    out: &mut String,
-    activity: &ActorActivityView,
-    show_identity: bool,
-) -> Result<(), String> {
+pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, show_identity: bool) {
     if show_identity {
         line(
             out,
@@ -185,34 +209,82 @@ pub(super) fn activity_facts(
     {
         damage(out, &activity.damage);
     }
-    optional_text(out, "  Association", &activity.association);
-    optional_number(out, "  Base rank", &activity.base_rank, false, "");
-    optional_number(
-        out,
-        "  Authored cast rank",
-        &activity.authored_cast_rank,
-        false,
-        "",
-    );
+    optional_number(out, "  Rank", &activity.base_rank, false, "");
+    optional_number(out, "  Cast rank", &activity.authored_cast_rank, false, "");
     if let Some(context) = &activity.casting_context {
         line(out, format!("Spellcasting for {}", context.parent_title));
-        navigation(out, &context.parent)?;
         if let Some(spells) = &context.spells.value {
-            for spell in spells {
-                activity_facts(out, spell, true)?;
-            }
+            spell_roster(out, spells.iter());
         } else {
             fact(out, "Associated spells", &context.spells, |_| String::new());
         }
     }
-    if let Some(entry) = &activity.casting_entry {
-        line(out, "  Casting entry:");
-        navigation(out, entry)?;
-    }
     for note in &activity.notes {
         line(out, format!("  {}: {}", note.label, note.reason));
     }
-    Ok(())
+}
+
+fn spellcasting(out: &mut String, activities: &[ActorActivityView]) {
+    let entries = activities
+        .iter()
+        .filter(|a| a.kind == ActorActivityKindView::CastingEntry)
+        .collect::<Vec<_>>();
+    if !entries.is_empty() {
+        line(out, "\nSpellcasting");
+    }
+    for entry in &entries {
+        line(out, "");
+        activity_facts(out, entry, true);
+        spell_roster(
+            out,
+            activities.iter().filter(|spell| {
+                spell.kind == ActorActivityKindView::Spell
+                    && spell.casting_entry.as_ref() == Some(&entry.navigation)
+            }),
+        );
+    }
+    let unassociated = activities
+        .iter()
+        .filter(|spell| {
+            spell.kind == ActorActivityKindView::Spell
+                && !entries
+                    .iter()
+                    .any(|entry| spell.casting_entry.as_ref() == Some(&entry.navigation))
+        })
+        .collect::<Vec<_>>();
+    if !unassociated.is_empty() {
+        line(out, "\nSpells");
+        spell_roster(out, unassociated.into_iter());
+    }
+}
+
+fn spell_roster<'a>(out: &mut String, spells: impl Iterator<Item = &'a ActorActivityView>) {
+    let mut ranks = std::collections::BTreeMap::<(i64, String), Vec<&str>>::new();
+    for spell in spells {
+        let rank = if spell.traits.iter().any(|t| t.value == "cantrip") {
+            (0, "Cantrips".into())
+        } else {
+            let rank = if matches!(
+                spell.authored_cast_rank.state,
+                QueryFieldState::Missing | QueryFieldState::NotApplicable
+            ) {
+                &spell.base_rank
+            } else {
+                &spell.authored_cast_rank
+            };
+            (
+                rank.value
+                    .as_ref()
+                    .and_then(serde_json::Number::as_i64)
+                    .unwrap_or(i64::MAX),
+                format!("Rank {}", number_text(rank, false, "")),
+            )
+        };
+        ranks.entry(rank).or_default().push(&spell.title);
+    }
+    for ((_, rank), titles) in ranks {
+        line(out, format!("  {rank}: {}", titles.join(", ")));
+    }
 }
 
 fn collection<'a, T>(

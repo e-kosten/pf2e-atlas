@@ -3,4 +3,4 @@ import type { ActorPresentationView } from "./ActorPresentationView";
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
 
-export type HazardPresentationView = { actor: ActorPresentationView, defense_block: FactView<boolean>, complex: FactView<boolean>, stealth: NumberFactView, hardness: NumberFactView, };
+export type HazardPresentationView = { actor: ActorPresentationView, defense_block: FactView<boolean>, show_saves: boolean, complex: FactView<boolean>, stealth: NumberFactView, hardness: NumberFactView, };

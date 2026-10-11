@@ -179,6 +179,7 @@ describe("semantic family presentation", () => {
               value: {
                 actor,
                 defense_block: knownFact(true),
+                show_saves: true,
                 complex: knownFact(false),
                 stealth: numberFact(0),
                 hardness: numberFact(0),

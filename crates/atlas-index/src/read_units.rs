@@ -96,6 +96,52 @@ fn location(row: &rusqlite::Row<'_>) -> rusqlite::Result<SourceUnitLocation> {
     })
 }
 impl SqliteIndexReader {
+    /// Names for selected owner addresses, using the existing lexical projection.
+    /// Search summaries and match captions do not decode source snapshots.
+    pub fn owned_search_labels(
+        &self,
+        locations: &[SourceUnitLocation],
+    ) -> Result<Vec<(RecordKey, Vec<OwnedContentLocator>, String)>, IndexError> {
+        if locations.is_empty() {
+            return Ok(vec![]);
+        }
+        if locations.len() > 256 {
+            return Err(IndexError::Invalid(
+                "label batch exceeds 256 addresses".into(),
+            ));
+        }
+        let sql = format!(
+            "WITH requested(key,owners) AS (VALUES {}) SELECT r.key,lu.owners_json,lu.definition_terms FROM requested q JOIN records r ON r.key=q.key JOIN lexical_units lu ON lu.record_id=r.record_id AND lu.owners_json=q.owners WHERE lu.unit_kind='owned_name' ORDER BY lu.unit_id",
+            vec!["(?,?)"; locations.len()].join(",")
+        );
+        let mut params = Vec::with_capacity(locations.len() * 2);
+        for location in locations {
+            params.push(location.record.to_string());
+            params.push(
+                serde_json::to_string(&location.owners)
+                    .map_err(|e| IndexError::Invalid(e.to_string()))?,
+            );
+        }
+        self.count_statement();
+        let mut statement = self.native()?.prepare(&sql)?;
+        let rows = statement.query_map(params_from_iter(params), |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?;
+        rows.map(|row| {
+            let (key, owners, label) = row?;
+            Ok((
+                parse_key(key)?,
+                serde_json::from_str(&owners).map_err(|e| IndexError::Invalid(e.to_string()))?,
+                label,
+            ))
+        })
+        .collect()
+    }
+
     pub fn eligible_keys(
         &self,
         query: &ValidatedQuery,

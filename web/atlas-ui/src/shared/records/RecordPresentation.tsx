@@ -270,6 +270,7 @@ export function RecordPresentation({
             hideHitPoints={encounter}
             encounter={encounter}
             hazard
+            hideSaves={!body.value.show_saves}
             hidePrimaryDefenses={
               body.value.defense_block.state === "value" &&
               body.value.defense_block.value === false
@@ -278,34 +279,10 @@ export function RecordPresentation({
           {!(
             body.value.defense_block.state === "value" &&
             body.value.defense_block.value === false
-          ) ? (
+          ) && (
             <FactRow label="Hardness">
               <NumberFact fact={body.value.hardness} />
             </FactRow>
-          ) : (
-            <Collapse
-              size="small"
-              ghost
-              items={[
-                {
-                  key: "authored-defenses",
-                  label: "Defense details",
-                  children: (
-                    <div className="record-fact-list">
-                      <FactRow label="AC">
-                        <NumberFact fact={body.value.actor.armor_class} />
-                      </FactRow>
-                      <FactRow label="HP">
-                        <NumberFact fact={body.value.actor.maximum_hp} />
-                      </FactRow>
-                      <FactRow label="Hardness">
-                        <NumberFact fact={body.value.hardness} />
-                      </FactRow>
-                    </div>
-                  ),
-                },
-              ]}
-            />
           )}
           {body.value.defense_block.state !== "value" && (
             <FactRow label="Defense block">

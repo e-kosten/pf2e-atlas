@@ -153,6 +153,71 @@ fn query(source: &FoundryDocumentSource) -> ActorQueryView<'_> {
 }
 
 #[test]
+fn retained_hazard_save_details_preserve_unavailable_and_duplicate_members() {
+    for (members, expected) in [
+        ("", "missing"),
+        (",\"saveDetail\":null", "null"),
+        (",\"saveDetail\":42", "invalid"),
+        (
+            ",\"saveDetail\":\"\",\"saveDetail\":\"explanation\"",
+            "invalid",
+        ),
+        (",\"saveDetail\":\" \"", "value"),
+    ] {
+        let bytes = format!(
+            "{{\"_id\":\"aaaaaaaaaaaaaaaa\",\"type\":\"hazard\",\"system\":{{\"saves\":{{\"fortitude\":{{\"value\":0{members}}}}}}}}}"
+        );
+        let source = admit_document_source(
+            "Actor",
+            SourceContext::new("fixture", "test", "$"),
+            bytes.as_bytes(),
+        )
+        .unwrap()
+        .model
+        .unwrap();
+        let detail = query(&source).hazard_save_detail(ActorSave::Fortitude);
+        assert_eq!(
+            match detail {
+                SourceFieldView::Value(_) => "value",
+                SourceFieldView::Missing => "missing",
+                SourceFieldView::Null => "null",
+                SourceFieldView::ProjectionInvalid { .. } | SourceFieldView::Invalid(_) =>
+                    "invalid",
+                SourceFieldView::NotApplicable => "not_applicable",
+            },
+            expected
+        );
+    }
+    for (system, expected) in [
+        (json!(null), FieldAvailability::Null),
+        (
+            json!(42),
+            FieldAvailability::Invalid {
+                source_path: "$.system".into(),
+            },
+        ),
+    ] {
+        let source = actor("hazard", system);
+        assert_eq!(
+            query(&source)
+                .hazard_save_detail(ActorSave::Fortitude)
+                .availability(),
+            expected
+        );
+    }
+    let source = actor(
+        "npc",
+        json!({"saves":{"fortitude":{"value":0,"saveDetail":""}}}),
+    );
+    assert_eq!(
+        query(&source)
+            .hazard_save_detail(ActorSave::Fortitude)
+            .availability(),
+        FieldAvailability::NotApplicable
+    );
+}
+
+#[test]
 fn family_applicability_is_authored_not_runtime() {
     for family in [
         "npc",

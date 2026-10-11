@@ -498,6 +498,21 @@ pub(crate) fn compose_participant(
         action_budget: block.action_budget.clone(),
         unapplied_effects: block.unapplied_effects.clone(),
     });
+    if let RecordBodyView::Hazard(hazard) = &mut presentation.body
+        && !hazard.show_saves
+    {
+        hazard.show_saves = [
+            &hazard.actor.saves.fortitude,
+            &hazard.actor.saves.reflex,
+            &hazard.actor.saves.will,
+        ]
+        .into_iter()
+        .any(|save| {
+            save.state != QueryFieldState::Value
+                || save.value.as_ref().and_then(serde_json::Number::as_f64) != Some(0.0)
+                || save.adjustment.is_some()
+        });
+    }
     presentation
 }
 pub(crate) fn manual_presentation(

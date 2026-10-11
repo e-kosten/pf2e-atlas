@@ -11,6 +11,51 @@ pub enum SourceNpcAdjustment {
 }
 
 impl<'a> ActorQueryView<'a> {
+    /// Legacy authored hazard explanations retained outside the current declaration.
+    pub fn hazard_save_detail(self, save: super::ActorSave) -> SourceFieldView<'a, &'a str> {
+        use super::{ActorSave, SourceNodeView};
+        use atlas_foundry_model::SourceValue;
+        let source_path = match save {
+            ActorSave::Fortitude => "/system/saves/fortitude/saveDetail",
+            ActorSave::Reflex => "/system/saves/reflex/saveDetail",
+            ActorSave::Will => "/system/saves/will/saveDetail",
+        };
+        let SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::HazardSource(source)) =
+            self.source
+        else {
+            return SourceFieldView::NotApplicable;
+        };
+        SourceFieldView::from(&source.system)
+            .and_then(|s| (&s.saves).into())
+            .and_then(|s| match save {
+                ActorSave::Fortitude => (&s.fortitude).into(),
+                ActorSave::Reflex => (&s.reflex).into(),
+                ActorSave::Will => (&s.will).into(),
+            })
+            .and_then(|s| {
+                let mut values = s
+                    .additional_fields
+                    .fields()
+                    .iter()
+                    .filter_map(|(key, value)| (key == "saveDetail").then_some(value));
+                match (values.next(), values.next()) {
+                    (None, _) => SourceFieldView::Missing,
+                    (Some(SourceValue::Null), None) => SourceFieldView::Null,
+                    (Some(SourceValue::String(value)), None) => {
+                        SourceFieldView::Value(value.as_str())
+                    }
+                    (Some(_), None) => SourceFieldView::ProjectionInvalid {
+                        source_path,
+                        reason: "expected a string",
+                    },
+                    (Some(_), Some(_)) => SourceFieldView::ProjectionInvalid {
+                        source_path,
+                        reason: "duplicate saveDetail members",
+                    },
+                }
+            })
+    }
+
     /// Distinguishes an omitted leaf from unavailable enclosing source data.
     pub fn npc_adjustment_is_unset(self) -> bool {
         match self.source {
