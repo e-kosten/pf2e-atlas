@@ -22,7 +22,7 @@ export function SearchView({ workspace }: SearchViewProps) {
   return (
     <WorkspaceLayout
       filter={
-        <>
+        <FilterPanel workspace={workspace}>
           {workspace.search.similarSeed && (
             <Space wrap>
               <Typography.Text>
@@ -47,8 +47,7 @@ export function SearchView({ workspace }: SearchViewProps) {
               </Button>
             </Space>
           )}
-          <FilterPanel workspace={workspace} />
-        </>
+        </FilterPanel>
       }
       results={<ResultTable workspace={workspace} />}
       resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}

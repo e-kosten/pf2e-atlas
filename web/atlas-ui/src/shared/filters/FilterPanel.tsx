@@ -11,7 +11,7 @@ import {
   Spin,
   Typography,
 } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   QueryBuilder,
   type RuleGroupType,
@@ -49,15 +49,23 @@ import { CommonChoicePicker } from "./CommonChoicePicker";
 import "react-querybuilder/dist/query-builder.css";
 import { ATLAS_ROUTE_CHANGE_EVENT } from "../../app/routes";
 
-export function FilterPanel({ workspace }: { workspace: SearchWorkspaceState }) {
-  return <FilterControls filterState={workspace} />;
+export function FilterPanel({
+  workspace,
+  children,
+}: {
+  workspace: SearchWorkspaceState;
+  children?: ReactNode;
+}) {
+  return <FilterControls filterState={workspace}>{children}</FilterControls>;
 }
 export function FilterControls({
   filterState: workspace,
   includeSearch = true,
+  children,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
+  children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
@@ -144,6 +152,7 @@ export function FilterControls({
     ) : null;
   return (
     <aside className="filter-panel">
+      {children}
       {!editor && workspace.filterDiscoveryLoading && (
         <Spin description="Loading filters…">
           <div className="filter-loading-placeholder" />

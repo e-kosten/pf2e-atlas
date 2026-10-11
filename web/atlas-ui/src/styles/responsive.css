@@ -14,21 +14,49 @@
   }
 
   .workspace-grid {
-    grid-template-columns: 290px minmax(0, 1fr);
+    --filter-column: 290px;
+    --results-column: minmax(0, 1fr);
+    grid-template-columns: var(--filter-column) var(--results-column);
+    column-gap: var(--panel-gap);
     height: auto;
     min-height: 0;
   }
 
   .record-view,
   .record-view--with-aux {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
   }
 
-  .detail-panel {
+  .workspace-grid:has(> .workspace-pane--results.workspace-pane--collapsed) {
+    --filter-column: minmax(0, 1fr);
+    --results-column: 44px;
+  }
+
+  .workspace-grid:has(> .workspace-pane--filter.workspace-pane--collapsed) {
+    --filter-column: 44px;
+  }
+
+  .workspace-pane--detail {
     grid-column: 1 / -1;
+  }
+
+  .workspace-pane--detail:not(.workspace-pane--collapsed) {
     min-height: 420px;
+  }
+
+  .pane-resizer {
+    display: none;
+  }
+
+  .workspace-pane--detail.workspace-pane--collapsed {
+    min-height: 44px;
+  }
+
+  .workspace-pane--detail .pane-rail span {
+    writing-mode: initial;
+    transform: none;
   }
 }
 
@@ -53,7 +81,7 @@
   }
 
   .workspace-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
     padding: 10px;
   }
 

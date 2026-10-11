@@ -6,20 +6,21 @@ describe("ResizablePaneGroup", () => {
     const { container } = render(<ResizableFixture />);
     const group = paneGroup(container);
     const handle = resizeHandle();
+    expect(group.style.gridTemplateColumns).toBe("");
     installPointerCapture(handle);
 
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
     );
 
     fireEvent.pointerDown(handle, { clientX: 0, pointerId: 1 });
     fireEvent.pointerMove(handle, { clientX: 40, pointerId: 1 });
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 380px)",
     );
 
     fireEvent.pointerMove(handle, { clientX: 200, pointerId: 1 });
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 320px)",
     );
 
@@ -35,7 +36,7 @@ describe("ResizablePaneGroup", () => {
     fireEvent.pointerDown(handle, { clientX: 0, pointerId: 1 });
     fireEvent.pointerCancel(handle, { clientX: 40, pointerId: 1 });
     fireEvent.pointerMove(handle, { clientX: 100, pointerId: 1 });
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
     );
 
@@ -47,7 +48,7 @@ describe("ResizablePaneGroup", () => {
     fireEvent.pointerDown(nextHandle, { clientX: 0, pointerId: 2 });
     fireEvent.lostPointerCapture(nextHandle, { clientX: 40, pointerId: 2 });
     fireEvent.pointerMove(nextHandle, { clientX: 100, pointerId: 2 });
-    expect(nextGroup.style.gridTemplateColumns).toBe(
+    expect(nextGroup.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
     );
   });
@@ -61,7 +62,7 @@ describe("ResizablePaneGroup", () => {
     fireEvent.pointerDown(handle, { clientX: 0, pointerId: 1 });
     fireEvent.pointerMove(handle, { clientX: 200, pointerId: 1 });
 
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
     );
   });
@@ -77,25 +78,25 @@ describe("ResizablePaneGroup", () => {
     expect(handle).toHaveAttribute("aria-valuetext", "420 pixels");
 
     fireEvent.keyDown(handle, { key: "ArrowRight" });
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 396px)",
     );
     expect(handle).toHaveAttribute("aria-valuenow", "396");
 
     fireEvent.keyDown(handle, { key: "ArrowLeft", shiftKey: true });
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 492px)",
     );
     expect(handle).toHaveAttribute("aria-valuenow", "492");
 
     fireEvent.keyDown(handle, { key: "Home" });
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 320px)",
     );
     expect(handle).toHaveAttribute("aria-valuenow", "320");
 
     fireEvent.keyDown(handle, { key: "Enter" });
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
     );
     expect(handle).toHaveAttribute("aria-valuenow", "420");
@@ -111,7 +112,7 @@ describe("ResizablePaneGroup", () => {
     fireEvent.keyDown(handle, { key: "ArrowRight" });
     fireEvent.keyDown(handle, { key: "Home" });
 
-    expect(group.style.gridTemplateColumns).toBe(
+    expect(group.style.getPropertyValue("--pane-columns")).toBe(
       "minmax(0, 1fr) var(--panel-gap) minmax(0, 420px)",
     );
     expect(handle).toHaveAttribute("aria-valuenow", "420");

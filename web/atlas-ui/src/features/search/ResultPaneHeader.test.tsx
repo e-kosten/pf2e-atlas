@@ -4,6 +4,48 @@ import type { ResultWindowPage } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
+import { SearchView } from "./SearchView";
+
+describe("search pane composition", () => {
+  it("keeps the Similar criterion and filters in one body, and clears only the criterion", () => {
+    const setSearch = vi.fn();
+    const state = workspace({
+      setSearch,
+      search: {
+        ...DEFAULT_SEARCH_STATE,
+        similarSeed: "items:seed",
+        filter: { kind: "all_of", clause_id: "root", children: [] },
+      },
+      resultPage: {
+        ...resultWindowPage(),
+        mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
+      },
+    });
+    const { container, rerender } = render(<SearchView workspace={state} />);
+    const criterion = screen.getByText("Similar to Seed");
+    const body = criterion.closest(".filter-panel");
+    const pane = body?.parentElement;
+    expect(pane).toHaveClass("workspace-pane--filter");
+    expect(pane?.children).toHaveLength(2);
+    expect(body).toContainElement(
+      screen.getByRole("textbox", { name: "Search records" }),
+    );
+    expect(screen.getByText("Top matches")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear similar criterion" }));
+    expect(setSearch).toHaveBeenCalledWith({
+      ...state.search,
+      similarSeed: null,
+      mode: "browse",
+    });
+
+    rerender(<SearchView workspace={workspace()} />);
+    expect(screen.queryByText("Similar to Seed")).toBeNull();
+    expect(screen.getByText("14,736 records")).toBeVisible();
+    expect(container.querySelector(".workspace-pane--filter")?.children).toHaveLength(
+      2,
+    );
+  });
+});
 
 describe("ResultPaneHeader", () => {
   it("labels bounded similarity as Top matches without an exhaustive record total", () => {

@@ -124,7 +124,10 @@ export function ResizablePaneGroup<PaneId extends string>({
   }
 
   return (
-    <main className={className} style={{ gridTemplateColumns }}>
+    <main
+      className={className}
+      style={{ "--pane-columns": gridTemplateColumns } as React.CSSProperties}
+    >
       {resolvedItems.map((item) =>
         item.kind === "pane" ? (
           <Fragment key={item.key}>{item.content}</Fragment>
