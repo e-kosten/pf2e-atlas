@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
+import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { atlasRoutePath, navigateToAtlasRoute } from "../../app/routes";
 import type {
   RecordPreviewAnchor,
@@ -66,6 +67,7 @@ export function RecordPreviewPopover({
     !screens.xl && (screens.xs || screens.sm || screens.md || screens.lg),
   );
   const [closingDrawer, setClosingDrawer] = useState(false);
+  const contentFocus = usePreviewContentFocus(!narrow && !closingDrawer);
   const popover = useRef<import("antd").TooltipRef>(null);
   const [bounds, setBounds] = useState<DOMRect>();
   useLayoutEffect(() => {
@@ -135,6 +137,7 @@ export function RecordPreviewPopover({
       }
       content={
         <section
+          {...contentFocus}
           aria-label="Reference preview"
           className="record-preview-popover__body"
           role="dialog"

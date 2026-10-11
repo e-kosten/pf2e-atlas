@@ -25,7 +25,10 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await expect(picker).not.toBeVisible();
     await page.getByText("Ghoul", { exact: true }).first().click();
     const jaws = page.getByRole("button", { name: "Jaws", exact: true });
-    const preview = page.getByRole("dialog", { name: "Reference", exact: true });
+    const preview = page.getByRole("dialog", {
+      name: "Reference",
+      exact: true,
+    });
     const openPage = page.getByRole("link", {
       name: "Open reference full page",
       exact: true,
@@ -68,6 +71,11 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await page.getByText("Waking Nightmare", { exact: true }).first().click();
     const seize = page.getByRole("button", { name: /^Seize\b/ });
     await seize.click();
+    await expect(
+      preview.getByRole("heading", { name: "Description", exact: true }),
+    ).toBeVisible();
+    await expect(preview.locator(".prepared-content")).toContainText("Trigger");
+    await expect(preview.locator(".prepared-content")).toContainText("Effect");
     const grabbedReference = preview
       .locator(".prepared-content")
       .getByRole("button", { name: "Grabbed", exact: true });
@@ -91,8 +99,37 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await expect(preview).toHaveCount(0);
     await expect(seize).toBeFocused();
     await seize.press("Enter");
-    await preview.getByRole("button", { name: "Grabbed", exact: true }).click();
     await expect(openPage).toBeFocused();
+    const next = preview.getByRole("button", { name: "Grabbed", exact: true });
+    await next.focus();
+    await next.press("Enter");
+    await expect(
+      preview.getByRole("heading", { name: "Grabbed", exact: true }),
+    ).toBeVisible();
+    const content = preview.getByLabel("Reference content", { exact: true });
+    await expect(content).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(preview).toHaveCount(0);
+    await expect(seize).toBeFocused();
+    await seize.press("Enter");
+    await expect(openPage).toBeFocused();
+    await next.focus();
+    await next.press("Enter");
+    await expect(
+      preview.getByRole("heading", { name: "Grabbed", exact: true }),
+    ).toBeVisible();
+    await expect(content).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      preview.getByRole("button", { name: "DC 5 flat", exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(
+      preview.getByRole("button", {
+        name: "Close reference preview",
+        exact: true,
+      }),
+    ).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(preview).toHaveCount(0);
     await expect(seize).toBeFocused();
@@ -145,12 +182,17 @@ test("reader follows, closes and promotes exact owned selection through browser 
   ).toBeVisible();
   expect(new URL(page.url()).searchParams.get("selection")).toBe(ownedSelection);
   await page.getByRole("button", { name: "Close preview", exact: true }).click();
-  await expect(page).toHaveURL(ownedReaderUrl);
+  const returnedReader = new URL(ownedReaderUrl);
+  returnedReader.searchParams.set("landing", ownedSelection!);
+  await expect(page).toHaveURL(returnedReader.href);
+  expect(new URL(page.url()).searchParams.get("selection")).toBe(ownedSelection);
+  expect(new URL(page.url()).searchParams.has("preview")).toBe(false);
+  expect(new URL(page.url()).searchParams.has("previewSelection")).toBe(false);
   await page.getByRole("link", { name: "Detail page", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Jaws", exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.get("selection")).toBe(ownedSelection);
   await page.goBack();
-  await expect(page).toHaveURL(ownedReaderUrl);
+  await expect(page).toHaveURL(returnedReader.href);
   await page.goForward();
   await expect(page.getByRole("heading", { name: "Jaws", exact: true })).toBeVisible();
 });
@@ -315,7 +357,7 @@ test("saved list creation and unknown manual participant HP use actual local-sta
   ).toContainText("+" + jawsActivity.attack.value);
   await expect(
     activityPreview.getByRole("heading", { name: "Description", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   for (const note of jawsActivity.notes)
     await expect(activityPreview).toContainText(note.reason);
   await page
@@ -350,9 +392,11 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
   await page.goto("/search?q=%22Ghoul%20Fever%22");
   await page.getByRole("link", { name: "Ghoul Fever", exact: true }).first().click();
   await expect(page).toHaveURL(/\/records\/.*selection=/);
-  await expect(
-    page.getByRole("heading", { name: "Ghoul Fever", exact: true }),
-  ).toBeVisible();
+  const fever = page.getByRole("heading", { name: /^Ghoul Fever\b/ });
+  await expect(fever).toBeVisible();
+  await expect(fever).toHaveText("Ghoul Fever passive");
+  await expect(fever.locator('.action-cost[title="passive"]')).toHaveCount(1);
+  await expect(fever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
   await expect(page.getByText(/rises as a Ghoul the next midnight/)).toBeVisible();
   await page.screenshot({
     path: "../../scratch/browser-validation/ghoul-fever.png",
@@ -397,7 +441,10 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
   await expect(page.getByRole("columnheader", { name: "Name" })).toBeVisible();
   await expect(page.getByText(/Wellspring Surges/).first()).toBeVisible();
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
-  const advanced = page.getByRole("region", { name: "Advanced filters", exact: true });
+  const advanced = page.getByRole("region", {
+    name: "Advanced filters",
+    exact: true,
+  });
   await expect(
     advanced.getByRole("button", { name: "Add condition", exact: true }),
   ).toBeVisible();
@@ -438,9 +485,15 @@ test("suggested variants compare authored details and Similar uses its real rout
   });
   await page.goto("/records/equipment-srd%3A7jolv0cuttvjI1JD");
   await expect(
-    page.getByRole("heading", { name: "Wovenwood Shield (Minor)", exact: true }),
+    page.getByRole("heading", {
+      name: "Wovenwood Shield (Minor)",
+      exact: true,
+    }),
   ).toBeVisible();
-  const related = page.getByRole("region", { name: "Related records", exact: true });
+  const related = page.getByRole("region", {
+    name: "Related records",
+    exact: true,
+  });
   await expect(related.getByRole("tab")).toHaveCount(0);
   expect(relatedRequests).toEqual([]);
   const relatedResponse = page.waitForResponse(
@@ -467,7 +520,10 @@ test("suggested variants compare authored details and Similar uses its real rout
     .click();
   const comparison = page.getByRole("dialog");
   await expect(
-    comparison.getByRole("heading", { name: "Wovenwood Shield (Minor)", exact: true }),
+    comparison.getByRole("heading", {
+      name: "Wovenwood Shield (Minor)",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     comparison.getByRole("heading", {

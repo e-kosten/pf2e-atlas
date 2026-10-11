@@ -9,7 +9,17 @@ for (const width of [1680, 820, 390]) {
     }) => {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto(
-        similar ? "/search?similar=equipment-srd%3A7jolv0cuttvjI1JD" : "/search",
+        similar
+          ? "/search?similar=equipment-srd%3A7jolv0cuttvjI1JD"
+          : "/search?filter=" +
+              encodeURIComponent(
+                JSON.stringify({
+                  kind: "in",
+                  clause_id: "responsive-kind",
+                  field: "record.kind",
+                  values: ["creature"],
+                }),
+              ),
       );
       const filter = page.locator(".workspace-pane--filter");
       const results = page.locator(".workspace-pane--results");

@@ -14,6 +14,76 @@ import { RecordPreviewPopover } from "./RecordPreviewPopover";
 
 describe("RecordPreviewPopover", () => {
   afterEach(() => vi.restoreAllMocks());
+  it.each(["desktop", "narrow"])(
+    "%s preview hands removed content focus to its surviving container and preserves other focus",
+    async (viewport) => {
+      vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
+        xl: viewport === "desktop",
+        xs: viewport === "narrow",
+      });
+      const props = {
+        anchor: document.createElement("button"),
+        detail: undefined,
+        loading: false,
+        fullPageHref: "/records/rules:next",
+        onClose: vi.fn(),
+        onOpenFullPage: vi.fn(),
+        onReference: vi.fn(),
+      };
+      const preview = (showTrigger: boolean, version = 1) => (
+        <StrictMode>
+          <ConfigProvider theme={{ token: { motion: false } }}>
+            <button>Outside preview</button>
+            <RecordPreviewPopover
+              {...props}
+              content={
+                showTrigger ? (
+                  <button key="follow">Follow reference {version}</button>
+                ) : (
+                  <h2>Next reference</h2>
+                )
+              }
+            />
+          </ConfigProvider>
+        </StrictMode>
+      );
+      const { rerender } = render(preview(true));
+      await waitFor(() =>
+        expect(
+          screen.getByRole("link", { name: "Open reference full page" }),
+        ).toHaveFocus(),
+      );
+      const trigger = screen.getByRole("button", { name: "Follow reference 1" });
+      act(() => trigger.focus());
+      rerender(preview(true, 2));
+      expect(trigger).toHaveFocus();
+      rerender(preview(false));
+      expect(trigger).not.toBeInTheDocument();
+      const content = screen.getByLabelText(
+        viewport === "desktop" ? "Reference preview" : "Reference content",
+      );
+      expect(content).toHaveFocus();
+      rerender(preview(true));
+      act(() => screen.getByRole("button", { name: "Follow reference 1" }).focus());
+      const header = screen.getByRole("link", { name: "Open reference full page" });
+      act(() => header.focus());
+      rerender(preview(false));
+      expect(header).toHaveFocus();
+      rerender(preview(true));
+      act(() => screen.getByRole("button", { name: "Follow reference 1" }).focus());
+      const outside = screen.getByRole("button", { name: "Outside preview" });
+      act(() => outside.focus());
+      rerender(preview(false));
+      expect(outside).toHaveFocus();
+      rerender(preview(true));
+      const blurTrigger = screen.getByRole("button", { name: "Follow reference 1" });
+      act(() => blurTrigger.focus());
+      act(() => blurTrigger.blur());
+      expect(document.body).toHaveFocus();
+      rerender(preview(false));
+      expect(document.body).toHaveFocus();
+    },
+  );
 
   it.each(["desktop", "narrow"])(
     "%s preview focuses actions and lets a nested source modal own Escape",
