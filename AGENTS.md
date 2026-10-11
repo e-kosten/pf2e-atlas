@@ -97,20 +97,24 @@ Keep crate entry points focused on composition:
 
 Rust workspace tests are the primary validation surface. Add or update tests under the owning crate for behavior changes, especially around ingest, indexing, lookup, search, filter discovery, graph context, and artifact validation.
 
-Run the Rust verification gate before committing non-docs changes:
+Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates: the Rust gate for Rust changes and the frontend gate for web UI changes. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
+
+The Rust gate is:
 
 ```bash
 just verify
 # or: scripts/verify.sh
 ```
 
-Docs-only or instruction-only changes do not require the Rust verification gate unless the change also affects executable examples, generated output expectations, or another validated artifact.
+Docs-only or instruction-only changes do not require the Rust or frontend gates unless the change also affects executable examples, generated output expectations, or another validated artifact. Inspect the diff and check whitespace and any changed links or examples. See `CONTRIBUTING.md` for gate commands and hook behavior.
 
 ## Commit Guidelines
 
 Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include a summary line; a description body is optional, but when present it must be separated from the summary by a blank line.
 
-Agents should not commit automatically just because an implementation task appears complete. Treat commits as an explicit milestone. When the user asks for a commit, inspect the scoped diff, run the validation appropriate to the change, fix blocking issues, and then create the commit. Do not assume commit preparation must invoke a separate validation skill unless the user explicitly asks for that validation.
+Authorization to implement includes creating local commits at logical, validated boundaries. Do not request separate permission for each commit. Planning or design discussion alone does not authorize implementation. Explicit user instructions such as plan-only, no commits, or local-only take precedence.
+
+Each commit should express a coherent change, include its relevant tests and documentation, and leave the branch buildable. A PR may contain several commits; commit boundaries do not dictate PR size. Avoid accumulating an entire multi-stage task uncommitted. Do not assume commit preparation must invoke a separate validation skill unless the user explicitly asks for that validation.
 
 Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for the completed unit of work, or explicitly tell the user why a clean commit boundary is blocked.
 
@@ -123,11 +127,23 @@ Refactors must land as finished end-state changes, not as transitional scaffoldi
 - Do not treat a refactor as complete if it leaves behind intermediate shims, compatibility wrappers, transitional files, partial migrations, or mixed old-and-new implementations across the codebase.
 - Validation for refactor work must explicitly check for leftover uses of the old implementation, leftover shim files, and any other signs of an intermediate state.
 
-## Optional Worktree Policy
+## Worktree Policy
 
-Agents may work in the current checkout unless the user explicitly asks for a worktree or the task has a concrete need for checkout isolation. Use worktrees for parallel delegated implementation, risky long-running work, preserving a dirty main checkout, or when the user wants an isolated branch.
+Implement each task in a dedicated linked worktree on a feature branch, normally under `.worktrees/<task-slug>`. Continue using that worktree for related feedback and revisions rather than creating a new worktree for every turn. Read-only exploration may use the current checkout. Preserve unrelated changes and any running preview the user is reviewing.
+
+Choose the base branch from the task context. For the source-modeling workstream, use `integration/source-modeling`; dependent PRs may target their preceding feature branch. Use `main` for independent work intended for the current mainline. Verify the base before editing, and do not mix unrelated workstreams.
+
+Keep the task worktree available while its PR or local build is under review. After merge or cancellation, remove it only when it contains no needed uncommitted work and is no longer serving a preview. These workflow rules take precedence over older skill defaults requiring separate commit permission, direct local landing, or immediate worktree cleanup.
 
 Git commands that mutate repository state must never be run in parallel within the same repository or worktree. Serialize `git add`, `git commit`, `git rebase`, `git merge`, `git cherry-pick`, `git worktree`, and `git stash` operations.
+
+## Pull Requests And Human Review
+
+For implementation work, pushing the task branch and opening or updating a PR are part of the normal workflow unless the user requests local-only work. Confirm the intended PR base from the task context. Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and outstanding limitations. Keep related review fixes on the same PR as additional logical commits; do not rewrite published history without agreement.
+
+Provide a stable local build when the change is useful to inspect. Identify its branch, commit, URL or command, and any sample-data limitations; disclose uncommitted differences if present. Keep the reviewed build stable while developing further changes, using a separate checkout or built artifact when necessary. Explicitly identify when an updated build replaces it. UI work requires interaction and visual review alongside automated checks; use Astra sub-agents for presentation review, including actual browser inspection.
+
+Do not merge PRs, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization. Do not use `scripts/land-worktree.sh` or `just land` as the normal landing path. Passing local checks, passing CI, and human acceptance are separate outcomes; report their status independently.
 
 ## Configuration & Data Notes
 
