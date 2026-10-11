@@ -25,7 +25,7 @@ import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
 import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
+import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 
@@ -41,6 +41,7 @@ const ENCOUNTER_WIDTH_SPECS = {
 
 export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   const queryClient = useQueryClient();
+  const confirmDangerAction = useConfirmDangerAction();
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );

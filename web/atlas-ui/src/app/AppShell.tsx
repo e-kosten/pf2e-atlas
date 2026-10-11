@@ -1,13 +1,19 @@
 import { Activity, Moon, RefreshCw, Sun } from "lucide-react";
-import { useState } from "react";
-import { Button, Menu, Tag } from "antd";
+import { useRef, useState } from "react";
+import { Alert, Button, Menu, Tag, Typography } from "antd";
 import type { MenuProps } from "antd";
 import type {
   ColorSchemePreference,
   ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
 import { pagePositionLabel } from "../features/search/pageMetrics";
-import type { AtlasRoute } from "./routes";
+import {
+  encountersPath,
+  listsPath,
+  searchPath,
+  shouldHandleAtlasRouteClick,
+  type AtlasRoute,
+} from "./routes";
 import type { SearchWorkspaceState } from "../features/search/useSearchWorkspace";
 
 type AppShellProps = {
@@ -34,6 +40,7 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const readiness = workspace.readiness.data;
   const status = readiness?.status ?? "blocked";
   const nextColorScheme = cycleColorScheme(colorScheme);
@@ -47,21 +54,45 @@ export function AppShell({
       <Moon size={18} />
     );
   const selectedView = topLevelView(activeView);
-  const navItems: MenuProps["items"] = [
-    { key: "search", label: "Search" },
-    { key: "encounters", label: "Encounters" },
-    { key: "lists", label: "Lists" },
+  const destinations = [
+    { key: "search", label: "Search", href: searchPath(), navigate: onNavigateSearch },
+    {
+      key: "encounters",
+      label: "Encounters",
+      href: encountersPath(),
+      navigate: onNavigateEncounters,
+    },
+    { key: "lists", label: "Lists", href: listsPath(), navigate: onNavigateLists },
   ];
-  const onNavClick: MenuProps["onClick"] = ({ key }) => {
-    if (key === "search") {
-      onNavigateSearch();
-    }
-    if (key === "encounters") {
-      onNavigateEncounters();
-    }
-    if (key === "lists") {
-      onNavigateLists();
-    }
+  const navItems: MenuProps["items"] = destinations.map((destination) => ({
+    key: destination.key,
+    label: (
+      <a
+        href={destination.href}
+        aria-current={selectedView === destination.key ? "page" : undefined}
+        onClick={(event) => {
+          if (!shouldHandleAtlasRouteClick(event)) return;
+          event.preventDefault();
+          destination.navigate();
+        }}
+      >
+        {destination.label}
+      </a>
+    ),
+  }));
+  const onNavClick: MenuProps["onClick"] = ({ key, domEvent }) => {
+    // Ant also lets keyboard users activate the focused menu item itself.
+    // Anchor activation is handled above so modified clicks stay native.
+    if (
+      domEvent.type !== "keydown" ||
+      (domEvent.target instanceof Element && domEvent.target.closest("a")) ||
+      domEvent.metaKey ||
+      domEvent.ctrlKey ||
+      domEvent.altKey ||
+      domEvent.shiftKey
+    )
+      return;
+    destinations.find((destination) => destination.key === key)?.navigate();
   };
 
   return (
@@ -69,6 +100,13 @@ export function AppShell({
       className={diagnosticsOpen ? "atlas-app atlas-app--diagnostics" : "atlas-app"}
       data-theme={resolvedColorScheme}
     >
+      <Typography.Link
+        className="skip-link"
+        href="#atlas-main"
+        onClick={() => contentRef.current?.focus()}
+      >
+        Skip to main content
+      </Typography.Link>
       <header className="topbar">
         <div className="topbar__identity">
           <h1>PF2e Atlas</h1>
@@ -91,12 +129,14 @@ export function AppShell({
             {status}
           </Tag>
           <Button
+            aria-label="Diagnostics"
             aria-pressed={diagnosticsOpen}
             icon={<Activity size={18} />}
             onClick={() => setDiagnosticsOpen(!diagnosticsOpen)}
             title="Diagnostics"
           />
           <Button
+            aria-label="Refresh"
             icon={<RefreshCw size={18} />}
             onClick={workspace.refresh}
             title="Refresh"
@@ -110,10 +150,22 @@ export function AppShell({
         </div>
       </header>
       {workspace.errorMessage && (
-        <div className="error-banner">{workspace.errorMessage}</div>
+        <Alert
+          className="error-banner"
+          type="error"
+          showIcon
+          title={workspace.errorMessage}
+        />
       )}
       {diagnosticsOpen && <DiagnosticsPanel workspace={workspace} />}
-      {children}
+      <div
+        className="atlas-app__content"
+        id="atlas-main"
+        ref={contentRef}
+        tabIndex={-1}
+      >
+        {children}
+      </div>
     </div>
   );
 }
