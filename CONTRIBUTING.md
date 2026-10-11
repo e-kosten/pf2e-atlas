@@ -1,12 +1,14 @@
 # Contributing
 
-## Branching
+## Worktrees And Pull Requests
 
-This repo uses a simple trunk-based workflow:
+Implementation uses dedicated linked worktrees and feature PRs:
 
-- `main` is the primary branch
-- create short-lived feature branches from `main`
-- merge back to `main` after validation
+- create a task worktree under `.worktrees/<task-slug>` on a short-lived feature branch
+- choose the base from the workstream: `main` for independent mainline work, or `integration/source-modeling` for the source-modeling workstream; dependent PRs may target the preceding feature branch
+- continue related feedback and revisions in the same task worktree and PR
+- preserve unrelated changes and running builds being reviewed
+- land through a reviewed PR after applicable validation and CI; merging is a separate human decision
 
 Recommended branch names:
 
@@ -15,9 +17,23 @@ Recommended branch names:
 - `docs/<topic>`
 - `chore/<topic>`
 
+For agents, authorization to implement includes logical local commits, pushing the task branch, and opening or updating its PR. Separate permission is not needed for these routine steps. Planning alone does not authorize implementation, and explicit plan-only, no-commit, or local-only instructions take precedence. Do not merge, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization.
+
+Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and limitations. Keep review fixes visible as additional logical commits; agree on any published-history rewrite before performing it.
+
+Keep the worktree available while its PR or local build is being reviewed. After merge or cancellation, remove it only when it contains no needed uncommitted work and is no longer serving a preview.
+
+## Local Build Review
+
+Provide a stable local build when a change is useful to inspect. State its branch, commit, URL or run command, and any sample-data limitations. Disclose uncommitted differences if present. Preserve that build while developing further changes, using a separate checkout or built artifact when necessary, and explicitly identify when an updated build replaces it.
+
+UI changes require interaction and visual review alongside automated checks. Agents use Astra sub-agents for presentation review, including actual browser inspection. Local validation, hosted CI, and human acceptance are separate outcomes; a passing gate does not establish visual acceptance.
+
 ## Commit Messages
 
 Use Conventional Commits for all changes. Every commit message must include a Conventional Commit summary line. A short description body is optional, but when present it must appear after a blank line.
+
+Commit at logical, validated boundaries rather than accumulating an entire multi-stage task uncommitted. Each commit should express a coherent change, include its relevant tests and documentation, and leave the branch buildable. A substantial PR may contain several commits. Avoid arbitrary progress snapshots and unrelated changes in the same commit.
 
 Summary-only format:
 
@@ -280,9 +296,11 @@ Published release assets are treated as immutable. Fix bad published releases wi
 
 Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for Linux x64, Linux ARM64, macOS Apple Silicon, and Windows x64 release targets. macOS Intel and Windows ARM64 release binaries are deferred until the native ONNX Runtime packaging strategy supports them cleanly.
 
-## Validation Before Commit
+## Validation At Commits And Review
 
-Run the full Rust gate before opening a branch for review, merging back to `main`, or preparing a Rust-heavy commit manually:
+Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates. A draft PR may be opened earlier with outstanding validation clearly identified. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
+
+For Rust changes, run the full Rust gate:
 
 ```bash
 just verify
@@ -299,7 +317,7 @@ just web-ui-verify
 # or: npm --prefix web/atlas-ui run verify
 ```
 
-For the same path-sensitive validation used by hooks:
+For the same path-sensitive validation used by hooks (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
 
 ```bash
 just verify-changed --staged
@@ -315,14 +333,9 @@ Tracked git hooks live in `.githooks/` and enforce:
 
 When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
 
-Fast-forward merges do not run Git's `pre-merge-commit` hook. Land linked worktrees with:
+Docs-only or instruction-only changes do not require the Rust or frontend gates unless they affect executable examples, generated output expectations, or another validated artifact. Inspect the diff and check whitespace and any changed links or examples.
 
-```bash
-scripts/land-worktree.sh
-# or: just land
-```
-
-Run that command from the linked task worktree. It rebases onto `main`, runs the Rust verification gate, fast-forwards `main`, and reruns the same gate on `main`.
+The normal landing path is a reviewed GitHub PR, with applicable local gates, CI, and human acceptance reported separately. `scripts/land-worktree.sh` and `just land` directly fast-forward local `main`; they are not the normal PR workflow and require explicit authorization to use. Do not interpret a passing gate as permission to merge.
 
 ## Vendored PF2E Data
 
