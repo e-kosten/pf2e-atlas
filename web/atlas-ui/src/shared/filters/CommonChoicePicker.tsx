@@ -54,6 +54,7 @@ export function CommonChoicePicker({
   const [offset, setOffset] = useState(0);
   const input = useRef<InputRef>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const initialFocusPending = useRef(false);
   const menuId = useId();
   const screens = Grid.useBreakpoint();
   const narrow = screens.xs === true && !screens.sm;
@@ -96,6 +97,7 @@ export function CommonChoicePicker({
       )
     : options;
   function setMenuOpen(next: boolean) {
+    initialFocusPending.current = next;
     if (next) setSessionValues(selected);
     else {
       setSessionValues([]);
@@ -104,6 +106,9 @@ export function CommonChoicePicker({
       setOffset(0);
     }
     setOpen(next);
+  }
+  function cancelInitialFocus() {
+    initialFocusPending.current = false;
   }
   function change(value: string, state: ChoiceState) {
     if (open)
@@ -125,6 +130,8 @@ export function CommonChoicePicker({
       role={narrow ? "group" : "dialog"}
       aria-label={field.label + " choices"}
       className="common-choice-menu"
+      onFocusCapture={cancelInitialFocus}
+      onPointerDownCapture={cancelInitialFocus}
     >
       <Input
         ref={input}
@@ -275,7 +282,10 @@ export function CommonChoicePicker({
           open={open}
           onOpenChange={setMenuOpen}
           afterOpenChange={(visible) => {
-            if (visible && open && !narrow) input.current?.focus();
+            if (visible && open && !narrow && initialFocusPending.current) {
+              initialFocusPending.current = false;
+              input.current?.focus();
+            }
           }}
           placement="bottomLeft"
           trigger="click"
