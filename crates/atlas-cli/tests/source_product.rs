@@ -155,6 +155,215 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     assert!(!macroget.status.success());
 }
 #[test]
+fn root_terminal_summary_does_not_read_source_bodies() {
+    let f = Fixture::new();
+    let db = rusqlite::Connection::open(&f.index).unwrap();
+    db.execute("UPDATE record_bodies SET snapshot = X'00'", [])
+        .unwrap();
+    drop(db);
+    let summary = f.command(
+        &[
+            "record",
+            "get",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--detail",
+            "summary",
+        ],
+        false,
+    );
+    assert!(
+        summary.status.success(),
+        "{}",
+        String::from_utf8_lossy(&summary.stderr)
+    );
+    let text = String::from_utf8(summary.stdout).unwrap();
+    assert!(text.contains("Treat Wounds"));
+    assert!(!text.contains("Defined Fever"));
+    let detail = f.command(&["record", "get", "actions:aaaaaaaaaaaaaaaa"], false);
+    assert!(!detail.status.success());
+    let json = f.command(
+        &[
+            "record",
+            "get",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--detail",
+            "summary",
+            "--json",
+        ],
+        false,
+    );
+    assert!(
+        !json.status.success(),
+        "JSON still requests the selected detail DTO"
+    );
+}
+
+#[test]
+fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts() {
+    let f = Fixture::new();
+    fs::create_dir_all(f.root.join("packs/creatures")).unwrap();
+    fs::write(f.root.join("module.json"), r#"{"packs":[{"name":"actions","label":"Actions","type":"Item","path":"packs/actions"},{"name":"macros","label":"Macros","type":"Macro","path":"packs/macros"},{"name":"creatures","label":"Creatures","type":"Actor","path":"packs/creatures"}]}"#).unwrap();
+    fs::write(f.root.join("packs/creatures/caster.json"), r#"{
+      "_id":"dddddddddddddddd","name":"Local Caster","type":"npc",
+      "system":{
+        "details":{"level":{"value":7},"languages":{"value":["common"]}},
+        "traits":{"value":["humanoid"],"rarity":"uncommon"},
+        "attributes":{"ac":{"value":25},"hp":{"max":80,"value":80},"speed":{"value":25},
+          "resistances":[{"type":"all-damage","value":10,"exceptions":["force","ghost-touch","vitality"],"doubleVs":["non-magical"]}]},
+        "perception":{"mod":12},"saves":{"fortitude":{"value":0},"reflex":{"value":-2},"will":{"value":10}}
+      },
+      "items":[{
+        "_id":"eeeeeeeeeeeeeeee","name":"Local Fireball","type":"spell",
+        "system":{
+          "level":{"value":2},"time":{"value":"2"},"range":{"value":"120 feet"},
+          "traits":{"rarity":"uncommon","traditions":["arcane"],"value":["fire"]},
+          "area":{"type":"burst","value":20},"defense":{"save":{"statistic":"reflex","basic":true}},
+          "duration":{"value":"1 minute","sustained":false},
+          "damage":{"local":{"formula":"2d6+1","type":"fire","kinds":["damage"],"materials":[],"applyMod":false}},
+          "heightening":{"type":"interval","interval":1,"damage":{"local":"1d6"}},
+          "location":{"value":"ffffffffffffffff"},
+          "overlays":{"living":{"name":"Local healing option","overlayType":"override","sort":1,"system":{"time":{"value":"2"},"defense":null,"damage":{"local":{"kinds":["healing"]}},"heightening":{"damage":{"local":"1d8+8"}}}}},
+          "description":{"value":"<p>This customized spell uses local damage. @UUID[Compendium.pf2e.actions.Item.aaaaaaaaaaaaaaaa] @Unknown[do not execute]</p>"}
+        }
+      },{
+        "_id":"ffffffffffffffff","name":"Arcane Prepared Spells","type":"spellcastingEntry",
+        "system":{"spelldc":{"dc":33,"value":23},"prepared":{"value":"prepared"},"tradition":{"value":"arcane"}}
+      },{
+        "_id":"gggggggggggggggg","name":"River Lore","type":"lore","system":{"mod":{"value":8}}
+      }]
+    }"#).unwrap();
+    let built = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(
+        built.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&built.stdout),
+        String::from_utf8_lossy(&built.stderr)
+    );
+    let actor = f.command(&["record", "get", "creatures:dddddddddddddddd"], false);
+    assert!(
+        actor.status.success(),
+        "{}",
+        String::from_utf8_lossy(&actor.stderr)
+    );
+    let actor = String::from_utf8(actor.stdout).unwrap();
+    for expected in [
+        "Perception: +12",
+        "Fortitude: +0",
+        "Reflex: -2",
+        "Speed: 25 feet",
+        "all-damage 10 (except force, ghost-touch, vitality) (double against non-magical)",
+        "Local Fireball",
+        "Spell attack: +23",
+        "DC: 33",
+        "Tradition: arcane",
+        "Preparation: prepared",
+        "Lore modifier: +8",
+    ] {
+        assert!(actor.contains(expected), "missing {expected:?} in {actor}");
+    }
+    let root = f.data(&["record", "get", "creatures:dddddddddddddddd", "--json"]);
+    let spell = root["records"][0]["presentation"]["body"]["value"]["activities"]["value"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|activity| activity["title"] == "Local Fireball")
+        .unwrap();
+    let navigation = &spell["navigation"];
+    assert_eq!(navigation["owners"][0]["collection"], "/items");
+    assert_eq!(
+        navigation["owners"][0]["identity"]["Stable"],
+        "eeeeeeeeeeeeeeee"
+    );
+    let owners = serde_json::to_string(&navigation["owners"]).unwrap();
+    let selected = f.command(
+        &[
+            "record",
+            "get",
+            "creatures:dddddddddddddddd",
+            "--owners",
+            &owners,
+        ],
+        false,
+    );
+    assert!(
+        selected.status.success(),
+        "{}",
+        String::from_utf8_lossy(&selected.stderr)
+    );
+    let selected = String::from_utf8(selected.stdout).unwrap();
+    for expected in [
+        "Local Fireball",
+        "From Local Caster (creatures:dddddddddddddddd)",
+        "Traditions: arcane",
+        "Range: 120 feet",
+        "Area: 20 feet burst",
+        "2d6+1; fire",
+        "Authored heightening (+1)",
+        "Damage [local]: 1d6",
+        "This customized spell uses local damage",
+        "Casting: 2 actions",
+        "Authored changes to base",
+        "Defense: cleared (null)",
+        "Damage component changes [local]: kinds: healing",
+        "Damage increment [local]: 1d8+8",
+    ] {
+        assert!(
+            selected.contains(expected),
+            "missing {expected:?} in {selected}"
+        );
+    }
+    assert!(!selected.contains("data-atlas"));
+    let json = f.data(&[
+        "record",
+        "get",
+        "creatures:dddddddddddddddd",
+        "--owners",
+        &owners,
+        "--json",
+    ]);
+    assert_eq!(json["records"][0]["record"]["title"], "Local Caster");
+    assert_eq!(
+        json["records"][0]["presentation"]["identity"]["title"],
+        "Local Fireball"
+    );
+    assert_eq!(json["records"][0]["presentation"]["body"]["kind"], "spell");
+    assert!(json["records"][0].get("surface").is_none());
+    assert!(json["records"][0].get("source_json").is_none());
+    let entry = root["records"][0]["presentation"]["body"]["value"]["activities"]["value"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|activity| activity["title"] == "Arcane Prepared Spells")
+        .unwrap();
+    let entry_owners = serde_json::to_string(&entry["navigation"]["owners"]).unwrap();
+    let output = f.command(
+        &[
+            "record",
+            "get",
+            "creatures:dddddddddddddddd",
+            "--owners",
+            &entry_owners,
+        ],
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8(output.stdout).unwrap();
+    for expected in [
+        "Arcane Prepared Spells",
+        "Spell attack: +23",
+        "DC: 33",
+        "Tradition: arcane",
+        "Preparation: prepared",
+        "From Local Caster",
+    ] {
+        assert!(text.contains(expected), "missing {expected:?} in {text}");
+    }
+}
+#[test]
 fn ambiguous_names_require_keys_and_graph_errors_keep_candidate_details() {
     let f = Fixture::new();
     let source = fs::read_to_string(f.root.join("packs/actions/heal.json")).unwrap();

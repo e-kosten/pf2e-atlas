@@ -1,6 +1,13 @@
 use crate::test_support::encounter_fixture_worker;
 use atlas_app_model::*;
 
+fn hazard(p: &EncounterParticipantView) -> &HazardPresentationView {
+    let RecordBodyView::Hazard(h) = &p.presentation.as_ref().unwrap().body else {
+        panic!("hazard presentation")
+    };
+    h
+}
+
 fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
     UpdateEncounterParticipantRequest {
         hp_edit: false,
@@ -20,13 +27,301 @@ fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
         note: p.note.clone(),
     }
 }
+fn actor(p: &EncounterParticipantView) -> &ActorPresentationView {
+    match &p.presentation.as_ref().unwrap().body {
+        RecordBodyView::Creature(a) => a,
+        RecordBodyView::Hazard(h) => &h.actor,
+        _ => panic!("actor presentation"),
+    }
+}
+fn authored_arithmetic_baseline(source: serde_json::Value) -> super::mechanics::StatBlockView {
+    let input = atlas_search::test_support::record("actors", "Actor", source);
+    let key = input.record.key().clone();
+    let (retrieval, _artifact) =
+        atlas_search::test_support::open_source_fixture(vec![input], false).unwrap();
+    let detail = retrieval
+        .get_record(atlas_search::GetRecordRequest {
+            record_key: &key,
+            selected_content: &[],
+        })
+        .unwrap()
+        .unwrap();
+    let summary = crate::projection::localized_summary_view(&detail.summary, &retrieval);
+    let node = atlas_record::source_record::SourceQueryView::new(
+        detail.source.source(),
+        key.pack().as_str(),
+        "",
+    )
+    .source;
+    let presentation = crate::presentation::record_presentation(
+        &detail.source,
+        node,
+        &summary,
+        &[],
+        vec![],
+        &retrieval,
+    );
+    super::mechanics::arithmetic_baseline(&presentation).unwrap()
+}
+
 #[test]
-fn encounter_surface_keeps_non_hp_sections_outside_the_replaceable_vitals_slot() {
+fn repeated_participants_share_authored_baselines_and_load_source_only_on_request() {
     let f = encounter_fixture_worker();
     let e = f
         .worker
         .create_encounter(CreateEncounterRequest {
-            name: "Grouped surface".into(),
+            name: "Shared authored baseline".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let initial = f
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 3,
+            initiative: None,
+        })
+        .unwrap();
+    let mut change = update(&initial.participants[0]);
+    change.participant_variant = EncounterParticipantVariantView::Elite;
+    change.variant_edit = true;
+    f.worker
+        .update_encounter_participant(&e.encounter_key, change)
+        .unwrap();
+    f.worker
+        .add_encounter_participant_condition(
+            &e.encounter_key,
+            AddEncounterParticipantConditionRequest {
+                participant_key: initial.participants[0].participant_key.clone(),
+                condition_ref: Some("conditionitems:fesd1n5eVhpCSS18".into()),
+                name: None,
+                value: Some(1),
+                source_participant_key: None,
+                duration_rounds: None,
+                note: None,
+            },
+        )
+        .unwrap();
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key.clone(),
+            record_ref: "Test Hazard 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    f.worker
+        .submit_retrieval(|r| {
+            r.reset_read_metrics();
+            crate::presentation::actor::authored_projection_count(true);
+            super::mechanics::baseline_count(true);
+            Ok(())
+        })
+        .unwrap();
+    let detail = f.worker.encounter(&e.encounter_key).unwrap();
+    let (metrics, authored, baselines) = f
+        .worker
+        .submit_retrieval(|r| {
+            Ok((
+                r.read_metrics(),
+                crate::presentation::actor::authored_projection_count(false),
+                super::mechanics::baseline_count(false),
+            ))
+        })
+        .unwrap();
+    assert_eq!(metrics.source_body_decodes, 2);
+    assert_eq!(metrics.prepared_content_batches, 0);
+    assert_eq!((authored, baselines), (2, 2));
+    assert!(
+        detail
+            .participants
+            .iter()
+            .all(|p| p.presentation.as_ref().unwrap().content.is_empty())
+    );
+    assert_eq!(
+        actor(&detail.participants[0]).armor_class.value,
+        Some(23.into())
+    );
+    assert_eq!(
+        actor(&detail.participants[1]).armor_class.value,
+        Some(22.into())
+    );
+    assert_eq!(
+        actor(&detail.participants[2]).armor_class.value,
+        Some(22.into())
+    );
+    assert_eq!(
+        (detail.participants[0].max_hp, detail.participants[1].max_hp),
+        (Some(80), Some(60))
+    );
+    assert_eq!(
+        hazard(&detail.participants[3]).hardness.value,
+        Some(8.into())
+    );
+    f.worker
+        .submit_retrieval(|r| {
+            r.reset_read_metrics();
+            Ok(())
+        })
+        .unwrap();
+    let source = f
+        .worker
+        .record_detail_at(RecordDetailRequest {
+            record_key: detail.participants[0].record_key.clone().unwrap(),
+            owners: vec![],
+            fields: vec!["/system/details/publicNotes".into()],
+            passage: None,
+            source_fingerprint: None,
+        })
+        .unwrap();
+    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    assert_eq!(metrics.source_body_decodes, 1);
+    assert_eq!(metrics.prepared_content_batches, 1);
+    assert_eq!(source.presentation.content.len(), 1);
+    let PreparedFieldBodyView::Html { html, .. } = &source.presentation.content[0].body else {
+        panic!("prepared HTML")
+    };
+    assert!(html.contains("Creature prose"));
+}
+
+#[test]
+fn strike_status_penalties_preserve_strongest_and_suppressed_explanations_in_both_orders() {
+    for conditions in [
+        [
+            ("conditionitems:TBSHQspnbcqxsmjL", 2),
+            ("conditionitems:fesd1n5eVhpCSS18", 1),
+        ],
+        [
+            ("conditionitems:fesd1n5eVhpCSS18", 1),
+            ("conditionitems:TBSHQspnbcqxsmjL", 2),
+        ],
+    ] {
+        let f = encounter_fixture_worker();
+        let e = f
+            .worker
+            .create_encounter(CreateEncounterRequest {
+                name: "Strike explanations".into(),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter;
+        let detail = f
+            .worker
+            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                encounter_ref: e.encounter_key.clone(),
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: None,
+            })
+            .unwrap();
+        for (reference, value) in conditions {
+            f.worker
+                .add_encounter_participant_condition(
+                    &e.encounter_key,
+                    AddEncounterParticipantConditionRequest {
+                        participant_key: detail.participants[0].participant_key.clone(),
+                        condition_ref: Some(reference.into()),
+                        name: None,
+                        value: Some(value),
+                        source_participant_key: None,
+                        duration_rounds: None,
+                        note: None,
+                    },
+                )
+                .unwrap();
+        }
+        let detail = f.worker.encounter(&e.encounter_key).unwrap();
+        let attack = &actor(&detail.participants[0])
+            .activities
+            .value
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|a| a.title == "Claw")
+            .unwrap()
+            .attack;
+        assert_eq!(attack.value, Some(10.into()));
+        let explanation = attack.adjustment.as_ref().unwrap();
+        assert_eq!(explanation.authored, serde_json::Number::from(12));
+        assert_eq!(
+            explanation
+                .applied
+                .iter()
+                .map(|m| m.value)
+                .collect::<Vec<_>>(),
+            vec![-2]
+        );
+        assert_eq!(
+            explanation
+                .suppressed
+                .iter()
+                .map(|m| m.value)
+                .collect::<Vec<_>>(),
+            vec![-1]
+        );
+        assert!(
+            explanation
+                .applied
+                .iter()
+                .chain(&explanation.suppressed)
+                .all(|m| m.modifier_type == StatModifierTypeView::Status && !m.source.is_empty())
+        );
+    }
+}
+
+#[test]
+fn composed_strike_keeps_suppressed_only_explanation_without_inventing_an_applied_effect() {
+    let f = encounter_fixture_worker();
+    let authored = f
+        .worker
+        .record_detail("actors:testCreature1000")
+        .unwrap()
+        .presentation;
+    let mut workspace = super::mechanics::arithmetic_baseline(&authored).unwrap();
+    workspace
+        .activities
+        .iter_mut()
+        .find(|a| a.label == "Claw")
+        .unwrap()
+        .rolls[0]
+        .suppressed_modifiers
+        .push(StatModifierView {
+            source: "Frightened".into(),
+            label: "Frightened".into(),
+            modifier_type: StatModifierTypeView::Status,
+            value: -1,
+        });
+    let composed = crate::presentation::compose_participant(authored, &workspace);
+    let RecordBodyView::Creature(actor) = composed.body else {
+        panic!("creature")
+    };
+    let attack = &actor
+        .activities
+        .value
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|a| a.title == "Claw")
+        .unwrap()
+        .attack;
+    assert_eq!(attack.value, Some(12.into()));
+    let explanation = attack.adjustment.as_ref().unwrap();
+    assert!(explanation.applied.is_empty());
+    assert_eq!(explanation.suppressed.len(), 1);
+    assert_eq!(explanation.suppressed[0].source, "Frightened");
+    assert_eq!(explanation.suppressed[0].value, -1);
+}
+#[test]
+fn encounter_projection_keeps_semantic_statistics_and_authored_context() {
+    let f = encounter_fixture_worker();
+    let e = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Semantic actor".into(),
             description: None,
             note: None,
         })
@@ -41,46 +336,42 @@ fn encounter_surface_keeps_non_hp_sections_outside_the_replaceable_vitals_slot()
             initiative: None,
         })
         .unwrap();
-    let p = &d.participants[0];
-    let surface = p.surface.as_ref().unwrap();
-    for (kind, key) in [
-        (RecordSurfaceSectionKindView::Defenses, "ac"),
-        (RecordSurfaceSectionKindView::Saves, "save.fortitude"),
-        (RecordSurfaceSectionKindView::Abilities, "ability.str"),
-        (RecordSurfaceSectionKindView::Skills, "skill.athletics"),
-        (RecordSurfaceSectionKindView::Movement, "speed.land"),
-        (RecordSurfaceSectionKindView::Runtime, "actions"),
-    ] {
-        assert!(
-            surface
-                .sections
-                .iter()
-                .any(|s| s.kind == kind && s.values.iter().any(|v| v.key == key)),
-            "missing {kind:?}/{key}"
-        );
-    }
+    let a = actor(&d.participants[0]);
+    assert_eq!(a.armor_class.value, Some(22.into()));
+    assert!(a.saves.fortitude.value.is_some());
     assert!(
-        surface
-            .sections
+        a.abilities
+            .value
+            .as_ref()
+            .unwrap()
             .iter()
-            .filter(|s| s.kind == RecordSurfaceSectionKindView::Vitals)
-            .flat_map(|s| &s.values)
-            .all(|v| v.key == "hp.max")
+            .any(|v| v.key == "str")
     );
     assert!(
-        surface
-            .sections
+        a.skills
+            .value
+            .as_ref()
+            .unwrap()
             .iter()
-            .filter(|s| s.kind == RecordSurfaceSectionKindView::Notes)
-            .flat_map(|s| &s.notes)
+            .any(|v| v.key == "athletics")
+    );
+    assert_eq!(a.land_speed.value, Some(25.into()));
+    assert!(a.runtime.as_ref().unwrap().action_budget.is_some());
+    assert!(
+        a.runtime
+            .as_ref()
+            .unwrap()
+            .unapplied_effects
+            .iter()
             .any(|n| n.label == "Identifying spells")
     );
     assert!(
-        surface
-            .sections
+        a.activities
+            .value
+            .as_ref()
+            .unwrap()
             .iter()
-            .flat_map(|s| &s.activities)
-            .any(|a| a.label == "Breath Weapon")
+            .any(|v| v.title == "Breath Weapon")
     );
 }
 
@@ -210,28 +501,35 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
         .update_encounter_participant(&encounter.encounter_key, change)
         .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (Some(80), Some(80)));
-    let block = p.stat_block.as_ref().unwrap();
+    let block = actor(&p);
     assert_eq!(
-        block
-            .values
-            .iter()
-            .find(|v| v.target == "ac")
-            .unwrap()
-            .adjusted_value,
+        block.armor_class.value.clone().unwrap(),
         serde_json::Number::from(24)
     );
     assert_eq!(
         block
             .activities
-            .iter()
-            .find(|a| a.label == "Claw")
+            .value
+            .as_ref()
             .unwrap()
-            .damage[0]
-            .formula,
+            .iter()
+            .find(|a| a.title == "Claw")
+            .unwrap()
+            .damage
+            .value
+            .as_ref()
+            .unwrap()[0]
+            .formula
+            .value
+            .as_deref()
+            .unwrap(),
         "1d6+4"
     );
     assert!(
         block
+            .runtime
+            .as_ref()
+            .unwrap()
             .unapplied_effects
             .iter()
             .any(|n| n.label == "Identifying spells")
@@ -409,14 +707,7 @@ fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_p
         EncounterParticipantVariantView::Elite
     );
     assert_eq!(
-        p.stat_block
-            .as_ref()
-            .unwrap()
-            .values
-            .iter()
-            .find(|v| v.target == "ac")
-            .unwrap()
-            .adjusted_value,
+        actor(p).armor_class.value.clone().unwrap(),
         serde_json::Number::from(24)
     );
     f.worker
@@ -447,7 +738,8 @@ fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_p
     assert_eq!((p.max_hp, p.current_hp), (None, None));
     assert_eq!(p.variant_origin, "inherited_unknown");
     assert!(
-        p.stat_block
+        actor(p)
+            .runtime
             .as_ref()
             .unwrap()
             .unapplied_effects
@@ -522,25 +814,35 @@ fn conditions_stack_known_penalties_and_preserve_unapplied_context() {
             .unwrap();
     }
     let detail = f.worker.encounter(&e.encounter_key).unwrap();
-    let block = detail.participants[0].stat_block.as_ref().unwrap();
-    let ac = block.values.iter().find(|v| v.target == "ac").unwrap();
-    assert_eq!(ac.adjusted_value, serde_json::Number::from(20));
-    assert_eq!(ac.suppressed_modifiers.len(), 1);
+    let block = actor(&detail.participants[0]);
+    let ac = &block.armor_class;
+    assert_eq!(ac.value.clone().unwrap(), serde_json::Number::from(20));
+    assert_eq!(ac.adjustment.as_ref().unwrap().suppressed.len(), 1);
     assert_eq!(
         block
             .activities
-            .iter()
-            .find(|a| a.label == "Claw")
+            .value
+            .as_ref()
             .unwrap()
-            .rolls[0]
-            .adjusted_value,
+            .iter()
+            .find(|a| a.title == "Claw")
+            .unwrap()
+            .attack
+            .value
+            .clone()
+            .unwrap(),
         serde_json::Number::from(10)
     );
     assert!(
         block
             .activities
+            .value
+            .as_ref()
+            .unwrap()
             .iter()
-            .any(|a| a.label == "Breath Weapon" && a.rolls.is_empty() && a.damage.is_empty())
+            .any(|a| a.title == "Breath Weapon"
+                && a.attack.value.is_none()
+                && a.damage.value.is_none())
     );
 }
 
@@ -604,8 +906,8 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
             }
             let detail = f.worker.encounter(&encounter.encounter_key).unwrap();
             let participant = &detail.participants[0];
-            let block = participant.stat_block.as_ref().unwrap();
-            let speed = &block.speeds[0];
+            let block = actor(participant);
+            let speed = &block.land_speed;
             let expected = if immobilized_order.is_some() {
                 0
             } else if baseline > 0 {
@@ -613,13 +915,21 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
             } else {
                 baseline
             };
-            assert_eq!(speed.base_value_feet, Number::from(baseline));
             assert_eq!(
-                speed.adjusted_value_feet,
+                speed
+                    .adjustment
+                    .as_ref()
+                    .map(|a| a.authored.clone())
+                    .or_else(|| speed.value.clone())
+                    .unwrap(),
+                Number::from(baseline)
+            );
+            assert_eq!(
+                speed.value.clone().unwrap(),
                 Number::from(expected),
                 "{baseline} {immobilized_order:?}"
             );
-            assert_eq!(speed.notes.len(), 1);
+            assert_eq!(speed.adjustment.as_ref().unwrap().notes.len(), 1);
             assert_eq!(
                 participant
                     .conditions
@@ -687,14 +997,7 @@ fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
     assert_eq!(p.hp_origin, "derived_edited");
     assert_eq!(p.record.as_ref().unwrap().title, "Updated creature");
     assert_eq!(
-        p.stat_block
-            .as_ref()
-            .unwrap()
-            .values
-            .iter()
-            .find(|v| v.target == "hp.max")
-            .unwrap()
-            .base_value,
+        actor(p).maximum_hp.value.clone().unwrap(),
         serde_json::Number::from(120)
     );
 }
@@ -722,27 +1025,20 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
         .unwrap();
     let p = &d.participants[0];
     assert_eq!((p.max_hp, p.current_hp), (Some(40), Some(40)));
-    let block = p.stat_block.as_ref().unwrap();
+    let block = actor(p);
     assert_eq!(
-        block
-            .values
-            .iter()
-            .find(|v| v.target == "hazard.hardness")
-            .unwrap()
-            .base_value,
+        hazard(p).hardness.value.clone().unwrap(),
         serde_json::Number::from(8)
     );
     assert_eq!(
-        block
-            .values
-            .iter()
-            .find(|v| v.target == "hazard.stealth")
-            .unwrap()
-            .base_value,
+        hazard(p).stealth.value.clone().unwrap(),
         serde_json::Number::from(12)
     );
     assert!(
         !block
+            .runtime
+            .as_ref()
+            .unwrap()
             .unapplied_effects
             .iter()
             .any(|n| n.source == "npc-adjustment")
@@ -756,26 +1052,16 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
         .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (Some(40), Some(40)));
     assert_eq!(
-        p.stat_block
-            .as_ref()
-            .unwrap()
-            .values
-            .iter()
-            .find(|v| v.target == "ac")
-            .unwrap()
-            .adjusted_value,
+        actor(&p).armor_class.value.clone().unwrap(),
         serde_json::Number::from(18)
     );
 }
 
 #[test]
 fn authored_lore_variants_and_nondamaging_casting_entries_remain_context() {
-    let input = atlas_search::test_support::record(
-        "actors",
-        "Actor",
+    let block = authored_arithmetic_baseline(
         serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{"_id":"bbbbbbbbbbbbbbbb","type":"lore","name":"Sailing Lore","system":{"mod":{"value":14},"variants":{"storm":{"label":"Storm navigation","options":"Only while navigating a storm"}}}},{"_id":"cccccccccccccccc","type":"spellcastingEntry","name":"Arcane Spells","system":{"description":{"value":"<p>Cast authored spells</p>"}}}]}),
     );
-    let block = super::mechanics::record_stat_block(&input.record, "fixture-fingerprint").unwrap();
     let lore = block
         .values
         .iter()
@@ -799,19 +1085,13 @@ fn authored_lore_variants_and_nondamaging_casting_entries_remain_context() {
 
 #[test]
 fn nondamaging_owned_effects_keep_checked_navigation() {
-    let input = atlas_search::test_support::record(
-        "actors",
-        "Actor",
+    let block = authored_arithmetic_baseline(
         serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{"type":"effect","name":"Aura","system":{"description":{"value":"<p>Authored effect</p>"}}}]}),
     );
-    let block = super::mechanics::record_stat_block(&input.record, "fixture-fingerprint").unwrap();
     let effect = &block.activities[0];
     assert_eq!(effect.label, "Aura");
     assert!(effect.rolls.is_empty() && effect.damage.is_empty());
-    assert_eq!(
-        effect.navigation.source_fingerprint.as_deref(),
-        Some("fixture-fingerprint")
-    );
+    assert_eq!(effect.navigation.source_fingerprint, Some("a".repeat(64)));
 }
 
 #[test]

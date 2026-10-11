@@ -65,11 +65,9 @@ pub(super) fn participant_view(
     let record = record_detail.map(|r| r.view.clone());
     let stat_block = record_detail
         .and_then(|record| {
-            participant_stat_block(
-                &participant,
-                &record.detail.source,
-                &record.source_fingerprint,
-            )
+            record.arithmetic_baseline.as_ref().map(|baseline| {
+                participant_stat_block(&participant, baseline, record.adjustment_applicable)
+            })
         })
         .or_else(|| {
             (participant.participant_kind == ParticipantKind::Pc)
@@ -86,7 +84,18 @@ pub(super) fn participant_view(
         .note
         .as_ref()
         .map(|note| note.chars().take(40).collect::<String>().trim().to_string());
-    let mut view = EncounterParticipantView {
+    let presentation = stat_block
+        .as_ref()
+        .and_then(|block| {
+            record_detail
+                .map(|r| crate::presentation::compose_participant(r.presentation.clone(), block))
+        })
+        .or_else(|| {
+            stat_block
+                .as_ref()
+                .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
+        });
+    EncounterParticipantView {
         hp_origin: match participant.hp_origin {
             atlas_local_state::ParticipantHpOrigin::DerivedPristine => "derived_pristine",
             atlas_local_state::ParticipantHpOrigin::DerivedEdited => "derived_edited",
@@ -123,16 +132,9 @@ pub(super) fn participant_view(
             .into_iter()
             .map(condition_view)
             .collect(),
-        stat_block,
-        surface: None,
+        presentation,
         record,
-    };
-
-    view.surface = crate::surfaces::encounter_participant_surface(
-        &view,
-        record_detail.map(|r| &r.detail.source),
-    );
-    view
+    }
 }
 
 pub(super) fn encounter_not_found(encounter_ref: &str) -> AppServiceError {

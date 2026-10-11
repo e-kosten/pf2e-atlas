@@ -4,7 +4,6 @@ import type { RecordNavigationView } from "../generated/atlas";
 export type AtlasRoute =
   | { kind: "invalid"; message: string }
   | { kind: "search"; selectedRecordKey: string | null }
-  | { kind: "presentationMocks" }
   | { kind: "encounters" }
   | { kind: "encounter"; slug: string }
   | { kind: "encounterEdit"; slug: string }
@@ -17,6 +16,7 @@ export type AtlasRoute =
       recordKey: string;
       previewRecordKey: string | null;
       selection?: RecordNavigationView;
+      previewSelection?: RecordNavigationView;
     };
 
 export const ATLAS_ROUTE_CHANGE_EVENT = "atlas-route-change";
@@ -48,10 +48,6 @@ function parseRoute(pathname: string, search = ""): AtlasRoute {
       recordKey: decodeURIComponent(record[1]),
       selection: selectedNavigation(search),
     };
-  }
-
-  if (pathname === "/presentation-mocks") {
-    return { kind: "presentationMocks" };
   }
 
   if (pathname === "/lists") {
@@ -109,6 +105,7 @@ function parseRoute(pathname: string, search = ""): AtlasRoute {
       recordKey: decodeURIComponent(reader[1]),
       previewRecordKey,
       selection: selectedNavigation(search),
+      previewSelection: selectedNavigation(search, "previewSelection"),
     };
   }
 
@@ -125,8 +122,6 @@ export function atlasRoutePath(route: AtlasRoute): string {
       return "/search";
     case "search":
       return searchPath(route.selectedRecordKey);
-    case "presentationMocks":
-      return presentationMocksPath();
     case "encounters":
       return encountersPath();
     case "encounter":
@@ -151,6 +146,8 @@ export function atlasRoutePath(route: AtlasRoute): string {
       const params = new URLSearchParams();
       if (route.previewRecordKey) params.set("preview", route.previewRecordKey);
       if (route.selection) params.set("selection", JSON.stringify(route.selection));
+      if (route.previewSelection)
+        params.set("previewSelection", JSON.stringify(route.previewSelection));
       return path + (params.size ? "?" + params.toString() : "");
     }
   }
@@ -178,10 +175,6 @@ export function searchPath(recordKey: string | null = null): string {
   return recordKey === null
     ? "/search"
     : `/search/records/${encodeURIComponent(recordKey)}`;
-}
-
-export function presentationMocksPath(): string {
-  return "/presentation-mocks";
 }
 
 export function listsPath(): string {
@@ -217,8 +210,11 @@ export function readerPath(recordKey: string): string {
   return `/reader/${encodeURIComponent(recordKey)}`;
 }
 
-function selectedNavigation(search: string): RecordNavigationView | undefined {
-  const value = new URLSearchParams(search).get("selection");
+function selectedNavigation(
+  search: string,
+  key = "selection",
+): RecordNavigationView | undefined {
+  const value = new URLSearchParams(search).get(key);
   if (!value) return undefined;
   try {
     const parsed = JSON.parse(value);

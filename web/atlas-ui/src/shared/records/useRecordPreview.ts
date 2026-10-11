@@ -1,26 +1,32 @@
-import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import { getRecordDetail } from "../../api/atlasApi";
 import type { RecordPreviewAnchor } from "./recordPreviewTypes";
+import type { RecordNavigationView } from "../../generated/atlas";
+import { useRecordDetail } from "./useRecordDetail";
 
 export function useRecordPreview() {
   const [recordKey, setRecordKey] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<RecordPreviewAnchor | null>(null);
-  const detail = useQuery({
-    queryKey: ["record-preview", recordKey],
-    enabled: recordKey !== null,
-    queryFn: () => getRecordDetail(recordKey!),
-  });
+  const [selection, setSelection] = useState<RecordNavigationView>();
+  const detail = useRecordDetail(recordKey, selection);
 
   const close = useCallback(() => {
     setRecordKey(null);
     setAnchor(null);
+    setSelection(undefined);
   }, []);
 
-  const open = useCallback((nextRecordKey: string, anchorRect?: DOMRect) => {
-    setRecordKey(nextRecordKey);
-    setAnchor(anchorRect ? recordPreviewAnchorFromRect(anchorRect) : null);
-  }, []);
+  const open = useCallback(
+    (
+      nextRecordKey: string,
+      anchor?: HTMLElement,
+      navigation?: RecordNavigationView,
+    ) => {
+      setRecordKey(nextRecordKey);
+      setAnchor((current) => current ?? anchor ?? null);
+      setSelection(navigation);
+    },
+    [],
+  );
 
   return {
     anchor,
@@ -30,16 +36,6 @@ export function useRecordPreview() {
     loading: detail.isLoading || detail.isFetching,
     open,
     recordKey,
-  };
-}
-
-function recordPreviewAnchorFromRect(rect: DOMRect): RecordPreviewAnchor {
-  return {
-    top: rect.top,
-    right: rect.right,
-    bottom: rect.bottom,
-    left: rect.left,
-    width: rect.width,
-    height: rect.height,
+    selection,
   };
 }

@@ -1,4 +1,9 @@
-import { detailFixture } from "../../test/fixtures";
+import {
+  detailFixture,
+  actorFixture,
+  numberFact,
+  summaryFixture,
+} from "../../test/fixtures";
 import { render, screen } from "@testing-library/react";
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordDetailPane } from "./RecordDetailPane";
@@ -32,38 +37,25 @@ describe("RecordDetailPane", () => {
     expect(screen.getByText("Unable to load detail")).toBeInTheDocument();
   });
 
-  it("prefers the composed record surface when present", () => {
+  it("renders the semantic family facts once", () => {
     render(
       <RecordDetailPane
         detail={{
           ...recordDetailFixture(),
-          surface: {
-            record_key: "actors:testCreature",
-            title: "Test Creature",
-            kind: "creature",
-            profile: "record_detail",
-            header: {
-              level_label: "3",
+          presentation: {
+            identity: {
+              ...summaryFixture("actors:testCreature", "Test Creature"),
+              kind: "creature",
               kind_label: "Creature",
+              level_label: "3",
               traits: [{ kind: "trait", label: "hag", value: "hag" }],
             },
-            sections: [
-              {
-                kind: "defenses",
-                title: "Defenses",
-                values: [
-                  {
-                    key: "ac",
-                    label: "AC",
-                    value: { kind: "number", value: 25 },
-                    base_value: { kind: "number", value: 25 },
-                    adjusted: false,
-                    display: "static_number",
-                  },
-                ],
-                collapsed_by_default: false,
-              },
-            ],
+            body: {
+              kind: "creature",
+              value: { ...actorFixture(), armor_class: numberFact(25) },
+            },
+            content: [],
+            owned: [],
           },
         }}
         loading={false}

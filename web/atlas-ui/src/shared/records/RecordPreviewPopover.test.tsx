@@ -8,7 +8,7 @@ describe("RecordPreviewPopover", () => {
     const onReference = vi.fn();
     render(
       <RecordPreviewPopover
-        anchor={{ top: 10, right: 20, bottom: 30, left: 5, width: 15, height: 20 }}
+        anchor={document.createElement("button")}
         detail={recordDetailFixture()}
         loading={false}
         onClose={vi.fn()}
@@ -21,7 +21,7 @@ describe("RecordPreviewPopover", () => {
 
     expect(onReference).toHaveBeenCalledWith(
       "rules:nested",
-      expect.objectContaining({ width: expect.any(Number) }),
+      expect.any(HTMLElement),
       expect.objectContaining({ record_key: "rules:nested" }),
     );
   });

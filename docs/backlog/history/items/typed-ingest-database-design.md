@@ -13,8 +13,8 @@ actual-model sample, product/browser workflows, independent reviews and complete
 hosted implementation CI pass; see the
 [validation report](../../../research/source-artifact-cutover-validation.md).
 This records implementation completion, not a merge into main.
-Family-specific presentation modeling remains a
-[separate review](../../items/rust-web-ui-architecture-review.md).
+The subsequent [presentation review](./rust-web-ui-architecture-review.md)
+records the semantic family response and shared consumer follow-up.
 
 ## Approved direction
 

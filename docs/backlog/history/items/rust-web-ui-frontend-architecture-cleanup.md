@@ -34,5 +34,5 @@ The landed outcome is:
 - [Architecture overview](../../../architecture/overview.md)
 - [Runtime architecture](../../../architecture/runtime.md)
 - [ADR 0029: Local web app boundary](../../../architecture/decisions/0029-local-web-app-boundary.md)
-- [Rust web UI architecture review](../../items/rust-web-ui-architecture-review.md)
+- [Rust web UI architecture review](./rust-web-ui-architecture-review.md)
 - [Component library decision](../../../../web/atlas-ui/docs/component-library-evaluation.md)
