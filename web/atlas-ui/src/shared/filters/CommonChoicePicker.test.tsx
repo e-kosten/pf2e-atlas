@@ -106,6 +106,52 @@ describe("compact common choice picker", () => {
     }));
   });
   afterEach(() => vi.restoreAllMocks());
+  it("preserves an early focused and edited row when native opening completes", async () => {
+    popup.deferred = true;
+    picker();
+    const trigger = screen.getByRole("button", { name: "Edit Traits filter" });
+    trigger.focus();
+    open();
+    act(() => popup.mount?.());
+    const row = screen.getByRole("button", {
+      name: "Traits: fire, neutral; activate to include",
+    });
+    row.focus();
+    fireEvent.click(row);
+    await waitFor(() =>
+      expect(row).toHaveAccessibleName("Traits: fire, included; activate to exclude"),
+    );
+    expect(row).toHaveFocus();
+    act(() => popup.complete?.(true));
+    expect(row).toHaveFocus();
+    expect(
+      screen.getByRole("button", {
+        name: "Traits: fire, included; activate to exclude",
+      }),
+    ).toBe(row);
+    fireEvent.keyDown(row, { key: "Escape" });
+    open();
+    act(() => popup.complete?.(true));
+    expect(
+      screen.getByRole("textbox", { name: "Search traits choices" }),
+    ).toHaveFocus();
+  });
+  it("does not autofocus over a pointer interaction during native opening", () => {
+    popup.deferred = true;
+    picker();
+    const trigger = screen.getByRole("button", { name: "Edit Traits filter" });
+    trigger.focus();
+    open();
+    act(() => popup.mount?.());
+    const row = screen.getByRole("button", {
+      name: "Traits: fire, neutral; activate to include",
+    });
+    fireEvent.pointerDown(row);
+    act(() => popup.complete?.(true));
+    // Pointer-down precedes the browser's focus/click actions. The completion
+    // must leave that interaction in charge rather than moving focus itself.
+    expect(trigger).toHaveFocus();
+  });
   it("focuses the search after first portal readiness and reopening without stealing row or closing focus", async () => {
     popup.deferred = true;
     picker();
