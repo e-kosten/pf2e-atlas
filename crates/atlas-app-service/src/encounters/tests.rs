@@ -1,6 +1,79 @@
 use crate::test_support::encounter_fixture_worker;
 use atlas_app_model::*;
 
+#[test]
+fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
+    let worker = crate::AtlasAppService::new(
+        crate::service::RetrievalBackend::OnDemandNoEmbeddings,
+        atlas_runtime::AtlasRuntimeOptions {
+            path_mode: atlas_runtime::AtlasPathMode::Global,
+            overrides: atlas_runtime::AtlasPathOverrides {
+                index_path: Some(
+                    crate::test_support::fixture_local_state_path()
+                        .with_extension("missing-artifact"),
+                ),
+                ..Default::default()
+            },
+        },
+        crate::test_support::fixture_local_state_path(),
+    )
+    .unwrap();
+    assert!(worker.record_detail("actors:testCreature1000").is_err());
+    let encounter = worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Source free".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let detail = worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            display_name: "Manual PC".into(),
+            max_hp: Some(0),
+            current_hp: Some(0),
+            initiative: None,
+        })
+        .unwrap();
+    assert_eq!(detail.artifact_generation, None);
+    assert_eq!(
+        detail.participants[0].status,
+        EncounterParticipantStatusView::Manual
+    );
+    assert_eq!(detail.participants[0].current_hp, Some(0));
+    let mut invalid = worker
+        .local_state_store()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap()
+        .participants
+        .remove(0);
+    invalid.participant_kind = atlas_local_state::ParticipantKind::Creature;
+    invalid.record_key = Some("invalid source address".into());
+    let projected = super::projection::encounter_detail_view(
+        &worker,
+        worker
+            .local_state_store()
+            .unwrap()
+            .encounters()
+            .get_with_participants(&encounter.encounter_key)
+            .unwrap()
+            .unwrap()
+            .encounter,
+        vec![invalid],
+    )
+    .unwrap();
+    assert!(projected.artifact_generation.is_none());
+    assert_eq!(
+        projected.participants[0].status,
+        EncounterParticipantStatusView::Unresolved
+    );
+    assert!(projected.participants[0].presentation.is_none());
+}
+
 fn hazard(p: &EncounterParticipantView) -> &HazardPresentationView {
     let RecordBodyView::Hazard(h) = &p.presentation.as_ref().unwrap().body else {
         panic!("hazard presentation")
@@ -122,6 +195,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         })
         .unwrap();
     let detail = f.worker.encounter(&e.encounter_key).unwrap();
+    assert!(detail.artifact_generation.is_some());
     let (metrics, authored, baselines) = f
         .worker
         .submit_retrieval(|r| {

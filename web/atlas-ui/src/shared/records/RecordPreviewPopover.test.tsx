@@ -52,7 +52,7 @@ describe("RecordPreviewPopover", () => {
       );
       await waitFor(() =>
         expect(
-          screen.getByRole("button", { name: "Open reference full page" }),
+          screen.getByRole("link", { name: "Open reference full page" }),
         ).toHaveFocus(),
       );
       const marker = screen.getByRole("button", { name: "Fortitude check" });
@@ -129,10 +129,10 @@ describe("RecordPreviewPopover", () => {
     expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Open reference full page" }),
+        screen.getByRole("link", { name: "Open reference full page" }),
       ).toHaveFocus(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Open reference full page" }));
+    fireEvent.click(screen.getByRole("link", { name: "Open reference full page" }));
     expect(props.onOpenFullPage).toHaveBeenCalledTimes(1);
     breakpoint.mockReturnValue({ xl: true });
     rerender(preview());
@@ -143,7 +143,7 @@ describe("RecordPreviewPopover", () => {
     expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Open reference full page" }),
+        screen.getByRole("link", { name: "Open reference full page" }),
       ).toHaveFocus(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));

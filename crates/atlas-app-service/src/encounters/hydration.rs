@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(super) fn hydrate_participant_records(
     service: &AtlasAppService,
     participants: &[EncounterParticipant],
-) -> AppServiceResult<BTreeMap<String, HydratedParticipantRecord>> {
+) -> AppServiceResult<(Option<String>, BTreeMap<String, HydratedParticipantRecord>)> {
     let keys = participants
         .iter()
         .filter_map(|p| {
@@ -19,6 +19,9 @@ pub(super) fn hydrate_participant_records(
                 .and_then(|s| RecordKey::parse(s).ok())
         })
         .collect::<BTreeSet<_>>();
+    if keys.is_empty() {
+        return Ok((None, BTreeMap::new()));
+    }
     service.submit_retrieval(move |r| {
         let mut records = BTreeMap::new();
         for key in keys {
@@ -64,7 +67,7 @@ pub(super) fn hydrate_participant_records(
                 );
             }
         }
-        Ok(records)
+        Ok((Some(r.artifact_generation()?), records))
     })
 }
 pub(super) fn resolve_record_ref(

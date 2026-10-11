@@ -141,11 +141,35 @@ presentation owners.
 
 Reference reading puts descriptive prose before grouped mechanics; encounters
 prioritize current combat state and actions. Family sections adapt to actual pane
-width rather than assuming full-window width. Owned ability disclosures request
-the exact selected detail lazily and reuse the checked detail/cache identity and
-prepared content renderer. Expanding an ability preserves its parent context;
-an explicit native link remains available for full-page reading. These are
-transient layout/workflow choices, not additional stored content or family models.
+width rather than assuming full-window width. Reference consumers show the same
+content and facts; compact density does not suppress sections. Immediate
+Ability-class action/effect/feat content reads inline by default through a
+separate generation-bound owned-reading response. Each explicit batch checks one
+parent and reads one prepared batch, limited to 32 activities and 256 fields.
+The response carries authored content and exact per-activity relationships,
+without recursive detail envelopes or duplicated activity facts. Index owns
+combined exact-locator prepared/relationship SQL. Every delivered rich field has
+complete occurrence attribution; an oversized field is explicitly bounded rather
+than shown with missing interactive links. Non-content relationship discovery
+remains separate. No artifact schema or admission policy changes.
+
+Reading progression follows actual container scrolling near continuation, with
+bounded concurrency and identity cancellation. Idle visibility cannot drain a
+large collection; collapsing stops future loads and late failures retain already
+loaded text with local retry. A direct late owner starts at its bounded range,
+with explicit omitted-earlier content and backward/forward continuation. Anchors
+encode the complete checked owner address, while a separate landing state keeps
+parent return distinct from selected identity. Native permalinks and breadcrumbs
+preserve modified clicks and known search/list/reader context.
+
+Encounter native quick lookup fetches authored content for an existing requested
+activity and composes it with the exact matching current participant activity on
+every update. Adjusted facts and explanations stay in encounter presentation,
+never in reference content caches or a baseline child-detail replacement. The
+content-free deduplicated hydration captures an optional immutable artifact
+generation; no valid source keys means no retrieval or artifact open. Invalid
+references remain unresolved. Native source dialogs retain nested Escape and
+trigger focus. These are transient workflows, not stored content or family models.
 
 This replaces the section/value/profile decision and migration fallback in
 ADR0031, while retaining its app-service composition boundary. Old transport,

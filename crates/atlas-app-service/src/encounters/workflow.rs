@@ -276,7 +276,7 @@ impl AtlasAppService {
         } else if request.use_derived_max
             || (variant_changed && hp_origin != atlas_local_state::ParticipantHpOrigin::Explicit)
         {
-            let records = hydrate_participant_records(self, std::slice::from_ref(&existing))?;
+            let (_, records) = hydrate_participant_records(self, std::slice::from_ref(&existing))?;
             let derived = existing
                 .record_key
                 .as_ref()
@@ -347,7 +347,8 @@ impl AtlasAppService {
                     ),
                 )
             })?;
-        let records_by_key = hydrate_participant_records(self, std::slice::from_ref(&participant))?;
+        let (_, records_by_key) =
+            hydrate_participant_records(self, std::slice::from_ref(&participant))?;
         Ok(participant_view(participant, &records_by_key))
     }
 

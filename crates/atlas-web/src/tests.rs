@@ -823,6 +823,22 @@ impl AtlasWebService for MockService {
     ) -> Result<RecordDetailView, AppServiceError> {
         self.record_detail(&request.record_key)
     }
+    fn owned_reading(
+        &self,
+        request: atlas_app_model::OwnedReadingRequest,
+    ) -> Result<atlas_app_model::OwnedReadingBatchView, AppServiceError> {
+        Ok(atlas_app_model::OwnedReadingBatchView {
+            artifact_generation: request.artifact_generation,
+            parent: request.parent,
+            availability: atlas_domain::QueryFieldState::Value,
+            total: 0,
+            start: 0,
+            end: 0,
+            previous: None,
+            next: None,
+            entries: vec![],
+        })
+    }
 
     fn open_result_window(
         &self,
@@ -1206,6 +1222,7 @@ fn encounter_detail(
     include_condition: bool,
 ) -> EncounterDetailView {
     EncounterDetailView {
+        artifact_generation: Some("test-generation".into()),
         encounter: encounter_summary(encounter_ref, "Ambush"),
         note: Some("Fixture notes".to_string()),
         current_turn_participant_key,

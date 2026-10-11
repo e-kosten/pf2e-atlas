@@ -3,6 +3,12 @@ import { ConfigProvider, Grid } from "antd";
 import { useRecordPreview } from "./useRecordPreview";
 import { detailFixture } from "../../test/fixtures";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+function queryWrapper({ children }: { children: import("react").ReactNode }) {
+  return (
+    <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+  );
+}
 
 vi.mock("./useRecordDetail", () => ({
   useRecordDetail: () => ({
@@ -45,7 +51,7 @@ function PreviewFlow() {
 }
 
 it("returns focus to the original live trigger after following nested references", () => {
-  render(<PreviewFlow />);
+  render(<PreviewFlow />, { wrapper: queryWrapper });
   const original = screen.getByRole("button", { name: "Original reference" });
   act(() => original.focus());
   fireEvent.click(original);
@@ -88,6 +94,7 @@ it("returns focus to the original trigger after dismissing a narrow reference dr
       <ConfigProvider theme={{ token: { motion: false } }}>
         <NarrowPreviewFlow />
       </ConfigProvider>,
+      { wrapper: queryWrapper },
     );
     const original = screen.getByRole("button", { name: "Ghoul reference" });
     act(() => original.focus());

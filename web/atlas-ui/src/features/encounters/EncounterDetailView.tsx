@@ -46,7 +46,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
-  const recordPreview = useRecordPreview();
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -64,6 +63,19 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         participant.participant_key === encounter.data?.current_turn_participant_key,
     ) ??
     encounter.data?.participants[0];
+  const selectedBody = selected?.presentation?.body;
+  const selectedActor =
+    selectedBody?.kind === "creature"
+      ? selectedBody.value
+      : selectedBody?.kind === "hazard"
+        ? selectedBody.value.actor
+        : undefined;
+  const recordPreview = useRecordPreview({
+    identity: selected?.participant_key ?? "",
+    generation: encounter.data?.artifact_generation ?? null,
+    parentRecordKey: selected?.record_key,
+    activities: selectedActor?.activities.value ?? [],
+  });
   const invalidateEncounter = async () => {
     await queryClient.invalidateQueries({ queryKey: ["encounter", route.slug] });
     await queryClient.invalidateQueries({ queryKey: ["encounters"] });
@@ -226,6 +238,8 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
             previewAnchor={recordPreview.anchor}
             previewDetail={recordPreview.detail}
+            previewContextual={recordPreview.contextual}
+            previewSelection={recordPreview.selection}
             previewLoading={recordPreview.loading}
             previewError={recordPreview.error}
             onRetryPreview={recordPreview.retry}

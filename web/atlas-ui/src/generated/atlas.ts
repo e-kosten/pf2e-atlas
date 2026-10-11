@@ -108,6 +108,11 @@ export type { RecordBadgeView } from "../../../../crates/atlas-app-model/binding
 export type { RecordBodyView } from "../../../../crates/atlas-app-model/bindings/RecordBodyView";
 export type { RecordDetailRequest } from "../../../../crates/atlas-app-model/bindings/RecordDetailRequest";
 export type { RecordDetailView } from "../../../../crates/atlas-app-model/bindings/RecordDetailView";
+export type { OwnedReadingRequest } from "../../../../crates/atlas-app-model/bindings/OwnedReadingRequest";
+export type { OwnedReadingSelection } from "../../../../crates/atlas-app-model/bindings/OwnedReadingSelection";
+export type { OwnedReadingCursor } from "../../../../crates/atlas-app-model/bindings/OwnedReadingCursor";
+export type { OwnedReadingBatchView } from "../../../../crates/atlas-app-model/bindings/OwnedReadingBatchView";
+export type { OwnedReadingEntryView } from "../../../../crates/atlas-app-model/bindings/OwnedReadingEntryView";
 export type { RecordKey } from "../../../../crates/atlas-app-model/bindings/RecordKey";
 export type { RecordListView } from "../../../../crates/atlas-app-model/bindings/RecordListView";
 export type { RecordNavigationView } from "../../../../crates/atlas-app-model/bindings/RecordNavigationView";

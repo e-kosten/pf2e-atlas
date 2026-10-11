@@ -387,6 +387,16 @@ pub(crate) async fn record_detail_at(
         call_service(state, move || service.record_detail_at(request)).await?,
     ))
 }
+pub(crate) async fn owned_reading(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::OwnedReadingRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.owned_reading(request)).await?,
+    ))
+}
 pub(crate) async fn discover_filter_counts(
     State(state): State<AtlasWebState>,
     payload: Result<Json<DiscoverFilterCountsRequest>, JsonRejection>,

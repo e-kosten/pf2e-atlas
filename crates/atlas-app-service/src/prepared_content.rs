@@ -14,6 +14,7 @@ pub(crate) fn prepared_fields(
     owners: &[OwnedContentLocator],
     selections: &[SourceContentSelection<'_>],
     cache: &[atlas_search::SourcePreparedContent],
+    bounded: &[SourceContentLocator],
     audience: ContentAudience,
     fingerprint: &str,
 ) -> AppServiceResult<Vec<PreparedContentFieldView>> {
@@ -38,6 +39,17 @@ pub(crate) fn prepared_fields(
                 PreparedFieldBodyView::Plain { text: text.clone() }
             }
             (SourceFieldView::Value(_), SourceFieldView::Value(SourceContentFormat::Html)) => {
+                if bounded.contains(&locator) {
+                    fields.push(PreparedContentFieldView {
+                        locator,
+                        role: format!("{:?}", s.role).to_lowercase(),
+                        source_fingerprint: navigation_fingerprint(owners, fingerprint),
+                        body: PreparedFieldBodyView::Bounded {
+                            reason: "This field exceeds the reference-link reading limit.".into(),
+                        },
+                    });
+                    continue;
+                }
                 let cached = cache.iter().find(|c| c.locator == locator).ok_or_else(|| {
                     AppServiceError::new(
                         AppErrorCode::ArtifactIncompatible,

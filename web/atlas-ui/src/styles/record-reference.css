@@ -212,14 +212,23 @@
 .actor-casting__row .muted {
   font-size: 0.85rem;
 }
-.actor-ability__label {
+.actor-activity__title {
   display: inline-flex;
   gap: 8px;
   align-items: baseline;
   flex-wrap: wrap;
 }
-.actor-ability__detail {
+.owned-ability-reading__entry {
   min-width: 0;
+  padding-block: 8px;
+}
+.owned-reading-continuation {
+  overflow-anchor: none;
+  padding-block: 8px;
+  color: var(--muted);
+}
+.record-reference__owner {
+  padding-inline: 0;
 }
 .record-reference__facts,
 .record-number,

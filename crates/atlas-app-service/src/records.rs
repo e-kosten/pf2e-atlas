@@ -98,8 +98,8 @@ impl AtlasAppService {
             let selected:Vec<_>=selections.into_iter().filter(|s|if request.fields.is_empty(){s.role!=SourceContentRole::Name && matches!(s.text,SourceFieldView::Value(_))}else{request.fields.iter().any(|f|f==s.field)}).collect();
             if selected.len()>256 {return Err(AppServiceError::invalid_request("select at most 256 content fields per detail request"));}
             let locators:Vec<_>=selected.iter().filter(|s|matches!(s.format,SourceFieldView::Value(SourceContentFormat::Html))).map(|s|SourceContentLocator{record:key.clone(),owners:request.owners.clone(),field:s.field.into()}).collect();
-            let content=r.read_content(&locators)?;
-            let fields=crate::prepared_content::prepared_fields(&key,&request.owners,&selected,&content.fields,r.artifact_context().audience,r.source_fingerprint())?;
+            let content=r.read_attributed_content(&locators)?;
+            let fields=crate::prepared_content::prepared_fields(&key,&request.owners,&selected,&content.content.fields,&content.bounded,r.artifact_context().audience,r.source_fingerprint())?;
             if let Some(address)=&request.passage {
                 if matches!(address,SourcePassageAddress::Identity{}) {
                     if !request.fields.is_empty(){return Err(AppServiceError::invalid_request("identity navigation cannot select a prose field"));}
@@ -116,8 +116,8 @@ impl AtlasAppService {
             }
             let summary=crate::projection::localized_summary_view(&detail.summary,r);
             let presentation=crate::presentation::record_presentation(&detail.source,node,&summary,&request.owners,fields,r);
-            let relationships=r.read_relationships(&SourceRelationshipRequest{record:key.clone(),owners:Some(request.owners.clone()),field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},direction:SourceRelationshipDirection::Outgoing,limit:1024})?;
-            Ok(RecordDetailView{artifact_generation:r.artifact_generation()?,record:summary,presentation,selected:RecordNavigationView{record_key:key.to_string(),source_fingerprint:navigation_fingerprint(&request.owners,r.source_fingerprint()),owners:request.owners,field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},passage:request.passage},relationships:relationships.occurrences.into_iter().map(|o|relationship_view(o,r.source_fingerprint())).collect(),relationships_truncated:relationships.truncated})
+            let relationships=r.read_non_content_relationships(&SourceRelationshipRequest{record:key.clone(),owners:Some(request.owners.clone()),field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},direction:SourceRelationshipDirection::Outgoing,limit:1024})?;
+            Ok(RecordDetailView{artifact_generation:r.artifact_generation()?,record:summary,presentation,selected:RecordNavigationView{record_key:key.to_string(),source_fingerprint:navigation_fingerprint(&request.owners,r.source_fingerprint()),owners:request.owners,field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},passage:request.passage},relationships:content.relationships.into_iter().chain(relationships.occurrences).map(|o|relationship_view(o,r.source_fingerprint())).collect(),relationships_truncated:relationships.truncated || !content.bounded.is_empty()})
         })
     }
 }

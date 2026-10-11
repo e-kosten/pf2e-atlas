@@ -85,6 +85,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         )
         .route("/api/records/{record_key}", get(record_detail))
         .route("/api/records/detail", post(crate::handlers::record_detail_at))
+        .route("/api/records/owned-reading", post(crate::handlers::owned_reading))
         .fallback(get(static_asset))
         .with_state(state)
 }

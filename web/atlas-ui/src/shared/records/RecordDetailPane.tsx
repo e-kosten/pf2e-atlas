@@ -9,6 +9,7 @@ import type { RecordDetailView } from "../../generated/atlas";
 import { RecordPresentation } from "./RecordPresentation";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RelatedRecords } from "./RelatedRecords";
+import { currentAtlasRoute } from "../../app/routes";
 type RecordDetailPaneError = Error | { message: string } | null | undefined;
 export function RecordDetailPane({
   detail,
@@ -22,7 +23,8 @@ export function RecordDetailPane({
   onReference,
   compact = false,
   showRelated = true,
-  inline = false,
+  landing,
+  onOwnerReturn,
 }: {
   detail: RecordDetailView | undefined;
   emptyMessage?: string;
@@ -35,14 +37,24 @@ export function RecordDetailPane({
   onReference: RecordReferenceHandler;
   compact?: boolean;
   showRelated?: boolean;
-  inline?: boolean;
+  landing?: import("../../generated/atlas").RecordNavigationView;
+  onOwnerReturn?: (
+    parent: string,
+    landing: import("../../generated/atlas").RecordNavigationView,
+    anchor: HTMLElement,
+  ) => void;
 }) {
   const code =
     error && "appError" in error ? (error as AtlasApiError).appError?.code : undefined;
   const notFound = code === "record_not_found";
+  const route = currentAtlasRoute();
+  const routeLanding = "landing" in route ? route.landing : undefined;
+  const readingLanding =
+    landing ??
+    (routeLanding?.record_key === detail?.record.record_key ? routeLanding : undefined);
   return (
     <section
-      className={`detail-panel${compact ? " detail-panel--compact" : ""}${inline ? " detail-panel--inline" : ""}`}
+      className={`detail-panel${compact ? " detail-panel--compact" : ""}`}
       aria-busy={loading}
     >
       {detail && loading && (
@@ -107,10 +119,21 @@ export function RecordDetailPane({
             root={detail.record}
             selection={detail.selected}
             compact={compact}
-            hideIdentity={inline}
-            hideActivityCost={inline}
             relationships={detail.relationships}
+            reading={{
+              generation: detail.artifact_generation,
+              parent: {
+                record_key: detail.record.record_key,
+                owners: [],
+                field: null,
+                passage: null,
+                source_fingerprint: null,
+              },
+              landing: readingLanding,
+              reloadParent: onRetry,
+            }}
             onReference={onReference}
+            onOwnerReturn={onOwnerReturn}
           />
           {showRelated && (
             <RelatedRecords

@@ -62,6 +62,12 @@ impl AtlasRetrievalService {
     ) -> Result<atlas_index::SourceRelationshipBundle, SearchError> {
         Ok(self.index.read_relationships(request)?)
     }
+    pub fn read_non_content_relationships(
+        &self,
+        request: &SourceRelationshipRequest,
+    ) -> Result<atlas_index::SourceRelationshipBundle, SearchError> {
+        Ok(self.index.read_non_content_relationships(request)?)
+    }
     pub fn graph_context(
         &self,
         request: GraphContextRequest,

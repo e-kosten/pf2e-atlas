@@ -42,8 +42,14 @@ equipment, journal and table presentation remains future family work, rather tha
 an expansion of this shared workflow slice.
 
 Reference layouts put prose first and group facts/mechanics by actual pane width.
-Owned abilities load their exact prepared detail inline on expansion, retaining
-parent context and native full-page navigation. Casting entries show checked
+Immediate Ability-class activities read inline by default in finite 32-activity,
+256-field batches. One checked parent and one attributed prepared batch provide
+exact relationships without duplicate facts or detail-cache seeding. Actual
+container scrolling starts continuation; idle visibility stays bounded, collapse
+halts future loading and local retry retains text. Direct late-owner landing
+loads its range with readable backward/forward paths. Native permalinks and
+parent breadcrumbs preserve checked anchors and known navigation context.
+Compact previews and comparison render the same reference meaning. Casting entries show checked
 parent membership and local spell ranks without executing selected-rank changes.
 Hazards group Detection content and use explicit backend defense-block presence;
 valid zero saves and unavailable values remain visible. Known-empty optional
@@ -59,9 +65,8 @@ existing family model and shared presentation owners.
 
 Similar windows and Related availability have local automated coverage. This
 item remains in progress pending integrated full verification, real-browser and
-independent visual acceptance. Progressive owned reading and encounter-specific
-ability composition remain separate unfinished work; this slice does not complete
-them.
+independent visual acceptance of bounded owned reading and contextual encounter
+lookup. Dedicated future family work and rank execution remain separate.
 
 ## Desired Outcome
 

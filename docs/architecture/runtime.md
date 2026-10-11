@@ -204,8 +204,34 @@ rosters expose base and explicit authored cast ranks without duplicating the
 roster in each entry. Hazard defense-block applicability is projected explicitly:
 known zero AC and maximum HP suppress the primary block while original facts and
 valid zero saves remain retained. Shared reference layouts put prose first;
-encounter layouts prioritize combat state. Inline owned ability content requests
-use the existing exact selected-detail workflow lazily on expansion.
+encounter layouts prioritize combat state. Immediate Ability-class actions, effects and feats read inline by default through
+bounded owned-reading batches: one checked parent decode and one attributed
+prepared-content batch, up to 32 activities and 256 fields. Index owns exact
+locator SQL and complete relationship attribution for each delivered field.
+Fields exceeding the 1024 occurrence response budget have an explicit bounded
+outcome; valid rich content is never delivered with silently disabled links.
+Separate non-content relationship discovery remains bounded. Reading continuations
+and browser caches bind the immutable artifact generation; partial content never
+seeds selected-detail caches. Direct late-owner landing loads its bounded range
+without predecessor reads and retains explicit backward/forward continuation.
+
+All browser reference consumers render the same family meaning, including native
+previews and comparison; compact changes density only. Shared prepared content
+renders authored controls and exact links. Scrolling the actual reading container
+near continuation starts the next finite batch; an idle visible sentinel and a
+collapsed section do not start further batches. Complete checked owner anchors
+are distinct from selected-detail addresses. Native permalinks preserve modified
+clicks, and parent return retains known search/list/reader context and a checked
+reading landing.
+
+Encounter quick lookup requests only the selected activity's authored content,
+including existing strike, spell and casting-entry triggers. Each render resolves
+its exact current participant activity facts and explanations; reference caches
+never retain adjusted facts or replace them with baseline child detail. Changed
+participants, stale generations and missing activities remain explicit. Content-free
+hydration captures the artifact generation in the same deduplicated retrieval;
+source-free encounters have no generation and require no artifact open. Invalid
+referenced participants remain unresolved rather than becoming manual records.
 
 Web startup uses
 full pooled retrieval; short-lived CLI workflows may choose explicit model-free

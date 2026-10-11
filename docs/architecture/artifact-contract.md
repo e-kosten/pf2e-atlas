@@ -225,3 +225,13 @@ identity evidence, FTS postings and vector coverage/dimensions/finiteness/normal
 Query summaries and selected cache reads do not decode bodies. Explicit detail
 decodes one root and requests bounded batches of selected content; no per-marker
 or per-field body reads are permitted.
+
+Exact-locator attributed content reading is an index-owned transient operation;
+it changes no stored schema or preparation identity. Requests select at most 256
+fields. Delivered rich fields retain complete validated content-origin occurrence
+attribution within a 1024 occurrence response budget. A whole field exceeding the
+remaining budget has an explicit bounded outcome; readers do not display its HTML
+with silently missing links. Non-content relationship discovery stays a separate
+bounded operation. App-service owned-reading batches check one parent, select at
+most 32 immediate Ability-class activities and reuse this prepared batch without
+recursive detail projection or a second fact authority.

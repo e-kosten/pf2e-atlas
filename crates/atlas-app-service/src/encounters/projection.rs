@@ -22,11 +22,13 @@ pub(super) fn encounter_detail_view(
     encounter: Encounter,
     participants: Vec<EncounterParticipant>,
 ) -> AppServiceResult<EncounterDetailView> {
-    let records_by_key = hydrate_participant_records(service, &participants)?;
+    let (artifact_generation, records_by_key) =
+        hydrate_participant_records(service, &participants)?;
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
     let note = encounter.note.clone();
     Ok(EncounterDetailView {
+        artifact_generation,
         encounter: encounter_summary(encounter, participant_count),
         note,
         current_turn_participant_key,

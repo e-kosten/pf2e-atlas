@@ -67,10 +67,8 @@ describe("authored action costs", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it.each([false, true])("reuses the spell renderer at compact=%s", (compact) => {
-    const { container } = render(
-      <SpellReference spell={spellFixture()} compact={compact} />,
-    );
+  it("renders spell casting cost once in its casting group", () => {
+    const { container } = render(<SpellReference spell={spellFixture()} />);
     expect(
       container.querySelectorAll('[data-atlas-action-glyph="two_actions"]'),
     ).toHaveLength(1);
