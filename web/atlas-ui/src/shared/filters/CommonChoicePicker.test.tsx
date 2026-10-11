@@ -1,0 +1,410 @@
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ConfigProvider, Grid } from "antd";
+import { useState } from "react";
+import { CommonChoicePicker } from "./CommonChoicePicker";
+import { editorFixture, fieldFixture } from "../../test/fixtures";
+import type { FilterVocabularyScope, QueryPredicate } from "../../generated/atlas";
+
+const api = vi.hoisted(() => ({ discoverFilterValues: vi.fn() }));
+vi.mock("../../api/atlasApi", () => api);
+function picker({
+  closed = true,
+  initial = null,
+  scope = { kind: "artifact" },
+}: {
+  closed?: boolean;
+  initial?: QueryPredicate | null;
+  scope?: FilterVocabularyScope;
+} = {}) {
+  const definition = {
+    ...fieldFixture("traits", "set", "Traits"),
+    choices: closed ? ["fire", "cold", "magical"] : [],
+  };
+  const field = editorFixture([definition]).groups[0].fields[0];
+  const onChange = vi.fn();
+  function Harness() {
+    const [clause, setClause] = useState(initial);
+    return (
+      <CommonChoicePicker
+        field={field}
+        clause={clause}
+        scope={scope}
+        onChange={(next) => {
+          setClause(next);
+          onChange(next);
+        }}
+      />
+    );
+  }
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <Harness />
+      </QueryClientProvider>
+    </ConfigProvider>,
+  );
+  return onChange;
+}
+function open() {
+  fireEvent.click(screen.getByRole("button", { name: "Edit Traits filter" }));
+}
+describe("compact common choice picker", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+    api.discoverFilterValues.mockImplementation(async (request) => ({
+      kind: "vocabulary",
+      scope: request.scope,
+      values: {
+        field: request.field_id,
+        selected_values: request.selected_values,
+        total_values: 90n,
+        options: request.offset
+          ? [{ value: "second-page" }]
+          : [{ value: "fire" }, { value: "cold" }],
+        basis: "product_key_scope_before_edition_preference",
+      },
+    }));
+  });
+  afterEach(() => vi.restoreAllMocks());
+  it("shows only active selections when closed and keeps searched catalog rows in order through edits", async () => {
+    const change = picker();
+    expect(screen.queryByText("fire")).not.toBeInTheDocument();
+    expect(api.discoverFilterValues).not.toHaveBeenCalled();
+    open();
+    const menu = screen.getByRole("dialog", { name: "Traits choices" });
+    const search = within(menu).getByRole("textbox", { name: "Search traits choices" });
+    expect(search).toHaveFocus();
+    fireEvent.change(search, { target: { value: "fi" } });
+    expect(within(menu).queryByText("cold")).not.toBeInTheDocument();
+    const row = within(menu).getByRole("button", {
+      name: "Traits: fire, neutral; activate to include",
+    });
+    row.focus();
+    fireEvent.click(row);
+    await waitFor(() =>
+      expect(row).toHaveAccessibleName("Traits: fire, included; activate to exclude"),
+    );
+    expect(row).toHaveFocus();
+    expect(row).not.toHaveAttribute("aria-pressed");
+    expect(row).toHaveTextContent(/^fire$/);
+    fireEvent.click(row);
+    await waitFor(() =>
+      expect(row).toHaveAccessibleName("Traits: fire, excluded; activate to clear"),
+    );
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        kind: "set_match",
+        op: "excludes_any",
+        values: ["fire"],
+      }),
+    );
+    fireEvent.change(search, { target: { value: "" } });
+    await waitFor(() =>
+      expect(
+        within(menu)
+          .getAllByRole("button")
+          .map((button) => button.textContent),
+      ).toEqual(["fire", "cold", "magical"]),
+    );
+    fireEvent.keyDown(row, { key: "Escape" });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Traits choices" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Edit Traits filter" })).toHaveFocus();
+    const remove = screen.getByRole("button", {
+      name: "Remove excluded fire from Traits",
+    });
+    expect(remove).toHaveTextContent("fire");
+    expect(screen.queryByText("cold")).not.toBeInTheDocument();
+    fireEvent.click(remove);
+    expect(change).toHaveBeenLastCalledWith(null);
+  });
+  it("retains an absent selected row after clearing it until the menu closes", async () => {
+    picker({
+      initial: {
+        kind: "set_match",
+        clause_id: "traits",
+        field: "traits",
+        op: "includes_any",
+        values: ["absent-selected"],
+      },
+    });
+    open();
+    const row = screen.getByRole("button", {
+      name: "Traits: absent-selected, included; activate to exclude",
+    });
+    fireEvent.click(row);
+    await waitFor(() =>
+      expect(row).toHaveAccessibleName(
+        "Traits: absent-selected, excluded; activate to clear",
+      ),
+    );
+    fireEvent.click(row);
+    await waitFor(() =>
+      expect(row).toHaveAccessibleName(
+        "Traits: absent-selected, neutral; activate to include",
+      ),
+    );
+    expect(
+      screen.queryByRole("button", { name: /Remove .*absent-selected/ }),
+    ).not.toBeInTheDocument();
+    fireEvent.keyDown(row, { key: "Escape" });
+    open();
+    expect(
+      screen.queryByRole("button", { name: /Traits: absent-selected/ }),
+    ).not.toBeInTheDocument();
+  });
+  it("uses bounded server search/page requests in the saved-list scope while retaining absent selections", async () => {
+    picker({
+      closed: false,
+      scope: { kind: "saved_list", list_ref: "research" },
+      initial: {
+        kind: "set_match",
+        clause_id: "traits",
+        field: "traits",
+        op: "includes_any",
+        values: ["absent-selected"],
+      },
+    });
+    expect(api.discoverFilterValues).not.toHaveBeenCalled();
+    open();
+    const menu = screen.getByRole("dialog", { name: "Traits choices" });
+    await within(menu).findByRole("button", {
+      name: "Traits: fire, neutral; activate to include",
+    });
+    expect(screen.getByText("90 values in this list")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "More values" }));
+    await within(menu).findByRole("button", {
+      name: "Traits: second-page, neutral; activate to include",
+    });
+    expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        scope: { kind: "saved_list", list_ref: "research" },
+        offset: 40,
+        limit: 40,
+        selected_values: ["absent-selected"],
+      }),
+    );
+    expect(
+      within(menu).getByRole("button", {
+        name: "Traits: absent-selected, included; activate to exclude",
+      }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search traits choices" }), {
+      target: { value: "fir" },
+    });
+    await waitFor(() =>
+      expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          text: "fir",
+          offset: 0,
+          limit: 40,
+          selected_values: ["absent-selected"],
+        }),
+      ),
+    );
+  });
+  it("retains newly edited off-page rows in edit order through neutral and another include cycle", async () => {
+    picker({ closed: false });
+    open();
+    const menu = screen.getByRole("dialog", { name: "Traits choices" });
+    const cold = await within(menu).findByRole("button", {
+      name: "Traits: cold, neutral; activate to include",
+    });
+    fireEvent.click(cold);
+    const fire = within(menu).getByRole("button", {
+      name: "Traits: fire, neutral; activate to include",
+    });
+    fireEvent.click(fire);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "More values" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More values" }));
+    await within(menu).findByRole("button", {
+      name: "Traits: second-page, neutral; activate to include",
+    });
+    const retained = within(menu).getByRole("button", {
+      name: "Traits: cold, included; activate to exclude",
+    });
+    const names = () =>
+      within(menu)
+        .getAllByRole("button")
+        .filter((button) => button.classList.contains("common-choice-row"))
+        .map((button) => button.textContent);
+    expect(names()).toEqual(["second-page", "cold", "fire"]);
+    retained.focus();
+    fireEvent.click(retained);
+    await waitFor(() =>
+      expect(retained).toHaveAccessibleName(
+        "Traits: cold, excluded; activate to clear",
+      ),
+    );
+    expect(names()).toEqual(["second-page", "cold", "fire"]);
+    expect(retained).toHaveFocus();
+    fireEvent.click(retained);
+    await waitFor(() =>
+      expect(retained).toHaveAccessibleName(
+        "Traits: cold, neutral; activate to include",
+      ),
+    );
+    expect(names()).toEqual(["second-page", "cold", "fire"]);
+    expect(retained).toBeInTheDocument();
+    expect(retained).toHaveFocus();
+    fireEvent.click(retained);
+    await waitFor(() =>
+      expect(retained).toHaveAccessibleName(
+        "Traits: cold, included; activate to exclude",
+      ),
+    );
+    expect(names()).toEqual(["second-page", "cold", "fire"]);
+    expect(retained).toHaveFocus();
+    // Neutral history belongs to this open session, not subsequent visits.
+    fireEvent.click(retained);
+    fireEvent.click(retained);
+    await waitFor(() =>
+      expect(retained).toHaveAccessibleName(
+        "Traits: cold, neutral; activate to include",
+      ),
+    );
+    fireEvent.keyDown(retained, { key: "Escape" });
+    open();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "More values" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More values" }));
+    await screen.findByRole("button", {
+      name: "Traits: second-page, neutral; activate to include",
+    });
+    expect(
+      screen.queryByRole("button", {
+        name: "Traits: cold, neutral; activate to include",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Traits: fire, included; activate to exclude",
+      }),
+    ).toBeInTheDocument();
+  });
+  it("preserves mounted suggestion rows and focus while a selection refetch is pending", async () => {
+    let finish: ((value: unknown) => void) | undefined;
+    const initialResponse = api.discoverFilterValues.getMockImplementation()!;
+    api.discoverFilterValues.mockImplementation((request) =>
+      request.selected_values.length
+        ? new Promise((resolve) => {
+            finish = resolve;
+          })
+        : initialResponse(request),
+    );
+    picker({ closed: false });
+    open();
+    const row = await screen.findByRole("button", {
+      name: "Traits: fire, neutral; activate to include",
+    });
+    row.focus();
+    fireEvent.click(row);
+    await waitFor(() => expect(finish).toBeDefined());
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveFocus();
+    expect(
+      screen.getByRole("button", {
+        name: "Traits: cold, neutral; activate to include",
+      }),
+    ).toBeInTheDocument();
+    finish!({
+      kind: "vocabulary",
+      scope: { kind: "artifact" },
+      values: {
+        field: "traits",
+        selected_values: ["fire"],
+        total_values: 90n,
+        options: [{ value: "fire" }, { value: "cold" }],
+        basis: "product_key_scope_before_edition_preference",
+      },
+    });
+    await waitFor(() =>
+      expect(row).toHaveAccessibleName("Traits: fire, included; activate to exclude"),
+    );
+    expect(row).toHaveFocus();
+  });
+  it("keeps the requested server page after the initial debounce settles", async () => {
+    vi.useFakeTimers();
+    try {
+      picker({ closed: false });
+      open();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      fireEvent.click(screen.getByRole("button", { name: "More values" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(251);
+      });
+      expect(screen.getByRole("button", { name: "Previous values" })).toBeEnabled();
+      expect(
+        screen.getByRole("button", {
+          name: "Traits: second-page, neutral; activate to include",
+        }),
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("keeps selected criteria and offers a local retry when vocabulary fails", async () => {
+    api.discoverFilterValues.mockRejectedValueOnce(
+      new Error("Vocabulary service unavailable"),
+    );
+    const change = picker({
+      closed: false,
+      initial: {
+        kind: "set_match",
+        clause_id: "traits",
+        field: "traits",
+        op: "excludes_any",
+        values: ["absent-selected"],
+      },
+    });
+    open();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Vocabulary service unavailable",
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Traits: absent-selected, excluded; activate to clear",
+      }),
+    ).toBeInTheDocument();
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Retry values" }));
+    expect(
+      await screen.findByRole("button", {
+        name: "Traits: fire, neutral; activate to include",
+      }),
+    ).toBeInTheDocument();
+    expect(change).not.toHaveBeenCalled();
+  });
+  it("uses a mobile Drawer and returns focus to the native trigger after dismissal", async () => {
+    vi.mocked(Grid.useBreakpoint).mockReturnValue({ xs: true });
+    picker();
+    const trigger = screen.getByRole("button", { name: "Edit Traits filter" });
+    trigger.focus();
+    open();
+    expect(await screen.findByRole("dialog", { name: "Traits" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Search traits choices" }),
+    ).not.toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+});

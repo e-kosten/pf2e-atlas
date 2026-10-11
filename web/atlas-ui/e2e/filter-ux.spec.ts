@@ -6,6 +6,11 @@ test("common filters retain valid results through drafts and exact URL reload", 
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/search");
+  const kindPicker = page.getByRole("button", {
+    name: "Edit Kind filter",
+    exact: true,
+  });
+  await kindPicker.click();
   const creature = page.getByRole("button", {
     name: "Kind: Creature, neutral; activate to include",
     exact: true,
@@ -29,6 +34,8 @@ test("common filters retain valid results through drafts and exact URL reload", 
       }),
     ]),
   );
+  await page.keyboard.press("Escape");
+  await expect(kindPicker).toBeFocused();
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await expect(
     page.getByRole("combobox", { name: "Filter field", exact: true }),
@@ -105,10 +112,51 @@ test("narrow advanced filters use a native drawer with keyboard focus return", a
   await expect(trigger).toBeFocused();
 });
 
+test("compact choices keep keyboard focus, mix states and dismiss their mobile drawer", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 460, height: 900 });
+  await page.goto("/search");
+  const trigger = page.getByRole("button", { name: "Edit Kind filter", exact: true });
+  await trigger.focus();
+  await trigger.press("Enter");
+  const drawer = page.getByRole("dialog", { name: "Kind", exact: true });
+  await expect(drawer).toBeVisible();
+  const input = drawer.getByRole("textbox", { name: "Search kind choices" });
+  await expect(input).not.toBeFocused();
+  await input.fill("Creature");
+  const row = drawer.getByRole("button", {
+    name: "Kind: Creature, neutral; activate to include",
+    exact: true,
+  });
+  await row.focus();
+  await row.press("Enter");
+  await expect(row).toBeFocused();
+  await expect(row).toHaveAccessibleName(
+    "Kind: Creature, included; activate to exclude",
+  );
+  await expect(row).toHaveText("Creature");
+  await row.press("Space");
+  await expect(row).toBeFocused();
+  await expect(row).toHaveAccessibleName("Kind: Creature, excluded; activate to clear");
+  await expect(row).not.toHaveAttribute("aria-pressed");
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(
+    page.getByRole("button", {
+      name: "Remove excluded Creature from Kind",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".common-choice-options")).toBeHidden();
+});
+
 test("remembered Kind is only a default for bare search and clear removes it", async ({
   page,
 }) => {
   await page.goto("/search");
+  await page.getByRole("button", { name: "Edit Kind filter", exact: true }).click();
   await page
     .getByRole("button", {
       name: "Kind: Creature, neutral; activate to include",
@@ -117,18 +165,27 @@ test("remembered Kind is only a default for bare search and clear removes it", a
     .click();
   await page.goto("/search");
   await expect(
-    page.getByRole("region", { name: "Kind filter", exact: true }),
-  ).toContainText("Include");
+    page.getByRole("button", {
+      name: "Remove included Creature from Kind",
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.goto("/search?q=heal");
   await expect(
-    page.getByRole("region", { name: "Kind filter", exact: true }),
-  ).not.toContainText("Include");
+    page.getByRole("button", {
+      name: "Remove included Creature from Kind",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await page.goto("/search");
   await page.getByRole("button", { name: "Clear Kind", exact: true }).click();
   await page.goto("/search");
   await expect(
-    page.getByRole("region", { name: "Kind filter", exact: true }),
-  ).not.toContainText("Include");
+    page.getByRole("button", {
+      name: "Remove included Creature from Kind",
+      exact: true,
+    }),
+  ).toHaveCount(0);
 });
 
 test("result browsing uses keyboard rows, committed highlight and native name links", async ({

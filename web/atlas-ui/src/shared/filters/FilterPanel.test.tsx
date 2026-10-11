@@ -118,6 +118,7 @@ describe("shared common and maintained advanced filters", () => {
       screen.getByText("Counts unavailable for this condition"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
     expect(
       screen.getByRole("button", {
         name: "Kind: creature, excluded; activate to clear",
@@ -142,6 +143,26 @@ describe("shared common and maintained advanced filters", () => {
     expect(await screen.findByText("Enter a finite numeric value")).toBeInTheDocument();
     expect(change).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox", { name: "Creature level" })).toHaveValue("-");
+  });
+  it("retains match-all trait semantics in the advanced editor without offering a simplified picker", () => {
+    const traits = fieldFixture("traits", "set", "Traits");
+    const predicate: QueryPredicate = {
+      kind: "set_match",
+      clause_id: "all-traits",
+      field: "traits",
+      op: "includes_all",
+      values: ["fire", "magical"],
+    };
+    const change = renderControls(editorFixture([traits]), predicate);
+    expect(
+      screen.queryByRole("button", { name: "Edit Traits filter" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit traits" }));
+    expect(
+      screen.getByRole("combobox", { name: "Condition for Traits" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("includes_all", { exact: true })).toBeInTheDocument();
+    expect(change).not.toHaveBeenCalled();
   });
   it("uses a narrow Ant Drawer and returns focus after closing", async () => {
     vi.mocked(Grid.useBreakpoint).mockReturnValue({ xs: true });
@@ -203,12 +224,14 @@ describe("per-value states and additional conditions", () => {
     const listbox = document.getElementById(control.getAttribute("aria-controls")!)!;
     fireEvent.click(within(listbox).getByRole("option", { name: state }));
   }
-  it("includes and excludes individual Kind values without a field-wide mode", () => {
+  it("includes and excludes individual Kind values without a field-wide mode", async () => {
     const kind = {
       ...fieldFixture("record.kind", "string", "Kind"),
       choices: ["creature", "spell"],
     };
     const change = renderControls(editorFixture([kind]));
+    expect(screen.queryByText("creature")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
     fireEvent.click(
       screen.getByRole("button", {
         name: "Kind: creature, neutral; activate to include",
@@ -219,7 +242,9 @@ describe("per-value states and additional conditions", () => {
     });
     spell.focus();
     fireEvent.click(spell);
-    expect(spell).toHaveAccessibleName("Kind: spell, included; activate to exclude");
+    await waitFor(() =>
+      expect(spell).toHaveAccessibleName("Kind: spell, included; activate to exclude"),
+    );
     expect(spell).toHaveFocus();
     fireEvent.click(spell);
     expect(change).toHaveBeenLastCalledWith(

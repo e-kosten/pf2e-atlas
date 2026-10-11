@@ -80,7 +80,19 @@ Backend descriptors supply fields, human labels and groups, operators, units,
 choices, discovery policy and the ordered common Kind, Level / rank, Rarity and
 Traits fields. Common and advanced controls edit one canonical QueryPredicate.
 Common categorical controls cycle each value through neutral, included and
-excluded, allowing both included and excluded values in one field. They recognize
+excluded in a compact searchable Ant Popover or mobile Drawer, allowing both
+included and excluded values in one field. Menu rows show a name and a small
+plus/minus marker; their accessible name states the current value and next action.
+Closed controls show only active choices with individually removable selections.
+Keep the menu open and its native button nodes stable during edits; changing a
+row's Ant variant between text and filled remounts its node, so use a consistent
+variant with documented semantic token styles. Search/page changes keep bounded
+server discovery, while selection-only requests retain the same suggestion rows.
+Initial selections and values edited during the open session remain reachable in
+stable edit order outside the current suggestion page, including after clearing
+them to neutral. Reset that transient history when the menu closes.
+Do not represent exclusion as checkbox indeterminate or a boolean aria-pressed.
+They recognize
 bounded root conjunctions and an exact numeric range group. Advanced editing
 shows residual conditions without duplicating common rows; complex expressions
 remain editable through the full builder. Structural true/false conditions have
@@ -107,7 +119,9 @@ Unavailable counts receive condition-local text; actual request failures remain
 errors. Never label retained counts from another context as current. Open values
 use explicit count-free vocabulary requests with artifact or saved-list scope,
 server search and bounded paging; selected literals remain visible separately
-from suggestion pages. Label this vocabulary basis, including legacy entries.
+from suggestion pages. Common pickers show concise totals as values, never result
+counts, with an optional plain saved-list scope label. Advanced value controls
+retain their scoped vocabulary explanation, including legacy entries.
 Closed choices use catalog labels without values requests. The adapter does not
 parse CEL, infer fields from records, or decide contextual capability in React.
 Reject unsafe integer input before creating numeric literals.

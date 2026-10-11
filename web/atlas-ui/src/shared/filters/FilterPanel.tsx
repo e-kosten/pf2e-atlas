@@ -37,19 +37,15 @@ import {
 } from "./queryBuilder";
 import {
   advancedResidual,
-  changeChoiceValue,
-  choiceClauses,
-  choiceValueState,
   clearAllFilters,
   commonCondition,
   conditionRange,
-  conditionValues,
   replaceCommonCondition,
   replaceAdvancedResidual,
-  type ChoiceState,
   type FilterPanelState,
 } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
+import { CommonChoicePicker } from "./CommonChoicePicker";
 import "react-querybuilder/dist/query-builder.css";
 import { ATLAS_ROUTE_CHANGE_EVENT } from "../../app/routes";
 
@@ -267,18 +263,6 @@ function CommonFilter({
       filterError: null,
     });
   }
-  const values = choiceClauses(condition.clause).flatMap(conditionValues);
-  const choices = [
-    ...field.choices.map((choice) => ({
-      value: String(choice.value),
-      label: choice.label,
-    })),
-    ...values
-      .filter(
-        (value) => !field.choices.some((choice) => String(choice.value) === value),
-      )
-      .map((value) => ({ value, label: value })),
-  ];
   return (
     <section className="common-filter" aria-label={field.label + " filter"}>
       <div className="common-filter-heading">
@@ -306,78 +290,12 @@ function CommonFilter({
       ) : field.definition.field_type === "number" ? (
         <CommonRange field={field} clause={condition.clause} onChange={update} />
       ) : (
-        <div className="common-filter-choice">
-          {!field.choices.length && (
-            <FilterValueInput
-              field={field}
-              operator={field.definition.field_type === "set" ? "includes_any" : "in"}
-              value={values}
-              scope={workspace.vocabularyScope ?? { kind: "artifact" }}
-              onChange={(next) => {
-                const selected = Array.isArray(next) ? next.map(String) : [];
-                let replacement = condition.clause;
-                for (const value of values.filter((value) => !selected.includes(value)))
-                  replacement = changeChoiceValue(
-                    field.definition,
-                    replacement,
-                    value,
-                    "neutral",
-                  );
-                for (const value of selected.filter((value) => !values.includes(value)))
-                  replacement = changeChoiceValue(
-                    field.definition,
-                    replacement,
-                    value,
-                    "include",
-                  );
-                update(replacement);
-              }}
-            />
-          )}
-          {choices.map((choice) => {
-            const state = choiceValueState(condition.clause, choice.value);
-            const next: ChoiceState =
-              state === "neutral"
-                ? "include"
-                : state === "include"
-                  ? "exclude"
-                  : "neutral";
-            const label =
-              state === "include"
-                ? "Included"
-                : state === "exclude"
-                  ? "Excluded"
-                  : "Neutral";
-            return (
-              <Button
-                key={choice.value}
-                className="common-filter-value"
-                aria-label={`${field.label}: ${choice.label}, ${label.toLowerCase()}; activate to ${next === "neutral" ? "clear" : next}`}
-                size="small"
-                color={
-                  state === "exclude"
-                    ? "danger"
-                    : state === "include"
-                      ? "primary"
-                      : "default"
-                }
-                variant={state === "neutral" ? "outlined" : "filled"}
-                onClick={() =>
-                  update(
-                    changeChoiceValue(
-                      field.definition,
-                      condition.clause,
-                      choice.value,
-                      next,
-                    ),
-                  )
-                }
-              >
-                {choice.label} · {label}
-              </Button>
-            );
-          })}
-        </div>
+        <CommonChoicePicker
+          field={field}
+          clause={condition.clause}
+          scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+          onChange={update}
+        />
       )}
       <CountAvailability fieldId={field.definition.id} workspace={workspace} />
     </section>

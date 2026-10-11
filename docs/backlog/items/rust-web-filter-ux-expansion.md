@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-11
 
 ## Problem
 
@@ -45,6 +45,13 @@ without duplicating common clauses. Structural boolean constants remain editable
 Unfinished drafts use local feedback. Browsing results use row activation and
 native full-page links without radio selection. Browser-local remembered Kind
 is a default only for fresh bare search visits; incoming URLs remain authoritative.
+
+Common categorical fields use one compact searchable Ant picker shared by search
+and saved lists. Each option cycles neutral/include/exclude with a small marker;
+only active removable selections appear when closed. Menus retain row order and
+keyboard focus during edits, including selected literals outside the current
+vocabulary page. Scoped vocabulary remains count-free with bounded server search
+and paging; complex Any/All conditions retain the maintained advanced editor.
 
 Focused frontend tests and read-only real API/browser workflows are implemented.
 Completion requires integrated verification, independent Astra task/visual review,
