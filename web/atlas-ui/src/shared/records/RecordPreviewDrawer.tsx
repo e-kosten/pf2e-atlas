@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
+import { usePreviewContentFocus } from "./usePreviewContentFocus";
 
 export function RecordPreviewDrawer({
   detail,
@@ -23,6 +24,7 @@ export function RecordPreviewDrawer({
   open: boolean;
 } & RecordPreviewContentProps) {
   const actions = useRef<HTMLDivElement>(null);
+  const contentFocus = usePreviewContentFocus(open);
   return (
     <Drawer
       afterOpenChange={(open) => {
@@ -52,7 +54,7 @@ export function RecordPreviewDrawer({
       }
       onClose={onClose}
     >
-      <section aria-label="Reference content">
+      <section {...contentFocus} aria-label="Reference content">
         {content ?? (
           <RecordDetailPane
             compact

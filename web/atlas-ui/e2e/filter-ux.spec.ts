@@ -103,7 +103,10 @@ test("narrow advanced filters use a native drawer with keyboard focus return", a
 }) => {
   await page.setViewportSize({ width: 650, height: 900 });
   await page.goto("/search");
-  const trigger = page.getByRole("button", { name: "Advanced filters", exact: true });
+  const trigger = page.getByRole("button", {
+    name: "Advanced filters",
+    exact: true,
+  });
   await trigger.focus();
   await trigger.press("Enter");
   await expect(page.getByRole("dialog", { name: "Advanced filters" })).toBeVisible();
@@ -124,11 +127,21 @@ for (const width of [1680, 820]) {
     });
     await trigger.focus();
     await trigger.press("Enter");
-    const menu = page.getByRole("dialog", { name: "Kind choices", exact: true });
+    const menu = page.getByRole("dialog", {
+      name: "Kind choices",
+      exact: true,
+    });
     const input = menu.getByRole("textbox", { name: "Search kind choices" });
     await expect(input).toBeFocused();
     await input.fill("Creature");
     await input.press("Tab");
+    // Ant's native clear control is a keyboard stop before the choice rows.
+    const clear = menu.getByRole("button", {
+      name: "close-circle",
+      exact: true,
+    });
+    await expect(clear).toBeFocused();
+    await clear.press("Tab");
     const row = menu.getByRole("button", { name: /^Kind: Creature,/ });
     await expect(row).toBeFocused();
     await expect(row).toHaveAccessibleName(
@@ -156,7 +169,10 @@ test("compact choices keep keyboard focus, mix states and dismiss their mobile d
 }) => {
   await page.setViewportSize({ width: 460, height: 900 });
   await page.goto("/search");
-  const trigger = page.getByRole("button", { name: "Edit Kind filter", exact: true });
+  const trigger = page.getByRole("button", {
+    name: "Edit Kind filter",
+    exact: true,
+  });
   await trigger.focus();
   await trigger.press("Enter");
   const drawer = page.getByRole("dialog", { name: "Kind", exact: true });

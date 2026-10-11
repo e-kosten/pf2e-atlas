@@ -142,6 +142,12 @@ that trigger, including across responsive overlay changes. The parent unmounts
 the drawer after that callback; do not also destroy it during the native opening
 or closing animation, which can skip the close callback.
 
+Following a reference within an open preview can replace its focused content.
+If that element disappears and focus falls to the page body, the shared preview
+must move focus to a surviving in-preview reading target. Preserve connected
+focus, user-selected focus elsewhere and nested-dialog focus; do not refocus the
+header on every content update. Native initial focus and dismissal still apply.
+
 Use the semantic family union rather than a generic section/value/profile layout
 interpreter. Availability belongs to the backend facts; known zero, false and
 empty differ from unavailable parents. Omit cosmetic empty or not-applicable

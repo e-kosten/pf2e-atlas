@@ -43,7 +43,7 @@ test("creature lore precedes mechanics and selected casting retains local member
 test("hazard ability reads inline and returns to its exact parent reading position", async ({
   page,
 }) => {
-  const path = "/records/" + encodeURIComponent(hazardKey);
+  const path = "/records/" + hazardKey;
   await page.goto(path);
   await expect(page.getByRole("heading", { name: "Waking Nightmare" })).toBeVisible();
   const ability = page
@@ -59,6 +59,7 @@ test("hazard ability reads inline and returns to its exact parent reading positi
     exact: true,
   });
   const target = new URL((await fullPage.getAttribute("href"))!, page.url());
+  expect(target.pathname).toBe("/records/" + hazardKey);
   const selection = JSON.parse(target.searchParams.get("selection")!);
   expect(selection.record_key).toBe(hazardKey);
   expect(selection.owners).toEqual([
@@ -103,14 +104,16 @@ test("owned reference return retains Similar, canonical filters, selected result
     kind: "in",
     clause_id: "hazard-kind",
     field: "record.kind",
-    values: ["Hazard"],
+    values: ["hazard"],
   };
   const params = new URLSearchParams({
     similar: "pathfinder-bestiary:LHHgGSs0ELCR4CYK",
     filter: JSON.stringify(filter),
   });
   await page.goto("/search/records/" + hazardKey + "?" + params.toString());
-  const permalink = page.getByRole("link", { name: "Open Seize full reference" });
+  const permalink = page.getByRole("link", {
+    name: "Open Seize full reference",
+  });
   await expect(permalink).toBeVisible();
   const selectedHref = await permalink.getAttribute("href");
   await permalink.click();
