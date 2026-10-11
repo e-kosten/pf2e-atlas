@@ -171,17 +171,19 @@ export function ActorFacts({
   hideHitPoints = false,
   encounter = false,
   hidePrimaryDefenses = false,
+  hideSaves = false,
 }: {
   actor: ActorPresentationView;
   hazard?: boolean;
   hideHitPoints?: boolean;
   encounter?: boolean;
   hidePrimaryDefenses?: boolean;
+  hideSaves?: boolean;
 }) {
   const defenseFacts: FactView<unknown>[] = [
     ...(!hidePrimaryDefenses ? [actor.armor_class] : []),
     ...(!hidePrimaryDefenses && !hideHitPoints ? [actor.maximum_hp] : []),
-    ...Object.values(actor.saves),
+    ...(!hideSaves ? Object.values(actor.saves) : []),
     actor.immunities,
     actor.weaknesses,
     actor.resistances,
@@ -204,15 +206,17 @@ export function ActorFacts({
               <NumberFact fact={actor.armor_class} />
             </FactRow>
           )}
-          <div className="record-fact-list">
-            {Object.entries(actor.saves).map(([save, fact]) =>
-              fact.state === "not_applicable" ? null : (
-                <FactRow key={save} label={save[0].toUpperCase() + save.slice(1)}>
-                  <NumberFact fact={fact} signed />
-                </FactRow>
-              ),
-            )}
-          </div>
+          {!hideSaves && (
+            <div className="record-fact-list">
+              {Object.entries(actor.saves).map(([save, fact]) =>
+                fact.state === "not_applicable" ? null : (
+                  <FactRow key={save} label={save[0].toUpperCase() + save.slice(1)}>
+                    <NumberFact fact={fact} signed />
+                  </FactRow>
+                ),
+              )}
+            </div>
+          )}
           {!hidePrimaryDefenses &&
             !hideHitPoints &&
             actor.maximum_hp.state !== "not_applicable" && (

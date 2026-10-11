@@ -28,6 +28,7 @@ pub(crate) fn record_presentation(
         SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::HazardSource(source)) => {
             RecordBodyView::Hazard(Box::new(HazardPresentationView {
                 defense_block: hazard_defense_block(node),
+                show_saves: hazard_show_saves(node),
                 actor: actor::authored_actor(record, node, retrieval.source_fingerprint()),
                 complex: fact(
                     SourceFieldView::from(&source.system)
@@ -220,6 +221,32 @@ fn hazard_defense_block(node: SourceNodeView<'_>) -> FactView<bool> {
     let hp = actor.hp_maximum();
     let ac = actor.armor_class();
     fact(hp.and_then(|hp| ac.map(|ac| hp.as_f64() != Some(0.0) || ac.as_f64() != Some(0.0))))
+}
+
+/// Atlas reading policy, not a declaration that known zero saves are missing.
+fn hazard_show_saves(node: SourceNodeView<'_>) -> bool {
+    use atlas_record::source_record::ActorSave;
+    if hazard_defense_block(node).value != Some(false) {
+        return true;
+    }
+    let actor = SourceQueryView {
+        source: node,
+        pack_id: "",
+        pack_label: "",
+    }
+    .actor();
+    ![ActorSave::Fortitude, ActorSave::Reflex, ActorSave::Will]
+        .into_iter()
+        .all(|save| {
+            actor
+                .save(save)
+                .value()
+                .is_some_and(|v| v.as_f64() == Some(0.0))
+                && actor
+                    .hazard_save_detail(save)
+                    .value()
+                    .is_some_and(|v| v.trim().is_empty())
+        })
 }
 fn selected_identity(
     record: &SourceBackedRecord,

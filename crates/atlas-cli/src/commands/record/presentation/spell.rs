@@ -11,22 +11,12 @@ use atlas_domain::QueryFieldState;
 pub(super) fn render(out: &mut String, spell: &SpellPresentationView) {
     fact(out, "Traditions", &spell.traditions, |v| list_text(v));
     fact(out, "Casting", &spell.cast, |v| v.label.clone());
-    for (label, value) in [
-        ("Requirements", &spell.requirements),
-        ("Cost", &spell.cost),
-        ("Casting entry", &spell.casting_entry),
-    ] {
+    for (label, value) in [("Requirements", &spell.requirements), ("Cost", &spell.cost)] {
         if let Some(value) = value {
             text(out, label, value);
         }
     }
-    optional_number(
-        out,
-        "Authored cast rank",
-        &spell.authored_cast_rank,
-        false,
-        "",
-    );
+    optional_number(out, "Cast rank", &spell.authored_cast_rank, false, "");
     text(out, "Range", &spell.range);
     optional_text(out, "Target", &spell.target);
     if let Some(value) = &spell.area {
@@ -61,10 +51,7 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
         }) => {
             line(
                 out,
-                format!(
-                    "\nAuthored heightening (+{})",
-                    number_text(interval, false, "")
-                ),
+                format!("\nHeightening (+{})", number_text(interval, false, "")),
             );
             optional_number(out, "Area increase", area_increment, false, " feet");
             if let Some(increments) = known_value(increments) {
@@ -75,8 +62,7 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
                     line(
                         out,
                         format!(
-                            "Damage [{}]: {}",
-                            increment.id,
+                            "Damage increase: {}",
                             fact_string(&increment.formula, Clone::clone)
                         ),
                     );
@@ -91,8 +77,8 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
         Some(SpellHeighteningView::Fixed { levels }) => {
             if let Some(levels) = known_value(levels) {
                 for level in levels {
-                    line(out, format!("\nAuthored heightening (rank {})", level.rank));
-                    line(out, "Authored changes to base");
+                    line(out, format!("\nHeightening (rank {})", level.rank));
+                    line(out, "Changes to base");
                     changes(out, &level.changes);
                 }
             } else {
@@ -109,7 +95,7 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
         None => {}
     }
     if let Some(forms) = known_value(&spell.forms) {
-        for form in forms {
+        for (index, form) in forms.iter().enumerate() {
             let name = known_value(&form.name)
                 .filter(|v| !v.trim().is_empty())
                 .or_else(|| {
@@ -119,9 +105,10 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
                         .filter(|v| !v.trim().is_empty())
                 })
                 .map(String::as_str)
-                .unwrap_or(&form.id);
-            line(out, format!("\nAuthored form [{}]: {}", form.id, name));
-            line(out, "Authored changes to base");
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("Alternative form {}", index + 1));
+            line(out, format!("\n{name}"));
+            line(out, "Changes to base");
             changes(out, &form.changes);
         }
     } else if !matches!(spell.forms.state, QueryFieldState::NotApplicable) {
@@ -261,10 +248,17 @@ fn heightening_changes(out: &mut String, value: &FactView<SpellHeighteningChange
             if damage.is_empty() {
                 line(out, "Damage increments: Empty");
             }
-            for increment in damage {
+            for (index, increment) in damage.iter().enumerate() {
                 change_text(
                     out,
-                    &format!("Damage increment [{}]", increment.id),
+                    &format!(
+                        "Damage increase{}",
+                        if damage.len() > 1 {
+                            format!(" {}", index + 1)
+                        } else {
+                            String::new()
+                        }
+                    ),
                     &increment.formula,
                 );
             }

@@ -48,7 +48,12 @@ from their typed activity facts rather than reconstructing them from prose.
 For a compact root heading, use `atlas record get PACK:ID --detail summary`.
 This terminal path reads body-free summaries. Selected-child summaries identify
 the child from its parent snapshot. `--json` always requests full selected detail,
-including when `--detail summary` is supplied.
+including when `--detail summary` is supplied. The default `--detail standard`
+reads the main reference with inline actor abilities and compact spell rosters.
+Use `--detail full` to also read supported embedded documents, such as spells,
+journal pages and roll-table results. It expands ownership, not graph links.
+An explicit `--field` or `--passage` keeps human output focused on that selection
+at every detail level. JSON facts and selection are independent of terminal detail.
 
 Search broadly, then inspect the returned record and matching passage:
 

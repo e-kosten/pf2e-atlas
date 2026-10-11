@@ -271,6 +271,11 @@ fn exact_owned_names_and_definition_witnesses_stay_navigable() {
         .find(|w| !w.location.owners.is_empty())
         .unwrap();
     assert_eq!(witness.label.as_deref(), Some("Ghoul Fever"));
+    assert_eq!(
+        service.index.read_metrics().source_body_decodes,
+        0,
+        "owned captions must stay body-free"
+    );
     let detail = service
         .get_record(GetRecordRequest {
             record_key: &result.records[0].record.key,

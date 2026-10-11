@@ -1,6 +1,9 @@
 use super::{filters::build_filter, product::app_result};
 use crate::client::{ClientOptions, connect};
-use atlas_app_model::{RecordDetailRequest, RecordDetailView};
+use atlas_app_model::{
+    OwnedReadingEntryView, OwnedReadingRequest, OwnedReadingSelection, RecordBodyView,
+    RecordDetailRequest, RecordDetailView,
+};
 use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
 pub(crate) mod args;
@@ -62,7 +65,7 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         }
     } else {
         for r in records {
-            print_record(&r, o.detail)?;
+            print_record(&s, &r, o.detail)?;
         }
     }
     Ok(if failed {
@@ -115,17 +118,93 @@ fn width() -> usize {
         .filter(|v| *v >= 20)
         .unwrap_or(80)
 }
-fn print_record(record: &RecordDetailView, detail: TerminalDetail) -> Result<(), String> {
-    print!("{}", presentation::render_record(record, detail, width())?);
+fn print_record(
+    service: &atlas_app_service::AtlasAppService,
+    record: &RecordDetailView,
+    detail: TerminalDetail,
+) -> Result<(), String> {
+    print!("{}", render_selected_record(service, record, detail)?);
     Ok(())
 }
+
+fn render_selected_record(
+    service: &atlas_app_service::AtlasAppService,
+    record: &RecordDetailView,
+    detail: TerminalDetail,
+) -> Result<String, String> {
+    let mut reading: Vec<OwnedReadingEntryView> = vec![];
+    if detail != TerminalDetail::Summary
+        && record.selected.owners.is_empty()
+        && record.selected.field.is_none()
+        && matches!(
+            record.presentation.body,
+            RecordBodyView::Creature(_) | RecordBodyView::Hazard(_)
+        )
+    {
+        let mut cursor = None;
+        loop {
+            let batch = service
+                .owned_reading(OwnedReadingRequest {
+                    parent: record.selected.clone(),
+                    artifact_generation: record.artifact_generation.clone(),
+                    selection: OwnedReadingSelection::Abilities {
+                        cursor,
+                        target: None,
+                    },
+                })
+                .map_err(|e| e.into_app_error().message)?;
+            reading.extend(batch.entries);
+            cursor = batch.next;
+            if cursor.is_none() {
+                break;
+            }
+        }
+    }
+    let mut output = presentation::render_record(record, detail, width(), &reading)?;
+    if detail == TerminalDetail::Full && record.selected.field.is_none() {
+        let activities = match &record.presentation.body {
+            RecordBodyView::Creature(actor) => actor.activities.value.as_deref(),
+            RecordBodyView::Hazard(hazard) => hazard.actor.activities.value.as_deref(),
+            _ => None,
+        };
+        let navigation: Vec<_> = if let Some(activities) = activities {
+            activities
+                .iter()
+                .map(|activity| &activity.navigation)
+                .collect()
+        } else {
+            let owned = match &record.presentation.body {
+                RecordBodyView::RollTable(table) => {
+                    table.results.value.as_deref().unwrap_or_default()
+                }
+                _ => &record.presentation.owned,
+            };
+            owned.iter().map(|owned| &owned.navigation).collect()
+        };
+        for navigation in navigation {
+            // Actor abilities are already read inline from the checked parent.
+            if reading.iter().any(|entry| &entry.navigation == navigation) {
+                continue;
+            }
+            let child = service
+                .record_detail_at(RecordDetailRequest {
+                    record_key: navigation.record_key.clone(),
+                    owners: navigation.owners.clone(),
+                    fields: vec![],
+                    passage: None,
+                    source_fingerprint: navigation.source_fingerprint.clone(),
+                })
+                .map_err(|error| error.into_app_error().message)?;
+            output.push_str("\n────────────────────────────────────────\n");
+            output.push_str(&render_selected_record(service, &child, detail)?);
+        }
+    }
+    Ok(output)
+}
 fn print_header(record: &atlas_app_model::RecordSummaryView) {
-    println!("{} — {}", record.record_key, record.title);
-    println!(
-        "{} {}",
-        record.kind_label,
-        record.level_label.as_deref().unwrap_or("")
-    );
+    let mut output = String::new();
+    presentation::identity(&mut output, record);
+    print!("{output}");
 }
 #[cfg(test)]
 mod tests {

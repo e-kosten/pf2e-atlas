@@ -1,8 +1,8 @@
 //! Terminal layout over the app-service's selected semantic facts.
 use super::{args::TerminalDetail, terminal::render_html};
 use atlas_app_model::{
-    DamageComponentView, FactView, NumberFactView, PreparedFieldBodyView, RecordBodyView,
-    RecordDetailView, RecordNavigationView, RecordSummaryView,
+    DamageComponentView, FactView, NumberFactView, OwnedReadingEntryView, PreparedContentFieldView,
+    PreparedFieldBodyView, RecordBodyView, RecordDetailView, RecordSummaryView,
 };
 use atlas_domain::QueryFieldState;
 
@@ -13,24 +13,26 @@ pub(super) fn render_record(
     record: &RecordDetailView,
     detail: TerminalDetail,
     width: usize,
+    reading: &[OwnedReadingEntryView],
 ) -> Result<String, String> {
     let mut out = String::new();
     let presentation = &record.presentation;
     identity(&mut out, &presentation.identity);
     if !record.selected.owners.is_empty() {
-        line(
-            &mut out,
-            format!(
-                "From {} ({})",
-                record.record.title, record.record.record_key
-            ),
-        );
-    }
-    if !record.selected.owners.is_empty() || record.selected.field.is_some() {
-        navigation(&mut out, &record.selected)?;
+        line(&mut out, format!("From {}", record.record.title));
     }
     if detail == TerminalDetail::Summary {
         return Ok(out);
+    }
+    if record.selected.field.is_some() {
+        for field in &presentation.content {
+            content_field(&mut out, field, width, true)?;
+        }
+        return Ok(out);
+    }
+    line(&mut out, "");
+    for field in presentation.content.iter().filter(|field| is_intro(field)) {
+        content_field(&mut out, field, width, true)?;
     }
     line(&mut out, "");
     match &presentation.body {
@@ -38,16 +40,36 @@ pub(super) fn render_record(
             if presentation.identity.level_label.is_none() {
                 number(&mut out, "Level", &body.level, false, "");
             }
-            actor::render(&mut out, body)?;
+            actor::render(&mut out, body, true, true, reading, width, detail)?;
         }
         RecordBodyView::Hazard(body) => {
             if presentation.identity.level_label.is_none() {
                 number(&mut out, "Level", &body.actor.level, false, "");
             }
-            fact(&mut out, "Complex", &body.complex, |v| v.to_string());
+            fact(&mut out, "Hazard", &body.complex, |v| {
+                if *v { "Complex" } else { "Simple" }.into()
+            });
+            line(&mut out, "\nDetection");
             number(&mut out, "Stealth", &body.stealth, true, "");
-            number(&mut out, "Hardness", &body.hardness, false, "");
-            actor::render(&mut out, &body.actor)?;
+            for field in presentation.content.iter().filter(|f| f.role == "stealth") {
+                content_field(&mut out, field, width, false)?;
+            }
+            for field in presentation.content.iter().filter(|f| f.role == "disable") {
+                content_field(&mut out, field, width, true)?;
+            }
+            let defenses = known_value(&body.defense_block) != Some(&false);
+            if defenses {
+                number(&mut out, "Hardness", &body.hardness, false, "");
+            }
+            actor::render(
+                &mut out,
+                &body.actor,
+                defenses,
+                body.show_saves,
+                reading,
+                width,
+                detail,
+            )?;
         }
         RecordBodyView::Spell(body) => {
             if presentation.identity.level_label.is_none() {
@@ -55,7 +77,7 @@ pub(super) fn render_record(
             }
             spell::render(&mut out, body);
         }
-        RecordBodyView::Activity(body) => actor::activity_facts(&mut out, body, false)?,
+        RecordBodyView::Activity(body) => actor::activity_facts(&mut out, body, false),
         RecordBodyView::PhysicalReference(body) => {
             optional_text(&mut out, "Usage", &body.usage);
             number(&mut out, "Bulk", &body.bulk, false, "");
@@ -96,41 +118,19 @@ pub(super) fn render_record(
         }
         RecordBodyView::Content => {}
     }
-    for field in &presentation.content {
-        let rendered = match &field.body {
-            PreparedFieldBodyView::Html { html, .. } => render_html(html, width)?,
-            PreparedFieldBodyView::Plain { text } => text.clone(),
-            PreparedFieldBodyView::Bounded { reason } => reason.clone(),
-            PreparedFieldBodyView::Unavailable {
-                state: QueryFieldState::NotApplicable,
-            } => continue,
-            PreparedFieldBodyView::Unavailable { state } => unavailable(*state),
-        };
-        if rendered.trim().is_empty() {
-            continue;
-        }
-        line(&mut out, "");
-        // These semantic roles are assigned by the content owner, not parsed from prose.
-        let label = match field.role.as_str() {
-            "description" => "Description",
-            "disable" => "Disable",
-            "routine" => "Routine",
-            "reset" => "Reset",
-            "stealth" => "Detection",
-            "notes" => "Notes",
-            "biography" => "Biography",
-            "caption" => "Caption",
-            "tableresult" => "Result",
-            "text" => "Text",
-            _ => &field.role,
-        };
-        line(&mut out, label);
-        line(&mut out, rendered.trim_end());
+    for field in presentation.content.iter().filter(|field| {
+        !is_intro(field)
+            && !(matches!(presentation.body, RecordBodyView::Hazard(_))
+                && matches!(field.role.as_str(), "stealth" | "disable"))
+    }) {
+        content_field(&mut out, field, width, true)?;
     }
-    if !matches!(
-        presentation.body,
-        RecordBodyView::Creature(_) | RecordBodyView::Hazard(_)
-    ) {
+    if detail != TerminalDetail::Full
+        && !matches!(
+            presentation.body,
+            RecordBodyView::Creature(_) | RecordBodyView::Hazard(_)
+        )
+    {
         let owned = match &presentation.body {
             RecordBodyView::RollTable(table) => table.results.value.as_deref().unwrap_or_default(),
             _ => &presentation.owned,
@@ -151,13 +151,61 @@ pub(super) fn render_record(
                         .unwrap_or_default()
                 ),
             );
-            navigation(&mut out, &owned.navigation)?;
         }
     }
-    Ok(out)
+    Ok(out.lines().fold(String::new(), |mut rendered, line| {
+        if !line.is_empty() || !rendered.ends_with("\n\n") {
+            rendered.push_str(line);
+            rendered.push('\n');
+        }
+        rendered
+    }))
 }
 
-fn identity(out: &mut String, identity: &RecordSummaryView) {
+fn is_intro(field: &PreparedContentFieldView) -> bool {
+    matches!(field.role.as_str(), "description" | "notes" | "biography")
+}
+
+fn content_field(
+    out: &mut String,
+    field: &PreparedContentFieldView,
+    width: usize,
+    heading: bool,
+) -> Result<(), String> {
+    let rendered = match &field.body {
+        PreparedFieldBodyView::Html { html, .. } => render_html(html, width)?,
+        PreparedFieldBodyView::Plain { text } => text.clone(),
+        PreparedFieldBodyView::Bounded { reason } => reason.clone(),
+        PreparedFieldBodyView::Unavailable {
+            state: QueryFieldState::NotApplicable,
+        } => return Ok(()),
+        PreparedFieldBodyView::Unavailable { state } => unavailable(*state),
+    };
+    if rendered.trim().is_empty() {
+        return Ok(());
+    }
+    line(out, "");
+    if heading {
+        let label = match field.role.as_str() {
+            "description" => "Description",
+            "disable" => "Disable",
+            "routine" => "Routine",
+            "reset" => "Reset",
+            "stealth" => "Detection",
+            "notes" => "Notes",
+            "biography" => "Biography",
+            "caption" => "Caption",
+            "tableresult" => "Result",
+            "text" => "Text",
+            _ => &field.role,
+        };
+        line(out, label);
+    }
+    line(out, rendered.trim_end());
+    Ok(())
+}
+
+pub(super) fn identity(out: &mut String, identity: &RecordSummaryView) {
     line(
         out,
         format!(
@@ -314,32 +362,6 @@ fn optional_number(
         number(out, label, value, signed, unit);
     }
 }
-fn navigation(out: &mut String, navigation: &RecordNavigationView) -> Result<(), String> {
-    let mut command = format!("atlas record get {}", quote(&navigation.record_key));
-    if !navigation.owners.is_empty() {
-        command.push_str(&format!(
-            " --owners {}",
-            quote(&serde_json::to_string(&navigation.owners).map_err(|e| e.to_string())?)
-        ));
-    }
-    if let Some(field) = &navigation.field {
-        command.push_str(&format!(" --field {}", quote(field)));
-    }
-    if let Some(passage) = &navigation.passage {
-        command.push_str(&format!(
-            " --passage {}",
-            quote(&serde_json::to_string(passage).map_err(|e| e.to_string())?)
-        ));
-    }
-    if let Some(fingerprint) = &navigation.source_fingerprint {
-        command.push_str(&format!(" --source-fingerprint {}", quote(fingerprint)));
-    }
-    line(out, format!("Open: {command}"));
-    Ok(())
-}
-fn quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
 fn damage(out: &mut String, value: &FactView<Vec<DamageComponentView>>) {
     damage_components(out, value, false);
 }
@@ -370,7 +392,7 @@ fn damage_components(out: &mut String, value: &FactView<Vec<DamageComponentView>
         }
         return;
     }
-    for component in components {
+    for (index, component) in components.iter().enumerate() {
         let mut parts = Vec::new();
         for (label, value) in [
             ("formula", &component.formula),
@@ -474,7 +496,15 @@ fn damage_components(out: &mut String, value: &FactView<Vec<DamageComponentView>
         };
         line(
             out,
-            format!("{label} [{}]: {}", component.id, parts.join("; ")),
+            format!(
+                "{label}{}: {}",
+                if components.len() > 1 {
+                    format!(" {}", index + 1)
+                } else {
+                    String::new()
+                },
+                parts.join("; ")
+            ),
         );
     }
 }

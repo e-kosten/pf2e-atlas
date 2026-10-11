@@ -53,14 +53,29 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         if o.json {
             write_json_data(search_json(&result))?;
         } else {
-            print_search_matches(&result.rows)?;
-            println!(
-                "count={} basis={} exhaustive={} semantic unit window={:?}",
-                result.page.total,
-                result.coverage.count_basis,
-                result.coverage.exhaustive,
-                result.coverage.semantic_unit_window
-            );
+            print_search_matches(&result.rows);
+            if result.coverage.exhaustive {
+                println!(
+                    "{} result{}{}",
+                    result.page.total,
+                    if result.page.total == 1 { "" } else { "s" },
+                    if result.page.has_more {
+                        "; more on the next page"
+                    } else {
+                        ""
+                    }
+                );
+            } else {
+                println!(
+                    "Showing {} results{}",
+                    result.page.count,
+                    if result.page.has_more {
+                        "; more on the next page"
+                    } else {
+                        ""
+                    }
+                );
+            }
         }
     } else {
         let Some(result) = app_result(s.list_records(filter, page), o.json)? else {

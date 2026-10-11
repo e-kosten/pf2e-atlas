@@ -52,7 +52,16 @@ explicitly supplies null, meaning no authored area or defense. Missing or invali
 fields and unavailable system parents retain explicit facts; area and defense
 patches independently preserve clears. The baseline web reader omits the raw
 casting-entry identifier; checked parent context supplies product grouping;
-the source fact, JSON contract and CLI presentation retain it.
+the source fact and JSON contract retain it. Human CLI reading omits technical
+casting-entry IDs and command lists; checked associations supply compact spell
+rosters, while exact owner navigation remains available in JSON.
+Human CLI summary shows identity without reading source bodies at the root;
+standard reads the selected reference with inline actor abilities and compact
+spell rosters. Full expands supported owned documents with their parent context,
+including spells, journal pages and table results, without following graph links.
+Explicit field or passage selections remain focused rather than expanding the
+surrounding record. JSON always returns the complete selected detail DTO at all
+three terminal detail settings; the terminal detail flag does not alter its facts.
 Reference readers omit missing optional price units and IWR exception/double
 qualifiers, and absent baseline damage categories. Null/invalid IWR qualifiers
 and required magnitudes remain visible. Damage captions use presentation order,
@@ -102,8 +111,15 @@ reuse this meaning in compact spellcasting groups and selected entry pages.
 Hazards carry an explicit defense-block display fact. Known AC and maximum HP
 both equal to zero make the primary AC/HP/hardness block inapplicable, following
 the pinned upstream hazard policy. The original facts remain in the response;
-zero saving throws stay valid and independently visible. Unavailable AC or HP
-does not imply the block is absent. Detection displays the authored modifier and
+zero saving throws stay valid and independently visible. Atlas additionally omits
+the legacy save block from normal reading only when the primary block is known
+absent, all three saves are known zero, and all three retained save details are
+known blank strings. Missing, null, invalid, duplicate, nonempty and nonzero data
+do not satisfy this exception. This is a display policy, not an upstream source
+constraint; actor save facts and checked DTOs remain unchanged. Encounter overlays
+restore save display whenever an effective save differs or carries any adjustment
+explanation. Both CLI and browser use the service decision. Unavailable AC or HP
+does not imply the primary block is absent. Detection displays the authored modifier and
 prepared details without asserting a fully executed Foundry Stealth DC.
 
 Each relationship occurrence includes source navigation from its actual root,
@@ -119,6 +135,15 @@ exact navigation rather than resolving to a canonical replacement.
 Prepared sanitized HTML and its field-local marker facts remain the content
 contract. CLI uses html2text at read time; the browser uses DOMPurify and native
 Ant overlays. No markup AST or alternative stored rendering is introduced.
+
+Human terminal reference reading puts introductory prose before mechanics and
+uses the existing bounded owned-reading workflow for inline ability descriptions.
+Spell rosters use checked casting-entry associations and authored ranks without
+executing casting. Search renders concise summaries and at most one named excerpt
+per result. Match captions use existing indexed owner names without source-body
+decoding; whitespace-normalized excerpts end on word boundaries with an ellipsis
+when shortened. Exact attribution, scores and coverage remain in JSON; human
+output does not mistake a bounded candidate count for a count of strong matches.
 
 Full selected identity, including owner chain, field, passage, and fingerprint,
 drives detail requests and query caching. Reader transitions preserve that

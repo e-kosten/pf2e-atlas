@@ -146,6 +146,9 @@ pub struct HazardPresentationView {
     // Known authored HP max and AC determine the primary HP/AC/hardness block.
     // Raw defense facts and independently applicable saves remain available.
     pub defense_block: FactView<bool>,
+    // Reading-only omission of the exact all-zero, blank-detail legacy save block.
+    // The authored actor save facts remain intact.
+    pub show_saves: bool,
     pub complex: FactView<bool>,
     pub stealth: NumberFactView,
     pub hardness: NumberFactView,

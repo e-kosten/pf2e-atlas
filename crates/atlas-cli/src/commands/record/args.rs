@@ -22,7 +22,7 @@ pub(crate) struct RecordGetOptions {
         long,
         value_enum,
         default_value = "standard",
-        help = "Terminal detail: summary or standard; JSON returns the full selected detail DTO"
+        help = "Terminal detail: summary identity, standard reference, or full expanded embedded entries; JSON always returns the complete selected detail DTO"
     )]
     pub(crate) detail: TerminalDetail,
     #[arg(long,help="Checked owner chain JSON from a search witness",value_parser=parse_owners)]
@@ -62,6 +62,7 @@ pub(crate) struct RecordResolveOptions {
 pub(crate) enum TerminalDetail {
     Summary,
     Standard,
+    Full,
 }
 #[derive(Debug, Clone)]
 pub(crate) struct OwnerChainArgument(pub(crate) Vec<OwnedContentLocator>);

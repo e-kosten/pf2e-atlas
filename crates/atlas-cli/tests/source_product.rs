@@ -119,6 +119,39 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
         "--json",
     ]);
     assert_eq!(selected["records"][0]["selected"], *navigation);
+    for level in ["summary", "standard", "full"] {
+        let json = f.data(&[
+            "record",
+            "get",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--field",
+            navigation["field"].as_str().unwrap(),
+            "--passage",
+            &passage,
+            "--detail",
+            level,
+            "--json",
+        ]);
+        assert_eq!(json, selected, "JSON selection changed at {level}");
+    }
+    let selected_text = f.command(
+        &[
+            "record",
+            "get",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--field",
+            navigation["field"].as_str().unwrap(),
+            "--passage",
+            &passage,
+            "--detail",
+            "full",
+        ],
+        false,
+    );
+    assert!(selected_text.status.success());
+    let selected_text = String::from_utf8(selected_text.stdout).unwrap();
+    assert!(selected_text.contains("Defined Fever"));
+    assert!(!selected_text.contains("Action cost:"));
     let mut stale = navigation["passage"].clone();
     stale["canonical_text_sha256"] = Value::String("0".repeat(64));
     let stale = serde_json::to_string(&stale).unwrap();
@@ -206,7 +239,7 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
     fs::write(f.root.join("packs/creatures/caster.json"), r#"{
       "_id":"dddddddddddddddd","name":"Local Caster","type":"npc",
       "system":{
-        "details":{"level":{"value":7},"languages":{"value":["common"]}},
+        "details":{"level":{"value":7},"languages":{"value":["common"]},"publicNotes":"<p>Flavor before mechanics.</p>"},
         "traits":{"value":["humanoid"],"rarity":"uncommon"},
         "attributes":{"ac":{"value":25},"hp":{"max":80,"value":80},"speed":{"value":25},
           "resistances":[{"type":"all-damage","value":10,"exceptions":["force","ghost-touch","vitality"],"doubleVs":["non-magical"]}]},
@@ -229,6 +262,9 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         "_id":"ffffffffffffffff","name":"Arcane Prepared Spells","type":"spellcastingEntry",
         "system":{"spelldc":{"dc":33,"value":23},"prepared":{"value":"prepared"},"tradition":{"value":"arcane"}}
       },{
+        "_id":"hhhhhhhhhhhhhhhh","name":"Local Ability","type":"action",
+        "system":{"actionType":{"value":"reaction"},"description":{"value":"<p>Embedded ability prose stays with its caster.</p>"}}
+      },{
         "_id":"gggggggggggggggg","name":"River Lore","type":"lore","system":{"mod":{"value":8}}
       }]
     }"#).unwrap();
@@ -247,6 +283,9 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
     );
     let actor = String::from_utf8(actor.stdout).unwrap();
     for expected in [
+        "Flavor before mechanics.",
+        "Embedded ability prose stays with its caster.",
+        "Rank 2: Local Fireball",
         "Perception: +12",
         "Fortitude: +0",
         "Reflex: -2",
@@ -261,7 +300,57 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
     ] {
         assert!(actor.contains(expected), "missing {expected:?} in {actor}");
     }
+    assert!(actor.find("Flavor before mechanics.").unwrap() < actor.find("Perception:").unwrap());
+    for internal in [
+        "atlas record get",
+        "Association:",
+        "--owners",
+        "Authored",
+        "Damage [",
+    ] {
+        assert!(!actor.contains(internal), "{internal}: {actor}");
+    }
     let root = f.data(&["record", "get", "creatures:dddddddddddddddd", "--json"]);
+    let expanded = f.command(
+        &[
+            "record",
+            "get",
+            "creatures:dddddddddddddddd",
+            "--detail",
+            "full",
+        ],
+        false,
+    );
+    assert!(
+        expanded.status.success(),
+        "{}",
+        String::from_utf8_lossy(&expanded.stderr)
+    );
+    let expanded = String::from_utf8(expanded.stdout).unwrap();
+    assert!(expanded.contains("This customized spell uses local damage"));
+    assert!(expanded.contains("Range: 120 feet"));
+    assert!(expanded.contains("From Local Caster"));
+    assert_eq!(
+        expanded
+            .matches("Embedded ability prose stays with its caster.")
+            .count(),
+        1
+    );
+    assert!(!actor.contains("This customized spell uses local damage"));
+    for level in ["summary", "full"] {
+        assert_eq!(
+            f.data(&[
+                "record",
+                "get",
+                "creatures:dddddddddddddddd",
+                "--detail",
+                level,
+                "--json",
+            ]),
+            root,
+            "JSON facts changed at {level}"
+        );
+    }
     let spell = root["records"][0]["presentation"]["body"]["value"]["activities"]["value"]
         .as_array()
         .unwrap()
@@ -293,19 +382,19 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
     let selected = String::from_utf8(selected.stdout).unwrap();
     for expected in [
         "Local Fireball",
-        "From Local Caster (creatures:dddddddddddddddd)",
+        "From Local Caster",
         "Traditions: arcane",
         "Range: 120 feet",
         "Area: 20 feet burst",
         "2d6+1; fire",
-        "Authored heightening (+1)",
-        "Damage [local]: 1d6",
+        "Heightening (+1)",
+        "Damage increase: 1d6",
         "This customized spell uses local damage",
         "Casting: 2 actions",
-        "Authored changes to base",
+        "Changes to base",
         "Defense: cleared (null)",
-        "Damage component changes [local]: kinds: healing",
-        "Damage increment [local]: 1d8+8",
+        "Damage component changes: kinds: healing",
+        "Damage increase: 1d8+8",
     ] {
         assert!(
             selected.contains(expected),
