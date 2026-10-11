@@ -46,6 +46,7 @@ pub struct NumberAdjustmentView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordPresentationView {
     pub identity: RecordSummaryView,
+    pub classification: String,
     pub content: Vec<PreparedContentFieldView>,
     pub owned: Vec<OwnedRecordLinkView>,
     pub body: RecordBodyView,
@@ -284,12 +285,20 @@ pub struct SpellFormView {
 pub struct PhysicalPresentationView {
     pub usage: FactView<String>,
     pub bulk: NumberFactView,
-    pub price: FactView<String>,
+    pub price: FactView<PhysicalPriceView>,
     pub price_per: NumberFactView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct PhysicalPriceView {
+    pub pp: NumberFactView,
+    pub gp: NumberFactView,
+    pub sp: NumberFactView,
+    pub cp: NumberFactView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RollTablePresentationView {
     pub formula: FactView<String>,
+    pub results: FactView<Vec<OwnedRecordLinkView>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TableResultPresentationView {

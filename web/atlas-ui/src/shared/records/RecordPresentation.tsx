@@ -5,6 +5,9 @@ import type {
   RecordPresentationView,
   RecordRelationshipView,
   RecordSummaryView,
+  ActionCostView,
+  FactView,
+  PhysicalPriceView,
 } from "../../generated/atlas";
 import {
   ActorActivities,
@@ -12,7 +15,14 @@ import {
   ActorFacts,
   ActorSecondaryFacts,
 } from "./ActorReference";
-import { FactLine, FactRow, NumberFact, factText } from "./presentationFacts";
+import {
+  FactLine,
+  FactRow,
+  NumberFact,
+  factText,
+  hasReadingFact,
+  isEmptyFactValue,
+} from "./presentationFacts";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
 import { SpellReference } from "./SpellReference";
 import { ActionCost } from "./ActionCost";
@@ -70,11 +80,15 @@ export function contentFieldVisible(field: PreparedContentFieldView) {
 
 export function RecordIdentity({
   identity,
+  classification,
+  actionCost,
   root,
   selection,
   onReference,
 }: {
   identity: RecordSummaryView;
+  classification: string;
+  actionCost?: FactView<ActionCostView>;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
   onReference: RecordReferenceHandler;
@@ -82,19 +96,18 @@ export function RecordIdentity({
   return (
     <header className="record-reference__header">
       <div className="record-reference__title">
-        <h2>{identity.title}</h2>
-        <p className="record-reference__kind">
-          {identity.kind_label}
-          {identity.level_label ? ` ${identity.level_label}` : ""}
-        </p>
+        <h2>
+          {identity.title} {actionCost && <ActionCost fact={actionCost} />}
+        </h2>
+        <p className="record-reference__kind">{classification}</p>
       </div>
       <div className="badge-row">
-        {identity.rarity && <Tag>{identity.rarity}</Tag>}
+        {identity.rarity?.trim() && <Tag>{identity.rarity}</Tag>}
         {identity.traits.map((trait) => (
           <Tag key={`${trait.kind}-${trait.value}`}>{trait.label}</Tag>
         ))}
       </div>
-      {identity.publication && <p className="muted">{identity.publication}</p>}
+      {identity.publication?.trim() && <p className="muted">{identity.publication}</p>}
       {root && selection?.owners.length ? (
         <Button
           type="link"
@@ -111,7 +124,6 @@ export function RecordIdentity({
           From {root.title}
         </Button>
       ) : null}
-      <p className="record-key">{identity.record_key}</p>
     </header>
   );
 }
@@ -168,6 +180,8 @@ export function RecordPresentation({
       {!hideIdentity && (
         <RecordIdentity
           identity={presentation.identity}
+          classification={presentation.classification}
+          actionCost={body.kind === "activity" ? body.value.action_cost : undefined}
           root={root}
           selection={selection}
           onReference={onReference}
@@ -282,13 +296,13 @@ export function RecordPresentation({
           activity={body.value}
           onReference={onReference}
           selected
-          hideCost={hideActivityCost}
+          hideCost={!hideIdentity || hideActivityCost}
         />
       )}
       {body.kind === "physical_reference" && (
         <div className="record-fact-list">
           <FactLine label="Usage" fact={body.value.usage} />
-          <FactLine label="Price" fact={body.value.price} />
+          <PhysicalPrice fact={body.value.price} />
           {body.value.price_per.state !== "missing" && (
             <FactLine label="Price per" fact={body.value.price_per} />
           )}
@@ -296,13 +310,13 @@ export function RecordPresentation({
         </div>
       )}
       {body.kind === "roll_table" && (
-        <FactLine label="Formula" fact={body.value.formula} />
+        <FactLine label="Formula" fact={body.value.formula} required />
       )}
       {body.kind === "table_result" && (
         <div className="record-fact-list">
-          <FactLine label="Range" fact={body.value.range} />
+          <FactLine label="Range" fact={body.value.range} required />
           <FactLine label="Weight" fact={body.value.weight} />
-          <FactLine label="Result type" fact={body.value.result_type} />
+          <FactLine label="Result type" fact={body.value.result_type} required />
         </div>
       )}
       {actor && !compact && <ActorActivities actor={actor} onReference={onReference} />}
@@ -332,31 +346,65 @@ export function RecordPresentation({
           items={[{ key: "content", label: "Source description", children: content }]}
         />
       )}
-      {!compact && owned.length > 0 && (
-        <section className="record-reference__owned">
-          <h3>
-            {presentation.identity.kind === "journal" ? "Pages" : "Owned records"}
-          </h3>
-          {owned.map((link, index) => (
-            <div key={index}>
-              <Button
-                type="link"
-                onClick={(event) =>
-                  onReference(
-                    link.navigation.record_key,
-                    event.currentTarget,
-                    link.navigation,
-                  )
-                }
-              >
-                {link.title}
-              </Button>
-              <ActionCost fact={link.action_cost} />
-              {link.usage && <span className="muted"> {link.usage}</span>}
-            </div>
-          ))}
-        </section>
+      {body.kind === "roll_table" && body.value.results.state !== "value" && (
+        <FactLine label="Results" fact={body.value.results} />
       )}
+      {!compact &&
+        (body.kind === "roll_table" ? (body.value.results.value ?? []) : owned).length >
+          0 && (
+          <section className="record-reference__owned">
+            <h3>
+              {body.kind === "roll_table"
+                ? "Results"
+                : presentation.identity.kind === "journal"
+                  ? "Pages"
+                  : "Owned records"}
+            </h3>
+            {(body.kind === "roll_table"
+              ? (body.value.results.value ?? [])
+              : owned
+            ).map((link, index) => (
+              <div key={index}>
+                <Button
+                  type="link"
+                  onClick={(event) =>
+                    onReference(
+                      link.navigation.record_key,
+                      event.currentTarget,
+                      link.navigation,
+                    )
+                  }
+                >
+                  {link.title}
+                </Button>
+                <ActionCost fact={link.action_cost} />
+                {link.usage && !isEmptyFactValue(link.usage) && (
+                  <span className="muted"> {link.usage}</span>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
     </article>
+  );
+}
+function PhysicalPrice({ fact }: { fact: FactView<PhysicalPriceView> }) {
+  if (!hasReadingFact(fact, { required: true })) return null;
+  if (fact.state !== "value" || !fact.value)
+    return <FactLine label="Price" fact={fact} required />;
+  const coins = Object.entries(fact.value).filter(
+    ([, value]) => !["missing", "not_applicable"].includes(value.state),
+  );
+  return (
+    <FactRow label="Price">
+      {coins.length
+        ? coins.map(([unit, value], index) => (
+            <span key={unit}>
+              {index ? ", " : ""}
+              <NumberFact fact={value} /> {unit}
+            </span>
+          ))
+        : "Empty"}
+    </FactRow>
   );
 }

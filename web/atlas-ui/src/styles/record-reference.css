@@ -41,16 +41,21 @@
   min-width: 0;
 }
 .record-reference__title {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
 }
 .record-reference__title h2 {
+  flex: 1 1 12ch;
   margin: 0;
   font-size: 1.5rem;
   line-height: 1.2;
   text-wrap: pretty;
 }
-.record-reference__kind {
+.record-reference__title .record-reference__kind {
+  margin: 0 0 0 auto;
+  text-align: right;
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 600;

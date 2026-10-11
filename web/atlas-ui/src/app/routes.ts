@@ -174,7 +174,7 @@ export function shouldHandleAtlasRouteClick(
 export function searchPath(recordKey: string | null = null): string {
   return recordKey === null
     ? "/search"
-    : `/search/records/${encodeURIComponent(recordKey)}`;
+    : `/search/records/${recordKeyPathSegment(recordKey)}`;
 }
 
 export function listsPath(): string {
@@ -195,7 +195,9 @@ export function encounterEditPath(slug: string): string {
 
 export function listPath(slug: string, recordKey: string | null = null): string {
   const path = `/lists/${encodeURIComponent(slug)}`;
-  return recordKey === null ? path : `${path}/records/${encodeURIComponent(recordKey)}`;
+  return recordKey === null
+    ? path
+    : `${path}/records/${recordKeyPathSegment(recordKey)}`;
 }
 
 export function listEditPath(slug: string): string {
@@ -203,11 +205,14 @@ export function listEditPath(slug: string): string {
 }
 
 export function recordPath(recordKey: string): string {
-  return `/records/${encodeURIComponent(recordKey)}`;
+  return `/records/${recordKeyPathSegment(recordKey)}`;
 }
 
 export function readerPath(recordKey: string): string {
-  return `/reader/${encodeURIComponent(recordKey)}`;
+  return `/reader/${recordKeyPathSegment(recordKey)}`;
+}
+function recordKeyPathSegment(recordKey: string): string {
+  return encodeURIComponent(recordKey).replace(/%3A/g, ":");
 }
 
 function selectedNavigation(

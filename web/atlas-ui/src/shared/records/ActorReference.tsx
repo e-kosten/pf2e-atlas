@@ -7,7 +7,14 @@ import type {
   FactView,
   IwrEntryView,
 } from "../../generated/atlas";
-import { FactLine, FactRow, NumberFact, factText } from "./presentationFacts";
+import {
+  FactLine,
+  FactRow,
+  NumberFact,
+  factText,
+  hasReadingFact,
+  isEmptyFactValue,
+} from "./presentationFacts";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { OwnedActivityDisclosure } from "./OwnedActivityDisclosure";
 import { ActionCost } from "./ActionCost";
@@ -16,16 +23,13 @@ function qualifierText<T extends string | string[]>(
   fact: FactView<T>,
   patch = false,
 ): string {
-  if (
-    fact.state === "not_applicable" ||
-    (patch && fact.state === "missing") ||
-    (fact.state === "value" && fact.value?.length === 0)
-  )
-    return "";
+  if (!hasReadingFact(fact, { patch })) return "";
   return patch && fact.state === "null"
     ? "cleared"
-    : factText(fact, (value) =>
-        Array.isArray(value) ? value.join(", ") : String(value),
+    : factText(
+        fact,
+        (value) => (Array.isArray(value) ? value.join(", ") : String(value)),
+        { patch },
       );
 }
 
@@ -36,15 +40,15 @@ export function DamageComponents({
   damage: FactView<DamageComponentView[]>;
   patch?: boolean;
 }) {
-  if (damage.state === "not_applicable" || (patch && damage.state === "missing"))
-    return null;
+  if (!hasReadingFact(damage, { patch })) return null;
   if (damage.state !== "value" || damage.value === null)
     return (
       <FactRow label="Damage">
         {patch && damage.state === "null" ? "Cleared" : factText(damage)}
       </FactRow>
     );
-  if (!damage.value.length) return <FactRow label="Damage">None</FactRow>;
+  if (!damage.value.length)
+    return <FactLine label="Damage" fact={damage} patch={patch} />;
   const components = damage.value;
   return (
     <div className="record-damage">
@@ -68,25 +72,28 @@ export function DamageComponents({
                 ? ""
                 : patch && component.formula.state === "null"
                   ? "Formula cleared"
-                  : factText(component.formula)}
+                  : factText(component.formula, String, { required: true, patch })}
             </strong>{" "}
             {patch && component.damage_type.state === "missing"
               ? ""
               : patch && component.damage_type.state === "null"
                 ? "Type cleared"
-                : factText(component.damage_type)}
+                : factText(component.damage_type, String, { required: true, patch })}
             {kinds
-              ? component.kinds.state === "value"
+              ? component.kinds.state === "value" &&
+                !(patch && isEmptyFactValue(component.kinds.value))
                 ? ` (${kinds})`
                 : `; kinds ${kinds}`
               : ""}
             {category
-              ? component.category.state === "value"
+              ? component.category.state === "value" &&
+                !(patch && isEmptyFactValue(component.category.value))
                 ? `; ${category}`
                 : `; category ${category}`
               : ""}
             {materials
-              ? component.materials.state === "value"
+              ? component.materials.state === "value" &&
+                !(patch && isEmptyFactValue(component.materials.value))
                 ? `; ${materials}`
                 : `; materials ${materials}`
               : ""}
@@ -98,6 +105,10 @@ export function DamageComponents({
             component.apply_modifier.state === "value" &&
             component.apply_modifier.value === false
               ? "; does not apply modifier"
+              : ""}
+            {["null", "invalid"].includes(component.apply_modifier.state) ||
+            (!patch && component.apply_modifier.state === "missing")
+              ? `; applies modifier ${factText(component.apply_modifier, String, { patch })}`
               : ""}
           </p>
         );
@@ -161,38 +172,54 @@ export function ActorFacts({
   encounter?: boolean;
   hidePrimaryDefenses?: boolean;
 }) {
+  const defenseFacts: FactView<unknown>[] = [
+    ...(!hidePrimaryDefenses ? [actor.armor_class] : []),
+    ...(!hidePrimaryDefenses && !hideHitPoints ? [actor.maximum_hp] : []),
+    ...Object.values(actor.saves),
+    actor.immunities,
+    actor.weaknesses,
+    actor.resistances,
+  ];
+  const awarenessFacts: FactView<unknown>[] = [
+    actor.perception,
+    actor.senses,
+    ...(!encounter ? [actor.perception_details] : []),
+    ...(!compact && !encounter ? [actor.languages, actor.language_details] : []),
+  ];
   return (
     <div
       className={`actor-reference__facts${encounter ? " actor-reference__facts--combat" : ""}`}
     >
-      <section className="actor-reference__defenses">
-        <h3>Defenses</h3>
-        {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
-          <FactRow label="AC">
-            <NumberFact fact={actor.armor_class} />
-          </FactRow>
-        )}
-        <div className="record-fact-list">
-          {Object.entries(actor.saves).map(([save, fact]) =>
-            fact.state === "not_applicable" ? null : (
-              <FactRow key={save} label={save[0].toUpperCase() + save.slice(1)}>
-                <NumberFact fact={fact} signed />
-              </FactRow>
-            ),
-          )}
-        </div>
-        {!hidePrimaryDefenses &&
-          !hideHitPoints &&
-          actor.maximum_hp.state !== "not_applicable" && (
-            <FactRow label="HP">
-              <NumberFact fact={actor.maximum_hp} />
+      {defenseFacts.some((fact) => hasReadingFact(fact)) && (
+        <section className="actor-reference__defenses">
+          <h3>Defenses</h3>
+          {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
+            <FactRow label="AC">
+              <NumberFact fact={actor.armor_class} />
             </FactRow>
           )}
-        <Iwr label="Immunities" fact={actor.immunities} />
-        <Iwr label="Weaknesses" fact={actor.weaknesses} />
-        <Iwr label="Resistances" fact={actor.resistances} />
-      </section>
-      {!hazard && (
+          <div className="record-fact-list">
+            {Object.entries(actor.saves).map(([save, fact]) =>
+              fact.state === "not_applicable" ? null : (
+                <FactRow key={save} label={save[0].toUpperCase() + save.slice(1)}>
+                  <NumberFact fact={fact} signed />
+                </FactRow>
+              ),
+            )}
+          </div>
+          {!hidePrimaryDefenses &&
+            !hideHitPoints &&
+            actor.maximum_hp.state !== "not_applicable" && (
+              <FactRow label="HP">
+                <NumberFact fact={actor.maximum_hp} />
+              </FactRow>
+            )}
+          <Iwr label="Immunities" fact={actor.immunities} />
+          <Iwr label="Weaknesses" fact={actor.weaknesses} />
+          <Iwr label="Resistances" fact={actor.resistances} />
+        </section>
+      )}
+      {!hazard && awarenessFacts.some((fact) => hasReadingFact(fact)) && (
         <div className="actor-reference__awareness">
           {!encounter && <h3>Awareness and communication</h3>}
           {actor.perception.state !== "not_applicable" && (
@@ -208,10 +235,10 @@ export function ActorFacts({
                 .map((sense) =>
                   [
                     factText(sense.sense),
-                    sense.acuity.value,
-                    sense.range_feet.value === null
+                    sense.acuity.state === "missing" ? "" : factText(sense.acuity),
+                    sense.range_feet.state === "missing"
                       ? ""
-                      : `${sense.range_feet.value} feet`,
+                      : factText(sense.range_feet, (value) => `${value} feet`),
                   ]
                     .filter(Boolean)
                     .join(" "),
@@ -235,65 +262,83 @@ export function ActorFacts({
         </div>
       )}
       {!compact && !hazard && !encounter && <ActorSkills actor={actor} />}
-      {!hazard && (
-        <section className="actor-reference__movement">
-          {!encounter && <h3>Movement</h3>}
-          <div className="record-fact-list">
-            {actor.land_speed.state !== "not_applicable" && (
-              <FactRow label="Speed">
-                <NumberFact fact={actor.land_speed} unit=" feet" label="Speed" />
-              </FactRow>
-            )}
-            {actor.movement.state !== "value" && (
-              <FactLine label="Other movement" fact={actor.movement} />
-            )}
-            {(actor.movement.value ?? []).map((movement, index) => (
-              <FactRow key={index} label={factText(movement.movement_type)}>
-                <NumberFact fact={movement.feet} unit=" feet" />
-              </FactRow>
-            ))}
-          </div>
-        </section>
-      )}
+      {!hazard &&
+        (hasReadingFact(actor.land_speed) || hasReadingFact(actor.movement)) && (
+          <section className="actor-reference__movement">
+            {!encounter && <h3>Movement</h3>}
+            <div className="record-fact-list">
+              {actor.land_speed.state !== "not_applicable" && (
+                <FactRow label="Speed">
+                  <NumberFact fact={actor.land_speed} unit=" feet" label="Speed" />
+                </FactRow>
+              )}
+              {actor.movement.state !== "value" && (
+                <FactLine label="Other movement" fact={actor.movement} />
+              )}
+              {(actor.movement.value ?? []).map((movement, index) => (
+                <FactRow key={index} label={factText(movement.movement_type)}>
+                  <NumberFact fact={movement.feet} unit=" feet" />
+                </FactRow>
+              ))}
+            </div>
+          </section>
+        )}
       {encounter ? <ActorCombatBudget actor={actor} /> : <ActorRuntime actor={actor} />}
     </div>
   );
 }
 
 function ActorSkills({ actor }: { actor: ActorPresentationView }) {
+  if (!hasReadingFact(actor.abilities) && !hasReadingFact(actor.skills)) return null;
   return (
-    <section className="actor-reference__skills">
-      <h3>Skills and ability modifiers</h3>
-      {actor.skills.state !== "value" && (
-        <FactLine label="Skills" fact={actor.skills} />
-      )}
-      {actor.abilities.state !== "value" && (
-        <FactLine label="Ability modifiers" fact={actor.abilities} />
-      )}
-      <div className="record-fact-list">
-        {(actor.skills.value ?? []).map((skill) => (
-          <div key={skill.key}>
-            <FactRow label={skill.label}>
-              <NumberFact fact={skill.modifier} signed />
-              {skill.note.value ? `; ${skill.note.value}` : ""}
-              {skill.conditional.value?.map((conditional, index) => (
-                <span key={index}>
-                  ; {factText(conditional.label)}{" "}
-                  <NumberFact fact={conditional.modifier} signed />
-                </span>
-              ))}
-            </FactRow>
+    <div className="actor-reference__skills">
+      {hasReadingFact(actor.abilities) && (
+        <section>
+          <h3>Ability modifiers</h3>
+          {actor.abilities.state !== "value" && (
+            <FactLine label="Ability modifiers" fact={actor.abilities} />
+          )}
+          <div className="record-fact-list">
+            {(actor.abilities.value ?? []).map((ability) => (
+              <FactRow key={ability.key} label={ability.label}>
+                <NumberFact fact={ability.modifier} signed />
+              </FactRow>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="record-fact-list">
-        {(actor.abilities.value ?? []).map((ability) => (
-          <FactRow key={ability.key} label={ability.label}>
-            <NumberFact fact={ability.modifier} signed />
-          </FactRow>
-        ))}
-      </div>
-    </section>
+        </section>
+      )}
+      {hasReadingFact(actor.skills) && (
+        <section>
+          <h3>Skills</h3>
+          {actor.skills.state !== "value" && (
+            <FactLine label="Skills" fact={actor.skills} />
+          )}
+          <div className="record-fact-list">
+            {(actor.skills.value ?? []).map((skill) => (
+              <div key={skill.key}>
+                <FactRow label={skill.label}>
+                  <NumberFact fact={skill.modifier} signed />
+                  {skill.note.state !== "missing" && hasReadingFact(skill.note)
+                    ? `; ${factText(skill.note)}`
+                    : ""}
+                  {!["missing", "value", "not_applicable"].includes(
+                    skill.conditional.state,
+                  )
+                    ? `; conditional modifiers ${factText(skill.conditional)}`
+                    : ""}
+                  {skill.conditional.value?.map((conditional, index) => (
+                    <span key={index}>
+                      ; {factText(conditional.label)}{" "}
+                      <NumberFact fact={conditional.modifier} signed />
+                    </span>
+                  ))}
+                </FactRow>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 function hasRuntimeDetails(actor: ActorPresentationView) {
@@ -379,7 +424,18 @@ export function ActorSecondaryFacts({
   actor: ActorPresentationView;
   hazard?: boolean;
 }) {
-  if (hazard && !hasRuntimeDetails(actor)) return null;
+  if (
+    !hasRuntimeDetails(actor) &&
+    (hazard ||
+      ![
+        actor.perception_details,
+        actor.languages,
+        actor.language_details,
+        actor.abilities,
+        actor.skills,
+      ].some((fact) => hasReadingFact(fact as FactView<unknown>)))
+  )
+    return null;
   return (
     <Collapse
       size="small"
@@ -443,7 +499,9 @@ export function ActorActivity({
         </Button>
       )}
       {!hideCost && <ActionCost fact={activity.action_cost} />}
-      {activity.usage && <Tag>{activity.usage}</Tag>}
+      {activity.usage && !isEmptyFactValue(activity.usage) && (
+        <Tag>{activity.usage}</Tag>
+      )}
       {!selected && (
         <div className="badge-row">
           {activity.traits.map((trait) => (
@@ -456,9 +514,7 @@ export function ActorActivity({
           <NumberFact fact={activity.attack} signed />
         </FactRow>
       )}
-      {!(activity.damage.state === "value" && activity.damage.value?.length === 0) && (
-        <DamageComponents damage={activity.damage} />
-      )}
+      <DamageComponents damage={activity.damage} />
       <FactLine label="Tradition" fact={activity.casting_tradition} />
       <FactLine label="Preparation" fact={activity.preparation} />
       {activity.difficulty_class.state !== "not_applicable" && (
@@ -487,7 +543,7 @@ export function ActorActivity({
             <NumberFact fact={activity.authored_cast_rank} />
           </FactRow>
         )}
-      {activity.casting_context && (
+      {activity.casting_context && hasReadingFact(activity.casting_context.spells) && (
         <section className="actor-casting__context">
           <h3>Spells for {activity.casting_context.parent_title}</h3>
           {activity.casting_context.spells.state === "value" ? (

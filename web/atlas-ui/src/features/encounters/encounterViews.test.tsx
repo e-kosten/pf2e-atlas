@@ -1261,6 +1261,7 @@ function participantPresentationFixture({
       : [],
   );
   const presentation: RecordPresentationView = {
+    classification: kindLabel,
     identity: {
       ...summaryFixture(recordKey, title),
       kind,

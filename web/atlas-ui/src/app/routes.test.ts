@@ -8,6 +8,7 @@ import {
   listsPath,
   navigateToAtlasRoute,
   searchPath,
+  parseAtlasRoute,
 } from "./routes";
 
 describe("atlas routes", () => {
@@ -89,14 +90,14 @@ describe("atlas routes", () => {
       previewRecordKey: "condition:wounded",
     });
 
-    expect(window.location.pathname).toBe("/reader/spell%3Aheal");
+    expect(window.location.pathname).toBe("/reader/spell:heal");
     expect(window.location.search).toBe("?preview=condition%3Awounded");
     expect(listener).toHaveBeenCalledTimes(1);
     expect(atlasRoutePath({ kind: "record", recordKey: "spell:heal" })).toBe(
-      "/records/spell%3Aheal",
+      "/records/spell:heal",
     );
     expect(atlasRoutePath({ kind: "search", selectedRecordKey: "spell:heal" })).toBe(
-      "/search/records/spell%3Aheal",
+      "/search/records/spell:heal",
     );
     expect(
       atlasRoutePath({
@@ -116,7 +117,7 @@ describe("atlas routes", () => {
         slug: "session-prep",
         selectedRecordKey: "spell:heal",
       }),
-    ).toBe("/lists/session-prep/records/spell%3Aheal");
+    ).toBe("/lists/session-prep/records/spell:heal");
 
     window.removeEventListener("atlas-route-change", listener);
   });
@@ -124,7 +125,7 @@ describe("atlas routes", () => {
   it("builds search workspace paths", () => {
     expect(searchPath()).toBe("/search");
     expect(searchPath(null)).toBe("/search");
-    expect(searchPath("spell:heal")).toBe("/search/records/spell%3Aheal");
+    expect(searchPath("spell:heal")).toBe("/search/records/spell:heal");
   });
 
   it("builds list workspace paths", () => {
@@ -135,8 +136,45 @@ describe("atlas routes", () => {
     expect(listsPath()).toBe("/lists");
     expect(listPath("session-prep")).toBe("/lists/session-prep");
     expect(listPath("session-prep", "spell:heal")).toBe(
-      "/lists/session-prep/records/spell%3Aheal",
+      "/lists/session-prep/records/spell:heal",
     );
     expect(listEditPath("session-prep")).toBe("/lists/session-prep/edit");
+  });
+  it("keeps literal colons while escaping other path characters and preserving selected identity", () => {
+    const recordKey = "actors:key/with space?query#fragment%value:tail";
+    const selection = {
+      record_key: recordKey,
+      owners: [{ collection: "items", identity: { SnapshotLocal: { index: 2 } } }],
+      field: "system.description.value",
+      passage: { kind: "identity" as const },
+      source_fingerprint: "snapshot:full/hash",
+    };
+    const path = atlasRoutePath({ kind: "record", recordKey, selection });
+    expect(path.split("?")[0]).toBe(
+      "/records/actors:key%2Fwith%20space%3Fquery%23fragment%25value:tail",
+    );
+    const url = new URL(path, "http://localhost");
+    expect(parseAtlasRoute(url.pathname, url.search)).toEqual({
+      kind: "record",
+      recordKey,
+      selection,
+    });
+    const reader = new URL(
+      atlasRoutePath({
+        kind: "reader",
+        recordKey,
+        selection,
+        previewRecordKey: recordKey,
+        previewSelection: selection,
+      }),
+      "http://localhost",
+    );
+    expect(parseAtlasRoute(reader.pathname, reader.search)).toEqual({
+      kind: "reader",
+      recordKey,
+      selection,
+      previewRecordKey: recordKey,
+      previewSelection: selection,
+    });
   });
 });

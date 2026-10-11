@@ -152,7 +152,10 @@ source IDs; keep those IDs for correlation and keys.
 Omit headings for known-empty optional content and heightening damage-increment text;
 unavailable content/formulas and explicit patch clears remain visible. Spell
 forms use their authored names or an ordered “Spell form” caption, retaining
-invalid/null name facts separately.
+invalid/null name facts separately. Baseline heightening/forms arrive
+not-applicable only for a missing optional structure under a known typed system;
+unknown system parents retain explicit availability. Do not suppress their
+missing state in the browser or apply this exception to patches.
 
 Authored action costs use the shared `ActionCost` renderer over typed Rust facts.
 Fixed one/two/three-action, reaction and free-action glyphs are decorative;
@@ -163,6 +166,23 @@ cost. Prepared inline glyph attributes use the same font styling with an empty
 CSS content alternative, so font characters do not add spoken text or enter
 the canonical/terminal words. Never classify cost strings or authored markup in
 the browser.
+
+Use the shared fact reading policy for optional baseline whitespace-only text
+and empty lists; omit their row and resulting empty heading. Mark required text
+explicitly so empty damage formulas/types and table formula/range/type remain
+visible. Preserve meaningful unavailable facts, numeric zero and typed false.
+Authored changes omit missing members and show explicit null clears and empty
+values, including nested damage qualifiers. Keep existing narrow source defaults
+separate from this baseline/change policy; never guess emptiness from prose/HTML.
+Physical prices format the supplied currency number facts without inferring free
+from empty prices; table results use their one fact-owned link collection.
+
+The shared identity header places the name and selected activity glyph on the
+left and the service-supplied compact classification on the right, wrapping to
+the actual pane. Show the title glyph once and ability modifiers before skills.
+Do not parse legacy level labels or show ordinary technical keys. Product record
+paths use literal colons through the shared serializer; keep API encoding and
+complete selection identity intact.
 
 `RecordDetailPane` owns shared detail loading, unavailable-record, refresh-error,
 retry and back states. Keep query errors with their affected pane and feature

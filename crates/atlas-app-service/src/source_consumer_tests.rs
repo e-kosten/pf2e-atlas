@@ -6,6 +6,66 @@ use serde_json::json;
 const ACTOR: &str = "actors:testCreature1000";
 
 #[test]
+fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
+    use atlas_domain::QueryFieldState;
+    for (results, expected) in [
+        (None, QueryFieldState::Missing),
+        (Some(json!(null)), QueryFieldState::Null),
+        (Some(json!(42)), QueryFieldState::Invalid),
+        (Some(json!([])), QueryFieldState::Value),
+        (
+            Some(
+                json!([{"_id":"aaaaaaaaaaaaaaaa","type":"text","range":[0,0],"weight":0,"text":"Zero result"}]),
+            ),
+            QueryFieldState::Value,
+        ),
+    ] {
+        let mut table = json!({"_id":"table00000000000","name":"Table","formula":""});
+        if let Some(results) = results {
+            table["results"] = results;
+        }
+        let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+            1,
+            16,
+            move || {
+                Ok(open_source_fixture(
+                    vec![record("tables", "RollTable", table.clone())],
+                    false,
+                )?)
+            },
+        ));
+        let detail = f.worker.record_detail("tables:table00000000000").unwrap();
+        let RecordBodyView::RollTable(body) = detail.presentation.body else {
+            panic!("table")
+        };
+        assert_eq!(body.results.state, expected);
+        assert!(detail.presentation.owned.is_empty());
+        assert_eq!(body.formula.value.as_deref(), Some(""));
+        if let Some(links) = body.results.value
+            && let Some(link) = links.first()
+        {
+            assert_eq!(links.len(), 1);
+            assert_eq!(link.navigation.owners.len(), 1);
+            let selected = f
+                .worker
+                .record_detail_at(RecordDetailRequest {
+                    record_key: link.navigation.record_key.clone(),
+                    owners: link.navigation.owners.clone(),
+                    fields: vec![],
+                    passage: None,
+                    source_fingerprint: link.navigation.source_fingerprint.clone(),
+                })
+                .unwrap();
+            let RecordBodyView::TableResult(result) = selected.presentation.body else {
+                panic!("result")
+            };
+            assert_eq!(result.range.value.as_deref(), Some("0–0"));
+            assert_eq!(result.weight.value, Some(0.into()));
+        }
+    }
+}
+
+#[test]
 fn physical_details_do_not_require_an_applicable_usage_field() {
     let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
         1,
@@ -44,9 +104,9 @@ fn physical_details_do_not_require_an_applicable_usage_field() {
         },
     ));
     for (key, price, bulk) in [
-        ("items:shield0000000001", "85 gp", 1),
-        ("items:shield0000000002", "850 gp", 1),
-        ("items:armor00000000001", "20 gp", 2),
+        ("items:shield0000000001", 85, 1),
+        ("items:shield0000000002", 850, 1),
+        ("items:armor00000000001", 20, 2),
     ] {
         let detail = f.worker.record_detail(key).unwrap();
         let RecordBodyView::PhysicalReference(physical) = detail.presentation.body else {
@@ -57,7 +117,10 @@ fn physical_details_do_not_require_an_applicable_usage_field() {
             atlas_domain::QueryFieldState::NotApplicable
         );
         assert!(physical.usage.value.is_none());
-        assert_eq!(physical.price.value.as_deref(), Some(price));
+        assert_eq!(
+            physical.price.value.as_ref().unwrap().gp.value,
+            Some(price.into())
+        );
         assert_eq!(physical.bulk.value, Some(bulk.into()));
     }
     let unavailable = f.worker.record_detail("items:shield0000000003").unwrap();
@@ -110,7 +173,14 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     let RecordBodyView::PhysicalReference(equipment) = &equipment.presentation.body else {
         panic!("physical family");
     };
-    assert_eq!(equipment.price.value.as_deref(), Some("12 gp, 5 sp"));
+    assert_eq!(
+        equipment.price.value.as_ref().unwrap().gp.value,
+        Some(12.into())
+    );
+    assert_eq!(
+        equipment.price.value.as_ref().unwrap().sp.value,
+        Some(5.into())
+    );
     assert_eq!(equipment.bulk.value, Some(1.into()));
     let actor = f.worker.record_detail("actors:actor00000000000").unwrap();
     for activity in actor_body(&actor.presentation)
@@ -139,7 +209,8 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
         match &detail.presentation.body {
             RecordBodyView::Spell(s) => assert_eq!(s.range.value.as_deref(), Some("60 feet")),
             RecordBodyView::PhysicalReference(p) => {
-                assert_eq!(p.price.value.as_deref(), Some("12 gp, 5 sp"))
+                assert_eq!(p.price.value.as_ref().unwrap().gp.value, Some(12.into()));
+                assert_eq!(p.price.value.as_ref().unwrap().sp.value, Some(5.into()));
             }
             _ => panic!("selected child family"),
         }
@@ -149,7 +220,8 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
         panic!("table family");
     };
     assert_eq!(table_body.formula.value.as_deref(), Some("1d4"));
-    let result = &table.presentation.owned[0];
+    assert!(table.presentation.owned.is_empty());
+    let result = &table_body.results.value.as_ref().unwrap()[0];
     let detail = f
         .worker
         .record_detail_at(RecordDetailRequest {
@@ -171,7 +243,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
                 .as_ref()
                 .is_some_and(|t| t.record_key == "items:item000000000000")
     }));
-    let result = &table.presentation.owned[1];
+    let result = &table_body.results.value.as_ref().unwrap()[1];
     let detail = f
         .worker
         .record_detail_at(RecordDetailRequest {

@@ -60,7 +60,36 @@ while authored component IDs remain unchanged for correlation.
 Known-empty optional Notes and heightening damage-increment text have no reading
 row; unavailable facts and patch clears remain explicit. Spell forms use authored
 names or ordered captions, preserving their IDs for identity and invalid/null
-name facts for inspection.
+name facts for inspection. Missing optional baseline heightening and forms under
+a known typed spell system project not-applicable; unavailable system parents
+retain missing/null/invalid. This narrow applicability decision uses typed parent
+presence, preserves raw DTOs and does not apply to authored patches.
+
+Shared family readers omit known-empty optional baseline text (including
+whitespace-only text) and lists, together with headings that would contain no
+reading facts. Not-applicable facts have no row. Required numeric and identity
+facts, meaningful unavailable states, zero and false retain their typed meaning;
+a false optional feature need not add a separate No row. Present damage formula
+and type and table formula/range/result type retain required empty information.
+Authored changes use a distinct reading policy: missing means no change, while
+null clears and explicit empty text/lists remain visible, including nested damage
+qualifiers. These policies do not rewrite checked DTOs or stored facts, inspect
+HTML for semantic emptiness, or introduce a visibility model.
+
+Physical price responses preserve outer and per-currency availability as typed
+number facts. Readers omit missing optional currency leaves but retain null,
+invalid and zero members; an empty currency object does not imply a free item.
+RollTable results carry collection availability and their sole authoritative
+owned-link list in the table body, rather than duplicating it in generic owned
+links. Both corrections are transient app-service projections over existing DTOs.
+
+The shared browser identity row uses a compact service-owned classification
+caption derived from typed kind and level/rank facts. Known zero is meaningful;
+unavailable level/rank uses readable wording while retaining distinct body facts.
+The ordinary header omits technical keys, selected activity glyphs appear beside
+the title once, and ability modifiers precede skills. Product record-path
+serializers retain literal colons and escape other path characters; API encoding
+and full selected owner/field/passage/fingerprint identity remain unchanged.
 
 Selected immediate Actor casting entries carry checked parent context and their
 associated local spell roster. Association uses the actual typed source location

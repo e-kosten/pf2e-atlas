@@ -4,4 +4,4 @@ import type { PreparedContentFieldView } from "./PreparedContentFieldView";
 import type { RecordBodyView } from "./RecordBodyView";
 import type { RecordSummaryView } from "./RecordSummaryView";
 
-export type RecordPresentationView = { identity: RecordSummaryView, content: Array<PreparedContentFieldView>, owned: Array<OwnedRecordLinkView>, body: RecordBodyView, };
+export type RecordPresentationView = { identity: RecordSummaryView, classification: string, content: Array<PreparedContentFieldView>, owned: Array<OwnedRecordLinkView>, body: RecordBodyView, };

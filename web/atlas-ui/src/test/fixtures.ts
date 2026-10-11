@@ -169,6 +169,7 @@ export function detailFixture(
         ]
       : [],
     presentation: {
+      classification: record.kind_label,
       identity: record,
       owned: [],
       body: { kind: "content" },

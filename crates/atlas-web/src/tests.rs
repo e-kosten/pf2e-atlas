@@ -848,7 +848,7 @@ impl AtlasWebService for MockService {
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         let mut record = record_summary();
         record.record_key = record_key.to_string();
-        Ok(serde_json::from_value(json!({"record":record.clone(),"presentation":{"identity":record,"content":[],"owned":[],"body":{"kind":"content"}},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
+        Ok(serde_json::from_value(json!({"record":record.clone(),"presentation":{"classification":record.kind_label,"identity":record,"content":[],"owned":[],"body":{"kind":"content"}},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
     }
 
     fn graph_context(

@@ -48,7 +48,11 @@ describe("record route views", () => {
     });
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    expect(screen.getByText("spell:heal")).toBeInTheDocument();
+    expect(screen.queryByText("spell:heal")).toBeNull();
+    expect(screen.getByRole("link", { name: "Reader view" })).toHaveAttribute(
+      "href",
+      "/reader/spell:heal",
+    );
     expect(screen.getByText("Reader view")).toBeInTheDocument();
   });
 
@@ -74,7 +78,7 @@ describe("record route views", () => {
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Linked Record" }));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell%3Aheal"));
+    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:heal"));
     expect(currentAtlasRoute()).toMatchObject({
       kind: "reader",
       recordKey: "spell:heal",
@@ -92,9 +96,7 @@ describe("record route views", () => {
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Open preview as reader" }));
 
-    await waitFor(() =>
-      expect(window.location.pathname).toBe("/reader/spell%3Alinked"),
-    );
+    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:linked"));
     expect(window.location.search).toBe("");
   });
 
@@ -133,7 +135,7 @@ describe("record route views", () => {
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell%3Aheal"));
+    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:heal"));
     expect(window.location.search).toBe("");
     expect(
       screen.getByText("Select a linked record to preview it."),

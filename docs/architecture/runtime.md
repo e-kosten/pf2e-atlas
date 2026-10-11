@@ -168,6 +168,14 @@ one composed presentation beside their durable local state, with explanations
 attached to adjusted facts. Fact availability distinguishes missing, null, invalid
 and not-applicable parents from known zero, false and empty collections.
 
+Transient physical price facts retain availability for each currency, and table
+results retain collection availability with one owned-link collection in the
+table body. App-service supplies compact kind/level/rank captions from typed
+facts. Shared readers omit optional known-empty baseline rows and empty headings
+without altering source facts; required/unavailable values and explicit authored
+clear/empty changes remain visible. No stored visibility flags or HTML emptiness
+parser participates in this policy.
+
 Spells and their owned copies display authored casting context, damage, fixed or
 interval heightening and partial form changes. This is reference data, including
 explicit clears; it does not execute casting, calculate effective forms or spend

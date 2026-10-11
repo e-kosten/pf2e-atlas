@@ -82,6 +82,7 @@ export type { OwnedContentIdentity } from "../../../../crates/atlas-app-model/bi
 export type { OwnedContentLocator } from "../../../../crates/atlas-app-model/bindings/OwnedContentLocator";
 export type { OwnedRecordLinkView } from "../../../../crates/atlas-app-model/bindings/OwnedRecordLinkView";
 export type { PhysicalPresentationView } from "../../../../crates/atlas-app-model/bindings/PhysicalPresentationView";
+export type { PhysicalPriceView } from "../../../../crates/atlas-app-model/bindings/PhysicalPriceView";
 export type { PreparedContentFieldView } from "../../../../crates/atlas-app-model/bindings/PreparedContentFieldView";
 export type { PreparedFieldBodyView } from "../../../../crates/atlas-app-model/bindings/PreparedFieldBodyView";
 export type { QueryCompare } from "../../../../crates/atlas-app-model/bindings/QueryCompare";

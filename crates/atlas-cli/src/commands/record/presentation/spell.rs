@@ -17,7 +17,7 @@ pub(super) fn render(out: &mut String, spell: &SpellPresentationView) {
         ("Casting entry", &spell.casting_entry),
     ] {
         if let Some(value) = value {
-            optional_text(out, label, value);
+            text(out, label, value);
         }
     }
     optional_number(
@@ -69,6 +69,9 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
             optional_number(out, "Area increase", area_increment, false, " feet");
             if let Some(increments) = known_value(increments) {
                 for increment in increments {
+                    if known_value(&increment.formula).is_some_and(|v| v.trim().is_empty()) {
+                        continue;
+                    }
                     line(
                         out,
                         format!(
@@ -99,16 +102,10 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
                 );
             }
         }
-        None if !matches!(
-            spell.heightening.state,
-            QueryFieldState::Missing | QueryFieldState::NotApplicable
-        ) =>
-        {
-            line(
-                out,
-                format!("Heightening: {}", unavailable(spell.heightening.state)),
-            )
-        }
+        None if !matches!(spell.heightening.state, QueryFieldState::NotApplicable) => line(
+            out,
+            format!("Heightening: {}", unavailable(spell.heightening.state)),
+        ),
         None => {}
     }
     if let Some(forms) = known_value(&spell.forms) {
@@ -127,10 +124,7 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
             line(out, "Authored changes to base");
             changes(out, &form.changes);
         }
-    } else if !matches!(
-        spell.forms.state,
-        QueryFieldState::Missing | QueryFieldState::NotApplicable
-    ) {
+    } else if !matches!(spell.forms.state, QueryFieldState::NotApplicable) {
         line(out, format!("Forms: {}", unavailable(spell.forms.state)));
     }
 }
@@ -138,13 +132,23 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
 fn area(out: &mut String, value: &FactView<SpellAreaView>) {
     if let Some(area) = known_value(value) {
         let mut parts = Vec::new();
-        for fact in [&area.size, &area.shape, &area.details] {
-            if !matches!(
-                fact.state,
-                QueryFieldState::Missing | QueryFieldState::NotApplicable
-            ) && !known_value(fact).is_some_and(|v| v.trim().is_empty())
+        for (required, fact) in [
+            (true, &area.size),
+            (true, &area.shape),
+            (false, &area.details),
+        ] {
+            if fact.state != QueryFieldState::NotApplicable
+                && (required
+                    || (fact.state != QueryFieldState::Missing
+                        && !known_value(fact).is_some_and(|v| v.trim().is_empty())))
             {
-                parts.push(fact_string(fact, Clone::clone));
+                parts.push(fact_string(fact, |v| {
+                    if required && v.trim().is_empty() {
+                        "Empty".into()
+                    } else {
+                        v.clone()
+                    }
+                }));
             }
         }
         if !parts.is_empty() {
@@ -157,7 +161,7 @@ fn area(out: &mut String, value: &FactView<SpellAreaView>) {
 fn changes(out: &mut String, value: &FactView<SpellChangeView>) {
     if let Some(changes) = known_value(value) {
         change_fact(out, "Casting", &changes.cast, |v| {
-            if v.label.is_empty() {
+            if v.label.trim().is_empty() {
                 "cleared (empty)".into()
             } else {
                 v.label.clone()
@@ -215,8 +219,8 @@ fn changes(out: &mut String, value: &FactView<SpellChangeView>) {
 
 fn change_text(out: &mut String, label: &str, value: &FactView<String>) {
     change_fact(out, label, value, |v| {
-        if v.is_empty() {
-            "cleared (empty)".into()
+        if v.trim().is_empty() {
+            "Empty".into()
         } else {
             v.clone()
         }
@@ -237,7 +241,14 @@ fn change_fact<T>(
     if value.state == QueryFieldState::Null {
         line(out, format!("{label}: cleared (null)"));
     } else {
-        fact(out, label, value, format);
+        fact(out, label, value, |v| {
+            let text = format(v);
+            if text.trim().is_empty() {
+                "Empty".into()
+            } else {
+                text
+            }
+        });
     }
 }
 fn heightening_changes(out: &mut String, value: &FactView<SpellHeighteningChangeView>) {
@@ -248,7 +259,7 @@ fn heightening_changes(out: &mut String, value: &FactView<SpellHeighteningChange
         change_number(out, "Area increase", &changes.area, " feet");
         if let Some(damage) = known_value(&changes.damage) {
             if damage.is_empty() {
-                line(out, "Damage increments: none");
+                line(out, "Damage increments: Empty");
             }
             for increment in damage {
                 change_text(
@@ -262,7 +273,7 @@ fn heightening_changes(out: &mut String, value: &FactView<SpellHeighteningChange
         }
         if let Some(levels) = known_value(&changes.levels) {
             if levels.is_empty() {
-                line(out, "Heightening levels: none");
+                line(out, "Heightening levels: Empty");
             }
             for level in levels {
                 line(out, format!("Rank {} changes", level.rank));

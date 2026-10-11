@@ -438,6 +438,7 @@ pub(crate) fn compose_participant(
             });
         }
         presentation.identity.level_label = Some(format!("Level {effective}"));
+        presentation.classification = format!("{} {effective}", presentation.identity.kind_label);
     }
     if let Some((stealth, hardness)) = hazard {
         overlay(stealth, "hazard.stealth");
@@ -509,6 +510,7 @@ pub(crate) fn manual_presentation(
         adjustment: None,
     };
     RecordPresentationView {
+        classification: "PC".into(),
         identity: RecordSummaryView {
             record_key: participant.participant_key.clone(),
             title: participant.display_name.clone(),

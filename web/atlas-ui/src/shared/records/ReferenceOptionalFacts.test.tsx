@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { ContentFields } from "./RecordPresentation";
 import { SpellChanges, SpellReference } from "./SpellReference";
-import type { PreparedFieldBodyView } from "../../generated/atlas";
+import type {
+  PreparedFieldBodyView,
+  SpellPresentationView,
+} from "../../generated/atlas";
 import {
   knownFact,
   numberFact,
@@ -10,6 +13,34 @@ import {
 } from "../../test/fixtures";
 
 describe("optional reference content", () => {
+  it.each(["missing", "null", "invalid"] as const)(
+    "retains unavailable heightening/forms parents (%s) while omitting source-owned inapplicable structures",
+    (state) => {
+      const spell: SpellPresentationView = {
+        ...spellFixture(),
+        heightening: unavailableFact(state),
+        forms: unavailableFact<never[]>(state),
+      };
+      const { rerender } = render(<SpellReference spell={spell} />);
+      expect(screen.getByText("Heightening").parentElement).toHaveTextContent(
+        `[${state}]`,
+      );
+      expect(screen.getByText("Spell forms").parentElement).toHaveTextContent(
+        `[${state}]`,
+      );
+      rerender(
+        <SpellReference
+          spell={{
+            ...spell,
+            heightening: unavailableFact("not_applicable"),
+            forms: unavailableFact("not_applicable"),
+          }}
+        />,
+      );
+      expect(screen.queryByText("Heightening")).toBeNull();
+      expect(screen.queryByText("Spell forms")).toBeNull();
+    },
+  );
   it("retains a spell-form defense clear independently of the baseline", () => {
     const absent = <T,>() => unavailableFact<T>("missing");
     render(
