@@ -72,9 +72,6 @@ export function CommonChoicePicker({
     }, 250);
     return () => window.clearTimeout(timeout);
   }, [text]);
-  useEffect(() => {
-    if (open && !narrow) input.current?.focus();
-  }, [open, narrow]);
 
   const choices = closedChoices
     ? field.choices.map((choice) => ({
@@ -277,6 +274,9 @@ export function CommonChoicePicker({
           content={menu}
           open={open}
           onOpenChange={setMenuOpen}
+          afterOpenChange={(visible) => {
+            if (visible && open && !narrow) input.current?.focus();
+          }}
           placement="bottomLeft"
           trigger="click"
           arrow={false}
