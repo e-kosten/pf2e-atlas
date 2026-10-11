@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import { useState } from "react";
@@ -98,6 +98,30 @@ describe("shared value control vocabulary", () => {
         }),
       ),
     );
+  });
+  it("does not reset an already opened suggestion page when the initial debounce settles", async () => {
+    vi.useFakeTimers();
+    try {
+      renderInput();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+      fireEvent.click(screen.getByRole("button", { name: "More values" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 40 }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      expect(screen.getByRole("button", { name: "Previous values" })).toBeEnabled();
+      expect(screen.getByRole("option", { name: "second-page" })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it("clears the actual search input between consecutive keyboard trait selections", async () => {
     const onChange = vi.fn();

@@ -32,18 +32,65 @@
   justify-content: space-between;
   gap: 8px;
 }
-.common-filter-choice {
+.common-choice-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.common-choice-selections {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
 }
-.common-filter-choice > .filter-value-input {
-  flex-basis: 100%;
-}
-.common-filter-value {
-  width: fit-content;
+.common-choice-selections > button {
   max-width: 100%;
+  height: auto;
+  min-height: 24px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.common-choice-trigger {
+  justify-content: space-between;
+}
+.common-choice-menu {
+  width: min(320px, calc(100vw - 48px));
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.common-choice-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 288px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.common-choice-row {
+  justify-content: flex-start;
+  height: auto;
+  min-height: 36px;
+  text-align: left;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 36px;
+}
+.common-choice-marker {
+  flex: 0 0 14px;
+  width: 14px;
+}
+.common-choice-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.common-choice-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
 .filter-range {
   display: grid;

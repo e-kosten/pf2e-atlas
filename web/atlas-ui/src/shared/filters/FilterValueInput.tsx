@@ -129,10 +129,13 @@ function OpenVocabularyInput({
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setSearch(text);
-      setOffset(0);
     }, 250);
     return () => window.clearTimeout(timeout);
   }, [text]);
+  function searchValues(next: string) {
+    setText(next);
+    setOffset(0);
+  }
   const query = useFilterVocabulary(
     scope,
     field.definition.id,
@@ -188,9 +191,13 @@ function OpenVocabularyInput({
           options={options}
           placeholder={"Search " + field.label.toLowerCase() + "…"}
           loading={query.isFetching}
-          showSearch={{ filterOption: false, searchValue: text, onSearch: setText }}
-          onSelect={() => setText("")}
-          onClear={() => setText("")}
+          showSearch={{
+            filterOption: false,
+            searchValue: text,
+            onSearch: searchValues,
+          }}
+          onSelect={() => searchValues("")}
+          onClear={() => searchValues("")}
           onChange={onChange}
           popupRender={(menu) => (
             <>
@@ -205,7 +212,7 @@ function OpenVocabularyInput({
           value={String(value ?? "")}
           options={options}
           placeholder="Search available values…"
-          showSearch={{ filterOption: false, onSearch: setText }}
+          showSearch={{ filterOption: false, onSearch: searchValues }}
           onChange={onChange}
           popupRender={(menu) => (
             <>

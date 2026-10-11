@@ -98,6 +98,13 @@ export function useFilterVocabulary(
   return useQuery({
     queryKey: ["filter-vocabulary", scope, fieldId, text, offset, selectedValues],
     enabled,
+    // A selection edit must not temporarily remove or reorder the menu's rows.
+    // Never carry suggestions across a different scope, field or page/search.
+    placeholderData: (previous, previousQuery) =>
+      JSON.stringify(previousQuery?.queryKey.slice(0, 5)) ===
+      JSON.stringify(["filter-vocabulary", scope, fieldId, text, offset])
+        ? previous
+        : undefined,
     queryFn: async () => {
       const result = await discoverFilterValues({
         kind: "vocabulary",
