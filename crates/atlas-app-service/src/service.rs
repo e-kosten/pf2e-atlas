@@ -8,7 +8,7 @@ use atlas_search::AtlasRetrievalService;
 
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::executor::{
-    RetrievalExecutor, open_retrieval_service_for_stored_vectors,
+    RetrievalExecutor, open_retrieval_service, open_retrieval_service_for_stored_vectors,
     open_retrieval_service_no_embeddings,
 };
 use crate::windows::{MAX_RESULT_WINDOWS, ResultWindowStore};
@@ -34,6 +34,8 @@ pub struct AtlasAppServiceOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppServiceRetrievalMode {
     FullPool,
+    /// A short-lived command needs one query embedder, without web concurrency lanes.
+    OnDemandEmbeddings,
     OnDemandNoEmbeddings,
     OnDemandStoredVectors,
 }
@@ -46,6 +48,7 @@ impl AtlasAppService {
             AppServiceRetrievalMode::FullPool => {
                 RetrievalBackend::Pooled(RetrievalExecutor::start(runtime_options.clone())?)
             }
+            AppServiceRetrievalMode::OnDemandEmbeddings => RetrievalBackend::OnDemandEmbeddings,
             AppServiceRetrievalMode::OnDemandNoEmbeddings => RetrievalBackend::OnDemandNoEmbeddings,
             AppServiceRetrievalMode::OnDemandStoredVectors => {
                 RetrievalBackend::OnDemandStoredVectors
@@ -101,6 +104,10 @@ impl AtlasAppService {
     {
         match &self.retrieval {
             RetrievalBackend::Pooled(executor) => executor.submit(task),
+            RetrievalBackend::OnDemandEmbeddings => {
+                let mut retrieval = open_retrieval_service(self.runtime_options.clone())?;
+                task(&mut retrieval)
+            }
             RetrievalBackend::OnDemandNoEmbeddings => {
                 let mut retrieval =
                     open_retrieval_service_no_embeddings(self.runtime_options.clone())?;
@@ -141,6 +148,7 @@ fn runtime_options(options: &AtlasAppServiceOptions) -> AtlasRuntimeOptions {
 #[derive(Clone)]
 pub(super) enum RetrievalBackend {
     Pooled(RetrievalExecutor),
+    OnDemandEmbeddings,
     OnDemandNoEmbeddings,
     OnDemandStoredVectors,
 }

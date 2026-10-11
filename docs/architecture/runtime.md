@@ -116,6 +116,10 @@ vector workflows remain deliberate modes rather than implicit web fallbacks.
 
 ## Retrieval and application workflows
 
+Short-lived semantic CLI searches open one retrieval service and query embedder
+on demand. The long-running web service retains its bounded worker pool for
+concurrent requests. Lexical and stored-vector commands remain model-free.
+
 `AtlasRetrievalService` is a concrete service over index plus optional query
 embedder. Narrow inherent methods own strict name/key lookup, browse, text search,
 similar, graph, remaster links, Suggested variants and catalog discovery. There
