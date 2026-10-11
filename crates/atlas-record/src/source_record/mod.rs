@@ -28,6 +28,7 @@ pub use content::{
     SourceContentStatus, prepare_record_content,
 };
 pub use identity::{SourceIdentityError, source_record_key};
+pub use item_query::spell_casting_form;
 pub use model::{SourceBackedRecord, SourceRecordConstructionError, source_owned_document_count};
 pub use nodes::{ItemSourceView, SourceNodeView};
 pub use query::SourceQueryView;

@@ -8,7 +8,6 @@ import {
 } from "../../api/atlasApi";
 import type {
   FilterEditorView,
-  FilterValueListView,
   RecordDetailView,
   ResultWindowPage,
 } from "../../generated/atlas";
@@ -23,9 +22,11 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { useFilterDiscovery } from "../../shared/filters/useFilterDiscovery";
+import { commonCondition } from "../../shared/filters/filterControls";
 import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import {
   initialWorkspaceInteractionState,
+  rememberKindPreference,
   workspaceInteractionReducer,
 } from "./workspaceState";
 import {
@@ -70,8 +71,9 @@ export type SearchWorkspaceState = {
   setPageNumber: (page: number) => void;
   resultPage: ResultWindowPage | undefined;
   recordDetail: RecordDetailView | undefined;
+  detailError: Error | null;
+  retryDetail: () => void;
   filterEditor: FilterEditorView | undefined;
-  filterValuesByField: Record<string, FilterValueListView | undefined>;
   filterCountsByField?: Record<
     string,
     import("../../generated/atlas").FilterCountsView | undefined
@@ -81,6 +83,9 @@ export type SearchWorkspaceState = {
   resultsRefreshing: boolean;
   detailLoading: boolean;
   filterDiscoveryLoading: boolean;
+  filterDiscoveryContext: import("../../generated/atlas").FilterDiscoveryContext;
+  vocabularyScope: import("../../generated/atlas").FilterVocabularyScope;
+  filterDiscoveryError: string | null;
   diagnostics: AtlasWorkspaceDiagnostics;
   errorMessage: string | null;
   refresh: () => void;
@@ -194,11 +199,7 @@ export function useSearchWorkspace({
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
     enabled,
-    hiddenFieldIds: search.hiddenFilterIds,
     queryKeyPrefix: ["filter-discovery", activeSearchExecutionToken],
-    retainedValueQueryKeyPrefix: ["filter-discovery"],
-    selectedFieldIds: search.visibleFilterIds,
-    visibleFieldIds: search.visibleFilterIds,
   });
 
   const detailQuery = useQuery({
@@ -233,6 +234,15 @@ export function useSearchWorkspace({
   }, [focusedResultKey, resultRows]);
 
   function setSearch(next: SearchFormState) {
+    const kind = filterDiscovery.filterEditor?.groups
+      .flatMap((group) => group.fields)
+      .find((field) => field.definition.path === "record.kind");
+    if (
+      kind &&
+      JSON.stringify(commonCondition(search.filter, kind.definition)) !==
+        JSON.stringify(commonCondition(next.filter, kind.definition))
+    )
+      rememberKindPreference(next.filter, kind.definition);
     dispatch({ type: "search.changed", search: next });
     const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next)}`;
     history.replaceState(null, "", url);
@@ -278,10 +288,7 @@ export function useSearchWorkspace({
   }
 
   const errorMessage =
-    messageFromError(resultsQuery.error) ??
-    messageFromError(detailQuery.error) ??
-    filterDiscovery.errorMessage ??
-    messageFromError(readiness.error);
+    messageFromError(resultsQuery.error) ?? messageFromError(readiness.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const activeWindowId =
     resultWindow?.searchExecutionToken === activeSearchExecutionToken
@@ -306,9 +313,15 @@ export function useSearchWorkspace({
     setPageNumber: (pageNumber) => dispatch({ type: "resultPage.changed", pageNumber }),
     resultPage: canRunResultSearch ? resultsQuery.data : undefined,
     recordDetail: detailQuery.data,
+    detailError: detailQuery.error,
+    retryDetail: () => {
+      void detailQuery.refetch();
+    },
     filterEditor: filterDiscovery.filterEditor,
     filterCountsByField: filterDiscovery.filterCountsByField,
-    filterValuesByField: filterDiscovery.filterValuesByField,
+    filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
+    vocabularyScope: filterDiscovery.vocabularyScope,
+    filterDiscoveryError: filterDiscovery.errorMessage,
     readiness,
     resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing,

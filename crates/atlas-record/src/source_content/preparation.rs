@@ -74,6 +74,7 @@ pub(super) fn sanitizer() -> ammonia::Builder<'static> {
             "data-atlas-interaction",
             "data-atlas-interaction-kind",
         ])
+        .add_tag_attributes("span", ["data-atlas-action-glyph"])
         .add_tag_attributes("ol", ["start"])
         .add_tag_attributes("li", ["value"])
         .add_tag_attributes("td", ["colspan", "rowspan"])
@@ -238,7 +239,7 @@ impl Projection<'_> {
                         .and_then(Option::as_deref)
                         .map(str::to_string)
                         .unwrap_or_else(|| simple_text(children));
-                    return format!("<span>{}</span>", escape(&self.action(path, &value)));
+                    return self.action_markup(path, &value);
                 }
                 let attributes = attributes
                     .iter()
@@ -621,22 +622,29 @@ impl Projection<'_> {
         }
     }
 
-    fn action(&mut self, path: &str, value: &str) -> String {
-        match value.trim() {
-            "F" | "free" | "0" => "free action".into(),
-            "R" | "reaction" => "reaction".into(),
-            "1" => "one action".into(),
-            "2" => "two actions".into(),
-            "3" => "three actions".into(),
-            "1/2" => "one or two actions".into(),
-            "1 - 3" | "1 – 3" => "one to three actions".into(),
-            "2/3" => "two or three actions".into(),
-            "3,3" => "two rounds".into(),
+    fn action_markup(&mut self, path: &str, value: &str) -> String {
+        let (glyph, label) = match value.trim() {
+            "F" | "free" | "0" => (Some("free_action"), "free action"),
+            "R" | "reaction" => (Some("reaction"), "reaction"),
+            "1" => (Some("one_action"), "one action"),
+            "2" => (Some("two_actions"), "two actions"),
+            "3" => (Some("three_actions"), "three actions"),
+            "1/2" => (None, "one or two actions"),
+            "1 - 3" | "1 – 3" => (None, "one to three actions"),
+            "2/3" => (None, "two or three actions"),
+            "3,3" => (None, "two rounds"),
             _ => {
                 self.issue(path, ContentDiagnosticCode::UnknownActionGlyph, value);
-                format!("[action glyph: {value}]")
+                return format!(
+                    "<span>{}</span>",
+                    escape(&format!("[action glyph: {value}]"))
+                );
             }
-        }
+        };
+        let attribute = glyph
+            .map(|g| format!(" data-atlas-action-glyph=\"{g}\""))
+            .unwrap_or_default();
+        format!("<span{attribute}>{label}</span>")
     }
 }
 

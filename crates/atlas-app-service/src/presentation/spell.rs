@@ -15,10 +15,14 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
         cast: fact(
             s.and_then(|s| (&s.time).into())
                 .and_then(|v| (&v.value).into())
-                .map(|v| cast_label(v)),
+                .map(|v| casting_cost(v)),
         ),
-        requirements: text(s.and_then(|s| (&s.requirements).into())),
-        cost: text(
+        requirements: optional_text(
+            s.value().is_some(),
+            s.and_then(|s| (&s.requirements).into()),
+        ),
+        cost: optional_text(
+            s.value().is_some(),
             s.and_then(|s| (&s.cost).into())
                 .and_then(|v| (&v.value).into()),
         ),
@@ -30,8 +34,8 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
             s.and_then(|s| (&s.target).into())
                 .and_then(|v| (&v.value).into()),
         ),
-        area: fact(s.and_then(|s| (&s.area).into()).map(area)),
-        defense: fact(s.and_then(|s| (&s.defense).into()).map(defense)),
+        area: optional_area(s.value().is_some(), s.and_then(|s| (&s.area).into())),
+        defense: optional_defense(s.value().is_some(), s.and_then(|s| (&s.defense).into())),
         duration: text(
             s.and_then(|s| (&s.duration).into())
                 .and_then(|v| (&v.value).into()),
@@ -54,7 +58,8 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
                 })
                 .collect()
         })),
-        casting_entry: text(
+        casting_entry: optional_text(
+            s.value().is_some(),
             s.and_then(|s| (&s.location).into())
                 .and_then(|v| (&v.value).into()),
         ),
@@ -62,6 +67,18 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
             s.and_then(|s| (&s.location).into())
                 .and_then(|v| (&v.heightened_level).into()),
         ),
+    }
+}
+/// Explicit null under a known spell system means there is no baseline area.
+/// Missing/invalid fields and unavailable parents remain observable facts.
+fn optional_area(
+    parent_known: bool,
+    value: SourceFieldView<'_, &SpellArea>,
+) -> Option<FactView<SpellAreaView>> {
+    if parent_known && matches!(value, SourceFieldView::Null) {
+        None
+    } else {
+        Some(fact(value.map(area)))
     }
 }
 fn area(a: &SpellArea) -> SpellAreaView {
@@ -72,6 +89,17 @@ fn area(a: &SpellArea) -> SpellAreaView {
             StringOrNumber::Number(n) => format!("{n} feet"),
         })),
         details: text((&a.details).into()),
+    }
+}
+/// Null defense under a known system means there is no authored defense.
+fn optional_defense(
+    parent_known: bool,
+    value: SourceFieldView<'_, &SpellDefenseSource>,
+) -> Option<FactView<SpellDefenseView>> {
+    if parent_known && matches!(value, SourceFieldView::Null) {
+        None
+    } else {
+        Some(fact(value.map(defense)))
     }
 }
 fn defense(d: &SpellDefenseSource) -> SpellDefenseView {
@@ -154,7 +182,7 @@ macro_rules! changed_facts {
             cast: fact(
                 SourceFieldView::from(&$s.time)
                     .and_then(|v| (&v.value).into())
-                    .map(|v| cast_label(v)),
+                    .map(|v| casting_cost(v)),
             ),
             range: text(SourceFieldView::from(&$s.range).and_then(|v| (&v.value).into())),
             target: text(SourceFieldView::from(&$s.target).and_then(|v| (&v.value).into())),

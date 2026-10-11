@@ -9,7 +9,8 @@ use crate::{
     query::{ValidatedQuery, validate_query},
 };
 use atlas_domain::{
-    RecordKey,
+    FacetUnavailableReason, QueryFacetOutcome, QueryVocabulary, QueryVocabularyBasis,
+    QueryVocabularyOption, RecordKey,
     query::{
         QueryCompare, QueryExpression, QueryFieldState, QueryFieldType, QueryLiteral,
         QueryPredicate, QuerySetMatch,
@@ -42,6 +43,53 @@ pub struct QueryCountsRequest {
     pub clause_id: Option<String>,
     pub query: ValidatedQuery,
     pub context: QueryFacetContext,
+}
+#[derive(Debug, Clone)]
+pub struct QueryVocabularyRequest {
+    pub field: String,
+    pub eligible_keys: Option<Vec<RecordKey>>,
+    pub text: Option<String>,
+    pub offset: usize,
+    pub limit: usize,
+    pub selected_values: Vec<QueryLiteral>,
+}
+
+/// Validate value discovery before optional capability classification or model work.
+pub fn validate_value_discovery(
+    field_id: &str,
+    offset: usize,
+    limit: usize,
+    text: Option<&str>,
+) -> Result<(), IndexError> {
+    if limit == 0 || limit > 200 || offset > 100_000 {
+        return Err(error(
+            "discovery_limit",
+            "Value discovery requires limit 1..=200 and bounded offset",
+            Some(field_id),
+        )
+        .into());
+    }
+    if text.is_some_and(|text| text.len() > atlas_domain::QueryLimits::default().source_bytes) {
+        return Err(error(
+            "discovery_limit",
+            "Vocabulary search text exceeds the bounded request size",
+            Some(field_id),
+        )
+        .into());
+    }
+    let d = field(field_id)?;
+    if matches!(
+        d.definition.field_type,
+        QueryFieldType::Number | QueryFieldType::Collection
+    ) {
+        return Err(error(
+            "discovery_type",
+            "Use availability/numeric statistics or scoped member values for this field",
+            Some(field_id),
+        )
+        .into());
+    }
+    Ok(())
 }
 fn key_filter(context: &QueryFacetContext, parameters: &mut Vec<Value>) -> String {
     match &context.eligible_keys {
@@ -102,11 +150,16 @@ fn occurrences(d: &crate::query::catalog::Descriptor) -> Result<(String, String)
 pub(crate) fn field_counts(
     connection: &Connection,
     request: &QueryCountsRequest,
-) -> Result<QueryFieldCounts, IndexError> {
+) -> Result<QueryFacetOutcome<QueryFieldCounts>, IndexError> {
     let id = &request.field;
     let d = field(id)?;
     let (query, member) = if let Some(clause_id) = &request.clause_id {
-        let (base, _, member) = remove_clause(&request.query, clause_id, d)?;
+        let (base, _, member) = match remove_clause(&request.query, clause_id, d)? {
+            QueryFacetOutcome::Available { value } => value,
+            QueryFacetOutcome::Unavailable { reason } => {
+                return Ok(QueryFacetOutcome::Unavailable { reason });
+            }
+        };
         (base, member)
     } else {
         (request.query.clone(), None)
@@ -171,47 +224,57 @@ pub(crate) fn field_counts(
     } else {
         (None, None)
     };
-    Ok(QueryFieldCounts {
-        field: id.to_owned(),
-        counting_scope: d
-            .definition
-            .scope
-            .clone()
-            .unwrap_or_else(|| "root".to_owned()),
-        states,
-        exhaustive: !request.context.bounded_candidates,
-        count_basis: if request.context.bounded_candidates {
-            "clause-removed semantic candidate window; before remaster suppression"
-        } else {
-            "clause-removed eligible source roots; before remaster suppression"
-        }
-        .to_owned(),
-        minimum,
-        maximum,
+    Ok(QueryFacetOutcome::Available {
+        value: QueryFieldCounts {
+            field: id.to_owned(),
+            counting_scope: d
+                .definition
+                .scope
+                .clone()
+                .unwrap_or_else(|| "root".to_owned()),
+            states,
+            exhaustive: !request.context.bounded_candidates,
+            count_basis: if request.context.bounded_candidates {
+                "clause-removed semantic candidate window; before remaster suppression"
+            } else {
+                "clause-removed eligible source roots; before remaster suppression"
+            }
+            .to_owned(),
+            minimum,
+            maximum,
+        },
     })
 }
 
+type RemovedClause = (ValidatedQuery, QueryPredicate, Option<QueryPredicate>);
+struct ClauseRemoval {
+    target: Option<QueryPredicate>,
+    member: Option<QueryPredicate>,
+    unavailable: Option<FacetUnavailableReason>,
+}
 fn remove_clause(
     query: &ValidatedQuery,
     id: &str,
     expected: &crate::query::catalog::Descriptor,
-) -> Result<(ValidatedQuery, QueryPredicate, Option<QueryPredicate>), IndexError> {
-    let mut removed = None;
-    let mut member_remainder = None;
+) -> Result<QueryFacetOutcome<RemovedClause>, IndexError> {
+    let mut removal = ClauseRemoval {
+        target: None,
+        member: None,
+        unavailable: None,
+    };
     fn walk(
         p: &QueryPredicate,
         id: &str,
         scope: Option<&str>,
         allowed: bool,
-        removed: &mut Option<QueryPredicate>,
-        member: &mut Option<QueryPredicate>,
+        removal: &mut ClauseRemoval,
         expected: &crate::query::catalog::Descriptor,
     ) -> Result<QueryPredicate, IndexError> {
         if p.clause_id.as_deref() == Some(id) {
-            if !allowed || scope != expected.definition.scope.as_deref() {
+            if scope != expected.definition.scope.as_deref() {
                 return Err(error(
-                    "unsupported_facet_context",
-                    "Contextual facets require a positive conjunction and at most one Exists scope",
+                    "facet_target_scope",
+                    "The target condition does not use the requested field scope",
                     Some(&expected.definition.id),
                 )
                 .into());
@@ -223,33 +286,36 @@ fn remove_clause(
                 | QueryExpression::StateMatch { field, .. } => field,
                 _ => {
                     return Err(error(
-                        "unsupported_facet_context",
+                        "facet_target_type",
                         "Facet target must be a field clause",
                         Some(&expected.definition.id),
                     )
                     .into());
                 }
             };
-            if actual != &expected.definition.path
-                || matches!(
-                    &p.expression,
-                    QueryExpression::SetMatch {
-                        op: QuerySetMatch::ExcludesAny,
-                        ..
-                    } | QueryExpression::Compare {
-                        op: QueryCompare::Neq,
-                        ..
-                    }
-                )
-            {
+            if actual != &expected.definition.path {
                 return Err(error(
-                    "unsupported_facet_context",
-                    "Facet target must include the selected field",
+                    "facet_target_field",
+                    "The target condition does not use the requested field",
                     Some(&expected.definition.id),
                 )
                 .into());
             }
-            *removed = Some(p.clone());
+            if !allowed {
+                removal.unavailable = Some(FacetUnavailableReason::NonConjunctiveContext);
+            } else if matches!(
+                &p.expression,
+                QueryExpression::SetMatch {
+                    op: QuerySetMatch::ExcludesAny,
+                    ..
+                } | QueryExpression::Compare {
+                    op: QueryCompare::Neq,
+                    ..
+                }
+            ) {
+                removal.unavailable = Some(FacetUnavailableReason::NegativeCondition);
+            }
+            removal.target = Some(p.clone());
             return Ok(QueryPredicate::boolean(true));
         }
         let mut result = p.clone();
@@ -257,37 +323,27 @@ fn remove_clause(
             QueryExpression::AllOf { children } => QueryExpression::AllOf {
                 children: children
                     .iter()
-                    .map(|p| walk(p, id, scope, allowed, removed, member, expected))
+                    .map(|p| walk(p, id, scope, allowed, removal, expected))
                     .collect::<Result<_, _>>()?,
             },
             QueryExpression::AnyOf { children } => QueryExpression::AnyOf {
                 children: children
                     .iter()
-                    .map(|p| walk(p, id, scope, false, removed, member, expected))
+                    .map(|p| walk(p, id, scope, false, removal, expected))
                     .collect::<Result<_, _>>()?,
             },
             QueryExpression::Not { predicate } => QueryExpression::Not {
-                predicate: Box::new(walk(
-                    predicate, id, scope, false, removed, member, expected,
-                )?),
+                predicate: Box::new(walk(predicate, id, scope, false, removal, expected)?),
             },
             QueryExpression::Exists {
                 collection,
                 scope_id,
                 predicate,
             } => {
-                let previously_removed = removed.is_some();
-                let child = walk(
-                    predicate,
-                    id,
-                    Some(collection),
-                    allowed,
-                    removed,
-                    member,
-                    expected,
-                )?;
-                if !previously_removed && removed.is_some() {
-                    *member = Some(child.clone());
+                let previously_removed = removal.target.is_some();
+                let child = walk(predicate, id, Some(collection), allowed, removal, expected)?;
+                if !previously_removed && removal.target.is_some() {
+                    removal.member = Some(child.clone());
                 }
                 QueryExpression::Exists {
                     collection: collection.clone(),
@@ -299,23 +355,20 @@ fn remove_clause(
         };
         Ok(result)
     }
-    let base = walk(
-        query.predicate(),
-        id,
-        None,
-        true,
-        &mut removed,
-        &mut member_remainder,
-        expected,
-    )?;
-    let target = removed.ok_or_else(|| {
+    let base = walk(query.predicate(), id, None, true, &mut removal, expected)?;
+    let target = removal.target.ok_or_else(|| {
         error(
             "clause_id",
             "The target clause ID does not exist in the request",
             Some(&expected.definition.id),
         )
     })?;
-    Ok((validate_query(&base)?, target, member_remainder))
+    if let Some(reason) = removal.unavailable {
+        return Ok(QueryFacetOutcome::Unavailable { reason });
+    }
+    Ok(QueryFacetOutcome::Available {
+        value: (validate_query(&base)?, target, removal.member),
+    })
 }
 /// The same supported self-exclusion used by counts/values supplies search's
 /// clause-removed candidate universe. Physical SQL bindings stay private.
@@ -323,11 +376,13 @@ pub fn facet_base_query(
     field_id: &str,
     clause_id: Option<&str>,
     query: &ValidatedQuery,
-) -> Result<ValidatedQuery, IndexError> {
+) -> Result<QueryFacetOutcome<ValidatedQuery>, IndexError> {
     let descriptor = field(field_id)?;
     match clause_id {
-        Some(id) => remove_clause(query, id, descriptor).map(|(base, _, _)| base),
-        None => Ok(query.clone()),
+        Some(id) => Ok(remove_clause(query, id, descriptor)?.map(|(base, _, _)| base)),
+        None => Ok(QueryFacetOutcome::Available {
+            value: query.clone(),
+        }),
     }
 }
 fn replace_clause(p: &QueryPredicate, id: &str, replacement: &QueryPredicate) -> QueryPredicate {
@@ -371,9 +426,12 @@ fn candidate_clause(
     Ok(QueryPredicate::new(
         if d.definition.field_type == QueryFieldType::Set {
             let QueryLiteral::String(value) = value else {
-                return Err(IndexError::Invalid(
-                    "set facet has a non-string catalog value".into(),
-                ));
+                return Err(error(
+                    "literal_type",
+                    "Set vocabulary selections must be strings",
+                    Some(&d.definition.id),
+                )
+                .into());
             };
             QueryExpression::SetMatch {
                 field: d.definition.path.clone(),
@@ -402,74 +460,26 @@ fn selected(target: Option<&QueryPredicate>) -> Vec<QueryLiteral> {
 pub(crate) fn field_values(
     connection: &Connection,
     request: &QueryValuesRequest,
-) -> Result<QueryValueOptions, IndexError> {
-    if request.limit == 0 || request.limit > 200 || request.offset > 100_000 {
-        return Err(error(
-            "discovery_limit",
-            "Value discovery requires limit1..=200 and bounded offset",
-            Some(&request.field),
-        )
-        .into());
-    }
+) -> Result<QueryFacetOutcome<QueryValueOptions>, IndexError> {
+    validate_value_discovery(
+        &request.field,
+        request.offset,
+        request.limit,
+        request.text.as_deref(),
+    )?;
     let d = field(&request.field)?;
-    if matches!(
-        d.definition.field_type,
-        QueryFieldType::Number | QueryFieldType::Collection
-    ) {
-        return Err(error(
-            "discovery_type",
-            "Use field availability/numeric statistics or scoped member values for this descriptor",
-            Some(&request.field),
-        )
-        .into());
-    }
     let (base, target, member) = if let Some(id) = &request.clause_id {
-        let (base, target, member) = remove_clause(&request.query, id, d)?;
+        let (base, target, member) = match remove_clause(&request.query, id, d)? {
+            QueryFacetOutcome::Available { value } => value,
+            QueryFacetOutcome::Unavailable { reason } => {
+                return Ok(QueryFacetOutcome::Unavailable { reason });
+            }
+        };
         (base, Some(target), member)
     } else {
         (request.query.clone(), None, None)
     };
-    let mut compiled = compile_predicate(&base)?;
-    let keys = key_filter(&request.context, &mut compiled.parameters);
-    let (from, _) = occurrences(d)?;
-    let b = bound_field(d, d.definition.scope.as_deref());
-    let member = member
-        .as_ref()
-        .map(|p| compile_node(p, d.definition.scope.as_deref(), &mut compiled.parameters))
-        .transpose()?
-        .unwrap_or_else(|| "1".to_owned());
-    // SQLite has no LATERAL subqueries. A correlated json_group_array carries
-    // the finite relational values to json_each without parsing source bodies.
-    let values_expr = if matches!(&d.binding, Binding::Set { .. }) {
-        format!(
-            "(SELECT json_group_array(t.value) FROM {})",
-            member_relation(d, d.definition.scope.as_deref(), "t")?
-        )
-    } else {
-        format!("json_array({})", b.value)
-    };
-    let sql = format!(
-        "WITH known AS (SELECT {values_expr} AS values_json FROM {from} ({}) AND ({keys}) AND ({member}) AND ({})='value') SELECT DISTINCT v.value FROM known,json_each(known.values_json) v ORDER BY v.value",
-        compiled.expression, b.state
-    );
-    let mut statement = connection.prepare(&sql)?;
-    let mut values = statement
-        .query_map(params_from_iter(&compiled.parameters), |r| {
-            r.get::<_, Value>(0)
-        })?
-        .map(|r| {
-            scalar_literal(r?).map(|v| {
-                if d.definition.field_type == QueryFieldType::Boolean {
-                    match v {
-                        QueryLiteral::Number(n) => QueryLiteral::Boolean(n.as_i64() == Some(1)),
-                        other => other,
-                    }
-                } else {
-                    v
-                }
-            })
-        })
-        .collect::<Result<Vec<_>, IndexError>>()?;
+    let mut values = enumerate_values(connection, d, &base, &request.context, member.as_ref())?;
     // Closed choices absent from this artifact and selected absent open values
     // remain discoverable rather than being silently erased by row enumeration.
     for value in d
@@ -547,18 +557,153 @@ pub(crate) fn field_values(
             distinct_roots: count,
         });
     }
-    Ok(QueryValueOptions {
+    Ok(QueryFacetOutcome::Available {
+        value: QueryValueOptions {
+            field: request.field.clone(),
+            options,
+            total_values,
+            exhaustive: !request.context.bounded_candidates,
+            count_basis: if request.context.bounded_candidates {
+                "clause-removed semantic candidate window"
+            } else if request.clause_id.is_some() {
+                "exact counterfactual displayed roots"
+            } else {
+                "unscoped value enumeration with active root eligibility"
+            }
+            .to_owned(),
+        },
+    })
+}
+
+fn enumerate_values(
+    connection: &Connection,
+    d: &crate::query::catalog::Descriptor,
+    base: &ValidatedQuery,
+    context: &QueryFacetContext,
+    member: Option<&QueryPredicate>,
+) -> Result<Vec<QueryLiteral>, IndexError> {
+    let mut compiled = compile_predicate(base)?;
+    let keys = key_filter(context, &mut compiled.parameters);
+    let (from, _) = occurrences(d)?;
+    let b = bound_field(d, d.definition.scope.as_deref());
+    let member = member
+        .map(|p| compile_node(p, d.definition.scope.as_deref(), &mut compiled.parameters))
+        .transpose()?
+        .unwrap_or_else(|| "1".to_owned());
+    // SQLite has no LATERAL subqueries. A correlated json_group_array carries
+    // the finite relational values to json_each without parsing source bodies.
+    let values_expr = if matches!(&d.binding, Binding::Set { .. }) {
+        format!(
+            "(SELECT json_group_array(t.value) FROM {})",
+            member_relation(d, d.definition.scope.as_deref(), "t")?
+        )
+    } else {
+        format!("json_array({})", b.value)
+    };
+    let sql = format!(
+        "WITH known AS (SELECT {values_expr} AS values_json FROM {from} ({}) AND ({keys}) AND ({member}) AND ({})='value') SELECT DISTINCT v.value FROM known,json_each(known.values_json) v ORDER BY v.value",
+        compiled.expression, b.state
+    );
+    let mut statement = connection.prepare(&sql)?;
+    let values = statement
+        .query_map(params_from_iter(&compiled.parameters), |r| {
+            r.get::<_, Value>(0)
+        })?
+        .map(|r| {
+            scalar_literal(r?).map(|v| {
+                if d.definition.field_type == QueryFieldType::Boolean {
+                    match v {
+                        QueryLiteral::Number(n) => QueryLiteral::Boolean(n.as_i64() == Some(1)),
+                        other => other,
+                    }
+                } else {
+                    v
+                }
+            })
+        })
+        .collect::<Result<Vec<_>, IndexError>>()?;
+
+    Ok(values)
+}
+
+pub(crate) fn field_vocabulary(
+    connection: &Connection,
+    request: &QueryVocabularyRequest,
+) -> Result<QueryVocabulary, IndexError> {
+    validate_value_discovery(
+        &request.field,
+        request.offset,
+        request.limit,
+        request.text.as_deref(),
+    )?;
+    let d = field(&request.field)?;
+    if request.selected_values.len() > atlas_domain::QueryLimits::default().literal_list {
+        return Err(error(
+            "discovery_limit",
+            "Too many selected vocabulary values",
+            Some(&request.field),
+        )
+        .into());
+    }
+    // The shared predicate validator remains the literal/choice authority, also
+    // for member fields. A vocabulary request has no query to discard.
+    let candidate = QueryPredicate::new(QueryExpression::AllOf {
+        children: request
+            .selected_values
+            .iter()
+            .map(|value| candidate_clause(d, value))
+            .collect::<Result<_, _>>()?,
+    });
+    let candidate = if let Some(scope) = &d.definition.scope {
+        QueryPredicate::new(QueryExpression::Exists {
+            collection: scope.clone(),
+            scope_id: "vocabulary-selection".into(),
+            predicate: Box::new(candidate),
+        })
+    } else {
+        candidate
+    };
+    if !request.selected_values.is_empty() {
+        validate_query(&candidate)?;
+    }
+    let base = validate_query(&QueryPredicate::boolean(true))?;
+    let context = QueryFacetContext {
+        eligible_keys: request.eligible_keys.clone(),
+        bounded_candidates: false,
+        prefer_remaster: false,
+    };
+    let mut values = enumerate_values(connection, d, &base, &context, None)?;
+    if let Some(text) = &request.text {
+        let text = text.to_lowercase();
+        values.retain(|value| match value {
+            QueryLiteral::String(s) => s.to_lowercase().contains(&text),
+            QueryLiteral::Boolean(b) => b.to_string().contains(&text),
+            QueryLiteral::Number(_) => false,
+        });
+    }
+    values.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+    let total_values = values.len() as u64;
+    let options = values
+        .into_iter()
+        .skip(request.offset)
+        .take(request.limit)
+        .map(|value| QueryVocabularyOption { value })
+        .collect();
+    let mut selected_values = Vec::new();
+    for value in &request.selected_values {
+        if !selected_values.contains(value) {
+            selected_values.push(value.clone());
+        }
+    }
+    Ok(QueryVocabulary {
         field: request.field.clone(),
         options,
+        selected_values,
         total_values,
-        exhaustive: !request.context.bounded_candidates,
-        count_basis: if request.context.bounded_candidates {
-            "clause-removed semantic candidate window"
-        } else if request.clause_id.is_some() {
-            "exact counterfactual displayed roots"
+        basis: if request.eligible_keys.is_some() {
+            QueryVocabularyBasis::ProductKeyScopeBeforeEditionPreference
         } else {
-            "unscoped value enumeration with active root eligibility"
-        }
-        .to_owned(),
+            QueryVocabularyBasis::ProductArtifactBeforeEditionPreference
+        },
     })
 }

@@ -6,7 +6,8 @@ import {
   valuesFixture,
 } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { ConfigProvider } from "antd";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   RecordDetailView,
@@ -183,7 +184,9 @@ describe("list views", () => {
     expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
     expect(screen.getByText("List")).toBeInTheDocument();
     expect(screen.getByText("Items")).toBeInTheDocument();
-    expect(screen.getByText("Filters")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Advanced filters" }),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
@@ -248,7 +251,7 @@ describe("list views", () => {
         filter: undefined,
       }),
     );
-    fireEvent.change(await screen.findByPlaceholderText("Search records"), {
+    fireEvent.change(await screen.findByRole("textbox", { name: "Search records" }), {
       target: { value: "Test Action 2" },
     });
 
@@ -336,6 +339,23 @@ describe("list views", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/lists/encounters"));
   });
 
+  it("explains the saved-list action on keyboard focus without loading lists", async () => {
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <AddToListButton recordKey="actions:testAction1" />
+      </ConfigProvider>,
+      { wrapper: queryClientWrapper() },
+    );
+    const action = screen.getByRole("button", { name: "Add to saved list" });
+    act(() => action.focus());
+    expect(action).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Add to saved list");
+    expect(apiMocks.getSavedLists).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    act(() => action.blur());
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+  });
+
   it("adds the current record to a selected list", async () => {
     render(<AddToListButton recordKey="actions:testAction1" />, {
       wrapper: queryClientWrapper(),
@@ -405,7 +425,7 @@ function savedListIndexFixture(): SavedListIndexView {
         name: "Research",
         description: "Campaign prep",
         tags: ["arc-one", "boss"],
-        item_count: 1n,
+        item_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
       },
@@ -415,7 +435,7 @@ function savedListIndexFixture(): SavedListIndexView {
         name: "Encounters",
         description: "Fight prep",
         tags: ["arc-two"],
-        item_count: 0n,
+        item_count: 0,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-03T00:00:00Z",
       },
@@ -429,7 +449,7 @@ function savedListDetailFixture(): SavedListDetailView {
     items: [
       {
         record_key: "actions:testAction1",
-        position: 1n,
+        position: 1,
         status: "active",
         snapshot: {
           title: "Test Action 1",

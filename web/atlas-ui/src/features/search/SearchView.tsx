@@ -49,6 +49,10 @@ export function SearchView({ workspace }: SearchViewProps) {
       detail={
         <RecordDetailPane
           detail={workspace.recordDetail}
+          error={workspace.detailError}
+          onRetry={workspace.retryDetail}
+          onBack={() => workspace.selectRecord(null)}
+          backLabel="Back to results"
           loading={workspace.detailLoading}
           onReference={(recordKey, _anchor, selection) => {
             if (

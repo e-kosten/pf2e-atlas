@@ -266,21 +266,20 @@ export async function getSavedLists(): Promise<SavedListIndexView> {
 }
 
 export async function getSavedList(listRef: string): Promise<SavedListDetailView> {
-  const list = await atlasFetch<unknown>(`/api/lists/${encodeURIComponent(listRef)}`);
-  return normalizeSavedListDetail(list);
+  return checkedSavedListDetail(
+    await atlasFetch(`/api/lists/${encodeURIComponent(listRef)}`),
+  );
 }
 
 export async function filterSavedList(
   request: FilterSavedListRequest,
 ): Promise<SavedListDetailView> {
-  const list = await atlasFetch<unknown>(
-    `/api/lists/${encodeURIComponent(request.list_ref)}/filter`,
-    {
+  return checkedSavedListDetail(
+    await atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/filter`, {
       method: "POST",
       body: jsonBody(request),
-    },
+    }),
   );
-  return normalizeSavedListDetail(list);
 }
 
 export async function createSavedList(
@@ -494,34 +493,37 @@ function normalizeResultWindowPage(value: unknown): ResultWindowPage {
 }
 
 function normalizeFilterValueList(value: unknown): FilterValueListView {
-  if (!isRecord(value) || !isRecord(value.values))
-    throw new AtlasApiError(200, "Invalid filter-value response");
-  const values = value.values;
-  return {
-    values: {
-      ...values,
-      total_values: toBigInt(values.total_values),
-      options: Array.isArray(values.options)
-        ? values.options.map((o) =>
-            isRecord(o) ? { ...o, distinct_roots: toBigInt(o.distinct_roots) } : o,
-          )
-        : [],
-    },
-  } as FilterValueListView;
-}
-
-function normalizeSavedListDetail(value: unknown): SavedListDetailView {
-  if (!isRecord(value)) {
-    throw new AtlasApiError(200, "Invalid saved-list response");
+  if (!isRecord(value)) throw new AtlasApiError(200, "Invalid filter-value response");
+  if (value.kind === "vocabulary" && isRecord(value.values)) {
+    return {
+      ...value,
+      values: { ...value.values, total_values: toBigInt(value.values.total_values) },
+    } as FilterValueListView;
   }
-  return {
-    ...value,
-    items: Array.isArray(value.items)
-      ? value.items.map((item) =>
-          isRecord(item) ? { ...item, position: toBigInt(item.position) } : item,
-        )
-      : [],
-  } as SavedListDetailView;
+  if (value.kind === "contextual" && isRecord(value.outcome)) {
+    if (value.outcome.status === "unavailable") return value as FilterValueListView;
+    if (value.outcome.status === "available" && isRecord(value.outcome.value)) {
+      const values = value.outcome.value;
+      return {
+        ...value,
+        outcome: {
+          ...value.outcome,
+          value: {
+            ...values,
+            total_values: toBigInt(values.total_values),
+            options: Array.isArray(values.options)
+              ? values.options.map((option) =>
+                  isRecord(option)
+                    ? { ...option, distinct_roots: toBigInt(option.distinct_roots) }
+                    : option,
+                )
+              : [],
+          },
+        },
+      } as FilterValueListView;
+    }
+  }
+  throw new AtlasApiError(200, "Invalid filter-value response");
 }
 
 function toBigInt(value: unknown): bigint {
@@ -535,6 +537,12 @@ function toBigInt(value: unknown): bigint {
     return BigInt(value);
   }
   throw new AtlasApiError(200, "Invalid numeric field in API response");
+}
+
+function checkedSavedListDetail(value: unknown): SavedListDetailView {
+  if (!isRecord(value) || !Array.isArray(value.items))
+    throw new AtlasApiError(200, "Invalid saved-list response");
+  return value as SavedListDetailView;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -585,15 +593,19 @@ export async function discoverFilterCounts(
     "/api/filters/counts",
     { method: "POST", body: jsonBody(request) },
   );
+  if (result.counts.status === "unavailable") return result;
   return {
     ...result,
     counts: {
       ...result.counts,
-      states: result.counts.states.map((s) => ({
-        ...s,
-        occurrences: toBigInt(s.occurrences),
-        distinct_roots: toBigInt(s.distinct_roots),
-      })),
+      value: {
+        ...result.counts.value,
+        states: result.counts.value.states.map((s) => ({
+          ...s,
+          occurrences: toBigInt(s.occurrences),
+          distinct_roots: toBigInt(s.distinct_roots),
+        })),
+      },
     },
   };
 }

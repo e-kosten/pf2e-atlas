@@ -551,7 +551,7 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
         .predicate()
         .clone();
     predicate.clause_id = Some("level-choice".into());
-    let counts = service
+    let atlas_domain::QueryFacetOutcome::Available { value: counts } = service
         .discover_filter_counts(DiscoverFilterCountsRequest {
             field: "item.level",
             clause_id: Some("level-choice"),
@@ -563,7 +563,10 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
                 filter: Some(&predicate),
             },
         })
-        .unwrap();
+        .unwrap()
+    else {
+        panic!("expected supported contextual counts")
+    };
     assert!(counts.exhaustive);
     assert_eq!(counts.minimum.unwrap().as_i64(), Some(1));
     assert_eq!(counts.maximum.unwrap().as_i64(), Some(2));
@@ -861,4 +864,101 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
     );
     assert_eq!(page2.results.page.total, result.results.page.total);
     assert_eq!(page2.results.records[0].record.key, key("cccccccccccccccc"));
+}
+
+#[test]
+fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors() {
+    let (_dir, mut service) = service(input(
+        vec![effect("aaaaaaaaaaaaaaaa", "Flame", 1, "")],
+        false,
+    ));
+    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"not","predicate":{"clause_id":"target","kind":"compare","field":"rarity","op":"eq","value":"common"}})).unwrap();
+    let context = FilterDiscoveryContext {
+        text: Some("flame"),
+        mode: RetrievalMode::Hybrid,
+        scope: RecordScope::All,
+        prefer_remaster: true,
+        filter: Some(&predicate),
+    };
+    assert!(matches!(
+        service
+            .discover_filter_counts(DiscoverFilterCountsRequest {
+                field: "rarity",
+                clause_id: Some("target"),
+                context
+            })
+            .unwrap(),
+        atlas_domain::QueryFacetOutcome::Unavailable { .. }
+    ));
+    let error = service
+        .discover_filter_counts(DiscoverFilterCountsRequest {
+            field: "traits",
+            clause_id: Some("target"),
+            context,
+        })
+        .unwrap_err();
+    assert_eq!(error.kind(), SearchErrorKind::InvalidFilter);
+    assert_eq!(error.query_error.unwrap().code, "facet_target_field");
+    let mut invalid_values = DiscoverFilterValuesRequest {
+        field: "rarity",
+        clause_id: Some("target"),
+        context,
+        text: None,
+        offset: 0,
+        limit: 0,
+    };
+    assert_eq!(
+        service
+            .discover_filter_values(invalid_values)
+            .unwrap_err()
+            .query_error
+            .unwrap()
+            .code,
+        "discovery_limit"
+    );
+    let positive = atlas_domain::QueryPredicate::boolean(true);
+    invalid_values = DiscoverFilterValuesRequest {
+        field: "rarity",
+        clause_id: None,
+        context: FilterDiscoveryContext {
+            filter: Some(&positive),
+            ..context
+        },
+        text: None,
+        offset: 0,
+        limit: 10,
+    };
+    assert_eq!(
+        service
+            .discover_filter_values(invalid_values)
+            .unwrap_err()
+            .kind(),
+        SearchErrorKind::VectorReadinessRequired
+    );
+    let vocabulary = service
+        .discover_filter_vocabulary(DiscoverFilterVocabularyRequest {
+            field: "source.type",
+            scope: RecordScope::All,
+            text: None,
+            offset: 0,
+            limit: 10,
+            selected_values: &[],
+        })
+        .unwrap();
+    assert_eq!(vocabulary.options.len(), 1);
+    assert_eq!(
+        vocabulary.options[0].value,
+        atlas_domain::QueryLiteral::String("effect".into())
+    );
+    let empty = service
+        .discover_filter_vocabulary(DiscoverFilterVocabularyRequest {
+            field: "source.type",
+            scope: RecordScope::Keys(&[]),
+            text: None,
+            offset: 0,
+            limit: 10,
+            selected_values: &[],
+        })
+        .unwrap();
+    assert!(empty.options.is_empty());
 }

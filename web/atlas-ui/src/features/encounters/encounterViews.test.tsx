@@ -7,6 +7,7 @@ import {
   unavailableFact,
   activityFixture,
 } from "../../test/fixtures";
+import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -200,6 +201,34 @@ describe("encounter views", () => {
     );
   });
 
+  it("selects the roster by keyboard and commits initiative without setting turn", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await screen.findByText("Kyra");
+    const kyra = rosterRow("Kyra");
+    kyra.focus();
+    fireEvent.keyDown(kyra, { key: "Enter" });
+    expect(await screen.findByLabelText("HP")).toHaveValue("24");
+    expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
+    const initiative = within(kyra).getByLabelText("Kyra initiative");
+    fireEvent.change(initiative, { target: { value: "18" } });
+    fireEvent.keyDown(initiative, { key: "Enter" });
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_b",
+          initiative: 18n,
+          hp_edit: false,
+          variant_edit: false,
+          max_hp_edit: false,
+        }),
+      ),
+    );
+    expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
+  });
+
   it("marks the current roster row and omits max HP from roster text", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -208,6 +237,7 @@ describe("encounter views", () => {
     await screen.findByText("Initiative set");
     const goblinRow = rosterRow("Goblin");
     expect(goblinRow).toHaveClass("encounter-roster__row--current");
+    expect(within(goblinRow).getByText("Current turn")).toBeInTheDocument();
     expect(within(goblinRow).getByLabelText("Goblin current HP")).toHaveValue("10");
     expect(within(goblinRow).queryByText("/ 12")).not.toBeInTheDocument();
   });
@@ -217,12 +247,12 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await screen.findByText("Runtime");
+    await screen.findByText("Actions");
     const runtimeSection = screen
-      .getByText("Runtime")
-      .closest(".actor-reference__runtime");
+      .getByText("Actions")
+      .closest(".actor-reference__combat-budget");
     if (!(runtimeSection instanceof HTMLElement)) {
-      throw new Error("Runtime section was not rendered");
+      throw new Error("Combat action budget was not rendered");
     }
 
     expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
@@ -258,12 +288,12 @@ describe("encounter views", () => {
 
     fireEvent.click((await screen.findByText("Kyra")).closest('[role="button"]')!);
 
-    await screen.findByText("Runtime");
+    await screen.findByText("Actions");
     const runtimeSection = screen
-      .getByText("Runtime")
-      .closest(".actor-reference__runtime");
+      .getByText("Actions")
+      .closest(".actor-reference__combat-budget");
     if (!(runtimeSection instanceof HTMLElement)) {
-      throw new Error("Runtime section was not rendered");
+      throw new Error("Combat action budget was not rendered");
     }
     expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
     expect(within(runtimeSection).getByText("3")).toBeInTheDocument();
@@ -296,6 +326,157 @@ describe("encounter views", () => {
         }),
       ),
     );
+  });
+
+  it("starts with combat controls and keeps detailed edits in keyboard disclosures", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const hp = await screen.findByLabelText("HP");
+    expect(screen.getByRole("button", { name: "Damage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Heal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Condition" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Participant name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Maximum HP")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Derived maximum; current HP edited"),
+    ).not.toBeInTheDocument();
+
+    const details = screen.getByRole("button", { name: "Edit details" });
+    expect(details).toHaveAttribute("aria-expanded", "false");
+    expect(
+      hp.compareDocumentPosition(screen.getByText("Strikes")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    details.focus();
+    fireEvent.keyDown(details, { key: "Enter", keyCode: 13 });
+    expect(await screen.findByLabelText("Participant name")).toHaveValue("Goblin");
+    expect(details).toHaveAttribute("aria-expanded", "true");
+
+    const name = screen.getByLabelText("Participant name");
+    fireEvent.change(name, { target: { value: "Goblin Scout" } });
+    fireEvent.keyDown(name, { key: "Enter" });
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          display_name: "Goblin Scout",
+          hp_edit: false,
+          max_hp_edit: false,
+          variant_edit: false,
+        }),
+      ),
+    );
+    expect(screen.getByLabelText("Participant side")).toBeInTheDocument();
+  });
+
+  it("preserves maximum override and adjustment intent through secondary controls", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const hpDetails = await screen.findByRole("button", { name: "HP details" });
+    hpDetails.focus();
+    fireEvent.keyDown(hpDetails, { key: "Enter", keyCode: 13 });
+    const maximum = await screen.findByLabelText("Maximum HP");
+    fireEvent.change(maximum, { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: "Override maximum" }));
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          max_hp: 30n,
+          max_hp_edit: true,
+          hp_edit: false,
+          variant_edit: false,
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Use authored maximum" }));
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          use_derived_max: true,
+          max_hp_edit: false,
+        }),
+      ),
+    );
+
+    await selectOption(conditionCombobox("Variant"), "Elite");
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          participant_variant: "elite",
+          variant_edit: true,
+          hp_edit: false,
+          max_hp_edit: false,
+        }),
+      ),
+    );
+  });
+
+  it("reloads saved current HP without reapplying edit intent", async () => {
+    const { unmount } = render(
+      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+    const hp = await screen.findByLabelText("HP");
+    fireEvent.change(hp, { target: { value: "8" } });
+    fireEvent.keyDown(hp, { key: "Enter" });
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          current_hp: 8n,
+          hp_edit: true,
+          max_hp_edit: false,
+          variant_edit: false,
+        }),
+      ),
+    );
+    unmount();
+    apiMocks.getEncounter.mockResolvedValue(
+      encounterDetailFixture("participant_a", {
+        current_hp: 8n,
+        hp_origin: "derived_edited",
+      }),
+    );
+    apiMocks.updateEncounterParticipant.mockClear();
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    expect(await screen.findByLabelText("HP")).toHaveValue("8");
+    expect(apiMocks.updateEncounterParticipant).not.toHaveBeenCalled();
+    expect(within(rosterRow("Goblin")).getByLabelText("Goblin current HP")).toHaveValue(
+      "8",
+    );
+  });
+
+  it("resets participant disclosures and drafts when selecting another participant", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "HP details" }));
+    fireEvent.change(await screen.findByLabelText("Maximum HP"), {
+      target: { value: "999" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Edit details" }));
+    fireEvent.click(rosterRow("Kyra"));
+    expect(await screen.findByLabelText("HP")).toHaveValue("24");
+    expect(screen.queryByLabelText("Participant name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Maximum HP")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "HP details" }));
+    expect(await screen.findByLabelText("Maximum HP")).toHaveValue("24");
+    expect(apiMocks.updateEncounterParticipant).not.toHaveBeenCalled();
   });
 
   it("keeps encounter lifecycle actions in the edit modal", async () => {
@@ -359,7 +540,11 @@ describe("encounter views", () => {
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
     );
 
-    fireEvent.keyDown(document, { key: "Escape" });
+    const closePreview = screen.getByRole("button", {
+      name: "Close reference preview",
+    });
+    closePreview.focus();
+    fireEvent.keyDown(closePreview, { key: "Escape" });
 
     await waitFor(() =>
       expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
@@ -543,6 +728,22 @@ describe("encounter views", () => {
         }),
       ),
     );
+
+    fireEvent.change(hpChangeInput, { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Heal" }));
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          current_hp: 10n,
+          temporary_hp: 0n,
+          hp_edit: true,
+          variant_edit: false,
+          max_hp_edit: false,
+        }),
+      ),
+    );
   });
 
   it("searches before adding a record-backed participant", async () => {
@@ -693,9 +894,9 @@ async function selectOption(input: HTMLElement, option: string) {
   fireEvent.mouseDown(input);
   const options = await screen.findAllByText(option);
   const visibleOption = options.find((element) =>
-    element.classList.contains("ant-select-item-option-content"),
+    element.closest(".atlas-select-option"),
   );
-  fireEvent.click(visibleOption ?? options[0]);
+  fireEvent.click(visibleOption?.closest(".atlas-select-option") ?? options[0]);
 }
 
 function conditionCombobox(label: string): HTMLElement {
@@ -735,7 +936,16 @@ function queryClientWrapper() {
     },
   });
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ConfigProvider
+          theme={{ token: { motion: false } }}
+          select={{ classNames: { popup: { listItem: "atlas-select-option" } } }}
+        >
+          <App component={false}>{children}</App>
+        </ConfigProvider>
+      </QueryClientProvider>
+    );
   };
 }
 

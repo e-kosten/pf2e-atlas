@@ -145,7 +145,7 @@ export function PreparedContent({
     return (
       <Alert
         type="info"
-        message={"Content unavailable: " + body.state.replace(/_/g, " ")}
+        title={"Content unavailable: " + body.state.replace(/_/g, " ")}
       />
     );
   if (body.kind === "plain") return <p className="prose">{body.text}</p>;

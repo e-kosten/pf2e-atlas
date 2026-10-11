@@ -38,6 +38,21 @@ to SQL rather than interpreting expressions over source bodies. Unsupported
 syntax, fields, types, nesting and excessive complexity fail before execution.
 Availability uses an explicitly declared literal-key metadata map.
 
+The root common Level / rank field selects authored spell rank/state for spells
+and record level/state for other applicable families, without unavailable-value
+fallback or new storage. Its executable catalog identity requires rebuilding.
+Product editor labels/group order decorate that catalog in app-service.
+
+Optional contextual discovery availability is distinct from query validity.
+The index's self-exclusion analysis is the sole capability authority; search
+consults it before embeddings/ranking. Valid OR/NOT/negative-target limitations
+produce typed optional unavailability, while malformed target/type/scope/limits
+and real failures remain errors. Explicit count-free vocabulary requests have no
+search context and enumerate applicable product values in artifact or saved-list
+key scope before edition preference. Selections are validated and retained
+separately from paged suggestions and totals. No surface drops a contextual
+predicate silently or substitutes dummy counts.
+
 CEL-spec truth semantics govern compilation. The cel 0.14.5 interpreter propagates
 an unavailable child's error before a later true Exists witness, contrary to the
 language specification; it is not the reference oracle for that case or the

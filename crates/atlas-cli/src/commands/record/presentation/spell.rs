@@ -10,10 +10,16 @@ use atlas_domain::QueryFieldState;
 
 pub(super) fn render(out: &mut String, spell: &SpellPresentationView) {
     fact(out, "Traditions", &spell.traditions, |v| list_text(v));
-    text(out, "Casting", &spell.cast);
-    optional_text(out, "Requirements", &spell.requirements);
-    optional_text(out, "Cost", &spell.cost);
-    optional_text(out, "Casting entry", &spell.casting_entry);
+    fact(out, "Casting", &spell.cast, |v| v.label.clone());
+    for (label, value) in [
+        ("Requirements", &spell.requirements),
+        ("Cost", &spell.cost),
+        ("Casting entry", &spell.casting_entry),
+    ] {
+        if let Some(value) = value {
+            optional_text(out, label, value);
+        }
+    }
     optional_number(
         out,
         "Authored cast rank",
@@ -23,8 +29,12 @@ pub(super) fn render(out: &mut String, spell: &SpellPresentationView) {
     );
     text(out, "Range", &spell.range);
     optional_text(out, "Target", &spell.target);
-    area(out, &spell.area);
-    defense(out, &spell.defense);
+    if let Some(value) = &spell.area {
+        area(out, value);
+    }
+    if let Some(value) = &spell.defense {
+        defense(out, value);
+    }
     text(out, "Duration", &spell.duration);
     fact(out, "Sustained", &spell.sustained, |v| v.to_string());
     damage(out, &spell.damage);
@@ -38,10 +48,7 @@ fn defense(out: &mut String, value: &FactView<SpellDefenseView>) {
             fact(out, "Basic save", &defense.basic, |v| v.to_string());
         }
         optional_text(out, "Passive defense", &defense.passive);
-    } else if !matches!(
-        value.state,
-        QueryFieldState::Missing | QueryFieldState::NotApplicable
-    ) {
+    } else if value.state != QueryFieldState::NotApplicable {
         line(out, format!("Defense: {}", unavailable(value.state)));
     }
 }
@@ -111,6 +118,7 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
                 .or_else(|| {
                     known_value(&form.changes)
                         .and_then(|v| known_value(&v.cast))
+                        .map(|v| &v.label)
                         .filter(|v| !v.trim().is_empty())
                 })
                 .map(String::as_str)
@@ -142,16 +150,19 @@ fn area(out: &mut String, value: &FactView<SpellAreaView>) {
         if !parts.is_empty() {
             line(out, format!("Area: {}", parts.join(" ")));
         }
-    } else if !matches!(
-        value.state,
-        QueryFieldState::Missing | QueryFieldState::NotApplicable
-    ) {
+    } else if value.state != QueryFieldState::NotApplicable {
         line(out, format!("Area: {}", unavailable(value.state)));
     }
 }
 fn changes(out: &mut String, value: &FactView<SpellChangeView>) {
     if let Some(changes) = known_value(value) {
-        change_text(out, "Casting", &changes.cast);
+        change_fact(out, "Casting", &changes.cast, |v| {
+            if v.label.is_empty() {
+                "cleared (empty)".into()
+            } else {
+                v.label.clone()
+            }
+        });
         change_text(out, "Range", &changes.range);
         change_text(out, "Target", &changes.target);
         if let Some(area) = known_value(&changes.area) {

@@ -5,32 +5,107 @@
   padding: var(--panel-padding);
   overflow: auto;
 }
-.filter-panel .ruleGroup {
-  background: transparent;
-  border-color: var(--line);
-  max-width: 100%;
-}
-.filter-panel .ruleGroup-header,
-.filter-panel .rule {
+.common-filters,
+.common-filter,
+.filter-panel-actions,
+.advanced-filters {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.filter-panel .ruleGroup-body {
+  flex-direction: column;
+  gap: 12px;
   min-width: 0;
 }
-.filter-panel .rule > .rule-fields {
+.advanced-filters {
+  container-type: inline-size;
+}
+.common-filters {
+  gap: 20px;
+}
+.filter-loading-placeholder {
+  min-height: 60px;
+}
+.common-filter {
+  gap: 8px;
+}
+.common-filter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.common-filter-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.common-filter-choice > .filter-value-input {
+  flex-basis: 100%;
+}
+.common-filter-value {
+  width: fit-content;
+  max-width: 100%;
+}
+.filter-range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.filter-value-input,
+.filter-value-control,
+.filter-rule-value,
+.filter-collection-condition {
+  min-width: 0;
+  width: 100%;
+}
+.filter-value-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.filter-vocabulary-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--line);
+}
+.advanced-filters .ruleGroup {
+  background: transparent;
+  border-color: var(--line);
+  min-width: 0;
+}
+.advanced-filters .ruleGroup-header,
+.advanced-filters .rule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.advanced-filters .ruleGroup-body {
+  min-width: 0;
+}
+.advanced-filters .rule > .rule-fields {
   flex: 1 1 100%;
   min-width: 0;
 }
-.filter-panel .rule > .rule-operators {
-  flex: 1 1 80px;
+.advanced-filters .rule > .rule-operators {
+  flex: 0 1 130px;
   min-width: 0;
 }
-.filter-panel .rule > .ant-input,
-.filter-panel .rule > .ant-select,
-.filter-panel .rule > .ant-space {
+.advanced-filters .rule > .filter-rule-value {
+  flex: 1 1 100%;
+}
+.advanced-filters .rule > * {
   min-width: 0;
   max-width: 100%;
+}
+.filter-count-note {
+  display: block;
+  margin-top: 4px;
+}
+@container (min-width: 480px) {
+  .advanced-filters .rule > .filter-rule-value {
+    flex: 1 1 240px;
+  }
 }

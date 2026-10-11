@@ -2,26 +2,19 @@ import type {
   FilterDiscoveryContext,
   OpenResultWindowRequest,
   QueryPredicate,
-  RetrievalModeView,
 } from "../../generated/atlas";
 export type SearchFormState = {
   query: string;
   mode: "browse" | "text_search";
-  retrievalMode: RetrievalModeView;
   filter: QueryPredicate | null;
   filterError: string | null;
-  visibleFilterIds: string[];
-  hiddenFilterIds: string[];
   pageSize: number;
 };
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
   query: "",
   mode: "browse",
-  retrievalMode: "hybrid",
   filter: null,
   filterError: null,
-  visibleFilterIds: [],
-  hiddenFilterIds: [],
   pageSize: 25,
 };
 export function buildFilter(state: SearchFormState): QueryPredicate | null {
@@ -35,15 +28,14 @@ export function buildOpenRequest(
   const page = { number, size: state.pageSize };
   return {
     page,
-    mode:
-      state.mode === "text_search" && state.query.trim()
-        ? {
-            kind: "text_search",
-            query: state.query.trim(),
-            filter: state.filter,
-            mode: state.retrievalMode,
-          }
-        : { kind: "list_records", filter: state.filter },
+    mode: state.query.trim()
+      ? {
+          kind: "text_search",
+          query: state.query.trim(),
+          filter: state.filter,
+          mode: "hybrid",
+        }
+      : { kind: "list_records", filter: state.filter },
   };
 }
 export function hasExecutableSearch(state: SearchFormState): boolean {
@@ -55,8 +47,8 @@ export function buildFilterDiscoveryContext(
   return {
     kind: "filtered",
     filter: state.filter,
-    text: state.mode === "text_search" ? state.query.trim() || null : null,
-    mode: state.retrievalMode,
+    text: state.query.trim() || null,
+    mode: "hybrid",
   };
 }
 export function buildSavedListFilterDiscoveryContext(
@@ -73,7 +65,6 @@ export function encodeSearchExecutionState(state: SearchFormState): string {
     JSON.stringify({
       query: state.query,
       mode: state.mode,
-      retrievalMode: state.retrievalMode,
       filter: state.filter,
       filterError: state.filterError,
       pageSize: state.pageSize,
@@ -84,7 +75,6 @@ export function searchStateQueryString(state: SearchFormState): string {
   const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
   if (state.mode !== "browse") params.set("mode", state.mode);
-  if (state.retrievalMode !== "hybrid") params.set("retrieval", state.retrievalMode);
   if (state.filter) params.set("filter", JSON.stringify(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
   return params.size ? "?" + params.toString() : "";
@@ -104,13 +94,10 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
     filterError = "Invalid structured filter URL";
   }
   const pageSize = Number(params.get("limit") || 25);
-  const retrieval = params.get("retrieval");
   return {
     ...DEFAULT_SEARCH_STATE,
     query: params.get("q") || "",
-    mode: params.get("mode") === "text_search" ? "text_search" : "browse",
-    retrievalMode:
-      retrieval === "semantic" || retrieval === "lexical" ? retrieval : "hybrid",
+    mode: params.get("q")?.trim() ? "text_search" : "browse",
     filter,
     filterError,
     pageSize:
@@ -125,7 +112,6 @@ export function decodeSearchState(value: string | null): SearchFormState {
       new URLSearchParams({
         q: typeof parsed.query === "string" ? parsed.query : "",
         mode: parsed.mode === "text_search" ? "text_search" : "browse",
-        retrieval: parsed.retrievalMode || "hybrid",
         filter: parsed.filter ? JSON.stringify(parsed.filter) : "",
         limit: String(parsed.pageSize || 25),
       }),

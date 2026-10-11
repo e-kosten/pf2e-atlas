@@ -6,6 +6,8 @@ export type RecordPreviewAnchor = HTMLElement;
 export type RecordPreviewContentProps = {
   detail: RecordDetailView | undefined;
   loading: boolean;
+  error?: Error | null;
+  onRetry?: () => void;
   onClose: () => void;
   onOpenFullPage: () => void;
   onReference: RecordReferenceHandler;

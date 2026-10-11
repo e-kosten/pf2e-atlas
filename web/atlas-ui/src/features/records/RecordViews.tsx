@@ -3,7 +3,6 @@ import type React from "react";
 import { Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
-import { RelatedRecords } from "../../shared/records/RelatedRecords";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconButton, PaneIconLink } from "../../shared/ui/actions/PaneAction";
@@ -51,13 +50,15 @@ export function RecordView({ route }: RecordViewProps) {
         >
           <RecordDetailPane
             detail={detail.data}
-            errors={[detail.error]}
+            error={detail.error}
+            onRetry={() => {
+              void detail.refetch();
+            }}
             loading={detail.isLoading || detail.isFetching}
             onReference={(recordKey, _anchor, selection) =>
               navigateToAtlasRoute({ kind: "record", recordKey, selection })
             }
           />
-          {detail.data && <RelatedRecords key={route.recordKey} detail={detail.data} />}
         </RecordPane>
       }
     />
@@ -89,7 +90,10 @@ export function ReaderView({ route }: ReaderViewProps) {
         >
           <RecordDetailPane
             detail={detail.data}
-            errors={[detail.error]}
+            error={detail.error}
+            onRetry={() => {
+              void detail.refetch();
+            }}
             loading={detail.isLoading || detail.isFetching}
             onReference={(previewRecordKey, _anchor, previewSelection) =>
               navigateToAtlasRoute({
@@ -139,7 +143,10 @@ export function ReaderView({ route }: ReaderViewProps) {
             detail={route.previewRecordKey ? preview.data : undefined}
             compact
             emptyMessage="Select a linked record to preview it."
-            errors={[preview.error]}
+            error={preview.error}
+            onRetry={() => {
+              void preview.refetch();
+            }}
             loading={
               route.previewRecordKey ? preview.isLoading || preview.isFetching : false
             }

@@ -1,8 +1,8 @@
 //! The editor sends the shared typed predicate; CEL is an independent CLI surface.
 use crate::RetrievalModeView;
 use atlas_domain::{
-    QueryError, QueryFieldCounts, QueryFieldDefinition, QueryLimits, QueryPredicate,
-    QueryValueOptions,
+    QueryError, QueryFacetOutcome, QueryFieldCounts, QueryFieldDefinition, QueryLimits,
+    QueryLiteral, QueryPredicate, QueryValueOptions, QueryVocabulary,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -29,14 +29,33 @@ pub struct DiscoverFilterEditorRequest {
     pub selected_field_ids: Vec<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct DiscoverFilterValuesRequest {
-    pub context: FilterDiscoveryContext,
-    pub field_id: String,
-    pub clause_id: Option<String>,
-    pub text: Option<String>,
-    #[serde(default)]
-    pub offset: usize,
-    pub limit: usize,
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum DiscoverFilterValuesRequest {
+    Contextual {
+        context: FilterDiscoveryContext,
+        field_id: String,
+        clause_id: Option<String>,
+        text: Option<String>,
+        #[serde(default)]
+        offset: usize,
+        limit: usize,
+    },
+    Vocabulary {
+        scope: FilterVocabularyScope,
+        field_id: String,
+        text: Option<String>,
+        #[serde(default)]
+        offset: usize,
+        limit: usize,
+        #[serde(default)]
+        selected_values: Vec<QueryLiteral>,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum FilterVocabularyScope {
+    Artifact,
+    SavedList { list_ref: String },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DiscoverFilterCountsRequest {
@@ -49,6 +68,7 @@ pub struct FilterEditorView {
     pub catalog_version: u32,
     pub limits: QueryLimits,
     pub groups: Vec<FilterEditorGroupView>,
+    pub common_field_ids: Vec<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterEditorGroupView {
@@ -61,6 +81,20 @@ pub struct FilterEditorFieldView {
     pub definition: QueryFieldDefinition,
     pub control: FilterControlView,
     pub placement: FilterFieldPlacement,
+    pub label: String,
+    pub help: Option<String>,
+    pub choices: Vec<FilterChoiceView>,
+    pub operators: Vec<FilterOperatorView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct FilterChoiceView {
+    pub value: QueryLiteral,
+    pub label: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct FilterOperatorView {
+    pub operator: String,
+    pub label: String,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -83,10 +117,48 @@ pub struct FilterValidationResult {
     pub errors: Vec<QueryError>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct FilterValueListView {
-    pub values: QueryValueOptions,
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FilterValueListView {
+    Contextual {
+        outcome: QueryFacetOutcome<QueryValueOptions>,
+    },
+    Vocabulary {
+        scope: FilterVocabularyScope,
+        values: QueryVocabulary,
+    },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterCountsView {
-    pub counts: QueryFieldCounts,
+    pub counts: QueryFacetOutcome<QueryFieldCounts>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn vocabulary_contract_cannot_silently_drop_query_context() {
+        let input = json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","text":"fire","limit":20});
+        let request: DiscoverFilterValuesRequest = serde_json::from_value(input.clone()).unwrap();
+        assert!(
+            matches!(request,DiscoverFilterValuesRequest::Vocabulary {selected_values,offset:0,..} if selected_values.is_empty())
+        );
+        let mut malformed = input;
+        malformed["context"] =
+            json!({"kind":"filtered","filter":null,"text":"dragon","mode":"hybrid"});
+        assert!(serde_json::from_value::<DiscoverFilterValuesRequest>(malformed).is_err());
+        assert!(serde_json::from_value::<DiscoverFilterValuesRequest>(json!({"context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid"},"field_id":"traits","limit":20})).is_err());
+    }
+    #[test]
+    fn optional_contextual_unavailability_has_no_fabricated_counts() {
+        let response = FilterCountsView {
+            counts: QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::NonConjunctiveContext,
+            },
+        };
+        assert_eq!(
+            serde_json::to_value(response).unwrap(),
+            json!({"counts":{"status":"unavailable","reason":"non_conjunctive_context"}})
+        );
+    }
 }

@@ -53,6 +53,7 @@ pub struct RecordDetailView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordRelationshipView {
     pub source: SourceContentLocator,
+    pub source_navigation: RecordNavigationView,
     pub ordinal: usize,
     pub origin: String,
     pub kind: String,

@@ -2,4 +2,4 @@
 import type { SavedListItemSnapshotView } from "./SavedListItemSnapshotView";
 import type { SavedListItemStatusView } from "./SavedListItemStatusView";
 
-export type SavedListExportItemView = { position: bigint, record_key: string, record_name: string, kind?: string, status: SavedListItemStatusView, note?: string, snapshot: SavedListItemSnapshotView, };
+export type SavedListExportItemView = { position: number, record_key: string, record_name: string, kind?: string, status: SavedListItemStatusView, note?: string, snapshot: SavedListItemSnapshotView, };

@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { Button, Form, Input, InputNumber, Modal } from "antd";
+import { Button, Form, Input, InputNumber, Modal, Tag } from "antd";
 import { GripVertical, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -151,29 +151,38 @@ export function EncounterRosterPane({
       <span className="encounter-roster__drag-handle" aria-hidden="true">
         <GripVertical size={16} />
       </span>
-      <EditableCommitField
-        ariaLabel={`${participant.display_name} initiative`}
-        className="encounter-roster__initiative-input"
-        inputMode="numeric"
-        onCommit={(value) => commitRosterInitiative(participant, value, onUpdate)}
-        size="small"
-        stopPropagation
-        value={inputNumberValue(participant.initiative)}
-      />
+      <div className="encounter-roster__initiative">
+        <span>Initiative</span>
+        <EditableCommitField
+          ariaLabel={`${participant.display_name} initiative`}
+          className="encounter-roster__initiative-input"
+          inputMode="numeric"
+          onCommit={(value) => commitRosterInitiative(participant, value, onUpdate)}
+          size="small"
+          stopPropagation
+          value={inputNumberValue(participant.initiative)}
+        />
+      </div>
       <span className="encounter-roster__main">
-        <span>{participant.display_name}</span>
+        <span className="encounter-roster__name">{participant.display_name}</span>
+        {participant.participant_key === currentTurnParticipantKey && (
+          <Tag color="processing">Current turn</Tag>
+        )}
         <small>{participant.note_hint ?? participant.side}</small>
       </span>
-      <EditableCommitField
-        ariaLabel={`${participant.display_name} current HP`}
-        className="encounter-roster__hp-input"
-        inputMode="numeric"
-        onCommit={(value) => commitRosterHp(participant, value, onUpdate)}
-        placeholder={participant.max_hp === undefined ? "" : "HP"}
-        size="small"
-        stopPropagation
-        value={inputNumberValue(participant.current_hp)}
-      />
+      <div className="encounter-roster__hp">
+        <span>HP</span>
+        <EditableCommitField
+          ariaLabel={`${participant.display_name} current HP`}
+          className="encounter-roster__hp-input"
+          inputMode="numeric"
+          onCommit={(value) => commitRosterHp(participant, value, onUpdate)}
+          placeholder={participant.max_hp === undefined ? "" : "HP"}
+          size="small"
+          stopPropagation
+          value={inputNumberValue(participant.current_hp)}
+        />
+      </div>
       <span className="encounter-roster__row-actions">
         <Button
           aria-label={`Set turn to ${participant.display_name}`}
@@ -188,7 +197,7 @@ export function EncounterRosterPane({
         <Button
           danger
           aria-label={`Remove ${participant.display_name}`}
-          icon={<Trash2 size={12} />}
+          icon={<Trash2 size={12} aria-hidden="true" />}
           size="small"
           onClick={(event) => {
             event.stopPropagation();

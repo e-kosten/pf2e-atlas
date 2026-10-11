@@ -353,14 +353,15 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     );
 
     let values_request = json!({
+        "kind":"contextual",
         "context": { "kind": "filtered", "filter": null,"text":null,"mode":"lexical" },
         "field_id":"source.pack","clause_id":null,"text":null,"offset":0,"limit":100
     });
     let (status, body) =
         route_json(Method::POST, "/api/filters/values", Some(values_request)).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["values"]["field"], "source.pack");
-    assert_eq!(body["values"]["options"][0]["value"], "Actions");
+    assert_eq!(body["outcome"]["value"]["field"], "source.pack");
+    assert_eq!(body["outcome"]["value"]["options"][0]["value"], "Actions");
     let (status, body) = route_json(
         Method::POST,
         "/api/filters/counts",
@@ -371,7 +372,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["counts"]["counting_scope"], "roots");
+    assert_eq!(body["counts"]["value"]["counting_scope"], "roots");
     let (status, body) = route_json(
         Method::POST,
         "/api/filters/validate",
@@ -767,19 +768,45 @@ impl AtlasWebService for MockService {
         &self,
         _request: DiscoverFilterEditorRequest,
     ) -> Result<FilterEditorView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"catalog_version":1,"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","placement":"initially_visible"}]}]})).expect("typed catalog fixture"))
+        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["record.kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is"},{"operator":"in","label":"is any of"},{"operator":"state","label":"availability is"}]}]}]})).expect("typed catalog fixture"))
     }
     fn discover_filter_values(
         &self,
-        _request: DiscoverFilterValuesRequest,
+        request: DiscoverFilterValuesRequest,
     ) -> Result<FilterValueListView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"values":{"field":"source.pack","options":[{"value":"Actions","distinct_roots":3,"selected":false}],"total_values":1,"exhaustive":true,"count_basis":"distinct roots"}})).expect("typed values fixture"))
+        if let DiscoverFilterValuesRequest::Vocabulary {
+            scope,
+            field_id,
+            selected_values,
+            ..
+        } = request
+        {
+            return Ok(FilterValueListView::Vocabulary {
+                scope,
+                values: atlas_domain::QueryVocabulary {
+                    field: field_id,
+                    options: vec![],
+                    selected_values,
+                    total_values: 0,
+                    basis:
+                        atlas_domain::QueryVocabularyBasis::ProductKeyScopeBeforeEditionPreference,
+                },
+            });
+        }
+        Ok(serde_json::from_value(json!({"kind":"contextual","outcome":{"status":"available","value":{"field":"source.pack","options":[{"value":"Actions","distinct_roots":3,"selected":false}],"total_values":1,"exhaustive":true,"count_basis":"distinct roots"}}})).expect("typed values fixture"))
     }
     fn discover_filter_counts(
         &self,
-        _request: DiscoverFilterCountsRequest,
+        request: DiscoverFilterCountsRequest,
     ) -> Result<FilterCountsView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"counts":{"field":"source.pack","counting_scope":"roots","states":[],"exhaustive":true,"count_basis":"distinct roots","minimum":null,"maximum":null}})).expect("typed counts fixture"))
+        if request.clause_id.is_some() {
+            return Ok(FilterCountsView {
+                counts: atlas_domain::QueryFacetOutcome::Unavailable {
+                    reason: atlas_domain::FacetUnavailableReason::NonConjunctiveContext,
+                },
+            });
+        }
+        Ok(serde_json::from_value(json!({"counts":{"status":"available","value":{"field":"source.pack","counting_scope":"roots","states":[],"exhaustive":true,"count_basis":"distinct roots","minimum":null,"maximum":null}}})).expect("typed counts fixture"))
     }
     fn validate_filter(
         &self,
@@ -1284,4 +1311,19 @@ fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
             matches: vec![],
         }],
     }
+}
+
+#[tokio::test]
+async fn filter_discovery_transport_keeps_explicit_vocabulary_and_optional_unavailability() {
+    let (status,body)=route_json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"saved_list","list_ref":"my-list"},"field_id":"traits","text":"fire","limit":20,"selected_values":["retained"]}))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["kind"], "vocabulary");
+    assert_eq!(body["scope"]["list_ref"], "my-list");
+    assert_eq!(body["values"]["selected_values"][0], "retained");
+    assert!(body["values"].get("count_basis").is_none());
+    let (status,body)=route_json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid"},"field_id":"traits","clause_id":"negative-condition"}))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["counts"]["status"], "unavailable");
+    let (status,_)=route_json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon","mode":"hybrid"}}))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }

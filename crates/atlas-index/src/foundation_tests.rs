@@ -1449,3 +1449,26 @@ fn lexical_terms_and_used_trait_labels_are_checked_against_source_policy() {
         .insert("".into(), "Broken".into());
     assert!(crate::writer::validate_context(&input.context).is_err());
 }
+
+#[test]
+fn query_catalog_and_preparation_identity_require_current_artifacts() {
+    let current = fixture(false);
+    let (_directory, path) = build(&current);
+    assert!(SqliteIndexReader::open_read_only(&path).is_ok());
+    let mut old = current.context.clone();
+    old.query_catalog_version = 1;
+    assert!(crate::writer::validate_context(&old).is_err());
+    old = current.context.clone();
+    old.content_interpretation_version = "foundry-content/v4".into();
+    assert!(crate::writer::validate_context(&old).is_err());
+    let c = Connection::open(&path).unwrap();
+    c.execute(
+        "DELETE FROM query_field_catalog WHERE field='record.level_or_rank'",
+        [],
+    )
+    .unwrap();
+    assert!(matches!(
+        SqliteIndexReader::open_read_only(&path),
+        Err(IndexError::Unsupported(_))
+    ));
+}

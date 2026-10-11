@@ -129,9 +129,8 @@ export function ListEditView({ route }: ListEditViewProps) {
               <Form.Item label="Tags" name="tags">
                 <Select
                   mode="tags"
-                  optionFilterProp="label"
+                  showSearch={{ optionFilterProp: "label" }}
                   options={tagOptions}
-                  showSearch
                   tokenSeparators={[","]}
                 />
               </Form.Item>

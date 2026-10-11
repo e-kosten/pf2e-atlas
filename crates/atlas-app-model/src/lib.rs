@@ -30,9 +30,9 @@ pub use encounter::{
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
     DiscoverFilterCountsRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterControlView, FilterCountsView, FilterDiscoveryContext, FilterEditorFieldView,
-    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterValidationResult,
-    FilterValueListView,
+    FilterChoiceView, FilterControlView, FilterCountsView, FilterDiscoveryContext,
+    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
+    FilterOperatorView, FilterValidationResult, FilterValueListView, FilterVocabularyScope,
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView, RemasterLinkView,
@@ -53,14 +53,14 @@ pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
 };
 pub use presentation::{
-    ActorActivityKindView, ActorActivityView, ActorModifierView, ActorMovementView,
-    ActorPresentationView, ActorRuntimeView, ActorSavesView, ActorSenseView, ActorSkillView,
-    ConditionalSkillView, DamageComponentView, FactView, HazardPresentationView,
-    HeighteningDamageView, IwrEntryView, NumberAdjustmentView, NumberFactView, OwnedRecordLinkView,
-    PhysicalPresentationView, RecordBodyView, RecordPresentationView, RollTablePresentationView,
-    SpellAreaView, SpellChangeView, SpellDefenseView, SpellFixedLevelView, SpellFormView,
-    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
-    TableResultPresentationView,
+    ActionCostView, ActionGlyphView, ActorActivityKindView, ActorActivityView, ActorModifierView,
+    ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView, ActorSenseView,
+    ActorSkillView, CastingEntryContextView, ConditionalSkillView, DamageComponentView, FactView,
+    HazardPresentationView, HeighteningDamageView, IwrEntryView, NumberAdjustmentView,
+    NumberFactView, OwnedRecordLinkView, PhysicalPresentationView, RecordBodyView,
+    RecordPresentationView, RollTablePresentationView, SpellAreaView, SpellChangeView,
+    SpellDefenseView, SpellFixedLevelView, SpellFormView, SpellHeighteningChangeView,
+    SpellHeighteningView, SpellPresentationView, TableResultPresentationView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{

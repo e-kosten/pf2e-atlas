@@ -1,13 +1,8 @@
-.encounter-actions,
-.encounter-control-row {
+.encounter-actions {
   align-items: center;
   display: flex;
   gap: 8px;
-}
-
-.encounter-control-row .ant-form-item {
-  flex: 1;
-  margin-bottom: 0;
+  flex-wrap: wrap;
 }
 
 .encounter-roster__list {
@@ -28,7 +23,6 @@
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
 }
 
 .encounter-roster__row {
@@ -39,16 +33,16 @@
   color: var(--text);
   display: grid;
   gap: 8px;
-  grid-template-columns: 18px 52px minmax(0, 1fr) 60px auto;
+  grid-template-columns: 18px minmax(72px, 1fr) minmax(72px, 1fr) auto;
   min-height: 48px;
   padding: 8px;
   text-align: left;
 }
 
 .encounter-roster__row--current {
-  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
-  border-color: var(--accent);
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  box-shadow: inset 3px 0 0 var(--active-border);
 }
 
 .encounter-roster__row--selected {
@@ -56,7 +50,7 @@
 }
 
 .encounter-roster__row--current.encounter-roster__row--selected {
-  background: color-mix(in srgb, var(--accent) 16%, var(--panel-subtle));
+  background: var(--active-bg);
 }
 
 .encounter-roster__row--defeated {
@@ -66,6 +60,10 @@
 .encounter-roster__main {
   display: grid;
   min-width: 0;
+  grid-column: 2 / -1;
+  grid-row: 1;
+  justify-items: start;
+  gap: 3px;
 }
 
 .encounter-roster__drag-handle {
@@ -73,17 +71,36 @@
   cursor: grab;
   display: inline-flex;
   justify-content: center;
+  grid-column: 1;
+  grid-row: 1;
 }
 
-.encounter-roster__main span,
-.encounter-roster__main small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.encounter-roster__name {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .encounter-roster__main small {
   color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.encounter-roster__initiative,
+.encounter-roster__hp {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.encounter-roster__initiative {
+  grid-column: 2;
+}
+
+.encounter-roster__hp {
+  grid-column: 3;
 }
 
 .encounter-roster__initiative-input,
@@ -97,8 +114,14 @@
 }
 
 .encounter-roster__row-actions {
+  align-self: end;
   display: flex;
   gap: 4px;
+}
+
+.encounter-roster__row:focus-visible {
+  outline: 2px solid var(--active-border);
+  outline-offset: 2px;
 }
 
 .encounter-row-actions {

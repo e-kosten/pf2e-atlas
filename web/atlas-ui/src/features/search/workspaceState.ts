@@ -3,6 +3,87 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { currentAtlasRoute } from "../../app/routes";
+import type { QueryFieldDefinition, QueryPredicate } from "../../generated/atlas";
+import {
+  commonCondition,
+  choiceClauses,
+  conditionValues,
+  isExcluded,
+} from "../../shared/filters/filterControls";
+
+export const KIND_PREFERENCE_KEY = "atlas.search.kind-default.v1";
+type KindPreference = { include: string[]; exclude: string[] };
+function readKindPreference(): KindPreference | null {
+  try {
+    const value: unknown = JSON.parse(
+      localStorage.getItem(KIND_PREFERENCE_KEY) ?? "null",
+    );
+    if (
+      !value ||
+      typeof value !== "object" ||
+      !("include" in value) ||
+      !("exclude" in value)
+    )
+      return null;
+    const valid = (values: unknown): values is string[] =>
+      Array.isArray(values) &&
+      values.length <= 100 &&
+      values.every(
+        (entry) =>
+          typeof entry === "string" && entry.trim().length > 0 && entry.length <= 100,
+      ) &&
+      new Set(values).size === values.length;
+    const include = value.include,
+      exclude = value.exclude;
+    if (
+      !valid(include) ||
+      !valid(exclude) ||
+      include.some((entry) => exclude.includes(entry))
+    )
+      return null;
+    return { include, exclude };
+  } catch {
+    return null;
+  }
+}
+export function rememberKindPreference(
+  predicate: QueryPredicate | null,
+  field: QueryFieldDefinition,
+): void {
+  const condition = commonCondition(predicate, field);
+  if (condition.status === "advanced") return;
+  const clauses = choiceClauses(condition.clause);
+  const preference: KindPreference = {
+    include: clauses.filter((clause) => !isExcluded(clause)).flatMap(conditionValues),
+    exclude: clauses.filter(isExcluded).flatMap(conditionValues),
+  };
+  try {
+    if (preference.include.length || preference.exclude.length)
+      localStorage.setItem(KIND_PREFERENCE_KEY, JSON.stringify(preference));
+    else localStorage.removeItem(KIND_PREFERENCE_KEY);
+  } catch {
+    /* Browser preferences are optional; committed criteria remain authoritative. */
+  }
+}
+function preferredKindPredicate(): QueryPredicate | null {
+  const preference = readKindPreference();
+  if (!preference) return null;
+  const children: QueryPredicate[] = [];
+  for (const [exclude, values] of [
+    [false, preference.include],
+    [true, preference.exclude],
+  ] as const) {
+    if (!values.length) continue;
+    const leaf: QueryPredicate = {
+      kind: "in",
+      clause_id: crypto.randomUUID(),
+      field: "record.kind",
+      values,
+    };
+    children.push(exclude ? { kind: "not", predicate: leaf } : leaf);
+  }
+  return children.length > 1 ? { kind: "all_of", children } : (children[0] ?? null);
+}
 
 export type WorkspaceInteractionState = {
   search: SearchFormState;
@@ -25,10 +106,10 @@ export type WorkspaceInteractionEvent =
   | { type: "record.selected"; recordKey: string | null };
 
 export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
-  const search = decodeSearchStateFromParams(
-    new URLSearchParams(window.location.search),
-  );
+  let search = decodeSearchStateFromParams(new URLSearchParams(window.location.search));
   const route = currentAtlasRoute();
+  if (window.location.pathname === "/search" && !window.location.search)
+    search = { ...search, filter: preferredKindPredicate() };
   return {
     search,
     selectedRecordKey: route.kind === "search" ? route.selectedRecordKey : null,

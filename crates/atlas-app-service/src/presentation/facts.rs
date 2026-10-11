@@ -13,6 +13,22 @@ pub(super) fn fact<T>(v: SourceFieldView<'_, T>) -> FactView<T> {
 pub(super) fn text(v: SourceFieldView<'_, &String>) -> FactView<String> {
     fact(v.map(Clone::clone))
 }
+
+/// Baseline optional prose omits absence/blank text only under a known parent.
+/// Authored DTO bytes and explicit patch clears remain unchanged.
+pub(super) fn optional_text(
+    parent_known: bool,
+    value: SourceFieldView<'_, &String>,
+) -> Option<FactView<String>> {
+    if parent_known
+        && (matches!(value, SourceFieldView::Missing | SourceFieldView::Null)
+            || value.value().is_some_and(|text| text.trim().is_empty()))
+    {
+        None
+    } else {
+        Some(text(value))
+    }
+}
 pub(super) fn number(v: SourceFieldView<'_, &serde_json::Number>) -> NumberFactView {
     let f = fact(v.map(Clone::clone));
     NumberFactView {

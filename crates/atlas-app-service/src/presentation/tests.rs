@@ -9,6 +9,308 @@ fn actor(p: &RecordPresentationView) -> &ActorPresentationView {
     };
     a
 }
+
+#[test]
+fn optional_spell_baselines_omit_absent_or_blank_text_only_under_a_known_system() {
+    for system in [
+        json!({}),
+        json!({"requirements":null,"cost":null,"location":null}),
+        json!({"requirements":"","cost":{"value":""},"location":{"value":""}}),
+        json!({"requirements":" \n\t ","cost":{"value":"\t "},"location":{"value":" \n"}}),
+    ] {
+        let authored_requirement = system
+            .get("requirements")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        let input = record(
+            "spells",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell","system":system}),
+        );
+        let SourceNodeView::Item(ItemSourceView::SpellSource(source)) =
+            SourceQueryView::new(input.record.source(), "spells", "").source
+        else {
+            panic!("spell")
+        };
+        let spell = spell::authored_spell(source);
+        assert!(spell.requirements.is_none());
+        assert!(spell.cost.is_none());
+        assert!(spell.casting_entry.is_none());
+        assert_eq!(
+            SourceFieldView::from(&source.system)
+                .and_then(|s| (&s.requirements).into())
+                .value()
+                .map(String::as_str),
+            authored_requirement.as_deref()
+        );
+    }
+    for (system, expected) in [
+        (None, QueryFieldState::Missing),
+        (Some(json!(null)), QueryFieldState::Null),
+        (Some(json!(42)), QueryFieldState::Invalid),
+        (
+            Some(json!({"requirements":42,"cost":{"value":42},"location":{"value":42}})),
+            QueryFieldState::Invalid,
+        ),
+    ] {
+        let mut value = json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell"});
+        if let Some(system) = system {
+            value["system"] = system;
+        }
+        let input = record("spells", "Item", value);
+        let SourceNodeView::Item(ItemSourceView::SpellSource(source)) =
+            SourceQueryView::new(input.record.source(), "spells", "").source
+        else {
+            panic!("spell")
+        };
+        let spell = spell::authored_spell(source);
+        for fact in [spell.requirements, spell.cost, spell.casting_entry] {
+            let fact = fact.expect("unavailable parents and invalid fields remain explicit");
+            assert_eq!(fact.state, expected);
+        }
+    }
+    for value in ["0", "false", " 2 gp "] {
+        let input = record(
+            "spells",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell","system":{"requirements":value,"cost":{"value":value},"location":{"value":value}}}),
+        );
+        let SourceNodeView::Item(ItemSourceView::SpellSource(source)) =
+            SourceQueryView::new(input.record.source(), "spells", "").source
+        else {
+            panic!("spell")
+        };
+        let spell = spell::authored_spell(source);
+        for fact in [spell.requirements, spell.cost, spell.casting_entry] {
+            let fact = fact.expect("nonempty authored values remain explicit");
+            assert_eq!(fact.state, QueryFieldState::Value);
+            assert_eq!(fact.value.as_deref(), Some(value));
+        }
+    }
+}
+
+#[test]
+fn baseline_spell_area_omits_only_explicit_null_under_a_known_system() {
+    for (system, expected) in [
+        (None, Some(QueryFieldState::Missing)),
+        (Some(json!(null)), Some(QueryFieldState::Null)),
+        (Some(json!(42)), Some(QueryFieldState::Invalid)),
+        (Some(json!({})), Some(QueryFieldState::Missing)),
+        (
+            Some(
+                json!({"area":null,"overlays":{"form":{"overlayType":"override","system":{"area":null}}}}),
+            ),
+            None,
+        ),
+        (Some(json!({"area":42})), Some(QueryFieldState::Invalid)),
+        (
+            Some(json!({"area":{"type":"emanation","value":30}})),
+            Some(QueryFieldState::Value),
+        ),
+    ] {
+        let mut value = json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell"});
+        if let Some(system) = system {
+            value["system"] = system;
+        }
+        let input = record("spells", "Item", value);
+        let SourceNodeView::Item(ItemSourceView::SpellSource(source)) =
+            SourceQueryView::new(input.record.source(), "spells", "").source
+        else {
+            panic!("spell")
+        };
+        let spell = spell::authored_spell(source);
+        assert_eq!(spell.area.as_ref().map(|area| area.state), expected);
+        if expected.is_none() {
+            assert_eq!(
+                SourceFieldView::from(&source.system)
+                    .and_then(|system| (&system.area).into())
+                    .availability(),
+                atlas_record::source_record::FieldAvailability::Null
+            );
+            assert_eq!(
+                spell.forms.value.as_ref().unwrap()[0]
+                    .changes
+                    .value
+                    .as_ref()
+                    .unwrap()
+                    .area
+                    .state,
+                QueryFieldState::Null,
+                "baseline no-area omission must not omit a form's explicit clear"
+            );
+        }
+    }
+}
+
+#[test]
+fn baseline_spell_defense_omits_only_explicit_null_under_a_known_system() {
+    for (system, expected) in [
+        (None, Some(QueryFieldState::Missing)),
+        (Some(json!(null)), Some(QueryFieldState::Null)),
+        (Some(json!(42)), Some(QueryFieldState::Invalid)),
+        (Some(json!({})), Some(QueryFieldState::Missing)),
+        (
+            Some(
+                json!({"defense":null,"overlays":{"form":{"overlayType":"override","system":{"defense":null}}}}),
+            ),
+            None,
+        ),
+        (Some(json!({"defense":42})), Some(QueryFieldState::Invalid)),
+        (
+            Some(json!({"defense":{"save":{"statistic":"reflex","basic":true}}})),
+            Some(QueryFieldState::Value),
+        ),
+    ] {
+        let mut value = json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell"});
+        if let Some(system) = system {
+            value["system"] = system;
+        }
+        let input = record("spells", "Item", value);
+        let SourceNodeView::Item(ItemSourceView::SpellSource(source)) =
+            SourceQueryView::new(input.record.source(), "spells", "").source
+        else {
+            panic!("spell")
+        };
+        let spell = spell::authored_spell(source);
+        assert_eq!(
+            spell.defense.as_ref().map(|defense| defense.state),
+            expected
+        );
+        if expected.is_none() {
+            assert_eq!(
+                SourceFieldView::from(&source.system)
+                    .and_then(|system| (&system.defense).into())
+                    .availability(),
+                atlas_record::source_record::FieldAvailability::Null
+            );
+            assert_eq!(
+                spell.forms.value.as_ref().unwrap()[0]
+                    .changes
+                    .value
+                    .as_ref()
+                    .unwrap()
+                    .defense
+                    .state,
+                QueryFieldState::Null,
+                "baseline no-defense omission must not omit a form's explicit clear"
+            );
+        }
+    }
+}
+
+#[test]
+fn authored_action_costs_are_typed_without_guessing_from_prose() {
+    for (time, glyph, label) in [
+        ("1", Some(ActionGlyphView::OneAction), "1 action"),
+        ("2", Some(ActionGlyphView::TwoActions), "2 actions"),
+        ("3", Some(ActionGlyphView::ThreeActions), "3 actions"),
+        (" Reaction ", Some(ActionGlyphView::Reaction), "reaction"),
+        ("0", Some(ActionGlyphView::FreeAction), "free action"),
+        ("1 to 3", None, "1 to 3 actions"),
+        ("1 minute", None, "1 minute"),
+        ("2 to 2 rounds", None, "2 to 2 rounds"),
+    ] {
+        let input = record(
+            "spells",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell","system":{"time":{"value":time}}}),
+        );
+        let SourceNodeView::Item(item @ ItemSourceView::SpellSource(source)) =
+            SourceQueryView::new(input.record.source(), "spells", "").source
+        else {
+            panic!("spell")
+        };
+        let spell = spell::authored_spell(source);
+        assert_eq!(spell.cast, item_action_cost(item));
+        assert_eq!(
+            spell.cast.value,
+            Some(ActionCostView {
+                glyph,
+                label: label.into()
+            })
+        );
+        assert!(item_usage(item).is_none());
+    }
+    for (kind, count, glyph, state) in [
+        (
+            "action",
+            json!(1),
+            Some(ActionGlyphView::OneAction),
+            QueryFieldState::Value,
+        ),
+        (
+            "action",
+            json!(2),
+            Some(ActionGlyphView::TwoActions),
+            QueryFieldState::Value,
+        ),
+        (
+            "action",
+            json!(3),
+            Some(ActionGlyphView::ThreeActions),
+            QueryFieldState::Value,
+        ),
+        ("action", json!(4), None, QueryFieldState::Invalid),
+        (
+            "action",
+            json!(1.0),
+            Some(ActionGlyphView::OneAction),
+            QueryFieldState::Value,
+        ),
+        ("action", json!(null), None, QueryFieldState::Null),
+        ("action", json!("bad"), None, QueryFieldState::Invalid),
+        (
+            "free",
+            json!(null),
+            Some(ActionGlyphView::FreeAction),
+            QueryFieldState::Value,
+        ),
+        (
+            "reaction",
+            json!(null),
+            Some(ActionGlyphView::Reaction),
+            QueryFieldState::Value,
+        ),
+        ("passive", json!(null), None, QueryFieldState::Value),
+    ] {
+        let input = record(
+            "actions",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","system":{"actionType":{"value":kind},"actions":{"value":count}}}),
+        );
+        let SourceNodeView::Item(item) =
+            SourceQueryView::new(input.record.source(), "actions", "").source
+        else {
+            panic!("item")
+        };
+        let cost = item_action_cost(item);
+        assert_eq!(cost.state, state);
+        assert_eq!(cost.value.as_ref().and_then(|v| v.glyph), glyph);
+        if kind == "passive" {
+            assert_eq!(cost.value.unwrap().label, "passive");
+        }
+    }
+    for (system, state) in [
+        (json!({}), QueryFieldState::Missing),
+        (json!({"actionType":null}), QueryFieldState::Null),
+        (
+            json!({"actionType":{"value":"bad"}}),
+            QueryFieldState::Invalid,
+        ),
+    ] {
+        let input = record(
+            "actions",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","system":system}),
+        );
+        let SourceNodeView::Item(item) =
+            SourceQueryView::new(input.record.source(), "actions", "").source
+        else {
+            panic!("item")
+        };
+        assert_eq!(item_action_cost(item).state, state);
+    }
+}
 #[test]
 fn actor_collection_availability_is_independent_of_zero_and_empty() {
     for (items, expected) in [
@@ -111,12 +413,33 @@ fn spells_preserve_authored_damage_forms_and_interval_without_evaluating() {
         panic!("spell");
     };
     let s = spell::authored_spell(source);
-    assert_eq!(s.cast.value.as_deref(), Some("1 to 3 actions"));
     assert_eq!(
-        s.area.value.as_ref().unwrap().size.value.as_deref(),
+        s.cast.value.as_ref().map(|v| v.label.as_str()),
+        Some("1 to 3 actions")
+    );
+    assert_eq!(
+        s.area
+            .as_ref()
+            .unwrap()
+            .value
+            .as_ref()
+            .unwrap()
+            .size
+            .value
+            .as_deref(),
         Some("30 feet")
     );
-    assert_eq!(s.defense.value.as_ref().unwrap().basic.value, Some(true));
+    assert_eq!(
+        s.defense
+            .as_ref()
+            .unwrap()
+            .value
+            .as_ref()
+            .unwrap()
+            .basic
+            .value,
+        Some(true)
+    );
     assert_eq!(s.sustained.value, Some(false));
     let damage = &s.damage.value.unwrap()[0];
     assert_eq!(damage.formula.value.as_deref(), Some("1d8"));
@@ -140,7 +463,10 @@ fn spells_preserve_authored_damage_forms_and_interval_without_evaluating() {
     let form = &s.forms.value.unwrap()[0];
     let changes = form.changes.value.as_ref().unwrap();
     assert_eq!(changes.defense.state, QueryFieldState::Null);
-    assert_eq!(changes.cast.value.as_deref(), Some("2 actions"));
+    assert_eq!(
+        changes.cast.value.as_ref().map(|v| v.label.as_str()),
+        Some("2 actions")
+    );
     assert_eq!(changes.traits.value, Some(vec!["healing".into()]));
     assert_eq!(changes.range.state, QueryFieldState::Missing);
     assert_eq!(
@@ -273,4 +599,125 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
     assert_eq!(entry.difficulty_class.value, Some(33.into()));
     assert_eq!(entry.preparation.value.as_deref(), Some("prepared"));
     assert_eq!(entry.casting_tradition.value.as_deref(), Some("arcane"));
+    assert_eq!(selected.presentation.identity.kind_label, "Spellcasting");
+    let context = entry.casting_context.unwrap();
+    assert_eq!(context.parent_title, "Caster");
+    assert!(context.parent.owners.is_empty());
+    let members = context.spells.value.unwrap();
+    assert_eq!(members.len(), 1);
+    assert_eq!(members[0].title, "Local Fireball");
+    assert_eq!(members[0].base_rank.value, Some(3.into()));
+    assert_eq!(members[0].authored_cast_rank.value, Some(6.into()));
+    assert_eq!(members[0].navigation, local.navigation);
+    assert_eq!(
+        members[0].damage.value.as_ref().unwrap()[0]
+            .formula
+            .value
+            .as_deref(),
+        Some("12d6")
+    );
+    assert!(
+        a.activities.value.as_ref().unwrap()[0]
+            .casting_context
+            .is_none()
+    );
+}
+
+#[test]
+fn hazard_primary_defense_presence_requires_known_hp_and_ac_and_preserves_zero_saves() {
+    for (system, state, presence) in [
+        (
+            json!({"attributes":{"hp":{"max":0},"ac":{"value":0}},"saves":{"will":{"value":0}}}),
+            QueryFieldState::Value,
+            Some(false),
+        ),
+        (
+            json!({"attributes":{"hp":{"max":1},"ac":{"value":0}}}),
+            QueryFieldState::Value,
+            Some(true),
+        ),
+        (
+            json!({"attributes":{"hp":{"max":0},"ac":{"value":14}}}),
+            QueryFieldState::Value,
+            Some(true),
+        ),
+        (
+            json!({"attributes":{"hp":{"max":0}}}),
+            QueryFieldState::Missing,
+            None,
+        ),
+        (
+            json!({"attributes":{"hp":{"max":0},"ac":null}}),
+            QueryFieldState::Null,
+            None,
+        ),
+        (
+            json!({"attributes":{"hp":{"max":0},"ac":{"value":"broken"}}}),
+            QueryFieldState::Invalid,
+            None,
+        ),
+        (json!(null), QueryFieldState::Null, None),
+    ] {
+        let input = record(
+            "hazards",
+            "Actor",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"hazard","system":system}),
+        );
+        let node = SourceQueryView::new(input.record.source(), "hazards", "").source;
+        let defense = hazard_defense_block(node);
+        assert_eq!(defense.state, state);
+        assert_eq!(defense.value, presence);
+        if presence == Some(false) {
+            let authored = actor::authored_actor(&input.record, node, "fixture");
+            assert_eq!(authored.armor_class.value, Some(0.into()));
+            assert_eq!(authored.maximum_hp.value, Some(0.into()));
+            assert_eq!(authored.saves.will.value, Some(0.into()));
+        }
+    }
+}
+
+#[test]
+fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_owner() {
+    let entry = json!({"_id":"eeeeeeeeeeeeeeee","type":"spellcastingEntry","name":"Duplicate entry","system":{"spelldc":{"dc":25,"value":15}}});
+    let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","items":[entry.clone(),entry,{"_id":"ssssssssssssssss","type":"spell","name":"Unresolved local spell","system":{"level":{"value":2},"location":{"value":"eeeeeeeeeeeeeeee"}}}]});
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+        Ok(open_source_fixture(
+            vec![record("actors", "Actor", source.clone())],
+            false,
+        )?)
+    });
+    let fixture = fixture_worker_with_executor(executor);
+    let root = fixture
+        .worker
+        .record_detail("actors:aaaaaaaaaaaaaaaa")
+        .unwrap();
+    let activities = actor(&root.presentation).activities.value.as_ref().unwrap();
+    assert!(activities[2].casting_entry.is_none());
+    let navigation = &activities[0].navigation;
+    let request = RecordDetailRequest {
+        record_key: navigation.record_key.clone(),
+        owners: navigation.owners.clone(),
+        fields: vec![],
+        passage: None,
+        source_fingerprint: navigation.source_fingerprint.clone(),
+    };
+    assert!(request.source_fingerprint.is_some());
+    let selected = fixture.worker.record_detail_at(request.clone()).unwrap();
+    let RecordBodyView::Activity(entry) = selected.presentation.body else {
+        panic!("entry");
+    };
+    assert!(
+        entry
+            .casting_context
+            .unwrap()
+            .spells
+            .value
+            .unwrap()
+            .is_empty()
+    );
+    let stale = RecordDetailRequest {
+        source_fingerprint: Some("previous-snapshot".into()),
+        ..request
+    };
+    assert!(fixture.worker.record_detail_at(stale).is_err());
 }

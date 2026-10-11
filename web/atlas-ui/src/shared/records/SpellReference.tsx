@@ -10,6 +10,7 @@ import type {
   SpellPresentationView,
 } from "../../generated/atlas";
 import { DamageComponents } from "./ActorReference";
+import { ActionCost } from "./ActionCost";
 import { FactLine, FactRow, NumberFact, factText } from "./presentationFacts";
 
 function Area({
@@ -84,12 +85,20 @@ function HeighteningDamage({
     return <FactLine label="Heightening damage" fact={fact} patch={patch} />;
   if (patch && !fact.value.length)
     return <FactLine label="Heightening damage" fact={fact} patch />;
+  const components = fact.value.filter(
+    (component) =>
+      component.formula.state !== "value" ||
+      component.formula.value === null ||
+      component.formula.value.trim().length > 0,
+  );
   return (
     <>
-      {fact.value.map((component) => (
+      {components.map((component, index) => (
         <FactLine
           key={component.id}
-          label={`Damage ${component.id}`}
+          label={
+            components.length === 1 ? "Damage increase" : `Damage increase ${index + 1}`
+          }
           fact={component.formula}
           patch={patch}
         />
@@ -109,7 +118,7 @@ function FixedLevels({ fact }: { fact: FactView<SpellFixedLevelView[]> }) {
           {level.changes.value ? (
             <SpellChanges changes={level.changes.value} />
           ) : (
-            <FactLine label="Authored changes" fact={level.changes} patch />
+            <FactLine label="Other changes" fact={level.changes} patch />
           )}
         </section>
       ))}
@@ -133,7 +142,7 @@ function HeighteningChanges({ fact }: { fact: FactView<SpellHeighteningChangeVie
 export function SpellChanges({ changes }: { changes: SpellChangeView }) {
   return (
     <>
-      <FactLine label="Cast" fact={changes.cast} patch />
+      <ActionCost label="Cast" fact={changes.cast} patch />
       <FactLine label="Range" fact={changes.range} patch />
       <FactLine label="Target" fact={changes.target} patch />
       <Area fact={changes.area} patch />
@@ -165,12 +174,12 @@ export function SpellChanges({ changes }: { changes: SpellChangeView }) {
 function Heightening({ fact }: { fact: FactView<SpellHeighteningView> }) {
   if (fact.state !== "value" || !fact.value)
     return ["invalid", "null"].includes(fact.state) ? (
-      <FactLine label="Authored heightening" fact={fact} />
+      <FactLine label="Heightening" fact={fact} />
     ) : null;
   const heightening = fact.value;
   return (
     <section className="spell-reference__heightening">
-      <h3>Authored heightening</h3>
+      <h3>Heightening</h3>
       {heightening.kind === "interval" ? (
         <>
           <FactRow label="Heightened">
@@ -205,18 +214,19 @@ export function SpellReference({
           fact={spell.traditions}
           format={(value) => value.join(", ")}
         />
-        <FactLine label="Cast" fact={spell.cast} />
-        <FactLine label="Requirements" fact={spell.requirements} />
-        <FactLine label="Cost" fact={spell.cost} />
+        <ActionCost label="Cast" fact={spell.cast} />
+        {spell.requirements && (
+          <FactLine label="Requirements" fact={spell.requirements} />
+        )}
+        {spell.cost && <FactLine label="Cost" fact={spell.cost} />}
         <FactLine label="Range" fact={spell.range} />
         <FactLine label="Target" fact={spell.target} />
-        <Area fact={spell.area} />
-        <Defense fact={spell.defense} />
+        {spell.area && <Area fact={spell.area} />}
+        {spell.defense && <Defense fact={spell.defense} />}
         <FactLine label="Duration" fact={spell.duration} />
         {spell.sustained.value && <FactRow label="Sustained">Yes</FactRow>}
-        <FactLine label="Casting entry" fact={spell.casting_entry} />
         {spell.authored_cast_rank.state === "value" && (
-          <FactRow label="Authored cast rank">
+          <FactRow label="Cast rank">
             <NumberFact fact={spell.authored_cast_rank} />
           </FactRow>
         )}
@@ -227,21 +237,28 @@ export function SpellReference({
           <Heightening fact={spell.heightening} />
           {spell.forms.value?.length ? (
             <section className="spell-reference__forms">
-              <h3>Authored forms</h3>
+              <h3>Spell forms</h3>
               <p className="muted">Changes to the base spell.</p>
-              {spell.forms.value.map((form) => (
+              {spell.forms.value.map((form, index) => (
                 <section className="spell-reference__change" key={form.id}>
-                  <h4>{form.name.value || form.id}</h4>
+                  <h4>
+                    {form.name.state === "value" && form.name.value?.trim()
+                      ? form.name.value
+                      : `Spell form ${index + 1}`}
+                  </h4>
+                  {["null", "invalid"].includes(form.name.state) && (
+                    <FactLine label="Form name" fact={form.name} />
+                  )}
                   {form.changes.value ? (
                     <SpellChanges changes={form.changes.value} />
                   ) : (
-                    <FactLine label="Authored changes" fact={form.changes} patch />
+                    <FactLine label="Other changes" fact={form.changes} patch />
                   )}
                 </section>
               ))}
             </section>
           ) : ["invalid", "null"].includes(spell.forms.state) ? (
-            <FactLine label="Authored forms" fact={spell.forms} />
+            <FactLine label="Spell forms" fact={spell.forms} />
           ) : null}
         </>
       )}

@@ -58,7 +58,8 @@ export function activityFixture(
       passage: null,
       source_fingerprint: "snapshot",
     },
-    usage: "1 action",
+    usage: null,
+    action_cost: knownFact({ glyph: "one_action", label: "1 action" }),
     traits: [],
     attack: numberFact(9),
     lore_modifier: na,
@@ -68,6 +69,9 @@ export function activityFixture(
     damage: knownFact([]),
     casting_entry: null,
     association: unavailableFact("not_applicable"),
+    base_rank: na,
+    authored_cast_rank: na,
+    casting_context: null,
     notes: [],
   };
 }
@@ -75,7 +79,7 @@ export function spellFixture(): SpellPresentationView {
   return {
     rank: numberFact(3),
     traditions: knownFact(["arcane", "primal"]),
-    cast: knownFact("2 actions"),
+    cast: knownFact({ glyph: "two_actions", label: "2 actions" }),
     requirements: knownFact(""),
     cost: knownFact(""),
     range: knownFact("500 feet"),
@@ -138,6 +142,13 @@ export function detailFixture(
       ? [
           {
             source: locator,
+            source_navigation: {
+              record_key,
+              owners: [],
+              field: locator.field,
+              passage: null,
+              source_fingerprint: null,
+            },
             ordinal: 0,
             origin: "prepared_content",
             kind: "uuid",
@@ -213,6 +224,12 @@ export function fieldFixture(
 export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditorView {
   return {
     catalog_version: 1,
+    common_field_ids: [
+      "record.kind",
+      "record.level_or_rank",
+      "rarity",
+      "traits",
+    ].filter((id) => fields.some((field) => field.id === id)),
     limits: { source_bytes: 16384, nodes: 256, depth: 32, literal_list: 128 },
     groups: [
       {
@@ -220,6 +237,13 @@ export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditor
         label: "Common",
         fields: fields.map((definition) => ({
           definition,
+          label: definition.label,
+          help: null,
+          choices: definition.choices.map((value) => ({ value, label: value })),
+          operators: definition.operators.map((operator) => ({
+            operator,
+            label: operator,
+          })),
           control:
             definition.field_type === "number"
               ? "numeric"
@@ -237,12 +261,20 @@ export function valuesFixture(
   values: string[] = [],
 ): FilterValueListView {
   return {
-    values: {
-      field,
-      options: values.map((value) => ({ value, distinct_roots: 1n, selected: false })),
-      total_values: BigInt(values.length),
-      exhaustive: true,
-      count_basis: "distinct roots",
+    kind: "contextual",
+    outcome: {
+      status: "available",
+      value: {
+        field,
+        options: values.map((value) => ({
+          value,
+          distinct_roots: 1n,
+          selected: false,
+        })),
+        total_values: BigInt(values.length),
+        exhaustive: true,
+        count_basis: "distinct roots",
+      },
     },
   };
 }

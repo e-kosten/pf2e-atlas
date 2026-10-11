@@ -40,8 +40,8 @@ const ENCOUNTER_WIDTH_SPECS = {
 };
 
 export function EncounterDetailView({ route }: EncounterDetailViewProps) {
-  const queryClient = useQueryClient();
   const confirmDangerAction = useConfirmDangerAction();
+  const queryClient = useQueryClient();
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
@@ -145,7 +145,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   };
 
   return (
-    <>
+    <div className="encounter-detail-view">
       <section className="encounter-detail-header">
         <div>
           <h2>{encounterSummary?.name ?? route.slug}</h2>
@@ -227,6 +227,8 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             previewAnchor={recordPreview.anchor}
             previewDetail={recordPreview.detail}
             previewLoading={recordPreview.loading}
+            previewError={recordPreview.error}
+            onRetryPreview={recordPreview.retry}
             previewRecordKey={recordPreview.recordKey}
           />
         }
@@ -266,6 +268,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
           }}
         />
       )}
-    </>
+    </div>
   );
 }

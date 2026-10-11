@@ -1,4 +1,4 @@
-import { Button, Form, Input, Select, Modal } from "antd";
+import { Button, Collapse, Form, Input, Select, Modal } from "antd";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 import type { getRecordDetail } from "../../api/atlasApi";
@@ -40,6 +40,8 @@ export function EncounterInspectorPane({
   conditionDefinitions,
   previewDetail,
   previewLoading,
+  previewError,
+  onRetryPreview,
   previewRecordKey,
   previewAnchor,
 }: {
@@ -58,6 +60,8 @@ export function EncounterInspectorPane({
   conditionDefinitions: EncounterConditionDefinitionView[];
   previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
   previewLoading: boolean;
+  previewError?: Error | null;
+  onRetryPreview?: () => void;
   previewRecordKey: string | null;
   previewAnchor: RecordPreviewAnchor | null;
 }) {
@@ -70,6 +74,7 @@ export function EncounterInspectorPane({
     <section className="encounter-pane encounter-record-pane">
       {
         <EncounterParticipantSurface
+          key={`participant-${participant.participant_key}`}
           conditionDefinitions={conditionDefinitions}
           onAddCondition={onAddCondition}
           onReference={onReference}
@@ -82,6 +87,7 @@ export function EncounterInspectorPane({
       }
       {participant.record_key && (
         <ParticipantSourceContent
+          key={`source-${participant.participant_key}`}
           recordKey={participant.record_key}
           onReference={onReference}
         />
@@ -91,6 +97,8 @@ export function EncounterInspectorPane({
           anchor={previewAnchor}
           detail={previewDetail}
           loading={previewLoading}
+          error={previewError}
+          onRetry={onRetryPreview}
           onClose={onCloseRecordPreview}
           onOpenFullPage={() => onOpenRecordFullPage(previewRecordKey)}
           onReference={onReference}
@@ -152,10 +160,10 @@ function EncounterParticipantSurface({
         ) : (
           <h2>{activeCurrent.display_name}</h2>
         )}
-        <div>
+        <div className="encounter-reference__header-actions">
           <Button
             aria-label="Participant note"
-            icon={<Pencil size={14} />}
+            icon={<Pencil size={14} aria-hidden="true" />}
             onClick={() => setNoteOpen((open) => !open)}
             size="small"
             type={noteOpen ? "primary" : "default"}
@@ -169,7 +177,6 @@ function EncounterParticipantSurface({
       {activeCurrent.status === "unresolved" && (
         <p>Authored record unavailable. Saved participant settings remain editable.</p>
       )}
-      <ParticipantEditStrip participant={activeCurrent} onUpdate={updateParticipant} />
       <div className="encounter-reference__controls">
         <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
         <EncounterConditionControls
@@ -182,6 +189,23 @@ function EncounterParticipantSurface({
           participants={participants}
         />
       </div>
+      <Collapse
+        ghost
+        size="small"
+        items={[
+          {
+            key: "participant-details",
+            label: "Edit details",
+            styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
+            children: (
+              <ParticipantEditStrip
+                participant={activeCurrent}
+                onUpdate={updateParticipant}
+              />
+            ),
+          },
+        ]}
+      />
       {presentation && (
         <RecordPresentation
           presentation={presentation}
@@ -240,14 +264,14 @@ function ParticipantEditStrip({
 }) {
   return (
     <section className="encounter-participant-strip">
-      <Form.Item label="Name" layout="vertical">
+      <Form.Item style={{ marginBottom: 0 }} label="Name" layout="vertical">
         <EditableCommitField
           ariaLabel="Participant name"
           onCommit={(displayName) => onUpdate({ display_name: displayName })}
           value={participant.display_name}
         />
       </Form.Item>
-      <Form.Item label="Initiative" layout="vertical">
+      <Form.Item style={{ marginBottom: 0 }} label="Initiative" layout="vertical">
         <EditableCommitField
           ariaLabel="Participant initiative"
           inputMode="numeric"
@@ -260,8 +284,9 @@ function ParticipantEditStrip({
           value={participant.initiative?.toString() ?? ""}
         />
       </Form.Item>
-      <Form.Item label="Side" layout="vertical">
+      <Form.Item style={{ marginBottom: 0 }} label="Side" layout="vertical">
         <Select
+          aria-label="Participant side"
           value={participant.side}
           onChange={(side) => onUpdate({ side })}
           options={["pc", "ally", "enemy", "neutral", "hazard"].map((value) => ({
@@ -286,6 +311,7 @@ function ParticipantNoteEditor({
 }) {
   return (
     <Input.TextArea
+      aria-label="Participant note text"
       key={`note-${participant.participant_key}-${participant.note ?? ""}`}
       defaultValue={participant.note ?? ""}
       onBlur={(event) => {
@@ -318,8 +344,13 @@ function ParticipantSourceContent({
       >
         <RecordDetailPane
           detail={detail.data}
-          loading={detail.isLoading}
-          errors={[detail.error]}
+          loading={detail.isLoading || detail.isFetching}
+          error={detail.error}
+          onRetry={() => {
+            void detail.refetch();
+          }}
+          onBack={() => setOpen(false)}
+          backLabel="Close source content"
           onReference={onReference}
         />
       </Modal>

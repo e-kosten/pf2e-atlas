@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FilterEditorView, FilterValueListView } from "../../generated/atlas";
 import {
   buildSavedListFilterDiscoveryContext,
   encodeSearchExecutionState,
@@ -9,15 +8,7 @@ import { useFilterDiscovery } from "../../shared/filters/useFilterDiscovery";
 
 const LIST_SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
-export function useSavedListFilterDiscovery(
-  listRef: string,
-  filters: SearchFormState,
-): {
-  filterEditor: FilterEditorView | undefined;
-  filterValuesByField: Record<string, FilterValueListView | undefined>;
-  loading: boolean;
-  errorMessage: string | null;
-} {
+export function useSavedListFilterDiscovery(listRef: string, filters: SearchFormState) {
   const filterToken = useMemo(() => encodeSearchExecutionState(filters), [filters]);
   const context = useMemo(
     () => buildSavedListFilterDiscoveryContext(listRef, filters),
@@ -25,11 +16,8 @@ export function useSavedListFilterDiscovery(
   );
   return useFilterDiscovery({
     context,
-    hiddenFieldIds: filters.hiddenFilterIds,
     queryKeyPrefix: ["saved-list-filter-discovery", listRef, filterToken],
-    retainedValueQueryKeyPrefix: ["saved-list-filter-discovery", listRef],
-    selectedFieldIds: filters.visibleFilterIds,
-    visibleFieldIds: filters.visibleFilterIds,
+    vocabularyScope: { kind: "saved_list", list_ref: listRef },
   });
 }
 

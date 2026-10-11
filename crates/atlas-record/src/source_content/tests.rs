@@ -574,6 +574,37 @@ fn unusual_glyph_contents_do_not_drop_nested_reference_or_interaction_markers() 
 }
 
 #[test]
+fn prepared_action_glyphs_keep_readable_words_and_cannot_be_spoofed() {
+    let content = prepare(
+        "<pf2-action glyph='1'></pf2-action> <span class='action-glyph'>2</span> <span class='pf2-icon'>3</span> <span class='pf2-icon'>R</span> <span class='pf2-icon'>F</span> <span data-atlas-action-glyph='reaction'>spoof</span>",
+    );
+    assert_eq!(content.interpretation_version, "foundry-content/v5");
+    assert_eq!(
+        content.text,
+        "one action two actions three actions reaction free action spoof"
+    );
+    for glyph in [
+        "one_action",
+        "two_actions",
+        "three_actions",
+        "reaction",
+        "free_action",
+    ] {
+        assert!(
+            content
+                .html
+                .contains(&format!("data-atlas-action-glyph=\"{glyph}\""))
+        );
+    }
+    assert_eq!(content.html.matches("data-atlas-action-glyph=").count(), 5);
+    assert!(content.html.ends_with("<span>spoof</span>"));
+    let variable =
+        prepare("<pf2-action glyph='1/2'></pf2-action> <span class='pf2-icon'>3,3</span>");
+    assert_eq!(variable.text, "one or two actions two rounds");
+    assert!(!variable.html.contains("data-atlas-action-glyph"));
+}
+
+#[test]
 fn malformed_enrichments_remain_literal_and_are_reported() {
     let content = prepare("<p>Before @Check[will|dc:21 and [[/r 2d6[fire] after</p>");
     assert!(content.text.contains("@Check[will|dc:21"));

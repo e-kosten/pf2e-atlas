@@ -17,7 +17,8 @@ pub use atlas_index::{
     SourceRelationshipBundle, SourceRelationshipDirection, SourceRelationshipRequest,
 };
 pub use discovery::{
-    DiscoverFilterCountsRequest, DiscoverFilterValuesRequest, FilterDiscoveryContext,
+    DiscoverFilterCountsRequest, DiscoverFilterValuesRequest, DiscoverFilterVocabularyRequest,
+    FilterDiscoveryContext,
 };
 pub use error::{SearchError, SearchErrorKind};
 pub use graph::{

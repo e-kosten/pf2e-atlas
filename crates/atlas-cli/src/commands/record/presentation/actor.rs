@@ -137,9 +137,11 @@ pub(super) fn activity_facts(
                 "{}{}",
                 activity.title,
                 activity
-                    .usage
+                    .action_cost
+                    .value
                     .as_ref()
-                    .map(|v| format!(" — {v}"))
+                    .map(|v| format!(" — {}", v.label))
+                    .or_else(|| activity.usage.as_ref().map(|v| format!(" — {v}")))
                     .unwrap_or_default()
             ),
         );
@@ -160,6 +162,12 @@ pub(super) fn activity_facts(
     } else if let Some(usage) = &activity.usage {
         line(out, format!("Usage: {usage}"));
     }
+    if !show_identity && activity.action_cost.state != atlas_domain::QueryFieldState::NotApplicable
+    {
+        fact(out, "Action cost", &activity.action_cost, |v| {
+            v.label.clone()
+        });
+    }
     let attack_label = if activity.kind == ActorActivityKindView::CastingEntry {
         "  Spell attack"
     } else {
@@ -179,6 +187,25 @@ pub(super) fn activity_facts(
         damage(out, &activity.damage);
     }
     optional_text(out, "  Association", &activity.association);
+    optional_number(out, "  Base rank", &activity.base_rank, false, "");
+    optional_number(
+        out,
+        "  Authored cast rank",
+        &activity.authored_cast_rank,
+        false,
+        "",
+    );
+    if let Some(context) = &activity.casting_context {
+        line(out, format!("Spellcasting for {}", context.parent_title));
+        navigation(out, &context.parent)?;
+        if let Some(spells) = &context.spells.value {
+            for spell in spells {
+                activity_facts(out, spell, true)?;
+            }
+        } else {
+            fact(out, "Associated spells", &context.spells, |_| String::new());
+        }
+    }
     if let Some(entry) = &activity.casting_entry {
         line(out, "  Casting entry:");
         navigation(out, entry)?;

@@ -3,6 +3,31 @@ import { PreparedContent } from "./PreparedContent";
 import { detailFixture } from "../../test/fixtures";
 import { ConfigProvider, theme } from "antd";
 describe("prepared source HTML", () => {
+  it("retains semantic inline glyphs and readable text without inventing controls", () => {
+    const content = detailFixture("actors:ghoul", "Ghoul", "rules:outer").presentation
+      .content[0];
+    content.body = {
+      kind: "html",
+      html: '<p>Spend <span data-atlas-action-glyph="two_actions">two actions</span> or a <span data-atlas-action-glyph="reaction">reaction</span>.</p>',
+      controls: [],
+    };
+    const callback = vi.fn();
+    const { container } = render(
+      <PreparedContent content={content} onReference={callback} />,
+    );
+    expect(screen.getByText("two actions")).toHaveAttribute(
+      "data-atlas-action-glyph",
+      "two_actions",
+    );
+    expect(screen.getByText("reaction")).toHaveAttribute(
+      "data-atlas-action-glyph",
+      "reaction",
+    );
+    expect(container.textContent).toBe("Spend two actions or a reaction.");
+    fireEvent.click(screen.getByText("two actions"));
+    expect(callback).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
   it("handles nested internal references once for click, Enter and Space", () => {
     const detail = detailFixture("actors:ghoul", "Ghoul", "rules:outer");
     const content = detail.presentation.content[0];

@@ -122,6 +122,17 @@ pub(crate) fn bound_field(d: &Descriptor, scope: Option<&str>) -> BoundField {
                 }
                 .to_owned(),
             },
+            Binding::LevelOrRank => BoundField {
+                value: format!(
+                    "CASE WHEN r.source_type='spell' THEN {} ELSE r.level END",
+                    family_field("spell_projection", "rank", false, None)
+                ),
+                state: format!(
+                    "CASE WHEN r.source_type='spell' THEN {} ELSE r.level_state END",
+                    family_field("spell_projection", "rank_state", false, None)
+                ),
+                owner_id: "r.record_id".to_owned(),
+            },
             Binding::Duration { unit } => {
                 let unit_state =
                     family_field("effect_projection", "duration_unit_state", false, scope);
