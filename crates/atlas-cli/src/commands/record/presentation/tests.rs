@@ -109,21 +109,24 @@ fn spell() -> SpellPresentationView {
     SpellPresentationView {
         rank: numeric(2),
         traditions: known(vec!["arcane".into(), "primal".into()]),
-        cast: known("2 actions".into()),
-        requirements: known("A free hand".into()),
-        cost: missing(),
+        cast: known(ActionCostView {
+            glyph: Some(ActionGlyphView::TwoActions),
+            label: "2 actions".into(),
+        }),
+        requirements: Some(known("A free hand".into())),
+        cost: None,
         range: known("120 feet".into()),
         target: known("one creature".into()),
-        area: known(SpellAreaView {
+        area: Some(known(SpellAreaView {
             shape: known("burst".into()),
             size: known("20 feet".into()),
             details: missing(),
-        }),
-        defense: known(SpellDefenseView {
+        })),
+        defense: Some(known(SpellDefenseView {
             statistic: known("reflex".into()),
             basic: known(true),
             passive: missing(),
-        }),
+        })),
         duration: known("1 minute".into()),
         sustained: known(false),
         damage: known(vec![damage_component()]),
@@ -136,7 +139,7 @@ fn spell() -> SpellPresentationView {
             }]),
         }),
         forms: known(vec![]),
-        casting_entry: known("entry-local".into()),
+        casting_entry: Some(known("entry-local".into())),
         authored_cast_rank: numeric(4),
     }
 }
@@ -176,6 +179,13 @@ fn selected_spell_preserves_parent_casting_damage_and_authored_heightening() {
     assert!(summary.contains("Custom Fireball"));
     assert!(summary.contains("From Local Caster"));
     assert!(!summary.contains("Casting:"));
+}
+
+#[test]
+fn action_glyph_html_keeps_terminal_words_without_font_characters() {
+    let html = "<p>Spend <span data-atlas-action-glyph=\"two_actions\">two actions</span>, or take a <span data-atlas-action-glyph=\"reaction\">reaction</span>.</p>";
+    let rendered = render_html(html, 80).unwrap();
+    assert_eq!(rendered.trim(), "Spend two actions, or take a reaction.");
 }
 
 #[test]
@@ -219,10 +229,45 @@ fn fixed_heightening_and_forms_remain_authored_changes_with_no_formula_execution
 }
 
 #[test]
+fn absent_baseline_spell_area_and_defense_have_no_rows_but_unavailable_facts_stay_explicit() {
+    let mut spell = spell();
+    spell.area = None;
+    spell.defense = None;
+    let output = render_record(
+        &detail(RecordBodyView::Spell(Box::new(spell.clone()))),
+        TerminalDetail::Standard,
+        80,
+    )
+    .unwrap();
+    assert!(!output.contains("Area:"));
+    assert!(!output.contains("Defense:"));
+    assert!(output.contains("Casting entry: entry-local"));
+    for state in [
+        QueryFieldState::Missing,
+        QueryFieldState::Null,
+        QueryFieldState::Invalid,
+    ] {
+        spell.area = Some(FactView { state, value: None });
+        spell.defense = Some(FactView { state, value: None });
+        let output = render_record(
+            &detail(RecordBodyView::Spell(Box::new(spell.clone()))),
+            TerminalDetail::Standard,
+            80,
+        )
+        .unwrap();
+        assert!(output.contains(&format!("Area: {}", super::unavailable(state))));
+        assert!(output.contains(&format!("Defense: {}", super::unavailable(state))));
+    }
+}
+
+#[test]
 fn unavailable_spell_parents_remain_unknown_and_empty_damage_remains_known() {
     let mut spell = spell();
-    spell.defense.state = QueryFieldState::Invalid;
-    spell.area.state = QueryFieldState::Null;
+    spell.defense = Some(FactView {
+        state: QueryFieldState::Invalid,
+        value: None,
+    });
+    spell.area = Some(cleared());
     spell.damage = known(vec![]);
     spell.heightening.state = QueryFieldState::Invalid;
     let output = render_record(
@@ -292,6 +337,10 @@ fn actor() -> ActorPresentationView {
             family: "melee".into(),
             kind: ActorActivityKindView::Strike,
             usage: Some("1 action".into()),
+            action_cost: known(ActionCostView {
+                glyph: Some(ActionGlyphView::OneAction),
+                label: "1 action".into(),
+            }),
             traits: vec![],
             attack: numeric(15),
             lore_modifier: absent_number(),
@@ -301,6 +350,9 @@ fn actor() -> ActorPresentationView {
             damage: known(vec![damage_component()]),
             casting_entry: None,
             association: missing(),
+            base_rank: absent_number(),
+            authored_cast_rank: absent_number(),
+            casting_context: None,
             notes: vec![RuntimeEffectNoteView {
                 source: "local".into(),
                 label: "Context".into(),
@@ -376,6 +428,7 @@ fn snapshot_local_reopen_command_preserves_generation_and_exact_field() {
 #[test]
 fn hazard_uses_known_zero_and_dedicated_detection_structure_facts() {
     let record = detail(RecordBodyView::Hazard(Box::new(HazardPresentationView {
+        defense_block: known(true),
         actor: actor(),
         complex: known(false),
         stealth: numeric(0),
@@ -431,6 +484,7 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
     actor.perception_details = known(String::new());
     actor.language_details = known("   ".into());
     let mut record = detail(RecordBodyView::Hazard(Box::new(HazardPresentationView {
+        defense_block: known(true),
         actor,
         complex: known(false),
         stealth: numeric(0),
@@ -474,8 +528,8 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
         assert!(output.contains(expected), "{expected}: {output}");
     }
     let mut spell = spell();
-    spell.requirements = known(String::new());
-    spell.cost = known(String::new());
+    spell.requirements = Some(known(String::new()));
+    spell.cost = Some(known(String::new()));
     spell.target = known(String::new());
     spell.duration = known(String::new());
     spell.damage.value.as_mut().unwrap()[0].category = cleared();
@@ -503,7 +557,10 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
 fn sparse_forms_show_authored_changes_explicit_clears_and_heightening_formula() {
     let mut spell = spell();
     let mut changes = no_changes();
-    changes.cast = known("2 actions".into());
+    changes.cast = known(ActionCostView {
+        glyph: Some(ActionGlyphView::TwoActions),
+        label: "2 actions".into(),
+    });
     changes.defense = cleared();
     changes.damage = known(vec![DamageComponentView {
         id: "0".into(),

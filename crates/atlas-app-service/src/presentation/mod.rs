@@ -1,8 +1,10 @@
 //! Selected authored facts. Renderers own density and layout; source owns meaning.
+mod action_cost;
 pub(crate) mod actor;
 mod facts;
 mod spell;
 use crate::projection::{field_state, navigation_fingerprint};
+use action_cost::{casting_cost, item_action_cost};
 pub(crate) use actor::compose_participant;
 use atlas_app_model::*;
 use atlas_domain::QueryFieldState;
@@ -25,6 +27,7 @@ pub(crate) fn record_presentation(
     let mut body = match node {
         SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::HazardSource(source)) => {
             RecordBodyView::Hazard(Box::new(HazardPresentationView {
+                defense_block: hazard_defense_block(node),
                 actor: actor::authored_actor(record, node, retrieval.source_fingerprint()),
                 complex: fact(
                     SourceFieldView::from(&source.system)
@@ -127,7 +130,44 @@ pub(crate) fn record_presentation(
                 label_traits(activity);
             }
         }
-        RecordBodyView::Activity(activity) => label_traits(activity),
+        RecordBodyView::Activity(activity) => {
+            label_traits(activity);
+            if activity.kind == ActorActivityKindView::CastingEntry
+                && owners.len() == 1
+                && let Some(parent_node @ SourceNodeView::Actor(_)) = record.node_at(&[])
+            {
+                let activities =
+                    actor::authored_activities(record, parent_node, retrieval.source_fingerprint());
+                let state = activities.state;
+                let spells = activities.value.map(|activities| {
+                    activities
+                        .into_iter()
+                        .filter(|spell| {
+                            spell.kind == ActorActivityKindView::Spell
+                                && spell.casting_entry.as_ref() == Some(&activity.navigation)
+                        })
+                        .map(|mut spell| {
+                            label_traits(&mut spell);
+                            spell
+                        })
+                        .collect()
+                });
+                activity.casting_context = Some(CastingEntryContextView {
+                    parent: RecordNavigationView {
+                        record_key: record.key().to_string(),
+                        owners: vec![],
+                        field: None,
+                        passage: None,
+                        source_fingerprint: None,
+                    },
+                    parent_title: summary.title.clone(),
+                    spells: FactView {
+                        state,
+                        value: spells,
+                    },
+                });
+            }
+        }
         _ => {}
     }
     RecordPresentationView {
@@ -136,6 +176,19 @@ pub(crate) fn record_presentation(
         owned,
         body,
     }
+}
+/// Upstream's authored hazard defense block uses HP maximum or AC, not saves.
+/// Only known numeric zero for both suppresses the primary block.
+fn hazard_defense_block(node: SourceNodeView<'_>) -> FactView<bool> {
+    let actor = SourceQueryView {
+        source: node,
+        pack_id: "",
+        pack_label: "",
+    }
+    .actor();
+    let hp = actor.hp_maximum();
+    let ac = actor.armor_class();
+    fact(hp.and_then(|hp| ac.map(|ac| hp.as_f64() != Some(0.0) || ac.as_f64() != Some(0.0))))
 }
 fn selected_identity(
     record: &SourceBackedRecord,
@@ -165,7 +218,12 @@ fn selected_identity(
         record_key: record.key().to_string(),
         title: node_title(node),
         kind: family.into(),
-        kind_label: family.into(),
+        kind_label: match family {
+            "spellcastingEntry" => "Spellcasting",
+            "action" => "Ability",
+            _ => family,
+        }
+        .into(),
         source_type: Some(family.into()),
         level_label: level,
         level_basis: None,
@@ -228,6 +286,10 @@ fn owned_links(
                 SourceNodeView::Item(i) => item_usage(i),
                 _ => None,
             },
+            action_cost: match child {
+                SourceNodeView::Item(i) => item_action_cost(i),
+                _ => unavailable(),
+            },
         });
     };
     match node {
@@ -250,28 +312,7 @@ fn owned_links(
     links
 }
 pub(super) fn item_usage(item: ItemSourceView<'_>) -> Option<String> {
-    item.spell_casting_time()
-        .value()
-        .map(cast_label)
-        .or_else(|| item.physical_usage().value().map(str::to_owned))
-        .or_else(|| {
-            identifier(item.action_type()).value.map(|kind| {
-                if kind == "action" {
-                    item.action_count()
-                        .value()
-                        .map(|n| {
-                            if n.as_i64() == Some(1) {
-                                "1 action".into()
-                            } else {
-                                format!("{n} actions")
-                            }
-                        })
-                        .unwrap_or(kind)
-                } else {
-                    kind
-                }
-            })
-        })
+    item.physical_usage().value().map(str::to_owned)
 }
 fn physical(item: ItemSourceView<'_>) -> PhysicalPresentationView {
     let price = item.physical_price();
@@ -286,16 +327,6 @@ fn physical(item: ItemSourceView<'_>) -> PhysicalPresentationView {
                 .join(", ")
         })),
         price_per: number(price.and_then(|p| (&p.per).into())),
-    }
-}
-
-pub(super) fn cast_label(value: &str) -> String {
-    match value {
-        "1" => "1 action".into(),
-        "2" => "2 actions".into(),
-        "3" => "3 actions".into(),
-        "1 to 3" => "1 to 3 actions".into(),
-        _ => value.into(),
     }
 }
 

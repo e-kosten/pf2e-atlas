@@ -13,6 +13,13 @@
 .result-row {
   cursor: pointer;
 }
+.result-row--selected > td {
+  background: var(--active-bg);
+}
+.result-row:focus-visible {
+  outline: 2px solid var(--active-border);
+  outline-offset: -2px;
+}
 
 .panel-heading {
   display: flex;
@@ -84,24 +91,25 @@
 }
 
 .result-table {
-  min-width: 720px;
   margin: 6px;
-}
-
-.result-table .ant-table {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 .result-title {
   display: grid;
   gap: 2px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.result-title .ant-typography {
-  margin: 0;
+.result-matches {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.result-match-link {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .result-traits {
@@ -111,6 +119,7 @@
   gap: 4px;
 }
 
-.result-traits .ant-tag {
-  margin-inline-end: 0;
+.page-jump input:focus-visible {
+  outline: 2px solid var(--active-border);
+  outline-offset: 2px;
 }

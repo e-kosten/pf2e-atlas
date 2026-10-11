@@ -1,9 +1,84 @@
 import { detailFixture } from "../../test/fixtures";
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { ConfigProvider, Grid } from "antd";
+import { StrictMode } from "react";
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
 
 describe("RecordPreviewPopover", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(["desktop", "narrow"])(
+    "%s preview focuses actions and lets a nested source modal own Escape",
+    async (viewport) => {
+      vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
+        xs: viewport === "narrow",
+        sm: viewport === "desktop",
+        md: viewport === "desktop",
+        xl: viewport === "desktop",
+      });
+      const close = vi.fn();
+      const detail = recordDetailFixture();
+      detail.presentation.content[0].body = {
+        kind: "html",
+        html: '<span data-atlas-interaction="0">Fortitude check</span>',
+        controls: [
+          {
+            ordinal: 0,
+            control: { kind: "check", statistic: "Fortitude", options: { dc: "15" } },
+          },
+        ],
+      };
+      render(
+        <StrictMode>
+          <ConfigProvider theme={{ token: { motion: false } }}>
+            <RecordPreviewPopover
+              anchor={document.createElement("button")}
+              detail={detail}
+              loading={false}
+              onClose={close}
+              onOpenFullPage={vi.fn()}
+              onReference={vi.fn()}
+            />{" "}
+          </ConfigProvider>
+        </StrictMode>,
+      );
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "Open reference full page" }),
+        ).toHaveFocus(),
+      );
+      const marker = screen.getByRole("button", { name: "Fortitude check" });
+      marker.focus();
+      fireEvent.keyDown(marker, { key: "Enter" });
+      await waitFor(() => expect(screen.getAllByRole("dialog")).toHaveLength(2));
+      const modal = screen.getByRole("dialog", { name: "Fortitude" });
+      expect(modal).toHaveTextContent("Fortitude");
+      expect(close).not.toHaveBeenCalled();
+      const modalAction = within(modal).getByRole("button", { name: "OK" });
+      act(() => modalAction.focus());
+      fireEvent.keyDown(modalAction, { key: "Escape", keyCode: 27 });
+      expect(close).not.toHaveBeenCalled();
+      await waitFor(() => expect(modal).not.toBeInTheDocument());
+      expect(marker).toHaveFocus();
+      const closeAction = screen.getByRole("button", {
+        name: "Close reference preview",
+      });
+      act(() => closeAction.focus());
+      fireEvent.keyDown(closeAction, {
+        key: "Escape",
+      });
+      await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+    },
+  );
+
   it("opens nested references without re-anchoring the active popover", () => {
     const onReference = vi.fn();
     render(
@@ -24,6 +99,55 @@ describe("RecordPreviewPopover", () => {
       expect.any(HTMLElement),
       expect.objectContaining({ record_key: "rules:nested" }),
     );
+  });
+
+  it("preserves the selected reference and actions when moving between desktop and narrow layouts", async () => {
+    const breakpoint = vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
+    const props = {
+      anchor: document.createElement("button"),
+      detail: recordDetailFixture(),
+      loading: false,
+      onClose: vi.fn(),
+      onOpenFullPage: vi.fn(),
+      onReference: vi.fn(),
+    };
+    const preview = () => (
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <RecordPreviewPopover {...props} />
+      </ConfigProvider>
+    );
+    const { rerender } = render(preview());
+    expect(
+      await screen.findByRole("dialog", { name: "Reference preview" }),
+    ).toBeInTheDocument();
+    breakpoint.mockReturnValue({ lg: true, xl: false });
+    rerender(preview());
+    expect(await screen.findByRole("dialog", { name: "Reference" })).toHaveAttribute(
+      "aria-modal",
+      "true",
+    );
+    expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Open reference full page" }),
+      ).toHaveFocus(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open reference full page" }));
+    expect(props.onOpenFullPage).toHaveBeenCalledTimes(1);
+    breakpoint.mockReturnValue({ xl: true });
+    rerender(preview());
+    expect(
+      await screen.findByRole("dialog", { name: "Reference preview" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Reference" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Open reference full page" }),
+      ).toHaveFocus(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+    expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -112,9 +112,11 @@ pub(super) fn render_record(
                     owned.title,
                     owned.family,
                     owned
-                        .usage
+                        .action_cost
+                        .value
                         .as_ref()
-                        .map(|v| format!("; {v}"))
+                        .map(|v| format!("; {}", v.label))
+                        .or_else(|| owned.usage.as_ref().map(|v| format!("; {v}")))
                         .unwrap_or_default()
                 ),
             );

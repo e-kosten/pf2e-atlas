@@ -4,7 +4,7 @@ use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
 /// Interpretation identity, independent of source DTO or artifact versions.
-pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v4";
+pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v5";
 
 /// A source field, never an output hash, display label or HTML node ordinal.
 /// Callers establish identity from their admitted source and retain this locator

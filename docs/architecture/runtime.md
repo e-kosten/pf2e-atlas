@@ -125,7 +125,25 @@ The shared predicate compiles to index-owned parameterized eligibility SQL.
 CLI CEL and UI structured requests independently target it. Applicable source
 fields retain value/missing/null/invalid/not-applicable states; only true matches.
 Same-child Exists preserves one witness. Facets use the same bindings and explicit
-self-exclusion semantics; unsupported contexts return errors.
+self-exclusion semantics. Index analysis returns typed optional unavailability for
+valid unsupported suggestion contexts before search loads embeddings or ranks
+candidates. Malformed predicates, wrong targets/scopes, invalid types and bounds,
+and actual model/SQLite/service failures remain errors. CLI raw discovery presents
+unavailable contexts as actionable command failures without another analysis.
+
+Count-free vocabulary is a separate discovery request with artifact or saved-list
+membership scope, value-search text, bounded paging and selected literals. It has
+no query predicate, query text or retrieval mode. App-service resolves saved-list
+keys; search forwards scope without embedding; index enumerates known applicable
+product values before edition preference. Empty membership remains empty, and
+retained selections do not inflate suggestion totals. Contextual counts retain
+their exact same-child/counterfactual/remaster and bounded-candidate semantics.
+
+App-service decorates executable definitions with human labels, groups, choice
+and operator labels and one ordered common field list: Kind, Level / rank, Rarity,
+Traits. Those presentation labels do not declare executable fields or choices.
+The common Level / rank primitive is index-owned and uses existing rank/state
+for spells and level/state for other applicable families.
 
 FTS and sqlite-vec apply filters, key scopes and product eligibility before top-k.
 Search aggregates matching units to one root result while preserving useful
@@ -156,6 +174,15 @@ explicit clears; it does not execute casting, calculate effective forms or spend
 resources. Renderers share semantic responses while independently formatting
 terminal and browser layouts. Complete selected navigation drives detail caching
 and reader transitions. Root terminal summaries stay body-free.
+
+Selected immediate Actor casting entries obtain associated local spells from the
+already-decoded checked parent, preserving complete owner addresses. Root activity
+rosters expose base and explicit authored cast ranks without duplicating the
+roster in each entry. Hazard defense-block applicability is projected explicitly:
+known zero AC and maximum HP suppress the primary block while original facts and
+valid zero saves remain retained. Shared reference layouts put prose first;
+encounter layouts prioritize combat state. Inline owned ability content requests
+use the existing exact selected-detail workflow lazily on expansion.
 
 Web startup uses
 full pooled retrieval; short-lived CLI workflows may choose explicit model-free

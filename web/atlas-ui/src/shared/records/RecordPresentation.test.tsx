@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { RecordPresentation } from "./RecordPresentation";
 import { DamageComponents } from "./ActorReference";
+import { SpellChanges, SpellReference } from "./SpellReference";
 import {
   actorFixture,
   activityFixture,
@@ -176,6 +177,7 @@ describe("semantic family presentation", () => {
               kind: "hazard",
               value: {
                 actor,
+                defense_block: knownFact(true),
                 complex: knownFact(false),
                 stealth: numberFact(0),
                 hardness: numberFact(0),
@@ -193,7 +195,7 @@ describe("semantic family presentation", () => {
       expect(screen.queryByText("Perception")).toBeNull();
       expect(screen.queryByText("Languages")).toBeNull();
       expect(screen.getAllByText("stealth instructions")).toHaveLength(1);
-      expect(screen.getByRole("heading", { name: "Detection details" })).toBeVisible();
+      expect(screen.getByRole("heading", { name: "Detection" })).toBeVisible();
       for (const role of ["description", "disable", "routine", "reset"])
         expect(screen.getAllByText(`${role} instructions`)).toHaveLength(1);
       if (compact) return;
@@ -219,7 +221,7 @@ describe("semantic family presentation", () => {
   );
 
   it.each(["invalid", "missing", "null"] as const)(
-    "retains applicable unavailable IWR qualifiers (%s) and known zero",
+    "retains required IWR magnitude (%s), explicit null/invalid qualifiers and known zero",
     (state) => {
       const presentation = actorPresentation();
       if (presentation.body.kind !== "creature") throw new Error("fixture family");
@@ -240,7 +242,9 @@ describe("semantic family presentation", () => {
       render(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
       const row = screen.getByText("Resistances").parentElement!;
       expect(row).toHaveTextContent(
-        `fire [${state}] (exceptions [${state}]) (double against [${state}]); cold 0`,
+        state === "missing"
+          ? "fire [missing]; cold 0"
+          : `fire [${state}] (exceptions [${state}]) (double against [${state}]); cold 0`,
       );
       expect(row).not.toHaveTextContent("not_applicable");
     },
@@ -260,7 +264,7 @@ describe("semantic family presentation", () => {
     ]);
     const { container, rerender } = render(<DamageComponents damage={damage} />);
     expect(container).toHaveTextContent(
-      "1d6 fire; kinds [invalid]; category [null]; materials [missing]",
+      "1d6 fire; kinds [invalid]; materials [missing]",
     );
     rerender(<DamageComponents damage={damage} patch />);
     expect(container).toHaveTextContent("kinds [invalid]; category cleared");
@@ -289,10 +293,10 @@ describe("semantic family presentation", () => {
           onReference={vi.fn()}
         />,
       );
-      expect(screen.getByText("Authored heightening").parentElement).toHaveTextContent(
+      expect(screen.getByText("Heightening").parentElement).toHaveTextContent(
         `[${state}]`,
       );
-      expect(screen.getByText("Authored forms").parentElement).toHaveTextContent(
+      expect(screen.getByText("Spell forms").parentElement).toHaveTextContent(
         `[${state}]`,
       );
       expect(screen.getByText("Defense").parentElement).toHaveTextContent(
@@ -352,7 +356,7 @@ describe("semantic family presentation", () => {
     expect(screen.getByText("Basic Reflex")).toBeVisible();
     expect(screen.getByText("20 feet burst")).toBeVisible();
     expect(screen.getByText("2 actions")).toBeVisible();
-    expect(screen.getByText("No structured damage")).toBeVisible();
+    expect(screen.getByText("None")).toBeVisible();
     const form = screen.getByRole("heading", {
       name: "Heal the Living",
     }).parentElement!;
@@ -390,6 +394,7 @@ describe("semantic family presentation", () => {
               title: "Result 1–10",
               family: "TableResult",
               usage: "range 1–10",
+              action_cost: unavailableFact("not_applicable"),
               navigation: child,
             },
           ],
@@ -486,5 +491,200 @@ describe("semantic family presentation", () => {
     expect(within(change).queryByText("[missing]")).toBeNull();
     expect(screen.getByText("500 feet")).toBeVisible();
     expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});
+
+describe("Rust-owned optional spell presentation", () => {
+  it("omits only facts the projection explicitly marks absent", () => {
+    const spell = {
+      ...spellFixture(),
+      requirements: null,
+      cost: null,
+      casting_entry: null,
+    };
+    render(
+      <RecordPresentation
+        presentation={{
+          identity: summaryFixture("spell:test", "Test spell"),
+          body: { kind: "spell", value: spell },
+          content: [],
+          owned: [],
+        }}
+        onReference={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Requirements")).toBeNull();
+    expect(screen.queryByText("Cost")).toBeNull();
+    expect(screen.queryByText("Casting entry")).toBeNull();
+    expect(screen.getByText("Cast")).toBeVisible();
+  });
+
+  it("retains optional facts when their parent is unavailable and retains known zero", () => {
+    const spell = {
+      ...spellFixture(),
+      requirements: unavailableFact<string>("invalid"),
+      cost: knownFact("0"),
+      casting_entry: unavailableFact<string>("missing"),
+    };
+    render(
+      <RecordPresentation
+        presentation={{
+          identity: summaryFixture("spell:test", "Test spell"),
+          body: { kind: "spell", value: spell },
+          content: [],
+          owned: [],
+        }}
+        onReference={vi.fn()}
+      />,
+    );
+    const requirements = screen.getByText("Requirements").parentElement!;
+    expect(within(requirements).getByText("[invalid]")).toBeVisible();
+    expect(screen.queryByText("Casting entry")).toBeNull();
+    expect(spell.casting_entry).toEqual(unavailableFact<string>("missing"));
+    const cost = screen.getByText("Cost").parentElement!;
+    expect(within(cost).getByText("0")).toBeVisible();
+  });
+});
+
+describe("optional authored reference facts", () => {
+  it("omits an explicitly absent baseline area while preserving a patch clear", () => {
+    const spell = { ...spellFixture(), area: null };
+    const { rerender } = render(<SpellReference spell={spell} />);
+    expect(screen.queryByText("Area")).toBeNull();
+    const absent = <T,>() => unavailableFact<T>("missing");
+    rerender(
+      <SpellChanges
+        changes={{
+          cast: absent(),
+          range: absent(),
+          target: absent(),
+          area: unavailableFact("null"),
+          defense: absent(),
+          duration: absent(),
+          sustained: absent(),
+          traits: absent(),
+          traditions: absent(),
+          damage: absent(),
+          heightening: absent(),
+        }}
+      />,
+    );
+    expect(screen.getByText("Area").parentElement).toHaveTextContent("Cleared");
+  });
+
+  it.each(["missing", "null", "invalid"] as const)(
+    "retains a supplied unavailable baseline area (%s)",
+    (state) => {
+      render(
+        <SpellReference spell={{ ...spellFixture(), area: unavailableFact(state) }} />,
+      );
+      expect(screen.getByText("Area").parentElement).toHaveTextContent(`[${state}]`);
+    },
+  );
+
+  it.each(["missing", "null", "invalid", "value"] as const)(
+    "omits only missing price units (%s) and preserves known zero price",
+    (state) => {
+      render(
+        <RecordPresentation
+          presentation={{
+            identity: summaryFixture("equipment:staff", "Staff"),
+            content: [],
+            owned: [],
+            body: {
+              kind: "physical_reference",
+              value: {
+                usage: knownFact("held in one hand"),
+                price: knownFact("0 cp"),
+                price_per:
+                  state === "value"
+                    ? numberFact(0)
+                    : { state, value: null, adjustment: null },
+                bulk: numberFact(0),
+              },
+            },
+          }}
+          onReference={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("Price").parentElement).toHaveTextContent("0 cp");
+      if (state === "missing") expect(screen.queryByText("Price per")).toBeNull();
+      else
+        expect(screen.getByText("Price per").parentElement).toHaveTextContent(
+          state === "value" ? "0" : `[${state}]`,
+        );
+    },
+  );
+
+  it.each(["missing", "null", "invalid"] as const)(
+    "omits absent damage category (%s) without hiding required damage facts",
+    (state) => {
+      const { container } = render(
+        <DamageComponents
+          damage={knownFact([
+            {
+              id: "generated-id",
+              formula: unavailableFact("missing"),
+              damage_type: unavailableFact("null"),
+              kinds: knownFact([]),
+              category: unavailableFact(state),
+              materials: knownFact([]),
+              apply_modifier: knownFact(false),
+            },
+          ])}
+        />,
+      );
+      expect(container).toHaveTextContent("[missing] [null]");
+      if (state === "invalid")
+        expect(container).toHaveTextContent("category [invalid]");
+      else expect(container).not.toHaveTextContent("category");
+    },
+  );
+
+  it("uses ordered damage captions instead of authored IDs for multiple components", () => {
+    const component = (id: string) => ({
+      id,
+      formula: knownFact("1d6"),
+      damage_type: knownFact("fire"),
+      kinds: knownFact([]),
+      category: unavailableFact<string>("null"),
+      materials: knownFact([]),
+      apply_modifier: knownFact(false),
+    });
+    const { container } = render(
+      <DamageComponents
+        damage={knownFact([component("p36zyj2o94q5m2av6t6a"), component("0")])}
+      />,
+    );
+    expect(container).toHaveTextContent("Damage component 1:");
+    expect(container).toHaveTextContent("Damage component 2:");
+    expect(container).not.toHaveTextContent("p36zyj2o94q5m2av6t6a");
+    expect(container).not.toHaveTextContent("Damage 0");
+  });
+
+  it("gives single and multiple heightening increments meaningful ordered captions", () => {
+    const spell = spellFixture();
+    spell.heightening = knownFact({
+      kind: "interval",
+      interval: numberFact(1),
+      area: { state: "not_applicable", value: null, adjustment: null },
+      damage: knownFact([{ id: "0", formula: knownFact("2d6") }]),
+    });
+    const { rerender } = render(<SpellReference spell={spell} />);
+    expect(screen.getByText("Damage increase").parentElement).toHaveTextContent("2d6");
+    if (!spell.heightening.value || spell.heightening.value.kind !== "interval")
+      throw new Error("fixture heightening");
+    spell.heightening.value.damage = knownFact([
+      { id: "0", formula: knownFact("2d6") },
+      { id: "generated-id", formula: knownFact("1d4") },
+    ]);
+    rerender(<SpellReference spell={spell} />);
+    expect(screen.getByText("Damage increase 1").parentElement).toHaveTextContent(
+      "2d6",
+    );
+    expect(screen.getByText("Damage increase 2").parentElement).toHaveTextContent(
+      "1d4",
+    );
+    expect(screen.queryByText("Damage 0")).toBeNull();
   });
 });

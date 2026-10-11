@@ -3,4 +3,4 @@ import type { QueryFieldState } from "./QueryFieldState";
 import type { RecordNavigationView } from "./RecordNavigationView";
 import type { SourceContentLocator } from "./SourceContentLocator";
 
-export type RecordRelationshipView = { source: SourceContentLocator, ordinal: number, origin: string, kind: string, authored_target: string | null, occurrence_path: string | null, audiences: Array<string>, availability: QueryFieldState | null, status: string, target: RecordNavigationView | null, url: string | null, };
+export type RecordRelationshipView = { source: SourceContentLocator, source_navigation: RecordNavigationView, ordinal: number, origin: string, kind: string, authored_target: string | null, occurrence_path: string | null, audiences: Array<string>, availability: QueryFieldState | null, status: string, target: RecordNavigationView | null, url: string | null, };

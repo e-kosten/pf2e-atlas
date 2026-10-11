@@ -18,7 +18,10 @@ mod validation;
 mod validation_units;
 mod writer;
 
-pub use discovery::{QueryCountsRequest, QueryFacetContext, QueryValuesRequest, facet_base_query};
+pub use discovery::{
+    QueryCountsRequest, QueryFacetContext, QueryValuesRequest, QueryVocabularyRequest,
+    facet_base_query, validate_value_discovery,
+};
 pub use error::IndexError;
 pub use input::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_FORMAT_VERSION, ARTIFACT_SCHEMA_VERSION,

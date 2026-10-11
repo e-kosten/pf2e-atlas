@@ -1,4 +1,4 @@
-import { Button, Popover, Tag } from "antd";
+import { Button, Collapse, Popover, Tag } from "antd";
 import type {
   ActorActivityView,
   ActorPresentationView,
@@ -9,6 +9,8 @@ import type {
 } from "../../generated/atlas";
 import { FactLine, FactRow, NumberFact, factText } from "./presentationFacts";
 import type { RecordReferenceHandler } from "./PreparedContent";
+import { OwnedActivityDisclosure } from "./OwnedActivityDisclosure";
+import { ActionCost } from "./ActionCost";
 
 function qualifierText<T extends string | string[]>(
   fact: FactView<T>,
@@ -42,19 +44,24 @@ export function DamageComponents({
         {patch && damage.state === "null" ? "Cleared" : factText(damage)}
       </FactRow>
     );
-  if (!damage.value.length)
-    return <FactRow label="Damage">No structured damage</FactRow>;
+  if (!damage.value.length) return <FactRow label="Damage">None</FactRow>;
   const components = damage.value;
   return (
     <div className="record-damage">
-      {components.map((component) => {
+      {components.map((component, index) => {
         const kinds = qualifierText(component.kinds, patch);
-        const category = qualifierText(component.category, patch);
+        const category =
+          !patch && ["missing", "null"].includes(component.category.state)
+            ? ""
+            : qualifierText(component.category, patch);
         const materials = qualifierText(component.materials, patch);
         return (
           <p key={component.id}>
             {patch || components.length > 1 ? (
-              <strong>Damage {component.id}: </strong>
+              <strong>
+                {components.length === 1 ? "Damage" : `Damage component ${index + 1}`}
+                :{" "}
+              </strong>
             ) : null}
             <strong>
               {patch && component.formula.state === "missing"
@@ -110,8 +117,14 @@ function Iwr({ label, fact }: { label: string; fact: FactView<IwrEntryView[]> })
       {fact.state !== "value"
         ? factText(fact)
         : fact.value?.map((entry, index) => {
-            const exceptions = qualifierText(entry.exceptions);
-            const doubleAgainst = qualifierText(entry.double_against);
+            const exceptions =
+              entry.exceptions.state === "missing"
+                ? ""
+                : qualifierText(entry.exceptions);
+            const doubleAgainst =
+              entry.double_against.state === "missing"
+                ? ""
+                : qualifierText(entry.double_against);
             return (
               <span key={index}>
                 {index ? "; " : ""}
@@ -138,16 +151,50 @@ export function ActorFacts({
   compact = false,
   hazard = false,
   hideHitPoints = false,
+  encounter = false,
+  hidePrimaryDefenses = false,
 }: {
   actor: ActorPresentationView;
   compact?: boolean;
   hazard?: boolean;
   hideHitPoints?: boolean;
+  encounter?: boolean;
+  hidePrimaryDefenses?: boolean;
 }) {
   return (
-    <div className="actor-reference__facts">
+    <div
+      className={`actor-reference__facts${encounter ? " actor-reference__facts--combat" : ""}`}
+    >
+      <section className="actor-reference__defenses">
+        <h3>Defenses</h3>
+        {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
+          <FactRow label="AC">
+            <NumberFact fact={actor.armor_class} />
+          </FactRow>
+        )}
+        <div className="record-fact-list">
+          {Object.entries(actor.saves).map(([save, fact]) =>
+            fact.state === "not_applicable" ? null : (
+              <FactRow key={save} label={save[0].toUpperCase() + save.slice(1)}>
+                <NumberFact fact={fact} signed />
+              </FactRow>
+            ),
+          )}
+        </div>
+        {!hidePrimaryDefenses &&
+          !hideHitPoints &&
+          actor.maximum_hp.state !== "not_applicable" && (
+            <FactRow label="HP">
+              <NumberFact fact={actor.maximum_hp} />
+            </FactRow>
+          )}
+        <Iwr label="Immunities" fact={actor.immunities} />
+        <Iwr label="Weaknesses" fact={actor.weaknesses} />
+        <Iwr label="Resistances" fact={actor.resistances} />
+      </section>
       {!hazard && (
         <div className="actor-reference__awareness">
+          {!encounter && <h3>Awareness and communication</h3>}
           {actor.perception.state !== "not_applicable" && (
             <FactRow label="Perception">
               <NumberFact fact={actor.perception} signed />
@@ -172,8 +219,10 @@ export function ActorFacts({
                 .join(", ")
             }
           />
-          <FactLine label="Perception details" fact={actor.perception_details} />
-          {!compact && (
+          {!encounter && (
+            <FactLine label="Perception details" fact={actor.perception_details} />
+          )}
+          {!compact && !encounter && (
             <>
               <FactLine
                 label="Languages"
@@ -185,88 +234,98 @@ export function ActorFacts({
           )}
         </div>
       )}
-      {!compact && !hazard && (
-        <>
-          {actor.skills.state !== "value" && (
-            <FactLine label="Skills" fact={actor.skills} />
-          )}
-          {actor.abilities.state !== "value" && (
-            <FactLine label="Ability modifiers" fact={actor.abilities} />
-          )}
-          <div className="record-fact-list">
-            {(actor.skills.value ?? []).map((skill) => (
-              <div key={skill.key}>
-                <FactRow label={skill.label}>
-                  <NumberFact fact={skill.modifier} signed />
-                  {skill.note.value ? `; ${skill.note.value}` : ""}
-                  {skill.conditional.value?.map((conditional, index) => (
-                    <span key={index}>
-                      ; {factText(conditional.label)}{" "}
-                      <NumberFact fact={conditional.modifier} signed />
-                    </span>
-                  ))}
-                </FactRow>
-              </div>
-            ))}
-          </div>
-          <div className="record-fact-list">
-            {(actor.abilities.value ?? []).map((ability) => (
-              <FactRow key={ability.key} label={ability.label}>
-                <NumberFact fact={ability.modifier} signed />
-              </FactRow>
-            ))}
-          </div>
-        </>
-      )}
-      <div className="actor-reference__defenses">
-        {actor.armor_class.state !== "not_applicable" && (
-          <FactRow label="AC">
-            <NumberFact fact={actor.armor_class} />
-          </FactRow>
-        )}
-        <div className="record-fact-list">
-          {Object.entries(actor.saves).map(([save, fact]) =>
-            fact.state === "not_applicable" ? null : (
-              <FactRow key={save} label={save[0].toUpperCase() + save.slice(1)}>
-                <NumberFact fact={fact} signed />
-              </FactRow>
-            ),
-          )}
-        </div>
-        {!hideHitPoints && actor.maximum_hp.state !== "not_applicable" && (
-          <FactRow label="HP">
-            <NumberFact fact={actor.maximum_hp} />
-          </FactRow>
-        )}
-        <Iwr label="Immunities" fact={actor.immunities} />
-        <Iwr label="Weaknesses" fact={actor.weaknesses} />
-        <Iwr label="Resistances" fact={actor.resistances} />
-      </div>
+      {!compact && !hazard && !encounter && <ActorSkills actor={actor} />}
       {!hazard && (
-        <div className="record-fact-list">
-          {actor.land_speed.state !== "not_applicable" && (
-            <FactRow label="Speed">
-              <NumberFact fact={actor.land_speed} unit=" feet" label="Speed" />
-            </FactRow>
-          )}
-          {actor.movement.state !== "value" && (
-            <FactLine label="Other movement" fact={actor.movement} />
-          )}
-          {(actor.movement.value ?? []).map((movement, index) => (
-            <FactRow key={index} label={factText(movement.movement_type)}>
-              <NumberFact fact={movement.feet} unit=" feet" />
-            </FactRow>
-          ))}
-        </div>
+        <section className="actor-reference__movement">
+          {!encounter && <h3>Movement</h3>}
+          <div className="record-fact-list">
+            {actor.land_speed.state !== "not_applicable" && (
+              <FactRow label="Speed">
+                <NumberFact fact={actor.land_speed} unit=" feet" label="Speed" />
+              </FactRow>
+            )}
+            {actor.movement.state !== "value" && (
+              <FactLine label="Other movement" fact={actor.movement} />
+            )}
+            {(actor.movement.value ?? []).map((movement, index) => (
+              <FactRow key={index} label={factText(movement.movement_type)}>
+                <NumberFact fact={movement.feet} unit=" feet" />
+              </FactRow>
+            ))}
+          </div>
+        </section>
       )}
+      {encounter ? <ActorCombatBudget actor={actor} /> : <ActorRuntime actor={actor} />}
+    </div>
+  );
+}
+
+function ActorSkills({ actor }: { actor: ActorPresentationView }) {
+  return (
+    <section className="actor-reference__skills">
+      <h3>Skills and ability modifiers</h3>
+      {actor.skills.state !== "value" && (
+        <FactLine label="Skills" fact={actor.skills} />
+      )}
+      {actor.abilities.state !== "value" && (
+        <FactLine label="Ability modifiers" fact={actor.abilities} />
+      )}
+      <div className="record-fact-list">
+        {(actor.skills.value ?? []).map((skill) => (
+          <div key={skill.key}>
+            <FactRow label={skill.label}>
+              <NumberFact fact={skill.modifier} signed />
+              {skill.note.value ? `; ${skill.note.value}` : ""}
+              {skill.conditional.value?.map((conditional, index) => (
+                <span key={index}>
+                  ; {factText(conditional.label)}{" "}
+                  <NumberFact fact={conditional.modifier} signed />
+                </span>
+              ))}
+            </FactRow>
+          </div>
+        ))}
+      </div>
+      <div className="record-fact-list">
+        {(actor.abilities.value ?? []).map((ability) => (
+          <FactRow key={ability.key} label={ability.label}>
+            <NumberFact fact={ability.modifier} signed />
+          </FactRow>
+        ))}
+      </div>
+    </section>
+  );
+}
+function hasRuntimeDetails(actor: ActorPresentationView) {
+  return (
+    (actor.runtime?.action_budget?.notes.length ?? 0) > 0 ||
+    (actor.runtime?.unapplied_effects.length ?? 0) > 0
+  );
+}
+function ActorRuntime({
+  actor,
+  detailsOnly = false,
+}: {
+  actor: ActorPresentationView;
+  detailsOnly?: boolean;
+}) {
+  return (
+    <>
       {actor.runtime &&
-        (actor.runtime.action_budget || actor.runtime.unapplied_effects.length > 0) && (
+        (detailsOnly
+          ? hasRuntimeDetails(actor)
+          : actor.runtime.action_budget !== null ||
+            actor.runtime.unapplied_effects.length > 0) && (
           <div className="actor-reference__runtime">
             <h3>Runtime</h3>
             {actor.runtime.action_budget && (
               <>
-                <RuntimeCount count={actor.runtime.action_budget.actions} />
-                <RuntimeCount count={actor.runtime.action_budget.reactions} />
+                {!detailsOnly && (
+                  <RuntimeCount count={actor.runtime.action_budget.actions} />
+                )}
+                {!detailsOnly && (
+                  <RuntimeCount count={actor.runtime.action_budget.reactions} />
+                )}
                 {actor.runtime.action_budget.notes.map((note, index) => (
                   <p key={index}>
                     {note.label}: {note.reason}
@@ -274,13 +333,15 @@ export function ActorFacts({
                 ))}
               </>
             )}
-            {actor.runtime.action_budget &&
+            {!detailsOnly &&
+              actor.runtime.action_budget &&
               !actor.runtime.action_budget.can_act.available && (
                 <FactRow label="Can act">
                   No; {actor.runtime.action_budget.can_act.reason}
                 </FactRow>
               )}
-            {actor.runtime.action_budget &&
+            {!detailsOnly &&
+              actor.runtime.action_budget &&
               !actor.runtime.action_budget.can_react.available && (
                 <FactRow label="Can react">
                   No; {actor.runtime.action_budget.can_react.reason}
@@ -293,7 +354,63 @@ export function ActorFacts({
             ))}
           </div>
         )}
+    </>
+  );
+}
+function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
+  const budget = actor.runtime?.action_budget;
+  return budget ? (
+    <div className="actor-reference__combat-budget record-fact-list">
+      <RuntimeCount count={budget.actions} />
+      <RuntimeCount count={budget.reactions} />
+      {!budget.can_act.available && (
+        <FactRow label="Can act">No; {budget.can_act.reason}</FactRow>
+      )}
+      {!budget.can_react.available && (
+        <FactRow label="Can react">No; {budget.can_react.reason}</FactRow>
+      )}
     </div>
+  ) : null;
+}
+export function ActorSecondaryFacts({
+  actor,
+  hazard = false,
+}: {
+  actor: ActorPresentationView;
+  hazard?: boolean;
+}) {
+  if (hazard && !hasRuntimeDetails(actor)) return null;
+  return (
+    <Collapse
+      size="small"
+      ghost
+      items={[
+        {
+          key: "more-facts",
+          label: hazard ? "Runtime details" : "More creature facts",
+          children: (
+            <div className="actor-reference__secondary">
+              {!hazard && (
+                <>
+                  <FactLine
+                    label="Perception details"
+                    fact={actor.perception_details}
+                  />
+                  <FactLine
+                    label="Languages"
+                    fact={actor.languages}
+                    format={(value) => value.join(", ")}
+                  />
+                  <FactLine label="Communication" fact={actor.language_details} />
+                  <ActorSkills actor={actor} />
+                </>
+              )}
+              <ActorRuntime actor={actor} detailsOnly />
+            </div>
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -301,16 +418,19 @@ export function ActorActivity({
   activity,
   onReference,
   selected = false,
+  hideCost = false,
 }: {
   activity: ActorActivityView;
   onReference: RecordReferenceHandler;
   selected?: boolean;
+  hideCost?: boolean;
 }) {
   return (
     <div className="actor-activity">
       {!selected && (
         <Button
           type="link"
+          style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
           onClick={(event) =>
             onReference(
               activity.navigation.record_key,
@@ -322,6 +442,7 @@ export function ActorActivity({
           {activity.title}
         </Button>
       )}
+      {!hideCost && <ActionCost fact={activity.action_cost} />}
       {activity.usage && <Tag>{activity.usage}</Tag>}
       {!selected && (
         <div className="badge-row">
@@ -335,7 +456,9 @@ export function ActorActivity({
           <NumberFact fact={activity.attack} signed />
         </FactRow>
       )}
-      <DamageComponents damage={activity.damage} />
+      {!(activity.damage.state === "value" && activity.damage.value?.length === 0) && (
+        <DamageComponents damage={activity.damage} />
+      )}
       <FactLine label="Tradition" fact={activity.casting_tradition} />
       <FactLine label="Preparation" fact={activity.preparation} />
       {activity.difficulty_class.state !== "not_applicable" && (
@@ -348,20 +471,36 @@ export function ActorActivity({
           <NumberFact fact={activity.lore_modifier} signed />
         </FactRow>
       )}
-      <FactLine label="Casting association" fact={activity.association} />
-      {activity.casting_entry && (
-        <Button
-          type="link"
-          onClick={(event) =>
-            onReference(
-              activity.casting_entry!.record_key,
-              event.currentTarget,
-              activity.casting_entry!,
-            )
-          }
-        >
-          Casting entry
-        </Button>
+      {activity.kind === "spell" &&
+        activity.casting_entry === null &&
+        activity.association.state !== "not_applicable" && (
+          <p className="muted">Spellcasting group unavailable.</p>
+        )}
+      {activity.base_rank.state !== "not_applicable" && (
+        <FactRow label="Base rank">
+          <NumberFact fact={activity.base_rank} />
+        </FactRow>
+      )}
+      {activity.authored_cast_rank.state !== "not_applicable" &&
+        activity.authored_cast_rank.state !== "missing" && (
+          <FactRow label="Cast rank">
+            <NumberFact fact={activity.authored_cast_rank} />
+          </FactRow>
+        )}
+      {activity.casting_context && (
+        <section className="actor-casting__context">
+          <h3>Spells for {activity.casting_context.parent_title}</h3>
+          {activity.casting_context.spells.state === "value" ? (
+            <CastingSpells
+              spells={activity.casting_context.spells.value ?? []}
+              onReference={onReference}
+            />
+          ) : (
+            <FactRow label="Associated spells">
+              {factText(activity.casting_context.spells)}
+            </FactRow>
+          )}
+        </section>
       )}
       {activity.notes.map((note, index) => (
         <p key={index}>
@@ -387,33 +526,43 @@ export function ActorActivities({
     [["other"], "Other owned records"],
   ];
   return (
-    <>
-      {actor.activities.state !== "value" &&
-        actor.activities.state !== "not_applicable" && (
-          <FactRow label="Owned activities">{factText(actor.activities)}</FactRow>
-        )}
-      {groups.map(([kinds, title]) => {
-        const activities = (actor.activities.value ?? []).filter((activity) =>
-          kinds.includes(activity.kind),
-        );
-        return activities.length ? (
-          <section className="actor-reference__activities" key={title}>
-            <h3>{title}</h3>
-            {activities.map((activity, index) => (
-              <ActorActivity
-                key={index}
-                activity={activity}
-                onReference={onReference}
-              />
-            ))}
-          </section>
-        ) : null;
-      })}
+    <div className="actor-reference__mechanics">
+      <div className="actor-reference__actions">
+        {actor.activities.state !== "value" &&
+          actor.activities.state !== "not_applicable" && (
+            <FactRow label="Owned activities">{factText(actor.activities)}</FactRow>
+          )}
+        {groups.map(([kinds, title]) => {
+          const activities = (actor.activities.value ?? []).filter((activity) =>
+            kinds.includes(activity.kind),
+          );
+          return activities.length ? (
+            <section className="actor-reference__activities" key={title}>
+              <h3>{title}</h3>
+              {activities.map((activity, index) =>
+                activity.kind === "ability" ? (
+                  <OwnedActivityDisclosure
+                    key={JSON.stringify(activity.navigation)}
+                    activity={activity}
+                    onReference={onReference}
+                  />
+                ) : (
+                  <ActorActivity
+                    key={index}
+                    activity={activity}
+                    onReference={onReference}
+                  />
+                ),
+              )}
+            </section>
+          ) : null;
+        })}
+      </div>
       <CastingRoster
         activities={actor.activities.value ?? []}
         onReference={onReference}
       />
-    </>
+    </div>
   );
 }
 
@@ -430,7 +579,7 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
           title={count.label}
           content={
             <div>
-              <p>Authored: {String(count.base_value)}</p>
+              <p>Baseline: {String(count.base_value)}</p>
               <p>Effective: {String(count.adjusted_value)}</p>
               {count.adjustments.map((modifier, index) => (
                 <p key={index}>
@@ -484,28 +633,73 @@ function CastingRoster({
     (spell) => !entries.some((entry) => belongs(spell, entry)),
   );
   return (
-    <section className="actor-reference__activities">
+    <section className="actor-reference__activities actor-casting">
       <h3>Spellcasting</h3>
       {entries.map((entry, index) => (
         <div key={index}>
           <ActorActivity activity={entry} onReference={onReference} />
           <div className="actor-casting__spells">
-            {spells
-              .filter((spell) => belongs(spell, entry))
-              .map((spell, index) => (
-                <ActorActivity key={index} activity={spell} onReference={onReference} />
-              ))}
+            <CastingSpells
+              spells={spells.filter((spell) => belongs(spell, entry))}
+              onReference={onReference}
+            />
           </div>
         </div>
       ))}
       {unassociated.length ? (
         <div>
-          <h4>Other authored spells</h4>
-          {unassociated.map((spell, index) => (
-            <ActorActivity key={index} activity={spell} onReference={onReference} />
-          ))}
+          <h4>Other spells</h4>
+          <CastingSpells spells={unassociated} onReference={onReference} />
         </div>
       ) : null}
     </section>
+  );
+}
+
+function CastingSpells({
+  spells,
+  onReference,
+}: {
+  spells: ActorActivityView[];
+  onReference: RecordReferenceHandler;
+}) {
+  return (
+    <div className="actor-casting__rows">
+      {spells.length ? (
+        spells.map((spell) => (
+          <div className="actor-casting__row" key={JSON.stringify(spell.navigation)}>
+            <Button
+              type="link"
+              size="small"
+              style={{
+                paddingInline: 0,
+                height: "auto",
+                whiteSpace: "normal",
+                textAlign: "left",
+              }}
+              onClick={(event) =>
+                onReference(
+                  spell.navigation.record_key,
+                  event.currentTarget,
+                  spell.navigation,
+                )
+              }
+            >
+              {spell.title}
+            </Button>
+            <span className="muted">Base rank {factText(spell.base_rank)}</span>
+            {spell.authored_cast_rank.state !== "missing" &&
+              spell.authored_cast_rank.state !== "not_applicable" && (
+                <span>Cast rank {factText(spell.authored_cast_rank)}</span>
+              )}
+            {spell.casting_entry === null && (
+              <span className="muted">Casting entry unavailable</span>
+            )}
+          </div>
+        ))
+      ) : (
+        <p className="muted">No spells could be matched to this entry.</p>
+      )}
+    </div>
   );
 }

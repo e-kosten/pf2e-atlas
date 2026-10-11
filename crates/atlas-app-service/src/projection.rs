@@ -182,6 +182,13 @@ pub(crate) fn relationship_view(
         Resolution::Blocked => ("blocked", None, None),
     };
     atlas_app_model::RecordRelationshipView {
+        source_navigation: RecordNavigationView {
+            record_key: o.locator.record.to_string(),
+            source_fingerprint: navigation_fingerprint(&o.locator.owners, fingerprint),
+            owners: o.locator.owners.clone(),
+            field: Some(o.locator.field.clone()),
+            passage: None,
+        },
         source: o.locator,
         ordinal: o.ordinal,
         origin: o.origin,
@@ -254,5 +261,70 @@ pub(crate) fn resolution_view(
         .into(),
         matched_text: v.matched_text,
         evidence: v.evidence,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use atlas_record::source_content::{
+        ContentReferenceResolution, ContentReferenceTarget, OwnedContentIdentity,
+        OwnedContentLocator, SourceContentLocator,
+    };
+
+    #[test]
+    fn relationship_source_navigation_preserves_actual_occurrence_not_incoming_seed() {
+        let source_key: atlas_domain::RecordKey = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
+        let seed_key: atlas_domain::RecordKey = "items:bbbbbbbbbbbbbbbb".parse().unwrap();
+        for owners in [
+            vec![],
+            vec![OwnedContentLocator {
+                collection: "items".into(),
+                identity: OwnedContentIdentity::Stable("cccccccccccccccc".into()),
+            }],
+            vec![OwnedContentLocator {
+                collection: "items".into(),
+                identity: OwnedContentIdentity::SnapshotLocal { index: 4 },
+            }],
+        ] {
+            for ordinal in [0, 3] {
+                let locator = SourceContentLocator {
+                    record: source_key.clone(),
+                    owners: owners.clone(),
+                    field: "/system/description/value".into(),
+                };
+                let view = relationship_view(
+                    atlas_search::SourceStoredRelationship {
+                        locator: locator.clone(),
+                        ordinal,
+                        origin: "content".into(),
+                        kind: "uuid".into(),
+                        authored_target: None,
+                        occurrence_path: Some(format!("/p/{ordinal}")),
+                        resolution: ContentReferenceResolution::Resolved(
+                            ContentReferenceTarget::Record {
+                                key: seed_key.clone(),
+                            },
+                        ),
+                        details: Default::default(),
+                    },
+                    "current-generation",
+                );
+                assert_eq!(view.source, locator);
+                assert_eq!(view.source_navigation.record_key, source_key.to_string());
+                assert_eq!(view.source_navigation.owners, owners);
+                assert_eq!(
+                    view.source_navigation.field.as_deref(),
+                    Some("/system/description/value")
+                );
+                assert_eq!(
+                    view.source_navigation.source_fingerprint,
+                    navigation_fingerprint(&owners, "current-generation")
+                );
+                assert!(view.source_navigation.passage.is_none());
+                assert_eq!(view.ordinal, ordinal);
+                assert_eq!(view.target.unwrap().record_key, seed_key.to_string());
+            }
+        }
     }
 }

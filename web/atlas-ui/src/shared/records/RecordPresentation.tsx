@@ -6,10 +6,16 @@ import type {
   RecordRelationshipView,
   RecordSummaryView,
 } from "../../generated/atlas";
-import { ActorActivities, ActorActivity, ActorFacts } from "./ActorReference";
+import {
+  ActorActivities,
+  ActorActivity,
+  ActorFacts,
+  ActorSecondaryFacts,
+} from "./ActorReference";
 import { FactLine, FactRow, NumberFact, factText } from "./presentationFacts";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
 import { SpellReference } from "./SpellReference";
+import { ActionCost } from "./ActionCost";
 
 const contentRoleLabels: Record<string, string> = {
   name: "Name",
@@ -33,9 +39,10 @@ export function ContentFields({
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
 }) {
+  const visibleFields = fields.filter(contentFieldVisible);
   return (
     <>
-      {fields.map((field) => (
+      {visibleFields.map((field) => (
         <section
           className="record-reference__content"
           key={JSON.stringify(field.locator)}
@@ -50,6 +57,15 @@ export function ContentFields({
       ))}
     </>
   );
+}
+
+export function contentFieldVisible(field: PreparedContentFieldView) {
+  if (field.body.kind === "unavailable" && field.body.state === "not_applicable")
+    return false;
+  if (field.body.kind === "plain") return field.body.text.trim().length > 0;
+  if (field.body.kind === "html")
+    return field.body.html.trim().length > 0 || field.body.controls.length > 0;
+  return true;
 }
 
 export function RecordIdentity({
@@ -67,10 +83,10 @@ export function RecordIdentity({
     <header className="record-reference__header">
       <div className="record-reference__title">
         <h2>{identity.title}</h2>
-        <span>
+        <p className="record-reference__kind">
           {identity.kind_label}
           {identity.level_label ? ` ${identity.level_label}` : ""}
-        </span>
+        </p>
       </div>
       <div className="badge-row">
         {identity.rarity && <Tag>{identity.rarity}</Tag>}
@@ -109,6 +125,7 @@ export function RecordPresentation({
   compact = false,
   encounter = false,
   hideIdentity = false,
+  hideActivityCost = false,
 }: {
   presentation: RecordPresentationView;
   root?: RecordSummaryView;
@@ -118,6 +135,7 @@ export function RecordPresentation({
   compact?: boolean;
   encounter?: boolean;
   hideIdentity?: boolean;
+  hideActivityCost?: boolean;
 }) {
   const body = presentation.body;
   const actor =
@@ -145,7 +163,7 @@ export function RecordPresentation({
   );
   return (
     <article
-      className={`record-reference${compact ? " record-reference--compact" : ""}`}
+      className={`record-reference${compact ? " record-reference--compact" : ""}${encounter ? " record-reference--encounter" : ""}`}
     >
       {!hideIdentity && (
         <RecordIdentity
@@ -155,21 +173,31 @@ export function RecordPresentation({
           onReference={onReference}
         />
       )}
+      {!encounter && (
+        <div className="record-reference__flavor">
+          <ContentFields
+            fields={
+              body.kind === "hazard"
+                ? presentation.content.filter((field) => field.role === "description")
+                : presentation.content
+            }
+            relationships={relationships}
+            onReference={onReference}
+          />
+        </div>
+      )}
       {body.kind === "creature" && (
-        <ActorFacts actor={body.value} compact={compact} hideHitPoints={encounter} />
+        <ActorFacts
+          actor={body.value}
+          compact={compact}
+          hideHitPoints={encounter}
+          encounter={encounter}
+        />
       )}
       {body.kind === "hazard" && (
         <>
-          {!compact && !encounter && (
-            <ContentFields
-              fields={presentation.content.filter(
-                (field) => field.role === "description",
-              )}
-              relationships={relationships}
-              onReference={onReference}
-            />
-          )}
           <section className="hazard-reference__detection">
+            <h3>Detection</h3>
             <FactRow label="Hazard">
               {factText(body.value.complex, (complex) =>
                 complex ? "Complex" : "Simple",
@@ -178,14 +206,17 @@ export function RecordPresentation({
             <FactRow label="Stealth">
               <NumberFact fact={body.value.stealth} signed />
             </FactRow>
+            {presentation.content
+              .filter((field) => field.role === "stealth" && contentFieldVisible(field))
+              .map((field) => (
+                <PreparedContent
+                  key={JSON.stringify(field.locator)}
+                  content={field}
+                  relationships={relationships}
+                  onReference={onReference}
+                />
+              ))}
           </section>
-          {!encounter && (
-            <ContentFields
-              fields={presentation.content.filter((field) => field.role === "stealth")}
-              relationships={relationships}
-              onReference={onReference}
-            />
-          )}
           {!compact && !encounter && (
             <ContentFields
               fields={presentation.content.filter((field) => field.role === "disable")}
@@ -197,22 +228,70 @@ export function RecordPresentation({
             actor={body.value.actor}
             compact={compact}
             hideHitPoints={encounter}
+            encounter={encounter}
             hazard
+            hidePrimaryDefenses={
+              body.value.defense_block.state === "value" &&
+              body.value.defense_block.value === false
+            }
           />
-          <FactRow label="Hardness">
-            <NumberFact fact={body.value.hardness} />
-          </FactRow>
+          {!(
+            body.value.defense_block.state === "value" &&
+            body.value.defense_block.value === false
+          ) ? (
+            <FactRow label="Hardness">
+              <NumberFact fact={body.value.hardness} />
+            </FactRow>
+          ) : (
+            <Collapse
+              size="small"
+              ghost
+              items={[
+                {
+                  key: "authored-defenses",
+                  label: "Defense details",
+                  children: (
+                    <div className="record-fact-list">
+                      <FactRow label="AC">
+                        <NumberFact fact={body.value.actor.armor_class} />
+                      </FactRow>
+                      <FactRow label="HP">
+                        <NumberFact fact={body.value.actor.maximum_hp} />
+                      </FactRow>
+                      <FactRow label="Hardness">
+                        <NumberFact fact={body.value.hardness} />
+                      </FactRow>
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          )}
+          {body.value.defense_block.state !== "value" && (
+            <FactRow label="Defense block">
+              {factText(body.value.defense_block, (value) =>
+                value ? "Present" : "Absent",
+              )}
+            </FactRow>
+          )}
         </>
       )}
       {body.kind === "spell" && <SpellReference spell={body.value} compact={compact} />}
       {body.kind === "activity" && (
-        <ActorActivity activity={body.value} onReference={onReference} selected />
+        <ActorActivity
+          activity={body.value}
+          onReference={onReference}
+          selected
+          hideCost={hideActivityCost}
+        />
       )}
       {body.kind === "physical_reference" && (
         <div className="record-fact-list">
           <FactLine label="Usage" fact={body.value.usage} />
           <FactLine label="Price" fact={body.value.price} />
-          <FactLine label="Price per" fact={body.value.price_per} />
+          {body.value.price_per.state !== "missing" && (
+            <FactLine label="Price per" fact={body.value.price_per} />
+          )}
           <FactLine label="Bulk" fact={body.value.bulk} />
         </div>
       )}
@@ -227,23 +306,30 @@ export function RecordPresentation({
         </div>
       )}
       {actor && !compact && <ActorActivities actor={actor} onReference={onReference} />}
-      {!compact &&
-        (encounter ? null : body.kind === "hazard" ? (
-          <ContentFields
-            fields={presentation.content.filter(
-              (field) => !["disable", "stealth", "description"].includes(field.role),
-            )}
-            relationships={relationships}
-            onReference={onReference}
-          />
-        ) : (
-          content
-        ))}
-      {compact && presentation.content.length > 0 && (
+      {actor && encounter && (
+        <ActorSecondaryFacts actor={actor} hazard={body.kind === "hazard"} />
+      )}
+      {!encounter && body.kind === "hazard" && (
+        <ContentFields
+          fields={presentation.content.filter(
+            (field) => !["disable", "stealth", "description"].includes(field.role),
+          )}
+          relationships={relationships}
+          onReference={onReference}
+        />
+      )}
+      {compact && !encounter && body.kind === "hazard" && (
+        <ContentFields
+          fields={presentation.content.filter((field) => field.role === "disable")}
+          relationships={relationships}
+          onReference={onReference}
+        />
+      )}
+      {encounter && presentation.content.some(contentFieldVisible) && (
         <Collapse
           size="small"
-          defaultActiveKey={["content"]}
-          items={[{ key: "content", label: "Description", children: content }]}
+          ghost
+          items={[{ key: "content", label: "Source description", children: content }]}
         />
       )}
       {!compact && owned.length > 0 && (
@@ -265,6 +351,7 @@ export function RecordPresentation({
               >
                 {link.title}
               </Button>
+              <ActionCost fact={link.action_cost} />
               {link.usage && <span className="muted"> {link.usage}</span>}
             </div>
           ))}

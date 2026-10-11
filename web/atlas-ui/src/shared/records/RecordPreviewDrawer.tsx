@@ -1,4 +1,5 @@
 import { Drawer } from "antd";
+import { useRef } from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
@@ -6,33 +7,51 @@ import type { RecordPreviewContentProps } from "./recordPreviewTypes";
 export function RecordPreviewDrawer({
   detail,
   loading,
+  error,
+  onRetry,
   onClose,
+  onAfterClose,
   onOpenFullPage,
   onReference,
   open,
-  afterOpenChange,
 }: {
-  afterOpenChange: (open: boolean) => void;
+  onAfterClose: () => void;
   open: boolean;
 } & RecordPreviewContentProps) {
+  const actions = useRef<HTMLDivElement>(null);
   return (
     <Drawer
-      afterOpenChange={afterOpenChange}
+      afterOpenChange={(open) => {
+        if (open) actions.current?.querySelector<HTMLButtonElement>("button")?.focus();
+        else onAfterClose();
+      }}
+      focusable={{ focusTriggerAfterClose: false }}
       className="record-preview-drawer"
       closable={false}
-      destroyOnHidden
       open={open}
       placement="right"
       title="Reference"
-      width="min(560px, calc(100vw - 24px))"
-      extra={<RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />}
+      size="min(560px, calc(100vw - 24px))"
+      classNames={{
+        header: "record-preview-drawer__header",
+        body: "record-preview-drawer__body",
+      }}
+      extra={
+        <div ref={actions}>
+          <RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />
+        </div>
+      }
       onClose={onClose}
     >
-      <section aria-label="Reference preview" role="dialog">
+      <section aria-label="Reference content">
         <RecordDetailPane
           compact
           detail={detail}
           loading={loading}
+          error={error}
+          onRetry={onRetry}
+          onBack={onClose}
+          backLabel="Close preview"
           onReference={onReference}
         />
       </section>

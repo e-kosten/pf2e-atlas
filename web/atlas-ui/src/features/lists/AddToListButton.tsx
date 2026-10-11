@@ -24,7 +24,7 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
 
   return (
     <>
-      <Tooltip title="Add to saved list">
+      <Tooltip title="Add to saved list" trigger={["hover", "focus"]}>
         <PaneIconButton
           icon={<ListPlus size={16} />}
           label="Add to saved list"

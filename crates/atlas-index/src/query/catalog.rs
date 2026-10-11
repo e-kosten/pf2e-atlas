@@ -4,7 +4,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 1;
+pub const QUERY_CAPABILITY_VERSION: u32 = 2;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -15,6 +15,7 @@ const ACTORS: &[&str] = &[
     "familiar",
     "party",
 ];
+const ACTOR_LEVELS: &[&str] = &["npc", "hazard", "character", "army", "vehicle", "loot"];
 const IWR: &[&str] = &["npc", "hazard", "character", "army", "vehicle"];
 const PHYSICAL: &[&str] = &[
     "armor",
@@ -146,6 +147,7 @@ pub(crate) enum Binding {
         column: &'static str,
     },
     Cantrip,
+    LevelOrRank,
     Duration {
         unit: &'static str,
     },
@@ -184,6 +186,7 @@ fn field(
             family_types: families.iter().map(|f| (*f).to_owned()).collect(),
             units: unit.map(str::to_owned),
             basis: match path {
+                "record.level_or_rank" => "authored spell rank and rank state for spells; authored record level and level state for other applicable families; no fallback from unavailable rank",
                 "physical.price.per_item_cp" => "authored coin value divided by authored per; denomination omissions=0, per omission=1; bounded correctly rounded cp",
                 "physical.bulk" => "authored normal Bulk; 0 negligible, 0.1 Light; no encumbrance or per-individual adjustment",
                 "spell.casting_form" => "upstream trim/lowercase glyph lookup; unmatched authored time is other",
@@ -337,13 +340,24 @@ fn build() -> Result<Vec<Descriptor>, String> {
     fields.push(field(
         "actor.level",
         Number,
-        &["npc", "hazard", "character", "army", "vehicle", "loot"],
+        ACTOR_LEVELS,
         common("level"),
         Vec::new(),
         Some("level"),
     ));
     let mut levels = PHYSICAL.to_vec();
     levels.extend(["feat", "campaignFeature", "effect", "affliction"]);
+    let mut common_levels = levels.clone();
+    common_levels.extend_from_slice(ACTOR_LEVELS);
+    common_levels.push("spell");
+    fields.push(field(
+        "record.level_or_rank",
+        Number,
+        &common_levels,
+        Binding::LevelOrRank,
+        Vec::new(),
+        Some("level / rank"),
+    ));
     fields.push(field(
         "item.level",
         Number,

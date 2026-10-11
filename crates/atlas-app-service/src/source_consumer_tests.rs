@@ -98,7 +98,10 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     let RecordBodyView::Spell(spell) = &spell.presentation.body else {
         panic!("spell family");
     };
-    assert_eq!(spell.cast.value.as_deref(), Some("2 actions"));
+    assert_eq!(
+        spell.cast.value.as_ref().map(|cost| cost.label.as_str()),
+        Some("2 actions")
+    );
     assert_eq!(spell.range.value.as_deref(), Some("60 feet"));
     assert_eq!(spell.target.value.as_deref(), Some("one creature"));
     assert_eq!(spell.duration.value.as_deref(), Some("1 minute"));
@@ -116,7 +119,12 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
         .as_ref()
         .unwrap()
     {
-        assert!(activity.usage.is_some());
+        if activity.kind == ActorActivityKindView::Spell {
+            assert!(activity.action_cost.value.is_some());
+            assert!(activity.usage.is_none());
+        } else {
+            assert!(activity.usage.is_some());
+        }
         let detail = f
             .worker
             .record_detail_at(RecordDetailRequest {
@@ -653,4 +661,237 @@ fn rebuilt_snapshot_rejects_navigation_to_a_reordered_unstable_child() {
             .contains("different artifact")
     );
     assert!(after.worker.record_detail(ACTOR).is_ok());
+}
+
+#[test]
+fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields() {
+    let f = fixture_worker();
+    let catalog = f.worker.discover_filter_fields().unwrap();
+    let editor = f
+        .worker
+        .discover_filter_editor(DiscoverFilterEditorRequest {
+            context: FilterDiscoveryContext::Filtered {
+                filter: None,
+                text: None,
+                mode: RetrievalModeView::Hybrid,
+            },
+            selected_field_ids: vec![],
+        })
+        .unwrap();
+    assert_eq!(
+        editor.common_field_ids,
+        ["record.kind", "record.level_or_rank", "rarity", "traits"]
+    );
+    assert_eq!(editor.groups[0].label, "Common");
+    assert_eq!(
+        editor.groups[0]
+            .fields
+            .iter()
+            .map(|f| f.label.as_str())
+            .collect::<Vec<_>>(),
+        ["Kind", "Level / rank", "Rarity", "Traits"]
+    );
+    let fields = editor
+        .groups
+        .iter()
+        .flat_map(|g| &g.fields)
+        .collect::<Vec<_>>();
+    assert_eq!(fields.len(), catalog.fields.len());
+    for definition in catalog.fields {
+        let field = fields
+            .iter()
+            .find(|f| f.definition.id == definition.id)
+            .unwrap();
+        assert_eq!(field.definition, definition);
+        assert_eq!(
+            field
+                .operators
+                .iter()
+                .map(|op| &op.operator)
+                .collect::<Vec<_>>(),
+            definition.operators.iter().collect::<Vec<_>>()
+        );
+        for choice in &definition.choices {
+            assert!(
+                field
+                    .choices
+                    .iter()
+                    .any(|c| c.value == atlas_domain::QueryLiteral::String(choice.clone()))
+            );
+        }
+    }
+    let level = fields
+        .iter()
+        .find(|field| field.definition.id == "item.level")
+        .unwrap();
+    assert_eq!(level.label, "Authored level");
+    assert!(
+        level
+            .help
+            .as_deref()
+            .is_some_and(|help| help.contains("physical items") && help.contains("afflictions"))
+    );
+    assert_eq!(
+        fields
+            .iter()
+            .find(|f| f.definition.id == "actor.hp.maximum")
+            .unwrap()
+            .label,
+        "Maximum HP"
+    );
+}
+
+#[test]
+fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
+    let f = fixture_worker();
+    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"not","predicate":{"clause_id":"choice","kind":"compare","field":"rarity","op":"eq","value":"rare"}})).unwrap();
+    let context = FilterDiscoveryContext::Filtered {
+        filter: Some(predicate),
+        text: Some("does not require an embedding".into()),
+        mode: RetrievalModeView::Hybrid,
+    };
+    let outcome = f
+        .worker
+        .discover_filter_counts(DiscoverFilterCountsRequest {
+            context: context.clone(),
+            field_id: "rarity".into(),
+            clause_id: Some("choice".into()),
+        })
+        .unwrap();
+    assert!(matches!(
+        outcome.counts,
+        atlas_domain::QueryFacetOutcome::Unavailable {
+            reason: atlas_domain::FacetUnavailableReason::NonConjunctiveContext
+        }
+    ));
+    let values = f
+        .worker
+        .discover_filter_values(DiscoverFilterValuesRequest::Contextual {
+            context: context.clone(),
+            field_id: "rarity".into(),
+            clause_id: Some("choice".into()),
+            text: None,
+            offset: 0,
+            limit: 20,
+        })
+        .unwrap();
+    assert!(matches!(
+        values,
+        FilterValueListView::Contextual {
+            outcome: atlas_domain::QueryFacetOutcome::Unavailable { .. }
+        }
+    ));
+    let invalid = f
+        .worker
+        .discover_filter_counts(DiscoverFilterCountsRequest {
+            context,
+            field_id: "traits".into(),
+            clause_id: Some("choice".into()),
+        })
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(invalid.code, AppErrorCode::FilterInvalid);
+}
+
+#[test]
+fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_counts() {
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![
+                record(
+                    "items",
+                    "Item",
+                    json!({"_id":"fire000000000001","type":"effect","name":"Fire effect","system":{"traits":{"value":["fire"],"rarity":"common"}}}),
+                ),
+                record(
+                    "items",
+                    "Item",
+                    json!({"_id":"cold000000000001","type":"effect","name":"Cold effect","system":{"traits":{"value":["cold"],"rarity":"common"}}}),
+                ),
+            ],
+            false,
+        )?)
+    });
+    let f = fixture_worker_with_executor(executor);
+    for (slug, items) in [
+        (
+            "fire-list",
+            vec![atlas_local_state::ImportSavedListItem {
+                record_key: "items:fire000000000001".into(),
+                note: None,
+                record_title_snapshot: "Fire effect".into(),
+                record_kind_snapshot: Some("effect".into()),
+            }],
+        ),
+        ("empty-list", vec![]),
+        (
+            "unresolved-list",
+            vec![atlas_local_state::ImportSavedListItem {
+                record_key: "items:gone000000000001".into(),
+                note: None,
+                record_title_snapshot: "Gone effect".into(),
+                record_kind_snapshot: Some("effect".into()),
+            }],
+        ),
+    ] {
+        f.worker
+            .local_state_store()
+            .unwrap()
+            .saved_lists()
+            .import(atlas_local_state::ImportSavedList {
+                slug: slug.into(),
+                name: slug.into(),
+                description: None,
+                items,
+                tags: vec![],
+                replace: false,
+            })
+            .unwrap();
+    }
+    for (scope, count) in [
+        (FilterVocabularyScope::Artifact, 2),
+        (
+            FilterVocabularyScope::SavedList {
+                list_ref: "fire-list".into(),
+            },
+            1,
+        ),
+        (
+            FilterVocabularyScope::SavedList {
+                list_ref: "empty-list".into(),
+            },
+            0,
+        ),
+        (
+            FilterVocabularyScope::SavedList {
+                list_ref: "unresolved-list".into(),
+            },
+            0,
+        ),
+    ] {
+        let response = f
+            .worker
+            .discover_filter_values(DiscoverFilterValuesRequest::Vocabulary {
+                scope: scope.clone(),
+                field_id: "traits".into(),
+                text: None,
+                offset: 0,
+                limit: 20,
+                selected_values: vec![atlas_domain::QueryLiteral::String("selected-absent".into())],
+            })
+            .unwrap();
+        let FilterValueListView::Vocabulary {
+            scope: actual_scope,
+            values,
+        } = response
+        else {
+            panic!("explicit vocabulary response")
+        };
+        assert_eq!(actual_scope, scope);
+        assert_eq!(values.total_values, count);
+        assert_eq!(values.options.len(), count as usize);
+        assert_eq!(values.selected_values.len(), 1);
+        let encoded = serde_json::to_value(values).unwrap().to_string();
+        assert!(!encoded.contains("distinct_roots"));
+    }
 }

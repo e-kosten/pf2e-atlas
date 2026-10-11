@@ -12,6 +12,22 @@ pub struct FactView<T> {
     pub value: Option<T>,
 }
 
+/// Authored costs have a glyph only when their fixed meaning is known.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ActionGlyphView {
+    OneAction,
+    TwoActions,
+    ThreeActions,
+    Reaction,
+    FreeAction,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ActionCostView {
+    pub glyph: Option<ActionGlyphView>,
+    pub label: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct NumberFactView {
     pub state: atlas_domain::QueryFieldState,
@@ -52,6 +68,7 @@ pub struct OwnedRecordLinkView {
     pub title: String,
     pub family: String,
     pub usage: Option<String>,
+    pub action_cost: FactView<ActionCostView>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorPresentationView {
@@ -125,6 +142,9 @@ pub struct ActorRuntimeView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct HazardPresentationView {
     pub actor: ActorPresentationView,
+    // Known authored HP max and AC determine the primary HP/AC/hardness block.
+    // Raw defense facts and independently applicable saves remain available.
+    pub defense_block: FactView<bool>,
     pub complex: FactView<bool>,
     pub stealth: NumberFactView,
     pub hardness: NumberFactView,
@@ -147,6 +167,7 @@ pub struct ActorActivityView {
     pub family: String,
     pub kind: ActorActivityKindView,
     pub usage: Option<String>,
+    pub action_cost: FactView<ActionCostView>,
     pub traits: Vec<crate::RecordBadgeView>,
     pub attack: NumberFactView,
     pub lore_modifier: NumberFactView,
@@ -156,7 +177,16 @@ pub struct ActorActivityView {
     pub preparation: FactView<String>,
     pub casting_entry: Option<RecordNavigationView>,
     pub association: FactView<String>,
+    pub base_rank: NumberFactView,
+    pub authored_cast_rank: NumberFactView,
+    pub casting_context: Option<CastingEntryContextView>,
     pub notes: Vec<RuntimeEffectNoteView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct CastingEntryContextView {
+    pub parent: RecordNavigationView,
+    pub parent_title: String,
+    pub spells: FactView<Vec<ActorActivityView>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DamageComponentView {
@@ -172,19 +202,19 @@ pub struct DamageComponentView {
 pub struct SpellPresentationView {
     pub rank: NumberFactView,
     pub traditions: FactView<Vec<String>>,
-    pub cast: FactView<String>,
-    pub requirements: FactView<String>,
-    pub cost: FactView<String>,
+    pub cast: FactView<ActionCostView>,
+    pub requirements: Option<FactView<String>>,
+    pub cost: Option<FactView<String>>,
     pub range: FactView<String>,
     pub target: FactView<String>,
-    pub area: FactView<SpellAreaView>,
-    pub defense: FactView<SpellDefenseView>,
+    pub area: Option<FactView<SpellAreaView>>,
+    pub defense: Option<FactView<SpellDefenseView>>,
     pub duration: FactView<String>,
     pub sustained: FactView<bool>,
     pub damage: FactView<Vec<DamageComponentView>>,
     pub heightening: FactView<SpellHeighteningView>,
     pub forms: FactView<Vec<SpellFormView>>,
-    pub casting_entry: FactView<String>,
+    pub casting_entry: Option<FactView<String>>,
     pub authored_cast_rank: NumberFactView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -223,7 +253,7 @@ pub struct SpellFixedLevelView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SpellChangeView {
-    pub cast: FactView<String>,
+    pub cast: FactView<ActionCostView>,
     pub range: FactView<String>,
     pub target: FactView<String>,
     pub area: FactView<SpellAreaView>,

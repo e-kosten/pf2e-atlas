@@ -1,9 +1,9 @@
 # Rust Web Filter UX Expansion
 
-Status: proposed
+Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-10
 
 ## Problem
 
@@ -26,6 +26,30 @@ The pass should decide:
 - how selected optional filters remain visible and removable;
 - how counts and disabled/unavailable options behave as filters compose;
 - how common simple queries remain easy within the structured group editor.
+
+## Current implementation scope
+
+Backend contracts provide a catalog-owned common Level / rank field, ordered
+Kind/Level-rank/Rarity/Traits roles and readable editor metadata. Contextual
+suggestions/counts use typed optional availability independently of valid search.
+Explicit count-free vocabulary retains artifact/list scope and selected values.
+The shared browser controls now expose those common fields, preserve complex
+conditions in the advanced editor, retain invalid input as local drafts and use
+searchable grouped fields with readable operators. Value controls use explicit
+server-side vocabulary search/paging and retain selected values. The browser
+uses its hybrid product default, with page size beside results; filter URLs
+retain the canonical predicate. A narrow Ant Drawer and pane-width layout serve
+search and saved lists through the same owners. Per-value include/exclude states
+share one canonical predicate, while the advanced editor shows residual conditions
+without duplicating common clauses. Structural boolean constants remain editable.
+Unfinished drafts use local feedback. Browsing results use row activation and
+native full-page links without radio selection. Browser-local remembered Kind
+is a default only for fresh bare search visits; incoming URLs remain authoritative.
+
+Focused frontend tests and read-only real API/browser workflows are implemented.
+Completion requires integrated verification, independent Astra task/visual review,
+and product feedback on the common and advanced workflows. Local tests alone do
+not finish this backlog item.
 
 ## Constraints
 

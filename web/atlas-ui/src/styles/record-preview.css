@@ -13,15 +13,15 @@
   overflow: auto;
 }
 
-.record-preview-drawer .ant-drawer-header {
+.record-preview-drawer__header {
   padding: 10px 12px;
 }
 
-.record-preview-drawer .ant-drawer-body {
+.record-preview-drawer__body {
   min-height: 0;
   overscroll-behavior: contain;
   overflow: auto;
-  padding: 12px;
+  padding: 0;
 }
 
 .record-comparison {
@@ -33,4 +33,9 @@
   .record-comparison {
     grid-template-columns: 1fr;
   }
+}
+
+.related-records__item {
+  padding-block: 8px;
+  border-bottom: 1px solid var(--line);
 }

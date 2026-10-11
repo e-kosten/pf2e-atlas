@@ -1,0 +1,57 @@
+@font-face {
+  font-family: "Pathfinder 2e Actions";
+  src: url("../../assets/fonts/pathfinder-2e-actions.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.action-cost {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  vertical-align: baseline;
+}
+
+.actor-activity > .action-cost,
+.record-reference__owned .action-cost {
+  margin-inline: 8px;
+}
+
+.action-cost__glyph,
+.prepared-content [data-atlas-action-glyph] {
+  font-size: 0;
+}
+
+.action-cost__glyph::before,
+.prepared-content [data-atlas-action-glyph]::before {
+  font-family: "Pathfinder 2e Actions", sans-serif;
+  font-size: 1.25rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--text);
+  vertical-align: -0.08em;
+}
+
+[data-atlas-action-glyph="one_action"]::before {
+  content: "1" / "";
+}
+
+[data-atlas-action-glyph="two_actions"]::before {
+  content: "2" / "";
+}
+
+[data-atlas-action-glyph="three_actions"]::before {
+  content: "3" / "";
+}
+
+[data-atlas-action-glyph="reaction"]::before {
+  content: "R" / "";
+}
+
+[data-atlas-action-glyph="free_action"]::before {
+  content: "F" / "";
+}

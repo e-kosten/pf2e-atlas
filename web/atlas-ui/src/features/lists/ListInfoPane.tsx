@@ -1,4 +1,4 @@
-import { Button, Select } from "antd";
+import { Alert, Button, Select, Spin } from "antd";
 import { Pencil } from "lucide-react";
 import type { SavedListSummaryView } from "../../generated/atlas";
 import {
@@ -11,32 +11,52 @@ import type { FilterPanelState } from "../../shared/filters/filterControls";
 
 export function ListInfoPane({
   currentSlug,
+  error,
   filterState,
   list,
   lists,
   listsLoading,
   loading,
   onSelectList,
+  onRetry,
 }: {
   currentSlug: string;
+  error?: Error | null;
   filterState: FilterPanelState;
   list: SavedListSummaryView | undefined;
   lists: SavedListSummaryView[];
   listsLoading: boolean;
   loading: boolean;
   onSelectList: (slug: string) => void;
+  onRetry: () => void;
 }) {
+  const errorNotice = error ? (
+    <Alert
+      type="error"
+      showIcon
+      title={list ? "Unable to refresh this list" : "Unable to load this list"}
+      description={error.message}
+      action={<Button onClick={onRetry}>Retry list</Button>}
+    />
+  ) : null;
   if (loading) {
-    return <div className="list-info-pane">Loading list</div>;
+    return (
+      <section className="list-info-pane" role="status">
+        <Spin size="small" aria-label="Loading list" /> Loading list…
+      </section>
+    );
   }
   if (!list) {
-    return <div className="list-info-pane">List not found</div>;
+    return (
+      <section className="list-info-pane">{errorNotice ?? "List not found"}</section>
+    );
   }
   const listOptions = lists.some((listOption) => listOption.slug === list.slug)
     ? lists
     : [list, ...lists];
   return (
     <section className="list-info-pane">
+      {errorNotice}
       <Select
         aria-label="Selected list"
         className="list-info-pane__select"
@@ -67,11 +87,7 @@ export function ListInfoPane({
       >
         Edit
       </Button>
-      <FilterControls
-        filterState={filterState}
-        includeResultOptions={false}
-        includeSearch
-      />
+      <FilterControls filterState={filterState} includeSearch />
     </section>
   );
 }

@@ -18,7 +18,6 @@ describe("source query state", () => {
         op: "gte" as const,
         value: 4,
       },
-      retrievalMode: "lexical" as const,
     };
     expect(
       decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(state))),
@@ -26,7 +25,7 @@ describe("source query state", () => {
     expect(buildOpenRequest(state, 2).mode).toEqual({
       kind: "text_search",
       query: "dragon",
-      mode: "lexical",
+      mode: "hybrid",
       filter: state.filter,
     });
   });
@@ -42,6 +41,19 @@ describe("source query state", () => {
         mode: "text_search",
       }),
     ).toMatchObject({ text: "dragon", mode: "hybrid" });
+  });
+  it("ignores retired retrieval URL options and derives text mode from the query", () => {
+    const state = decodeSearchStateFromParams(
+      new URLSearchParams("q=dragon&retrieval=semantic"),
+    );
+    expect(buildOpenRequest(state, 1).mode).toMatchObject({
+      kind: "text_search",
+      mode: "hybrid",
+    });
+    expect(searchStateQueryString(state)).not.toContain("retrieval");
+    expect(buildOpenRequest({ ...state, query: "  " }, 1).mode.kind).toBe(
+      "list_records",
+    );
   });
   it("blocks malformed URLs and invalid numeric drafts", () => {
     const state = decodeSearchStateFromParams(

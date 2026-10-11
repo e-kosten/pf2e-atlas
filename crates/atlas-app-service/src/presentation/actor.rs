@@ -96,6 +96,36 @@ pub(crate) fn authored_actor(
         }
         _ => (unavailable(), unavailable(), unavailable(), unavailable()),
     };
+    ActorPresentationView {
+        level: number(a.level()),
+        armor_class: number(a.armor_class()),
+        maximum_hp: number(a.hp_maximum()),
+        perception: number(a.perception()),
+        saves: ActorSavesView {
+            fortitude: number(a.save(ActorSave::Fortitude)),
+            reflex: number(a.save(ActorSave::Reflex)),
+            will: number(a.save(ActorSave::Will)),
+        },
+        abilities: fact(a.npc_abilities().map(|_| abilities)),
+        skills: fact(a.npc_skills().map(|_| skills)),
+        movement: fact(a.speeds().map(|_| movement)),
+        land_speed: number(a.land_speed()),
+        immunities: iwr(a.iwr(ActorIwrKind::Immunity)),
+        weaknesses: iwr(a.iwr(ActorIwrKind::Weakness)),
+        resistances: iwr(a.iwr(ActorIwrKind::Resistance)),
+        senses,
+        perception_details,
+        languages,
+        language_details,
+        activities: authored_activities(record, node, fingerprint),
+        runtime: None,
+    }
+}
+pub(super) fn authored_activities(
+    record: &SourceBackedRecord,
+    node: SourceNodeView<'_>,
+    fingerprint: &str,
+) -> FactView<Vec<ActorActivityView>> {
     let mut casting = std::collections::BTreeMap::<String, Option<RecordNavigationView>>::new();
     record.visit_immediate_actor_items(|_, owner, item| {
         if item.family() == "spellcastingEntry"
@@ -152,31 +182,16 @@ pub(crate) fn authored_actor(
         }
         activities.push(activity);
     });
-    ActorPresentationView {
-        level: number(a.level()),
-        armor_class: number(a.armor_class()),
-        maximum_hp: number(a.hp_maximum()),
-        perception: number(a.perception()),
-        saves: ActorSavesView {
-            fortitude: number(a.save(ActorSave::Fortitude)),
-            reflex: number(a.save(ActorSave::Reflex)),
-            will: number(a.save(ActorSave::Will)),
-        },
-        abilities: fact(a.npc_abilities().map(|_| abilities)),
-        skills: fact(a.npc_skills().map(|_| skills)),
-        movement: fact(a.speeds().map(|_| movement)),
-        land_speed: number(a.land_speed()),
-        immunities: iwr(a.iwr(ActorIwrKind::Immunity)),
-        weaknesses: iwr(a.iwr(ActorIwrKind::Weakness)),
-        resistances: iwr(a.iwr(ActorIwrKind::Resistance)),
-        senses,
-        perception_details,
-        languages,
-        language_details,
-        activities: fact(a.items().map(|_| activities)),
-        runtime: None,
+    let items = SourceQueryView {
+        source: node,
+        pack_id: "",
+        pack_label: "",
     }
+    .actor()
+    .items();
+    fact(items.map(|_| activities))
 }
+
 fn iwr(
     v: SourceFieldView<'_, atlas_record::source_record::ActorIwrEntries<'_>>,
 ) -> FactView<Vec<IwrEntryView>> {
@@ -340,6 +355,7 @@ pub(super) fn authored_activity(
         },
         navigation,
         usage: item_usage(item),
+        action_cost: item_action_cost(item),
         traits: SourceQueryView {
             source: SourceNodeView::Item(item),
             pack_id: "",
@@ -363,6 +379,23 @@ pub(super) fn authored_activity(
         preparation,
         casting_entry: None,
         association: unavailable(),
+        base_rank: match item {
+            ItemSourceView::SpellSource(s) => number(
+                SourceFieldView::from(&s.system)
+                    .and_then(|s| (&s.level).into())
+                    .and_then(|l| (&l.value).into()),
+            ),
+            _ => number(SourceFieldView::NotApplicable),
+        },
+        authored_cast_rank: match item {
+            ItemSourceView::SpellSource(s) => number(
+                SourceFieldView::from(&s.system)
+                    .and_then(|s| (&s.location).into())
+                    .and_then(|l| (&l.heightened_level).into()),
+            ),
+            _ => number(SourceFieldView::NotApplicable),
+        },
+        casting_context: None,
         notes: vec![],
     }
 }
