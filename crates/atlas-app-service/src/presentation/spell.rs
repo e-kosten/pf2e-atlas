@@ -46,18 +46,24 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
                 .map(|v| *v),
         ),
         damage: damage(s.and_then(|s| (&s.damage).into())),
-        heightening: fact(s.and_then(|s| (&s.heightening).into()).map(heightening)),
-        forms: fact(s.and_then(|s| (&s.overlays).into()).map(|o| {
-            o.entries
-                .iter()
-                .map(|(id, v)| SpellFormView {
-                    id: id.clone(),
-                    name: text((&v.name).into()),
-                    sort: number((&v.sort).into()),
-                    changes: fact(SourceFieldView::from(&v.system).map(changes)),
-                })
-                .collect()
-        })),
+        heightening: optional_structure(
+            s.value().is_some(),
+            s.and_then(|s| (&s.heightening).into()).map(heightening),
+        ),
+        forms: optional_structure(
+            s.value().is_some(),
+            s.and_then(|s| (&s.overlays).into()).map(|o| {
+                o.entries
+                    .iter()
+                    .map(|(id, v)| SpellFormView {
+                        id: id.clone(),
+                        name: text((&v.name).into()),
+                        sort: number((&v.sort).into()),
+                        changes: fact(SourceFieldView::from(&v.system).map(changes)),
+                    })
+                    .collect()
+            }),
+        ),
         casting_entry: optional_text(
             s.value().is_some(),
             s.and_then(|s| (&s.location).into())
@@ -68,6 +74,17 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
                 .and_then(|v| (&v.heightened_level).into()),
         ),
     }
+}
+/// Missing optional structures under a known system mean no baseline structure.
+/// An unavailable system is not evidence of absence; patches do not use this policy.
+fn optional_structure<T>(parent_known: bool, value: SourceFieldView<'_, T>) -> FactView<T> {
+    fact(
+        if parent_known && matches!(value, SourceFieldView::Missing) {
+            SourceFieldView::NotApplicable
+        } else {
+            value
+        },
+    )
 }
 /// Explicit null under a known spell system means there is no baseline area.
 /// Missing/invalid fields and unavailable parents remain observable facts.

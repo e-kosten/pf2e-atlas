@@ -59,14 +59,40 @@ pub(super) fn render_record(
         RecordBodyView::PhysicalReference(body) => {
             optional_text(&mut out, "Usage", &body.usage);
             number(&mut out, "Bulk", &body.bulk, false, "");
-            optional_text(&mut out, "Price", &body.price);
+            fact(&mut out, "Price", &body.price, |price| {
+                let coins = [
+                    ("pp", &price.pp),
+                    ("gp", &price.gp),
+                    ("sp", &price.sp),
+                    ("cp", &price.cp),
+                ]
+                .into_iter()
+                .filter(|(_, value)| {
+                    !matches!(
+                        value.state,
+                        QueryFieldState::Missing | QueryFieldState::NotApplicable
+                    )
+                })
+                .map(|(unit, value)| format!("{} {unit}", number_text(value, false, "")))
+                .collect::<Vec<_>>();
+                if coins.is_empty() {
+                    "Empty".into()
+                } else {
+                    coins.join(", ")
+                }
+            });
             optional_number(&mut out, "Price per", &body.price_per, false, "");
         }
-        RecordBodyView::RollTable(body) => text(&mut out, "Formula", &body.formula),
+        RecordBodyView::RollTable(body) => {
+            required_text(&mut out, "Formula", &body.formula);
+            if body.results.state != QueryFieldState::Value {
+                fact(&mut out, "Results", &body.results, |_| String::new());
+            }
+        }
         RecordBodyView::TableResult(body) => {
-            text(&mut out, "Range", &body.range);
+            required_text(&mut out, "Range", &body.range);
             number(&mut out, "Weight", &body.weight, false, "");
-            text(&mut out, "Result type", &body.result_type);
+            required_text(&mut out, "Result type", &body.result_type);
         }
         RecordBodyView::Content => {}
     }
@@ -104,7 +130,11 @@ pub(super) fn render_record(
         presentation.body,
         RecordBodyView::Creature(_) | RecordBodyView::Hazard(_)
     ) {
-        for owned in &presentation.owned {
+        let owned = match &presentation.body {
+            RecordBodyView::RollTable(table) => table.results.value.as_deref().unwrap_or_default(),
+            _ => &presentation.owned,
+        };
+        for owned in owned {
             line(
                 &mut out,
                 format!(
@@ -193,13 +223,26 @@ fn fact<T>(out: &mut String, label: &str, value: &FactView<T>, format: impl FnOn
     if value.state == QueryFieldState::NotApplicable {
         return;
     }
-    line(out, format!("{label}: {}", fact_string(value, format)));
+    let text = fact_string(value, format);
+    if value.state == QueryFieldState::Value && text.trim().is_empty() {
+        return;
+    }
+    line(out, format!("{label}: {text}"));
 }
 fn text(out: &mut String, label: &str, value: &FactView<String>) {
     if known_value(value).is_some_and(|v| v.trim().is_empty()) {
         return;
     }
     fact(out, label, value, Clone::clone);
+}
+fn required_text(out: &mut String, label: &str, value: &FactView<String>) {
+    fact(out, label, value, |value| {
+        if value.trim().is_empty() {
+            "Empty".into()
+        } else {
+            value.clone()
+        }
+    });
 }
 fn optional_text(out: &mut String, label: &str, value: &FactView<String>) {
     if !matches!(
@@ -211,7 +254,7 @@ fn optional_text(out: &mut String, label: &str, value: &FactView<String>) {
 }
 fn list_text(items: &[String]) -> String {
     if items.is_empty() {
-        "none".into()
+        String::new()
     } else {
         items.join(", ")
     }
@@ -321,7 +364,10 @@ fn damage_components(out: &mut String, value: &FactView<Vec<DamageComponentView>
         return;
     };
     if components.is_empty() {
-        line(out, "Damage: none");
+        if changes {
+            line(out, "Damage: Empty");
+        }
+        return;
     }
     for component in components {
         let mut parts = Vec::new();
@@ -340,17 +386,22 @@ fn damage_components(out: &mut String, value: &FactView<Vec<DamageComponentView>
             if changes && value.state == QueryFieldState::Null {
                 parts.push(format!("{label}: cleared (null)"));
             } else {
-                parts.push(fact_string(value, Clone::clone));
+                parts.push(fact_string(value, |value| {
+                    if value.trim().is_empty() {
+                        format!("{label}: Empty")
+                    } else {
+                        value.clone()
+                    }
+                }));
             }
         }
         for (label, value) in [
             ("kinds", &component.kinds),
             ("materials", &component.materials),
         ] {
-            if matches!(
-                value.state,
-                QueryFieldState::Missing | QueryFieldState::NotApplicable
-            ) {
+            if value.state == QueryFieldState::NotApplicable
+                || (changes && value.state == QueryFieldState::Missing)
+            {
                 continue;
             }
             if changes && value.state == QueryFieldState::Null {
@@ -363,7 +414,16 @@ fn damage_components(out: &mut String, value: &FactView<Vec<DamageComponentView>
             {
                 continue;
             }
-            parts.push(format!("{label}: {}", fact_string(value, |v| list_text(v))));
+            parts.push(format!(
+                "{label}: {}",
+                fact_string(value, |v| {
+                    if changes && v.is_empty() {
+                        "Empty".into()
+                    } else {
+                        list_text(v)
+                    }
+                })
+            ));
         }
         if !matches!(
             component.category.state,
@@ -372,18 +432,22 @@ fn damage_components(out: &mut String, value: &FactView<Vec<DamageComponentView>
             if changes && component.category.state == QueryFieldState::Null {
                 parts.push("category: cleared (null)".into());
             } else if component.category.state != QueryFieldState::Null
-                && !known_value(&component.category).is_some_and(|v| v.trim().is_empty())
+                && (changes
+                    || !known_value(&component.category).is_some_and(|v| v.trim().is_empty()))
             {
                 parts.push(format!(
                     "category: {}",
-                    fact_string(&component.category, Clone::clone)
+                    fact_string(&component.category, |v| if changes && v.trim().is_empty() {
+                        "Empty".into()
+                    } else {
+                        v.clone()
+                    })
                 ));
             }
         }
-        if !matches!(
-            component.apply_modifier.state,
-            QueryFieldState::Missing | QueryFieldState::NotApplicable
-        ) {
+        if component.apply_modifier.state != QueryFieldState::NotApplicable
+            && !(changes && component.apply_modifier.state == QueryFieldState::Missing)
+        {
             if changes && component.apply_modifier.state == QueryFieldState::Null {
                 parts.push("apply modifier: cleared (null)".into());
             } else if changes || known_value(&component.apply_modifier) != Some(&false) {

@@ -57,10 +57,11 @@ pub use presentation::{
     ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView, ActorSenseView,
     ActorSkillView, CastingEntryContextView, ConditionalSkillView, DamageComponentView, FactView,
     HazardPresentationView, HeighteningDamageView, IwrEntryView, NumberAdjustmentView,
-    NumberFactView, OwnedRecordLinkView, PhysicalPresentationView, RecordBodyView,
-    RecordPresentationView, RollTablePresentationView, SpellAreaView, SpellChangeView,
-    SpellDefenseView, SpellFixedLevelView, SpellFormView, SpellHeighteningChangeView,
-    SpellHeighteningView, SpellPresentationView, TableResultPresentationView,
+    NumberFactView, OwnedRecordLinkView, PhysicalPresentationView, PhysicalPriceView,
+    RecordBodyView, RecordPresentationView, RollTablePresentationView, SpellAreaView,
+    SpellChangeView, SpellDefenseView, SpellFixedLevelView, SpellFormView,
+    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
+    TableResultPresentationView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView};
 pub use record::{

@@ -2,10 +2,28 @@ import { Button, Popover } from "antd";
 import type { ReactNode } from "react";
 import type { FactView, NumberFactView } from "../../generated/atlas";
 
+export function isEmptyFactValue(value: unknown): boolean {
+  return (
+    (typeof value === "string" && !value.trim()) ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+export function hasReadingFact<T>(
+  fact: FactView<T>,
+  { patch = false, required = false }: { patch?: boolean; required?: boolean } = {},
+): boolean {
+  if (fact.state === "not_applicable" || (patch && fact.state === "missing"))
+    return false;
+  return patch || required || fact.state !== "value" || !isEmptyFactValue(fact.value);
+}
 export function factText<T>(
   fact: FactView<T>,
   format: (value: T) => string = String,
+  { patch = false, required = false }: { patch?: boolean; required?: boolean } = {},
 ): string {
+  if (patch && fact.state === "null") return "Cleared";
+  if ((patch || required) && fact.state === "value" && isEmptyFactValue(fact.value))
+    return "Empty";
   return fact.state === "value" && fact.value !== null
     ? format(fact.value)
     : fact.state === "not_applicable"
@@ -70,31 +88,16 @@ export function FactLine<T>({
   fact,
   format,
   patch = false,
+  required = false,
 }: {
   label: string;
   fact: FactView<T>;
   format?: (value: T) => string;
   patch?: boolean;
+  required?: boolean;
 }) {
-  if (
-    fact.state === "not_applicable" ||
-    (patch && fact.state === "missing") ||
-    (!patch &&
-      fact.state === "value" &&
-      (fact.value === "" || (Array.isArray(fact.value) && !fact.value.length)))
-  )
-    return null;
-  return (
-    <FactRow label={label}>
-      {patch && fact.state === "null"
-        ? "Cleared"
-        : patch &&
-            fact.state === "value" &&
-            (fact.value === "" || (Array.isArray(fact.value) && !fact.value.length))
-          ? "Empty"
-          : factText(fact, format)}
-    </FactRow>
-  );
+  if (!hasReadingFact(fact, { patch, required })) return null;
+  return <FactRow label={label}>{factText(fact, format, { patch, required })}</FactRow>;
 }
 
 export function FactRow({ label, children }: { label: string; children: ReactNode }) {

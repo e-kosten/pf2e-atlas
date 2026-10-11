@@ -155,6 +155,7 @@ function EncounterParticipantSurface({
         {presentation ? (
           <RecordIdentity
             identity={{ ...presentation.identity, title: activeCurrent.display_name }}
+            classification={presentation.classification}
             onReference={onReference}
           />
         ) : (

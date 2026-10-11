@@ -42,6 +42,204 @@ fn numeric(value: i64) -> NumberFactView {
         adjustment: None,
     }
 }
+
+#[test]
+fn price_units_and_table_collections_preserve_unavailable_and_zero_facts() {
+    let absent = || NumberFactView {
+        state: QueryFieldState::Missing,
+        value: None,
+        adjustment: None,
+    };
+    let physical = PhysicalPresentationView {
+        usage: known(" \t ".into()),
+        bulk: numeric(0),
+        price_per: absent(),
+        price: known(PhysicalPriceView {
+            pp: absent(),
+            gp: numeric(0),
+            sp: NumberFactView {
+                state: QueryFieldState::Null,
+                value: None,
+                adjustment: None,
+            },
+            cp: NumberFactView {
+                state: QueryFieldState::Invalid,
+                value: None,
+                adjustment: None,
+            },
+        }),
+    };
+    let output = render_record(
+        &detail(RecordBodyView::PhysicalReference(Box::new(physical))),
+        TerminalDetail::Standard,
+        80,
+    )
+    .unwrap();
+    assert!(output.contains("Price: 0 gp, [null] sp, [invalid] cp"));
+    assert!(output.contains("Bulk: 0"));
+    assert!(!output.contains("Usage:"));
+    for state in [
+        QueryFieldState::Missing,
+        QueryFieldState::Null,
+        QueryFieldState::Invalid,
+    ] {
+        let table = RollTablePresentationView {
+            formula: known(" ".into()),
+            results: FactView { state, value: None },
+        };
+        let output = render_record(
+            &detail(RecordBodyView::RollTable(Box::new(table))),
+            TerminalDetail::Standard,
+            80,
+        )
+        .unwrap();
+        assert!(output.contains("Formula: Empty"));
+        assert!(output.contains(&format!("Results: [{}]", state.as_str())));
+    }
+    let result = TableResultPresentationView {
+        range: known("".into()),
+        weight: numeric(0),
+        result_type: known(" ".into()),
+    };
+    let output = render_record(
+        &detail(RecordBodyView::TableResult(Box::new(result))),
+        TerminalDetail::Standard,
+        80,
+    )
+    .unwrap();
+    assert!(output.contains("Range: Empty"));
+    assert!(output.contains("Weight: 0"));
+    assert!(output.contains("Result type: Empty"));
+}
+
+#[test]
+fn optional_spell_structures_show_unknown_parents_and_omit_inapplicable_baselines() {
+    for state in [
+        QueryFieldState::Missing,
+        QueryFieldState::Null,
+        QueryFieldState::Invalid,
+        QueryFieldState::NotApplicable,
+    ] {
+        let mut spell = spell();
+        spell.heightening = FactView { state, value: None };
+        spell.forms = FactView { state, value: None };
+        let output = render_record(
+            &detail(RecordBodyView::Spell(Box::new(spell))),
+            TerminalDetail::Standard,
+            80,
+        )
+        .unwrap();
+        if state == QueryFieldState::NotApplicable {
+            assert!(!output.contains("Heightening:"));
+            assert!(!output.contains("Forms:"));
+        } else {
+            assert!(output.contains(&format!("Heightening: [{}]", state.as_str())));
+            assert!(output.contains(&format!("Forms: [{}]", state.as_str())));
+        }
+    }
+}
+
+#[test]
+fn optional_spell_prose_keeps_unavailable_parents_without_exposing_known_absent_leaves() {
+    let labels = ["Requirements", "Cost", "Casting entry"];
+    for state in [
+        QueryFieldState::Missing,
+        QueryFieldState::Null,
+        QueryFieldState::Invalid,
+    ] {
+        let mut spell = spell();
+        spell.requirements = Some(FactView { state, value: None });
+        spell.cost = Some(FactView { state, value: None });
+        spell.casting_entry = Some(FactView { state, value: None });
+        let output = render_record(
+            &detail(RecordBodyView::Spell(Box::new(spell))),
+            TerminalDetail::Standard,
+            80,
+        )
+        .unwrap();
+        for label in labels {
+            assert!(
+                output.contains(&format!("{label}: [{}]", state.as_str())),
+                "{output}"
+            );
+        }
+    }
+    // The service omits these optional leaves only under a known typed parent.
+    // Also retain baseline blank/not-applicable omission if such a fact is supplied.
+    for value in [
+        None,
+        Some(known(" \n\t ".to_owned())),
+        Some(FactView {
+            state: QueryFieldState::NotApplicable,
+            value: None,
+        }),
+    ] {
+        let mut spell = spell();
+        spell.requirements = value.clone();
+        spell.cost = value.clone();
+        spell.casting_entry = value;
+        let mut changes = no_changes();
+        changes.range = cleared();
+        spell.forms = known(vec![SpellFormView {
+            id: "clear".into(),
+            name: known("Clear range".into()),
+            sort: numeric(0),
+            changes: known(changes),
+        }]);
+        let output = render_record(
+            &detail(RecordBodyView::Spell(Box::new(spell))),
+            TerminalDetail::Standard,
+            80,
+        )
+        .unwrap();
+        for label in labels {
+            assert!(!output.contains(&format!("{label}:")), "{output}");
+        }
+        assert!(
+            output.contains("Range: cleared (null)"),
+            "authored patch clears remain distinct: {output}"
+        );
+    }
+}
+
+#[test]
+fn explicit_empty_damage_changes_keep_nested_qualifiers_and_required_baseline_text() {
+    let mut component = damage_component();
+    component.formula = known("0".into());
+    component.damage_type = known(" ".into());
+    component.kinds = known(vec![]);
+    component.category = known(" \t ".into());
+    component.materials = known(vec![]);
+    component.apply_modifier = known(false);
+    let mut baseline = String::new();
+    super::damage(&mut baseline, &known(vec![component.clone()]));
+    assert!(baseline.contains("0; damage type: Empty"));
+    assert!(!baseline.contains("category:"));
+    let mut patch = String::new();
+    super::damage_changes(&mut patch, &known(vec![component]));
+    for value in [
+        "kinds: Empty",
+        "category: Empty",
+        "materials: Empty",
+        "apply modifier: false",
+    ] {
+        assert!(patch.contains(value), "{patch}");
+    }
+    let mut changes = no_changes();
+    changes.target = known(" \n ".into());
+    changes.traits = known(vec![]);
+    let mut output = String::new();
+    let mut spell = spell();
+    spell.forms = known(vec![SpellFormView {
+        id: "empty".into(),
+        name: known("Empty changes".into()),
+        sort: numeric(0),
+        changes: known(changes),
+    }]);
+    super::spell::render(&mut output, &spell);
+    assert!(output.contains("Target: Empty"));
+    assert!(output.contains("Traits: Empty"));
+}
 fn absent_number() -> NumberFactView {
     NumberFactView {
         state: QueryFieldState::NotApplicable,
@@ -84,6 +282,7 @@ fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
         record: summary("Local Caster", "creature"),
         presentation: RecordPresentationView {
+            classification: "creature 2".into(),
             identity: summary("Custom Fireball", "spell"),
             content: vec![],
             owned: vec![],
@@ -224,7 +423,7 @@ fn fixed_heightening_and_forms_remain_authored_changes_with_no_formula_execution
     .unwrap();
     assert!(output.contains("Authored heightening (rank 5)"));
     assert!(output.contains("Authored form [blue]: Blue dragon"));
-    assert!(output.contains("Damage: none"));
+    assert!(output.contains("Damage: Empty"));
     assert!(output.contains("2d6+1"));
 }
 
@@ -278,7 +477,7 @@ fn unavailable_spell_parents_remain_unknown_and_empty_damage_remains_known() {
     .unwrap();
     assert!(output.contains("Defense: [invalid]"));
     assert!(output.contains("Area: [null]"));
-    assert!(output.contains("Damage: none"));
+    assert!(!output.contains("Damage:"));
     assert!(output.contains("Heightening: [invalid]"));
     assert!(!output.contains("Save: reflex"));
     assert!(!output.contains("Authored heightening"));
@@ -383,7 +582,6 @@ fn actor_modifiers_distances_qualified_iwr_and_activity_context_are_visible() {
         "Jaws — 1 action",
         "Attack: +15",
         "Context: authored use only",
-        "Immunities: none",
     ] {
         assert!(
             rendered.contains(expected),

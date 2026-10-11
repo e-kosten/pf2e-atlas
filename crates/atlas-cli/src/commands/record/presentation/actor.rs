@@ -12,7 +12,7 @@ pub(super) fn render(out: &mut String, actor: &ActorPresentationView) -> Result<
     optional_text(out, "Perception details", &actor.perception_details);
     fact(out, "Senses", &actor.senses, |senses| {
         if senses.is_empty() {
-            return "none".into();
+            return String::new();
         }
         senses
             .iter()
@@ -31,6 +31,16 @@ pub(super) fn render(out: &mut String, actor: &ActorPresentationView) -> Result<
     });
     fact(out, "Languages", &actor.languages, |v| list_text(v));
     optional_text(out, "Language details", &actor.language_details);
+    if let Some(abilities) = collection(out, "Ability modifiers", &actor.abilities) {
+        line(
+            out,
+            abilities
+                .iter()
+                .map(|v| format!("{} {}", v.label, number_text(&v.modifier, true, "")))
+                .collect::<Vec<_>>()
+                .join("; "),
+        );
+    }
     if let Some(skills) = collection(out, "Skills", &actor.skills) {
         for skill in skills {
             number(out, &skill.label, &skill.modifier, true, "");
@@ -61,18 +71,6 @@ pub(super) fn render(out: &mut String, actor: &ActorPresentationView) -> Result<
                 );
             }
         }
-    }
-    if let Some(abilities) = collection(out, "Ability modifiers", &actor.abilities)
-        && !abilities.is_empty()
-    {
-        line(
-            out,
-            abilities
-                .iter()
-                .map(|v| format!("{} {}", v.label, number_text(&v.modifier, true, "")))
-                .collect::<Vec<_>>()
-                .join("; "),
-        );
     }
     line(out, "");
     number(out, "AC", &actor.armor_class, false, "");
@@ -162,7 +160,8 @@ pub(super) fn activity_facts(
     } else if let Some(usage) = &activity.usage {
         line(out, format!("Usage: {usage}"));
     }
-    if !show_identity && activity.action_cost.state != atlas_domain::QueryFieldState::NotApplicable
+    if activity.action_cost.state != atlas_domain::QueryFieldState::NotApplicable
+        && (!show_identity || activity.action_cost.state != QueryFieldState::Value)
     {
         fact(out, "Action cost", &activity.action_cost, |v| {
             v.label.clone()
@@ -223,7 +222,7 @@ fn collection<'a, T>(
 ) -> Option<&'a [T]> {
     if let Some(values) = known_value(value) {
         if values.is_empty() {
-            line(out, format!("{label}: none"));
+            return None;
         }
         Some(values)
     } else {
@@ -237,16 +236,13 @@ fn collection<'a, T>(
 fn iwr(out: &mut String, label: &str, value: &FactView<Vec<IwrEntryView>>) {
     fact(out, label, value, |entries| {
         if entries.is_empty() {
-            return "none".into();
+            return String::new();
         }
         entries
             .iter()
             .map(|entry| {
                 let mut value = fact_string(&entry.damage_type, Clone::clone);
-                if !matches!(
-                    entry.magnitude.state,
-                    QueryFieldState::Missing | QueryFieldState::NotApplicable
-                ) {
+                if entry.magnitude.state != QueryFieldState::NotApplicable {
                     value.push_str(&format!(" {}", number_text(&entry.magnitude, false, "")));
                 }
                 for (label, qualifiers) in [

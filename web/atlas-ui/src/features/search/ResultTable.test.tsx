@@ -111,7 +111,7 @@ describe("ResultTable committed selection", () => {
       expect(api.getRecordDetail).toHaveBeenCalledWith("spells:fireball"),
     );
     expect(fireball).toHaveAttribute("aria-selected", "true");
-    expect(window.location.pathname).toBe("/search/records/spells%3Afireball");
+    expect(window.location.pathname).toBe("/search/records/spells:fireball");
     expect(new URLSearchParams(window.location.search).get("q")).toBe("Fireball");
     expect(screen.queryByText("spells:fireball")).not.toBeInTheDocument();
   });
@@ -131,14 +131,14 @@ describe("ResultTable committed selection", () => {
     expect(fireball).toHaveAttribute("aria-selected", "true");
     expect(heal).toHaveAttribute("aria-selected", "false");
     expect(api.getRecordDetail).toHaveBeenCalledTimes(1);
-    expect(window.location.pathname).toBe("/search/records/spells%3Afireball");
+    expect(window.location.pathname).toBe("/search/records/spells:fireball");
     fireEvent.keyDown(healRow, { key: "Enter" });
     await waitFor(() =>
       expect(api.getRecordDetail).toHaveBeenCalledWith("spells:heal"),
     );
     expect(heal).toHaveAttribute("aria-selected", "true");
     expect(fireball).toHaveAttribute("aria-selected", "false");
-    expect(window.location.pathname).toBe("/search/records/spells%3Aheal");
+    expect(window.location.pathname).toBe("/search/records/spells:heal");
   });
 
   it("retains row click and Space selection without treating embedded link clicks as row selection", async () => {
@@ -160,7 +160,7 @@ describe("ResultTable committed selection", () => {
     const match = screen.getByRole("link", { name: matchLabel });
     const requestCount = api.getRecordDetail.mock.calls.length;
     fireEvent.click(match);
-    expect(window.location.pathname).toBe("/records/actors%3Acaster");
+    expect(window.location.pathname).toBe("/records/actors:caster");
     expect(
       JSON.parse(new URLSearchParams(window.location.search).get("selection")!),
     ).toEqual(selection);
@@ -173,11 +173,11 @@ describe("ResultTable committed selection", () => {
       renderResults();
       const match = await screen.findByRole("link", { name: matchLabel });
       const href = new URL(match.getAttribute("href")!, window.location.origin);
-      expect(href.pathname).toBe("/records/actors%3Acaster");
+      expect(href.pathname).toBe("/records/actors:caster");
       expect(JSON.parse(href.searchParams.get("selection")!)).toEqual(selection);
       expect(fireEvent.click(match, modifiers)).toBe(true);
       const name = screen.getByRole("link", { name: "Fireball" });
-      expect(name).toHaveAttribute("href", "/records/spells%3Afireball");
+      expect(name).toHaveAttribute("href", "/records/spells:fireball");
       expect(fireEvent.click(name, modifiers)).toBe(true);
       expect(window.location.pathname).toBe("/search");
       expect(api.getRecordDetail).not.toHaveBeenCalled();

@@ -1,5 +1,5 @@
 import type { ActionCostView, FactView } from "../../generated/atlas";
-import { FactRow } from "./presentationFacts";
+import { FactRow, hasReadingFact, isEmptyFactValue } from "./presentationFacts";
 
 /** Render authored meaning; glyph choice is already resolved by Rust. */
 export function ActionCost({
@@ -11,14 +11,13 @@ export function ActionCost({
   label?: string;
   patch?: boolean;
 }) {
-  if (fact.state === "not_applicable" || (patch && fact.state === "missing"))
-    return null;
+  if (!hasReadingFact(fact, { patch })) return null;
   const cost = fact.state === "value" ? fact.value : null;
-  if (cost?.label === "" && !patch) return null;
+  if (cost && isEmptyFactValue(cost.label) && !patch) return null;
   const fallback =
     patch && fact.state === "null"
       ? "Cleared"
-      : cost?.label === ""
+      : cost && isEmptyFactValue(cost.label)
         ? "Empty"
         : fact.state === "missing"
           ? label
@@ -41,7 +40,7 @@ export function ActionCost({
         />
       )}
       <span className={cost?.glyph ? "sr-only" : undefined}>
-        {cost?.label || fallback}
+        {cost && !isEmptyFactValue(cost.label) ? cost.label : fallback}
       </span>
     </span>
   );

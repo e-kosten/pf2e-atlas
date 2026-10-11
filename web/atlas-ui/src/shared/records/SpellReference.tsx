@@ -11,7 +11,13 @@ import type {
 } from "../../generated/atlas";
 import { DamageComponents } from "./ActorReference";
 import { ActionCost } from "./ActionCost";
-import { FactLine, FactRow, NumberFact, factText } from "./presentationFacts";
+import {
+  FactLine,
+  FactRow,
+  NumberFact,
+  factText,
+  hasReadingFact,
+} from "./presentationFacts";
 
 function Area({
   fact,
@@ -32,7 +38,13 @@ function Area({
     );
   return (
     <FactRow label="Area">
-      {[factText(fact.value.size), factText(fact.value.shape), fact.value.details.value]
+      {[
+        factText(fact.value.size, String, { required: true }),
+        factText(fact.value.shape, String, { required: true }),
+        fact.value.details.state === "missing" || !hasReadingFact(fact.value.details)
+          ? ""
+          : factText(fact.value.details),
+      ]
         .filter(Boolean)
         .join(" ")}
     </FactRow>
@@ -67,7 +79,9 @@ function Defense({
       {["invalid", "null"].includes(fact.value.basic.state)
         ? `; basic save ${factText(fact.value.basic)}`
         : ""}
-      {fact.value.passive.value ? `; ${fact.value.passive.value}` : ""}
+      {fact.value.passive.state === "value" && hasReadingFact(fact.value.passive)
+        ? `; ${fact.value.passive.value}`
+        : ""}
       {["invalid", "null"].includes(fact.value.passive.state)
         ? `; passive defense ${factText(fact.value.passive)}`
         : ""}
@@ -85,11 +99,8 @@ function HeighteningDamage({
     return <FactLine label="Heightening damage" fact={fact} patch={patch} />;
   if (patch && !fact.value.length)
     return <FactLine label="Heightening damage" fact={fact} patch />;
-  const components = fact.value.filter(
-    (component) =>
-      component.formula.state !== "value" ||
-      component.formula.value === null ||
-      component.formula.value.trim().length > 0,
+  const components = fact.value.filter((component) =>
+    hasReadingFact(component.formula, { patch }),
   );
   return (
     <>
@@ -106,10 +117,18 @@ function HeighteningDamage({
     </>
   );
 }
-function FixedLevels({ fact }: { fact: FactView<SpellFixedLevelView[]> }) {
+function FixedLevels({
+  fact,
+  patch = false,
+}: {
+  fact: FactView<SpellFixedLevelView[]>;
+  patch?: boolean;
+}) {
+  if (!hasReadingFact(fact, { patch })) return null;
   if (fact.state !== "value" || !fact.value)
-    return <FactLine label="Fixed ranks" fact={fact} patch />;
-  if (!fact.value.length) return <FactLine label="Fixed ranks" fact={fact} patch />;
+    return <FactLine label="Fixed ranks" fact={fact} patch={patch} />;
+  if (!fact.value.length)
+    return <FactLine label="Fixed ranks" fact={fact} patch={patch} />;
   return (
     <>
       {fact.value.map((level) => (
@@ -135,7 +154,7 @@ function HeighteningChanges({ fact }: { fact: FactView<SpellHeighteningChangeVie
       <FactLine label="Interval" fact={value.interval} patch />
       <FactLine label="Area increase" fact={value.area} patch />
       <HeighteningDamage fact={value.damage} patch />
-      <FixedLevels fact={value.levels} />
+      <FixedLevels fact={value.levels} patch />
     </div>
   );
 }
@@ -173,10 +192,9 @@ export function SpellChanges({ changes }: { changes: SpellChangeView }) {
 }
 function Heightening({ fact }: { fact: FactView<SpellHeighteningView> }) {
   if (fact.state !== "value" || !fact.value)
-    return ["invalid", "null"].includes(fact.state) ? (
-      <FactLine label="Heightening" fact={fact} />
-    ) : null;
+    return <FactLine label="Heightening" fact={fact} />;
   const heightening = fact.value;
+  if (heightening.kind === "fixed" && !hasReadingFact(heightening.levels)) return null;
   return (
     <section className="spell-reference__heightening">
       <h3>Heightening</h3>
@@ -224,8 +242,12 @@ export function SpellReference({
         {spell.area && <Area fact={spell.area} />}
         {spell.defense && <Defense fact={spell.defense} />}
         <FactLine label="Duration" fact={spell.duration} />
-        {spell.sustained.value && <FactRow label="Sustained">Yes</FactRow>}
-        {spell.authored_cast_rank.state === "value" && (
+        {spell.sustained.state === "value" ? (
+          spell.sustained.value && <FactRow label="Sustained">Yes</FactRow>
+        ) : (
+          <FactLine label="Sustained" fact={spell.sustained} />
+        )}
+        {!["missing", "not_applicable"].includes(spell.authored_cast_rank.state) && (
           <FactRow label="Cast rank">
             <NumberFact fact={spell.authored_cast_rank} />
           </FactRow>
@@ -257,9 +279,9 @@ export function SpellReference({
                 </section>
               ))}
             </section>
-          ) : ["invalid", "null"].includes(spell.forms.state) ? (
+          ) : (
             <FactLine label="Spell forms" fact={spell.forms} />
-          ) : null}
+          )}
         </>
       )}
     </div>

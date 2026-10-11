@@ -11,6 +11,145 @@ fn actor(p: &RecordPresentationView) -> &ActorPresentationView {
 }
 
 #[test]
+fn optional_spell_structures_distinguish_missing_leaf_from_unavailable_system() {
+    for (system, expected) in [
+        (None, QueryFieldState::Missing),
+        (Some(json!(null)), QueryFieldState::Null),
+        (Some(json!(42)), QueryFieldState::Invalid),
+        (Some(json!({})), QueryFieldState::NotApplicable),
+        (
+            Some(json!({"heightening":null,"overlays":null})),
+            QueryFieldState::Null,
+        ),
+        (
+            Some(json!({"heightening":42,"overlays":42})),
+            QueryFieldState::Invalid,
+        ),
+    ] {
+        let mut value = json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell"});
+        if let Some(system) = system {
+            value["system"] = system;
+        }
+        let input = record("spells", "Item", value);
+        let SourceNodeView::Item(ItemSourceView::SpellSource(source)) =
+            SourceQueryView::new(input.record.source(), "spells", "").source
+        else {
+            panic!("spell")
+        };
+        let spell = spell::authored_spell(source);
+        assert_eq!(spell.heightening.state, expected);
+        assert_eq!(spell.forms.state, expected);
+        if expected == QueryFieldState::NotApplicable {
+            assert!(matches!(
+                source.system.as_value().unwrap().heightening,
+                atlas_foundry_model::SourcePresence::Missing
+            ));
+            assert!(matches!(
+                source.system.as_value().unwrap().overlays,
+                atlas_foundry_model::SourcePresence::Missing
+            ));
+        }
+    }
+}
+
+#[test]
+fn physical_prices_preserve_parent_and_currency_availability_without_mutating_source() {
+    for (price, expected) in [
+        (None, QueryFieldState::Missing),
+        (Some(json!(null)), QueryFieldState::Null),
+        (Some(json!(42)), QueryFieldState::Invalid),
+        (Some(json!({"value":null})), QueryFieldState::Null),
+        (Some(json!({"value":42})), QueryFieldState::Invalid),
+        (
+            Some(json!({"value":{"gp":0,"sp":null,"cp":"bad"}})),
+            QueryFieldState::Value,
+        ),
+        (Some(json!({"value":{}})), QueryFieldState::Value),
+    ] {
+        let mut system = json!({"level":{"value":0}});
+        if let Some(price) = price {
+            system["price"] = price;
+        }
+        let input = record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"equipment","system":system}),
+        );
+        let node = SourceQueryView::new(input.record.source(), "items", "").source;
+        let SourceNodeView::Item(item) = node else {
+            panic!("item")
+        };
+        let authored = item.physical_price();
+        let physical = physical(item);
+        assert_eq!(physical.price.state, expected);
+        assert_eq!(
+            physical.price.state,
+            field_state(authored.and_then(|p| (&p.value).into()).availability())
+        );
+        if let Some(price) = physical.price.value {
+            assert_eq!(price.pp.state, QueryFieldState::Missing);
+            if system["price"]["value"].get("gp").is_some() {
+                assert_eq!(price.gp.value, Some(0.into()));
+                assert_eq!(price.sp.state, QueryFieldState::Null);
+                assert_eq!(price.cp.state, QueryFieldState::Invalid);
+                assert_eq!(
+                    authored
+                        .value()
+                        .unwrap()
+                        .value
+                        .as_value()
+                        .unwrap()
+                        .gp
+                        .as_value()
+                        .and_then(|n| n.as_i64()),
+                    Some(0)
+                );
+            } else {
+                assert_eq!(price.gp.state, QueryFieldState::Missing);
+            }
+        }
+    }
+}
+
+#[test]
+fn classification_uses_typed_rank_and_level_including_zero_and_unavailable() {
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "items",
+                        "Item",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","type":"equipment","name":"Zero Level","system":{"level":{"value":0}}}),
+                    ),
+                    record(
+                        "spells",
+                        "Item",
+                        json!({"_id":"bbbbbbbbbbbbbbbb","type":"spell","name":"Unavailable Rank","system":{"level":{"value":null}}}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let zero = f.worker.record_detail("items:aaaaaaaaaaaaaaaa").unwrap();
+    assert_eq!(
+        zero.presentation.classification,
+        format!("{} 0", zero.presentation.identity.kind_label)
+    );
+    let unavailable = f.worker.record_detail("spells:bbbbbbbbbbbbbbbb").unwrap();
+    assert_eq!(
+        unavailable.presentation.classification,
+        format!(
+            "{} · rank unavailable",
+            unavailable.presentation.identity.kind_label
+        )
+    );
+}
+
+#[test]
 fn optional_spell_baselines_omit_absent_or_blank_text_only_under_a_known_system() {
     for system in [
         json!({}),
@@ -573,6 +712,7 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
         .unwrap();
     assert_eq!(selected.record.title, "Caster");
     assert_eq!(selected.presentation.identity.title, "Local Fireball");
+    assert_eq!(selected.presentation.classification, "spell 3");
     let RecordBodyView::Spell(s) = selected.presentation.body else {
         panic!("owned spell");
     };

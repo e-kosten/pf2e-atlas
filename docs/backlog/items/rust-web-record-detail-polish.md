@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-11
 
 ## Problem
 
@@ -37,6 +37,15 @@ parent membership and local spell ranks without executing selected-rank changes.
 Hazards group Detection content and use explicit backend defense-block presence;
 valid zero saves and unavailable values remain visible. Known-empty optional
 content has no heading. Rank preview has a separate bounded-design backlog item.
+
+Shared baseline fact formatting omits optional whitespace text and empty lists
+without hiding required, zero, false or unavailable facts. Explicit authored
+clear/empty changes remain readable. Physical currency and table result
+availability stay intact in transient family responses. Compact typed identity
+captions, one selected ability glyph, modifiers before skills and literal-colon
+record paths apply across reference consumers. Continuous owned reading,
+encounter ability previews and Similar result windows remain open workflow work;
+these fact repairs do not complete this backlog item or add family models.
 
 ## Desired Outcome
 

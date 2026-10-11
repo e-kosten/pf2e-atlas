@@ -165,7 +165,7 @@ describe("useSearchWorkspace", () => {
 
     act(() => result.current.openActiveResult());
     expect(result.current.selectedRecordKey).toBe("spell:heal");
-    expect(window.location.pathname).toBe("/search/records/spell%3Aheal");
+    expect(window.location.pathname).toBe("/search/records/spell:heal");
     expect(window.location.search).toBe("?q=dirge&mode=text_search");
 
     act(() => result.current.selectRecord(null));

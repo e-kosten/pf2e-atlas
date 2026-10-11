@@ -110,6 +110,7 @@ describe("RecordDetailPane", () => {
         detail={{
           ...recordDetailFixture(),
           presentation: {
+            classification: "Creature 3",
             identity: {
               ...summaryFixture("actors:testCreature", "Test Creature"),
               kind: "creature",

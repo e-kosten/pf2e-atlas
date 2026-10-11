@@ -118,7 +118,7 @@ describe("AtlasApp routing", () => {
     vi.clearAllMocks();
     fireEvent.click(screen.getByRole("link", { name: "Open full page" }));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/records/spell%3Aheal"));
+    await waitFor(() => expect(window.location.pathname).toBe("/records/spell:heal"));
     expect(window.location.search).toBe("");
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();

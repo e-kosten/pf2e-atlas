@@ -29,6 +29,7 @@ function actorPresentation(): RecordPresentationView {
   ]);
   actor.activities = knownFact([activityFixture()]);
   return {
+    classification: "Creature 1",
     identity: {
       ...summaryFixture("actors:ghoul", "Ghoul"),
       kind: "creature",
@@ -170,6 +171,7 @@ describe("semantic family presentation", () => {
       render(
         <RecordPresentation
           presentation={{
+            classification: "Reference",
             identity: summaryFixture("hazards:pit", "Hidden Spiked Pit"),
             content: fields,
             owned: [],
@@ -285,6 +287,7 @@ describe("semantic family presentation", () => {
       render(
         <RecordPresentation
           presentation={{
+            classification: "Reference",
             identity: summaryFixture("spells:test", "Spell"),
             content: [],
             owned: [],
@@ -345,6 +348,7 @@ describe("semantic family presentation", () => {
     render(
       <RecordPresentation
         presentation={{
+          classification: "Reference",
           identity: summaryFixture("spells:heal", "Heal"),
           content: [],
           owned: [],
@@ -356,7 +360,7 @@ describe("semantic family presentation", () => {
     expect(screen.getByText("Basic Reflex")).toBeVisible();
     expect(screen.getByText("20 feet burst")).toBeVisible();
     expect(screen.getByText("2 actions")).toBeVisible();
-    expect(screen.getByText("None")).toBeVisible();
+    expect(screen.queryByText("None")).toBeNull();
     const form = screen.getByRole("heading", {
       name: "Heal the Living",
     }).parentElement!;
@@ -388,16 +392,21 @@ describe("semantic family presentation", () => {
       <RecordPresentation
         presentation={{
           ...table,
-          body: { kind: "roll_table", value: { formula: knownFact("1d100") } },
-          owned: [
-            {
-              title: "Result 1–10",
-              family: "TableResult",
-              usage: "range 1–10",
-              action_cost: unavailableFact("not_applicable"),
-              navigation: child,
+          body: {
+            kind: "roll_table",
+            value: {
+              formula: knownFact("1d100"),
+              results: knownFact([
+                {
+                  title: "Result 1–10",
+                  family: "TableResult",
+                  usage: "range 1–10",
+                  action_cost: unavailableFact("not_applicable"),
+                  navigation: child,
+                },
+              ]),
             },
-          ],
+          },
         }}
         onReference={callback}
       />,
@@ -436,7 +445,12 @@ describe("semantic family presentation", () => {
             value: {
               usage: knownFact("held in one hand"),
               bulk: numberFact(0.1),
-              price: knownFact("10 gp"),
+              price: knownFact({
+                pp: { ...unavailableFact<number>("missing"), adjustment: null },
+                gp: numberFact(10),
+                sp: { ...unavailableFact<number>("missing"), adjustment: null },
+                cp: { ...unavailableFact<number>("missing"), adjustment: null },
+              }),
               price_per: numberFact(1),
             },
           },
@@ -475,6 +489,7 @@ describe("semantic family presentation", () => {
     render(
       <RecordPresentation
         presentation={{
+          classification: "Reference",
           identity: summaryFixture("spells:mantis", "Mantis's Grasp"),
           content: [],
           owned: [],
@@ -505,6 +520,7 @@ describe("Rust-owned optional spell presentation", () => {
     render(
       <RecordPresentation
         presentation={{
+          classification: "Reference",
           identity: summaryFixture("spell:test", "Test spell"),
           body: { kind: "spell", value: spell },
           content: [],
@@ -529,6 +545,7 @@ describe("Rust-owned optional spell presentation", () => {
     render(
       <RecordPresentation
         presentation={{
+          classification: "Reference",
           identity: summaryFixture("spell:test", "Test spell"),
           body: { kind: "spell", value: spell },
           content: [],
@@ -588,6 +605,7 @@ describe("optional authored reference facts", () => {
       render(
         <RecordPresentation
           presentation={{
+            classification: "Reference",
             identity: summaryFixture("equipment:staff", "Staff"),
             content: [],
             owned: [],
@@ -595,7 +613,12 @@ describe("optional authored reference facts", () => {
               kind: "physical_reference",
               value: {
                 usage: knownFact("held in one hand"),
-                price: knownFact("0 cp"),
+                price: knownFact({
+                  pp: { ...unavailableFact<number>("missing"), adjustment: null },
+                  gp: { ...unavailableFact<number>("missing"), adjustment: null },
+                  sp: { ...unavailableFact<number>("missing"), adjustment: null },
+                  cp: numberFact(0),
+                }),
                 price_per:
                   state === "value"
                     ? numberFact(0)

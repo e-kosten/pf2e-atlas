@@ -23,7 +23,7 @@ pub(crate) fn record_presentation(
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> RecordPresentationView {
     let identity = selected_identity(record, node, summary, owners, retrieval);
-    let owned = owned_links(record, node, owners, retrieval.source_fingerprint());
+    let mut owned = owned_links(record, node, owners, retrieval.source_fingerprint());
     let mut body = match node {
         SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::HazardSource(source)) => {
             RecordBodyView::Hazard(Box::new(HazardPresentationView {
@@ -98,6 +98,9 @@ pub(crate) fn record_presentation(
         SourceNodeView::Table(table) => {
             RecordBodyView::RollTable(Box::new(RollTablePresentationView {
                 formula: text((&table.formula).into()),
+                results: fact(
+                    SourceFieldView::from(&table.results).map(|_| std::mem::take(&mut owned)),
+                ),
             }))
         }
         SourceNodeView::Result(result) => {
@@ -171,10 +174,38 @@ pub(crate) fn record_presentation(
         _ => {}
     }
     RecordPresentationView {
+        classification: classification(node, &identity),
         identity,
         content,
         owned,
         body,
+    }
+}
+fn classification(node: SourceNodeView<'_>, identity: &RecordSummaryView) -> String {
+    let level = match node {
+        SourceNodeView::Item(item) if item.family() == "spell" => item.spell_rank(),
+        SourceNodeView::Item(item) => item.item_level(),
+        SourceNodeView::Actor(_) => SourceQueryView {
+            source: node,
+            pack_id: "",
+            pack_label: "",
+        }
+        .actor()
+        .level(),
+        _ => SourceFieldView::NotApplicable,
+    };
+    match level {
+        SourceFieldView::Value(value) => format!("{} {value}", identity.kind_label),
+        SourceFieldView::NotApplicable => identity.kind_label.clone(),
+        _ => format!(
+            "{} · {} unavailable",
+            identity.kind_label,
+            if matches!(node, SourceNodeView::Item(item) if item.family() == "spell") {
+                "rank"
+            } else {
+                "level"
+            }
+        ),
     }
 }
 /// Upstream's authored hazard defense block uses HP maximum or AC, not saves.
@@ -319,13 +350,16 @@ fn physical(item: ItemSourceView<'_>) -> PhysicalPresentationView {
     PhysicalPresentationView {
         usage: fact(item.physical_usage().map(str::to_owned)),
         bulk: number(item.physical_bulk()),
-        price: fact(price.and_then(|p| (&p.value).into()).map(|c| {
-            [("pp", &c.pp), ("gp", &c.gp), ("sp", &c.sp), ("cp", &c.cp)]
-                .into_iter()
-                .filter_map(|(u, n)| SourceFieldView::from(n).value().map(|n| format!("{n} {u}")))
-                .collect::<Vec<_>>()
-                .join(", ")
-        })),
+        price: fact(
+            price
+                .and_then(|p| (&p.value).into())
+                .map(|c| PhysicalPriceView {
+                    pp: number((&c.pp).into()),
+                    gp: number((&c.gp).into()),
+                    sp: number((&c.sp).into()),
+                    cp: number((&c.cp).into()),
+                }),
+        ),
         price_per: number(price.and_then(|p| (&p.per).into())),
     }
 }
