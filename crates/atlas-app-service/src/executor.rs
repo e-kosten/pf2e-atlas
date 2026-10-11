@@ -177,7 +177,9 @@ fn spawn_retrieval_worker(
     })?
 }
 
-fn open_retrieval_service(options: AtlasRuntimeOptions) -> AppServiceResult<AtlasRetrievalService> {
+pub(super) fn open_retrieval_service(
+    options: AtlasRuntimeOptions,
+) -> AppServiceResult<AtlasRetrievalService> {
     let runtime = AtlasRuntime::resolve(options)?;
     Ok(runtime.open_retrieval_service()?)
 }

@@ -40,7 +40,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         index: o.index,
         embedding_cache: o.embedding_cache_path,
         retrieval_mode: if o.query.is_some() && mode != RetrievalModeView::Lexical {
-            atlas_app_service::AppServiceRetrievalMode::FullPool
+            atlas_app_service::AppServiceRetrievalMode::OnDemandEmbeddings
         } else {
             atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings
         },
