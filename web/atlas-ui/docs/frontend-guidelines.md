@@ -21,7 +21,7 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `pickers/SearchPickerModal.tsx`: modal record search and selection flow with debounced backend search.
 - `actions/PaneAction.tsx`: pane-header icon buttons and links.
 - `actions/DangerActionButton.tsx`: destructive button plus confirmation modal.
-- `actions/confirmDangerAction.tsx`: confirmation helper for cases that are not naturally buttons.
+- `actions/useConfirmDangerAction.tsx`: confirmation helper for cases that are not naturally buttons.
 
 Feature modules should pass feature-specific labels, requests, mutations, and DTOs into these primitives. They should not copy the primitive behavior into local components.
 
@@ -31,9 +31,14 @@ owners across features. Avoid both feature-local copies of the same design and
 trivial component proliferation that adds indirection without reuse or meaning.
 Check visual consistency across surfaces, density modes, themes and viewport sizes.
 
+Shared Ant button and link primitives pass native event props and React refs to
+the underlying Ant control, preserving its DOM target for Tooltip and Popover
+triggers. Keep the Atlas accessible label and default styling while retaining
+library-injected events and classes.
+
 ## Ant Design
 
-Ant Design is the selected component library. Generic application UI should use Ant components and component tokens before adding custom controls or local state styling. This keeps hover, focus, selected, disabled, loading, contrast, and light/dark behavior in the same design system.
+Ant Design 6 is the selected component library. Generic application UI should use Ant components and component tokens before adding custom controls or local state styling. This keeps hover, focus, selected, disabled, loading, contrast, and light/dark behavior in the same design system.
 
 - `Table` for table mechanics, usually through `IndexTable` for entity indexes.
 - `Form`, `Input`, `InputNumber`, `Select`, `Checkbox`, and `Button` for forms and edits.
@@ -70,9 +75,58 @@ For refactors, run focused tests for touched surfaces first, then the full verif
 
 Render generated app DTOs. Prepared content is sanitized HTML with field-local reference and interaction sidecars; use DOMPurify at the browser boundary and make supported markers keyboard accessible. Unknown commands and unavailable targets remain visible inert labels. Never execute Foundry commands, scripts, or rules. Selected owner and passage routes carry backend navigation, including its source fingerprint for snapshot-local addresses.
 
-Use react-querybuilder with its maintained Ant integration for structured predicates. Backend descriptors supply fields, operators, units, choices, and discovery policy. The adapter translates presentation state to the shared QueryPredicate; it does not parse CEL or infer fields from records. Reject unsafe integer input before creating numeric literals. Unsupported contextual facet requests display the backend error while leaving supported query execution available.
+Use react-querybuilder with its maintained Ant integration for structured predicates.
+Backend descriptors supply fields, human labels and groups, operators, units,
+choices, discovery policy and the ordered common Kind, Level / rank, Rarity and
+Traits fields. Common and advanced controls edit one canonical QueryPredicate.
+Common categorical controls cycle each value through neutral, included and
+excluded, allowing both included and excluded values in one field. They recognize
+bounded root conjunctions and an exact numeric range group. Advanced editing
+shows residual conditions without duplicating common rows; complex expressions
+remain editable through the full builder. Structural true/false conditions have
+explicit editor controls and lower to boolean constants, never synthetic backend
+catalog fields. Preserve clause/scope identities and unrelated clauses. Invalid
+input remains a local draft with local guidance, retaining committed results.
+URL restoration resets drafts and retains the exact canonical predicate.
 
-Reference previews use native Ant Popover positioning. Source content in an encounter loads only on an explicit request. HP mutations carry explicit edit intent; unknown current HP disables arithmetic and remains unknown until explicitly set.
+Browser-local remembered Kind is only a default for a fresh bare search visit.
+An incoming search URL is authoritative, and clearing Kind clears the preference.
+Result rows activate detail without radio selection; retain separate focus and
+committed highlight, keyboard activation and native full-page name/match links.
+Actual single-choice picker dialogs retain radio selection.
+
+The web product uses hybrid text retrieval and filter-only browsing. Retrieval
+options are not browser criteria or URL overrides; CLI modes remain independent.
+Page size belongs with results. The advanced editor uses searchable grouped Ant
+fields and readable operator labels; value controls stack at narrow editor widths.
+Its narrow Ant Drawer preserves native keyboard behavior and focus return.
+Do not offer another collection scope inside an existing Exists condition.
+
+Optional contextual counts use the backend's available/unavailable outcomes.
+Unavailable counts receive condition-local text; actual request failures remain
+errors. Never label retained counts from another context as current. Open values
+use explicit count-free vocabulary requests with artifact or saved-list scope,
+server search and bounded paging; selected literals remain visible separately
+from suggestion pages. Label this vocabulary basis, including legacy entries.
+Closed choices use catalog labels without values requests. The adapter does not
+parse CEL, infer fields from records, or decide contextual capability in React.
+Reject unsafe integer input before creating numeric literals.
+
+Reference previews use native Ant Popover positioning on desktop and the shared
+Ant Drawer below the Ant `xl` breakpoint (1200px), including tablet layouts.
+Source content in an encounter loads only on an
+explicit request. HP mutations carry explicit edit intent; unknown current HP
+disables arithmetic and remains unknown until explicitly set.
+
+Use matched React 19 runtime and type packages with Ant Design 6. Preserve the
+root StrictMode and native overlay keyboard handling. Shared preview tests run
+under StrictMode and verify that Escape closes a nested source dialog first,
+returns focus to its marker, then closes the preview. Drawer dismissal keeps the
+drawer mounted through its native close lifecycle and returns focus to the
+original trigger after `afterOpenChange(false)`; the shared preview hook owns
+that trigger, including across responsive overlay changes. The parent unmounts
+the drawer after that callback; do not also destroy it during the native opening
+or closing animation, which can skip the close callback.
 
 Use the semantic family union rather than a generic section/value/profile layout
 interpreter. Availability belongs to the backend facts; known zero, false and
@@ -81,6 +135,61 @@ sections while retaining meaningful unknown facts. Authored spell forms are
 changes to the base, including explicit clears, not calculated effective forms.
 Complete owner/field/passage/fingerprint identity drives shared detail queries
 and all reader/preview transitions.
+
+Baseline spell requirements, cost and casting-entry facts arrive as absent when
+their known typed system contains missing/null or empty/whitespace-only prose.
+The source remains unchanged. Render supplied nonempty values and unavailable
+facts; spell patches independently preserve explicit clears and empty changes.
+
+Baseline spell area and defense arrive absent only for explicit no-area/no-defense
+under a known system; supplied unavailable facts remain visible. Do not show the
+raw baseline spell casting-entry identifier as a web fact; checked casting context
+supplies parent membership, while JSON and CLI retain the source fact. In the existing family readers,
+omit missing price-per and IWR exception/double qualifiers and baseline missing/null
+damage categories. Preserve required magnitudes, null/invalid IWR qualifiers and
+patch clears. Damage captions describe their presentation order rather than raw
+source IDs; keep those IDs for correlation and keys.
+Omit headings for known-empty optional content and heightening damage-increment text;
+unavailable content/formulas and explicit patch clears remain visible. Spell
+forms use their authored names or an ordered “Spell form” caption, retaining
+invalid/null name facts separately.
+
+Authored action costs use the shared `ActionCost` renderer over typed Rust facts.
+Fixed one/two/three-action, reaction and free-action glyphs are decorative;
+their readable label remains accessible. Variable, timed and passive costs keep
+their supplied text, and unavailable required costs remain explicit. Spell
+patches preserve clear/empty meanings. Physical usage is separate from action
+cost. Prepared inline glyph attributes use the same font styling with an empty
+CSS content alternative, so font characters do not add spoken text or enter
+the canonical/terminal words. Never classify cost strings or authored markup in
+the browser.
+
+`RecordDetailPane` owns shared detail loading, unavailable-record, refresh-error,
+retry and back states. Keep query errors with their affected pane and feature
+mutation errors with their action; do not add detail errors to the global banner.
+React Query may retain a valid result during refresh of the same complete address;
+never borrow previous detail across a root, owner, field, passage or fingerprint
+change. `RelatedRecords` is the shared secondary disclosure inside that pane.
+
+Reference composition puts prose first and groups facts/mechanics according to
+pane width. Encounter composition puts current HP, conditions and actions first;
+participant edits and maximum-HP configuration live in secondary disclosures.
+Owned abilities expand lazily using the existing selected-detail request and
+shared loading/error/content renderer, preserving parent context and an explicit
+native full-page link. Inline details use an unframed mode of the shared pane;
+their disclosure supplies the identity and action cost once. Keep secondary
+encounter facts below usable actions in a local disclosure rather than placing
+all reference facts before the combat actions. Selected casting entries show their checked parent and
+associated customized spells; base and authored cast ranks do not imply executed
+rank or form changes. A hazard's backend defense-block fact controls its primary
+AC/HP/hardness display; keep independent zero saves and unavailable facts intact.
+
+`RelatedRecords` starts closed and requests only the selected tab when opened. Comparison panes
+reuse family presentation without recursively mounting related disclosures.
+Incoming references use checked `source_navigation`, outgoing references use the
+checked target, and separate occurrence ordinals remain attribution metadata;
+they do not imply automatic scrolling to an individual marker. Remaster, variant
+and similar suggestions are root-scoped and must say so for embedded selections.
 
 Live browser checks use the maintained Playwright runner against a separately started real Atlas server and isolated local state:
 
@@ -91,3 +200,9 @@ npm --prefix web/atlas-ui run test:e2e
 The default server URL is http://127.0.0.1:8765 (optionally overridden with ATLAS_BROWSER_BASE_URL). Build the real frontend and CLI first, then start `atlas web --port 8765 --index <current-sample-artifact> --embedding-cache-path <verified-model-cache>` with an isolated artifact directory so its local state is temporary.
 
 The browser suite does not manufacture readiness, start a mock API, or substitute screenshot success for interactions. Its artifact must contain the current source-grounded sample records; screenshots and traces stay under ignored scratch/browser-validation.
+
+Contextual feedback uses the root Ant `App` inside `ConfigProvider`. Destructive
+button and callback flows use `useConfirmDangerAction`; prepared source dialogs
+use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
+Ant internals through documented `classNames`, `styles` and component tokens;
+Atlas-owned classes describe product layout rather than internal Ant DOM.

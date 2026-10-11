@@ -591,7 +591,7 @@ describe("encounter views", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add Condition" }));
     await selectOption(conditionCombobox("Add condition"), "Sickened");
-    expect(screen.getByLabelText("Condition value")).toHaveValue("1");
+    expect(await screen.findByLabelText("Condition value")).toHaveValue("1");
     fireEvent.change(screen.getByLabelText("Condition value"), {
       target: { value: "2" },
     });

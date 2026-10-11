@@ -1,23 +1,29 @@
 @media (max-width: 1180px) {
-  .diagnostics-panel {
-    grid-template-columns: repeat(3, minmax(120px, 1fr));
+  .atlas-app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
   }
 
-  .atlas-app--diagnostics .workspace-grid {
-    height: auto;
+  .atlas-app__content {
+    overflow: visible;
+  }
+
+  .diagnostics-panel {
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
   }
 
   .workspace-grid {
     grid-template-columns: 290px minmax(0, 1fr);
     height: auto;
-    min-height: calc(100vh - 77px);
+    min-height: 0;
   }
 
   .record-view,
   .record-view--with-aux {
     grid-template-columns: 1fr !important;
     height: auto;
-    min-height: calc(100vh - 77px);
+    min-height: 0;
   }
 
   .detail-panel {
@@ -38,6 +44,12 @@
 
   .topbar__actions {
     justify-content: flex-start;
+  }
+
+  .topbar__nav {
+    min-width: 0;
+    width: 100%;
+    margin-left: 0;
   }
 
   .workspace-grid {
@@ -62,7 +74,6 @@
     transform: none;
   }
 
-  .record-detail__header,
   .panel-heading {
     align-items: flex-start;
     flex-direction: column;

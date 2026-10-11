@@ -1,4 +1,4 @@
-import { ConfigProvider, Alert } from "antd";
+import { ConfigProvider, Alert, App } from "antd";
 import { Suspense, lazy, useEffect, useState } from "react";
 import {
   COLOR_SCHEME_STORAGE_KEY,
@@ -95,32 +95,41 @@ export function AtlasApp() {
   };
 
   return (
-    <ConfigProvider theme={antDesignTheme(resolvedColorScheme)}>
-      <AppShell
-        activeView={route.kind}
-        colorScheme={colorScheme}
-        onColorSchemeChange={updateColorScheme}
-        onNavigateSearch={() =>
-          navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
-        }
-        onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
-        onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
-        resolvedColorScheme={resolvedColorScheme}
-        workspace={workspace}
-      >
-        <Suspense fallback={<RouteLoading />}>
-          {route.kind === "invalid" && <Alert type="error" message={route.message} />}
-          {route.kind === "search" && <SearchView workspace={workspace} />}
-          {route.kind === "encounters" && <EncounterIndexView route={route} />}
-          {route.kind === "encounter" && <EncounterDetailView route={route} />}
-          {route.kind === "encounterEdit" && <EncounterEditView route={route} />}
-          {route.kind === "lists" && <ListIndexView route={route} />}
-          {route.kind === "list" && <ListDetailView route={route} />}
-          {route.kind === "listEdit" && <ListEditView route={route} />}
-          {route.kind === "record" && <RecordView route={route} />}
-          {route.kind === "reader" && <ReaderView route={route} />}
-        </Suspense>
-      </AppShell>
+    <ConfigProvider
+      theme={antDesignTheme(resolvedColorScheme)}
+      select={{
+        classNames: {
+          popup: { root: "atlas-select-popup", listItem: "atlas-select-option" },
+        },
+      }}
+    >
+      <App component={false}>
+        <AppShell
+          activeView={route.kind}
+          colorScheme={colorScheme}
+          onColorSchemeChange={updateColorScheme}
+          onNavigateSearch={() =>
+            navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
+          }
+          onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
+          onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
+          resolvedColorScheme={resolvedColorScheme}
+          workspace={workspace}
+        >
+          <Suspense fallback={<RouteLoading />}>
+            {route.kind === "invalid" && <Alert type="error" title={route.message} />}
+            {route.kind === "search" && <SearchView workspace={workspace} />}
+            {route.kind === "encounters" && <EncounterIndexView route={route} />}
+            {route.kind === "encounter" && <EncounterDetailView route={route} />}
+            {route.kind === "encounterEdit" && <EncounterEditView route={route} />}
+            {route.kind === "lists" && <ListIndexView route={route} />}
+            {route.kind === "list" && <ListDetailView route={route} />}
+            {route.kind === "listEdit" && <ListEditView route={route} />}
+            {route.kind === "record" && <RecordView route={route} />}
+            {route.kind === "reader" && <ReaderView route={route} />}
+          </Suspense>
+        </AppShell>
+      </App>
     </ConfigProvider>
   );
 }
