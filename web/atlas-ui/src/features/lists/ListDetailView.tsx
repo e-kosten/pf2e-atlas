@@ -27,7 +27,7 @@ import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { ListInfoPane } from "./ListInfoPane";
 import { ListItemsPane } from "./ListItemsPane";
-import { useSavedLists } from "./savedListQueries";
+import { invalidateSavedListQueries, useSavedLists } from "./savedListQueries";
 import {
   listSearchQuery,
   useDebouncedSearchFilters,
@@ -76,9 +76,12 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const removeItem = useMutation({
     mutationFn: (recordKey: string) =>
       removeSavedListItem({ list_ref: route.slug, record_ref: recordKey }),
-    onSuccess: async (_view, recordKey) => {
-      await queryClient.invalidateQueries({ queryKey: ["saved-list", route.slug] });
-      await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
+    onSuccess: async (view, recordKey) => {
+      await invalidateSavedListQueries(queryClient, [
+        route.slug,
+        view.slug,
+        view.list_key,
+      ]);
       if (recordKey === route.selectedRecordKey) {
         navigateToAtlasRoute({
           kind: "list",

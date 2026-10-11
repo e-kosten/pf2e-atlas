@@ -4,7 +4,7 @@ import { Modal, Select, Tooltip } from "antd";
 import { useState } from "react";
 import { addSavedListItem } from "../../api/atlasApi";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
-import { useSavedLists } from "./savedListQueries";
+import { invalidateSavedListQueries, useSavedLists } from "./savedListQueries";
 
 export function AddToListButton({ recordKey }: { recordKey: string }) {
   const [open, setOpen] = useState(false);
@@ -14,9 +14,8 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
   const addItem = useMutation({
     mutationFn: (slug: string) =>
       addSavedListItem({ list_ref: slug, record_ref: recordKey }),
-    onSuccess: async (_view, slug) => {
-      await queryClient.invalidateQueries({ queryKey: ["saved-list", slug] });
-      await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
+    onSuccess: async (view, slug) => {
+      await invalidateSavedListQueries(queryClient, [slug, view.slug, view.list_key]);
       setOpen(false);
       setSelectedSlug(null);
     },

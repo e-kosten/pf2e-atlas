@@ -13,7 +13,12 @@ import type {
   RecordDetailView,
   SavedListDetailView,
   SavedListIndexView,
+  DiscoverFilterValuesRequest,
+  FilterVocabularyScope,
 } from "../../generated/atlas";
+import { useFilterVocabulary } from "../../shared/filters/useFilterDiscovery";
+import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
+import { useSavedListFilterDiscovery } from "./useSavedListFilters";
 import { AddToListButton } from "./AddToListButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
@@ -25,6 +30,7 @@ const apiMocks = vi.hoisted(() => ({
   createSavedList: vi.fn(),
   deleteSavedList: vi.fn(),
   discoverFilterEditor: vi.fn(),
+  discoverFilterCounts: vi.fn(),
   discoverFilterValues: vi.fn(),
   filterSavedList: vi.fn(),
   getRecordDetail: vi.fn(),
@@ -39,6 +45,7 @@ vi.mock("../../api/atlasApi", () => ({
   createSavedList: apiMocks.createSavedList,
   deleteSavedList: apiMocks.deleteSavedList,
   discoverFilterEditor: apiMocks.discoverFilterEditor,
+  discoverFilterCounts: apiMocks.discoverFilterCounts,
   discoverFilterValues: apiMocks.discoverFilterValues,
   filterSavedList: apiMocks.filterSavedList,
   getRecordDetail: apiMocks.getRecordDetail,
@@ -56,6 +63,9 @@ describe("list views", () => {
     apiMocks.getSavedList.mockResolvedValue(savedListDetailFixture());
     apiMocks.filterSavedList.mockResolvedValue(savedListDetailFixture());
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditorFixture());
+    apiMocks.discoverFilterCounts.mockResolvedValue({
+      counts: { status: "unavailable", reason: "non_conjunctive_context" },
+    });
     apiMocks.discoverFilterValues.mockImplementation((request: { field_id: string }) =>
       Promise.resolve(valuesFixture(request.field_id)),
     );
@@ -209,6 +219,116 @@ describe("list views", () => {
         record_ref: "actions:testAction1",
       }),
     );
+  });
+
+  it("refreshes mounted list discovery after removing its last item without refreshing other scopes", async () => {
+    let removed = false;
+    const aliases = ["research", "list_research"];
+    apiMocks.discoverFilterEditor.mockResolvedValue(
+      editorFixture([fieldFixture("traits", "set", "Traits")]),
+    );
+    apiMocks.filterSavedList.mockImplementation(async () => ({
+      ...savedListDetailFixture(),
+      items: removed ? [] : savedListDetailFixture().items,
+    }));
+    apiMocks.removeSavedListItem.mockImplementation(async () => {
+      removed = true;
+      return {
+        list_key: "list_research",
+        slug: "research",
+        record_key: "actions:testAction1",
+        outcome: "removed",
+      };
+    });
+    apiMocks.discoverFilterValues.mockImplementation(
+      async (request: DiscoverFilterValuesRequest) => {
+        if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
+        const affected =
+          request.scope.kind === "saved_list" &&
+          aliases.includes(request.scope.list_ref);
+        const empty = affected && removed;
+        return {
+          kind: "vocabulary",
+          scope: request.scope,
+          values: {
+            field: request.field_id,
+            options: empty ? [] : [{ value: "fire" }],
+            selected_values: request.selected_values,
+            total_values: empty ? 0n : 1n,
+            basis: "product_key_scope_before_edition_preference",
+          },
+        };
+      },
+    );
+    apiMocks.discoverFilterCounts.mockImplementation(async () => ({
+      counts: {
+        status: "available",
+        value: {
+          field: "traits",
+          states: [],
+          exhaustive: true,
+          count_basis: "distinct roots",
+          minimum: null,
+          maximum: null,
+        },
+      },
+    }));
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ListDetailView
+          route={{ kind: "list", slug: "research", selectedRecordKey: null }}
+        />
+        <ListDiscoveryProbe listRef="research" />
+        <ListDiscoveryProbe listRef="list_research" />
+        <ListDiscoveryProbe listRef="other-list" />
+        <VocabularyProbe scope={{ kind: "artifact" }} label="artifact values" />
+      </QueryClientProvider>,
+    );
+    for (const alias of [...aliases, "other-list"])
+      await waitFor(() =>
+        expect(screen.getByLabelText(`values ${alias}`)).toHaveTextContent(
+          '"options":["fire"]',
+        ),
+      );
+    await waitFor(() =>
+      expect(screen.getByLabelText("artifact values")).toHaveTextContent("fire"),
+    );
+    await waitFor(() => expect(apiMocks.discoverFilterCounts).toHaveBeenCalledTimes(3));
+    const otherRequests = apiMocks.discoverFilterValues.mock.calls.filter(
+      ([request]) =>
+        request.scope.kind === "artifact" || request.scope.list_ref === "other-list",
+    ).length;
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Remove Test Action 1" }),
+    );
+
+    for (const alias of aliases) {
+      await waitFor(() =>
+        expect(screen.getByLabelText(`values ${alias}`)).toHaveTextContent(
+          '"options":[],"selected":["retained"],"total":"0"',
+        ),
+      );
+      await waitFor(() =>
+        expect(
+          apiMocks.discoverFilterCounts.mock.calls.filter(
+            ([request]) => request.context.list_ref === alias,
+          ),
+        ).toHaveLength(2),
+      );
+    }
+    expect(screen.getByLabelText("values other-list")).toHaveTextContent("fire");
+    expect(screen.getByLabelText("artifact values")).toHaveTextContent("fire");
+    expect(
+      apiMocks.discoverFilterValues.mock.calls.filter(
+        ([request]) =>
+          request.scope.kind === "artifact" || request.scope.list_ref === "other-list",
+      ),
+    ).toHaveLength(otherRequests);
+    expect(apiMocks.discoverFilterCounts).toHaveBeenCalledTimes(5);
   });
 
   it("opens references from the selected saved-list detail in a popover", async () => {
@@ -402,6 +522,50 @@ describe("list views", () => {
     );
   });
 });
+
+function VocabularyProbe({
+  scope,
+  label,
+}: {
+  scope: FilterVocabularyScope;
+  label: string;
+}) {
+  const query = useFilterVocabulary(scope, "traits", "", 0, ["retained"]);
+  const values = query.data?.values;
+  return (
+    <output aria-label={label}>
+      {JSON.stringify({
+        options: values?.options.map((option) => option.value),
+        selected: values?.selected_values,
+        total: values?.total_values.toString(),
+      })}
+    </output>
+  );
+}
+
+function ListDiscoveryProbe({ listRef }: { listRef: string }) {
+  const discovery = useSavedListFilterDiscovery(listRef, {
+    ...DEFAULT_SEARCH_STATE,
+    filter: {
+      kind: "set_match",
+      clause_id: "trait",
+      field: "traits",
+      op: "includes_any",
+      values: ["retained"],
+    },
+  });
+  return (
+    <>
+      <VocabularyProbe
+        scope={{ kind: "saved_list", list_ref: listRef }}
+        label={`values ${listRef}`}
+      />
+      <output aria-label={`counts ${listRef}`}>
+        {discovery.filterCountsByField["traits:trait"]?.counts.status}
+      </output>
+    </>
+  );
+}
 
 function queryClientWrapper() {
   const queryClient = new QueryClient({
