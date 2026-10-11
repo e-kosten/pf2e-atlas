@@ -35,7 +35,8 @@ pub use filter::{
     FilterOperatorView, FilterValidationResult, FilterValueListView, FilterVocabularyScope,
 };
 pub use graph::{
-    GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView, RemasterLinkView,
+    GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,
+    RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView, RemasterLinkView,
     RemasterLinksView, SearchResultsView, SimilarRecordsView, VariantEvidenceView,
     VariantGroupView,
 };
@@ -116,6 +117,8 @@ mod tests {
 
     fn export_bindings_to(path: &Path) {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
+        RelatedRecordsView::export_all_to(path).expect("related bindings");
+        RelatedRecordsRequest::export_all_to(path).expect("related request bindings");
         RecordListView::export_all_to(path).expect("graph bindings");
         RecordRefResolutionView::export_all_to(path).expect("resolution bindings");
         GraphContextViewRequest::export_all_to(path).expect("graph request bindings");

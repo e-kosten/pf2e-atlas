@@ -158,6 +158,21 @@ one root and batches required fields. Search result witnesses do not cause
 per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
+App-service result windows reuse browse, text and stored-vector Similar retrieval.
+Similar mode carries the exact root seed and canonical filters, and returns a
+body-free seed summary beside bounded candidate pages. It adds no ranking lane or
+query embedding. Browser URL state owns the removable seed criterion, and expired
+window handles reopen from that same committed request. Similarity uses catalog
+choices and vocabulary without text-scoped contextual facet counts.
+
+One bounded app-service Related operation returns verified nonempty categories
+with separate empty, unavailable and error outcomes. Its reference scope is the
+exact selected owner (including the empty root owner path). Verified counterparts
+and typed variant checks apply only to roots. Variant checks retain their bounded
+source-snapshot compatibility verification; category discovery never runs Similar
+ranking. Responses and browser caches use the complete selection and immutable
+artifact-context hash, distinct from snapshot-local navigation fingerprints.
+
 App-service owns workflow state/result windows, catalog-to-editor controls,
 semantic family presentation and local-state hydration over runtime/search.
 Detail retains a body-free root summary, full selected address, and selected-node

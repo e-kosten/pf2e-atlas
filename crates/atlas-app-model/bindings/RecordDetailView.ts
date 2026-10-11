@@ -4,4 +4,4 @@ import type { RecordPresentationView } from "./RecordPresentationView";
 import type { RecordRelationshipView } from "./RecordRelationshipView";
 import type { RecordSummaryView } from "./RecordSummaryView";
 
-export type RecordDetailView = { record: RecordSummaryView, presentation: RecordPresentationView, selected: RecordNavigationView, relationships: Array<RecordRelationshipView>, relationships_truncated: boolean, };
+export type RecordDetailView = { artifact_generation: string, record: RecordSummaryView, presentation: RecordPresentationView, selected: RecordNavigationView, relationships: Array<RecordRelationshipView>, relationships_truncated: boolean, };

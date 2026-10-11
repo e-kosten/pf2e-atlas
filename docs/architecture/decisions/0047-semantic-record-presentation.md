@@ -151,3 +151,12 @@ This replaces the section/value/profile decision and migration fallback in
 ADR0031, while retaining its app-service composition boundary. Old transport,
 renderers, profiles, and fixtures are removed together; no compatibility shim
 is retained.
+
+Secondary Related composition belongs to app-service and returns bounded exact-owner
+references plus root-only verified counterpart and variant categories. The browser
+renders content categories and separate unavailable/error states; it does not infer
+relationships or run naming/compatibility checks. Detail envelopes carry the full
+immutable artifact-context hash for generation-aware secondary queries. This does
+not replace source fingerprints in snapshot-local navigation. Similar remains a
+root discovery criterion in the existing result-window/search workflow, with a
+body-free seed summary and truthful bounded pages, rather than a relationship.

@@ -117,11 +117,11 @@ impl AtlasAppService {
             let summary=crate::projection::localized_summary_view(&detail.summary,r);
             let presentation=crate::presentation::record_presentation(&detail.source,node,&summary,&request.owners,fields,r);
             let relationships=r.read_relationships(&SourceRelationshipRequest{record:key.clone(),owners:Some(request.owners.clone()),field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},direction:SourceRelationshipDirection::Outgoing,limit:1024})?;
-            Ok(RecordDetailView{record:summary,presentation,selected:RecordNavigationView{record_key:key.to_string(),source_fingerprint:navigation_fingerprint(&request.owners,r.source_fingerprint()),owners:request.owners,field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},passage:request.passage},relationships:relationships.occurrences.into_iter().map(|o|relationship_view(o,r.source_fingerprint())).collect(),relationships_truncated:relationships.truncated})
+            Ok(RecordDetailView{artifact_generation:r.artifact_generation()?,record:summary,presentation,selected:RecordNavigationView{record_key:key.to_string(),source_fingerprint:navigation_fingerprint(&request.owners,r.source_fingerprint()),owners:request.owners,field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},passage:request.passage},relationships:relationships.occurrences.into_iter().map(|o|relationship_view(o,r.source_fingerprint())).collect(),relationships_truncated:relationships.truncated})
         })
     }
 }
-fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {
+pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {
     if r.owners.len() > 32
         || r.fields.len() > 256
         || r.fields.iter().any(|f| f.len() > 512)

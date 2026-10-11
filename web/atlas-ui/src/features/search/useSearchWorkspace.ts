@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { keepPreviousData, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
+  AtlasApiError,
   getReadiness,
   getRecordDetail,
   openResultWindow,
@@ -15,6 +16,7 @@ import {
   buildFilterDiscoveryContext,
   buildOpenRequest,
   DEFAULT_SEARCH_STATE,
+  SIMILAR_QUERY_CONFLICT,
   encodeSearchExecutionState,
   encodeSearchState,
   hasExecutableSearch,
@@ -154,7 +156,7 @@ export function useSearchWorkspace({
     queryKey: ["results", activeSearchExecutionToken, pageNumber],
     enabled: canRunResultSearch,
     placeholderData: keepPreviousData,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const startedAt = performance.now();
       if (
         pageNumber === 1 ||
@@ -163,11 +165,13 @@ export function useSearchWorkspace({
         try {
           const page = await openResultWindow(
             buildOpenRequest(activeSearch, pageNumber),
+            signal,
           );
-          setResultWindow({
-            searchExecutionToken: activeSearchExecutionToken,
-            windowId: page.window_id,
-          });
+          if (!signal.aborted)
+            setResultWindow({
+              searchExecutionToken: activeSearchExecutionToken,
+              windowId: page.window_id,
+            });
           return page;
         } finally {
           setLastResultRequest({
@@ -178,9 +182,18 @@ export function useSearchWorkspace({
         }
       }
       try {
-        return await readResultWindowPage(resultWindow.windowId, {
-          page: { number: pageNumber, size: activeSearch.pageSize },
-        });
+        const page = await readOrReopenResultWindow(
+          resultWindow.windowId,
+          activeSearch,
+          pageNumber,
+          signal,
+        );
+        if (!signal.aborted)
+          setResultWindow({
+            searchExecutionToken: activeSearchExecutionToken,
+            windowId: page.window_id,
+          });
+        return page;
       } finally {
         setLastResultRequest({
           durationMs: elapsedMilliseconds(startedAt),
@@ -199,6 +212,7 @@ export function useSearchWorkspace({
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
     enabled,
+    countsEnabled: !activeSearch.similarSeed,
     queryKeyPrefix: ["filter-discovery", activeSearchExecutionToken],
   });
 
@@ -234,6 +248,14 @@ export function useSearchWorkspace({
   }, [focusedResultKey, resultRows]);
 
   function setSearch(next: SearchFormState) {
+    // Keyword entry intentionally replaces similarity, while ordinary filters retain it.
+    if (next.query.trim()) next = { ...next, similarSeed: null, mode: "text_search" };
+    else next = { ...next, mode: next.similarSeed ? "similar_records" : "browse" };
+    if (
+      next.filterError === SIMILAR_QUERY_CONFLICT &&
+      (next.query !== search.query || next.similarSeed !== search.similarSeed)
+    )
+      next = { ...next, filterError: null };
     const kind = filterDiscovery.filterEditor?.groups
       .flatMap((group) => group.fields)
       .find((field) => field.definition.path === "record.kind");
@@ -245,7 +267,8 @@ export function useSearchWorkspace({
       rememberKindPreference(next.filter, kind.definition);
     dispatch({ type: "search.changed", search: next });
     const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next)}`;
-    history.replaceState(null, "", url);
+    if (search.similarSeed !== next.similarSeed) history.pushState(null, "", url);
+    else history.replaceState(null, "", url);
   }
 
   function selectRecord(recordKey: string | null) {
@@ -363,4 +386,28 @@ function elapsedMilliseconds(startedAt: number): number {
 
 export function resetSearchState(): SearchFormState {
   return DEFAULT_SEARCH_STATE;
+}
+
+/** Expired or evicted server handles are reopened once from the committed criterion. */
+export async function readOrReopenResultWindow(
+  windowId: bigint,
+  search: SearchFormState,
+  pageNumber: number,
+  signal?: AbortSignal,
+) {
+  try {
+    return await readResultWindowPage(
+      windowId,
+      { page: { number: pageNumber, size: search.pageSize } },
+      signal,
+    );
+  } catch (error) {
+    if (
+      !(error instanceof AtlasApiError) ||
+      !["window_expired", "window_not_found"].includes(error.appError?.code ?? "") ||
+      signal?.aborted
+    )
+      throw error;
+    return openResultWindow(buildOpenRequest(search, pageNumber), signal);
+  }
 }

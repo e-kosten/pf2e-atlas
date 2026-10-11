@@ -1,10 +1,33 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { summaryFixture } from "../../test/fixtures";
 import type { ResultWindowPage } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
 describe("ResultPaneHeader", () => {
+  it("labels bounded similarity as Top matches without an exhaustive record total", () => {
+    render(
+      <ResultPaneHeader
+        workspace={workspace({
+          resultPage: {
+            ...resultWindowPage(),
+            mode: { kind: "similar_records", seed: summaryFixture("items:seed") },
+            coverage: {
+              exhaustive: false,
+              semantic_unit_window: 4096,
+              candidate_roots: 10,
+              count_basis: "bounded candidates",
+            },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Top matches")).toBeVisible();
+    expect(screen.queryByText(/candidate records|Bounded semantic/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
+  });
+
   it("lets users jump directly to a page", () => {
     const setPageNumber = vi.fn();
     render(<ResultPaneHeader workspace={workspace({ setPageNumber })} />);

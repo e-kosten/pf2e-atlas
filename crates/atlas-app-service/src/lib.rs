@@ -11,10 +11,13 @@ mod prepared_content;
 mod presentation;
 mod projection;
 mod records;
+mod related;
 mod retrieval;
 mod service;
 mod windows;
 
+#[cfg(test)]
+mod related_window_tests;
 #[cfg(test)]
 mod source_consumer_tests;
 #[cfg(test)]

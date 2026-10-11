@@ -408,62 +408,13 @@ pub(crate) async fn validate_filter(
     ))
 }
 
-pub(crate) async fn graph_context(
+pub(crate) async fn related_records(
     State(state): State<AtlasWebState>,
-    payload: Result<Json<atlas_app_model::GraphContextViewRequest>, JsonRejection>,
+    payload: Result<Json<atlas_app_model::RelatedRecordsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.graph_context(request)).await?,
-    ))
-}
-pub(crate) async fn remaster_links(
-    State(state): State<AtlasWebState>,
-    Path(key): Path<String>,
-) -> Result<impl IntoResponse, WebError> {
-    let key = atlas_domain::RecordKey::parse(&key).map_err(|e| {
-        WebError(atlas_app_model::AppError::new(
-            atlas_app_model::AppErrorCode::InvalidRecordKey,
-            e.to_string(),
-        ))
-    })?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || service.remaster_links(key)).await?,
-    ))
-}
-pub(crate) async fn variant_group(
-    State(state): State<AtlasWebState>,
-    Path(key): Path<String>,
-) -> Result<impl IntoResponse, WebError> {
-    let key = atlas_domain::RecordKey::parse(&key).map_err(|e| {
-        WebError(atlas_app_model::AppError::new(
-            atlas_app_model::AppErrorCode::InvalidRecordKey,
-            e.to_string(),
-        ))
-    })?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || service.variant_group(key)).await?,
-    ))
-}
-pub(crate) async fn similar_records(
-    State(state): State<AtlasWebState>,
-    Path(key): Path<String>,
-) -> Result<impl IntoResponse, WebError> {
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || {
-            service.similar_records(
-                key,
-                None,
-                atlas_app_model::SearchPageRequest {
-                    number: 1,
-                    size: 25,
-                },
-            )
-        })
-        .await?,
+        call_service(state, move || service.related_records(request)).await?,
     ))
 }

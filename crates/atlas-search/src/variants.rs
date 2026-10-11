@@ -18,6 +18,14 @@ pub struct VariantGroupResult {
     pub ambiguous: bool,
     pub truncated: bool,
 }
+/// Absence is only asserted after a complete compatibility check.
+#[derive(Debug, Clone)]
+pub enum VariantGroupOutcome {
+    Missing,
+    Empty,
+    Unavailable { reason: String },
+    Content(Box<VariantGroupResult>),
+}
 use crate::{AtlasRetrievalService, SearchError};
 use atlas_record::source_record::{ItemSourceView, SourceBackedRecord, SourceNodeView};
 fn naming(name: &str) -> (&str, &str, &str) {
@@ -70,12 +78,14 @@ impl AtlasRetrievalService {
     pub fn variant_group(
         &self,
         request: VariantGroupRequest<'_>,
-    ) -> Result<Option<VariantGroupResult>, SearchError> {
+    ) -> Result<VariantGroupOutcome, SearchError> {
         let Some(seed) = self.index.read_summary(request.record_key)? else {
-            return Ok(None);
+            return Ok(VariantGroupOutcome::Missing);
         };
         let Some(name) = seed.name.as_value() else {
-            return Ok(None);
+            return Ok(VariantGroupOutcome::Unavailable {
+                reason: "The seed name is unavailable for variant verification".into(),
+            });
         };
         let (base, _, _) = naming(name);
         let base = base.to_owned();
@@ -109,11 +119,18 @@ impl AtlasRetrievalService {
             SearchError::artifact_contract_violation("variant seed source absent")
         })?;
         let compatible = compatibility(&source);
+        if compatible.is_none() {
+            return Ok(VariantGroupOutcome::Unavailable {
+                reason: "The seed compatibility facts are unavailable".into(),
+            });
+        }
+        let mut insufficient_evidence = false;
         let mut variants = Vec::new();
         let mut evidence = Vec::new();
         let mut ambiguous = false;
         for record in self.summaries(&keys)? {
             let Some(name) = record.name.as_value() else {
+                insufficient_evidence = true;
                 continue;
             };
             let (candidate_base, qualifier, convention) = naming(name);
@@ -133,6 +150,7 @@ impl AtlasRetrievalService {
             };
             if compatible.is_none() || candidate_compatibility.is_none() {
                 ambiguous = true;
+                insufficient_evidence = true;
                 continue;
             }
             if compatible != candidate_compatibility {
@@ -153,7 +171,18 @@ impl AtlasRetrievalService {
             variants.push(record);
         }
         if variants.len() < 2 {
-            return Ok(None);
+            return Ok(if truncated || insufficient_evidence {
+                VariantGroupOutcome::Unavailable {
+                    reason: if truncated {
+                        "The bounded variant check was incomplete"
+                    } else {
+                        "Candidate compatibility facts are unavailable"
+                    }
+                    .into(),
+                }
+            } else {
+                VariantGroupOutcome::Empty
+            });
         };
         let mut qualifiers = std::collections::BTreeSet::new();
         for e in &evidence {
@@ -161,13 +190,13 @@ impl AtlasRetrievalService {
                 ambiguous = true;
             }
         }
-        Ok(Some(VariantGroupResult {
+        Ok(VariantGroupOutcome::Content(Box::new(VariantGroupResult {
             seed,
             base_name: base,
             variants,
             evidence,
             ambiguous,
             truncated,
-        }))
+        })))
     }
 }

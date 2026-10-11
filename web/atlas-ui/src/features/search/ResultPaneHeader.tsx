@@ -6,6 +6,7 @@ import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
 export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
   const page = workspace.resultPage?.page;
+  const similar = workspace.resultPage?.mode.kind === "similar_records";
   const displayedPageNumber = workspace.resultsRefreshing
     ? workspace.pageNumber
     : (page?.number ?? workspace.pageNumber);
@@ -21,10 +22,12 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         {workspace.resultsRefreshing
           ? "Updating results"
           : page
-            ? `${page.total.toLocaleString()} ${workspace.resultPage?.coverage?.exhaustive === false ? "candidate records" : "records"}`
+            ? similar
+              ? "Top matches"
+              : `${page.total.toLocaleString()} ${workspace.resultPage?.coverage?.exhaustive === false ? "candidate records" : "records"}`
             : "No result window yet"}
       </span>
-      {workspace.resultPage?.coverage?.exhaustive === false && (
+      {!similar && workspace.resultPage?.coverage?.exhaustive === false && (
         <Tooltip title={workspace.resultPage.coverage.count_basis}>
           <span>
             Bounded semantic search (

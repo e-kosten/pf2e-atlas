@@ -175,3 +175,6 @@ export type { UpdateEncounterRequest } from "../../../../crates/atlas-app-model/
 export type { UpdateSavedListRequest } from "../../../../crates/atlas-app-model/bindings/UpdateSavedListRequest";
 export type { VariantEvidenceView } from "../../../../crates/atlas-app-model/bindings/VariantEvidenceView";
 export type { VariantGroupView } from "../../../../crates/atlas-app-model/bindings/VariantGroupView";
+export type { RelatedCategoryView } from "../../../../crates/atlas-app-model/bindings/RelatedCategoryView";
+export type { RelatedRecordsRequest } from "../../../../crates/atlas-app-model/bindings/RelatedRecordsRequest";
+export type { RelatedRecordsView } from "../../../../crates/atlas-app-model/bindings/RelatedRecordsView";

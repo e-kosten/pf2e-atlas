@@ -1,3 +1,4 @@
+import { Button, Space, Typography } from "antd";
 import { ExternalLink } from "lucide-react";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterPanel } from "../../shared/filters/FilterPanel";
@@ -20,7 +21,35 @@ type SearchViewProps = {
 export function SearchView({ workspace }: SearchViewProps) {
   return (
     <WorkspaceLayout
-      filter={<FilterPanel workspace={workspace} />}
+      filter={
+        <>
+          {workspace.search.similarSeed && (
+            <Space wrap>
+              <Typography.Text>
+                {workspace.resultPage?.mode.kind === "similar_records" &&
+                workspace.resultPage.mode.seed.record_key ===
+                  workspace.search.similarSeed
+                  ? `Similar to ${workspace.resultPage.mode.seed.title}`
+                  : "Similar records"}
+              </Typography.Text>
+              <Button
+                size="small"
+                aria-label="Clear similar criterion"
+                onClick={() =>
+                  workspace.setSearch({
+                    ...workspace.search,
+                    similarSeed: null,
+                    mode: "browse",
+                  })
+                }
+              >
+                Clear
+              </Button>
+            </Space>
+          )}
+          <FilterPanel workspace={workspace} />
+        </>
+      }
       results={<ResultTable workspace={workspace} />}
       resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}
       selectedRecordKey={workspace.selectedRecordKey}

@@ -388,12 +388,14 @@ fn suggested_variants_report_ambiguity_without_alias_or_pair_evidence() {
         ],
         false,
     ));
-    let result = service
+    let VariantGroupOutcome::Content(result) = service
         .variant_group(VariantGroupRequest {
             record_key: &key("aaaaaaaaaaaaaaaa"),
         })
         .unwrap()
-        .unwrap();
+    else {
+        panic!("expected content");
+    };
     assert_eq!(result.variants.len(), 3);
     assert!(result.ambiguous);
     assert!(
@@ -435,12 +437,14 @@ fn suggested_physical_variants_require_known_category_and_reuse_seed_body() {
     )
     .unwrap();
     service.reset_read_metrics();
-    let result = service
+    let VariantGroupOutcome::Content(result) = service
         .variant_group(VariantGroupRequest {
             record_key: &key("aaaaaaaaaaaaaaaa"),
         })
         .unwrap()
-        .unwrap();
+    else {
+        panic!("expected content");
+    };
     assert_eq!(result.variants.len(), 2);
     assert!(
         result.ambiguous,
@@ -961,4 +965,181 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
         })
         .unwrap();
     assert!(empty.options.is_empty());
+}
+
+#[test]
+fn variant_absence_requires_complete_known_compatibility() {
+    let (_, known) = service(input(
+        vec![effect("aaaaaaaaaaaaaaaa", "Lesser Potion", 1, "")],
+        false,
+    ));
+    assert!(matches!(
+        known
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Empty
+    ));
+    assert!(matches!(
+        known
+            .variant_group(VariantGroupRequest {
+                record_key: &key("bbbbbbbbbbbbbbbb")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Missing
+    ));
+    let (_, unknown) = service(input(
+        vec![record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"weapon","name":"Lesser Blade","system":{"group":"sword"}}),
+        )],
+        false,
+    ));
+    assert!(matches!(
+        unknown
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Unavailable { .. }
+    ));
+    let mut records = vec![effect("aaaaaaaaaaaaaaaa", "Potion (Seed)", 1, "")];
+    for i in 0..257 {
+        records.push(effect(
+            &format!("{:016}", i),
+            &format!("Potion (Other{i})"),
+            1,
+            "",
+        ));
+    }
+    let (_, bounded) = service(input(records, false));
+    let VariantGroupOutcome::Content(result) = bounded
+        .variant_group(VariantGroupRequest {
+            record_key: &key("aaaaaaaaaaaaaaaa"),
+        })
+        .unwrap()
+    else {
+        panic!("content");
+    };
+    assert!(result.truncated);
+    assert!(result.variants.len() <= 256);
+}
+
+#[test]
+fn similar_filters_and_verified_remaster_policy_are_preserved() {
+    let mut fixture = input(
+        vec![
+            effect("aaaaaaaaaaaaaaaa", "Seed", 0, ""),
+            effect("bbbbbbbbbbbbbbbb", "Legacy", 1, ""),
+            effect("cccccccccccccccc", "Remastered", 2, ""),
+            effect("dddddddddddddddd", "Other", 3, ""),
+        ],
+        true,
+    );
+    fixture.remaster_pairs.push(SourceRemasterPairInput {
+        legacy: key("bbbbbbbbbbbbbbbb"),
+        remaster: key("cccccccccccccccc"),
+        evidence: "verified source relation".into(),
+    });
+    let (_, service) = service(fixture);
+    let filtered = service.parse_where("item.level >= 2").unwrap();
+    let result = service
+        .similar_records(SimilarRecordRequest {
+            record_key: &key("aaaaaaaaaaaaaaaa"),
+            filter: Some(filtered.predicate()),
+            scope: RecordScope::All,
+            page: SearchPage::default(),
+            prefer_remaster: true,
+        })
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.results.records.len(), 2);
+    assert!(result.results.records.iter().all(
+        |r| r.record.key != key("aaaaaaaaaaaaaaaa") && r.record.key != key("bbbbbbbbbbbbbbbb")
+    ));
+    let result = service
+        .similar_records(SimilarRecordRequest {
+            record_key: &key("aaaaaaaaaaaaaaaa"),
+            filter: None,
+            scope: RecordScope::All,
+            page: SearchPage::default(),
+            prefer_remaster: true,
+        })
+        .unwrap()
+        .unwrap();
+    assert!(
+        !result
+            .results
+            .records
+            .iter()
+            .any(|r| r.record.key == key("bbbbbbbbbbbbbbbb"))
+    );
+}
+
+#[test]
+fn generation_includes_preparation_context_beyond_navigation_fingerprint() {
+    let (_, service) = service(input(
+        vec![effect("aaaaaaaaaaaaaaaa", "Seed", 1, "")],
+        false,
+    ));
+    let original = service.artifact_generation().unwrap();
+    assert_eq!(original, service.artifact_context().sha256().unwrap());
+    let mut changed = service.artifact_context().clone();
+    changed.indexing_locale = "fr".into();
+    assert_eq!(changed.source_fingerprint, service.source_fingerprint());
+    assert_ne!(original, changed.sha256().unwrap());
+}
+
+#[test]
+fn unavailable_candidate_or_truncated_verification_is_not_a_known_empty_group() {
+    let weapon = |id: String, category: serde_json::Value| {
+        record(
+            "items",
+            "Item",
+            json!({"_id":id,"type":"weapon","name":format!("Blade ({id})"),"system":{"group":"sword","category":category}}),
+        )
+    };
+    let seed = weapon("aaaaaaaaaaaaaaaa".into(), json!("martial"));
+    let (_, unknown) = service(input(
+        vec![seed, weapon("bbbbbbbbbbbbbbbb".into(), json!(null))],
+        false,
+    ));
+    assert!(matches!(
+        unknown
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Unavailable { .. }
+    ));
+    let mut records = vec![weapon("aaaaaaaaaaaaaaaa".into(), json!("martial"))];
+    for i in 0..257 {
+        records.push(weapon(format!("{:016}", i), json!("simple")));
+    }
+    let (_, truncated) = service(input(records, false));
+    assert!(matches!(
+        truncated
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Unavailable { .. }
+    ));
+    let (_, empty) = service(input(
+        vec![
+            weapon("aaaaaaaaaaaaaaaa".into(), json!("martial")),
+            weapon("bbbbbbbbbbbbbbbb".into(), json!("simple")),
+        ],
+        false,
+    ));
+    assert!(matches!(
+        empty
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Empty
+    ));
 }

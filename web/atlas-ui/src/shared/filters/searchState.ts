@@ -3,15 +3,18 @@ import type {
   OpenResultWindowRequest,
   QueryPredicate,
 } from "../../generated/atlas";
+export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export type SearchFormState = {
   query: string;
-  mode: "browse" | "text_search";
+  mode: "browse" | "text_search" | "similar_records";
+  similarSeed: string | null;
   filter: QueryPredicate | null;
   filterError: string | null;
   pageSize: number;
 };
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
   query: "",
+  similarSeed: null,
   mode: "browse",
   filter: null,
   filterError: null,
@@ -25,7 +28,17 @@ export function buildOpenRequest(
   number: number,
 ): OpenResultWindowRequest {
   if (state.filterError) throw new Error(state.filterError);
+  if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
+  if (state.similarSeed)
+    return {
+      page,
+      mode: {
+        kind: "similar_records",
+        seed_record_key: state.similarSeed,
+        filter: state.filter,
+      },
+    };
   return {
     page,
     mode: state.query.trim()
@@ -39,7 +52,10 @@ export function buildOpenRequest(
   };
 }
 export function hasExecutableSearch(state: SearchFormState): boolean {
-  return !state.filterError && (state.query.trim().length > 0 || state.filter !== null);
+  return (
+    !state.filterError &&
+    (!!state.similarSeed || state.query.trim().length > 0 || state.filter !== null)
+  );
 }
 export function buildFilterDiscoveryContext(
   state: SearchFormState,
@@ -64,6 +80,7 @@ export function encodeSearchExecutionState(state: SearchFormState): string {
   return encodeURIComponent(
     JSON.stringify({
       query: state.query,
+      similarSeed: state.similarSeed,
       mode: state.mode,
       filter: state.filter,
       filterError: state.filterError,
@@ -74,6 +91,7 @@ export function encodeSearchExecutionState(state: SearchFormState): string {
 export function searchStateQueryString(state: SearchFormState): string {
   const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
+  if (state.similarSeed) params.set("similar", state.similarSeed);
   if (state.mode !== "browse") params.set("mode", state.mode);
   if (state.filter) params.set("filter", JSON.stringify(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
@@ -94,10 +112,17 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
     filterError = "Invalid structured filter URL";
   }
   const pageSize = Number(params.get("limit") || 25);
+  const similarSeed = params.get("similar")?.trim() || null;
+  if (similarSeed && params.get("q")?.trim()) filterError = SIMILAR_QUERY_CONFLICT;
   return {
     ...DEFAULT_SEARCH_STATE,
     query: params.get("q") || "",
-    mode: params.get("q")?.trim() ? "text_search" : "browse",
+    similarSeed,
+    mode: similarSeed
+      ? "similar_records"
+      : params.get("q")?.trim()
+        ? "text_search"
+        : "browse",
     filter,
     filterError,
     pageSize:
@@ -111,6 +136,7 @@ export function decodeSearchState(value: string | null): SearchFormState {
     return decodeSearchStateFromParams(
       new URLSearchParams({
         q: typeof parsed.query === "string" ? parsed.query : "",
+        similar: typeof parsed.similarSeed === "string" ? parsed.similarSeed : "",
         mode: parsed.mode === "text_search" ? "text_search" : "browse",
         filter: parsed.filter ? JSON.stringify(parsed.filter) : "",
         limit: String(parsed.pageSize || 25),
