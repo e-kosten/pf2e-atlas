@@ -36,13 +36,14 @@ pub enum QueryVocabularyBasis {
     ProductArtifactBeforeEditionPreference,
     ProductKeyScopeBeforeEditionPreference,
 }
+/// `selected_values` contains valid selected literals, including values absent
+/// from the suggestion page. `total_values` counts available values matching
+/// vocabulary text, excluding absent selections.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct QueryVocabulary {
     pub field: String,
     pub options: Vec<QueryVocabularyOption>,
-    /// Valid selected literals, including values absent from the suggestion page.
     pub selected_values: Vec<QueryLiteral>,
-    /// Available values matching vocabulary text, excluding absent selections.
     pub total_values: u64,
     pub basis: QueryVocabularyBasis,
 }

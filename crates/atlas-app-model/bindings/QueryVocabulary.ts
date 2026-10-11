@@ -3,12 +3,9 @@ import type { QueryLiteral } from "./QueryLiteral";
 import type { QueryVocabularyBasis } from "./QueryVocabularyBasis";
 import type { QueryVocabularyOption } from "./QueryVocabularyOption";
 
-export type QueryVocabulary = { field: string, options: Array<QueryVocabularyOption>, 
 /**
- * Valid selected literals, including values absent from the suggestion page.
+ * `selected_values` contains valid selected literals, including values absent
+ * from the suggestion page. `total_values` counts available values matching
+ * vocabulary text, excluding absent selections.
  */
-selected_values: Array<QueryLiteral>, 
-/**
- * Available values matching vocabulary text, excluding absent selections.
- */
-total_values: bigint, basis: QueryVocabularyBasis, };
+export type QueryVocabulary = { field: string, options: Array<QueryVocabularyOption>, selected_values: Array<QueryLiteral>, total_values: bigint, basis: QueryVocabularyBasis, };
