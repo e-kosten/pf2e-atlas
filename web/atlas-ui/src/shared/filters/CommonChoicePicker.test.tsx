@@ -8,13 +8,39 @@ import {
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Grid } from "antd";
-import { useState } from "react";
+import { useState, type ComponentProps, type ReactElement } from "react";
 import { CommonChoicePicker } from "./CommonChoicePicker";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import type { FilterVocabularyScope, QueryPredicate } from "../../generated/atlas";
 
 const api = vi.hoisted(() => ({ discoverFilterValues: vi.fn() }));
+const popup = vi.hoisted(() => ({
+  deferred: false,
+  mount: null as (() => void) | null,
+  complete: null as ((open: boolean) => void) | null,
+}));
 vi.mock("../../api/atlasApi", () => api);
+vi.mock("antd", async (importOriginal) => {
+  const original = await importOriginal<typeof import("antd")>();
+  const react = await import("react");
+  function Popover(props: ComponentProps<typeof original.Popover>) {
+    const [mounted, setMounted] = react.useState(false);
+    if (!popup.deferred) return <original.Popover {...props} />;
+    // Model native portal/motion readiness independently of the parent render.
+    // Keep hidden content mounted during closing, as a popup motion can do.
+    popup.mount = () => setMounted(true);
+    popup.complete = props.afterOpenChange ?? null;
+    return (
+      <>
+        {react.cloneElement(props.children as ReactElement<{ onClick: () => void }>, {
+          onClick: () => props.onOpenChange?.(!props.open),
+        })}
+        {mounted && <div hidden={!props.open}>{props.content as ReactElement}</div>}
+      </>
+    );
+  }
+  return { ...original, Popover };
+});
 function picker({
   closed = true,
   initial = null,
@@ -60,6 +86,9 @@ function open() {
 }
 describe("compact common choice picker", () => {
   beforeEach(() => {
+    popup.deferred = false;
+    popup.mount = null;
+    popup.complete = null;
     vi.clearAllMocks();
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
     api.discoverFilterValues.mockImplementation(async (request) => ({
@@ -77,6 +106,42 @@ describe("compact common choice picker", () => {
     }));
   });
   afterEach(() => vi.restoreAllMocks());
+  it("focuses the search after first portal readiness and reopening without stealing row or closing focus", async () => {
+    popup.deferred = true;
+    picker();
+    const trigger = screen.getByRole("button", { name: "Edit Traits filter" });
+    trigger.focus();
+    open();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    act(() => popup.mount?.());
+    const search = screen.getByRole("textbox", { name: "Search traits choices" });
+    expect(trigger).toHaveFocus();
+    act(() => popup.complete?.(true));
+    await waitFor(() => expect(search).toHaveFocus());
+    const row = screen.getByRole("button", {
+      name: "Traits: fire, neutral; activate to include",
+    });
+    row.focus();
+    fireEvent.click(row);
+    await waitFor(() =>
+      expect(row).toHaveAccessibleName("Traits: fire, included; activate to exclude"),
+    );
+    expect(row).toHaveFocus();
+    fireEvent.keyDown(row, { key: "Escape" });
+    expect(trigger).toHaveFocus();
+    // A delayed opening completion after closing must not steal focus, even
+    // while Ant retains the mounted input during the closing animation.
+    act(() => popup.complete?.(true));
+    expect(trigger).toHaveFocus();
+    open();
+    expect(trigger).toHaveFocus();
+    act(() => popup.complete?.(true));
+    expect(search).toHaveFocus();
+    fireEvent.keyDown(search, { key: "Escape" });
+    act(() => popup.complete?.(false));
+    expect(trigger).toHaveFocus();
+  });
   it("shows only active selections when closed and keeps searched catalog rows in order through edits", async () => {
     const change = picker();
     expect(screen.queryByText("fire")).not.toBeInTheDocument();
@@ -84,7 +149,7 @@ describe("compact common choice picker", () => {
     open();
     const menu = screen.getByRole("dialog", { name: "Traits choices" });
     const search = within(menu).getByRole("textbox", { name: "Search traits choices" });
-    expect(search).toHaveFocus();
+    await waitFor(() => expect(search).toHaveFocus());
     fireEvent.change(search, { target: { value: "fi" } });
     expect(within(menu).queryByText("cold")).not.toBeInTheDocument();
     const row = within(menu).getByRole("button", {

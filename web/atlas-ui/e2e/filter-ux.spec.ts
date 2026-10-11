@@ -112,6 +112,45 @@ test("narrow advanced filters use a native drawer with keyboard focus return", a
   await expect(trigger).toBeFocused();
 });
 
+for (const width of [1680, 820]) {
+  test(`compact choices focus search on first keyboard open and reopen at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto("/search");
+    const trigger = page.getByRole("button", {
+      name: "Edit Kind filter",
+      exact: true,
+    });
+    await trigger.focus();
+    await trigger.press("Enter");
+    const menu = page.getByRole("dialog", { name: "Kind choices", exact: true });
+    const input = menu.getByRole("textbox", { name: "Search kind choices" });
+    await expect(input).toBeFocused();
+    await input.fill("Creature");
+    await input.press("Tab");
+    const row = menu.getByRole("button", { name: /^Kind: Creature,/ });
+    await expect(row).toBeFocused();
+    await expect(row).toHaveAccessibleName(
+      "Kind: Creature, neutral; activate to include",
+    );
+    await row.press("Enter");
+    await expect(row).toBeFocused();
+    await expect(row).toHaveAccessibleName(
+      "Kind: Creature, included; activate to exclude",
+    );
+    await row.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await trigger.press("Enter");
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue("");
+    await input.press("Escape");
+    await expect(menu).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+}
+
 test("compact choices keep keyboard focus, mix states and dismiss their mobile drawer", async ({
   page,
 }) => {
@@ -126,9 +165,11 @@ test("compact choices keep keyboard focus, mix states and dismiss their mobile d
   await expect(input).not.toBeFocused();
   await input.fill("Creature");
   const row = drawer.getByRole("button", {
-    name: "Kind: Creature, neutral; activate to include",
-    exact: true,
+    name: /^Kind: Creature,/,
   });
+  await expect(row).toHaveAccessibleName(
+    "Kind: Creature, neutral; activate to include",
+  );
   await row.focus();
   await row.press("Enter");
   await expect(row).toBeFocused();
