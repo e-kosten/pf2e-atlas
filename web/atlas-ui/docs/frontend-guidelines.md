@@ -7,6 +7,9 @@ The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant D
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.
 - Rust `atlas-app-model` and `atlas-app-service` own product DTOs and workflow semantics.
 - Frontend code should not recreate filter catalogs, retrieval semantics, saved-list behavior, encounter mutation rules, or record presentation contracts that already come from the backend.
+- Shared family presentation components render the same generated semantic facts
+  in detail, previews, comparisons and encounters. Feature modules compose their
+  controls around those components; they do not copy the family layout.
 
 ## Shared UI Layer
 
@@ -21,6 +24,12 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `actions/confirmDangerAction.tsx`: confirmation helper for cases that are not naturally buttons.
 
 Feature modules should pass feature-specific labels, requests, mutations, and DTOs into these primitives. They should not copy the primitive behavior into local components.
+
+Create components for a clear responsibility or actual reuse need. Keep repeated
+fact formatting and family layouts in shared presentation owners, and reuse those
+owners across features. Avoid both feature-local copies of the same design and
+trivial component proliferation that adds indirection without reuse or meaning.
+Check visual consistency across surfaces, density modes, themes and viewport sizes.
 
 ## Ant Design
 
@@ -64,6 +73,14 @@ Render generated app DTOs. Prepared content is sanitized HTML with field-local r
 Use react-querybuilder with its maintained Ant integration for structured predicates. Backend descriptors supply fields, operators, units, choices, and discovery policy. The adapter translates presentation state to the shared QueryPredicate; it does not parse CEL or infer fields from records. Reject unsafe integer input before creating numeric literals. Unsupported contextual facet requests display the backend error while leaving supported query execution available.
 
 Reference previews use native Ant Popover positioning. Source content in an encounter loads only on an explicit request. HP mutations carry explicit edit intent; unknown current HP disables arithmetic and remains unknown until explicitly set.
+
+Use the semantic family union rather than a generic section/value/profile layout
+interpreter. Availability belongs to the backend facts; known zero, false and
+empty differ from unavailable parents. Omit cosmetic empty or not-applicable
+sections while retaining meaningful unknown facts. Authored spell forms are
+changes to the base, including explicit clears, not calculated effective forms.
+Complete owner/field/passage/fingerprint identity drives shared detail queries
+and all reader/preview transitions.
 
 Live browser checks use the maintained Playwright runner against a separately started real Atlas server and isolated local state:
 

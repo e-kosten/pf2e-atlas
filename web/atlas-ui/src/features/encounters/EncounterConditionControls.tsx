@@ -39,7 +39,7 @@ export function EncounterConditionControls({
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -218,7 +218,7 @@ function ConditionEditor({
   participantKey: string;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onRemove: (participantKey: string, conditionId: bigint) => void;
   onUpdate: (
     participantKey: string,
@@ -276,10 +276,7 @@ function ConditionEditor({
         <button
           className="encounter-condition-row__name encounter-condition-row__name-button"
           onClick={(event) =>
-            onReference(
-              condition.condition_key!,
-              event.currentTarget.getBoundingClientRect(),
-            )
+            onReference(condition.condition_key!, event.currentTarget)
           }
           type="button"
         >

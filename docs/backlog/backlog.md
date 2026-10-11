@@ -39,11 +39,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust CLI typo tolerant discovery](items/rust-cli-typo-tolerant-discovery.md)
   Track backend-independent typo suggestions, corpus-token dictionaries, and acronym expansion without weakening strict record resolution. Status: proposed.
 
-- [Record presentation and UI architecture review](items/rust-web-ui-architecture-review.md)
-  Review from ingest through borrowed views and app contracts to CLI/UI, using
-  the earlier integration branch for feature inspiration. Refine presentation
-  boundaries before family-specific UI expansion. Status: proposed.
-
 - [Rust web filter UX expansion](items/rust-web-filter-ux-expansion.md)
   Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: proposed.
 

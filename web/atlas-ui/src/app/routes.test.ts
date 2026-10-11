@@ -7,7 +7,6 @@ import {
   listPath,
   listsPath,
   navigateToAtlasRoute,
-  presentationMocksPath,
   searchPath,
 } from "./routes";
 
@@ -32,7 +31,7 @@ describe("atlas routes", () => {
     expect(currentAtlasRoute()).toEqual({ kind: "record", recordKey: "spell:heal" });
 
     history.replaceState(null, "", "/presentation-mocks");
-    expect(currentAtlasRoute()).toEqual({ kind: "presentationMocks" });
+    expect(currentAtlasRoute()).toEqual({ kind: "search", selectedRecordKey: null });
 
     history.replaceState(null, "", "/lists");
     expect(currentAtlasRoute()).toEqual({ kind: "lists" });
@@ -99,7 +98,6 @@ describe("atlas routes", () => {
     expect(atlasRoutePath({ kind: "search", selectedRecordKey: "spell:heal" })).toBe(
       "/search/records/spell%3Aheal",
     );
-    expect(atlasRoutePath({ kind: "presentationMocks" })).toBe("/presentation-mocks");
     expect(
       atlasRoutePath({
         kind: "encounterEdit",
@@ -127,7 +125,6 @@ describe("atlas routes", () => {
     expect(searchPath()).toBe("/search");
     expect(searchPath(null)).toBe("/search");
     expect(searchPath("spell:heal")).toBe("/search/records/spell%3Aheal");
-    expect(presentationMocksPath()).toBe("/presentation-mocks");
   });
 
   it("builds list workspace paths", () => {
