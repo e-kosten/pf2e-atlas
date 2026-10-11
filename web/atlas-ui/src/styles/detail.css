@@ -46,7 +46,7 @@
 
 .record-view {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: var(--pane-columns, minmax(0, 1fr));
   column-gap: 0;
   row-gap: var(--panel-gap);
   height: 100%;

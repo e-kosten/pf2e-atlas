@@ -124,6 +124,7 @@
 
 .workspace-grid {
   display: grid;
+  grid-template-columns: var(--pane-columns);
   column-gap: 0;
   row-gap: var(--panel-gap);
   height: 100%;
@@ -137,6 +138,11 @@
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
+}
+
+.workspace-pane--results {
+  container-name: results-pane;
+  container-type: inline-size;
 }
 
 .workspace-pane > .filter-panel,
@@ -217,6 +223,34 @@
 
 .result-pane-header > span {
   max-width: 160px;
+}
+
+@container results-pane (max-width: 600px) {
+  .pane-header {
+    flex-wrap: wrap;
+    padding-block: 6px;
+  }
+
+  .pane-header__actions {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .result-pane-header {
+    flex: 1;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .result-pane-header > span {
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .result-pane-header > .pager {
+    flex-wrap: wrap;
+  }
 }
 
 .pane-toggle:hover,
