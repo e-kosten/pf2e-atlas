@@ -35,8 +35,8 @@ pub use input::{
 };
 pub use query::{ValidatedQuery, parse_where, query_capabilities, validate_query};
 pub use read_content::{
-    SourceContentBundle, SourceRelationshipBundle, SourceRelationshipDirection,
-    SourceRelationshipRequest,
+    SourceAttributedContentBundle, SourceContentBundle, SourceRelationshipBundle,
+    SourceRelationshipDirection, SourceRelationshipRequest,
 };
 pub use read_units::{
     SourceIdentityMatch, SourceIdentityVector, SourceKeyPage, SourceLexicalHit,

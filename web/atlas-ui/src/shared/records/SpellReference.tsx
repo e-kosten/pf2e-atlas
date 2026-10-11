@@ -217,13 +217,7 @@ function Heightening({ fact }: { fact: FactView<SpellHeighteningView> }) {
     </section>
   );
 }
-export function SpellReference({
-  spell,
-  compact = false,
-}: {
-  spell: SpellPresentationView;
-  compact?: boolean;
-}) {
+export function SpellReference({ spell }: { spell: SpellPresentationView }) {
   return (
     <div className="spell-reference">
       <div className="spell-reference__casting">
@@ -254,7 +248,7 @@ export function SpellReference({
         )}
       </div>
       <DamageComponents damage={spell.damage} />
-      {!compact && (
+      {
         <>
           <Heightening fact={spell.heightening} />
           {spell.forms.value?.length ? (
@@ -283,7 +277,7 @@ export function SpellReference({
             <FactLine label="Spell forms" fact={spell.forms} />
           )}
         </>
-      )}
+      }
     </div>
   );
 }

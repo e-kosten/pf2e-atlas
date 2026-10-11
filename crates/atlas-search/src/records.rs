@@ -135,6 +135,12 @@ impl AtlasRetrievalService {
     ) -> Result<SourceContentBundle, SearchError> {
         Ok(self.index.read_content(locators)?)
     }
+    pub fn read_attributed_content(
+        &self,
+        locators: &[SourceContentLocator],
+    ) -> Result<atlas_index::SourceAttributedContentBundle, SearchError> {
+        Ok(self.index.read_attributed_content(locators)?)
+    }
     pub fn recover_passage(
         &self,
         location: &atlas_index::SourceUnitLocation,

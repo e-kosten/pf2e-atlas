@@ -110,19 +110,3 @@
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;
 }
-
-.detail-panel.detail-panel--inline {
-  --record-inset: 0px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  overflow: visible;
-}
-.detail-panel--inline > .record-reference {
-  --record-inset: 0px;
-}
-.detail-panel--inline .detail-empty {
-  min-height: 80px;
-  padding: 12px 0;
-}

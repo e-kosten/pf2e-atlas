@@ -1,4 +1,6 @@
-import { Button, Collapse, Popover, Tag } from "antd";
+import { Alert, Button, Collapse, Popover, Tag } from "antd";
+import { Link2 } from "lucide-react";
+import { useEffect, useId, useRef } from "react";
 import type {
   ActorActivityView,
   ActorPresentationView,
@@ -16,8 +18,14 @@ import {
   isEmptyFactValue,
 } from "./presentationFacts";
 import type { RecordReferenceHandler } from "./PreparedContent";
-import { OwnedActivityDisclosure } from "./OwnedActivityDisclosure";
+import { OwnedAbilityReading, type OwnedReadingContext } from "./OwnedAbilityReading";
 import { ActionCost } from "./ActionCost";
+import { activityAddress, activityAnchor } from "./ownedNavigation";
+import {
+  atlasRoutePath,
+  navigateToAtlasRoute,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
 
 function qualifierText<T extends string | string[]>(
   fact: FactView<T>,
@@ -159,14 +167,12 @@ function Iwr({ label, fact }: { label: string; fact: FactView<IwrEntryView[]> })
 
 export function ActorFacts({
   actor,
-  compact = false,
   hazard = false,
   hideHitPoints = false,
   encounter = false,
   hidePrimaryDefenses = false,
 }: {
   actor: ActorPresentationView;
-  compact?: boolean;
   hazard?: boolean;
   hideHitPoints?: boolean;
   encounter?: boolean;
@@ -184,7 +190,7 @@ export function ActorFacts({
     actor.perception,
     actor.senses,
     ...(!encounter ? [actor.perception_details] : []),
-    ...(!compact && !encounter ? [actor.languages, actor.language_details] : []),
+    ...(!encounter ? [actor.languages, actor.language_details] : []),
   ];
   return (
     <div
@@ -249,7 +255,7 @@ export function ActorFacts({
           {!encounter && (
             <FactLine label="Perception details" fact={actor.perception_details} />
           )}
-          {!compact && !encounter && (
+          {!encounter && (
             <>
               <FactLine
                 label="Languages"
@@ -261,7 +267,7 @@ export function ActorFacts({
           )}
         </div>
       )}
-      {!compact && !hazard && !encounter && <ActorSkills actor={actor} />}
+      {!hazard && !encounter && <ActorSkills actor={actor} />}
       {!hazard &&
         (hasReadingFact(actor.land_speed) || hasReadingFact(actor.movement)) && (
           <section className="actor-reference__movement">
@@ -475,15 +481,54 @@ export function ActorActivity({
   onReference,
   selected = false,
   hideCost = false,
+  inline = false,
+  permalink = true,
 }: {
   activity: ActorActivityView;
   onReference: RecordReferenceHandler;
   selected?: boolean;
   hideCost?: boolean;
+  inline?: boolean;
+  permalink?: boolean;
 }) {
+  const id = useId();
+  const route = {
+    kind: "record" as const,
+    recordKey: activity.navigation.record_key,
+    selection: activity.navigation,
+  };
   return (
-    <div className="actor-activity">
-      {!selected && (
+    <div
+      className="actor-activity"
+      data-atlas-activity-anchor={
+        !inline ? activityAnchor(activity.navigation) : undefined
+      }
+    >
+      {inline && (
+        <h4
+          id={`${id}-${activityAnchor(activity.navigation)}`}
+          data-atlas-activity-anchor={activityAnchor(activity.navigation)}
+          tabIndex={-1}
+          className="actor-activity__title"
+        >
+          {activity.title} <ActionCost fact={activity.action_cost} />
+          {permalink && (
+            <Button
+              type="link"
+              size="small"
+              icon={<Link2 size={14} aria-hidden="true" />}
+              aria-label={`Open ${activity.title} full reference`}
+              href={atlasRoutePath(route)}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
+                navigateToAtlasRoute(route);
+              }}
+            />
+          )}
+        </h4>
+      )}
+      {!selected && !inline && (
         <Button
           type="link"
           style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
@@ -498,7 +543,7 @@ export function ActorActivity({
           {activity.title}
         </Button>
       )}
-      {!hideCost && <ActionCost fact={activity.action_cost} />}
+      {!hideCost && !inline && <ActionCost fact={activity.action_cost} />}
       {activity.usage && !isEmptyFactValue(activity.usage) && (
         <Tag>{activity.usage}</Tag>
       )}
@@ -570,10 +615,46 @@ export function ActorActivity({
 export function ActorActivities({
   actor,
   onReference,
+  encounter = false,
+  reading,
 }: {
   actor: ActorPresentationView;
   onReference: RecordReferenceHandler;
+  encounter?: boolean;
+  reading?: OwnedReadingContext;
 }) {
+  const container = useRef<HTMLDivElement>(null);
+  const target = reading?.landing;
+  const targetActivity = target
+    ? actor.activities.value?.find(
+        (activity) => activityAnchor(activity.navigation) === activityAnchor(target),
+      )
+    : undefined;
+  useEffect(() => {
+    if (!target || !targetActivity || targetActivity.kind === "ability") return;
+    const element = Array.from(
+      container.current?.querySelectorAll<HTMLElement>(
+        "[data-atlas-activity-anchor]",
+      ) ?? [],
+    ).find(
+      (candidate) => candidate.dataset.atlasActivityAnchor === activityAnchor(target),
+    );
+    if (element) {
+      element.scrollIntoView?.({ block: "start" });
+      (element.querySelector<HTMLElement>("button,a[href]") ?? element).focus({
+        preventScroll: true,
+      });
+    }
+  }, [target, targetActivity]);
+  const abilityReading = reading
+    ? {
+        ...reading,
+        landing:
+          targetActivity?.kind === "ability"
+            ? activityAddress(targetActivity.navigation)
+            : undefined,
+      }
+    : undefined;
   const groups: Array<[ActorActivityView["kind"][], string]> = [
     [["strike"], "Strikes"],
     [["ability"], "Abilities"],
@@ -582,7 +663,14 @@ export function ActorActivities({
     [["other"], "Other owned records"],
   ];
   return (
-    <div className="actor-reference__mechanics">
+    <div ref={container} className="actor-reference__mechanics">
+      {target && !targetActivity && (
+        <Alert
+          type="info"
+          title="Reading position unavailable"
+          description="This activity is not present at the checked address in the current reference. Reload the reference to recover its current contents."
+        />
+      )}
       <div className="actor-reference__actions">
         {actor.activities.state !== "value" &&
           actor.activities.state !== "not_applicable" && (
@@ -593,24 +681,25 @@ export function ActorActivities({
             kinds.includes(activity.kind),
           );
           return activities.length ? (
-            <section className="actor-reference__activities" key={title}>
-              <h3>{title}</h3>
-              {activities.map((activity, index) =>
-                activity.kind === "ability" ? (
-                  <OwnedActivityDisclosure
-                    key={JSON.stringify(activity.navigation)}
-                    activity={activity}
-                    onReference={onReference}
-                  />
-                ) : (
+            title === "Abilities" && !encounter ? (
+              <OwnedAbilityReading
+                key={title}
+                abilities={activities}
+                context={abilityReading}
+                onReference={onReference}
+              />
+            ) : (
+              <section className="actor-reference__activities" key={title}>
+                <h3>{title}</h3>
+                {activities.map((activity, index) => (
                   <ActorActivity
                     key={index}
                     activity={activity}
                     onReference={onReference}
                   />
-                ),
-              )}
-            </section>
+                ))}
+              </section>
+            )
           ) : null;
         })}
       </div>
@@ -723,7 +812,11 @@ function CastingSpells({
     <div className="actor-casting__rows">
       {spells.length ? (
         spells.map((spell) => (
-          <div className="actor-casting__row" key={JSON.stringify(spell.navigation)}>
+          <div
+            className="actor-casting__row"
+            key={JSON.stringify(spell.navigation)}
+            data-atlas-activity-anchor={activityAnchor(spell.navigation)}
+          >
             <Button
               type="link"
               size="small"

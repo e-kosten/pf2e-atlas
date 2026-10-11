@@ -100,6 +100,7 @@ pub(super) fn render_record(
         let rendered = match &field.body {
             PreparedFieldBodyView::Html { html, .. } => render_html(html, width)?,
             PreparedFieldBodyView::Plain { text } => text.clone(),
+            PreparedFieldBodyView::Bounded { reason } => reason.clone(),
             PreparedFieldBodyView::Unavailable {
                 state: QueryFieldState::NotApplicable,
             } => continue,

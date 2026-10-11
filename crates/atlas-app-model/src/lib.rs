@@ -5,6 +5,7 @@ mod error;
 mod filter;
 mod graph;
 mod list;
+mod owned_reading;
 mod prepared_content;
 mod presentation;
 mod readiness;
@@ -49,6 +50,10 @@ pub use list::{
     SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
     SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
     SavedListUpdateView, UpdateSavedListRequest,
+};
+pub use owned_reading::{
+    OwnedReadingBatchView, OwnedReadingCursor, OwnedReadingEntryView, OwnedReadingRequest,
+    OwnedReadingSelection,
 };
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
@@ -117,6 +122,8 @@ mod tests {
 
     fn export_bindings_to(path: &Path) {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
+        OwnedReadingRequest::export_all_to(path).expect("owned reading request bindings");
+        OwnedReadingBatchView::export_all_to(path).expect("owned reading response bindings");
         RelatedRecordsView::export_all_to(path).expect("related bindings");
         RelatedRecordsRequest::export_all_to(path).expect("related request bindings");
         RecordListView::export_all_to(path).expect("graph bindings");

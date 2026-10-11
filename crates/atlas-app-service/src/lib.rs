@@ -7,6 +7,7 @@ mod executor;
 mod filter;
 mod filters;
 mod lists;
+mod owned_reading;
 mod prepared_content;
 mod presentation;
 mod projection;
@@ -16,6 +17,8 @@ mod retrieval;
 mod service;
 mod windows;
 
+#[cfg(test)]
+mod owned_reading_tests;
 #[cfg(test)]
 mod related_window_tests;
 #[cfg(test)]

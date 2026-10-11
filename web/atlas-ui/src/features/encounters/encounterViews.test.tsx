@@ -9,7 +9,14 @@ import {
 } from "../../test/fixtures";
 import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   EncounterDetailView as EncounterDetailViewDto,
@@ -34,6 +41,7 @@ const apiMocks = vi.hoisted(() => ({
   getEncounterConditionDefinitions: vi.fn(),
   getEncounters: vi.fn(),
   getRecordDetail: vi.fn(),
+  getOwnedReading: vi.fn(),
   openResultWindow: vi.fn(),
   removeEncounterParticipant: vi.fn(),
   removeEncounterParticipantCondition: vi.fn(),
@@ -54,6 +62,7 @@ vi.mock("../../api/atlasApi", () => ({
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
   getEncounters: apiMocks.getEncounters,
   getRecordDetail: apiMocks.getRecordDetail,
+  getOwnedReading: apiMocks.getOwnedReading,
   openResultWindow: apiMocks.openResultWindow,
   removeEncounterParticipant: apiMocks.removeEncounterParticipant,
   removeEncounterParticipantCondition: apiMocks.removeEncounterParticipantCondition,
@@ -551,6 +560,95 @@ describe("encounter views", () => {
     );
   });
 
+  it("quick lookup uses content-only transport and recomposes current encounter activity after updates", async () => {
+    const initial = encounterDetailFixture();
+    const activity = initial.participants[0].presentation!.body;
+    if (activity.kind !== "creature") throw new Error("expected creature fixture");
+    const claw = activity.value.activities.value![0];
+    apiMocks.getOwnedReading.mockResolvedValue({
+      artifact_generation: initial.artifact_generation,
+      parent: {
+        record_key: "actors:goblin",
+        owners: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+      availability: "value",
+      total: 1,
+      start: 0,
+      end: 1,
+      previous: null,
+      next: null,
+      entries: [
+        {
+          navigation: claw.navigation,
+          relationships: [],
+          content: [
+            {
+              locator: {
+                record: "actors:goblin",
+                owners: claw.navigation.owners,
+                field: "/system/description/value",
+              },
+              role: "description",
+              source_fingerprint: null,
+              body: { kind: "plain", text: "Customized participant Claw prose" },
+            },
+          ],
+        },
+      ],
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <App>
+            <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />
+          </App>
+        </ConfigProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Claw" }));
+    const preview = await screen.findByLabelText("Reference preview");
+    await waitFor(() =>
+      expect(
+        within(preview).getByText("Customized participant Claw prose"),
+      ).toBeVisible(),
+    );
+    expect(within(preview).getByText("+12")).toBeVisible();
+    expect(apiMocks.getOwnedReading).toHaveBeenCalledWith(
+      expect.objectContaining({
+        artifact_generation: initial.artifact_generation,
+        selection: { kind: "activity", navigation: claw.navigation },
+      }),
+      expect.any(AbortSignal),
+    );
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
+    const updated = encounterDetailFixture();
+    if (updated.participants[0].presentation!.body.kind !== "creature")
+      throw new Error("expected creature fixture");
+    updated.participants[0].presentation!.body.value.activities.value![0].attack =
+      numberFact(19);
+    updated.participants[0].presentation!.body.value.activities.value![0].notes = [
+      {
+        source: "Elite",
+        label: "Elite",
+        reason: "Current source adjustment retained.",
+      },
+    ];
+    act(() => client.setQueryData(["encounter", "ambush"], updated));
+    await waitFor(() => expect(within(preview).getByText("+19")).toBeVisible());
+    expect(within(preview).queryByText("+12")).toBeNull();
+    expect(
+      within(preview).getByText("Elite: Current source adjustment retained."),
+    ).toBeVisible();
+    expect(apiMocks.getOwnedReading).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
+  });
+
   it("opens condition reference previews from canonical condition rows", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -1030,6 +1128,7 @@ function encounterDetailFixture(
   firstParticipantOverrides: Partial<EncounterParticipantView> = {},
 ): EncounterDetailViewDto {
   return {
+    artifact_generation: "test-generation",
     encounter: encounterIndexFixture().encounters[0],
     note: "Encounter note",
     current_turn_participant_key: currentTurnParticipantKey,

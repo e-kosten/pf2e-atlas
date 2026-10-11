@@ -1,3 +1,4 @@
+import type React from "react";
 import {
   atlasRoutePath,
   currentAtlasRoute,
@@ -9,6 +10,9 @@ import {
   navigateToAtlasRoute,
   searchPath,
   parseAtlasRoute,
+  ownerReturnPath,
+  navigateToAtlasPath,
+  shouldHandleAtlasRouteClick,
 } from "./routes";
 
 describe("atlas routes", () => {
@@ -178,3 +182,47 @@ describe("atlas routes", () => {
     });
   });
 });
+
+it.each(["search", "list", "reader"])(
+  "returns an owned selection to its known %s context with distinct exact landing and native href",
+  (kind) => {
+    const parent = "actors:checked";
+    const selection = {
+      record_key: parent,
+      owners: [{ collection: "/items", identity: { SnapshotLocal: { index: 400 } } }],
+      field: null,
+      passage: null,
+      source_fingerprint: "checked-snapshot",
+    };
+    const query =
+      "?similar=spells%3Aseed&filter=%7B%22kind%22%3A%22in%22%2C%22clause_id%22%3A%22kind%22%2C%22field%22%3A%22record.kind%22%2C%22values%22%3A%5B%22Creature%22%5D%7D&q=";
+    const original =
+      kind === "search"
+        ? "/search/records/actors:checked" + query
+        : kind === "list"
+          ? "/lists/session/records/actors:checked" + query
+          : "/reader/actors:checked" + query;
+    history.replaceState(null, "", original);
+    navigateToAtlasRoute({ kind: "record", recordKey: parent, selection });
+    const selectedUrl = window.location.pathname + window.location.search;
+    const href = ownerReturnPath(parent, selection);
+    const url = new URL(href, window.location.origin);
+    expect(url.pathname).toBe(original.split("?")[0]);
+    expect(url.searchParams.get("similar")).toBe("spells:seed");
+    expect(url.searchParams.get("filter")).toBe(
+      '{"kind":"in","clause_id":"kind","field":"record.kind","values":["Creature"]}',
+    );
+    expect(JSON.parse(url.searchParams.get("landing")!)).toEqual(selection);
+    expect(url.searchParams.has("selection")).toBe(false);
+    expect(
+      shouldHandleAtlasRouteClick({
+        button: 0,
+        defaultPrevented: false,
+        ctrlKey: true,
+      } as React.MouseEvent<HTMLElement>),
+    ).toBe(false);
+    expect(window.location.pathname + window.location.search).toBe(selectedUrl);
+    navigateToAtlasPath(href);
+    expect(currentAtlasRoute()).toMatchObject({ kind, landing: selection });
+  },
+);

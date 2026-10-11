@@ -208,10 +208,27 @@ change. `RelatedRecords` is the shared secondary disclosure inside that pane.
 Reference composition puts prose first and groups facts/mechanics according to
 pane width. Encounter composition puts current HP, conditions and actions first;
 participant edits and maximum-HP configuration live in secondary disclosures.
-Owned abilities expand lazily using the existing selected-detail request and
-shared loading/error/content renderer, preserving parent context and an explicit
-native full-page link. Inline details use an unframed mode of the shared pane;
-their disclosure supplies the identity and action cost once. Keep secondary
+Immediate Ability-class activities read inline by default through bounded
+owned-reading batches, with an optional whole-section Collapse. The existing
+activity facts supply the title and action cost once; shared prepared content
+supplies authored controls and exact relationships. Keep partial content in its
+own full-generation/parent/target cache, never in selected-detail cache. Scroll
+progression must use the actual container (including native overlays and comparison),
+not viewport visibility alone. Idle visible continuation cannot drain a collection;
+collapse halts future requests and late errors retain text with local retry.
+Direct late-owner landing loads only its bounded range and exposes earlier/next
+continuation honestly. Complete owner anchors and landing state stay distinct
+from selected addresses. Native small permalinks and parent breadcrumbs retain
+modified clicks and known search/list/reader history context. Compact reference
+presentation changes density without suppressing content, facts or availability.
+
+Encounter quick lookup uses the same activity and prepared-content components in
+native Popover/Drawer. Its query caches only requested authored prose; resolve the
+current exact participant activity facts and explanations on every render.
+Participant/generation changes, disappearance and unresolved sources remain
+explicit without baseline-detail fallback. Keep the native full reference link,
+ready-lifecycle initial focus, nested source-modal Escape and original trigger
+focus recovery. Keep secondary
 encounter facts below usable actions in a local disclosure rather than placing
 all reference facts before the combat actions. Selected casting entries show their checked parent and
 associated customized spells; base and authored cast ranks do not imply executed

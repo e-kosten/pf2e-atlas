@@ -148,6 +148,10 @@ export function PreparedContent({
         title={"Content unavailable: " + body.state.replace(/_/g, " ")}
       />
     );
+  if (body.kind === "bounded")
+    return (
+      <Alert type="info" title="Content reading limit" description={body.reason} />
+    );
   if (body.kind === "plain") return <p className="prose">{body.text}</p>;
   return (
     <>

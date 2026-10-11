@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-11
 
 ## Problem
 
@@ -26,8 +26,14 @@ mechanical correctness against current Rust policies and source evidence.
 
 ## Current Implementation Scope
 
-Shared family presentation supplies grouped combat mechanics and lazy inline
-ability content. The runner prioritizes HP, damage/heal and conditions, with
+Shared family presentation supplies grouped combat mechanics. Existing activity
+buttons open native quick lookup containing only requested authored prose and
+current exact participant activity facts/explanations. Reference-content caches
+retain no adjusted facts; participant, generation and activity changes remain
+explicit without baseline child-detail fallback. Native full reference links and
+nested source-dialog Escape/focus remain available. Content-free hydration
+captures source generation once per deduplicated retrieval; manual-only encounters
+remain usable without opening an artifact. The runner prioritizes HP, damage/heal and conditions, with
 initially closed Edit details and HP details disclosures. Roster names wrap and
 current turn has an explicit label. Existing participant state and edit-intent
 semantics remain unchanged. Source content is available through explicit loading.

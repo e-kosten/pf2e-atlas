@@ -21,6 +21,9 @@ pub enum PreparedFieldBodyView {
     Unavailable {
         state: atlas_domain::QueryFieldState,
     },
+    Bounded {
+        reason: String,
+    },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ContentControlView {

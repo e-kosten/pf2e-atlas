@@ -40,6 +40,7 @@ export function RecordView({ route }: RecordViewProps) {
                   recordKey: route.recordKey,
                   previewRecordKey: null,
                   selection: route.selection,
+                  landing: route.landing,
                 }}
               >
                 Reader view
@@ -80,6 +81,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                   kind: "record",
                   recordKey: route.recordKey,
                   selection: route.selection,
+                  landing: route.landing,
                 }}
               >
                 Detail page
@@ -95,12 +97,21 @@ export function ReaderView({ route }: ReaderViewProps) {
               void detail.refetch();
             }}
             loading={detail.isLoading || detail.isFetching}
+            onOwnerReturn={(parent, landing) =>
+              navigateToAtlasRoute({
+                ...route,
+                previewRecordKey: parent,
+                previewSelection: undefined,
+                landing,
+              })
+            }
             onReference={(previewRecordKey, _anchor, previewSelection) =>
               navigateToAtlasRoute({
                 kind: "reader",
                 recordKey: route.recordKey,
                 previewRecordKey,
                 selection: route.selection,
+                landing: route.landing,
                 previewSelection,
               })
             }
@@ -120,6 +131,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                     recordKey: route.previewRecordKey,
                     previewRecordKey: null,
                     selection: route.previewSelection,
+                    landing: route.landing,
                   }}
                 />
                 <PaneIconButton
@@ -131,6 +143,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                       recordKey: route.recordKey,
                       previewRecordKey: null,
                       selection: route.selection,
+                      landing: route.landing,
                     })
                   }
                 />
@@ -150,12 +163,21 @@ export function ReaderView({ route }: ReaderViewProps) {
             loading={
               route.previewRecordKey ? preview.isLoading || preview.isFetching : false
             }
+            onOwnerReturn={(parent, landing) =>
+              navigateToAtlasRoute({
+                ...route,
+                previewRecordKey: parent,
+                previewSelection: undefined,
+                landing,
+              })
+            }
             onReference={(previewRecordKey, _anchor, previewSelection) =>
               navigateToAtlasRoute({
                 kind: "reader",
                 recordKey: route.recordKey,
                 previewRecordKey,
                 selection: route.selection,
+                landing: route.landing,
                 previewSelection,
               })
             }

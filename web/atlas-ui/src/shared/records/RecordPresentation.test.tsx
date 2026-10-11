@@ -66,9 +66,7 @@ describe("semantic family presentation", () => {
     expect(screen.getByText("25 feet")).toBeVisible();
     expect(screen.getByText("30 feet")).toBeVisible();
     expect(container.querySelectorAll(".actor-reference__defenses")).toHaveLength(1);
-    expect(screen.queryByRole("heading", { name: "Strikes" }) !== null).toBe(
-      !context.compact,
-    );
+    expect(screen.getByRole("heading", { name: "Strikes" })).toBeVisible();
     expect(screen.queryByText("HP") !== null).toBe(!context.encounter);
   });
 
@@ -88,11 +86,12 @@ describe("semantic family presentation", () => {
       />,
     );
     expect(screen.getByRole("heading", { name: "Ghoul Fever" })).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "From Ghoul" }));
-    expect(onReference).toHaveBeenCalledWith("actors:ghoul", expect.any(HTMLElement), {
-      ...selected,
-      owners: [],
-    });
+    const parent = screen.getByRole("link", { name: "Return to Ghoul" });
+    const destination = new URL(parent.getAttribute("href")!, window.location.origin);
+    expect(destination.pathname).toBe("/records/actors:ghoul");
+    expect(JSON.parse(destination.searchParams.get("landing")!)).toEqual(selected);
+    expect(destination.searchParams.has("selection")).toBe(false);
+    expect(onReference).not.toHaveBeenCalled();
   });
 
   it("shows selected activity traits once in its identity and retains traits on owned activities", () => {

@@ -26,7 +26,7 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await page.getByText("Ghoul", { exact: true }).first().click();
     const jaws = page.getByRole("button", { name: "Jaws", exact: true });
     const preview = page.getByRole("dialog", { name: "Reference", exact: true });
-    const openPage = page.getByRole("button", {
+    const openPage = page.getByRole("link", {
       name: "Open reference full page",
       exact: true,
     });
@@ -52,8 +52,7 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await expect(preview).toHaveCount(0);
     await expect(jaws).toBeFocused();
 
-    // The compact root preview intentionally omits the full ability roster.
-    // Seize links to Grabbed, whose prepared compact description has a real
+    // Requested Seize prose links to Grabbed, whose prepared description has a real
     // flat-check control; this exercises a modal nested inside the native Drawer.
     await page.getByRole("button", { name: "Add Creature", exact: true }).click();
     const hazardPicker = page.getByRole("dialog");
@@ -67,9 +66,10 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await hazardPicker.getByRole("button", { name: "OK", exact: true }).click();
     await expect(hazardPicker).not.toBeVisible();
     await page.getByText("Waking Nightmare", { exact: true }).first().click();
-    await page.getByRole("button", { name: /^Seize\b/ }).click();
-    const grabbedReference = page
-      .locator(".actor-ability__detail .prepared-content")
+    const seize = page.getByRole("button", { name: /^Seize\b/ });
+    await seize.click();
+    const grabbedReference = preview
+      .locator(".prepared-content")
       .getByRole("button", { name: "Grabbed", exact: true });
     await grabbedReference.focus();
     await grabbedReference.press("Enter");
@@ -89,12 +89,13 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await expect(control).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(preview).toHaveCount(0);
-    await expect(grabbedReference).toBeFocused();
-    await grabbedReference.press("Enter");
+    await expect(seize).toBeFocused();
+    await seize.press("Enter");
+    await preview.getByRole("button", { name: "Grabbed", exact: true }).click();
     await expect(openPage).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(preview).toHaveCount(0);
-    await expect(grabbedReference).toBeFocused();
+    await expect(seize).toBeFocused();
   } finally {
     const deleted = await page.request.delete(
       `/api/encounters/${encodeURIComponent(slug)}`,
@@ -117,7 +118,7 @@ test("reader follows, closes and promotes exact owned selection through browser 
   const ownedPreviewUrl = page.url();
   const ownedSelection = new URL(ownedPreviewUrl).searchParams.get("previewSelection");
   expect(ownedSelection).toBeTruthy();
-  await preview.getByRole("button", { name: "From Ghoul", exact: true }).click();
+  await preview.getByRole("link", { name: "Return to Ghoul", exact: true }).click();
   await expect(
     preview.getByRole("heading", { name: "Ghoul", exact: true }),
   ).toBeVisible();
@@ -138,7 +139,7 @@ test("reader follows, closes and promotes exact owned selection through browser 
   ).toBeVisible();
   const ownedReaderUrl = page.url();
   expect(new URL(ownedReaderUrl).searchParams.get("selection")).toBe(ownedSelection);
-  await primary.getByRole("button", { name: "From Ghoul", exact: true }).click();
+  await primary.getByRole("link", { name: "Return to Ghoul", exact: true }).click();
   await expect(
     preview.getByRole("heading", { name: "Ghoul", exact: true }),
   ).toBeVisible();
@@ -288,6 +289,38 @@ test("saved list creation and unknown manual participant HP use actual local-sta
   await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
     "23",
   );
+  const encounterResponse = await page.request.get(
+    `/api/encounters/${encodeURIComponent(new URL(page.url()).pathname.split("/")[2])}`,
+  );
+  expect(encounterResponse.ok()).toBeTruthy();
+  const currentEncounter = await encounterResponse.json();
+  const ghoulParticipant = currentEncounter.participants.find(
+    (participant: { display_name: string }) => participant.display_name === "Ghoul",
+  );
+  const jawsActivity = ghoulParticipant.presentation.body.value.activities.value.find(
+    (activity: { title: string }) => activity.title === "Jaws",
+  );
+  await reference.getByRole("button", { name: "Jaws", exact: true }).click();
+  const activityPreview = page.getByRole("dialog", {
+    name: "Reference preview",
+    exact: true,
+  });
+  await expect(
+    activityPreview.getByRole("heading", { name: "Jaws", exact: true }),
+  ).toBeVisible();
+  await expect(
+    activityPreview
+      .locator(".record-fact")
+      .filter({ has: page.getByText("Attack", { exact: true }) }),
+  ).toContainText("+" + jawsActivity.attack.value);
+  await expect(
+    activityPreview.getByRole("heading", { name: "Description", exact: true }),
+  ).toBeVisible();
+  for (const note of jawsActivity.notes)
+    await expect(activityPreview).toContainText(note.reason);
+  await page
+    .getByRole("button", { name: "Close reference preview", exact: true })
+    .click();
   await page.getByRole("spinbutton", { name: "HP change", exact: true }).fill("3");
   await page.getByRole("button", { name: "Damage", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(

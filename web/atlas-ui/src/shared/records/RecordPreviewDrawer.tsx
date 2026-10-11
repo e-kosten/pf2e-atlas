@@ -14,6 +14,10 @@ export function RecordPreviewDrawer({
   onOpenFullPage,
   onReference,
   open,
+  content,
+  fullPageHref,
+  landing,
+  onOwnerReturn,
 }: {
   onAfterClose: () => void;
   open: boolean;
@@ -22,7 +26,8 @@ export function RecordPreviewDrawer({
   return (
     <Drawer
       afterOpenChange={(open) => {
-        if (open) actions.current?.querySelector<HTMLButtonElement>("button")?.focus();
+        if (open)
+          actions.current?.querySelector<HTMLElement>("a[href],button")?.focus();
         else onAfterClose();
       }}
       focusable={{ focusTriggerAfterClose: false }}
@@ -38,22 +43,30 @@ export function RecordPreviewDrawer({
       }}
       extra={
         <div ref={actions}>
-          <RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />
+          <RecordPreviewActions
+            onClose={onClose}
+            onOpenFullPage={onOpenFullPage}
+            fullPageHref={fullPageHref}
+          />
         </div>
       }
       onClose={onClose}
     >
       <section aria-label="Reference content">
-        <RecordDetailPane
-          compact
-          detail={detail}
-          loading={loading}
-          error={error}
-          onRetry={onRetry}
-          onBack={onClose}
-          backLabel="Close preview"
-          onReference={onReference}
-        />
+        {content ?? (
+          <RecordDetailPane
+            compact
+            detail={detail}
+            loading={loading}
+            error={error}
+            onRetry={onRetry}
+            onBack={onClose}
+            backLabel="Close preview"
+            onReference={onReference}
+            landing={landing}
+            onOwnerReturn={onOwnerReturn}
+          />
+        )}
       </section>
     </Drawer>
   );

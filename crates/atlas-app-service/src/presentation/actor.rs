@@ -121,7 +121,7 @@ pub(crate) fn authored_actor(
         runtime: None,
     }
 }
-pub(super) fn authored_activities(
+pub(crate) fn authored_activities(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
     fingerprint: &str,

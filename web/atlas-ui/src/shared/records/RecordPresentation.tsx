@@ -26,6 +26,14 @@ import {
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
 import { SpellReference } from "./SpellReference";
 import { ActionCost } from "./ActionCost";
+import type { OwnedReadingContext } from "./OwnedAbilityReading";
+import { activityAddress } from "./ownedNavigation";
+import {
+  ownerReturnPath,
+  navigateToAtlasPath,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
+import { ChevronLeft } from "lucide-react";
 
 const contentRoleLabels: Record<string, string> = {
   name: "Name",
@@ -84,17 +92,47 @@ export function RecordIdentity({
   actionCost,
   root,
   selection,
-  onReference,
+  onOwnerReturn,
 }: {
   identity: RecordSummaryView;
   classification: string;
   actionCost?: FactView<ActionCostView>;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
-  onReference: RecordReferenceHandler;
+  onOwnerReturn?: (
+    parent: string,
+    landing: RecordNavigationView,
+    anchor: HTMLElement,
+  ) => void;
 }) {
   return (
     <header className="record-reference__header">
+      {root && selection?.owners.length ? (
+        <Button
+          type="link"
+          size="small"
+          className="record-reference__owner"
+          icon={<ChevronLeft size={14} aria-hidden="true" />}
+          aria-label={`Return to ${root.title}`}
+          href={ownerReturnPath(root.record_key, activityAddress(selection))}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            if (onOwnerReturn)
+              onOwnerReturn(
+                root.record_key,
+                activityAddress(selection),
+                event.currentTarget,
+              );
+            else
+              navigateToAtlasPath(
+                ownerReturnPath(root.record_key, activityAddress(selection)),
+              );
+          }}
+        >
+          {root.title}
+        </Button>
+      ) : null}
       <div className="record-reference__title">
         <h2>
           {identity.title} {actionCost && <ActionCost fact={actionCost} />}
@@ -108,22 +146,6 @@ export function RecordIdentity({
         ))}
       </div>
       {identity.publication?.trim() && <p className="muted">{identity.publication}</p>}
-      {root && selection?.owners.length ? (
-        <Button
-          type="link"
-          onClick={(event) =>
-            onReference(root.record_key, event.currentTarget, {
-              record_key: root.record_key,
-              owners: [],
-              field: null,
-              passage: null,
-              source_fingerprint: selection.source_fingerprint,
-            })
-          }
-        >
-          From {root.title}
-        </Button>
-      ) : null}
     </header>
   );
 }
@@ -137,7 +159,8 @@ export function RecordPresentation({
   compact = false,
   encounter = false,
   hideIdentity = false,
-  hideActivityCost = false,
+  reading,
+  onOwnerReturn,
 }: {
   presentation: RecordPresentationView;
   root?: RecordSummaryView;
@@ -147,7 +170,12 @@ export function RecordPresentation({
   compact?: boolean;
   encounter?: boolean;
   hideIdentity?: boolean;
-  hideActivityCost?: boolean;
+  reading?: OwnedReadingContext;
+  onOwnerReturn?: (
+    parent: string,
+    landing: RecordNavigationView,
+    anchor: HTMLElement,
+  ) => void;
 }) {
   const body = presentation.body;
   const actor =
@@ -184,7 +212,7 @@ export function RecordPresentation({
           actionCost={body.kind === "activity" ? body.value.action_cost : undefined}
           root={root}
           selection={selection}
-          onReference={onReference}
+          onOwnerReturn={onOwnerReturn}
         />
       )}
       {!encounter && (
@@ -203,7 +231,6 @@ export function RecordPresentation({
       {body.kind === "creature" && (
         <ActorFacts
           actor={body.value}
-          compact={compact}
           hideHitPoints={encounter}
           encounter={encounter}
         />
@@ -231,7 +258,7 @@ export function RecordPresentation({
                 />
               ))}
           </section>
-          {!compact && !encounter && (
+          {!encounter && (
             <ContentFields
               fields={presentation.content.filter((field) => field.role === "disable")}
               relationships={relationships}
@@ -240,7 +267,6 @@ export function RecordPresentation({
           )}
           <ActorFacts
             actor={body.value.actor}
-            compact={compact}
             hideHitPoints={encounter}
             encounter={encounter}
             hazard
@@ -290,13 +316,13 @@ export function RecordPresentation({
           )}
         </>
       )}
-      {body.kind === "spell" && <SpellReference spell={body.value} compact={compact} />}
+      {body.kind === "spell" && <SpellReference spell={body.value} />}
       {body.kind === "activity" && (
         <ActorActivity
           activity={body.value}
           onReference={onReference}
           selected
-          hideCost={!hideIdentity || hideActivityCost}
+          hideCost={!hideIdentity}
         />
       )}
       {body.kind === "physical_reference" && (
@@ -319,7 +345,14 @@ export function RecordPresentation({
           <FactLine label="Result type" fact={body.value.result_type} required />
         </div>
       )}
-      {actor && !compact && <ActorActivities actor={actor} onReference={onReference} />}
+      {actor && (
+        <ActorActivities
+          actor={actor}
+          onReference={onReference}
+          encounter={encounter}
+          reading={reading}
+        />
+      )}
       {actor && encounter && (
         <ActorSecondaryFacts actor={actor} hazard={body.kind === "hazard"} />
       )}
@@ -328,13 +361,6 @@ export function RecordPresentation({
           fields={presentation.content.filter(
             (field) => !["disable", "stealth", "description"].includes(field.role),
           )}
-          relationships={relationships}
-          onReference={onReference}
-        />
-      )}
-      {compact && !encounter && body.kind === "hazard" && (
-        <ContentFields
-          fields={presentation.content.filter((field) => field.role === "disable")}
           relationships={relationships}
           onReference={onReference}
         />
@@ -349,21 +375,18 @@ export function RecordPresentation({
       {body.kind === "roll_table" && body.value.results.state !== "value" && (
         <FactLine label="Results" fact={body.value.results} />
       )}
-      {!compact &&
-        (body.kind === "roll_table" ? (body.value.results.value ?? []) : owned).length >
-          0 && (
-          <section className="record-reference__owned">
-            <h3>
-              {body.kind === "roll_table"
-                ? "Results"
-                : presentation.identity.kind === "journal"
-                  ? "Pages"
-                  : "Owned records"}
-            </h3>
-            {(body.kind === "roll_table"
-              ? (body.value.results.value ?? [])
-              : owned
-            ).map((link, index) => (
+      {(body.kind === "roll_table" ? (body.value.results.value ?? []) : owned).length >
+        0 && (
+        <section className="record-reference__owned">
+          <h3>
+            {body.kind === "roll_table"
+              ? "Results"
+              : presentation.identity.kind === "journal"
+                ? "Pages"
+                : "Owned records"}
+          </h3>
+          {(body.kind === "roll_table" ? (body.value.results.value ?? []) : owned).map(
+            (link, index) => (
               <div key={index}>
                 <Button
                   type="link"
@@ -382,9 +405,10 @@ export function RecordPresentation({
                   <span className="muted"> {link.usage}</span>
                 )}
               </div>
-            ))}
-          </section>
-        )}
+            ),
+          )}
+        </section>
+      )}
     </article>
   );
 }

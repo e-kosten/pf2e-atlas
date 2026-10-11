@@ -26,6 +26,8 @@ import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewType
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
+import { ActivityContentPane } from "../../shared/records/ActivityContentPane";
+import { atlasRoutePath } from "../../app/routes";
 
 export function EncounterInspectorPane({
   onCloseRecordPreview,
@@ -44,6 +46,8 @@ export function EncounterInspectorPane({
   onRetryPreview,
   previewRecordKey,
   previewAnchor,
+  previewContextual,
+  previewSelection,
 }: {
   onCloseRecordPreview: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
@@ -58,6 +62,10 @@ export function EncounterInspectorPane({
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
+  previewContextual?: ReturnType<
+    typeof import("../../shared/records/useRecordPreview").useRecordPreview
+  >["contextual"];
+  previewSelection?: import("../../generated/atlas").RecordNavigationView;
   previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
   previewLoading: boolean;
   previewError?: Error | null;
@@ -96,6 +104,23 @@ export function EncounterInspectorPane({
         <RecordPreviewPopover
           anchor={previewAnchor}
           detail={previewDetail}
+          fullPageHref={atlasRoutePath({
+            kind: "record",
+            recordKey: previewRecordKey,
+            selection: previewSelection,
+          })}
+          content={
+            previewContextual ? (
+              <ActivityContentPane
+                activity={previewContextual.activity}
+                entry={previewContextual.entry}
+                error={previewError}
+                loading={previewLoading}
+                onRetry={previewContextual.recoverable ? onRetryPreview : undefined}
+                onReference={onReference}
+              />
+            ) : undefined
+          }
           loading={previewLoading}
           error={previewError}
           onRetry={onRetryPreview}
@@ -156,7 +181,6 @@ function EncounterParticipantSurface({
           <RecordIdentity
             identity={{ ...presentation.identity, title: activeCurrent.display_name }}
             classification={presentation.classification}
-            onReference={onReference}
           />
         ) : (
           <h2>{activeCurrent.display_name}</h2>

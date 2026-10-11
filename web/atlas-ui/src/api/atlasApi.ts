@@ -24,6 +24,8 @@ import type {
   ReadResultWindowPageRequest,
   RecordDetailView,
   RecordDetailRequest,
+  OwnedReadingRequest,
+  OwnedReadingBatchView,
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
   SavedListCreateView,
@@ -112,6 +114,16 @@ export async function getRecordDetail(
   return selection
     ? atlasFetch("/api/records/detail", { method: "POST", body: jsonBody(selection) })
     : atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
+}
+export async function getOwnedReading(
+  request: OwnedReadingRequest,
+  signal?: AbortSignal,
+): Promise<OwnedReadingBatchView> {
+  return atlasFetch("/api/records/owned-reading", {
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {

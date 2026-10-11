@@ -83,6 +83,14 @@ pub struct SourceContentBundle {
     pub missing: Vec<SourceContentLocator>,
     pub truncated: bool,
 }
+/// Every returned rich field has complete, validated occurrence attribution.
+/// Fields exceeding the response occurrence budget are explicitly withheld.
+#[derive(Debug, Clone)]
+pub struct SourceAttributedContentBundle {
+    pub content: SourceContentBundle,
+    pub relationships: Vec<SourceStoredRelationship>,
+    pub bounded: Vec<SourceContentLocator>,
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceRelationshipDirection {
@@ -205,8 +213,15 @@ impl SqliteIndexReader {
         c: &rusqlite::Connection,
         fields: Vec<(SourcePreparedContent, String)>,
     ) -> Result<Vec<SourcePreparedContent>, IndexError> {
+        Ok(self.checked_attributed_fields(c, fields)?.0)
+    }
+    fn checked_attributed_fields(
+        &self,
+        c: &rusqlite::Connection,
+        fields: Vec<(SourcePreparedContent, String)>,
+    ) -> Result<(Vec<SourcePreparedContent>, Vec<SourceStoredRelationship>), IndexError> {
         if fields.is_empty() {
-            return Ok(vec![]);
+            return Ok((vec![], vec![]));
         }
         let clauses =
             vec!["(r.key=? AND o.owners_json=? AND o.field_path=?)"; fields.len()].join(" OR ");
@@ -221,12 +236,14 @@ impl SqliteIndexReader {
         ))?;
         let mut references =
             BTreeMap::<ContentReferenceKey, Vec<ContentReferenceOccurrence>>::new();
+        let mut relationships = vec![];
         for edge in statement.query_map(params_from_iter(values), relationship_row)? {
             let edge = edge?;
             references
                 .entry(content_reference_key(&edge.locator)?)
                 .or_default()
-                .push(content_reference(edge)?);
+                .push(content_reference(edge.clone())?);
+            relationships.push(edge);
         }
         let mut checked = Vec::with_capacity(fields.len());
         for (field, hash) in fields {
@@ -248,7 +265,97 @@ impl SqliteIndexReader {
             }
             checked.push(field);
         }
-        Ok(checked)
+        Ok((checked, relationships))
+    }
+    pub fn read_attributed_content(
+        &self,
+        locators: &[SourceContentLocator],
+    ) -> Result<SourceAttributedContentBundle, IndexError> {
+        if locators.len() > 256 {
+            return Err(IndexError::Invalid(
+                "selected content batch exceeds 256 fields".into(),
+            ));
+        }
+        #[cfg(any(test, feature = "test-support"))]
+        self.count_content_batch();
+        if locators.is_empty() {
+            return Ok(SourceAttributedContentBundle {
+                content: SourceContentBundle {
+                    fields: vec![],
+                    missing: vec![],
+                    truncated: false,
+                },
+                relationships: vec![],
+                bounded: vec![],
+            });
+        }
+        let c = self.native()?;
+        let mut values = vec![];
+        for locator in locators {
+            let (record, owners, field) = content_reference_key(locator)?;
+            values.extend([Value::Text(record), Value::Text(owners), Value::Text(field)]);
+        }
+        self.count_statement();
+        let content_clauses =
+            vec!["(r.key=? AND c.owners_json=? AND c.field_path=?)"; locators.len()].join(" OR ");
+        let mut statement = c.prepare(&format!("{CONTENT_SELECT} AND ({content_clauses})"))?;
+        let rows = statement
+            .query_map(params_from_iter(values.clone()), content_row)?
+            .collect::<Result<Vec<_>, _>>()?;
+        let missing = locators
+            .iter()
+            .filter(|locator| !rows.iter().any(|(field, _)| &field.locator == *locator))
+            .cloned()
+            .collect();
+        self.count_statement();
+        let relationship_clauses =
+            vec!["(r.key=? AND o.owners_json=? AND o.field_path=?)"; locators.len()].join(" OR ");
+        let mut statement = c.prepare(&format!("SELECT r.key,o.owners_json,o.field_path,count(*) FROM relationship_occurrences o JOIN records r ON r.record_id=o.record_id WHERE o.origin='content' AND ({relationship_clauses}) GROUP BY r.key,o.owners_json,o.field_path"))?;
+        let counts = statement
+            .query_map(params_from_iter(values), |row| {
+                Ok((
+                    (
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ),
+                    row.get::<_, usize>(3)?,
+                ))
+            })?
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
+        let mut remaining = 1024;
+        let mut bounded = vec![];
+        for locator in locators {
+            let count = counts
+                .get(&content_reference_key(locator)?)
+                .copied()
+                .unwrap_or_default();
+            if count > remaining {
+                bounded.push(locator.clone());
+            } else {
+                remaining -= count;
+            }
+        }
+        let admitted = rows
+            .into_iter()
+            .filter(|(field, _)| !bounded.contains(&field.locator))
+            .collect();
+        let (mut fields, relationships) = self.checked_attributed_fields(c, admitted)?;
+        fields.sort_by_key(|field| {
+            locators
+                .iter()
+                .position(|locator| locator == &field.locator)
+                .unwrap_or(usize::MAX)
+        });
+        Ok(SourceAttributedContentBundle {
+            content: SourceContentBundle {
+                fields,
+                missing,
+                truncated: !bounded.is_empty(),
+            },
+            relationships,
+            bounded,
+        })
     }
     pub fn read_content(
         &self,
@@ -332,6 +439,19 @@ impl SqliteIndexReader {
         &self,
         request: &SourceRelationshipRequest,
     ) -> Result<SourceRelationshipBundle, IndexError> {
+        self.relationships(request, false)
+    }
+    pub fn read_non_content_relationships(
+        &self,
+        request: &SourceRelationshipRequest,
+    ) -> Result<SourceRelationshipBundle, IndexError> {
+        self.relationships(request, true)
+    }
+    fn relationships(
+        &self,
+        request: &SourceRelationshipRequest,
+        exclude_content: bool,
+    ) -> Result<SourceRelationshipBundle, IndexError> {
         if !(1..=1024).contains(&request.limit) {
             return Err(IndexError::Invalid(
                 "relationship limit must be 1..=1024".into(),
@@ -362,6 +482,9 @@ impl SqliteIndexReader {
             }
             sql.push_str(" AND o.field_path=?");
             params.push(Value::Text(field.clone()));
+        }
+        if exclude_content {
+            sql.push_str(" AND o.origin!='content'");
         }
         sql.push_str(" ORDER BY o.occurrence_id LIMIT ?");
         params.push(Value::Integer((request.limit + 1) as i64));
