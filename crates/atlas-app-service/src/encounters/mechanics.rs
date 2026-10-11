@@ -1,12 +1,21 @@
 //! Runtime overlays on authored typed statistics; unknown inputs stay unknown.
 use super::conditions::{ConditionRule, condition_rule_for_key};
+pub(crate) use super::stat_block::*;
 use atlas_app_model::*;
 use atlas_local_state::{EncounterParticipant, ParticipantVariant};
 use atlas_record::source_record::{
-    ActorSave, SourceBackedRecord, SourceFieldView, SourceNodeView, SourceNpcAdjustment,
-    SourceQueryView,
+    SourceBackedRecord, SourceFieldView, SourceNpcAdjustment, SourceQueryView,
 };
 use serde_json::Number;
+
+#[cfg(test)]
+thread_local! {
+    static BASELINES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+#[cfg(test)]
+pub(super) fn baseline_count(reset: bool) -> usize {
+    BASELINES.with(|count| if reset { count.replace(0) } else { count.get() })
+}
 
 pub(super) fn authored_variant(record: &SourceBackedRecord) -> Option<ParticipantVariant> {
     SourceQueryView::new(record.source(), record.key().pack().as_str(), "")
@@ -107,16 +116,10 @@ pub(super) fn effective_max(
 }
 pub(super) fn participant_stat_block(
     participant: &EncounterParticipant,
-    record: &SourceBackedRecord,
-    fingerprint: &str,
-) -> Option<StatBlockView> {
-    let mut block = record_stat_block(record, fingerprint)?;
-    let adjustment_applicable = !matches!(
-        SourceQueryView::new(record.source(), record.key().pack().as_str(), "")
-            .actor()
-            .authored_adjustment(),
-        SourceFieldView::NotApplicable
-    );
+    baseline: &StatBlockView,
+    adjustment_applicable: bool,
+) -> StatBlockView {
+    let mut block = baseline.clone();
     let variant = participant.participant_variant;
     let delta = match variant {
         ParticipantVariant::Normal => 0,
@@ -277,26 +280,18 @@ pub(super) fn participant_stat_block(
         if matches!(rule, ConditionRule::Frightened | ConditionRule::Sickened) {
             for a in &mut block.activities {
                 for roll in &mut a.rolls {
-                    let old = roll
-                        .modifiers
-                        .iter()
-                        .filter(|m| m.modifier_type == StatModifierTypeView::Status)
-                        .map(|m| m.value)
-                        .min()
-                        .unwrap_or(0);
-                    let penalty = -amount;
-                    if penalty < old
-                        && let Some(n) = add(&roll.adjusted_value, penalty - old)
-                    {
-                        roll.adjusted_value = n;
-                        roll.modifiers.push(StatModifierView {
+                    apply_modifier(
+                        &mut roll.adjusted_value,
+                        &mut roll.modifiers,
+                        &mut roll.suppressed_modifiers,
+                        StatModifierView {
                             source: c.name.clone(),
                             label: c.name.clone(),
                             modifier_type: StatModifierTypeView::Status,
-                            value: penalty,
-                        });
-                        applied = true;
-                    }
+                            value: -amount,
+                        },
+                    );
+                    applied = true;
                 }
             }
         }
@@ -353,23 +348,22 @@ pub(super) fn participant_stat_block(
         }
     }
     block.action_budget = Some(action_budget(participant));
-    Some(block)
+    block
 }
-pub(crate) fn record_stat_block(
-    record: &SourceBackedRecord,
-    fingerprint: &str,
-) -> Option<StatBlockView> {
-    let query = SourceQueryView::new(record.source(), record.key().pack().as_str(), "");
-    if !matches!(query.source, SourceNodeView::Actor(_)) {
-        return None;
-    }
-    let actor = query.actor();
+pub(super) fn arithmetic_baseline(presentation: &RecordPresentationView) -> Option<StatBlockView> {
+    let a = match &presentation.body {
+        RecordBodyView::Creature(a) => a.as_ref(),
+        RecordBodyView::Hazard(h) => &h.actor,
+        _ => return None,
+    };
+    #[cfg(test)]
+    BASELINES.with(|count| count.set(count.get() + 1));
     let mut values = vec![];
-    let mut push = |target: &str, label: &str, v: SourceFieldView<'_, &Number>| {
-        if let Some(n) = v.value() {
+    let mut push = |target: String, label: String, f: &NumberFactView| {
+        if let Some(n) = &f.value {
             values.push(StatValueView {
-                target: target.into(),
-                label: label.into(),
+                target,
+                label,
                 base_value: n.clone(),
                 adjusted_value: n.clone(),
                 modifiers: vec![],
@@ -377,156 +371,51 @@ pub(crate) fn record_stat_block(
             });
         }
     };
-    push("ac", "AC", actor.armor_class());
-    push("hp.max", "Maximum HP", actor.hp_maximum());
-    push("perception", "Perception", actor.perception());
-    push("hazard.hardness", "Hardness", actor.hazard_hardness());
-    push("hazard.stealth", "Stealth", actor.hazard_stealth());
-    for (save, name) in [
-        (ActorSave::Fortitude, "fortitude"),
-        (ActorSave::Reflex, "reflex"),
-        (ActorSave::Will, "will"),
+    push("ac".into(), "AC".into(), &a.armor_class);
+    push("hp.max".into(), "Maximum HP".into(), &a.maximum_hp);
+    push("perception".into(), "Perception".into(), &a.perception);
+    for (key, f) in [
+        ("fortitude", &a.saves.fortitude),
+        ("reflex", &a.saves.reflex),
+        ("will", &a.saves.will),
     ] {
-        push(&format!("save.{name}"), name, actor.save(save));
+        push(format!("save.{key}"), key.into(), f);
     }
-    actor.visit_abilities(|key, v| push(&format!("ability.{key}"), key, v));
+    if let RecordBodyView::Hazard(h) = &presentation.body {
+        push("hazard.stealth".into(), "Stealth".into(), &h.stealth);
+        push("hazard.hardness".into(), "Hardness".into(), &h.hardness);
+    }
+    for v in a.abilities.value.iter().flatten() {
+        push(format!("ability.{}", v.key), v.label.clone(), &v.modifier);
+    }
+    for v in a.skills.value.iter().flatten() {
+        push(format!("skill.{}", v.key), v.label.clone(), &v.modifier);
+    }
+    for (index, activity) in a.activities.value.iter().flatten().enumerate() {
+        push(
+            format!("skill.lore.{index}"),
+            activity.title.clone(),
+            &activity.lore_modifier,
+        );
+    }
     let mut notes = vec![];
-    actor.visit_skills(|key,v|{
-        if let Some(skill)=v.value(){
-            push(&format!("skill.{key}"),key,(&skill.base).into());
-            if let Some(note)=SourceFieldView::from(&skill.note).value(){notes.push(UnappliedEffectView{source:format!("skill.{key}"),label:key.into(),reason:note.clone()});}
-
-            if let Some(special)=SourceFieldView::from(&skill.special).value(){for entry in special{if let (Some(label),Some(base))=(SourceFieldView::from(&entry.label).value(),SourceFieldView::from(&entry.base).value()){notes.push(UnappliedEffectView{source:format!("skill.{key}"),label:label.clone(),reason:format!("Conditional modifier {base}; apply only when its authored predicate matches.")});}}}
+    for v in a.skills.value.iter().flatten() {
+        if let Some(note) = &v.note.value {
+            notes.push(UnappliedEffectView {
+                source: format!("skill.{}", v.key),
+                label: v.label.clone(),
+                reason: note.clone(),
+            });
         }
-    });
-    let mut speeds = vec![];
-    if let Some(n) = actor.land_speed().value() {
-        speeds.push(speed("land", n));
-    }
-    if let Some(other) = actor.speeds().value() {
-        for s in other.iter() {
-            if let (Some(t), Some(n)) = (s.speed_type().value(), s.value().value()) {
-                let kind = serde_json::to_value(t)
-                    .ok()
-                    .and_then(|v| v.as_str().map(str::to_owned))
-                    .unwrap_or_default();
-                speeds.push(speed(&kind, n));
+        if let Some(c) = &v.conditional.value {
+            for e in c {
+                if let (Some(label), Some(n)) = (&e.label.value, &e.modifier.value) {
+                    notes.push(UnappliedEffectView{source:format!("skill.{}",v.key),label:label.clone(),reason:format!("Conditional modifier {n}; apply only when its authored predicate matches.")});
+                }
             }
         }
     }
-    let mut activities = vec![];
-    record.visit_immediate_actor_items(|index, owner, item| {
-        let name = SourceNodeView::Item(item)
-            .name()
-            .value()
-            .cloned()
-            .unwrap_or_else(|| item.family().into());
-        if let Some(n) = item.lore_modifier().value() {
-            values.push(StatValueView {
-                target: format!("skill.lore.{index}"),
-                label: name.clone(),
-                base_value: n.clone(),
-                adjusted_value: n.clone(),
-                modifiers: vec![],
-                suppressed_modifiers: vec![],
-            });
-            if let Some(variants) = item.lore_variants().value() {
-                for (_, v) in &variants.entries {
-                    if let Some(label) = SourceFieldView::from(&v.label).value() {
-                        notes.push(UnappliedEffectView {
-                            source: name.clone(),
-                            label: label.clone(),
-                            reason: SourceFieldView::from(&v.options)
-                                .value()
-                                .cloned()
-                                .unwrap_or_else(|| "Lore variant context is unavailable.".into()),
-                        });
-                    }
-                }
-            }
-        }
-        let kind = match item.family() {
-            "melee" => MechanicActivityKindView::Strike,
-            "spell" => MechanicActivityKindView::Spell,
-            "action" | "effect" | "spellcastingEntry" => MechanicActivityKindView::Other,
-            _ => return,
-        };
-        let mut rolls = vec![];
-        if let Some(n) = item.melee_attack().value() {
-            rolls.push(ActivityRollView {
-                roll_id: "attack".into(),
-                label: "Attack".into(),
-                base_value: n.clone(),
-                adjusted_value: n.clone(),
-                surface: ActivityRollSurfaceView::AttackRoll,
-                modifiers: vec![],
-                suppressed_modifiers: vec![],
-            });
-        }
-        let mut damage = vec![];
-        if let Some(entries) = item.melee_damage().value() {
-            for (id, v) in &entries.entries {
-                if let Some(formula) = SourceFieldView::from(&v.damage).value() {
-                    damage.push(damage_view(
-                        id,
-                        formula,
-                        SourceFieldView::from(&v.damage_type)
-                            .value()
-                            .and_then(enum_text),
-                    ));
-                }
-            }
-        }
-        if let Some(entries) = item.spell_damage().value() {
-            for (id, v) in &entries.entries {
-                if let Some(formula) = SourceFieldView::from(&v.formula).value() {
-                    damage.push(damage_view(
-                        id,
-                        formula,
-                        SourceFieldView::from(&v.r#type).value().and_then(enum_text),
-                    ));
-                }
-            }
-        }
-        let owners = vec![owner.clone()];
-        activities.push(MechanicActivityView {
-            activity_id: format!("owned-item-{index}"),
-            label: name,
-            kind,
-            navigation: RecordNavigationView {
-                record_key: record.key().to_string(),
-                source_fingerprint: crate::projection::navigation_fingerprint(&owners, fingerprint),
-                owners,
-                field: None,
-                passage: None,
-            },
-            rolls,
-            damage,
-            notes: vec![],
-        });
-    });
-    Some(StatBlockView {
-        record_key: record.key().to_string(),
-        title: query
-            .source
-            .name()
-            .value()
-            .cloned()
-            .unwrap_or_else(|| record.key().to_string()),
-        level: actor.level().value().cloned(),
-        adjusted_level: actor.level().value().cloned(),
-        values,
-        speeds,
-        action_budget: None,
-        activities,
-        unapplied_effects: notes,
-    })
-}
-fn enum_text(v: &impl serde::Serialize) -> Option<String> {
-    serde_json::to_value(v).ok()?.as_str().map(str::to_owned)
-}
-fn speed(kind: &str, n: &Number) -> MovementSpeedView {
-    MovementSpeedView {
+    let speed = |kind: &str, n: &Number| MovementSpeedView {
         movement_type: kind.into(),
         label: kind.into(),
         base_value_feet: n.clone(),
@@ -534,18 +423,100 @@ fn speed(kind: &str, n: &Number) -> MovementSpeedView {
         adjustments: vec![],
         suppressed_adjustments: vec![],
         notes: vec![],
+    };
+    let mut speeds = vec![];
+    if let Some(n) = &a.land_speed.value {
+        speeds.push(speed("land", n));
     }
-}
-fn damage_view(id: &str, formula: &str, kind: Option<String>) -> DamageExpressionView {
-    DamageExpressionView {
-        damage_id: id.into(),
-        label: None,
-        formula: formula.into(),
-        adjusted_formula: None,
-        damage_type: kind,
-        effect_kind: DamageEffectKindView::Unknown,
-        modifiers: vec![],
+    for v in a.movement.value.iter().flatten() {
+        if let (Some(kind), Some(n)) = (&v.movement_type.value, &v.feet.value) {
+            speeds.push(speed(kind, n));
+        }
     }
+    for activity in a.activities.value.iter().flatten() {
+        for n in &activity.notes {
+            notes.push(UnappliedEffectView {
+                source: n.source.clone(),
+                label: n.label.clone(),
+                reason: n.reason.clone(),
+            });
+        }
+    }
+    let activities = a
+        .activities
+        .value
+        .iter()
+        .flatten()
+        .filter(|a| {
+            matches!(
+                a.kind,
+                ActorActivityKindView::Strike
+                    | ActorActivityKindView::Spell
+                    | ActorActivityKindView::Ability
+                    | ActorActivityKindView::CastingEntry
+            )
+        })
+        .cloned()
+        .map(|a| MechanicActivityView {
+            activity_id: a
+                .navigation
+                .owners
+                .first()
+                .map(|o| format!("{:?}", o.identity))
+                .unwrap_or_default(),
+            label: a.title,
+            kind: match a.kind {
+                ActorActivityKindView::Strike => MechanicActivityKindView::Strike,
+                ActorActivityKindView::Spell => MechanicActivityKindView::Spell,
+                _ => MechanicActivityKindView::Other,
+            },
+            navigation: a.navigation,
+            rolls: a
+                .attack
+                .value
+                .filter(|_| a.kind == ActorActivityKindView::Strike)
+                .map(|n| ActivityRollView {
+                    roll_id: "attack".into(),
+                    label: "Attack".into(),
+                    base_value: n.clone(),
+                    adjusted_value: n,
+                    surface: ActivityRollSurfaceView::AttackRoll,
+                    modifiers: vec![],
+                    suppressed_modifiers: vec![],
+                })
+                .into_iter()
+                .collect(),
+            damage: a
+                .damage
+                .value
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|d| {
+                    Some(DamageExpressionView {
+                        damage_id: d.id,
+                        label: None,
+                        formula: d.formula.value?,
+                        adjusted_formula: None,
+                        damage_type: d.damage_type.value,
+                        effect_kind: DamageEffectKindView::Unknown,
+                        modifiers: vec![],
+                    })
+                })
+                .collect(),
+            notes: a.notes,
+        })
+        .collect();
+    Some(StatBlockView {
+        record_key: presentation.identity.record_key.clone(),
+        title: presentation.identity.title.clone(),
+        level: a.level.value.clone(),
+        adjusted_level: a.level.value.clone(),
+        values,
+        speeds,
+        action_budget: None,
+        activities,
+        unapplied_effects: notes,
+    })
 }
 fn add(n: &Number, delta: i64) -> Option<Number> {
     if let Some(i) = n.as_i64() {
@@ -557,24 +528,37 @@ fn add(n: &Number, delta: i64) -> Option<Number> {
     Number::from_f64(n.as_f64()? + delta as f64)
 }
 fn apply(v: &mut StatValueView, m: StatModifierView) {
-    let same = v.modifiers.iter().position(|old| {
+    apply_modifier(
+        &mut v.adjusted_value,
+        &mut v.modifiers,
+        &mut v.suppressed_modifiers,
+        m,
+    );
+}
+fn apply_modifier(
+    adjusted_value: &mut Number,
+    modifiers: &mut Vec<StatModifierView>,
+    suppressed_modifiers: &mut Vec<StatModifierView>,
+    m: StatModifierView,
+) {
+    let same = modifiers.iter().position(|old| {
         old.modifier_type == m.modifier_type && m.modifier_type != StatModifierTypeView::Adjustment
     });
     let delta = if let Some(i) = same {
-        if v.modifiers[i].value <= m.value {
-            v.suppressed_modifiers.push(m);
+        if modifiers[i].value <= m.value {
+            suppressed_modifiers.push(m);
             return;
         }
-        let old = v.modifiers.remove(i);
-        let delta = m.value - old.value;
-        v.suppressed_modifiers.push(old);
-        delta
+        m.value - modifiers[i].value
     } else {
         m.value
     };
-    if let Some(n) = add(&v.adjusted_value, delta) {
-        v.adjusted_value = n;
-        v.modifiers.push(m);
+    if let Some(n) = add(adjusted_value, delta) {
+        if let Some(i) = same {
+            suppressed_modifiers.push(modifiers.remove(i));
+        }
+        *adjusted_value = n;
+        modifiers.push(m);
     }
 }
 pub(super) fn participant_runtime_block(p: &EncounterParticipant) -> StatBlockView {

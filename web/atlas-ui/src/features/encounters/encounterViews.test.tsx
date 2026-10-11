@@ -1,4 +1,12 @@
-import { detailFixture, summaryFixture } from "../../test/fixtures";
+import {
+  detailFixture,
+  summaryFixture,
+  actorFixture,
+  numberFact,
+  knownFact,
+  unavailableFact,
+  activityFixture,
+} from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -7,7 +15,7 @@ import type {
   EncounterIndexView as EncounterIndexViewDto,
   EncounterParticipantView,
   RecordDetailView,
-  RecordSurfaceSectionView,
+  RecordPresentationView,
   RecordSummaryView,
   ResultWindowPage,
 } from "../../generated/atlas";
@@ -210,7 +218,9 @@ describe("encounter views", () => {
     });
 
     await screen.findByText("Runtime");
-    const runtimeSection = screen.getByText("Runtime").closest(".record-surface-card");
+    const runtimeSection = screen
+      .getByText("Runtime")
+      .closest(".actor-reference__runtime");
     if (!(runtimeSection instanceof HTMLElement)) {
       throw new Error("Runtime section was not rendered");
     }
@@ -221,27 +231,24 @@ describe("encounter views", () => {
       within(runtimeSection).getByLabelText("Show explanation for Actions"),
     ).toBeInTheDocument();
     expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
-    const movementSection = screen
-      .getByText("Senses & Movement")
-      .closest(".record-surface-card");
+    const movementSection = screen.getByText("Speed").closest(".record-fact-list");
     if (!(movementSection instanceof HTMLElement)) {
       throw new Error("Movement section was not rendered");
     }
-    expect(within(movementSection).getAllByText("Land Speed").length).toBeGreaterThan(
-      0,
-    );
-    expect(within(movementSection).getByText("15 ft")).toBeInTheDocument();
+    expect(within(movementSection).getAllByText("Speed").length).toBeGreaterThan(0);
+    expect(within(movementSection).getByText("15 feet")).toBeInTheDocument();
     expect(
-      within(movementSection).getByLabelText("Show explanation for Land Speed"),
+      within(movementSection).getByLabelText("Show explanation for Speed"),
     ).toBeInTheDocument();
     const activitiesSection = screen
-      .getByText("Activities")
-      .closest(".record-surface-card");
+      .getByText("Strikes")
+      .closest(".actor-reference__activities");
     if (!(activitiesSection instanceof HTMLElement)) {
       throw new Error("Activities section was not rendered");
     }
     expect(within(activitiesSection).getByText("Claw")).toBeInTheDocument();
-    expect(within(activitiesSection).getByText("1d6+2 slashing")).toBeInTheDocument();
+    expect(within(activitiesSection).getByText("1d6+2")).toBeInTheDocument();
+    expect(within(activitiesSection).getByText(/slashing/)).toBeInTheDocument();
   });
 
   it("renders manual PC runtime state without inferred speed rows", async () => {
@@ -252,14 +259,16 @@ describe("encounter views", () => {
     fireEvent.click((await screen.findByText("Kyra")).closest('[role="button"]')!);
 
     await screen.findByText("Runtime");
-    const runtimeSection = screen.getByText("Runtime").closest(".record-surface-card");
+    const runtimeSection = screen
+      .getByText("Runtime")
+      .closest(".actor-reference__runtime");
     if (!(runtimeSection instanceof HTMLElement)) {
       throw new Error("Runtime section was not rendered");
     }
     expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
     expect(within(runtimeSection).getByText("3")).toBeInTheDocument();
     expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Land Speed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Speed")).not.toBeInTheDocument();
   });
 
   it("edits the selected participant in the participant sheet", async () => {
@@ -510,10 +519,10 @@ describe("encounter views", () => {
     );
   });
 
-  it("consumes temporary HP before current HP in the surfaced participant view", async () => {
+  it("consumes temporary HP before current HP in participant controls", async () => {
     apiMocks.getEncounter.mockResolvedValue(
       encounterDetailFixture("participant_a", {
-        surface: recordSurfaceFixture(),
+        presentation: participantPresentationFixture(),
       }),
     );
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
@@ -828,7 +837,7 @@ function encounterDetailFixture(
         current_hp: 10n,
         temporary_hp: 5n,
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
-        surface: recordSurfaceFixture({
+        presentation: participantPresentationFixture({
           actions: 2n,
           actionBase: 3n,
           actionAdjustment: -1n,
@@ -836,62 +845,7 @@ function encounterDetailFixture(
           speedBase: 25n,
           speedAdjustment: -10n,
         }),
-        stat_block: {
-          record_key: "actors:goblin",
-          title: "Goblin Warrior",
-          level: 1,
-          adjusted_level: 1,
-          values: [],
-          speeds: [
-            {
-              movement_type: "land",
-              label: "Land Speed",
-              base_value_feet: 25,
-              adjusted_value_feet: 15,
-              adjustments: [
-                {
-                  source: "Encumbered",
-                  label: "Speed penalty",
-                  value: -10n,
-                  reason:
-                    "Encumbered reduces speeds by 10 feet, to a minimum of 5 feet.",
-                },
-              ],
-              suppressed_adjustments: [],
-              notes: [],
-            },
-          ],
-          action_budget: {
-            actions: {
-              label: "Actions",
-              base_value: 3n,
-              adjusted_value: 2n,
-              segments: [{ label: "Base", value: 2n, restricted: false }],
-              adjustments: [
-                {
-                  source: "Slowed 1",
-                  label: "Reduced actions regained",
-                  value: -1n,
-                  reason: "Applied to the next action-regain step.",
-                },
-              ],
-              suppressed_adjustments: [],
-            },
-            reactions: {
-              label: "Reactions",
-              base_value: 1n,
-              adjusted_value: 1n,
-              segments: [{ label: "Base", value: 1n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            can_act: { available: true },
-            can_react: { available: true },
-            notes: [],
-          },
-          activities: [],
-          unapplied_effects: [],
-        },
+
         conditions: [
           {
             condition_id: 7n,
@@ -916,36 +870,8 @@ function encounterDetailFixture(
         initiative: 15n,
         max_hp: 24n,
         current_hp: 24n,
-        stat_block: {
-          record_key: "participant_b",
-          title: "Kyra",
-          values: [],
-          speeds: [],
-          action_budget: {
-            actions: {
-              label: "Actions",
-              base_value: 3n,
-              adjusted_value: 3n,
-              segments: [{ label: "Base", value: 3n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            reactions: {
-              label: "Reactions",
-              base_value: 1n,
-              adjusted_value: 1n,
-              segments: [{ label: "Base", value: 1n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            can_act: { available: true },
-            can_react: { available: true },
-            notes: [],
-          },
-          activities: [],
-          unapplied_effects: [],
-        },
-        surface: recordSurfaceFixture({
+
+        presentation: participantPresentationFixture({
           kind: "pc",
           kindLabel: "PC",
           levelLabel: undefined,
@@ -1015,7 +941,7 @@ function recordSummaryFixture(recordKey: string, title: string): RecordSummaryVi
   };
 }
 
-function recordSurfaceFixture({
+function participantPresentationFixture({
   actionAdjustment,
   actionBase,
   actions,
@@ -1049,145 +975,94 @@ function recordSurfaceFixture({
   title?: string;
   traits?: Array<{ kind: string; label: string; value: string }>;
 } = {}) {
-  const sections: RecordSurfaceSectionView[] = [
-    {
-      kind: "vitals" as const,
-      title: "Vitals",
-      collapsed_by_default: false,
-    },
-    {
-      kind: "conditions" as const,
-      title: "Conditions",
-      collapsed_by_default: false,
-    },
-  ];
-  if (actions !== undefined) {
-    sections.push({
-      kind: "runtime" as const,
-      title: "Runtime",
-      collapsed_by_default: false,
-      values: [
-        {
-          key: "actions",
-          label: "Actions",
-          value: { kind: "number" as const, value: Number(actions) },
-          ...(actionBase !== undefined
-            ? { base_value: { kind: "number" as const, value: Number(actionBase) } }
-            : {}),
-          adjusted: actionBase !== undefined && actions !== actionBase,
-          display: "static_number" as const,
-          ...(actionAdjustment !== undefined
-            ? {
-                adjustments: [
+  const actor = actorFixture();
+  actor.land_speed =
+    speed === undefined
+      ? { state: "not_applicable", value: null, adjustment: null }
+      : numberFact(Number(speed));
+  if (speedBase !== undefined)
+    actor.land_speed.adjustment = {
+      authored: Number(speedBase),
+      applied:
+        speedAdjustment === undefined
+          ? []
+          : [
+              {
+                source: "Encumbered",
+                label: "Speed penalty",
+                modifier_type: "status",
+                value: speedAdjustment,
+              },
+            ],
+      suppressed: [],
+      notes: [],
+    };
+  const count = (label: string, value: bigint, base = value) => ({
+    label,
+    base_value: base,
+    adjusted_value: value,
+    segments: [],
+    adjustments: [],
+    suppressed_adjustments: [],
+  });
+  if (actions !== undefined)
+    actor.runtime = {
+      action_budget: {
+        actions: {
+          ...count("Actions", actions, actionBase),
+          adjustments:
+            actionAdjustment === undefined
+              ? []
+              : [
                   {
-                    label: "Reduced actions regained",
                     source: "Slowed 1",
-                    delta: { kind: "number" as const, value: Number(actionAdjustment) },
+                    label: "Reduced actions regained",
+                    value: actionAdjustment,
+                    reason: "Applied to the next action-regain step.",
                   },
                 ],
-              }
-            : {}),
         },
-        {
-          key: "reactions",
-          label: "Reactions",
-          value: { kind: "number" as const, value: Number(reactions) },
-          adjusted: false,
-          display: "static_number" as const,
-        },
-      ],
-    });
-  }
-  if (speed !== undefined) {
-    sections.push({
-      kind: "movement" as const,
-      title: "Movement",
-      collapsed_by_default: false,
-      values: [
-        {
-          key: "speed.land",
-          label: "Land Speed",
-          value: { kind: "distance_feet" as const, value: Number(speed) },
-          ...(speedBase !== undefined
-            ? {
-                base_value: {
-                  kind: "distance_feet" as const,
-                  value: Number(speedBase),
-                },
-              }
-            : {}),
-          adjusted: speedBase !== undefined && speed !== speedBase,
-          display: "distance" as const,
-          ...(speedAdjustment !== undefined
-            ? {
-                adjustments: [
-                  {
-                    label: "Speed penalty",
-                    source: "Encumbered",
-                    delta: {
-                      kind: "distance_feet" as const,
-                      value: Number(speedAdjustment),
-                    },
-                  },
-                ],
-              }
-            : {}),
-        },
-      ],
-    });
-  }
-  if (includeActivities) {
-    sections.push({
-      kind: "activities" as const,
-      title: "Activities",
-      collapsed_by_default: false,
-      activities: [
-        {
-          navigation: {
-            record_key: recordKey,
-            owners: [],
-            field: null,
-            passage: null,
-            source_fingerprint: null,
+        reactions: count("Reactions", reactions),
+        can_act: { available: true },
+        can_react: { available: true },
+        notes: [],
+      },
+      unapplied_effects: [],
+    };
+  actor.activities = knownFact(
+    includeActivities
+      ? [
+          {
+            ...activityFixture("Claw", recordKey),
+            attack: numberFact(12),
+            damage: knownFact([
+              {
+                id: "main",
+                formula: knownFact("1d6+2"),
+                damage_type: knownFact("slashing"),
+                kinds: knownFact(["damage"]),
+                category: unavailableFact("not_applicable"),
+                materials: knownFact([]),
+                apply_modifier: knownFact(false),
+              },
+            ]),
           },
-          key: "claw",
-          label: "Claw",
-          kind: "strike",
-          usage: "unlimited",
-          values: [
-            {
-              key: "activity.claw.roll.attack",
-              label: "Attack",
-              value: { kind: "number" as const, value: 12 },
-              base_value: { kind: "number" as const, value: 12 },
-              adjusted: false,
-              display: "signed_modifier" as const,
-            },
-            {
-              key: "activity.claw.damage.main",
-              label: "Damage",
-              value: { kind: "formula" as const, value: "1d6+2 slashing" },
-              base_value: { kind: "formula" as const, value: "1d6+2 slashing" },
-              adjusted: false,
-              display: "formula" as const,
-            },
-          ],
-        },
-      ],
-    });
-  }
-  return {
-    record_key: recordKey,
-    title,
-    kind,
-    profile: "encounter_participant" as const,
-    header: {
-      ...(levelLabel === undefined ? {} : { level_label: levelLabel }),
+        ]
+      : [],
+  );
+  const presentation: RecordPresentationView = {
+    identity: {
+      ...summaryFixture(recordKey, title),
+      kind,
       kind_label: kindLabel,
+      level_label: kind === "pc" ? null : (levelLabel ?? null),
       traits,
     },
-    sections,
+    content: [],
+    owned: [],
+    body: { kind: "creature", value: actor },
   };
+  return presentation;
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
@@ -1196,7 +1071,7 @@ function recordDetailFixture(recordKey: string): RecordDetailView {
     recordKey.startsWith("conditionitems:") ? "Frightened Condition" : "Goblin Warrior",
     "rules:linked",
   );
-  const body = result.surface.sections[0].content?.body;
+  const body = result.presentation.content[0]?.body;
   if (body?.kind === "html")
     body.html = body.html.replace("Nested Rule", "Linked Rule");
   return result;

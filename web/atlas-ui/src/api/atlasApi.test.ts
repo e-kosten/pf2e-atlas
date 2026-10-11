@@ -143,6 +143,65 @@ describe("source-backed API transport", () => {
     expect(fetchMock.mock.calls[0][0]).toContain("/api/records/detail");
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
   });
+  it("preserves finite semantic real numbers and rejects unsafe authored/effective values", async () => {
+    const detail = detailFixture("actors:ghoul", "Ghoul");
+    const real = {
+      ...detail,
+      presentation: {
+        ...detail.presentation,
+        body: {
+          kind: "physical_reference",
+          value: {
+            usage: { state: "value", value: "held" },
+            bulk: { state: "value", value: 0.1, adjustment: null },
+            price: { state: "value", value: "1 gp" },
+            price_per: { state: "value", value: 1, adjustment: null },
+          },
+        },
+      },
+    };
+    respond(real);
+    expect(await getRecordDetail("actors:ghoul")).toEqual(real);
+    respond({
+      ...detail,
+      presentation: {
+        ...detail.presentation,
+        body: {
+          kind: "creature",
+          value: {
+            armor_class: {
+              state: "value",
+              value: Number.MAX_SAFE_INTEGER + 1,
+              adjustment: null,
+            },
+          },
+        },
+      },
+    });
+    await expect(getRecordDetail("actors:ghoul")).rejects.toThrow("safe numeric range");
+    respond({
+      ...detail,
+      presentation: {
+        ...detail.presentation,
+        body: {
+          kind: "creature",
+          value: {
+            armor_class: {
+              state: "value",
+              value: 30,
+              adjustment: {
+                authored: Number.MAX_SAFE_INTEGER + 1,
+                applied: [],
+                suppressed: [],
+                notes: [],
+              },
+            },
+          },
+        },
+      },
+    });
+    await expect(getRecordDetail("actors:ghoul")).rejects.toThrow("safe numeric range");
+  });
   it("sends typed predicates and distinguishes retrieval mode", async () => {
     respond({
       window_id: 5,

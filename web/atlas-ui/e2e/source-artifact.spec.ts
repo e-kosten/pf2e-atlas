@@ -1,4 +1,56 @@
 import { test, expect } from "@playwright/test";
+
+test("reader follows, closes and promotes exact owned selection through browser history", async ({
+  page,
+}) => {
+  await page.goto("/records/pathfinder-bestiary%3ALHHgGSs0ELCR4CYK");
+  await page.getByRole("link", { name: "Reader view", exact: true }).click();
+  const primary = page.locator(".record-view__pane").first();
+  const preview = page.locator(".record-view__pane").last();
+  await primary.getByRole("button", { name: "Jaws", exact: true }).click();
+  await expect(
+    preview.getByRole("heading", { name: "Jaws", exact: true }),
+  ).toBeVisible();
+  const ownedPreviewUrl = page.url();
+  const ownedSelection = new URL(ownedPreviewUrl).searchParams.get("previewSelection");
+  expect(ownedSelection).toBeTruthy();
+  await preview.getByRole("button", { name: "From Ghoul", exact: true }).click();
+  await expect(
+    preview.getByRole("heading", { name: "Ghoul", exact: true }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(ownedPreviewUrl);
+  await expect(
+    preview.getByRole("heading", { name: "Jaws", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Close preview", exact: true }).click();
+  await expect(
+    preview.getByText("Select a linked record to preview it."),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(ownedPreviewUrl);
+  await page.getByRole("link", { name: "Open preview as reader", exact: true }).click();
+  await expect(
+    primary.getByRole("heading", { name: "Jaws", exact: true }),
+  ).toBeVisible();
+  const ownedReaderUrl = page.url();
+  expect(new URL(ownedReaderUrl).searchParams.get("selection")).toBe(ownedSelection);
+  await primary.getByRole("button", { name: "From Ghoul", exact: true }).click();
+  await expect(
+    preview.getByRole("heading", { name: "Ghoul", exact: true }),
+  ).toBeVisible();
+  expect(new URL(page.url()).searchParams.get("selection")).toBe(ownedSelection);
+  await page.getByRole("button", { name: "Close preview", exact: true }).click();
+  await expect(page).toHaveURL(ownedReaderUrl);
+  await page.getByRole("link", { name: "Detail page", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Jaws", exact: true })).toBeVisible();
+  expect(new URL(page.url()).searchParams.get("selection")).toBe(ownedSelection);
+  await page.goBack();
+  await expect(page).toHaveURL(ownedReaderUrl);
+  await page.goForward();
+  await expect(page.getByRole("heading", { name: "Jaws", exact: true })).toBeVisible();
+});
+
 test("saved list creation and unknown manual participant HP use actual local-state workflows", async ({
   page,
 }) => {
@@ -77,10 +129,31 @@ test("saved list creation and unknown manual participant HP use actual local-sta
   await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
     "20",
   );
-  for (const name of ["Defenses", "Saves", "Skills", "Senses & Movement"])
-    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
-  for (const label of ["AC", "fortitude", "stealth", "land"])
-    await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
+  const reference = page.locator(".encounter-reference");
+  for (const [label, value] of [
+    ["AC", "16"],
+    ["Fortitude", "+4"],
+    ["stealth", "+7"],
+    ["Speed", "30 feet"],
+  ]) {
+    const fact = reference.locator(".record-fact").filter({
+      has: page.getByText(label, { exact: true }),
+    });
+    await expect(fact).toBeVisible();
+    await expect(fact.locator("span").first()).toHaveText(value);
+  }
+  await expect(
+    reference.getByRole("heading", { name: "Strikes", exact: true }),
+  ).toBeVisible();
+  await expect(
+    reference.getByRole("heading", { name: "Abilities", exact: true }),
+  ).toBeVisible();
+  await expect(
+    reference.getByRole("button", { name: "Jaws", exact: true }),
+  ).toBeVisible();
+  await expect(
+    reference.getByRole("button", { name: "Ghoul Fever", exact: true }),
+  ).toBeVisible();
   await page.getByRole("textbox", { name: "HP", exact: true }).fill("13");
   await page.getByRole("button", { name: "Set", exact: true }).first().click();
   await page.getByRole("combobox", { name: "Variant", exact: true }).press("ArrowDown");
@@ -223,11 +296,27 @@ test("suggested variants compare authored details and Similar uses its real rout
     }),
   ).toBeVisible();
   await expect(comparison).not.toHaveClass(/ant-zoom/);
+  await expect(comparison.getByText("85 gp", { exact: true })).toBeVisible();
+  await expect(comparison.getByText("850 gp", { exact: true })).toBeVisible();
   await page.screenshot({
     path: "../../scratch/browser-validation/variant-comparison.png",
     fullPage: true,
   });
   await comparison.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(comparison).not.toBeVisible();
+  await page.getByRole("combobox", { name: "Compare variant", exact: true }).click();
+  await page
+    .locator(".ant-select-dropdown:visible")
+    .getByText("Wovenwood Shield (Moderate)", { exact: true })
+    .click();
+  await expect(
+    comparison.getByRole("heading", {
+      name: "Wovenwood Shield (Moderate)",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await comparison.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(comparison).not.toBeVisible();
   await page.getByRole("button", { name: "Connections", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Outgoing", exact: true }),

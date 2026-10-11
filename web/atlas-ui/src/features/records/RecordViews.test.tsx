@@ -3,9 +3,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { RecordDetailView } from "../../generated/atlas";
+import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 import { ReaderView, RecordView } from "./RecordViews";
-import { ATLAS_ROUTE_CHANGE_EVENT, currentAtlasRoute } from "../../app/routes";
+import {
+  ATLAS_ROUTE_CHANGE_EVENT,
+  atlasRoutePath,
+  currentAtlasRoute,
+} from "../../app/routes";
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -71,7 +75,12 @@ describe("record route views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Linked Record" }));
 
     await waitFor(() => expect(window.location.pathname).toBe("/reader/spell%3Aheal"));
-    expect(window.location.search).toBe("?preview=spell%3Alinked");
+    expect(currentAtlasRoute()).toMatchObject({
+      kind: "reader",
+      recordKey: "spell:heal",
+      previewRecordKey: "spell:linked",
+      previewSelection: { record_key: "spell:linked" },
+    });
     expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
   });
@@ -130,6 +139,81 @@ describe("record route views", () => {
       screen.getByText("Select a linked record to preview it."),
     ).toBeInTheDocument();
   });
+
+  it("preserves owned field and passage identity through preview follow, close, promotion and history", async () => {
+    const selected = (record_key: string, ordinal: number): RecordNavigationView => ({
+      record_key,
+      owners: [
+        { collection: "items", identity: { SnapshotLocal: { index: ordinal } } },
+      ],
+      field: "system.description.value",
+      passage: {
+        kind: "plain_section",
+        source_text_sha256: "text",
+        selection_version: "v1",
+        section_ordinal: 2,
+        label: "Passage",
+        chunk_bytes: { start: 0, end: 8 },
+      },
+      source_fingerprint: "snapshot",
+    });
+    const primary = selected("actors:primary", 0);
+    const first = selected("actors:first", 1);
+    const second = selected("actors:second", 2);
+    apiMocks.getRecordDetail.mockImplementation((recordKey: string) => {
+      const result = recordDetailFixture(recordKey);
+      result.relationships[0].target =
+        recordKey === primary.record_key ? first : second;
+      return Promise.resolve(result);
+    });
+    history.replaceState(
+      null,
+      "",
+      atlasRoutePath({
+        kind: "reader",
+        recordKey: primary.record_key,
+        previewRecordKey: null,
+        selection: primary,
+      }),
+    );
+    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Linked Record" }));
+    await screen.findByRole("heading", { name: "first" });
+    expect(currentAtlasRoute()).toMatchObject({
+      selection: primary,
+      previewSelection: first,
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Linked Record" })[1]);
+    await screen.findByRole("heading", { name: "second" });
+    const followedPath = window.location.pathname + window.location.search;
+    expect(currentAtlasRoute()).toMatchObject({
+      selection: primary,
+      previewSelection: second,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
+    expect(currentAtlasRoute()).toMatchObject({
+      selection: primary,
+      previewRecordKey: null,
+    });
+    // The browser restores the complete saved URL for Back/Forward.
+    history.replaceState(null, "", followedPath);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await screen.findByRole("heading", { name: "second" });
+    expect(currentAtlasRoute()).toMatchObject({
+      selection: primary,
+      previewSelection: second,
+    });
+    fireEvent.click(screen.getByRole("link", { name: "Open preview as reader" }));
+    expect(currentAtlasRoute()).toMatchObject({
+      recordKey: second.record_key,
+      selection: second,
+      previewRecordKey: null,
+    });
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(second.record_key, {
+      ...second,
+      fields: [second.field],
+    });
+  });
 });
 
 function ReaderHarness() {
@@ -138,7 +222,11 @@ function ReaderHarness() {
   useEffect(() => {
     const onRouteChange = () => setRoute(currentAtlasRoute());
     window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
-    return () => window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
+    window.addEventListener("popstate", onRouteChange);
+    return () => {
+      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
+      window.removeEventListener("popstate", onRouteChange);
+    };
   }, []);
 
   return route.kind === "reader" ? <ReaderView route={route} /> : null;
@@ -188,11 +276,8 @@ function savedListIndexFixture() {
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
   const result = detailFixture(recordKey, undefined, "spell:linked");
-  if (result.surface.sections[0].content?.body.kind === "html")
-    result.surface.sections[0].content.body.html =
-      result.surface.sections[0].content.body.html.replace(
-        "Nested Rule",
-        "Linked Record",
-      );
+  if (result.presentation.content[0]?.body.kind === "html")
+    result.presentation.content[0].body.html =
+      result.presentation.content[0].body.html.replace("Nested Rule", "Linked Record");
   return result;
 }

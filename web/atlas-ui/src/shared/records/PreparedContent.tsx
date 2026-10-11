@@ -6,10 +6,9 @@ import type {
   RecordRelationshipView,
   RecordNavigationView,
 } from "../../generated/atlas";
-import { navigateToAtlasRoute } from "../../app/routes";
 export type RecordReferenceHandler = (
   recordKey: string,
-  anchorRect?: DOMRect,
+  anchor?: HTMLElement,
   navigation?: RecordNavigationView,
 ) => void;
 export function PreparedContent({
@@ -21,6 +20,7 @@ export function PreparedContent({
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
 }) {
+  const [modal, contextHolder] = Modal.useModal();
   const container = useRef<HTMLDivElement>(null);
   const body = content.body;
   const html = useMemo(
@@ -99,18 +99,7 @@ export function PreparedContent({
               JSON.stringify(r.source) === JSON.stringify(content.locator),
           );
           if (!fact?.target) return;
-          if (fact.target.owners.length || fact.target.passage)
-            navigateToAtlasRoute({
-              kind: "record",
-              recordKey: fact.target.record_key,
-              selection: fact.target,
-            });
-          else
-            onReference(
-              fact.target.record_key,
-              marker.getBoundingClientRect(),
-              fact.target,
-            );
+          onReference(fact.target.record_key, marker as HTMLElement, fact.target);
           return;
         }
         const ordinal = Number(marker.getAttribute("data-atlas-interaction"));
@@ -122,7 +111,7 @@ export function PreparedContent({
             : control.kind === "damage"
               ? control.formula
               : control.shape || "Template";
-        Modal.info({
+        modal.info({
           title,
           content: (
             <dl>
@@ -151,7 +140,7 @@ export function PreparedContent({
       });
     });
     return () => listeners.forEach((remove) => remove());
-  }, [body, content.locator, relationships, onReference, html]);
+  }, [body, content.locator, relationships, onReference, html, modal]);
   if (body.kind === "unavailable")
     return (
       <Alert
@@ -161,10 +150,13 @@ export function PreparedContent({
     );
   if (body.kind === "plain") return <p className="prose">{body.text}</p>;
   return (
-    <div
-      ref={container}
-      className="prepared-content"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <>
+      {contextHolder}
+      <div
+        ref={container}
+        className="prepared-content"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </>
   );
 }

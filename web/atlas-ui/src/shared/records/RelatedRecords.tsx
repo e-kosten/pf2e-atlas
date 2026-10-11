@@ -159,6 +159,7 @@ export function RelatedRecords({ detail }: { detail: RecordDetailView }) {
           <Select
             aria-label="Compare variant"
             placeholder="Compare variant"
+            value={comparison}
             options={variants.data.variants
               .filter((v) => v.record_key !== key)
               .map((v) => ({ value: v.record_key, label: v.title }))}
@@ -202,8 +203,11 @@ function Comparison({
 }) {
   const left = useRecordDetail(source);
   const right = useRecordDetail(target);
-  const navigate = (recordKey: string) =>
-    navigateToAtlasRoute({ kind: "record", recordKey });
+  const navigate: import("./PreparedContent").RecordReferenceHandler = (
+    recordKey,
+    _anchor,
+    selection,
+  ) => navigateToAtlasRoute({ kind: "record", recordKey, selection });
   return (
     <Modal
       title="Variant comparison"

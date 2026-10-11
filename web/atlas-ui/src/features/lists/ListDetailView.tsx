@@ -183,6 +183,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
             navigateToAtlasRoute({
               kind: "record",
               recordKey: recordPreview.recordKey!,
+              selection: recordPreview.selection,
             })
           }
           onReference={recordPreview.open}

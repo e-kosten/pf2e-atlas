@@ -18,6 +18,8 @@ export default defineConfig({
     },
   },
   test: {
+    // Match CI's bounded worker count for the Ant-heavy DOM suites.
+    maxWorkers: 1,
     include: ["src/**/*.test.{ts,tsx}"],
     server: { deps: { inline: [/@react-querybuilder/, /antd/] } },
     environment: "jsdom",

@@ -18,7 +18,10 @@ import {
 import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
-import { RecordSurface } from "../../shared/records/RecordSurface";
+import {
+  RecordIdentity,
+  RecordPresentation,
+} from "../../shared/records/RecordPresentation";
 import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { EncounterConditionControls } from "./EncounterConditionControls";
@@ -42,7 +45,7 @@ export function EncounterInspectorPane({
 }: {
   onCloseRecordPreview: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
   onUpdateCondition: (
@@ -109,7 +112,7 @@ function EncounterParticipantSurface({
 }: {
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
   onUpdateCondition: (
@@ -137,68 +140,64 @@ function EncounterParticipantSurface({
     });
     onUpdate(request);
   };
-  const surface = activeCurrent.surface ?? participant.surface;
-  const slots = {
-    header: (
+  const presentation = activeCurrent.presentation ?? participant.presentation;
+  return (
+    <section className="encounter-reference">
+      <div className="encounter-reference__header">
+        {presentation ? (
+          <RecordIdentity
+            identity={{ ...presentation.identity, title: activeCurrent.display_name }}
+            onReference={onReference}
+          />
+        ) : (
+          <h2>{activeCurrent.display_name}</h2>
+        )}
+        <div>
+          <Button
+            aria-label="Participant note"
+            icon={<Pencil size={14} />}
+            onClick={() => setNoteOpen((open) => !open)}
+            size="small"
+            type={noteOpen ? "primary" : "default"}
+          />
+          <ParticipantVariantControl
+            participant={activeCurrent}
+            onUpdate={updateParticipant}
+          />
+        </div>
+      </div>
+      {activeCurrent.status === "unresolved" && (
+        <p>Authored record unavailable. Saved participant settings remain editable.</p>
+      )}
       <ParticipantEditStrip participant={activeCurrent} onUpdate={updateParticipant} />
-    ),
-    header_actions: (
-      <>
-        <Button
-          aria-label="Participant note"
-          icon={<Pencil size={14} />}
-          onClick={() => setNoteOpen((open) => !open)}
-          size="small"
-          type={noteOpen ? "primary" : "default"}
+      <div className="encounter-reference__controls">
+        <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
+        <EncounterConditionControls
+          conditionDefinitions={conditionDefinitions}
+          current={activeCurrent}
+          onAddCondition={onAddCondition}
+          onReference={onReference}
+          onRemoveCondition={onRemoveCondition}
+          onUpdateCondition={onUpdateCondition}
+          participants={participants}
         />
-        <ParticipantVariantControl
+      </div>
+      {presentation && (
+        <RecordPresentation
+          presentation={presentation}
+          onReference={onReference}
+          encounter
+          hideIdentity
+        />
+      )}
+      {noteOpen && (
+        <ParticipantNoteEditor
           participant={activeCurrent}
           onUpdate={updateParticipant}
         />
-      </>
-    ),
-    vitals: (
-      <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
-    ),
-    conditions: (
-      <EncounterConditionControls
-        conditionDefinitions={conditionDefinitions}
-        current={activeCurrent}
-        onAddCondition={onAddCondition}
-        onReference={onReference}
-        onRemoveCondition={onRemoveCondition}
-        onUpdateCondition={onUpdateCondition}
-        participants={participants}
-      />
-    ),
-    ...(noteOpen
-      ? {
-          notes: (
-            <ParticipantNoteEditor
-              participant={activeCurrent}
-              onUpdate={updateParticipant}
-            />
-          ),
-        }
-      : {}),
-  };
-  if (!surface)
-    return (
-      <section aria-label="Participant controls">
-        <h2>{activeCurrent.display_name}</h2>
-        {activeCurrent.status === "unresolved" && (
-          <p>
-            Authored record unavailable. Saved participant settings remain editable.
-          </p>
-        )}
-        {slots.header}
-        {slots.header_actions}
-        {slots.vitals}
-        {slots.conditions}
-        {slots.notes}
-      </section>
-    );
-  return <RecordSurface onReference={onReference} surface={surface} slots={slots} />;
+      )}
+    </section>
+  );
 }
 
 function ParticipantVariantControl({
@@ -304,7 +303,7 @@ function ParticipantSourceContent({
   onReference,
 }: {
   recordKey: string;
-  onReference: (key: string, anchorRect?: DOMRect) => void;
+  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
 }) {
   const [open, setOpen] = useState(false);
   const detail = useRecordDetail(open ? recordKey : null);

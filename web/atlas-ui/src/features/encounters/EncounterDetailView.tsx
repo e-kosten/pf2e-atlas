@@ -206,7 +206,11 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             onAddCondition={(request) => addCondition.mutate(request)}
             onCloseRecordPreview={recordPreview.close}
             onOpenRecordFullPage={(recordKey) =>
-              navigateToAtlasRoute({ kind: "record", recordKey })
+              navigateToAtlasRoute({
+                kind: "record",
+                recordKey,
+                selection: recordPreview.selection,
+              })
             }
             onReference={recordPreview.open}
             onRemoveCondition={(participantKey, conditionId) =>

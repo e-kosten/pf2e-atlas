@@ -7,6 +7,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+atlas-foundry-model.workspace = true
 atlas-app-model.workspace = true
 atlas-domain.workspace = true
 atlas-local-state.workspace = true
@@ -19,5 +20,4 @@ thiserror.workspace = true
 time.workspace = true
 
 [dev-dependencies]
-atlas-foundry-model.workspace = true
 atlas-search = { workspace = true, features = ["test-support"] }

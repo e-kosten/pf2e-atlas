@@ -5,7 +5,100 @@ import type {
   QueryFieldDefinition,
   QueryPredicate,
   FilterValueListView,
+  ActorPresentationView,
+  ActorActivityView,
+  FactView,
+  NumberFactView,
+  SpellPresentationView,
 } from "../generated/atlas";
+export const knownFact = <T>(value: T): FactView<T> => ({ state: "value", value });
+export const unavailableFact = <T>(
+  state: FactView<T>["state"] = "missing",
+): FactView<T> => ({ state, value: null });
+export const numberFact = (value: number): NumberFactView => ({
+  state: "value",
+  value,
+  adjustment: null,
+});
+export function actorFixture(): ActorPresentationView {
+  return {
+    level: numberFact(1),
+    armor_class: numberFact(16),
+    maximum_hp: numberFact(20),
+    perception: numberFact(7),
+    saves: { fortitude: numberFact(7), reflex: numberFact(5), will: numberFact(0) },
+    abilities: knownFact([{ key: "str", label: "Strength", modifier: numberFact(3) }]),
+    skills: knownFact([]),
+    land_speed: numberFact(25),
+    movement: knownFact([]),
+    immunities: knownFact([]),
+    weaknesses: knownFact([]),
+    resistances: knownFact([]),
+    senses: knownFact([]),
+    perception_details: knownFact(""),
+    languages: knownFact(["Common"]),
+    language_details: knownFact(""),
+    activities: knownFact([]),
+    runtime: null,
+  };
+}
+export function activityFixture(
+  title = "Jaws",
+  recordKey = "actors:ghoul",
+): ActorActivityView {
+  const na: NumberFactView = { state: "not_applicable", value: null, adjustment: null };
+  return {
+    title,
+    family: "melee",
+    kind: "strike",
+    navigation: {
+      record_key: recordKey,
+      owners: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],
+      field: null,
+      passage: null,
+      source_fingerprint: "snapshot",
+    },
+    usage: "1 action",
+    traits: [],
+    attack: numberFact(9),
+    lore_modifier: na,
+    difficulty_class: na,
+    casting_tradition: unavailableFact("not_applicable"),
+    preparation: unavailableFact("not_applicable"),
+    damage: knownFact([]),
+    casting_entry: null,
+    association: unavailableFact("not_applicable"),
+    notes: [],
+  };
+}
+export function spellFixture(): SpellPresentationView {
+  return {
+    rank: numberFact(3),
+    traditions: knownFact(["arcane", "primal"]),
+    cast: knownFact("2 actions"),
+    requirements: knownFact(""),
+    cost: knownFact(""),
+    range: knownFact("500 feet"),
+    target: knownFact(""),
+    area: knownFact({
+      shape: knownFact("burst"),
+      size: knownFact("20 feet"),
+      details: knownFact(""),
+    }),
+    defense: knownFact({
+      statistic: knownFact("Reflex"),
+      basic: knownFact(true),
+      passive: knownFact(""),
+    }),
+    duration: knownFact(""),
+    sustained: knownFact(false),
+    damage: knownFact([]),
+    heightening: unavailableFact("not_applicable"),
+    forms: knownFact([]),
+    casting_entry: unavailableFact("not_applicable"),
+    authored_cast_rank: { state: "not_applicable", value: null, adjustment: null },
+  };
+}
 export function summaryFixture(
   record_key: string,
   title = record_key.split(":")[1] || record_key,
@@ -64,27 +157,20 @@ export function detailFixture(
           },
         ]
       : [],
-    surface: {
-      record_key,
-      title: record.title,
-      kind: record.kind,
-      profile: "record_detail",
-      header: { traits: [] },
-      sections: target
+    presentation: {
+      identity: record,
+      owned: [],
+      body: { kind: "content" },
+      content: target
         ? [
             {
-              kind: "description",
-              title: "Description",
-              collapsed_by_default: false,
-              content: {
-                locator,
-                role: "description",
-                source_fingerprint: null,
-                body: {
-                  kind: "html",
-                  html: '<p><a data-atlas-reference="0" href="#">Nested Rule</a></p>',
-                  controls: [],
-                },
+              locator,
+              role: "description",
+              source_fingerprint: null,
+              body: {
+                kind: "html",
+                html: '<p><a data-atlas-reference="0" href="#">Nested Rule</a></p>',
+                controls: [],
               },
             },
           ]

@@ -104,6 +104,11 @@ sanitized HTML with those narrow facts; html2text formats terminal output at rea
 time. Neither renderer executes Foundry scripts or reconstructs a general document
 AST. Terminal formatting is not FTS text.
 
+App-service derives transient semantic family presentation from these checked
+snapshots and selected caches. Those response DTOs are not stored family bodies
+or another authored authority. Presentation changes alone require neither an
+artifact rebuild nor a schema migration; see [ADR0047](./decisions/0047-semantic-record-presentation.md).
+
 Initial indexing includes GM/owner prose and check DCs, excludes explicit None,
 and defaults to English with a build-time locale override. Search uses the indexed
 locale until rebuild; initial display also uses it. This does not implement a

@@ -1,5 +1,6 @@
 import { ExternalLink, X } from "lucide-react";
 import type React from "react";
+import { Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
 import { RelatedRecords } from "../../shared/records/RelatedRecords";
@@ -52,8 +53,8 @@ export function RecordView({ route }: RecordViewProps) {
             detail={detail.data}
             errors={[detail.error]}
             loading={detail.isLoading || detail.isFetching}
-            onReference={(recordKey) =>
-              navigateToAtlasRoute({ kind: "record", recordKey })
+            onReference={(recordKey, _anchor, selection) =>
+              navigateToAtlasRoute({ kind: "record", recordKey, selection })
             }
           />
           {detail.data && <RelatedRecords key={route.recordKey} detail={detail.data} />}
@@ -65,7 +66,7 @@ export function RecordView({ route }: RecordViewProps) {
 
 export function ReaderView({ route }: ReaderViewProps) {
   const detail = useRecordDetail(route.recordKey, route.selection);
-  const preview = useRecordDetail(route.previewRecordKey);
+  const preview = useRecordDetail(route.previewRecordKey, route.previewSelection);
   return (
     <RecordViewLayout
       primary={
@@ -90,12 +91,13 @@ export function ReaderView({ route }: ReaderViewProps) {
             detail={detail.data}
             errors={[detail.error]}
             loading={detail.isLoading || detail.isFetching}
-            onReference={(previewRecordKey) =>
+            onReference={(previewRecordKey, _anchor, previewSelection) =>
               navigateToAtlasRoute({
                 kind: "reader",
                 recordKey: route.recordKey,
                 previewRecordKey,
                 selection: route.selection,
+                previewSelection,
               })
             }
           />
@@ -113,6 +115,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                     kind: "reader",
                     recordKey: route.previewRecordKey,
                     previewRecordKey: null,
+                    selection: route.previewSelection,
                   }}
                 />
                 <PaneIconButton
@@ -123,6 +126,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                       kind: "reader",
                       recordKey: route.recordKey,
                       previewRecordKey: null,
+                      selection: route.selection,
                     })
                   }
                 />
@@ -133,16 +137,19 @@ export function ReaderView({ route }: ReaderViewProps) {
         >
           <RecordDetailPane
             detail={route.previewRecordKey ? preview.data : undefined}
+            compact
             emptyMessage="Select a linked record to preview it."
             errors={[preview.error]}
             loading={
               route.previewRecordKey ? preview.isLoading || preview.isFetching : false
             }
-            onReference={(previewRecordKey) =>
+            onReference={(previewRecordKey, _anchor, previewSelection) =>
               navigateToAtlasRoute({
                 kind: "reader",
                 recordKey: route.recordKey,
                 previewRecordKey,
+                selection: route.selection,
+                previewSelection,
               })
             }
           />
@@ -231,7 +238,7 @@ function RouteLink({
   route: AtlasRoute;
 }) {
   return (
-    <a
+    <Typography.Link
       className="record-view__link"
       href={atlasRoutePath(route)}
       onClick={(event) => {
@@ -243,6 +250,6 @@ function RouteLink({
       }}
     >
       {children}
-    </a>
+    </Typography.Link>
   );
 }

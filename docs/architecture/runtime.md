@@ -141,7 +141,23 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service owns workflow state/result windows, catalog-to-editor controls,
-record surfaces and local-state hydration over runtime/search. Web startup uses
+semantic family presentation and local-state hydration over runtime/search.
+Detail retains a body-free root summary, full selected address, and selected-node
+identity beside prepared content, useful owned links and an explicit family body.
+Authored reference extraction is independent of encounter composition; the private
+encounter arithmetic workspace is never transported. Encounter participants have
+one composed presentation beside their durable local state, with explanations
+attached to adjusted facts. Fact availability distinguishes missing, null, invalid
+and not-applicable parents from known zero, false and empty collections.
+
+Spells and their owned copies display authored casting context, damage, fixed or
+interval heightening and partial form changes. This is reference data, including
+explicit clears; it does not execute casting, calculate effective forms or spend
+resources. Renderers share semantic responses while independently formatting
+terminal and browser layouts. Complete selected navigation drives detail caching
+and reader transitions. Root terminal summaries stay body-free.
+
+Web startup uses
 full pooled retrieval; short-lived CLI workflows may choose explicit model-free
 or stored-vector modes. The bounded executor prevents one global serialized lane.
 Web routes are transport glue. App-model generates intentional browser DTOs;

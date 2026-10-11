@@ -98,8 +98,11 @@ request; variants are separate derived suggestions.
 Keep application workflows in app-service. It uses runtime/search/local-state,
 not index imports or handcrafted SQL readers. Retain the bounded retrieval
 executor rather than serializing all read-only web requests behind one lane.
-App-service owns useful catalog control presentation, result windows, composed
-record surfaces and hydration. App-model stays a DTO/export boundary; run
+App-service owns useful catalog control presentation, result windows, semantic
+family presentation and hydration. Reference reads project authored facts directly;
+encounters compose the existing bounded runtime overlays into one presentation.
+There is no generic section/value/profile layout interpreter or second encounter
+stat-block response. App-model stays a transient DTO/export boundary; run
 `cargo test -p atlas-app-model` and regenerate checked bindings intentionally
 with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
 
@@ -115,6 +118,13 @@ operators. It renders sanitized HTML and supported narrow controls, without a
 Foundry parser, mechanics inference or CEL editor translation. Follow
 [`web/atlas-ui/AGENTS.md`](../../web/atlas-ui/AGENTS.md) and
 [frontend guidelines](../../web/atlas-ui/docs/frontend-guidelines.md).
+
+Reuse family presentation components across detail, preview, comparison and
+encounter surfaces; feature modules compose their own controls around them.
+Repeated generic interactions use shared Ant-based primitives. New components
+need a clear responsibility or actual reuse need, rather than creating local
+copies of the same layout. [ADR0047](./decisions/0047-semantic-record-presentation.md)
+defines the transient presentation boundary.
 
 Architectural replacements land with every call site and matching docs updated.
 Generated reference artifacts rebuild directly: no legacy adapter, bridge or

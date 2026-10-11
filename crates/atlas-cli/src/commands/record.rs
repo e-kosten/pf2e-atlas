@@ -1,14 +1,13 @@
 use super::{filters::build_filter, product::app_result};
 use crate::client::{ClientOptions, connect};
-use atlas_app_model::{
-    PreparedFieldBodyView, RecordDetailRequest, RecordDetailView, SurfaceScalarView,
-    SurfaceValueView,
-};
+use atlas_app_model::{RecordDetailRequest, RecordDetailView};
 use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
 pub(crate) mod args;
+mod presentation;
 mod terminal;
 use args::{RecordGetOptions, RecordResolveOptions, TerminalDetail};
+#[cfg(test)]
 use terminal::render_html;
 pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
     let s = connect(ClientOptions {
@@ -18,6 +17,26 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
     })
     .map_err(|e| e.message)?;
+    if o.detail == TerminalDetail::Summary
+        && !o.json
+        && o.owners.as_ref().is_none_or(|owners| owners.0.is_empty())
+        && o.field.is_none()
+        && o.passage.is_none()
+    {
+        for key in o.keys {
+            let key = atlas_domain::RecordKey::parse(&key).map_err(|e| e.to_string())?;
+            let Some(record) = s
+                .get_records(vec![key.clone()])
+                .map_err(|e| e.into_app_error().message)?
+                .into_iter()
+                .next()
+            else {
+                return Err(format!("record `{key}` was not found"));
+            };
+            print_header(&record);
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
     let mut records = Vec::new();
     let mut failed = false;
     for key in o.keys {
@@ -97,60 +116,16 @@ fn width() -> usize {
         .unwrap_or(80)
 }
 fn print_record(record: &RecordDetailView, detail: TerminalDetail) -> Result<(), String> {
-    println!("{} — {}", record.record.record_key, record.record.title);
-    println!(
-        "{} {}",
-        record.record.kind_label,
-        record.record.level_label.as_deref().unwrap_or("")
-    );
-    if detail == TerminalDetail::Summary {
-        return Ok(());
-    }
-    for section in &record.surface.sections {
-        println!("\n{}", section.title);
-        for value in &section.values {
-            print_value(value);
-        }
-        for group in &section.groups {
-            println!("{}", group.label);
-            for value in &group.values {
-                print_value(value);
-            }
-        }
-        for activity in &section.activities {
-            println!(
-                "{} {}",
-                activity.label,
-                activity.usage.as_deref().unwrap_or("")
-            );
-            for value in &activity.values {
-                print_value(value);
-            }
-        }
-        for note in &section.notes {
-            println!("{}: {}", note.label, note.text);
-        }
-        if let Some(content) = &section.content {
-            match &content.body {
-                PreparedFieldBodyView::Html { html, .. } => {
-                    println!("{}", render_html(html, width())?)
-                }
-                PreparedFieldBodyView::Plain { text } => println!("{text}"),
-                PreparedFieldBodyView::Unavailable { state } => {
-                    println!("[content unavailable: {}]", state.as_str())
-                }
-            }
-        }
-    }
+    print!("{}", presentation::render_record(record, detail, width())?);
     Ok(())
 }
-fn print_value(value: &SurfaceValueView) {
-    let text = match &value.value {
-        SurfaceScalarView::Number(n) => n.to_string(),
-        SurfaceScalarView::DistanceFeet(n) => format!("{n} feet"),
-        SurfaceScalarView::Text(s) | SurfaceScalarView::Formula(s) => s.clone(),
-    };
-    println!("{}: {}", value.label, text);
+fn print_header(record: &atlas_app_model::RecordSummaryView) {
+    println!("{} — {}", record.record_key, record.title);
+    println!(
+        "{} {}",
+        record.kind_label,
+        record.level_label.as_deref().unwrap_or("")
+    );
 }
 #[cfg(test)]
 mod tests {

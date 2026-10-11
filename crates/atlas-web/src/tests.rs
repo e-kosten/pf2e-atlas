@@ -338,7 +338,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     let (status, body) = route_json(Method::GET, "/api/records/actions:testAction1", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["record"]["record_key"], "actions:testAction1");
-    assert_eq!(body["surface"]["title"], "Test Action 1");
+    assert_eq!(body["presentation"]["identity"]["title"], "Test Action 1");
 
     let editor_request = json!({
         "context": { "kind": "filtered", "filter": null,"text":null,"mode":"lexical" }
@@ -821,7 +821,7 @@ impl AtlasWebService for MockService {
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         let mut record = record_summary();
         record.record_key = record_key.to_string();
-        Ok(serde_json::from_value(json!({"record":record,"surface":{"record_key":record_key,"title":"Test Action 1","kind":"rule","profile":"record_detail","header":{"traits":[]},"sections":[]},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
+        Ok(serde_json::from_value(json!({"record":record.clone(),"presentation":{"identity":record,"content":[],"owned":[],"body":{"kind":"content"}},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
     }
 
     fn graph_context(
@@ -961,9 +961,8 @@ impl AtlasWebService for MockService {
             note: request.note.clone(),
             note_hint: request.note,
             conditions: vec![],
-            stat_block: None,
             record: Some(record_summary()),
-            surface: None,
+            presentation: None,
         })
     }
 
@@ -1233,9 +1232,8 @@ fn encounter_participant(
         } else {
             vec![]
         },
-        stat_block: None,
         record: Some(record_summary()),
-        surface: None,
+        presentation: None,
     }
 }
 

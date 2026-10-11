@@ -29,7 +29,12 @@ export function RecordPreviewDrawer({
       onClose={onClose}
     >
       <section aria-label="Reference preview" role="dialog">
-        <RecordDetailPane detail={detail} loading={loading} onReference={onReference} />
+        <RecordDetailPane
+          compact
+          detail={detail}
+          loading={loading}
+          onReference={onReference}
+        />
       </section>
     </Drawer>
   );

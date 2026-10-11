@@ -1,11 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { PreparedContent } from "./PreparedContent";
 import { detailFixture } from "../../test/fixtures";
-import { Modal } from "antd";
+import { ConfigProvider, theme } from "antd";
 describe("prepared source HTML", () => {
   it("handles nested internal references once for click, Enter and Space", () => {
     const detail = detailFixture("actors:ghoul", "Ghoul", "rules:outer");
-    const content = detail.surface.sections[0].content!;
+    const content = detail.presentation.content[0];
     content.body = {
       kind: "html",
       html: '<span data-atlas-reference="0">Outer <span data-atlas-reference="1">Inner</span></span>',
@@ -31,12 +31,9 @@ describe("prepared source HTML", () => {
     expect(callback).toHaveBeenCalledTimes(3);
     for (const call of callback.mock.calls) expect(call[0]).toBe("rules:inner");
   });
-  it("handles nested controls once and leaves native child links uncancelled", () => {
-    const info = vi
-      .spyOn(Modal, "info")
-      .mockReturnValue({ destroy: vi.fn(), update: vi.fn() });
+  it("handles nested controls once and leaves native child links uncancelled", async () => {
     const detail = detailFixture("actors:ghoul", "Ghoul", "rules:outer");
-    const content = detail.surface.sections[0].content!;
+    const content = detail.presentation.content[0];
     content.body = {
       kind: "html",
       html: '<span data-atlas-reference="0">Outer <span data-atlas-interaction="0">Reflex</span><a data-atlas-reference="1" href="https://example.com">External</a><a href="https://example.net">Native</a></span>',
@@ -66,7 +63,7 @@ describe("prepared source HTML", () => {
     fireEvent.click(marker);
     fireEvent.keyDown(marker, { key: "Enter" });
     fireEvent.keyDown(marker, { key: " " });
-    expect(info).toHaveBeenCalledTimes(3);
+    expect(await screen.findAllByRole("dialog")).toHaveLength(3);
     for (const name of ["External", "Native"]) {
       const link = screen.getByRole("link", { name });
       const click = new MouseEvent("click", { bubbles: true, cancelable: true });
@@ -89,11 +86,36 @@ describe("prepared source HTML", () => {
       expect(key.defaultPrevented).toBe(false);
     }
     expect(callback).not.toHaveBeenCalled();
-    info.mockRestore();
+  });
+  it("opens keyboard control dialogs with the surrounding Ant configuration in dark mode", async () => {
+    const content = detailFixture("actors:ghoul", "Ghoul", "rules:outer").presentation
+      .content[0];
+    content.body = {
+      kind: "html",
+      html: '<span data-atlas-interaction="0">Fortitude check</span>',
+      controls: [
+        {
+          ordinal: 0,
+          control: { kind: "check", statistic: "Fortitude", options: { dc: "15" } },
+        },
+      ],
+    };
+    render(
+      <ConfigProvider prefixCls="themed" theme={{ algorithm: theme.darkAlgorithm }}>
+        <PreparedContent content={content} onReference={vi.fn()} />
+      </ConfigProvider>,
+    );
+    fireEvent.keyDown(screen.getByRole("button", { name: "Fortitude check" }), {
+      key: "Enter",
+    });
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveClass("themed-modal");
+    expect(dialog).toHaveTextContent("Fortitude");
+    expect(dialog).toHaveTextContent("15");
   });
   it("renders HTML semantics and references from field-local facts", () => {
     const detail = detailFixture("actors:ghoul", "Ghoul", "rules:nested");
-    const content = detail.surface.sections[0].content!;
+    const content = detail.presentation.content[0];
     const callback = vi.fn();
     render(
       <PreparedContent
@@ -116,8 +138,8 @@ describe("prepared source HTML", () => {
     expect(callback).toHaveBeenCalledTimes(3);
   });
   it("strips dangerous markup while unknown commands remain inert", () => {
-    const content = detailFixture("actors:ghoul", "Ghoul", "rules:nested").surface
-      .sections[0].content!;
+    const content = detailFixture("actors:ghoul", "Ghoul", "rules:nested").presentation
+      .content[0];
     content.body = {
       kind: "html",
       html: '<h2>Heading</h2><script>alert(1)</script><a href="javascript:alert(1)">Unsafe</a><span data-atlas-interaction="0">Unknown command</span>',
@@ -139,7 +161,7 @@ describe("prepared source HTML", () => {
   });
   it("keeps validated external links native while blocked references stay inert", () => {
     const detail = detailFixture("actors:ghoul", "Ghoul", "rules:nested");
-    const content = detail.surface.sections[0].content!;
+    const content = detail.presentation.content[0];
     content.body = {
       kind: "html",
       html: '<p><a data-atlas-reference="0" href="https://example.com">External source</a><a data-atlas-reference="1" href="https://example.com/blocked">Blocked</a></p>',

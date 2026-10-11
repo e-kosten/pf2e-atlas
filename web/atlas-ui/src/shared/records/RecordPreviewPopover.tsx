@@ -17,6 +17,7 @@ export function RecordPreviewPopover({
   onOpenFullPage,
   onReference,
 }: RecordPreviewPopoverProps) {
+  const bounds = anchor?.getBoundingClientRect();
   useEffect(() => {
     const close = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -45,6 +46,7 @@ export function RecordPreviewPopover({
           role="dialog"
         >
           <RecordDetailPane
+            compact
             detail={detail}
             loading={loading}
             onReference={onReference}
@@ -57,10 +59,10 @@ export function RecordPreviewPopover({
         className="record-preview-anchor"
         style={{
           position: "fixed",
-          left: anchor?.left || 0,
-          top: anchor?.top || 0,
-          width: anchor?.width || 1,
-          height: anchor?.height || 1,
+          left: bounds?.left || 0,
+          top: bounds?.top || 0,
+          width: bounds?.width || 1,
+          height: bounds?.height || 1,
           pointerEvents: "none",
         }}
       />

@@ -353,7 +353,22 @@ async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     );
   }
 
+  validateResponseNumbers(payload);
   return payload as T;
+}
+
+function validateResponseNumbers(value: unknown): void {
+  if (
+    typeof value === "number" &&
+    (!Number.isFinite(value) ||
+      (Number.isInteger(value) && !Number.isSafeInteger(value)))
+  )
+    throw new AtlasApiError(
+      200,
+      "Invalid numeric field: response exceeds JSON safe numeric range",
+    );
+  if (Array.isArray(value)) value.forEach(validateResponseNumbers);
+  else if (isRecord(value)) Object.values(value).forEach(validateResponseNumbers);
 }
 
 async function atlasFetchEncounter<T>(

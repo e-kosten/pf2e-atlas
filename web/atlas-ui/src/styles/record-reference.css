@@ -1,0 +1,154 @@
+.record-reference {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  line-height: 1.55;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.record-reference__content,
+.prepared-content {
+  min-width: 0;
+  max-width: 100%;
+}
+.prepared-content {
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+.prepared-content table {
+  overflow-wrap: normal;
+}
+.record-reference__header {
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 10px;
+}
+.record-reference__title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.record-reference__title h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.record-reference__title > span {
+  text-transform: uppercase;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.record-reference__header p {
+  margin: 6px 0 0;
+}
+.record-reference .badge-row {
+  margin-top: 4px;
+}
+.record-reference .muted {
+  color: var(--muted);
+}
+.actor-casting__spells {
+  margin-left: 16px;
+}
+.record-reference h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.record-reference h4 {
+  margin: 0 0 6px;
+}
+.record-fact-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.record-fact {
+  line-height: 1.7;
+}
+.record-fact > strong {
+  margin-right: 4px;
+}
+.record-number.ant-btn {
+  padding: 0;
+  height: auto;
+  font-weight: 700;
+}
+.record-number-explanation p {
+  margin: 4px 0;
+}
+.actor-reference__facts {
+  display: grid;
+  gap: 10px;
+}
+.actor-reference__defenses {
+  border-block: 1px solid var(--line);
+  padding-block: 10px;
+}
+.actor-reference__activities {
+  display: grid;
+  gap: 8px;
+}
+.actor-activity {
+  padding-block: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.actor-activity > .ant-btn-link {
+  padding-left: 0;
+  font-weight: 700;
+  height: auto;
+}
+.actor-activity p,
+.record-damage p {
+  margin: 4px 0;
+}
+.spell-reference {
+  display: grid;
+  gap: 14px;
+}
+.spell-reference__casting {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.spell-reference__change {
+  margin-top: 10px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+}
+.record-reference--compact {
+  gap: 10px;
+  max-width: 440px;
+}
+.record-reference--compact .record-key {
+  display: none;
+}
+.record-reference--compact .record-reference__title {
+  display: block;
+}
+.record-reference--compact .record-reference__title h2 {
+  font-size: 1.2rem;
+}
+.record-reference--compact .record-reference__title > span {
+  font-size: 0.85rem;
+}
+.encounter-reference__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.encounter-reference__controls {
+  display: grid;
+  gap: 12px;
+  margin-block: 12px;
+}
+.encounter-reference__controls .encounter-hp-panel {
+  border: 0;
+  padding: 0;
+}
+@media (max-width: 600px) {
+  .record-reference__title {
+    display: block;
+  }
+  .record-reference__title > span {
+    white-space: normal;
+  }
+}

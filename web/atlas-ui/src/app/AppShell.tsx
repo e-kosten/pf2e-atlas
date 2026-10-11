@@ -16,7 +16,6 @@ type AppShellProps = {
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
   onNavigateLists: () => void;
   onNavigateEncounters: () => void;
-  onNavigatePresentationMocks: () => void;
   onNavigateSearch: () => void;
   resolvedColorScheme: ResolvedColorScheme;
   workspace: SearchWorkspaceState;
@@ -29,7 +28,6 @@ export function AppShell({
   onColorSchemeChange,
   onNavigateLists,
   onNavigateEncounters,
-  onNavigatePresentationMocks,
   onNavigateSearch,
   resolvedColorScheme,
   workspace,
@@ -51,16 +49,12 @@ export function AppShell({
   const selectedView = topLevelView(activeView);
   const navItems: MenuProps["items"] = [
     { key: "search", label: "Search" },
-    { key: "presentationMocks", label: "Surface Mocks" },
     { key: "encounters", label: "Encounters" },
     { key: "lists", label: "Lists" },
   ];
   const onNavClick: MenuProps["onClick"] = ({ key }) => {
     if (key === "search") {
       onNavigateSearch();
-    }
-    if (key === "presentationMocks") {
-      onNavigatePresentationMocks();
     }
     if (key === "encounters") {
       onNavigateEncounters();

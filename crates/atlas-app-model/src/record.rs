@@ -1,4 +1,4 @@
-use crate::{RecordSurfaceProfileView, RecordSurfaceView};
+use crate::RecordPresentationView;
 use atlas_domain::SourcePassageAddress;
 use atlas_record::source_content::{OwnedContentLocator, SourceContentLocator};
 use serde::{Deserialize, Serialize};
@@ -45,7 +45,7 @@ pub struct RecordDetailRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordDetailView {
     pub record: RecordSummaryView,
-    pub surface: RecordSurfaceView,
+    pub presentation: RecordPresentationView,
     pub selected: RecordNavigationView,
     pub relationships: Vec<RecordRelationshipView>,
     pub relationships_truncated: bool,
@@ -84,9 +84,4 @@ pub enum RecordRefResolutionView {
     Key(atlas_domain::RecordKey),
     Miss,
     Ambiguous(Vec<RecordResolutionCandidateView>),
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct RecordSurfaceRequest {
-    pub selection: RecordDetailRequest,
-    pub profile: RecordSurfaceProfileView,
 }

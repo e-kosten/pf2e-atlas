@@ -23,6 +23,7 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { useFilterDiscovery } from "../../shared/filters/useFilterDiscovery";
+import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import {
   initialWorkspaceInteractionState,
   workspaceInteractionReducer,
@@ -201,7 +202,7 @@ export function useSearchWorkspace({
   });
 
   const detailQuery = useQuery({
-    queryKey: ["record-detail", selectedRecordKey],
+    ...recordDetailQueryOptions(selectedRecordKey),
     queryFn: async () => {
       const startedAt = performance.now();
       try {

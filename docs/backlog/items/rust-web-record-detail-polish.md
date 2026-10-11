@@ -3,13 +3,18 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-06-07
+Last reviewed: 2026-10-10
 
 ## Problem
 
-The web UI can load and render record detail through the shared presentation document, but the detail experience is still a first vertical slice. It needs a readability and interaction pass before users will rely on it for browsing records at length.
+The web UI renders transient semantic family facts and prepared HTML through
+shared presentation components. Creature, hazard and authored spell reference
+have deliberate layouts; other families retain content and narrow physical/table
+facts while their dedicated presentation remains future work.
 
-Record details should benefit all consumers by improving shared presentation contracts when the base document is insufficient, rather than inventing browser-only record data models.
+Further detail work should improve source-backed semantic contracts only when a
+consumer needs another fact, and reuse shared family presentation across detail,
+preview, comparison and encounters.
 
 ## Desired Outcome
 
@@ -18,7 +23,7 @@ Improve the web record detail view for scanability, navigation, and PF2e-specifi
 The pass should consider:
 
 - stronger layout for identity facts, badges, sections, and rich content;
-- kind-specific presentation improvements where the shared `RecordPresentationDocument` supports them;
+- dedicated equipment, journal and table layouts where useful;
 - inline reference navigation and first-class record-detail routes;
 - loading, empty, error, and stale-detail states;
 - detail-pane behavior when results change, panes collapse, or users navigate by keyboard;
@@ -26,9 +31,12 @@ The pass should consider:
 
 ## Constraints
 
-- Extend or improve `RecordPresentationDocument` when shared presentation data is insufficient.
+- Extend narrow app-service family facts when current consumer data is insufficient;
+  do not reintroduce RichDocument or a generic section/value/profile contract.
 - Do not duplicate rich document parsing or record-kind semantics in TypeScript.
 - Keep browser-specific layout code separate from shared Rust presentation contracts.
+- Reuse family components and shared Ant primitives rather than duplicating
+  layouts or creating visually inconsistent feature-local designs.
 
 ## Related
 

@@ -50,7 +50,14 @@ export function SearchView({ workspace }: SearchViewProps) {
         <RecordDetailPane
           detail={workspace.recordDetail}
           loading={workspace.detailLoading}
-          onReference={workspace.selectRecord}
+          onReference={(recordKey, _anchor, selection) => {
+            if (
+              selection &&
+              (selection.owners.length || selection.field || selection.passage)
+            )
+              navigateToAtlasRoute({ kind: "record", recordKey, selection });
+            else workspace.selectRecord(recordKey);
+          }}
         />
       }
     />

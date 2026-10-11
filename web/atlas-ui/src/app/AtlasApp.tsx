@@ -61,12 +61,6 @@ const ReaderView = lazy(() =>
     default: module.ReaderView,
   })),
 );
-const PresentationMocksView = lazy(() =>
-  import("../features/presentation-mocks/PresentationMocksView").then((module) => ({
-    default: module.PresentationMocksView,
-  })),
-);
-
 export function AtlasApp() {
   const [colorScheme, setColorScheme] =
     useState<ColorSchemePreference>(readStoredColorScheme);
@@ -111,16 +105,12 @@ export function AtlasApp() {
         }
         onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
         onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
-        onNavigatePresentationMocks={() =>
-          navigateToAtlasRoute({ kind: "presentationMocks" })
-        }
         resolvedColorScheme={resolvedColorScheme}
         workspace={workspace}
       >
         <Suspense fallback={<RouteLoading />}>
           {route.kind === "invalid" && <Alert type="error" message={route.message} />}
           {route.kind === "search" && <SearchView workspace={workspace} />}
-          {route.kind === "presentationMocks" && <PresentationMocksView />}
           {route.kind === "encounters" && <EncounterIndexView route={route} />}
           {route.kind === "encounter" && <EncounterDetailView route={route} />}
           {route.kind === "encounterEdit" && <EncounterEditView route={route} />}
