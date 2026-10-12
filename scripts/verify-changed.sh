@@ -4,13 +4,14 @@ set -eu
 
 usage() {
   cat <<'EOF'
-Usage: scripts/verify-changed.sh (--staged | --range <git-range> | --all) [--full] [--verbose]
+Usage: scripts/verify-changed.sh (--staged | --range <git-range> | --paths-file <file> | --all) [--full] [--verbose]
 
 Run path-sensitive validation.
 
 Modes:
   --staged       validate staged paths for pre-commit
   --range RANGE  validate paths changed in a git diff range
+  --paths-file FILE  validate literal paths collected by the pre-push hook
   --all          validate Rust and web UI gates regardless of paths
 
 Options:
@@ -22,6 +23,7 @@ EOF
 
 mode=
 range=
+input_paths=
 full=0
 verbose=0
 
@@ -43,6 +45,15 @@ while [ "$#" -gt 0 ]; do
     --all)
       mode=all
       shift
+      ;;
+    --paths-file)
+      mode=paths
+      input_paths="${2:-}"
+      if [ -z "$input_paths" ]; then
+        echo "--paths-file requires a file" >&2
+        exit 2
+      fi
+      shift 2
       ;;
     --full)
       full=1
@@ -70,6 +81,14 @@ if [ -z "$mode" ]; then
 fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+. "$REPO_ROOT/scripts/git-hooks/common.sh"
+# Resolve caller-relative files before normalizing the working directory.
+if [ "$mode" = paths ]; then
+  case "$input_paths" in
+    /*) ;;
+    *) input_paths="$PWD/$input_paths" ;;
+  esac
+fi
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/atlas-verify-changed.XXXXXX")"
 paths_file="$tmp_dir/paths"
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
@@ -78,10 +97,13 @@ cd "$REPO_ROOT"
 
 case "$mode" in
   staged)
-    git diff --cached --name-only --relative --diff-filter=ACDMRTUXB >"$paths_file"
+    collect_changed_paths "$paths_file" --cached --diff-filter=ACDMRTUXB
     ;;
   range)
-    git diff --name-only --relative "$range" >"$paths_file"
+    collect_changed_paths "$paths_file" "$range"
+    ;;
+  paths)
+    cat "$input_paths" >"$paths_file"
     ;;
   all)
     : >"$paths_file"
@@ -111,11 +133,6 @@ run_check() {
   return 1
 }
 
-path_matches() {
-  pattern="$1"
-  grep -Eq "$pattern" "$paths_file"
-}
-
 rust_touched=0
 web_touched=0
 docs_only=0
@@ -127,24 +144,11 @@ elif [ ! -s "$paths_file" ]; then
   echo "No changed paths detected; skipping validation." >&2
   exit 0
 else
-  if path_matches '(^Cargo\.toml$|^Cargo\.lock$|^crates/|^src/|^tests/|^build\.rs$|^scripts/.*\.sh$|^\.githooks/)'; then
-    rust_touched=1
-  fi
-  if path_matches '(^web/atlas-ui/|^crates/atlas-app-model/bindings/|^crates/atlas-app-model/src/)'; then
-    web_touched=1
-  fi
-  if ! grep -Ev '(^scratch/plans/|\.md$)' "$paths_file" >/dev/null; then
-    docs_only=1
-  fi
+  classify_validation_paths "$paths_file"
 fi
 
 if [ "$docs_only" -eq 1 ]; then
   echo "Docs-only change detected; skipping code validation." >&2
-  exit 0
-fi
-
-if [ "$rust_touched" -eq 0 ] && [ "$web_touched" -eq 0 ]; then
-  echo "No Rust or web UI validation required for changed paths." >&2
   exit 0
 fi
 

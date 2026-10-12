@@ -30,10 +30,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
-- [Active worktree build footprint](items/developer-build-footprint.md)
-  Measure debug information, incremental compilation, linking and cache options
-  after the active mutable-workflow work, preserving validation. Status: proposed.
-
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Design generation-bound retrieval/session lifetimes and resolve bounded consumer
   ownership and error-contract gaps from the downstream review. Status: proposed.

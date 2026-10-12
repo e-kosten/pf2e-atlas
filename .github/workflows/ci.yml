@@ -15,6 +15,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # Clean jobs have no prior edit cycle to reuse; local development stays incremental.
+  CARGO_INCREMENTAL: '0'
 
 jobs:
   rust:
@@ -22,6 +24,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+      - name: Git hook regression tests
+        run: sh scripts/git-hooks/test-common.sh
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v6
         with:
