@@ -30,7 +30,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
-- [Active worktree build footprint](items/developer-build-footprint.md)
   Measure debug information, incremental compilation, linking and cache options
   after the active mutable-workflow work, preserving validation. Status: proposed.
 
