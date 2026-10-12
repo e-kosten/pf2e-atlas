@@ -44,6 +44,29 @@ fn prepare(markup: &str) -> PreparedSourceContent {
 }
 
 #[test]
+fn unavailable_reference_labels_preserve_authored_names_and_diagnostic_identity() {
+    let target = "Compendium.pf2e.bestiary-family-ability-glossary.Item.(Harrowkin) Harrowkin Suit";
+    let named = prepare(&format!("@UUID[{target}]"));
+    assert!(named.html.contains(">(Harrowkin) Harrowkin Suit</span>"));
+    assert!(!named.html.contains(">Compendium."));
+    assert_eq!(named.references[0].authored_target, target);
+    assert_eq!(
+        named.references[0].resolution,
+        ContentReferenceResolution::Unresolved
+    );
+    let opaque = prepare("@UUID[Compendium.pf2e.spells-srd.Item.abcdefghijklmnop]");
+    assert!(opaque.html.contains(">Reference unavailable</span>"));
+    let explicit = prepare("@UUID[missing]{Authored label}");
+    assert!(explicit.html.contains(">Authored label</span>"));
+    let single = prepare("@UUID[Compendium.pf2e.conditionitems.Item.Invisible]");
+    assert!(single.html.contains(">Invisible</span>"));
+    assert_eq!(
+        single.references[0].resolution,
+        ContentReferenceResolution::Unresolved
+    );
+}
+
+#[test]
 fn reference_bindings_check_all_visible_facts_without_inventing_hidden_markers() {
     let content=prepare_source_content(locator(),"<p data-visibility='gm'>@UUID[secret]</p><p>@UUID[public]{Public} <a href='javascript:alert(1)'>Blocked</a> <a href='https://example.com'>External</a></p>",ContentAudience {include_gm:false,include_owner:false,implicit_check_dc:ContentVisibilityRule::None},ContentVisibilityRule::All,None,None).unwrap();
     assert!(!content.references[0].visible);
@@ -578,7 +601,10 @@ fn prepared_action_glyphs_keep_readable_words_and_cannot_be_spoofed() {
     let content = prepare(
         "<pf2-action glyph='1'></pf2-action> <span class='action-glyph'>2</span> <span class='pf2-icon'>3</span> <span class='pf2-icon'>R</span> <span class='pf2-icon'>F</span> <span data-atlas-action-glyph='reaction'>spoof</span>",
     );
-    assert_eq!(content.interpretation_version, "foundry-content/v5");
+    assert_eq!(
+        content.interpretation_version,
+        CONTENT_INTERPRETATION_VERSION
+    );
     assert_eq!(
         content.text,
         "one action two actions three actions reaction free action spoof"

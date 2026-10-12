@@ -59,7 +59,7 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
             let RecordBodyView::TableResult(result) = selected.presentation.body else {
                 panic!("result")
             };
-            assert_eq!(result.range.value.as_deref(), Some("0–0"));
+            assert_eq!(result.range.value.as_deref(), Some("0"));
             assert_eq!(result.weight.value, Some(0.into()));
         }
     }
@@ -761,7 +761,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
             .iter()
             .map(|f| f.label.as_str())
             .collect::<Vec<_>>(),
-        ["Kind", "Level / rank", "Rarity", "Traits"]
+        ["Kind", "Level / Rank", "Rarity", "Traits"]
     );
     let fields = editor
         .groups
@@ -796,7 +796,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
         .iter()
         .find(|field| field.definition.id == "item.level")
         .unwrap();
-    assert_eq!(level.label, "Authored level");
+    assert_eq!(level.label, "Level");
     assert!(
         level
             .help

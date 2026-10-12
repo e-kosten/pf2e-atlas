@@ -97,6 +97,8 @@ Discover filters before constructing a more specific expression:
 
 ```sh
 atlas filters fields --json
+atlas filters fields --text 'maximum hp' --json
+atlas filters fields --field actor.hp.maximum --json
 atlas filters values --field traits --kind spell --json
 atlas filters values --field actor.hp.maximum --kind creature --json
 atlas search --where 'actor.saves.fortitude >= 12' --print-filter --json
@@ -110,6 +112,10 @@ CEL syntax or fields fail explicitly. The retired metric/reference/filter-JSON
 flags are not available; do not fabricate an alternative expression language.
 Unknown, missing, null, invalid and not-applicable values are distinct. Only a true
 predicate admits a record; do not assume missing stats have a numeric value.
+The human catalog is a compact index; `--field` expands one descriptor. JSON
+always retains complete descriptor metadata, with optional field/text narrowing.
+Numeric and collection discovery return statistics/availability with `values: null`;
+categorical and Boolean fields return paged values plus availability counts.
 
 Use graph commands for actual structural context:
 

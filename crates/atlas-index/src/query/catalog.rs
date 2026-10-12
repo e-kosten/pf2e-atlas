@@ -4,7 +4,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 2;
+pub const QUERY_CAPABILITY_VERSION: u32 = 3;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -182,7 +182,7 @@ fn field(
             path: path.to_owned(),
             scope: None,
             field_type: ty,
-            label: path.replace(['_', '.'], " "),
+            label: std::string::String::new(),
             family_types: families.iter().map(|f| (*f).to_owned()).collect(),
             units: unit.map(str::to_owned),
             basis: match path {
@@ -1013,6 +1013,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
     fields.push(kinds);
     for descriptor in &mut fields {
         let d = &mut descriptor.definition;
+        d.label = super::labels::field_label(&d.path, d.scope.as_deref())?.to_owned();
         let prefix = if d.scope.is_some() { "entry." } else { "" };
         let field = format!("{prefix}{}", d.path);
         let quoted = serde_json::Value::String(

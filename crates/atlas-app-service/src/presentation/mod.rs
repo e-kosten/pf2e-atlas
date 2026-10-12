@@ -106,9 +106,13 @@ pub(crate) fn record_presentation(
         }
         SourceNodeView::Result(result) => {
             RecordBodyView::TableResult(Box::new(TableResultPresentationView {
-                range: fact(
-                    SourceFieldView::from(&result.range).map(|(lo, hi)| format!("{lo}–{hi}")),
-                ),
+                range: fact(SourceFieldView::from(&result.range).map(|(lo, hi)| {
+                    if lo == hi {
+                        lo.to_string()
+                    } else {
+                        format!("{lo}–{hi}")
+                    }
+                })),
                 weight: number((&result.weight).into()),
                 result_type: identifier((&result.r#type).into()),
             }))

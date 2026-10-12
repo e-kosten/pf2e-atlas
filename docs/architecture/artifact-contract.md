@@ -86,7 +86,11 @@ upstream-backed empty query default only when their typed parent is known.
 CLI CEL uses the maintained parser and a documented supported subset. The UI
 builder submits structured predicates independently. There is no translation
 between CEL and editor state. Field/value discovery shares executable bindings
-and eligibility. Contextual facet counts self-exclude the target predicate while
+and user-facing catalog labels. Labels name the useful property; source-family
+applicability, stable query IDs and collection scopes remain separate metadata.
+CLI numeric discovery uses range/state statistics rather than enumerating values;
+collection discovery uses states and directs callers to scoped member descriptors.
+Discovery shares query eligibility. Contextual facet counts self-exclude the target predicate while
 preserving same-child siblings. Valid conditions below OR/NOT or using negative
 comparisons can report typed optional discovery unavailability; the query itself
 remains executable. The index validates the complete predicate, target field,
@@ -102,7 +106,8 @@ Vocabulary totals describe available matching values, exclude absent selections,
 and never masquerade as displayed-root counts. Closed choices remain in the
 executable catalog even when absent from the corpus.
 
-Query capability version 2 adds the root-only numeric `record.level_or_rank`
+Query capability version 3 includes intentional shared user-facing labels and
+the root-only numeric `record.level_or_rank`
 binding over existing columns. Spells use spell rank and its availability state;
 other applicable level families use record level and its state. There is no
 fallback from unavailable spell rank to level. Existing explicit family fields
@@ -127,7 +132,10 @@ AST. Terminal formatting is not FTS text.
 Preparation emits fixed action glyphs as allowlisted semantic HTML attributes
 with readable text, retaining nested enrichments rather than flattening them.
 Font characters are display decoration, not canonical search or terminal text.
-The content interpretation identity is `foundry-content/v5`; older prepared
+Prepared unresolved references preserve an explicit authored label or a qualified
+authored root name; opaque UUIDs display as unavailable. Their exact authored
+targets and unresolved status remain in relationship evidence and diagnostics.
+The content interpretation identity is `foundry-content/v6`; older prepared
 artifacts require rebuilding even though the physical schema is unchanged.
 
 App-service derives transient semantic family presentation from these checked

@@ -148,9 +148,10 @@ product values before edition preference. Empty membership remains empty, and
 retained selections do not inflate suggestion totals. Contextual counts retain
 their exact same-child/counterfactual/remaster and bounded-candidate semantics.
 
-App-service decorates executable definitions with human labels, groups, choice
-and operator labels and one ordered common field list: Kind, Level / rank, Rarity,
-Traits. Those presentation labels do not declare executable fields or choices.
+Index owns useful human labels alongside executable filter definitions.
+App-service adds collection-context prefixes, groups, choice and operator labels
+and one ordered common field list: Kind, Level / Rank, Rarity, Traits. Presentation
+decoration does not declare executable fields or choices.
 The common Level / rank primitive is index-owned and uses existing rank/state
 for spells and level/state for other applicable families.
 
