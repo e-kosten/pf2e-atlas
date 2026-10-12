@@ -47,13 +47,18 @@ from their typed activity facts rather than reconstructing them from prose.
 
 For a compact root heading, use `atlas record get PACK:ID --detail summary`.
 This terminal path reads body-free summaries. Selected-child summaries identify
-the child from its parent snapshot. `--json` always requests full selected detail,
-including when `--detail summary` is supplied. The default `--detail standard`
+the child from its parent snapshot. `--json` returns the complete selected Atlas
+reference response and conflicts with explicit `--detail`. The default `--detail standard`
 reads the main reference with inline actor abilities and compact spell rosters.
 Use `--detail full` to also read supported embedded documents, such as spells,
 journal pages and roll-table results. It expands ownership, not graph links.
 An explicit `--field` or `--passage` keeps human output focused on that selection
-at every detail level. JSON facts and selection are independent of terminal detail.
+at every human detail level. To inspect source information outside Atlas's
+presentation, use `atlas record source PACK:ID --json`. It exports the root's
+complete checked Foundry DTO and embedded documents, with codec identity and
+source path/hash. Presence tags and retained invalid/additional members are part
+of that checked representation; it is not original Foundry JSON. It works without
+the source clone and does not execute rules or macros.
 
 Search broadly, then inspect the returned record and matching passage:
 

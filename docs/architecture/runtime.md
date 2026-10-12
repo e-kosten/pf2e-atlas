@@ -54,6 +54,11 @@ the tagged checked representation with version/identity/recursion guards; it run
 no source admission, defaults or repairs. Original complete source JSON is not
 duplicated in the artifact. Developer source inspection can read the checkout;
 normal runtime reads use the checked codec and work without it.
+`atlas record source` explicitly exports a product record's complete checked
+snapshot and compact provenance through the existing retrieval/app-service path.
+This inspection does not use presentation projections or read the source clone.
+The shared model-owned JSON inspection helper preserves the codec's depth guards;
+developer original-file inspection remains a separate hash-verified operation.
 
 ## Build and preparation
 

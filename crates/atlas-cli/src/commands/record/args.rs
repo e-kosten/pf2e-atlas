@@ -11,8 +11,14 @@ pub(crate) struct RecordArgs {
 }
 #[derive(Debug, Subcommand)]
 pub(crate) enum RecordCommand {
+    #[command(about = "Read an Atlas reference; use source to inspect the complete Foundry DTO")]
     Get(Box<RecordGetOptions>),
     Resolve(Box<RecordResolveOptions>),
+    #[command(
+        about = "Dump the complete checked Foundry DTO, including embedded documents",
+        long_about = "Dump a product record's complete checked Foundry DTO and source path/hash from the artifact, including embedded documents and retained invalid/additional fields. The checked serialization includes presence/union tags; it is not original Foundry JSON. This command needs neither the source clone nor embedding models. For hash-verified original files, use atlas-dev index record --original."
+    )]
+    Source(RecordSourceOptions),
 }
 #[derive(Debug, Args)]
 pub(crate) struct RecordGetOptions {
@@ -22,7 +28,8 @@ pub(crate) struct RecordGetOptions {
         long,
         value_enum,
         default_value = "standard",
-        help = "Terminal detail: summary identity, standard reference, or full expanded embedded entries; JSON always returns the complete selected detail DTO"
+        conflicts_with = "json",
+        help = "Human detail: summary identity, standard reference, or full expanded embedded entries; conflicts with --json"
     )]
     pub(crate) detail: TerminalDetail,
     #[arg(long,help="Checked owner chain JSON from a search witness",value_parser=parse_owners)]
@@ -40,7 +47,25 @@ pub(crate) struct RecordGetOptions {
     pub(crate) index: Option<PathBuf>,
     #[arg(long,value_enum,default_value_t=CliPathMode::Global)]
     pub(crate) path_mode: CliPathMode,
+    #[arg(
+        long,
+        help = "Emit the complete selected Atlas reference response; use record source for the Foundry DTO"
+    )]
+    pub(crate) json: bool,
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct RecordSourceOptions {
+    #[arg(help = "Foundry root key in pack:id form; the dump includes its embedded documents")]
+    pub(crate) key: String,
     #[arg(long)]
+    pub(crate) index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(
+        long,
+        help = "Wrap the checked snapshot and source provenance in the standard JSON envelope"
+    )]
     pub(crate) json: bool,
 }
 #[derive(Debug, Args)]
