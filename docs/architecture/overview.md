@@ -126,6 +126,12 @@ a canonical identity receipt without postcommit reference hydration; explicit
 reads independently refresh presentation. See
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).
 
+Encounter detail/edit routes have one mutation owner spanning write and refresh.
+Committed-write refresh failures block further edits with read-only Retry;
+typed conflicts refresh current state without resubmitting the retained draft.
+Save and destructive confirmation await their durable action. Background reads
+preserve dirty same-entity metadata, while route changes isolate completions.
+
 Keep CLI/web thin and frontend semantics Rust-owned. The browser uses Ant controls
 and a maintained structured query builder, generated contracts and backend catalog
 operators. It renders sanitized HTML and supported narrow controls, without a

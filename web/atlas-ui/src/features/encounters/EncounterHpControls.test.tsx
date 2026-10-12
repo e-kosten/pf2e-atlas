@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { EncounterHpControls } from "./EncounterHpControls";
 import type { EncounterParticipantView } from "../../generated/atlas";
 
-it("shows updated derived HP after a submitted edit and variant capacity change", () => {
+it("shows updated derived HP after a submitted edit and variant capacity change", async () => {
   const current: EncounterParticipantView = {
     revision: 0n,
     participant_key: "ghoul",
@@ -24,7 +24,7 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
     note_hint: "",
     conditions: [],
   };
-  const onUpdate = vi.fn();
+  const onUpdate = vi.fn().mockResolvedValue(undefined);
   const { rerender } = render(
     <EncounterHpControls current={current} onUpdate={onUpdate} />,
   );
@@ -33,6 +33,9 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
   });
   fireEvent.click(screen.getAllByRole("button", { name: "Set" })[0]);
   expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ current_hp: 13n }));
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: "HP" })).toHaveValue("20"),
+  );
   rerender(
     <EncounterHpControls
       current={{

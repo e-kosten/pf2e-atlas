@@ -30,25 +30,6 @@ export function participantUpdate(
   };
 }
 
-export function applyParticipantUpdate(
-  participant: EncounterParticipantView,
-  request: UpdateEncounterParticipantRequest,
-): EncounterParticipantView {
-  return {
-    ...participant,
-    display_name: request.display_name,
-    side: request.side,
-    participant_variant: request.participant_variant,
-    initiative: request.initiative,
-    max_hp: request.max_hp,
-    current_hp: request.current_hp,
-    temporary_hp: request.temporary_hp,
-    defeated: request.defeated,
-    hidden: request.hidden,
-    note: request.note,
-  };
-}
-
 export function damageChanges(
   participant: EncounterParticipantView,
   amount: number,

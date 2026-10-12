@@ -7,7 +7,7 @@ type DangerActionButtonProps = Omit<ButtonProps, "danger" | "onClick"> & {
   confirmOkText: string;
   confirmTitle: string;
   onBeforeConfirm?: React.MouseEventHandler<HTMLElement>;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<unknown>;
 };
 
 export function DangerActionButton({

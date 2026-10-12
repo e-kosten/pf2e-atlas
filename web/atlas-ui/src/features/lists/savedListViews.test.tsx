@@ -521,6 +521,53 @@ describe("list views", () => {
       expect(window.location.pathname).toBe("/lists/boss-fight-prep"),
     );
   });
+  it("preserves touched list fields during same-identity refresh and resets entity switches", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>
+        <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(
+      <ListEditView route={{ kind: "listEdit", slug: "research" }} />,
+      { wrapper },
+    );
+    const name = await screen.findByLabelText("Name");
+    fireEvent.change(name, { target: { value: "My list draft" } });
+    act(() =>
+      client.setQueryData(["saved-list", "research"], {
+        ...savedListDetailFixture(),
+        list: {
+          ...savedListDetailFixture().list,
+          name: "Server name",
+          description: "Server description",
+        },
+      }),
+    );
+    expect(name).toHaveValue("My list draft");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Description")).toHaveValue("Server description"),
+    );
+    apiMocks.getSavedList.mockResolvedValue({
+      ...savedListDetailFixture(),
+      list: {
+        ...savedListDetailFixture().list,
+        list_key: "other-list",
+        slug: "other",
+        name: "Other list",
+      },
+    });
+    rerender(<ListEditView route={{ kind: "listEdit", slug: "other" }} />);
+    expect(await screen.findByLabelText("Name")).toHaveValue("Other list");
+  });
+  it("retries an initial list failure without discarding later edits", async () => {
+    apiMocks.getSavedList.mockRejectedValueOnce(new Error("List unavailable"));
+    render(<ListEditView route={{ kind: "listEdit", slug: "research" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Retry list" }));
+    expect(await screen.findByLabelText("Name")).toHaveValue("Research");
+  });
 });
 
 function VocabularyProbe({
