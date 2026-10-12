@@ -258,6 +258,10 @@ or stored-vector modes. The bounded executor prevents one global serialized lane
 Web routes are transport glue. App-model generates intentional browser DTOs;
 the browser neither receives whole Foundry bodies nor reimplements gameplay rules.
 
+Web hosting embeds the built frontend into debug and release binaries. A running
+server retains its compiled frontend/backend pair when later builds change the
+checkout's frontend output. Frontend hot reload uses the separate Vite dev server.
+
 Saved lists/encounters preserve unresolved snapshots and explicit user choices.
 Actor display uses authored baselines with bounded source/participant/condition
 overlays and unapplied-context notes. New HP starts from a known integral effective
