@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { retireImmutableReferenceQueries } from "../../shared/queries/immutableReferenceQueries";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -32,6 +33,7 @@ import type {
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
+import { EditEncounterForm } from "./EncounterModals";
 
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),
@@ -79,6 +81,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
 }));
 
 let serverEncounter: EncounterDetailViewDto;
+const testQueryClients = new Set<QueryClient>();
 function setEncounterDetail(view: EncounterDetailViewDto) {
   serverEncounter = view;
   apiMocks.getEncounter.mockImplementation(() => Promise.resolve(serverEncounter));
@@ -86,6 +89,7 @@ function setEncounterDetail(view: EncounterDetailViewDto) {
 
 describe("encounter views", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.clearAllMocks();
     history.replaceState(null, "", "/encounters");
     apiMocks.getEncounters.mockResolvedValue(encounterIndexFixture());
@@ -129,6 +133,14 @@ describe("encounter views", () => {
       slug: "ambush",
       deleted: true,
     });
+  });
+
+  afterEach(async () => {
+    try {
+      await disposeEncounterTest();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("renders active encounter rows, hides archived rows, and routes to edit", async () => {
@@ -629,6 +641,7 @@ describe("encounter views", () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
+    testQueryClients.add(client);
     render(
       <QueryClientProvider client={client}>
         <ConfigProvider theme={{ token: { motion: false } }}>
@@ -1170,6 +1183,7 @@ describe("encounter views", () => {
 
   it("preserves touched encounter fields across changed server data and resets identity", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    testQueryClients.add(client);
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>
         <ConfigProvider theme={{ token: { motion: false } }}>
@@ -1353,7 +1367,62 @@ describe("encounter views", () => {
     expect(window.location.pathname).toBe("/encounters/other/edit");
     expect(screen.getByLabelText("Name")).toHaveValue("Other");
   });
+
+  it("finishes scheduled form feedback before disposing the encounter test environment", async () => {
+    const clockSetTimeout = globalThis.setTimeout;
+    const feedbackCallbacks: ReturnType<typeof vi.fn>[] = [];
+    const timerSpy = vi
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((callback, delay, ...args) => {
+        if (delay === 10 && typeof callback === "function") {
+          const feedback = vi.fn(() => callback(...args));
+          feedbackCallbacks.push(feedback);
+          return clockSetTimeout(feedback, delay);
+        }
+        return clockSetTimeout(callback, delay, ...args);
+      });
+    try {
+      render(
+        <EditEncounterForm
+          encounter={encounterIndexFixture().encounters[0]}
+          encounterNote="Encounter note"
+          onSave={vi.fn()}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
+      expect(screen.getByLabelText("Name")).toHaveValue("Ambush");
+      const clients = [...testQueryClients];
+      for (const client of clients) client.setQueryData(["disposal-probe"], "retained");
+      cleanup();
+      for (const client of testQueryClients) client.clear();
+      // Ant Form's empty error/warning feedback schedules debounce work even
+      // without validation errors. Unmounting does not cancel those callbacks.
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      expect(feedbackCallbacks.length).toBeGreaterThan(0);
+      expect(
+        feedbackCallbacks.every((callback) => callback.mock.calls.length === 0),
+      ).toBe(true);
+      await disposeEncounterTest();
+      expect(vi.getTimerCount()).toBe(0);
+      expect(feedbackCallbacks.some((callback) => callback.mock.calls.length > 0)).toBe(
+        true,
+      );
+      for (const client of clients) expect(client.getQueryCache().getAll()).toEqual([]);
+    } finally {
+      timerSpy.mockRestore();
+    }
+  });
 });
+
+async function disposeEncounterTest() {
+  cleanup();
+  for (const client of testQueryClients) client.clear();
+  testQueryClients.clear();
+  // Execute pending native Form feedback while jsdom/React still exist. The
+  // suite owns this fake clock; QueryClient disposal removes its GC work first.
+  await act(async () => vi.runOnlyPendingTimersAsync());
+  expect(vi.getTimerCount()).toBe(0);
+}
 
 async function selectOption(input: HTMLElement, option: string) {
   fireEvent.mouseDown(input);
@@ -1400,6 +1469,7 @@ function queryClientWrapper() {
       queries: { retry: false },
     },
   });
+  testQueryClients.add(queryClient);
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
