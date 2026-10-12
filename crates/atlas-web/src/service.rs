@@ -6,8 +6,8 @@ use atlas_app_model::{
     AppReadinessView, CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView,
     DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     EncounterConditionCatalogView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantView, EncounterUpdateView, FilterEditorView, FilterSavedListRequest,
-    FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
+    EncounterMutationView, FilterEditorView, FilterSavedListRequest, FilterValueListView,
+    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
     RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ResultWindowPage,
     SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
     SavedListUpdateView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
@@ -124,60 +124,60 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn update_encounter(
         &self,
         request: UpdateEncounterRequest,
-    ) -> Result<EncounterUpdateView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn add_encounter_record_participant(
         &self,
         request: AddEncounterRecordParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn add_encounter_manual_participant(
         &self,
         request: AddEncounterManualParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn update_encounter_participant(
         &self,
         encounter_ref: &str,
         request: UpdateEncounterParticipantRequest,
-    ) -> Result<EncounterParticipantView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn reorder_encounter_participant(
         &self,
         encounter_ref: &str,
         request: ReorderEncounterParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn remove_encounter_participant(
         &self,
         encounter_ref: &str,
         participant_key: &str,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn set_encounter_turn(
         &self,
         request: SetEncounterTurnRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn add_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         request: AddEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn update_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
         request: UpdateEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn remove_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
 
@@ -319,21 +319,21 @@ impl AtlasWebService for AtlasAppService {
     fn update_encounter(
         &self,
         request: UpdateEncounterRequest,
-    ) -> Result<EncounterUpdateView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.update_encounter(request)
     }
 
     fn add_encounter_record_participant(
         &self,
         request: AddEncounterRecordParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.add_encounter_record_participant(request)
     }
 
     fn add_encounter_manual_participant(
         &self,
         request: AddEncounterManualParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.add_encounter_manual_participant(request)
     }
 
@@ -341,7 +341,7 @@ impl AtlasWebService for AtlasAppService {
         &self,
         encounter_ref: &str,
         request: UpdateEncounterParticipantRequest,
-    ) -> Result<EncounterParticipantView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.update_encounter_participant(encounter_ref, request)
     }
 
@@ -349,7 +349,7 @@ impl AtlasWebService for AtlasAppService {
         &self,
         encounter_ref: &str,
         request: ReorderEncounterParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.reorder_encounter_participant(encounter_ref, request)
     }
 
@@ -357,14 +357,14 @@ impl AtlasWebService for AtlasAppService {
         &self,
         encounter_ref: &str,
         participant_key: &str,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.remove_encounter_participant(encounter_ref, participant_key)
     }
 
     fn set_encounter_turn(
         &self,
         request: SetEncounterTurnRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.set_encounter_turn(request)
     }
 
@@ -372,7 +372,7 @@ impl AtlasWebService for AtlasAppService {
         &self,
         encounter_ref: &str,
         request: AddEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.add_encounter_participant_condition(encounter_ref, request)
     }
 
@@ -381,7 +381,7 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
         request: UpdateEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.update_encounter_participant_condition(encounter_ref, participant_key, request)
     }
 
@@ -390,7 +390,7 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.remove_encounter_participant_condition(encounter_ref, participant_key, condition_id)
     }
 

@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 export function EditableCommitField({
   ariaLabel,
   className,
+  disabled = false,
   inputMode,
   onCommit,
   placeholder,
@@ -14,8 +15,9 @@ export function EditableCommitField({
 }: {
   ariaLabel: string;
   className?: string;
+  disabled?: InputProps["disabled"];
   inputMode?: InputProps["inputMode"];
-  onCommit: (value: string) => void;
+  onCommit: (value: string) => void | Promise<unknown>;
   placeholder?: string;
   size?: InputProps["size"];
   stopPropagation?: boolean;
@@ -24,19 +26,33 @@ export function EditableCommitField({
   const [draftState, setDraftState] = useState({
     committedValue: value,
     draft: value,
+    failed: false,
   });
-  const draft = draftState.committedValue === value ? draftState.draft : value;
+  const draft =
+    draftState.failed || draftState.committedValue === value ? draftState.draft : value;
   const setDraft = (nextDraft: string) =>
-    setDraftState({ committedValue: value, draft: nextDraft });
+    setDraftState({ committedValue: value, draft: nextDraft, failed: false });
   const editFinished = useRef(false);
 
   const finishEdit = (commit: boolean) => {
-    if (editFinished.current) {
+    if (disabled || editFinished.current) {
       return;
     }
     editFinished.current = true;
     if (commit && draft !== value) {
-      onCommit(draft);
+      const result = onCommit(draft);
+      if (result) {
+        void result
+          .then(() => {
+            setDraftState((current) =>
+              current.draft === draft ? { ...current, failed: false } : current,
+            );
+          })
+          .catch(() => {
+            setDraftState({ committedValue: value, draft, failed: true });
+            editFinished.current = false;
+          });
+      }
     }
     if (!commit) {
       setDraft(value);
@@ -47,6 +63,7 @@ export function EditableCommitField({
     <Input
       aria-label={ariaLabel}
       className={className}
+      disabled={disabled}
       inputMode={inputMode}
       onBlur={() => finishEdit(true)}
       onChange={(event) => {

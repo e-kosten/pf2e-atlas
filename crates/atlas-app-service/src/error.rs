@@ -58,6 +58,9 @@ impl From<LocalStateError> for AppServiceError {
             LocalStateError::EncounterNotFound(_) => AppErrorCode::EncounterNotFound,
             LocalStateError::EncounterAlreadyExists(_) => AppErrorCode::EncounterAlreadyExists,
             LocalStateError::ParticipantNotFound(_) => AppErrorCode::EncounterParticipantNotFound,
+            LocalStateError::StaleParticipantRevision { .. } => {
+                AppErrorCode::EncounterParticipantConflict
+            }
             LocalStateError::UnsupportedMetadata { .. }
             | LocalStateError::IncompatibleSchema(_)
             | LocalStateError::ListKeyAllocationFailed
@@ -68,7 +71,21 @@ impl From<LocalStateError> for AppServiceError {
             | LocalStateError::Timestamp(_)
             | LocalStateError::NonUtf8Path(_) => AppErrorCode::InternalError,
         };
-        Self::new(code, error.to_string())
+        let mut app_error = AppError::new(code, error.to_string());
+        if let LocalStateError::StaleParticipantRevision {
+            participant_key,
+            expected_revision,
+            actual_revision,
+        } = error
+        {
+            app_error.details = Some(serde_json::json!({
+                "participant_key": participant_key,
+                "expected_revision": expected_revision,
+                "actual_revision": actual_revision,
+            }));
+            app_error.retryable = Some(false);
+        }
+        Self { error: app_error }
     }
 }
 

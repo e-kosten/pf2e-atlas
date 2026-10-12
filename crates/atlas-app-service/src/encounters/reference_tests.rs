@@ -45,6 +45,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let generation = current.artifact_generation.unwrap();
     let participant = &current.participants[0];
@@ -104,9 +105,20 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     let mut update = super::tests::update(participant);
     update.participant_variant = EncounterParticipantVariantView::Elite;
     update.variant_edit = true;
-    f.worker
-        .update_encounter_participant(&encounter.slug, update)
-        .unwrap();
+    {
+        let participant_key = update.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&encounter.slug, update)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     f.worker
         .add_encounter_participant_condition(
             &encounter.slug,

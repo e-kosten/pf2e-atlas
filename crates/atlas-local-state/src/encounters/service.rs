@@ -2,7 +2,7 @@ use rusqlite::TransactionBehavior;
 
 use super::model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterWithParticipants, NewEncounter,
+    EncounterParticipantCondition, EncounterTurnState, EncounterWithParticipants, NewEncounter,
     ReorderEncounterParticipant, UpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition,
 };
@@ -20,10 +20,13 @@ impl<'a> Encounters<'a> {
     }
 
     pub fn create(&self, encounter: NewEncounter) -> LocalStateResult<Encounter> {
-        let connection = self.store.connection()?;
-        let encounter_key = storage::insert_encounter(&connection, encounter)?;
-        self.get(&encounter_key)?
-            .ok_or(LocalStateError::EncounterNotFound(encounter_key))
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let encounter_key = storage::insert_encounter(&transaction, encounter)?;
+        let result = storage::get(&transaction, &encounter_key)?
+            .ok_or(LocalStateError::EncounterNotFound(encounter_key))?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn list(&self) -> LocalStateResult<Vec<Encounter>> {
@@ -42,17 +45,23 @@ impl<'a> Encounters<'a> {
         encounter_ref: &str,
     ) -> LocalStateResult<Option<EncounterWithParticipants>> {
         validate_ref(encounter_ref)?;
-        let connection = self.store.connection()?;
-        storage::get_with_participants(&connection, encounter_ref)
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction()?;
+        let result = storage::get_with_participants(&transaction, encounter_ref)?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn update(&self, encounter: UpdateEncounter) -> LocalStateResult<Option<Encounter>> {
         validate_ref(&encounter.encounter_key)?;
-        let connection = self.store.connection()?;
-        if !storage::update_encounter(&connection, encounter.clone())? {
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if !storage::update_encounter(&transaction, encounter.clone())? {
             return Ok(None);
         }
-        self.get(&encounter.encounter_key)
+        let result = storage::get(&transaction, &encounter.encounter_key)?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn delete(&self, encounter_ref: &str) -> LocalStateResult<bool> {
@@ -70,9 +79,36 @@ impl<'a> Encounters<'a> {
         let mut connection = self.store.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let participant_key = storage::add_participant(&transaction, encounter_ref, participant)?;
+        let result = storage::participant(&transaction, &participant_key)?
+            .ok_or(LocalStateError::ParticipantNotFound(participant_key))?;
         transaction.commit()?;
-        self.participant(&participant_key)?
-            .ok_or(LocalStateError::ParticipantNotFound(participant_key))
+        Ok(result)
+    }
+
+    /// Add one resolved quantity as a single durable operation.
+    pub fn add_participants(
+        &self,
+        encounter_ref: &str,
+        participants: Vec<AddEncounterParticipant>,
+    ) -> LocalStateResult<Vec<EncounterParticipant>> {
+        validate_ref(encounter_ref)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if storage::get(&transaction, encounter_ref)?.is_none() {
+            return Err(LocalStateError::EncounterNotFound(
+                encounter_ref.to_string(),
+            ));
+        }
+        let mut result = Vec::with_capacity(participants.len());
+        for participant in participants {
+            let key = storage::add_participant(&transaction, encounter_ref, participant)?;
+            result.push(
+                storage::participant(&transaction, &key)?
+                    .ok_or(LocalStateError::ParticipantNotFound(key))?,
+            );
+        }
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn update_participant(
@@ -85,8 +121,9 @@ impl<'a> Encounters<'a> {
             transaction.commit()?;
             return Ok(None);
         }
+        let result = storage::participant(&transaction, &participant.participant_key)?;
         transaction.commit()?;
-        self.participant(&participant.participant_key)
+        Ok(result)
     }
 
     pub fn reorder_participant(
@@ -101,8 +138,9 @@ impl<'a> Encounters<'a> {
             transaction.commit()?;
             return Ok(None);
         }
+        let result = storage::participant(&transaction, &reorder.participant_key)?;
         transaction.commit()?;
-        self.participant(&reorder.participant_key)
+        Ok(result)
     }
 
     pub fn remove_participant(&self, participant_key: &str) -> LocalStateResult<bool> {
@@ -122,11 +160,11 @@ impl<'a> Encounters<'a> {
         let mut connection = self.store.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let condition_id = storage::add_condition(&transaction, condition)?;
+        let result = storage::condition(&transaction, condition_id)?.ok_or(
+            LocalStateError::ParticipantNotFound(condition_id.to_string()),
+        )?;
         transaction.commit()?;
-        self.condition(condition_id)?
-            .ok_or(LocalStateError::ParticipantNotFound(
-                condition_id.to_string(),
-            ))
+        Ok(result)
     }
 
     pub fn update_condition(
@@ -139,14 +177,19 @@ impl<'a> Encounters<'a> {
             transaction.commit()?;
             return Ok(None);
         }
+        let result = storage::condition(&transaction, condition.condition_id)?;
         transaction.commit()?;
-        self.condition(condition.condition_id)
+        Ok(result)
     }
 
-    pub fn remove_condition(&self, condition_id: i64) -> LocalStateResult<bool> {
+    pub fn remove_condition(
+        &self,
+        participant_key: &str,
+        condition_id: i64,
+    ) -> LocalStateResult<bool> {
         let mut connection = self.store.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let removed = storage::remove_condition(&transaction, condition_id)?;
+        let removed = storage::remove_condition(&transaction, participant_key, condition_id)?;
         transaction.commit()?;
         Ok(removed)
     }
@@ -157,8 +200,11 @@ impl<'a> Encounters<'a> {
         participant_key: Option<&str>,
     ) -> LocalStateResult<bool> {
         validate_ref(encounter_ref)?;
-        let connection = self.store.connection()?;
-        storage::set_current_turn(&connection, encounter_ref, participant_key)
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let result = storage::set_current_turn(&transaction, encounter_ref, participant_key)?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn set_turn_state(
@@ -169,44 +215,81 @@ impl<'a> Encounters<'a> {
         mark_running: bool,
     ) -> LocalStateResult<bool> {
         validate_ref(encounter_ref)?;
-        let connection = self.store.connection()?;
-        storage::set_turn_state(
-            &connection,
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let result = storage::set_turn_state(
+            &transaction,
             encounter_ref,
             participant_key,
             Some(round_number),
             mark_running,
-        )
+        )?;
+        transaction.commit()?;
+        Ok(result)
     }
 
-    fn participant(&self, participant_key: &str) -> LocalStateResult<Option<EncounterParticipant>> {
-        let connection = self.store.connection()?;
-        storage::participant(&connection, participant_key)
-    }
-
-    fn condition(
+    /// Choose a turn using the same locked snapshot that is updated.
+    /// The callback must be pure; resolve immutable source facts before this call.
+    pub fn advance_turn(
         &self,
-        condition_id: i64,
-    ) -> LocalStateResult<Option<EncounterParticipantCondition>> {
-        let connection = self.store.connection()?;
-        let encounters = storage::list(&connection)?;
-        for encounter in encounters {
-            let Some(detail) =
-                storage::get_with_participants(&connection, &encounter.encounter_key)?
-            else {
-                continue;
-            };
-            for participant in detail.participants {
-                if let Some(condition) = participant
-                    .conditions
-                    .into_iter()
-                    .find(|condition| condition.condition_id == condition_id)
-                {
-                    return Ok(Some(condition));
-                }
-            }
+        encounter_ref: &str,
+        choose: impl FnOnce(&EncounterWithParticipants) -> EncounterTurnState,
+    ) -> LocalStateResult<Option<Encounter>> {
+        validate_ref(encounter_ref)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(snapshot) = storage::get_with_participants(&transaction, encounter_ref)? else {
+            return Ok(None);
+        };
+        let turn = choose(&snapshot);
+        storage::set_turn_state(
+            &transaction,
+            encounter_ref,
+            turn.participant_key.as_deref(),
+            Some(turn.round_number),
+            turn.mark_running,
+        )?;
+        let result = storage::get(&transaction, encounter_ref)?;
+        transaction.commit()?;
+        Ok(result)
+    }
+
+    /// Remove a participant and apply the application's replacement turn atomically.
+    /// The pure callback sees the complete pre-removal snapshot.
+    pub fn remove_participant_and_select_turn(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        choose: impl FnOnce(&EncounterWithParticipants) -> Option<EncounterTurnState>,
+    ) -> LocalStateResult<Option<Encounter>> {
+        validate_ref(encounter_ref)?;
+        validate_ref(participant_key)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(snapshot) = storage::get_with_participants(&transaction, encounter_ref)? else {
+            return Ok(None);
+        };
+        if !snapshot
+            .participants
+            .iter()
+            .any(|row| row.participant_key == participant_key)
+        {
+            return Ok(None);
         }
-        Ok(None)
+        let replacement = choose(&snapshot);
+        storage::remove_participant(&transaction, participant_key)?;
+        if let Some(turn) = replacement {
+            storage::set_turn_state(
+                &transaction,
+                encounter_ref,
+                turn.participant_key.as_deref(),
+                Some(turn.round_number),
+                turn.mark_running,
+            )?;
+        }
+        let result = storage::get(&transaction, encounter_ref)?;
+        transaction.commit()?;
+        Ok(result)
     }
 }
 

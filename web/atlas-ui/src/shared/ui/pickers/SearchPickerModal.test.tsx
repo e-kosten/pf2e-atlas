@@ -12,12 +12,19 @@ const result = {
   rows: [{ record: summaryFixture("actors:ghoul", "Ghoul"), matches: [] }],
 } as unknown as Awaited<ReturnType<typeof openResultWindow>>;
 
-function Picker({ open = true }: { open?: boolean }) {
+function Picker({
+  open = true,
+  disabled = false,
+}: {
+  open?: boolean;
+  disabled?: boolean;
+}) {
   const [form] = Form.useForm();
   const [selected, setSelected] = useState<string | null>(null);
   return (
     <SearchPickerModal
       title="Choose record"
+      disabled={disabled}
       open={open}
       form={form}
       buildRequest={(query) => ({
@@ -38,14 +45,40 @@ function Picker({ open = true }: { open?: boolean }) {
 }
 function renderPicker() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <Picker />
     </QueryClientProvider>,
   );
+  return {
+    ...view,
+    setDisabled: (disabled: boolean) =>
+      view.rerender(
+        <QueryClientProvider client={client}>
+          <Picker disabled={disabled} />
+        </QueryClientProvider>,
+      ),
+  };
 }
 beforeEach(() => search.mockReset());
 describe("shared record picker", () => {
+  it("preserves selection and blocks picker controls while an action is pending", async () => {
+    search.mockResolvedValue(result);
+    const view = renderPicker();
+    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "ghoul" } });
+    const radio = await screen.findByRole("radio", { name: "Select Ghoul" });
+    fireEvent.click(radio);
+    view.setDisabled(true);
+    expect(screen.getByLabelText("Search")).toBeDisabled();
+    expect(radio).toBeDisabled();
+    expect(screen.getByRole("button", { name: "OK" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    fireEvent.click(screen.getByText("Ghoul"));
+    expect(radio).toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent("Selected Ghoul");
+    view.setDisabled(false);
+    expect(screen.getByRole("button", { name: "OK" })).toBeEnabled();
+  });
   it("associates the visible label and exposes native selected state, clearing selection during a changed query", async () => {
     search.mockResolvedValue(result);
     renderPicker();

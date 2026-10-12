@@ -15,7 +15,19 @@ import {
   getEncounter,
   updateEncounterParticipant,
   addEncounterManualParticipant,
+  updateEncounter,
+  addEncounterRecordParticipant,
+  reorderEncounterParticipant,
+  removeEncounterParticipant,
+  setEncounterTurn,
+  addEncounterParticipantCondition,
+  updateEncounterParticipantCondition,
+  removeEncounterParticipantCondition,
 } from "./atlasApi";
+import type {
+  EncounterMutationView,
+  UpdateEncounterParticipantRequest,
+} from "../generated/atlas";
 import {
   damageChanges,
   healChanges,
@@ -89,6 +101,7 @@ describe("source-backed API transport", () => {
     await expect(discoverFilterCounts(request)).rejects.toThrow("Invalid target");
   });
   const participantJson = {
+    revision: 7,
     participant_key: "ghoul",
     position: 1,
     initiative_order: 2,
@@ -114,6 +127,7 @@ describe("source-backed API transport", () => {
     const participant = detail.participants[0];
     expect(detail.encounter.round_number).toBe(1n);
     expect(participant).toMatchObject({
+      revision: 7n,
       position: 1n,
       initiative_order: 2n,
       initiative: -1n,
@@ -124,15 +138,177 @@ describe("source-backed API transport", () => {
     });
     expect(damageChanges(participant, 1).current_hp).toBe(19n);
     expect(healChanges(participant, 1).current_hp).toBe(21n);
-    respond(participantJson);
+    respond({ encounter_key: "encounter-test" });
     expect(
-      (
-        await updateEncounterParticipant(
-          "test",
-          participantUpdate(participant, { current_hp: 19n }),
-        )
-      ).current_hp,
-    ).toBe(20n);
+      await updateEncounterParticipant(
+        "test",
+        participantUpdate(participant, { current_hp: 19n }),
+      ),
+    ).toEqual({ encounter_key: "encounter-test" });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({
+      participant_key: "ghoul",
+      expected_revision: 7,
+      current_hp: 19,
+    });
+  });
+  it.each([undefined, null, -1, 0.5, "7", "bad", Number.MAX_SAFE_INTEGER + 1])(
+    "rejects missing or malformed participant revision %s",
+    async (revision) => {
+      respond({
+        encounter: { round_number: 1 },
+        participants: [{ ...participantJson, revision }],
+      });
+      await expect(getEncounter("test")).rejects.toBeInstanceOf(AtlasApiError);
+    },
+  );
+  it("normalizes the largest safe revision without rounding", async () => {
+    respond({
+      encounter: { round_number: 1 },
+      participants: [{ ...participantJson, revision: Number.MAX_SAFE_INTEGER }],
+    });
+    expect((await getEncounter("test")).participants[0].revision).toBe(
+      9007199254740991n,
+    );
+  });
+  const participantRequest: UpdateEncounterParticipantRequest = {
+    expected_revision: 7n,
+    participant_key: "ghoul",
+    display_name: "Ghoul",
+    side: "enemy",
+    participant_variant: "normal",
+    temporary_hp: 0n,
+    defeated: false,
+    hidden: false,
+    hp_edit: false,
+    max_hp_edit: false,
+    variant_edit: false,
+    use_derived_max: false,
+  };
+  const encounterMutations: Array<{
+    name: string;
+    path: string;
+    method: string;
+    call: () => Promise<EncounterMutationView>;
+  }> = [
+    {
+      name: "metadata",
+      path: "/api/encounters/test",
+      method: "PATCH",
+      call: () =>
+        updateEncounter({
+          encounter_key: "test",
+          slug: "test",
+          name: "Test",
+          status: "draft",
+        }),
+    },
+    {
+      name: "record addition",
+      path: "/api/encounters/test/participants/record",
+      method: "POST",
+      call: () =>
+        addEncounterRecordParticipant({
+          encounter_ref: "test",
+          record_ref: "actors:ghoul",
+          quantity: 2,
+        }),
+    },
+    {
+      name: "manual addition",
+      path: "/api/encounters/test/participants/manual",
+      method: "POST",
+      call: () =>
+        addEncounterManualParticipant({ encounter_ref: "test", display_name: "PC" }),
+    },
+    {
+      name: "participant edit",
+      path: "/api/encounters/test/participants/ghoul",
+      method: "PATCH",
+      call: () => updateEncounterParticipant("test", participantRequest),
+    },
+    {
+      name: "reorder",
+      path: "/api/encounters/test/participants/reorder",
+      method: "POST",
+      call: () =>
+        reorderEncounterParticipant("test", {
+          participant_key: "ghoul",
+          target_participant_key: "pc",
+          placement: "before",
+        }),
+    },
+    {
+      name: "participant removal",
+      path: "/api/encounters/test/participants/ghoul",
+      method: "DELETE",
+      call: () => removeEncounterParticipant("test", "ghoul"),
+    },
+    {
+      name: "turn",
+      path: "/api/encounters/test/turn",
+      method: "POST",
+      call: () => setEncounterTurn({ encounter_ref: "test" }),
+    },
+    {
+      name: "condition addition",
+      path: "/api/encounters/test/participants/ghoul/conditions",
+      method: "POST",
+      call: () =>
+        addEncounterParticipantCondition("test", {
+          participant_key: "ghoul",
+          name: "Condition",
+        }),
+    },
+    {
+      name: "condition edit",
+      path: "/api/encounters/test/participants/ghoul/conditions/9",
+      method: "PATCH",
+      call: () =>
+        updateEncounterParticipantCondition("test", "ghoul", {
+          condition_id: 9n,
+          name: "Condition",
+        }),
+    },
+    {
+      name: "condition removal",
+      path: "/api/encounters/test/participants/ghoul/conditions/9",
+      method: "DELETE",
+      call: () => removeEncounterParticipantCondition("test", "ghoul", 9n),
+    },
+  ];
+  it.each(encounterMutations)(
+    "accepts the $name durable receipt without hydration",
+    async ({ path, method, call }) => {
+      respond({ encounter_key: "encounter-test" });
+      expect(await call()).toEqual({ encounter_key: "encounter-test" });
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(fetchMock).toHaveBeenCalledWith(path, expect.objectContaining({ method }));
+    },
+  );
+  it("preserves typed stale-participant conflicts without retrying", async () => {
+    const conflict = {
+      code: "encounter_participant_conflict",
+      message: "Participant changed",
+      retryable: false,
+      details: { participant_key: "ghoul", expected_revision: 7, actual_revision: 8 },
+    };
+    respond(conflict, 409);
+    await expect(
+      updateEncounterParticipant("test", participantRequest),
+    ).rejects.toMatchObject({
+      status: 409,
+      appError: conflict,
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+  it("rejects unsafe expected revision before issuing a write", async () => {
+    await expect(
+      updateEncounterParticipant("test", {
+        ...participantRequest,
+        expected_revision: 9007199254740992n,
+      }),
+    ).rejects.toThrow("safe integer range");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
   it("preserves unavailable HP and rejects already-rounded integer responses", async () => {
     const unknown = { ...participantJson, current_hp: undefined, max_hp: undefined };

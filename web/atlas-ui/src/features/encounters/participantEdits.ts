@@ -5,14 +5,15 @@ import type {
 
 export function participantUpdate(
   participant: EncounterParticipantView,
-  changes: Partial<UpdateEncounterParticipantRequest>,
+  changes: Partial<
+    Omit<UpdateEncounterParticipantRequest, "participant_key" | "expected_revision">
+  >,
 ): UpdateEncounterParticipantRequest {
   return {
     hp_edit: changes.hp_edit ?? "current_hp" in changes,
     max_hp_edit: changes.max_hp_edit ?? "max_hp" in changes,
     variant_edit: changes.variant_edit ?? "participant_variant" in changes,
     use_derived_max: changes.use_derived_max ?? false,
-    participant_key: participant.participant_key,
     display_name: participant.display_name,
     side: participant.side,
     participant_variant: participant.participant_variant,
@@ -24,25 +25,8 @@ export function participantUpdate(
     hidden: participant.hidden,
     note: participant.note,
     ...changes,
-  };
-}
-
-export function applyParticipantUpdate(
-  participant: EncounterParticipantView,
-  request: UpdateEncounterParticipantRequest,
-): EncounterParticipantView {
-  return {
-    ...participant,
-    display_name: request.display_name,
-    side: request.side,
-    participant_variant: request.participant_variant,
-    initiative: request.initiative,
-    max_hp: request.max_hp,
-    current_hp: request.current_hp,
-    temporary_hp: request.temporary_hp,
-    defeated: request.defeated,
-    hidden: request.hidden,
-    note: request.note,
+    participant_key: participant.participant_key,
+    expected_revision: participant.revision,
   };
 }
 

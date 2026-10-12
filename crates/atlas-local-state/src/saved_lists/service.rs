@@ -26,27 +26,39 @@ impl<'a> SavedLists<'a> {
             tags: normalize_tags(list.tags),
             ..list
         };
-        let connection = self.store.connection()?;
-        let list_key = storage::insert_list(&connection, list)?;
-        self.get(&list_key)?
-            .ok_or(LocalStateError::ListNotFound(list_key))
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let list_key = storage::insert_list(&transaction, list)?;
+        let result = storage::get(&transaction, &list_key)?
+            .ok_or(LocalStateError::ListNotFound(list_key))?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn list(&self) -> LocalStateResult<Vec<SavedList>> {
-        let connection = self.store.connection()?;
-        storage::list(&connection)
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction()?;
+        let result = storage::list(&transaction)?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn get(&self, list_ref: &str) -> LocalStateResult<Option<SavedList>> {
         storage::validate_list_ref(list_ref)?;
-        let connection = self.store.connection()?;
-        storage::get(&connection, list_ref)
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction()?;
+        let result = storage::get(&transaction, list_ref)?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn get_with_items(&self, list_ref: &str) -> LocalStateResult<Option<SavedListWithItems>> {
         storage::validate_list_ref(list_ref)?;
-        let connection = self.store.connection()?;
-        storage::get_with_items(&connection, list_ref)
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction()?;
+        let result = storage::get_with_items(&transaction, list_ref)?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn delete(&self, list_ref: &str) -> LocalStateResult<bool> {
@@ -62,11 +74,14 @@ impl<'a> SavedLists<'a> {
             tags: normalize_tags(list.tags),
             ..list
         };
-        let connection = self.store.connection()?;
-        if !storage::update_list(&connection, list.clone())? {
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if !storage::update_list(&transaction, list.clone())? {
             return Ok(None);
         }
-        self.get(&list.list_key)
+        let result = storage::get(&transaction, &list.list_key)?;
+        transaction.commit()?;
+        Ok(result)
     }
 
     pub fn import(&self, import: ImportSavedList) -> LocalStateResult<SavedListWithItems> {

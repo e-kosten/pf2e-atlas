@@ -52,7 +52,7 @@ export type { EncounterParticipantVariantView } from "../../../../crates/atlas-a
 export type { EncounterParticipantView } from "../../../../crates/atlas-app-model/bindings/EncounterParticipantView";
 export type { EncounterStatusView } from "../../../../crates/atlas-app-model/bindings/EncounterStatusView";
 export type { EncounterSummaryView } from "../../../../crates/atlas-app-model/bindings/EncounterSummaryView";
-export type { EncounterUpdateView } from "../../../../crates/atlas-app-model/bindings/EncounterUpdateView";
+export type { EncounterMutationView } from "../../../../crates/atlas-app-model/bindings/EncounterMutationView";
 export type { FacetUnavailableReason } from "../../../../crates/atlas-app-model/bindings/FacetUnavailableReason";
 export type { FactView } from "../../../../crates/atlas-app-model/bindings/FactView";
 export type { FilterChoiceView } from "../../../../crates/atlas-app-model/bindings/FilterChoiceView";

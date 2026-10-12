@@ -282,3 +282,25 @@ button and callback flows use `useConfirmDangerAction`; prepared source dialogs
 use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
 Ant internals through documented `classNames`, `styles` and component tokens;
 Atlas-owned classes describe product layout rather than internal Ant DOM.
+
+## Mutable workflows
+
+Encounter detail and edit routes use `useEncounterMutations` as their route-local
+command owner. Keep controls pending through the write and canonical-key refresh;
+do not maintain optimistic HP, condition, or participant copies. A successful
+receipt followed by a failed read must show Saved with a read-only Retry and
+disable edits until current state loads. Typed participant conflicts refresh
+without resubmitting and retain the failed draft. Other errors stay with their
+action. Initial encounter and condition reads expose local Retry.
+
+Await Save before navigation and deletion before dismissing confirmation. Return
+the action promise to `useConfirmDangerAction`; observe its confirmation promise
+so a rejected action stays open with contextual feedback. Index deletion owns its
+own asynchronous lifecycle; do not add a detail-route owner to each index row.
+Disable competing controls while their action is pending. Failed inline edits
+retain their draft, and a successful retry releases the field to canonical props.
+
+Preserve touched same-entity metadata during background refresh, and reset drafts
+on entity or editing-session change. Key route owners by identity and prevent old
+Save completions from navigating a newer editor. Keep source-backed facts and
+gameplay derivation in Rust; the browser submits explicit edit intent and revision.

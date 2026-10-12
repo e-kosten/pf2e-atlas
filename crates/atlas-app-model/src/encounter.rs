@@ -268,13 +268,14 @@ pub struct UpdateEncounterRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
-pub struct EncounterUpdateView {
-    pub encounter: EncounterSummaryView,
+pub struct EncounterMutationView {
+    pub encounter_key: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
+    pub revision: i64,
     pub hp_origin: String,
     pub variant_origin: String,
     pub participant_key: String,
@@ -367,6 +368,7 @@ pub struct AddEncounterManualParticipantRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateEncounterParticipantRequest {
+    pub expected_revision: i64,
     // Explicit manual HP edit even when the entered value is unchanged.
     #[serde(default)]
     pub hp_edit: bool,
@@ -475,4 +477,39 @@ pub struct DeleteEncounterView {
     pub encounter_key: String,
     pub slug: String,
     pub deleted: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn participant_edit_revision_is_required_and_round_trips_as_a_json_integer() {
+        let mut wire = json!({
+            "participant_key":"participant_one", "display_name":"One", "side":"enemy",
+            "participant_variant":"normal", "temporary_hp":0, "defeated":false, "hidden":false,
+        });
+        assert!(serde_json::from_value::<UpdateEncounterParticipantRequest>(wire.clone()).is_err());
+        wire["expected_revision"] = json!(7);
+        let request: UpdateEncounterParticipantRequest = serde_json::from_value(wire).unwrap();
+        assert_eq!(request.expected_revision, 7);
+        let encoded = serde_json::to_value(request).unwrap();
+        assert_eq!(encoded["expected_revision"], json!(7));
+        assert!(encoded["expected_revision"].is_i64());
+        assert!(UpdateEncounterParticipantRequest::decl().contains("expected_revision: bigint"));
+        assert!(!UpdateEncounterParticipantRequest::decl().contains("expected_revision?"));
+        assert!(EncounterParticipantView::decl().contains("revision: bigint"));
+    }
+
+    #[test]
+    fn mutation_receipt_contains_only_durable_encounter_identity() {
+        let receipt = EncounterMutationView {
+            encounter_key: "encounter_one".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(receipt).unwrap(),
+            json!({"encounter_key":"encounter_one"})
+        );
+    }
 }

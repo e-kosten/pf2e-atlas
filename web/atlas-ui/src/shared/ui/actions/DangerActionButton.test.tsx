@@ -1,9 +1,13 @@
 import { App, Button, ConfigProvider, theme } from "antd";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { DangerActionButton } from "./DangerActionButton";
 import { useConfirmDangerAction } from "./useConfirmDangerAction";
 
-function CallbackConfirmation({ onConfirm }: { onConfirm: () => void }) {
+function CallbackConfirmation({
+  onConfirm,
+}: {
+  onConfirm: () => void | Promise<unknown>;
+}) {
   const confirm = useConfirmDangerAction();
   return (
     <Button
@@ -17,6 +21,44 @@ function CallbackConfirmation({ onConfirm }: { onConfirm: () => void }) {
 }
 
 describe("contextual danger confirmations", () => {
+  it.each(["button", "callback"])(
+    "keeps delayed and rejected %s confirmation open with visible failure",
+    async (caller) => {
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, no) => {
+        reject = no;
+      });
+      const confirm = vi.fn().mockReturnValueOnce(pending).mockResolvedValue(undefined);
+      render(
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <App component={false}>
+            {caller === "button" ? (
+              <DangerActionButton
+                confirmTitle="Remove participant?"
+                confirmOkText="Remove"
+                onConfirm={confirm}
+              >
+                Remove participant
+              </DangerActionButton>
+            ) : (
+              <CallbackConfirmation onConfirm={confirm} />
+            )}
+          </App>
+        </ConfigProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Remove participant" }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
+      await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+      expect(dialog).toBeInTheDocument();
+      await act(async () => reject(new Error("Delete unavailable")));
+      expect(await screen.findByText("Delete unavailable")).toBeInTheDocument();
+      expect(dialog).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(confirm).toHaveBeenCalledTimes(2);
+    },
+  );
   it.each(["button", "callback"])(
     "preserves theme, cancellation and exact confirmation for the %s caller",
     async (caller) => {

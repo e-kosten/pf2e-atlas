@@ -1,4 +1,4 @@
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 
 use crate::{
     LOCAL_STATE_CONTRACT_VERSION, LOCAL_STATE_SCHEMA_VERSION, LocalStateError, LocalStateResult,
@@ -16,6 +16,13 @@ const METADATA_CONTRACT_VERSION: &str = "local_state_contract_version";
 const METADATA_SCHEMA_VERSION: &str = "schema_version";
 
 pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
+    let transaction = Transaction::new_unchecked(connection, TransactionBehavior::Immediate)?;
+    initialize_in_transaction(&transaction)?;
+    transaction.commit()?;
+    Ok(())
+}
+
+fn initialize_in_transaction(connection: &Connection) -> LocalStateResult<()> {
     if table_exists(connection, METADATA_TABLE)? {
         validate_contract_metadata(connection)?;
         migrate_to_current_schema(connection)?;
@@ -25,6 +32,7 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
         validate_v3_tables(connection)?;
         validate_v6_tables(connection)?;
         validate_v7_tables(connection)?;
+        validate_v8_tables(connection)?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -36,6 +44,7 @@ pub(crate) fn initialize(connection: &Connection) -> LocalStateResult<()> {
     }
     create_v6_schema(connection)?;
     add_v7_columns(connection)?;
+    add_v8_columns(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
@@ -184,13 +193,18 @@ fn validate_metadata(connection: &Connection) -> LocalStateResult<()> {
 fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
     migrate_through_v6(connection)?;
     if metadata_value(connection, METADATA_SCHEMA_VERSION)?.as_deref() == Some("6") {
-        let transaction = connection.unchecked_transaction()?;
-        add_v7_columns(&transaction)?;
-        transaction.execute(
+        add_v7_columns(connection)?;
+        connection.execute(
             "UPDATE local_state_metadata SET value='7' WHERE key='schema_version'",
             [],
         )?;
-        transaction.commit()?;
+    }
+    if metadata_value(connection, METADATA_SCHEMA_VERSION)?.as_deref() == Some("7") {
+        add_v8_columns(connection)?;
+        connection.execute(
+            "UPDATE local_state_metadata SET value='8' WHERE key='schema_version'",
+            [],
+        )?;
     }
     Ok(())
 }
@@ -202,7 +216,7 @@ fn migrate_through_v6(connection: &Connection) -> LocalStateResult<()> {
         ));
     };
     match schema_version.as_str() {
-        "6" => Ok(()),
+        "6" | "7" => Ok(()),
         LOCAL_STATE_SCHEMA_VERSION => Ok(()),
         "1" => {
             migrate_v1_to_v2(connection)?;
@@ -502,6 +516,39 @@ fn validate_v7_tables(connection: &Connection) -> LocalStateResult<()> {
     Ok(())
 }
 
+fn add_v8_columns(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "ALTER TABLE encounter_participants ADD COLUMN revision INTEGER NOT NULL DEFAULT 0 CHECK(typeof(revision) = 'integer' AND revision >= 0);
+         CREATE TABLE encounter_participant_conditions_v8 (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           participant_id INTEGER NOT NULL,
+           condition_key TEXT,
+           name TEXT NOT NULL,
+           value INTEGER,
+           source_participant_key TEXT,
+           duration_rounds INTEGER,
+           note TEXT,
+           created_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL,
+           FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE
+         );
+         INSERT INTO encounter_participant_conditions_v8 (
+           id,participant_id,condition_key,name,value,source_participant_key,
+           duration_rounds,note,created_at,updated_at
+         ) SELECT id,participant_id,condition_key,name,value,source_participant_key,
+                  duration_rounds,note,created_at,updated_at
+           FROM encounter_participant_conditions;
+         DROP TABLE encounter_participant_conditions;
+         ALTER TABLE encounter_participant_conditions_v8 RENAME TO encounter_participant_conditions;",
+    )?;
+    Ok(())
+}
+
+fn validate_v8_tables(connection: &Connection) -> LocalStateResult<()> {
+    connection.prepare("SELECT revision FROM encounter_participants LIMIT 0")?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -526,6 +573,179 @@ mod tests {
         assert_eq!(
             metadata_value(&connection, METADATA_SCHEMA_VERSION)?,
             Some(LOCAL_STATE_SCHEMA_VERSION.to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn failed_fresh_schema_rolls_back_all_created_tables() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let connection = Connection::open(temp_path("fresh-rollback"))?;
+        // An unrelated collision fails halfway through base DDL.
+        connection.execute_batch("CREATE TABLE encounters (sentinel TEXT);")?;
+        assert!(initialize(&connection).is_err());
+        assert!(!table_exists(&connection, METADATA_TABLE)?);
+        assert!(!table_exists(&connection, SAVED_LISTS_TABLE)?);
+        assert!(!table_exists(&connection, SAVED_LIST_ITEMS_TABLE)?);
+        connection.execute_batch("DROP TABLE encounters;")?;
+        initialize(&connection)?;
+        validate_metadata(&connection)?;
+        Ok(())
+    }
+
+    #[test]
+    fn failed_condition_migration_version_write_preserves_old_schema_and_rows()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let connection = Connection::open(temp_path("migration-rollback"))?;
+        create_v6_schema(&connection)?;
+        connection.execute_batch(
+            "DROP TABLE saved_list_tags;
+             INSERT INTO local_state_metadata VALUES ('local_state_contract_version','pf2e-atlas-local-state/v1');
+             INSERT INTO local_state_metadata VALUES ('schema_version','4');
+             INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at)
+               VALUES(1,'encounter-one','one','One','running','now','now');
+             INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,created_at,updated_at)
+               VALUES(1,1,'participant-one','creature',1,'One',1,60,-5,'now','now');
+             INSERT INTO encounter_participant_conditions(id,participant_id,name,value,created_at,updated_at)
+               VALUES(1,1,'Frightened',2,'now','now');
+             INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at)
+               VALUES(1,'list-one','one','One','now','now');
+             INSERT INTO saved_list_items(list_id,record_key,position,record_title_snapshot,added_at,updated_at)
+               VALUES(1,'actors:one',1,'One','now','now');
+             CREATE TRIGGER reject_version BEFORE UPDATE ON local_state_metadata
+               WHEN NEW.key='schema_version' AND NEW.value='5'
+               BEGIN SELECT RAISE(ABORT,'injected version failure'); END;",
+        )?;
+        assert!(initialize(&connection).is_err());
+        assert_eq!(
+            metadata_value(&connection, METADATA_SCHEMA_VERSION)?.as_deref(),
+            Some("4")
+        );
+        assert!(!table_exists(
+            &connection,
+            "encounter_participant_conditions_v5"
+        )?);
+        assert_eq!(
+            connection.query_row(
+                "SELECT value FROM encounter_participant_conditions WHERE id=1",
+                [],
+                |r| r.get::<_, i64>(0)
+            )?,
+            2
+        );
+        assert_eq!(
+            connection.query_row(
+                "SELECT current_hp FROM encounter_participants WHERE id=1",
+                [],
+                |r| r.get::<_, i64>(0)
+            )?,
+            -5
+        );
+        connection.execute_batch("DROP TRIGGER reject_version;")?;
+        initialize(&connection)?;
+        assert_eq!(
+            connection.query_row(
+                "SELECT value FROM encounter_participant_conditions WHERE id=1",
+                [],
+                |r| r.get::<_, i64>(0)
+            )?,
+            2
+        );
+        assert_eq!(
+            connection.query_row(
+                "SELECT revision FROM encounter_participants WHERE id=1",
+                [],
+                |r| r.get::<_, i64>(0)
+            )?,
+            0
+        );
+        assert_eq!(
+            connection.query_row("SELECT COUNT(*) FROM saved_list_items", [], |r| r
+                .get::<_, i64>(0))?,
+            1
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn concurrent_first_open_initializes_once() -> Result<(), Box<dyn std::error::Error>> {
+        let path = temp_path("concurrent-open");
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+        let handles = (0..4)
+            .map(|_| {
+                let path = path.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    LocalStateStore::open(path)
+                })
+            })
+            .collect::<Vec<_>>();
+        for handle in handles {
+            handle.join().expect("initializer panicked")?;
+        }
+        let connection = Connection::open(path)?;
+        validate_metadata(&connection)?;
+        validate_v8_tables(&connection)?;
+        Ok(())
+    }
+
+    #[test]
+    fn revision_migration_rolls_back_column_and_preserves_explicit_edit_intent()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let connection = Connection::open(temp_path("revision-migration"))?;
+        create_v6_schema(&connection)?;
+        add_v7_columns(&connection)?;
+        connection.execute_batch(
+            "INSERT INTO local_state_metadata VALUES ('local_state_contract_version','pf2e-atlas-local-state/v1');
+             INSERT INTO local_state_metadata VALUES ('schema_version','7');
+             INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at)
+               VALUES(1,'encounter-one','one','One','running','now','now');
+             INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,participant_variant,position,display_name,initiative_order,max_hp,current_hp,temporary_hp,hp_origin,variant_origin,created_at,updated_at)
+               VALUES(1,1,'participant-one','creature','weak',1,'One',1,60,-5,7,'derived_edited','inherited_known','now','now');
+             CREATE TRIGGER reject_revision_version BEFORE UPDATE ON local_state_metadata
+               WHEN NEW.key='schema_version' AND NEW.value='8'
+               BEGIN SELECT RAISE(ABORT,'injected revision version failure'); END;",
+        )?;
+        assert!(initialize(&connection).is_err());
+        assert!(!column_exists(
+            &connection,
+            ENCOUNTER_PARTICIPANTS_TABLE,
+            "revision"
+        )?);
+        assert_eq!(
+            metadata_value(&connection, METADATA_SCHEMA_VERSION)?.as_deref(),
+            Some("7")
+        );
+        connection.execute_batch("DROP TRIGGER reject_revision_version;")?;
+        initialize(&connection)?;
+        let row = connection.query_row(
+            "SELECT max_hp,current_hp,temporary_hp,hp_origin,variant_origin,participant_variant,revision
+             FROM encounter_participants WHERE id=1",
+            [], |r| Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,i64>(2)?,
+                r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?,r.get::<_,i64>(6)?)),
+        )?;
+        assert_eq!(
+            row,
+            (
+                60,
+                -5,
+                7,
+                "derived_edited".into(),
+                "inherited_known".into(),
+                "weak".into(),
+                0
+            )
+        );
+        assert!(
+            connection
+                .execute("UPDATE encounter_participants SET revision=-1", [])
+                .is_err()
+        );
+        assert!(
+            connection
+                .execute("UPDATE encounter_participants SET revision=0.5", [])
+                .is_err()
         );
         Ok(())
     }
@@ -577,7 +797,7 @@ mod tests {
         }
         assert_eq!(
             metadata_value(&connection, METADATA_SCHEMA_VERSION)?,
-            Some("7".into())
+            Some(LOCAL_STATE_SCHEMA_VERSION.into())
         );
         Ok(())
     }

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Input, Select } from "antd";
 import { Trash2 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
 import type { UpdateSavedListRequest } from "../../generated/atlas";
 import {
@@ -67,15 +67,31 @@ export function ListEditView({ route }: ListEditViewProps) {
     },
   });
 
+  const initializedKey = useRef<string | null>(null);
   useEffect(() => {
     if (!list.data) {
       return;
     }
-    form.setFieldsValue({
+    const values = {
       name: list.data.list.name,
       description: list.data.list.description ?? undefined,
       tags: list.data.list.tags,
-    });
+    };
+    if (initializedKey.current !== list.data.list.list_key) {
+      form.resetFields();
+      form.setFieldsValue(values);
+      form.setFields(
+        (Object.keys(values) as Array<keyof EditListFormValues>).map((name) => ({
+          name,
+          touched: false,
+        })),
+      );
+      initializedKey.current = list.data.list.list_key;
+    } else {
+      for (const field of Object.keys(values) as Array<keyof EditListFormValues>) {
+        if (!form.isFieldTouched(field)) form.setFieldValue(field, values[field]);
+      }
+    }
   }, [form, list.data]);
 
   return (
@@ -90,7 +106,9 @@ export function ListEditView({ route }: ListEditViewProps) {
         {list.isLoading ? (
           <div className="detail-empty">Loading list</div>
         ) : !list.data ? (
-          <div className="detail-empty">List not found</div>
+          <div className="detail-empty">
+            {list.error ? "List unavailable" : "List not found"}
+          </div>
         ) : (
           <div className="list-edit-view__form">
             <Form
@@ -178,7 +196,14 @@ export function ListEditView({ route }: ListEditViewProps) {
             </div>
           </div>
         )}
-        {list.error && <InlineError message={list.error.message} />}
+        {list.error && (
+          <>
+            <InlineError message={list.error.message} />
+            <Button loading={list.isFetching} onClick={() => void list.refetch()}>
+              Retry list
+            </Button>
+          </>
+        )}
         {update.error && <InlineError message={update.error.message} />}
         {deleteListMutation.error && (
           <InlineError message={deleteListMutation.error.message} />
