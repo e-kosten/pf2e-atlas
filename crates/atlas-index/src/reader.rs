@@ -1,6 +1,6 @@
 //! Read-only artifact handles. Summary queries never decode source bodies.
 use crate::{
-    IndexError, SourceArtifactBuildContext,
+    ArtifactInstance, IndexError, SourceArtifactBuildContext,
     codec::gunzip,
     numeric::{SourceNumber, SourceNumberSql},
     schema,
@@ -26,6 +26,7 @@ pub struct SqliteIndexReader {
     path: PathBuf,
     diesel: RefCell<SqliteConnection>,
     context: SourceArtifactBuildContext,
+    instance: ArtifactInstance,
     native: NativeConnection,
     vector_error: Option<String>,
     #[cfg(any(test, feature = "test-support"))]
@@ -120,10 +121,12 @@ impl SqliteIndexReader {
                 "artifact replaced while reader opened; retry".into(),
             ));
         }
+        let instance = ArtifactInstance::new(before, context.sha256()?);
         Ok(Self {
             path,
             diesel: RefCell::new(diesel),
             context,
+            instance,
             native: c,
             vector_error,
             #[cfg(any(test, feature = "test-support"))]
@@ -146,6 +149,10 @@ impl SqliteIndexReader {
     }
     pub fn context(&self) -> &SourceArtifactBuildContext {
         &self.context
+    }
+    /// Identity of the actual open file, independent of subsequent publication.
+    pub fn artifact_instance(&self) -> &ArtifactInstance {
+        &self.instance
     }
     pub fn capabilities(&self) -> SourceReadCapabilities {
         let reason = if self.context.semantic_model.is_none() {

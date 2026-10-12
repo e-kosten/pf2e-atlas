@@ -76,6 +76,11 @@ impl AtlasRetrievalService {
         Ok(self.artifact_context().sha256()?)
     }
 
+    /// Process-local identity used to compose independent readers of one file.
+    pub fn artifact_instance(&self) -> &crate::ArtifactInstance {
+        self.index.artifact_instance()
+    }
+
     pub fn artifact_context(&self) -> &atlas_index::SourceArtifactBuildContext {
         self.index.context()
     }
