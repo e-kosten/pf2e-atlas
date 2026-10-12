@@ -6,6 +6,11 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Active worktree build footprint](./items/developer-build-footprint.md)
+  Measured development/test profiles, selected limited debug with incremental
+  application builds and a generated-model exception, retained full-debug opt-in, and
+  strengthened worktree retirement and path-sensitive hook validation. Status: done.
+
 - [Record presentation and UI architecture review](./items/rust-web-ui-architecture-review.md)
   Semantic family responses replace generic layout transport, with shared
   creature/hazard/spell presentation across CLI and browser reference/encounter
