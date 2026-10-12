@@ -54,6 +54,15 @@ candidate is offered for product feedback.
 - Separate restoration of genuinely missing runtime behavior from layout repairs.
 - Validate on disposable local state rather than modifying user encounters.
 
+## Known Accessibility Follow-up
+
+Opening and canceling Add PC, then opening Edit encounter, leaves two inputs
+with the DOM ID `name`: the hidden PC form and the visible editor. Clicking the
+visible Name label does not focus its textbox. These unnamed Ant forms predate
+the mutable-workflow changes. Give form instances distinct namespaces through
+Ant's Form API, and verify label-click focus with both dialogs previously opened.
+Keep the existing field names and draft/session behavior.
+
 ## Related
 
 - [Semantic record presentation](../../architecture/decisions/0047-semantic-record-presentation.md)
