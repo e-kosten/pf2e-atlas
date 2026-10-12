@@ -236,9 +236,11 @@ from selected addresses. Native small permalinks and parent breadcrumbs retain
 modified clicks and known search/list/reader history context. Compact reference
 presentation changes density without suppressing content, facts or availability.
 
-Encounter quick lookup uses the same activity and prepared-content components in
-native Popover/Drawer. Its query caches only requested authored prose; resolve the
-current exact participant activity facts and explanations on every render.
+Encounter quick lookup uses the same complete family reader in native
+Popover/Drawer. Its separate contextual cache holds the requested document view,
+keyed by participant presentation and exact selection. Rust composes current
+participant facts and explanations on each request; presentation changes trigger
+a fresh request without seeding immutable reference caches.
 Participant/generation changes, disappearance and unresolved sources remain
 explicit without baseline-detail fallback. Keep the native full reference link,
 ready-lifecycle initial focus, nested source-modal Escape and original trigger
