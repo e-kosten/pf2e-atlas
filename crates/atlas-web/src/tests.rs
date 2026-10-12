@@ -21,7 +21,7 @@ use atlas_app_model::{
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
 };
-use atlas_app_service::AppServiceError;
+use atlas_app_service::{AppServiceError, ReadExecutionContext};
 use atlas_domain::QueryPredicate;
 use axum::Router;
 use axum::body::Body;
@@ -86,7 +86,7 @@ fn app_error_codes_map_to_expected_http_statuses() {
 
 #[tokio::test]
 async fn call_service_preserves_successful_result() {
-    let value = call_service(AtlasWebState::from_service(MockService), || {
+    let value = call_service(AtlasWebState::from_service(MockService::default()), || {
         Ok::<_, AppServiceError>("ready")
     })
     .await
@@ -97,7 +97,7 @@ async fn call_service_preserves_successful_result() {
 
 #[tokio::test]
 async fn call_service_maps_service_error_to_http_envelope() {
-    let error = call_service(AtlasWebState::from_service(MockService), || {
+    let error = call_service(AtlasWebState::from_service(MockService::default()), || {
         Err::<(), _>(AppServiceError::new(
             AppErrorCode::ArtifactGenerationChanged,
             "changed",
@@ -122,7 +122,7 @@ async fn call_service_maps_service_error_to_http_envelope() {
 #[tokio::test]
 async fn call_service_maps_panic_to_internal_error() {
     let error = call_service(
-        AtlasWebState::from_service(MockService),
+        AtlasWebState::from_service(MockService::default()),
         || -> Result<(), AppServiceError> {
             panic!("simulated app-service panic");
         },
@@ -145,7 +145,7 @@ async fn call_service_maps_panic_to_internal_error() {
 #[tokio::test]
 async fn routes_return_service_busy_when_web_backpressure_is_full() {
     let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
-        MockService,
+        MockService::default(),
         0,
     ));
     let response = app
@@ -769,10 +769,15 @@ async fn response_json(response: Response) -> (StatusCode, Value) {
 }
 
 fn test_router() -> Router {
-    router_with_state(AtlasWebState::from_service(MockService))
+    router_with_state(AtlasWebState::from_service(MockService::default()))
 }
 
-struct MockService;
+#[derive(Default)]
+struct MockService {
+    read_probe: Option<std::sync::Arc<read_abandonment_tests::ReadProbe>>,
+}
+
+mod read_abandonment_tests;
 
 impl AtlasWebService for MockService {
     fn readiness(&self) -> AppReadinessView {
@@ -791,6 +796,7 @@ impl AtlasWebService for MockService {
     fn discover_filter_values(
         &self,
         request: DiscoverFilterValuesRequest,
+        _execution: &ReadExecutionContext,
     ) -> Result<FilterValueListView, AppServiceError> {
         if let DiscoverFilterValuesRequest::Vocabulary {
             scope,
@@ -816,6 +822,7 @@ impl AtlasWebService for MockService {
     fn discover_filter_counts(
         &self,
         request: DiscoverFilterCountsRequest,
+        _execution: &ReadExecutionContext,
     ) -> Result<FilterCountsView, AppServiceError> {
         if request.clause_id.is_some() {
             return Ok(FilterCountsView {
@@ -869,7 +876,11 @@ impl AtlasWebService for MockService {
     fn search_page(
         &self,
         request: SearchResultsRequest,
+        execution: &ReadExecutionContext,
     ) -> Result<SearchResultsPage, AppServiceError> {
+        if let Some(probe) = &self.read_probe {
+            probe.observe(execution)?;
+        }
         if let Some(expected) = request.expected_artifact_generation
             && expected != "current-generation"
         {

@@ -25,7 +25,7 @@ impl AtlasAppService {
         })?;
         let key = RecordKey::parse(&selection.record_key)
             .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             let generation = r.artifact_generation()?;
             if request.artifact_generation != generation {
                 return Err(AppServiceError::artifact_generation_changed(

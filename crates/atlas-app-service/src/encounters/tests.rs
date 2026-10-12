@@ -632,7 +632,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             crate::presentation::actor::authored_projection_count(true);
             super::mechanics::baseline_count(true);
@@ -643,7 +643,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
     assert!(detail.artifact_generation.is_some());
     let (metrics, authored, baselines) = f
         .worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             Ok((
                 r.read_metrics(),
                 crate::presentation::actor::authored_projection_count(false),
@@ -681,7 +681,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         Some(8.into())
     );
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
@@ -696,7 +696,12 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
             source_fingerprint: None,
         })
         .unwrap();
-    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    let metrics = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
     assert_eq!(metrics.source_body_decodes, 1);
     assert_eq!(metrics.prepared_content_batches, 1);
     assert_eq!(source.presentation.content.len(), 1);

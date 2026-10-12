@@ -18,7 +18,7 @@ impl AtlasAppService {
         let key = RecordKey::parse(key).map_err(|error| {
             AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
         })?;
-        self.submit_retrieval(move |retrieval| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |retrieval| {
             let detail = retrieval.get_record(GetRecordRequest {
                 record_key: &key,
                 selected_content: &[],
@@ -38,7 +38,7 @@ impl AtlasAppService {
         &self,
         record_keys: Vec<RecordKey>,
     ) -> AppServiceResult<Vec<atlas_app_model::RecordSummaryView>> {
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             Ok(r.get_records(GetRecordsRequest {
                 record_keys: &record_keys,
             })?
@@ -53,7 +53,7 @@ impl AtlasAppService {
         query: String,
         filter: Option<QueryPredicate>,
     ) -> AppServiceResult<Vec<atlas_app_model::RecordResolutionCandidateView>> {
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             Ok(r.resolve_record(ResolveRecordRequest {
                 query: &query,
                 filter: filter.as_ref(),
@@ -68,7 +68,7 @@ impl AtlasAppService {
         record_ref: String,
         filter: Option<QueryPredicate>,
     ) -> AppServiceResult<atlas_app_model::RecordRefResolutionView> {
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             Ok(
                 match r.resolve_record_ref(ResolveRecordRefRequest {
                     record_ref: &record_ref,
@@ -104,7 +104,9 @@ impl AtlasAppService {
         &self,
         request: RecordDetailRequest,
     ) -> AppServiceResult<RecordDetailView> {
-        self.submit_retrieval(move |r| read_record_detail(r, request).map(|(_, view)| view))
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            read_record_detail(r, request).map(|(_, view)| view)
+        })
     }
 }
 

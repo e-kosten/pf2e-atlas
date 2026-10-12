@@ -1,6 +1,6 @@
 use crate::projection::{localized_summary_view, search_page_view, search_results_view};
 use crate::retrieval::retrieval_mode;
-use crate::{AppServiceError, AppServiceResult, AtlasAppService};
+use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
     AppErrorCode, AppRecoverableAction, SearchCriteria, SearchModeSummary, SearchResultRow,
     SearchResultsPage, SearchResultsRequest,
@@ -11,9 +11,12 @@ impl AtlasAppService {
     pub fn search_page(
         &self,
         request: SearchResultsRequest,
+        execution: &ReadExecutionContext,
     ) -> AppServiceResult<SearchResultsPage> {
+        execution.check()?;
         let page = SearchPage::new(request.page.number, request.page.size)?;
-        self.submit_retrieval(move |retrieval| {
+        let projection_execution = execution.clone();
+        self.with_retrieval(execution, move |retrieval| {
             let artifact_generation = retrieval.artifact_generation()?;
             if let Some(expected) = &request.expected_artifact_generation
                 && expected != &artifact_generation
@@ -46,6 +49,7 @@ impl AtlasAppService {
                                 "similar seed not found",
                             )
                         })?;
+                    projection_execution.check()?;
                     let seed = localized_summary_view(&result.seed, retrieval);
                     let results = search_results_view(result.results, retrieval);
                     (
@@ -60,6 +64,7 @@ impl AtlasAppService {
                 SearchCriteria::ListRecords { filter } => {
                     let result =
                         retrieval.list_records(ListRecordsRequest::new(filter.as_ref(), page))?;
+                    projection_execution.check()?;
                     (
                         SearchModeSummary::ListRecords,
                         result
@@ -88,6 +93,7 @@ impl AtlasAppService {
                         page,
                         prefer_remaster: true,
                     })?;
+                    projection_execution.check()?;
                     let results = search_results_view(result, retrieval);
                     (
                         SearchModeSummary::TextSearch { query, mode },

@@ -53,6 +53,21 @@ at page1, retaining criteria and mutable drafts. Old page data cannot cross that
 transition. Exact embedded addresses are never rebound to a different ordinal.
 Similar preview reloads its actual owning detail before requesting a new generation.
 
+Replaceable search pages and filter discovery take an explicit app-owned
+`ReadExecutionContext` with an optional shared atomic abandonment flag. One
+retrieval submission path checks it before lazy open and admission, immediately
+before worker execution, and at safe boundaries between completed retrieval and
+app projection. A queued abandoned read returns `OperationCancelled` without
+executing its expensive closure. Commands and unrelated reads explicitly choose
+uncancellable execution.
+
+Web's read helper holds the abandonment guard in its awaiting async future and
+wraps the existing bounded blocking-call helper. Future drop sets the flag; the
+blocking closure keeps its permit until the actual work finishes. No ambient
+context, client-ID registry, new capability trait, SQL interruption or native
+inference abort is introduced. Durable mutations and their precommit reference
+reads stay uncancellable under ADR0048.
+
 Text retrieval and semantic contextual discovery share an exhaustive conversion
 of embedding errors. Empty input and token-budget overflow are invalid requests,
 HTTP400, with useful counts and a shortening instruction. Model/cache/inference
@@ -72,4 +87,7 @@ family-presentation redesign is implied.
 
 Active SQL/native inference interruption, read deadlines and query-vector/candidate
 caches require separate evidence and decisions. Stateless pages add none of those
-mechanisms.
+mechanisms. Queued canceled items and waiters can remain until drained. Dropping
+a read wait does not immediately release a running permit or stop native work.
+Transport propagation needs actual protocol-specific evidence; a dropped-future
+unit test does not establish every browser disconnect behavior.

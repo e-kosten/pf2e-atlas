@@ -48,7 +48,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         .navigation
         .clone();
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
@@ -63,7 +63,12 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             },
         ))
         .unwrap();
-    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    let metrics = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
     assert_eq!(
         (
             metrics.source_body_decodes,
@@ -91,7 +96,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         );
     }
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
@@ -106,7 +111,12 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             },
         ))
         .unwrap();
-    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    let metrics = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
     assert_eq!(
         (
             metrics.source_body_decodes,

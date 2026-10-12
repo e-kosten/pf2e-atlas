@@ -63,7 +63,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         },
     };
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
@@ -76,7 +76,12 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             request("wwwwwwwwwwwwwwww"),
         )
         .unwrap();
-    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    let metrics = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
     assert_eq!(
         (
             metrics.source_body_decodes,
@@ -311,7 +316,9 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     assert_eq!(selected_a.presentation.identity.title, "Stable ability");
     let fingerprint_a = a
         .worker
-        .submit_retrieval(|r| Ok(r.source_fingerprint().to_owned()))
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.source_fingerprint().to_owned())
+        })
         .unwrap();
     let local_state_path = a.worker.local_state_path().to_path_buf();
     drop(a);
@@ -320,7 +327,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     b.worker.local_state_path = local_state_path;
     let (generation_b, fingerprint_b) = b
         .worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok((r.artifact_generation()?, r.source_fingerprint().to_owned()))
         })
@@ -348,7 +355,9 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     );
     assert_eq!(
         b.worker
-            .submit_retrieval(|r| Ok(r.read_metrics()))
+            .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| Ok(
+                r.read_metrics()
+            ))
             .unwrap()
             .source_body_decodes,
         0,

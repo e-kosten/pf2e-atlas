@@ -442,24 +442,27 @@ fn hydrate_saved_list_records(
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
     }
-    service.submit_retrieval(move |retrieval| {
-        Ok(retrieval
-            .get_records(GetRecordsRequest {
-                record_keys: &record_keys,
-            })?
-            .records
-            .into_iter()
-            .map(|record| {
-                (
-                    record.key.to_string(),
-                    HydratedListRecord {
-                        view: crate::projection::localized_summary_view(&record, retrieval),
-                        summary: record,
-                    },
-                )
-            })
-            .collect())
-    })
+    service.with_retrieval(
+        &crate::ReadExecutionContext::uncancellable(),
+        move |retrieval| {
+            Ok(retrieval
+                .get_records(GetRecordsRequest {
+                    record_keys: &record_keys,
+                })?
+                .records
+                .into_iter()
+                .map(|record| {
+                    (
+                        record.key.to_string(),
+                        HydratedListRecord {
+                            view: crate::projection::localized_summary_view(&record, retrieval),
+                            summary: record,
+                        },
+                    )
+                })
+                .collect())
+        },
+    )
 }
 
 fn hydrate_export_records(
@@ -473,16 +476,19 @@ fn hydrate_export_records(
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
     }
-    service.submit_retrieval(move |retrieval| {
-        Ok(retrieval
-            .get_records(GetRecordsRequest {
-                record_keys: &record_keys,
-            })?
-            .records
-            .into_iter()
-            .map(|record| (record.key.to_string(), record))
-            .collect())
-    })
+    service.with_retrieval(
+        &crate::ReadExecutionContext::uncancellable(),
+        move |retrieval| {
+            Ok(retrieval
+                .get_records(GetRecordsRequest {
+                    record_keys: &record_keys,
+                })?
+                .records
+                .into_iter()
+                .map(|record| (record.key.to_string(), record))
+                .collect())
+        },
+    )
 }
 
 fn saved_list_export_item(item: SavedListItemView) -> SavedListExportItemView {
@@ -522,31 +528,34 @@ fn filtered_saved_list_records(
     }
     let record_keys = record_keys.to_vec();
     let filter = filter.cloned();
-    service.submit_retrieval(move |retrieval| {
-        let mut records = BTreeMap::new();
-        let mut page_number = 1;
-        loop {
-            let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
-            let result = retrieval.list_records(
-                ListRecordsRequest::new(filter.as_ref(), page)
-                    .with_scope(RecordScope::Keys(&record_keys)),
-            )?;
-            for record in result.records {
-                records.insert(
-                    record.key.to_string(),
-                    HydratedListRecord {
-                        view: crate::projection::localized_summary_view(&record, retrieval),
-                        summary: record,
-                    },
-                );
+    service.with_retrieval(
+        &crate::ReadExecutionContext::uncancellable(),
+        move |retrieval| {
+            let mut records = BTreeMap::new();
+            let mut page_number = 1;
+            loop {
+                let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
+                let result = retrieval.list_records(
+                    ListRecordsRequest::new(filter.as_ref(), page)
+                        .with_scope(RecordScope::Keys(&record_keys)),
+                )?;
+                for record in result.records {
+                    records.insert(
+                        record.key.to_string(),
+                        HydratedListRecord {
+                            view: crate::projection::localized_summary_view(&record, retrieval),
+                            summary: record,
+                        },
+                    );
+                }
+                if !result.page.has_more {
+                    break;
+                }
+                page_number += 1;
             }
-            if !result.page.has_more {
-                break;
-            }
-            page_number += 1;
-        }
-        Ok(records)
-    })
+            Ok(records)
+        },
+    )
 }
 
 fn searched_saved_list_records(
@@ -562,40 +571,43 @@ fn searched_saved_list_records(
     let scoped_keys = record_keys.iter().cloned().collect::<BTreeSet<_>>();
     let filter = filter.cloned();
     let query = query.to_string();
-    service.submit_retrieval(move |retrieval| {
-        let mut records = BTreeMap::new();
-        let mut page_number = 1;
-        loop {
-            let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
-            let result = retrieval.search_text(TextSearchRequest {
-                query: &query,
-                filter: filter.as_ref(),
-                scope: RecordScope::Keys(&record_keys),
-                page,
-                mode: RetrievalMode::Fts,
-                prefer_remaster: true,
-            })?;
-            for record in result.records {
-                if scoped_keys.contains(&record.record.key) {
-                    records.insert(
-                        record.record.key.to_string(),
-                        HydratedListRecord {
-                            view: crate::projection::localized_summary_view(
-                                &record.record,
-                                retrieval,
-                            ),
-                            summary: record.record,
-                        },
-                    );
+    service.with_retrieval(
+        &crate::ReadExecutionContext::uncancellable(),
+        move |retrieval| {
+            let mut records = BTreeMap::new();
+            let mut page_number = 1;
+            loop {
+                let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
+                let result = retrieval.search_text(TextSearchRequest {
+                    query: &query,
+                    filter: filter.as_ref(),
+                    scope: RecordScope::Keys(&record_keys),
+                    page,
+                    mode: RetrievalMode::Fts,
+                    prefer_remaster: true,
+                })?;
+                for record in result.records {
+                    if scoped_keys.contains(&record.record.key) {
+                        records.insert(
+                            record.record.key.to_string(),
+                            HydratedListRecord {
+                                view: crate::projection::localized_summary_view(
+                                    &record.record,
+                                    retrieval,
+                                ),
+                                summary: record.record,
+                            },
+                        );
+                    }
                 }
+                if !result.page.has_more {
+                    break;
+                }
+                page_number += 1;
             }
-            if !result.page.has_more {
-                break;
-            }
-            page_number += 1;
-        }
-        Ok(records)
-    })
+            Ok(records)
+        },
+    )
 }
 
 fn resolve_record_ref(
@@ -603,33 +615,36 @@ fn resolve_record_ref(
     record_ref: &str,
 ) -> AppServiceResult<atlas_domain::SourceRecordSummary> {
     let record_ref = record_ref.to_string();
-    service.submit_retrieval(move |retrieval| {
-        let resolution = retrieval.resolve_record_ref(ResolveRecordRefRequest {
-            record_ref: &record_ref,
-            filter: None,
-        })?;
-        let key = match resolution {
-            RecordRefResolutionResult::Key(key) => key,
-            RecordRefResolutionResult::Miss => {
-                return Err(AppServiceError::new(
-                    AppErrorCode::RecordResolutionMiss,
-                    format!("record resolution miss: {record_ref}"),
-                ));
-            }
-            RecordRefResolutionResult::Ambiguous(matches) => {
-                return Err(record_resolution_ambiguous_error(&record_ref, matches));
-            }
-        };
-        let records = retrieval.get_records(GetRecordsRequest {
-            record_keys: std::slice::from_ref(&key),
-        })?;
-        records.records.into_iter().next().ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::RecordNotFound,
-                format!("record not found: {key}"),
-            )
-        })
-    })
+    service.with_retrieval(
+        &crate::ReadExecutionContext::uncancellable(),
+        move |retrieval| {
+            let resolution = retrieval.resolve_record_ref(ResolveRecordRefRequest {
+                record_ref: &record_ref,
+                filter: None,
+            })?;
+            let key = match resolution {
+                RecordRefResolutionResult::Key(key) => key,
+                RecordRefResolutionResult::Miss => {
+                    return Err(AppServiceError::new(
+                        AppErrorCode::RecordResolutionMiss,
+                        format!("record resolution miss: {record_ref}"),
+                    ));
+                }
+                RecordRefResolutionResult::Ambiguous(matches) => {
+                    return Err(record_resolution_ambiguous_error(&record_ref, matches));
+                }
+            };
+            let records = retrieval.get_records(GetRecordsRequest {
+                record_keys: std::slice::from_ref(&key),
+            })?;
+            records.records.into_iter().next().ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::RecordNotFound,
+                    format!("record not found: {key}"),
+                )
+            })
+        },
+    )
 }
 
 fn record_resolution_ambiguous_error(

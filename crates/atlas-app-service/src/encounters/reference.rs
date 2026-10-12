@@ -32,7 +32,7 @@ impl AtlasAppService {
                 "selected reference does not belong to this participant",
             ));
         }
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             let generation = r.artifact_generation()?;
             if generation != request.artifact_generation {
                 return Err(AppServiceError::artifact_generation_changed(

@@ -14,7 +14,7 @@ use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 
 use crate::error::WebError;
-use crate::service::{AtlasWebState, call_service};
+use crate::service::{AtlasWebState, call_read_service, call_service};
 
 pub(crate) async fn readiness(
     State(state): State<AtlasWebState>,
@@ -336,7 +336,10 @@ pub(crate) async fn discover_filter_values(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.discover_filter_values(request)).await?,
+        call_read_service(state, move |execution| {
+            service.discover_filter_values(request, &execution)
+        })
+        .await?,
     ))
 }
 
@@ -347,7 +350,10 @@ pub(crate) async fn search_page(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.search_page(request)).await?,
+        call_read_service(state, move |execution| {
+            service.search_page(request, &execution)
+        })
+        .await?,
     ))
 }
 
@@ -401,7 +407,10 @@ pub(crate) async fn discover_filter_counts(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.discover_filter_counts(request)).await?,
+        call_read_service(state, move |execution| {
+            service.discover_filter_counts(request, &execution)
+        })
+        .await?,
     ))
 }
 pub(crate) async fn validate_filter(
