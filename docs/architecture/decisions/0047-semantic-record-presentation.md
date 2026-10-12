@@ -223,5 +223,5 @@ renders content categories and separate unavailable/error states; it does not in
 relationships or run naming/compatibility checks. Detail envelopes carry the full
 immutable artifact-context hash for generation-aware secondary queries. This does
 not replace source fingerprints in snapshot-local navigation. Similar remains a
-root discovery criterion in the existing result-window/search workflow, with a
+root discovery criterion in the stateless search-page workflow of ADR0049, with a
 body-free seed summary and truthful bounded pages, rather than a relationship.

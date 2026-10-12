@@ -48,7 +48,7 @@ pub(crate) fn print_summary(view: &atlas_app_model::RecordSummaryView) {
     );
     println!("  {}", view.record_key);
 }
-pub(crate) fn print_search_matches(records: &[atlas_app_model::ResultWindowRow]) {
+pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow]) {
     for r in records {
         print_summary(&r.record);
         if let Some(w) = r

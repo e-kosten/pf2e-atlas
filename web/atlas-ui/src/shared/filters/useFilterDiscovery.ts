@@ -1,4 +1,4 @@
-import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   discoverFilterCounts,
   discoverFilterEditor,
@@ -6,6 +6,8 @@ import {
 } from "../../api/atlasApi";
 import type {
   FilterDiscoveryContext,
+  FilterEditorView,
+  FilterValueListView,
   FilterVocabularyScope,
   QueryLiteral,
   QueryPredicate,
@@ -38,19 +40,26 @@ export function useFilterDiscovery({
   enabled = true,
   countsEnabled = true,
   queryKeyPrefix,
+  placeholderIdentity = null,
   vocabularyScope = { kind: "artifact" },
 }: {
   context: FilterDiscoveryContext;
   enabled?: boolean;
   countsEnabled?: boolean;
   queryKeyPrefix: readonly unknown[];
+  placeholderIdentity?: readonly unknown[] | null;
   vocabularyScope?: FilterVocabularyScope;
 }) {
-  const editor = useQuery({
-    queryKey: [...queryKeyPrefix, "editor"],
+  const editor = useQuery<FilterEditorView>({
+    queryKey: [...queryKeyPrefix, "editor", placeholderIdentity],
     enabled,
-    placeholderData: keepPreviousData,
-    queryFn: () => discoverFilterEditor({ context, selected_field_ids: [] }),
+    placeholderData: (previous, previousQuery) =>
+      JSON.stringify(previousQuery?.queryKey[previousQuery.queryKey.length - 1]) ===
+      JSON.stringify(placeholderIdentity)
+        ? previous
+        : undefined,
+    queryFn: ({ signal }) =>
+      discoverFilterEditor({ context, selected_field_ids: [] }, signal),
   });
   const definitions = (editor.data?.groups ?? []).flatMap((group) =>
     group.fields.map((field) => field.definition),
@@ -65,8 +74,11 @@ export function useFilterDiscovery({
     queries: requests.map(({ fieldId, clauseId }) => ({
       queryKey: [...queryKeyPrefix, "counts", fieldId, clauseId],
       enabled: enabled && !editor.isPlaceholderData,
-      queryFn: () =>
-        discoverFilterCounts({ context, field_id: fieldId, clause_id: clauseId }),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        discoverFilterCounts(
+          { context, field_id: fieldId, clause_id: clauseId },
+          signal,
+        ),
     })),
   });
   return {
@@ -97,7 +109,7 @@ export function useFilterVocabulary(
   selectedValues: QueryLiteral[],
   enabled = true,
 ) {
-  return useQuery({
+  return useQuery<Extract<FilterValueListView, { kind: "vocabulary" }>>({
     queryKey: ["filter-vocabulary", scope, fieldId, text, offset, selectedValues],
     enabled,
     // A selection edit must not temporarily remove or reorder the menu's rows.
@@ -107,16 +119,19 @@ export function useFilterVocabulary(
       JSON.stringify(["filter-vocabulary", scope, fieldId, text, offset])
         ? previous
         : undefined,
-    queryFn: async () => {
-      const result = await discoverFilterValues({
-        kind: "vocabulary",
-        scope,
-        field_id: fieldId,
-        text: text.trim() || null,
-        offset,
-        limit: VOCABULARY_PAGE_SIZE,
-        selected_values: selectedValues,
-      });
+    queryFn: async ({ signal }) => {
+      const result = await discoverFilterValues(
+        {
+          kind: "vocabulary",
+          scope,
+          field_id: fieldId,
+          text: text.trim() || null,
+          offset,
+          limit: VOCABULARY_PAGE_SIZE,
+          selected_values: selectedValues,
+        },
+        signal,
+      );
       if (result.kind !== "vocabulary")
         throw new Error("Unexpected contextual response to vocabulary request");
       return result;

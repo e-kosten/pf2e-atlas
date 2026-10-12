@@ -1,6 +1,6 @@
 import {
   DEFAULT_SEARCH_STATE,
-  buildOpenRequest,
+  buildSearchRequest,
   searchStateQueryString,
   decodeSearchStateFromParams,
   buildFilterDiscoveryContext,
@@ -22,7 +22,7 @@ describe("source query state", () => {
     expect(
       decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(state))),
     ).toEqual(state);
-    expect(buildOpenRequest(state, 2).mode).toEqual({
+    expect(buildSearchRequest(state, 2).criteria).toEqual({
       kind: "text_search",
       query: "dragon",
       mode: "hybrid",
@@ -30,7 +30,7 @@ describe("source query state", () => {
     });
   });
   it("preserves browse and text context separately", () => {
-    expect(buildOpenRequest(DEFAULT_SEARCH_STATE, 1).mode).toEqual({
+    expect(buildSearchRequest(DEFAULT_SEARCH_STATE, 1).criteria).toEqual({
       kind: "list_records",
       filter: null,
     });
@@ -46,12 +46,12 @@ describe("source query state", () => {
     const state = decodeSearchStateFromParams(
       new URLSearchParams("q=dragon&retrieval=semantic"),
     );
-    expect(buildOpenRequest(state, 1).mode).toMatchObject({
+    expect(buildSearchRequest(state, 1).criteria).toMatchObject({
       kind: "text_search",
       mode: "hybrid",
     });
     expect(searchStateQueryString(state)).not.toContain("retrieval");
-    expect(buildOpenRequest({ ...state, query: "  " }, 1).mode.kind).toBe(
+    expect(buildSearchRequest({ ...state, query: "  " }, 1).criteria.kind).toBe(
       "list_records",
     );
   });
@@ -61,7 +61,7 @@ describe("source query state", () => {
     );
     expect(state.filterError).toBeTruthy();
     expect(hasExecutableSearch(state)).toBe(false);
-    expect(() => buildOpenRequest(state, 1)).toThrow();
+    expect(() => buildSearchRequest(state, 1)).toThrow();
   });
   it("bounds page sizes without changing valid zero-valued filters", () => {
     const state = decodeSearchStateFromParams(
@@ -97,9 +97,10 @@ it("round trips a root similar criterion and filters without adding a kind filte
   expect(
     decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(state))),
   ).toEqual(state);
-  expect(buildOpenRequest(state, 3)).toEqual({
+  expect(buildSearchRequest(state, 3)).toEqual({
     page: { number: 3, size: 25 },
-    mode: {
+    expected_artifact_generation: null,
+    criteria: {
       kind: "similar_records",
       seed_record_key: state.similarSeed,
       filter: state.filter,
@@ -111,5 +112,5 @@ it("round trips a root similar criterion and filters without adding a kind filte
     new URLSearchParams("similar=items:seed&q=dragon"),
   );
   expect(hasExecutableSearch(invalid)).toBe(false);
-  expect(() => buildOpenRequest(invalid, 1)).toThrow();
+  expect(() => buildSearchRequest(invalid, 1)).toThrow();
 });

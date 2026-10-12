@@ -6,6 +6,11 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Search lifetimes and stateless pages](./items/search-lifetimes-and-pages.md)
+  Coherent web/command artifact readers, generation-checked stateless pages,
+  deliberate browser recovery, cooperative read abandonment and typed semantic
+  input errors. Status: done.
+
 - [Active worktree build footprint](./items/developer-build-footprint.md)
   Measured development/test profiles, selected limited debug with incremental
   application builds and a generated-model exception, retained full-debug opt-in, and

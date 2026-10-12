@@ -121,9 +121,34 @@ vector workflows remain deliberate modes rather than implicit web fallbacks.
 
 ## Retrieval and application workflows
 
-Short-lived semantic CLI searches open one retrieval service and query embedder
-on demand. The long-running web service retains its bounded worker pool for
-concurrent requests. Lexical and stored-vector commands remain model-free.
+Short-lived CLI workflows lazily open one retrieval service and retain it across
+all reference operations until the command ends. Semantic mode loads one query
+embedder; lexical and stored-vector commands remain model-free. Source-free
+local-state operations require no artifact open.
+
+The long-running web service retains two independent retrieval workers. Startup
+compares the index-owned physical instance and complete preparation identity of
+every opened reader; publication during construction fails clearly when workers
+opened different instances. Failed startup closes the queue and joins started
+workers before returning. A running service retains its artifact until restart,
+preserving bounded parallel reads while later artifacts are published.
+
+Search pages, contextual filter counts, and both contextual and count-free value
+discovery receive an explicit, non-serialized `ReadExecutionContext`. Unrelated callers
+choose an uncancellable context. App-service checks abandonment before lazy open
+and queue admission, before a worker enters its expensive closure, and after
+completed retrieval before app projection. A canceled queued item can retain its
+slot and blocking waiter until drained; the contract saves work rather than
+promising immediate capacity reclamation.
+
+Web's `call_read_service` keeps an abandonment guard in the awaiting handler
+future and delegates to the existing bounded blocking-call helper. Dropping the
+wait marks the context; the actual blocking closure retains its semaphore permit
+until completion. Started SQL/model work can finish before reaching the next
+checkpoint. This does not introduce native interruption, deadlines, or a promise
+that every browser abort drops its server handler. Durable mutations, transaction
+receipts and their reference reads use the normal uncancellable path under
+[ADR0048](./decisions/0048-atomic-mutable-workflows.md).
 
 `AtlasRetrievalService` is a concrete service over index plus optional query
 embedder. Narrow inherent methods own strict name/key lookup, browse, text search,
@@ -163,17 +188,40 @@ Verified legacy preference applies only among records matching the complete requ
 before paging. Exact legacy keys remain accessible. Macros are excluded on every
 product path; RollTables remain browse/search/detail records.
 
+Text search and semantic contextual discovery share an exhaustive query-embedding
+error conversion. Empty input and exact token-budget overflow remain invalid
+requests, with useful counts and a shortening instruction; model/cache/inference
+failures retain their availability classification. Queries are never truncated or
+downgraded to lexical retrieval to conceal semantic input errors. Optional facet
+availability is still checked before embeddings when its context is unsupported.
+
 Index summaries and selected cache bundles are body free. Explicit detail decodes
 one root and batches required fields. Search result witnesses do not cause
 per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
-App-service result windows reuse browse, text and stored-vector Similar retrieval.
+App-service search pages reuse browse, text and stored-vector Similar retrieval.
 Similar mode carries the exact root seed and canonical filters, and returns a
 body-free seed summary beside bounded candidate pages. It adds no ranking lane or
-query embedding. Browser URL state owns the removable seed criterion, and expired
-window handles reopen from that same committed request. Similarity uses catalog
+query embedding. Every request supplies its complete criteria, page and optional
+expected artifact generation. The generation check precedes embedding and ranking;
+a mismatch returns `ArtifactGenerationChanged` with HTTP409 and expected/actual
+context hashes. There is no app window registry or handle lifecycle. Each page
+still performs retrieval independently, including query inference where needed;
+the API does not promise a frozen semantic candidate set or cache speedup.
+Browser URL state owns the removable seed criterion. Similarity uses catalog
 choices and vocabulary without text-scoped contextual facet counts.
+
+The browser search owner keeps the current generation and request epoch. Query
+keys include criteria, page and generation; first-response adoption reuses the
+completed page without a second inference request. Generation conflicts pause
+paging and offer `Refresh results`. Recovery cancels affected immutable queries
+before removing their data, advances the epoch and restarts at page1 with the same
+criteria. Previous-page data never crosses generations. Saved lists, encounter
+aggregates and dirty drafts survive this reset. Signals and epoch checks prevent
+late old reads from restoring retired data. Similar previews reload their actual
+owning detail before retrying against a new generation, including encounter-owned
+reference previews. Snapshot-local owner selections remain exact.
 
 One bounded app-service Related operation returns verified nonempty categories
 with separate empty, unavailable and error outcomes. Its reference scope is the
@@ -183,7 +231,7 @@ source-snapshot compatibility verification; category discovery never runs Simila
 ranking. Responses and browser caches use the complete selection and immutable
 artifact-context hash, distinct from snapshot-local navigation fingerprints.
 
-App-service owns workflow state/result windows, catalog-to-editor controls,
+App-service owns workflow composition/search pages, catalog-to-editor controls,
 semantic family presentation and local-state hydration over runtime/search.
 Detail retains a body-free root summary, full selected address, and selected-node
 identity beside prepared content, useful owned links and an explicit family body.

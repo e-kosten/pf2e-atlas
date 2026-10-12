@@ -133,7 +133,7 @@ pub(crate) fn search_results_view(
         rows: result
             .records
             .into_iter()
-            .map(|r| atlas_app_model::ResultWindowRow {
+            .map(|r| atlas_app_model::SearchResultRow {
                 record: localized_summary_view(&r.record, retrieval),
                 matches: r
                     .matches

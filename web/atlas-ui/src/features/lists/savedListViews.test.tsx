@@ -6,6 +6,7 @@ import {
   valuesFixture,
 } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { retireImmutableReferenceQueries } from "../../shared/queries/immutableReferenceQueries";
 import { ConfigProvider } from "antd";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -347,7 +348,11 @@ describe("list views", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Nested Rule" }));
 
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:nested"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:nested",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
     expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
@@ -534,6 +539,13 @@ describe("list views", () => {
     );
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My list draft" } });
+    client.setQueryData(["record-detail", "old"], {
+      artifact_generation: "generation-a",
+    });
+    await act(async () => retireImmutableReferenceQueries(client));
+    expect(client.getQueryData(["record-detail", "old"])).toBeUndefined();
+    expect(client.getQueryData(["saved-list", "research"])).toBeDefined();
+    expect(name).toHaveValue("My list draft");
     act(() =>
       client.setQueryData(["saved-list", "research"], {
         ...savedListDetailFixture(),

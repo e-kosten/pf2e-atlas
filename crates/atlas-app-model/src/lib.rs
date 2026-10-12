@@ -10,7 +10,7 @@ mod prepared_content;
 mod presentation;
 mod readiness;
 mod record;
-mod result_window;
+mod search;
 
 pub use encounter::{
     ActionBudgetView, AddEncounterManualParticipantRequest,
@@ -75,10 +75,10 @@ pub use record::{
     RecordRefResolutionView, RecordRelationshipView, RecordResolutionAmbiguousView,
     RecordResolutionCandidateView, RecordSummaryView,
 };
-pub use result_window::{
-    OpenResultWindowRequest, ReadResultWindowPageRequest, ResultWindowMode,
-    ResultWindowModeSummary, ResultWindowPage, ResultWindowRow, RetrievalModeView,
-    SearchCoverageView, SearchLaneView, SearchPageRequest, SearchPageView, SearchWitnessView,
+pub use search::{
+    RetrievalModeView, SearchCoverageView, SearchCriteria, SearchLaneView, SearchModeSummary,
+    SearchPageRequest, SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest,
+    SearchWitnessView,
 };
 
 #[cfg(test)]
@@ -206,16 +206,14 @@ mod tests {
             .expect("UpdateEncounterRequest bindings should export");
         UpdateEncounterParticipantRequest::export_all_to(path)
             .expect("UpdateEncounterParticipantRequest bindings should export");
-        OpenResultWindowRequest::export_all_to(path)
-            .expect("OpenResultWindowRequest bindings should export");
-        ReadResultWindowPageRequest::export_all_to(path)
-            .expect("ReadResultWindowPageRequest bindings should export");
+        SearchResultsRequest::export_all_to(path)
+            .expect("SearchResultsRequest bindings should export");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
 
         RecordResolutionAmbiguousView::export_all_to(path)
             .expect("RecordResolutionAmbiguousView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");
-        ResultWindowPage::export_all_to(path).expect("ResultWindowPage bindings should export");
+        SearchResultsPage::export_all_to(path).expect("SearchResultsPage bindings should export");
 
         AddSavedListItemRequest::export_all_to(path)
             .expect("AddSavedListItemRequest bindings should export");

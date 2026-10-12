@@ -1,8 +1,8 @@
 import {
   getReadiness,
   getRecordDetail,
-  openResultWindow,
-  readResultWindowPage,
+  getRelatedRecords,
+  searchPage,
   discoverFilterValues,
   discoverFilterEditor,
   discoverFilterCounts,
@@ -52,6 +52,7 @@ function respond(value: unknown, status = 200) {
 }
 describe("source-backed API transport", () => {
   it("normalizes tagged vocabulary totals without fabricating option counts", async () => {
+    const controller = new AbortController();
     respond({
       kind: "vocabulary",
       scope: { kind: "artifact" },
@@ -63,15 +64,19 @@ describe("source-backed API transport", () => {
         basis: "product_artifact_before_edition_preference",
       },
     });
-    const result = await discoverFilterValues({
-      kind: "vocabulary",
-      scope: { kind: "artifact" },
-      field_id: "traits",
-      text: null,
-      offset: 0,
-      limit: 40,
-      selected_values: ["absent"],
-    });
+    const result = await discoverFilterValues(
+      {
+        kind: "vocabulary",
+        scope: { kind: "artifact" },
+        field_id: "traits",
+        text: null,
+        offset: 0,
+        limit: 40,
+        selected_values: ["absent"],
+      },
+      controller.signal,
+    );
+    expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
     expect(result).toMatchObject({
       kind: "vocabulary",
       values: {
@@ -83,6 +88,7 @@ describe("source-backed API transport", () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty("context");
   });
   it("preserves unavailable count outcomes and actual HTTP failures", async () => {
+    const controller = new AbortController();
     const request = {
       context: {
         kind: "filtered" as const,
@@ -94,9 +100,10 @@ describe("source-backed API transport", () => {
       clause_id: "traits",
     };
     respond({ counts: { status: "unavailable", reason: "negative_condition" } });
-    expect(await discoverFilterCounts(request)).toEqual({
+    expect(await discoverFilterCounts(request, controller.signal)).toEqual({
       counts: { status: "unavailable", reason: "negative_condition" },
     });
+    expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
     respond({ code: "query_error", message: "Invalid target" }, 400);
     await expect(discoverFilterCounts(request)).rejects.toThrow("Invalid target");
   });
@@ -345,31 +352,72 @@ describe("source-backed API transport", () => {
   it("rejects unsafe Number literals and integer response counters instead of rounding", async () => {
     for (const value of [Number.MAX_SAFE_INTEGER + 1, Number.MIN_SAFE_INTEGER - 1]) {
       await expect(
-        openResultWindow({
-          mode: {
+        searchPage({
+          expected_artifact_generation: null,
+          criteria: {
             kind: "list_records",
             filter: { kind: "compare", field: "actor.level", op: "eq", value },
           },
           page: { number: 1, size: 25 },
         }),
       ).rejects.toThrow("safe numeric range");
-      respond({ window_id: value, page: { total: 0 }, rows: [] });
+      respond({
+        artifact_generation: "generation-a",
+        page: { total: value },
+        rows: [],
+      });
       await expect(
-        openResultWindow({
-          mode: { kind: "list_records", filter: null },
+        searchPage({
+          expected_artifact_generation: null,
+          criteria: { kind: "list_records", filter: null },
           page: { number: 1, size: 25 },
         }),
       ).rejects.toThrow("Invalid numeric field");
     }
   });
   it("posts exact owned/passage selection without per-marker requests", async () => {
+    const controller = new AbortController();
     const detail = detailFixture("actors:ghoul", "Ghoul");
     respond(detail);
     const request = { ...detail.selected, fields: ["system.description.value"] };
-    await getRecordDetail(request.record_key, request);
+    await getRecordDetail(request.record_key, request, controller.signal);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toContain("/api/records/detail");
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
+    expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
+  });
+  it("forwards cancellation to root details, related reads and filter catalog requests", async () => {
+    const controller = new AbortController();
+    const detail = detailFixture("actors:ghoul", "Ghoul");
+    respond(detail);
+    await getRecordDetail("actors:ghoul", undefined, controller.signal);
+    respond({
+      selection: detail.selected,
+      artifact_generation: detail.artifact_generation,
+      seed: detail.record,
+      references: { kind: "empty" },
+      counterparts: { kind: "empty" },
+      variants: { kind: "empty" },
+    });
+    await getRelatedRecords(
+      { selection: detail.selected, artifact_generation: detail.artifact_generation },
+      controller.signal,
+    );
+    respond({ fields: [], scopes: [] });
+    await discoverFilterEditor(
+      {
+        context: { kind: "filtered", filter: null, text: null, mode: "hybrid" },
+        selected_field_ids: [],
+      },
+      controller.signal,
+    );
+    expect(fetchMock.mock.calls.map((call) => call[1].signal)).toEqual([
+      controller.signal,
+      controller.signal,
+      controller.signal,
+    ]);
+    controller.abort();
+    expect(fetchMock.mock.calls.every((call) => call[1].signal.aborted)).toBe(true);
   });
   it("preserves finite semantic real numbers and rejects unsafe authored/effective values", async () => {
     const detail = detailFixture("actors:ghoul", "Ghoul");
@@ -431,8 +479,9 @@ describe("source-backed API transport", () => {
     await expect(getRecordDetail("actors:ghoul")).rejects.toThrow("safe numeric range");
   });
   it("sends typed predicates and distinguishes retrieval mode", async () => {
+    const controller = new AbortController();
     respond({
-      window_id: 5,
+      artifact_generation: "generation-a",
       mode: { kind: "text_search", query: "ghoul", mode: "lexical" },
       page: {
         number: 1,
@@ -446,7 +495,8 @@ describe("source-backed API transport", () => {
       coverage: null,
     });
     const request = {
-      mode: {
+      expected_artifact_generation: "generation-a",
+      criteria: {
         kind: "text_search" as const,
         query: "ghoul",
         mode: "lexical" as const,
@@ -459,12 +509,17 @@ describe("source-backed API transport", () => {
       },
       page: { number: 1, size: 25 },
     };
-    const result = await openResultWindow(request);
-    expect(result.window_id).toBe(5n);
+    const result = await searchPage(request, controller.signal);
+    expect(result.artifact_generation).toBe("generation-a");
     expect(result.page.total).toBe(0n);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
-    await readResultWindowPage(5n, { page: { number: 2, size: 25 } });
-    expect(fetchMock.mock.calls[1][0]).toContain("/5/page");
+    expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
+    await searchPage({ ...request, page: { number: 2, size: 25 } });
+    expect(fetchMock.mock.calls[1][0]).toContain("/api/search/page");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      ...request,
+      page: { number: 2, size: 25 },
+    });
   });
   it("normalizes only actual integer discovery counts", async () => {
     respond({

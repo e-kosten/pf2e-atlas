@@ -6,11 +6,11 @@ import {
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
 import type { ColumnsType } from "antd/es/table";
-import type { ResultWindowRow } from "../../generated/atlas";
+import type { SearchResultRow } from "../../generated/atlas";
 import { handleResultKeyboard, useActiveResultScroll } from "./resultKeyboard";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
-const RESULT_COLUMNS: ColumnsType<ResultWindowRow> = [
+const RESULT_COLUMNS: ColumnsType<SearchResultRow> = [
   {
     title: "Name",
     dataIndex: ["record", "title"],
@@ -105,7 +105,7 @@ export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) 
         className="results-scroll"
         ref={scrollRef}
       >
-        <Table<ResultWindowRow>
+        <Table<SearchResultRow>
           aria-label="Results"
           className="result-table"
           columns={RESULT_COLUMNS}
@@ -149,7 +149,7 @@ export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) 
   );
 }
 
-function TraitTags({ row }: { row: ResultWindowRow }) {
+function TraitTags({ row }: { row: SearchResultRow }) {
   const traits = row.record.traits ?? [];
   if (traits.length === 0) {
     return "";

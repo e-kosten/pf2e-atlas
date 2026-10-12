@@ -308,6 +308,7 @@ describe("compact common choice picker", () => {
         limit: 40,
         selected_values: ["absent-selected"],
       }),
+      expect.any(AbortSignal),
     );
     expect(
       within(menu).getByRole("button", {
@@ -325,6 +326,7 @@ describe("compact common choice picker", () => {
           limit: 40,
           selected_values: ["absent-selected"],
         }),
+        expect.any(AbortSignal),
       ),
     );
   });

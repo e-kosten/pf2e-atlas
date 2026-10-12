@@ -277,13 +277,18 @@ fn actor_body(p: &RecordPresentationView) -> &ActorPresentationView {
 fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_field() {
     let f = fixture_worker();
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
         .unwrap();
     let detail = f.worker.record_detail(ACTOR).unwrap();
-    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    let metrics = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
     assert_eq!(metrics.source_body_decodes, 1);
     assert_eq!(metrics.prepared_content_batches, 1);
     let activity = actor_body(&detail.presentation)
@@ -386,13 +391,18 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
     });
     let f = fixture_worker_with_executor(executor);
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
         .unwrap();
     let detail = f.worker.record_detail(ACTOR).unwrap();
-    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    let metrics = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
     assert_eq!(metrics.source_body_decodes, 1);
     assert_eq!(metrics.prepared_content_batches, 1);
     let activities = actor_body(&detail.presentation)
@@ -479,7 +489,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
 fn list_results_are_body_free_and_only_product_summaries_are_serialized() {
     let f = fixture_worker();
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
@@ -497,7 +507,9 @@ fn list_results_are_body_free_and_only_product_summaries_are_serialized() {
     assert_eq!(result.records.len(), 4);
     assert_eq!(
         f.worker
-            .submit_retrieval(|r| Ok(r.read_metrics()))
+            .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| Ok(
+                r.read_metrics()
+            ))
             .unwrap()
             .source_body_decodes,
         0
@@ -544,13 +556,18 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
         })
         .unwrap();
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
         .unwrap();
     let list = f.worker.saved_list("large-list").unwrap();
-    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    let metrics = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
     assert_eq!(list.items.len(), 1031);
     assert_eq!(metrics.source_body_decodes, 0);
     assert_eq!(metrics.summary_batches, 2);
@@ -829,11 +846,14 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
     };
     let outcome = f
         .worker
-        .discover_filter_counts(DiscoverFilterCountsRequest {
-            context: context.clone(),
-            field_id: "rarity".into(),
-            clause_id: Some("choice".into()),
-        })
+        .discover_filter_counts(
+            DiscoverFilterCountsRequest {
+                context: context.clone(),
+                field_id: "rarity".into(),
+                clause_id: Some("choice".into()),
+            },
+            &crate::ReadExecutionContext::uncancellable(),
+        )
         .unwrap();
     assert!(matches!(
         outcome.counts,
@@ -843,14 +863,17 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
     ));
     let values = f
         .worker
-        .discover_filter_values(DiscoverFilterValuesRequest::Contextual {
-            context: context.clone(),
-            field_id: "rarity".into(),
-            clause_id: Some("choice".into()),
-            text: None,
-            offset: 0,
-            limit: 20,
-        })
+        .discover_filter_values(
+            DiscoverFilterValuesRequest::Contextual {
+                context: context.clone(),
+                field_id: "rarity".into(),
+                clause_id: Some("choice".into()),
+                text: None,
+                offset: 0,
+                limit: 20,
+            },
+            &crate::ReadExecutionContext::uncancellable(),
+        )
         .unwrap();
     assert!(matches!(
         values,
@@ -860,11 +883,14 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
     ));
     let invalid = f
         .worker
-        .discover_filter_counts(DiscoverFilterCountsRequest {
-            context,
-            field_id: "traits".into(),
-            clause_id: Some("choice".into()),
-        })
+        .discover_filter_counts(
+            DiscoverFilterCountsRequest {
+                context,
+                field_id: "traits".into(),
+                clause_id: Some("choice".into()),
+            },
+            &crate::ReadExecutionContext::uncancellable(),
+        )
         .unwrap_err()
         .into_app_error();
     assert_eq!(invalid.code, AppErrorCode::FilterInvalid);
@@ -948,14 +974,19 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
     ] {
         let response = f
             .worker
-            .discover_filter_values(DiscoverFilterValuesRequest::Vocabulary {
-                scope: scope.clone(),
-                field_id: "traits".into(),
-                text: None,
-                offset: 0,
-                limit: 20,
-                selected_values: vec![atlas_domain::QueryLiteral::String("selected-absent".into())],
-            })
+            .discover_filter_values(
+                DiscoverFilterValuesRequest::Vocabulary {
+                    scope: scope.clone(),
+                    field_id: "traits".into(),
+                    text: None,
+                    offset: 0,
+                    limit: 20,
+                    selected_values: vec![atlas_domain::QueryLiteral::String(
+                        "selected-absent".into(),
+                    )],
+                },
+                &crate::ReadExecutionContext::uncancellable(),
+            )
             .unwrap();
         let FilterValueListView::Vocabulary {
             scope: actual_scope,

@@ -2,10 +2,9 @@ use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, CreateEncounterRequest,
     CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterSavedListRequest, OpenResultWindowRequest, ReadResultWindowPageRequest,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest, UpdateSavedListRequest,
+    FilterSavedListRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
+    SearchResultsRequest, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
 use atlas_domain::QueryPredicate;
@@ -14,8 +13,8 @@ use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 
-use crate::error::{WebError, parse_window_id};
-use crate::service::{AtlasWebState, call_service};
+use crate::error::WebError;
+use crate::service::{AtlasWebState, call_read_service, call_service};
 
 pub(crate) async fn readiness(
     State(state): State<AtlasWebState>,
@@ -337,32 +336,22 @@ pub(crate) async fn discover_filter_values(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.discover_filter_values(request)).await?,
+        call_read_service(state, move |execution| {
+            service.discover_filter_values(request, &execution)
+        })
+        .await?,
     ))
 }
 
-pub(crate) async fn open_result_window(
+pub(crate) async fn search_page(
     State(state): State<AtlasWebState>,
-    payload: Result<Json<OpenResultWindowRequest>, JsonRejection>,
+    payload: Result<Json<SearchResultsRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.open_result_window(request)).await?,
-    ))
-}
-
-pub(crate) async fn read_result_window_page(
-    State(state): State<AtlasWebState>,
-    Path(window_id): Path<String>,
-    payload: Result<Json<ReadResultWindowPageRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, WebError> {
-    let window_id = parse_window_id(&window_id)?;
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || {
-            service.read_result_window_page(window_id, request)
+        call_read_service(state, move |execution| {
+            service.search_page(request, &execution)
         })
         .await?,
     ))
@@ -418,7 +407,10 @@ pub(crate) async fn discover_filter_counts(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.discover_filter_counts(request)).await?,
+        call_read_service(state, move |execution| {
+            service.discover_filter_counts(request, &execution)
+        })
+        .await?,
     ))
 }
 pub(crate) async fn validate_filter(

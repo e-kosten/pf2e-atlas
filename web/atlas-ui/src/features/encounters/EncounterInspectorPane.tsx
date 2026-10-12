@@ -44,6 +44,9 @@ export function EncounterInspectorPane({
   previewLoading,
   previewError,
   onRetryPreview,
+  onReloadPreview,
+  reloadPreviewLabel,
+  retryPreviewLabel,
   previewRecordKey,
   previewAnchor,
   previewSelection,
@@ -73,6 +76,9 @@ export function EncounterInspectorPane({
   previewLoading: boolean;
   previewError?: Error | null;
   onRetryPreview?: () => void;
+  onReloadPreview?: () => void;
+  reloadPreviewLabel?: string;
+  retryPreviewLabel?: string;
   previewRecordKey: string | null;
   previewAnchor: RecordPreviewAnchor | null;
 }) {
@@ -120,6 +126,9 @@ export function EncounterInspectorPane({
           loading={previewLoading}
           error={previewError}
           onRetry={onRetryPreview}
+          onReload={onReloadPreview}
+          reloadLabel={reloadPreviewLabel}
+          retryLabel={retryPreviewLabel}
           onClose={onCloseRecordPreview}
           onOpenFullPage={() => onOpenRecordFullPage(previewRecordKey)}
           onReference={onReference}

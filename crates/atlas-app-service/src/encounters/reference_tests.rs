@@ -1,6 +1,6 @@
 use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
 use atlas_app_model::*;
-use atlas_search::test_support::{open_source_fixture, record};
+use atlas_search::test_support::{input, open_input_fixture, open_source_fixture, record};
 use serde_json::json;
 
 #[test]
@@ -63,7 +63,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         },
     };
     f.worker
-        .submit_retrieval(|r| {
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
             r.reset_read_metrics();
             Ok(())
         })
@@ -76,7 +76,12 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             request("wwwwwwwwwwwwwwww"),
         )
         .unwrap();
-    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    let metrics = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
     assert_eq!(
         (
             metrics.source_body_decodes,
@@ -176,12 +181,22 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     }
     let mut stale = request("eeeeeeeeeeeeeeee");
     stale.artifact_generation = "old-generation".into();
-    assert!(
-        f.worker
-            .encounter_reference(&encounter.slug, &participant.participant_key, stale)
-            .unwrap_err()
-            .to_string()
-            .contains("reference collection has changed")
+    let error = f
+        .worker
+        .encounter_reference(&encounter.slug, &participant.participant_key, stale)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
+    assert_eq!(
+        error.recoverable_action,
+        Some(AppRecoverableAction::ReloadRecord)
+    );
+    assert_eq!(
+        error.details,
+        Some(json!({
+            "expected_artifact_generation": "old-generation",
+            "actual_artifact_generation": generation,
+        }))
     );
     let mut foreign = request("eeeeeeeeeeeeeeee");
     foreign.selection.record_key = "equipment:oooooooooooooooo".into();
@@ -231,4 +246,147 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         root.presentation.body,
         updated.participants[0].presentation.as_ref().unwrap().body
     );
+}
+
+#[test]
+fn restarted_encounter_reference_requires_reload_when_only_full_build_context_changes() {
+    let service = |revision: &'static str| {
+        fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+            1,
+            16,
+            move || {
+                let mut built = input(
+                    vec![record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Stable actor","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}}},"items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Stable ability","system":{"description":{"value":"<p>Unchanged ability prose.</p>"}}}]}),
+                    )],
+                    false,
+                );
+                built.context.source_revision = Some(revision.into());
+                let generation = built.context.sha256()?;
+                for record in &mut built.records {
+                    record.preparation_context_hash = generation.clone();
+                }
+                Ok(open_input_fixture(built)?)
+            },
+        ))
+    };
+    let a = service("revision-a");
+    let encounter = a
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Generation recovery".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let current = a
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.slug.clone(),
+            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .and_then(|receipt| a.worker.encounter(&receipt.encounter_key))
+        .unwrap();
+    let generation_a = current.artifact_generation.unwrap();
+    let participant_key = current.participants[0].participant_key.clone();
+    let request_a = EncounterReferenceRequest {
+        artifact_generation: generation_a.clone(),
+        selection: RecordDetailRequest {
+            record_key: "actors:aaaaaaaaaaaaaaaa".into(),
+            owners: vec![atlas_record::source_content::OwnedContentLocator {
+                collection: "/items".into(),
+                identity: atlas_record::source_content::OwnedContentIdentity::Stable(
+                    "bbbbbbbbbbbbbbbb".into(),
+                ),
+            }],
+            fields: vec![],
+            passage: None,
+            source_fingerprint: None,
+        },
+    };
+    let selected_a = a
+        .worker
+        .encounter_reference(&encounter.slug, &participant_key, request_a.clone())
+        .unwrap();
+    assert_eq!(selected_a.presentation.identity.title, "Stable ability");
+    let fingerprint_a = a
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.source_fingerprint().to_owned())
+        })
+        .unwrap();
+    let local_state_path = a.worker.local_state_path().to_path_buf();
+    drop(a);
+
+    let mut b = service("revision-b");
+    b.worker.local_state_path = local_state_path;
+    let (generation_b, fingerprint_b) = b
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            r.reset_read_metrics();
+            Ok((r.artifact_generation()?, r.source_fingerprint().to_owned()))
+        })
+        .unwrap();
+    assert_ne!(generation_a, generation_b);
+    assert_eq!(fingerprint_a, fingerprint_b);
+
+    let error = b
+        .worker
+        .encounter_reference(&encounter.slug, &participant_key, request_a.clone())
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
+    assert_eq!(
+        error.details,
+        Some(json!({
+            "expected_artifact_generation": generation_a,
+            "actual_artifact_generation": generation_b,
+        }))
+    );
+    assert_eq!(error.retryable, Some(false));
+    assert_eq!(
+        error.recoverable_action,
+        Some(AppRecoverableAction::ReloadRecord)
+    );
+    assert_eq!(
+        b.worker
+            .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| Ok(
+                r.read_metrics()
+            ))
+            .unwrap()
+            .source_body_decodes,
+        0,
+        "generation conflict is rejected before selecting the owned document",
+    );
+
+    let refreshed = b.worker.encounter(&encounter.slug).unwrap();
+    let mut request_b = request_a;
+    request_b.artifact_generation = refreshed.artifact_generation.unwrap();
+    let selected_b = b
+        .worker
+        .encounter_reference(&encounter.slug, &participant_key, request_b.clone())
+        .unwrap();
+    assert_eq!(selected_b.selected.owners, request_b.selection.owners);
+    assert_eq!(selected_b.presentation.identity.title, "Stable ability");
+
+    request_b.selection.owners[0].identity =
+        atlas_record::source_content::OwnedContentIdentity::SnapshotLocal { index: 0 };
+    request_b.selection.source_fingerprint = Some("old-source-fingerprint".into());
+    let navigation_error = b
+        .worker
+        .encounter_reference(&encounter.slug, &participant_key, request_b)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(navigation_error.code, AppErrorCode::InvalidRequest);
+    assert!(
+        navigation_error
+            .message
+            .contains("snapshot-local navigation")
+    );
+    assert_eq!(navigation_error.recoverable_action, None);
 }

@@ -133,6 +133,7 @@ describe("address-safe detail refresh", () => {
       expect(api.getRecordDetail.mock.calls[1]).toEqual([
         nextKey,
         { ...nextSelection, fields: nextSelection.field ? [nextSelection.field] : [] },
+        expect.any(AbortSignal),
       ]);
     },
   );

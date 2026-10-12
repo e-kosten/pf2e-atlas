@@ -7,7 +7,8 @@ impl AtlasAppService {
         &self,
         predicate: QueryPredicate,
     ) -> AppServiceResult<FilterValidationResult> {
-        self.submit_retrieval(
+        self.with_retrieval(
+            &crate::ReadExecutionContext::uncancellable(),
             move |retrieval| match retrieval.validate_filter(&predicate) {
                 Ok(_) => Ok(FilterValidationResult {
                     predicate: Some(predicate),

@@ -32,7 +32,7 @@ the same family renderer, and generation changes offer local record reload.
 
 Similar is separate root discovery: a bounded five-record preview links into the
 existing search workspace with a removable seed criterion and ordinary filters.
-The shared result window uses the stored root vector and existing filter, remaster
+The shared search-page operation uses the stored root vector and existing filter, remaster
 and seed-exclusion policy. Top matches and available pages describe its bounded
 results; Similar does not become a relationship category.
 

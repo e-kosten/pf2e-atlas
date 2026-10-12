@@ -115,11 +115,14 @@ describe("typed optional discovery and explicit scoped vocabulary", () => {
       expect(result.current.filterCountsByField["traits:traits"]).toBeDefined(),
     );
     expect(result.current.errorMessage).toBeNull();
-    expect(api.discoverFilterCounts).toHaveBeenCalledWith({
-      context,
-      field_id: "traits",
-      clause_id: "traits",
-    });
+    expect(api.discoverFilterCounts).toHaveBeenCalledWith(
+      {
+        context,
+        field_id: "traits",
+        clause_id: "traits",
+      },
+      expect.any(AbortSignal),
+    );
     expect(api.discoverFilterValues).not.toHaveBeenCalled();
   });
   it("retains real discovery errors instead of converting them into optional unavailability", async () => {
@@ -187,15 +190,18 @@ describe("typed optional discovery and explicit scoped vocabulary", () => {
     await waitFor(() =>
       expect(result.current.data?.values.selected_values).toEqual(["absent-selection"]),
     );
-    expect(api.discoverFilterValues).toHaveBeenLastCalledWith({
-      kind: "vocabulary",
-      scope,
-      field_id: "traits",
-      text: "f",
-      offset: 0,
-      limit: 40,
-      selected_values: ["absent-selection"],
-    });
+    expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
+      {
+        kind: "vocabulary",
+        scope,
+        field_id: "traits",
+        text: "f",
+        offset: 0,
+        limit: 40,
+        selected_values: ["absent-selection"],
+      },
+      expect.any(AbortSignal),
+    );
     rerender({ offset: 40, text: "fire" });
     await waitFor(() =>
       expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
@@ -204,6 +210,7 @@ describe("typed optional discovery and explicit scoped vocabulary", () => {
           text: "fire",
           selected_values: ["absent-selection"],
         }),
+        expect.any(AbortSignal),
       ),
     );
     expect(api.discoverFilterCounts).not.toHaveBeenCalled();
@@ -226,6 +233,7 @@ describe("typed optional discovery and explicit scoped vocabulary", () => {
         scope: { kind: "artifact" },
         text: null,
       }),
+      expect.any(AbortSignal),
     );
   });
 });

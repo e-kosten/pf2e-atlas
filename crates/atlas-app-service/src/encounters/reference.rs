@@ -1,6 +1,8 @@
 //! Complete selected references composed from one checked parent and current local state.
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
-use atlas_app_model::{AppErrorCode, EncounterReferenceRequest, RecordBodyView, RecordDetailView};
+use atlas_app_model::{
+    AppErrorCode, AppRecoverableAction, EncounterReferenceRequest, RecordBodyView, RecordDetailView,
+};
 use atlas_record::source_record::{SourceFieldView, SourceQueryView};
 
 impl AtlasAppService {
@@ -30,10 +32,13 @@ impl AtlasAppService {
                 "selected reference does not belong to this participant",
             ));
         }
-        self.submit_retrieval(move |r| {
-            if r.artifact_generation()? != request.artifact_generation {
-                return Err(AppServiceError::invalid_request(
-                    "the reference collection has changed; reload the encounter and reopen the reference",
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            let generation = r.artifact_generation()?;
+            if generation != request.artifact_generation {
+                return Err(AppServiceError::artifact_generation_changed(
+                    &request.artifact_generation,
+                    &generation,
+                    AppRecoverableAction::ReloadRecord,
                 ));
             }
             let (source, mut selected) = crate::records::read_record_detail(r, request.selection)?;
@@ -41,18 +46,30 @@ impl AtlasAppService {
                 AppServiceError::invalid_request("participant source is unavailable")
             })?;
             let root = crate::presentation::record_presentation(
-                &source.source, root_node, &selected.record, &[], vec![], r,
+                &source.source,
+                root_node,
+                &selected.record,
+                &[],
+                vec![],
+                r,
             );
             let baseline = super::mechanics::arithmetic_baseline(&root).ok_or_else(|| {
                 AppServiceError::invalid_request("this participant has no actor runtime context")
             })?;
             let adjustment_applicable = !matches!(
-                SourceQueryView::new(source.source.source(), source.source.key().pack().as_str(), "")
-                    .actor().authored_adjustment(),
+                SourceQueryView::new(
+                    source.source.source(),
+                    source.source.key().pack().as_str(),
+                    ""
+                )
+                .actor()
+                .authored_adjustment(),
                 SourceFieldView::NotApplicable
             );
             let block = super::mechanics::participant_stat_block(
-                &participant, &baseline, adjustment_applicable,
+                &participant,
+                &baseline,
+                adjustment_applicable,
             );
             let current = crate::presentation::compose_participant(root, &block);
             compose_selected(&mut selected, current)?;
