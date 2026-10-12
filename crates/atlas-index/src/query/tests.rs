@@ -851,7 +851,7 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
     assert_eq!(result(&db, "actor.level == 3"), vec![1]);
     assert_eq!(result(&db, "item.level == 3"), vec![2]);
     assert_eq!(result(&db, "spell.rank == 7"), vec![3]);
-    assert_eq!(query_capabilities().unwrap().version, 2);
+    assert_eq!(query_capabilities().unwrap().version, 3);
     let catalog = query_capabilities().unwrap();
     assert_eq!(
         catalog

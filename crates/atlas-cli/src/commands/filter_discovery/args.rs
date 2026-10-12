@@ -16,6 +16,13 @@ pub(crate) enum FiltersCommand {
 }
 #[derive(Debug, Args)]
 pub(crate) struct FiltersFieldsOptions {
+    #[arg(long, help = "Show the complete descriptor for this field ID")]
+    pub(crate) field: Option<String>,
+    #[arg(
+        long,
+        help = "Find fields by label, ID, scope or applicable source family"
+    )]
+    pub(crate) text: Option<String>,
     #[arg(long)]
     pub(crate) index: Option<PathBuf>,
     #[arg(long,value_enum,default_value_t=CliPathMode::Global)]

@@ -405,7 +405,14 @@ impl Projection<'_> {
             .label
             .as_deref()
             .map(|nodes| self.nodes(nodes, &format!("{path}/label"), audiences, visible, true))
-            .unwrap_or_else(|| escape(display.as_deref().unwrap_or(&link.source.authored_target)));
+            .unwrap_or_else(|| {
+                escape(display.as_deref().unwrap_or_else(|| match &resolution {
+                    ContentReferenceResolution::Resolved(ContentReferenceTarget::Url { url }) => {
+                        url.as_str()
+                    }
+                    _ => unavailable_reference_label(&link.source.authored_target),
+                }))
+            });
         if !visible {
             return String::new();
         }
@@ -668,6 +675,34 @@ pub(super) fn available_remote_image(src: &str) -> bool {
     src.split_once(':').is_some_and(|(scheme, _)| {
         scheme.eq_ignore_ascii_case("https") || scheme.eq_ignore_ascii_case("http")
     }) && is_safe_content_url(src)
+}
+
+fn unavailable_reference_label(target: &str) -> &str {
+    // Qualified root names are authored text, not an inferred destination. An
+    // opaque ID has no readable name; retain it in occurrence diagnostics rather
+    // than displaying the internal UUID path as prose.
+    let mut parts = target.splitn(5, '.');
+    if parts.next() == Some("Compendium")
+        && parts.next() == Some("pf2e")
+        && parts.next().is_some_and(|pack| !pack.is_empty())
+        && matches!(
+            parts.next(),
+            Some("Item" | "Actor" | "JournalEntry" | "RollTable")
+        )
+        && let Some(name) = parts.next()
+        && !name.is_empty()
+        // Foundry v12's isValidId uses a 16-character alphanumeric UID.
+        // Keep ambiguous ID-shaped tails unavailable rather than guessing names.
+        // https://foundryvtt.com/api/v12/functions/foundry.data.validators.isValidId.html
+        && !(name.len() == 16 && name.bytes().all(|byte| byte.is_ascii_alphanumeric()))
+        && !name.contains(".Item.")
+        && !name.contains(".JournalEntryPage.")
+        && !name.contains(".TableResult.")
+    {
+        name
+    } else {
+        "Reference unavailable"
+    }
 }
 
 fn simple_text(nodes: &[ParsedNode]) -> String {

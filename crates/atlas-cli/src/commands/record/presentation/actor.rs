@@ -15,7 +15,7 @@ pub(super) fn render(
     primary_defenses: bool,
     saves: bool,
     reading: &[OwnedReadingEntryView],
-    width: usize,
+    width: super::TerminalLayout,
     detail: TerminalDetail,
 ) -> Result<(), String> {
     number(out, "Perception", &actor.perception, true, "");

@@ -1,5 +1,8 @@
 //! Terminal layout over the app-service's selected semantic facts.
-use super::{args::TerminalDetail, terminal::render_html};
+use super::{
+    args::TerminalDetail,
+    terminal::{TerminalLayout, render_html},
+};
 use atlas_app_model::{
     DamageComponentView, FactView, NumberFactView, OwnedReadingEntryView, PreparedContentFieldView,
     PreparedFieldBodyView, RecordBodyView, RecordDetailView, RecordSummaryView,
@@ -12,7 +15,7 @@ mod spell;
 pub(super) fn render_record(
     record: &RecordDetailView,
     detail: TerminalDetail,
-    width: usize,
+    width: TerminalLayout,
     reading: &[OwnedReadingEntryView],
 ) -> Result<String, String> {
     let mut out = String::new();
@@ -169,7 +172,7 @@ fn is_intro(field: &PreparedContentFieldView) -> bool {
 fn content_field(
     out: &mut String,
     field: &PreparedContentFieldView,
-    width: usize,
+    width: TerminalLayout,
     heading: bool,
 ) -> Result<(), String> {
     let rendered = match &field.body {

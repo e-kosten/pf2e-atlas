@@ -161,7 +161,12 @@ fn render_selected_record(
             }
         }
     }
-    let mut output = presentation::render_record(record, detail, width(), &reading)?;
+    let mut output = presentation::render_record(
+        record,
+        detail,
+        terminal::TerminalLayout::current(width()),
+        &reading,
+    )?;
     if detail == TerminalDetail::Full && record.selected.field.is_none() {
         let activities = match &record.presentation.body {
             RecordBodyView::Creature(actor) => actor.activities.value.as_deref(),
@@ -221,7 +226,14 @@ mod tests {
             (80, include_str!("../../tests/golden/prepared-80.txt")),
             (120, include_str!("../../tests/golden/prepared-120.txt")),
         ] {
-            let text = render_html(&html, width).expect("render");
+            let text = render_html(
+                &html,
+                terminal::TerminalLayout {
+                    width,
+                    styled: false,
+                },
+            )
+            .expect("render");
             let normalized = text
                 .lines()
                 .map(str::trim_end)

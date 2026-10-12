@@ -178,51 +178,7 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
     }
 }
 fn field_label(d: &QueryFieldDefinition) -> String {
-    let label = match d.path.as_str() {
-        "record.kind" => "Kind",
-        "record.level_or_rank" => "Level / rank",
-        "traits" => "Traits",
-        "rarity" => "Rarity",
-        "actor.level" => "Creature level",
-        "item.level" => "Authored level",
-        "spell.rank" => "Spell rank",
-        "actor.ac" | "actor.armor_class" => "Armor Class",
-        "actor.hp.maximum" => "Maximum HP",
-        "actor.save.fortitude" | "actor.saves.fortitude" => "Fortitude save",
-        "actor.save.reflex" | "actor.saves.reflex" => "Reflex save",
-        "actor.save.will" | "actor.saves.will" => "Will save",
-        "actor.items" => "Embedded items",
-        "actor.immunities" => "Immunities",
-        "actor.weaknesses" => "Weaknesses",
-        "actor.resistances" => "Resistances",
-        "actor.speed" | "actor.speed.land" => "Land speed",
-        "actor.speeds" => "Movement speeds",
-        "actor.senses" => "Senses",
-        "physical.price.per_item_cp" => "Price per item (copper)",
-        "physical.bulk" => "Bulk",
-        "physical.usage" => "Equipment usage",
-        "weapon.range.increment" => "Weapon range increment",
-        "armor.ac_bonus" => "Armor AC bonus",
-        "armor.dex_cap" => "Armor Dexterity cap",
-        "shield.hp.maximum" => "Shield maximum HP",
-        "publication.title" => "Publication",
-        "publication.remaster" => "Remastered publication",
-        "source.document_kind" => "Source document category",
-        "source.type" => "Source family",
-        "source.pack.id" => "Source pack ID",
-        "source.pack.label" => "Source pack",
-        _ => "",
-    };
-    let label = if label.is_empty() {
-        let path = d
-            .path
-            .strip_prefix("actor.")
-            .or_else(|| d.path.strip_prefix("item."))
-            .unwrap_or(&d.path);
-        words(&path.replace('.', " "))
-    } else {
-        label.into()
-    };
+    let label = &d.label;
     if let Some(scope) = &d.scope {
         let context = match scope.as_str() {
             "actor.items" => "Embedded item",
@@ -236,7 +192,7 @@ fn field_label(d: &QueryFieldDefinition) -> String {
         };
         format!("{context}: {label}")
     } else {
-        label
+        label.clone()
     }
 }
 fn words(value: &str) -> String {

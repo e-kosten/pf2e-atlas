@@ -8,7 +8,15 @@ fn render_record(
     detail: TerminalDetail,
     width: usize,
 ) -> Result<String, String> {
-    super::render_record(record, detail, width, &[])
+    super::render_record(
+        record,
+        detail,
+        super::TerminalLayout {
+            width,
+            styled: false,
+        },
+        &[],
+    )
 }
 
 fn known<T>(value: T) -> FactView<T> {
@@ -394,7 +402,14 @@ fn selected_spell_preserves_parent_casting_damage_and_authored_heightening() {
 #[test]
 fn action_glyph_html_keeps_terminal_words_without_font_characters() {
     let html = "<p>Spend <span data-atlas-action-glyph=\"two_actions\">two actions</span>, or take a <span data-atlas-action-glyph=\"reaction\">reaction</span>.</p>";
-    let rendered = render_html(html, 80).unwrap();
+    let rendered = render_html(
+        html,
+        super::TerminalLayout {
+            width: 80,
+            styled: false,
+        },
+    )
+    .unwrap();
     assert_eq!(rendered.trim(), "Spend two actions, or take a reaction.");
 }
 
