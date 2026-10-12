@@ -8,7 +8,7 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 - [Active worktree build footprint](./items/developer-build-footprint.md)
   Measured development/test profiles, selected limited debug with incremental
-  compilation disabled, retained full-debug and incremental opt-ins, and
+  application builds and a generated-model exception, retained full-debug opt-in, and
   strengthened worktree retirement and path-sensitive hook validation. Status: done.
 
 - [Record presentation and UI architecture review](./items/rust-web-ui-architecture-review.md)
