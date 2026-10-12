@@ -102,26 +102,25 @@ export function EditEncounterModal({
     <Modal
       title="Edit encounter"
       open={open}
+      destroyOnHidden
       onCancel={onCancel}
       footer={null}
       closable={!pending}
       keyboard={!pending}
       mask={{ closable: !pending }}
     >
-      {open && (
-        <EditEncounterForm
-          encounter={encounter}
-          disabled={disabled}
-          pending={pending}
-          error={error}
-          encounterNote={encounterNote}
-          onArchive={onArchive}
-          onCancel={onCancel}
-          onComplete={onComplete}
-          onDelete={onDelete}
-          onSave={onSave}
-        />
-      )}
+      <EditEncounterForm
+        encounter={encounter}
+        disabled={disabled}
+        pending={pending}
+        error={error}
+        encounterNote={encounterNote}
+        onArchive={onArchive}
+        onCancel={onCancel}
+        onComplete={onComplete}
+        onDelete={onDelete}
+        onSave={onSave}
+      />
     </Modal>
   );
 }

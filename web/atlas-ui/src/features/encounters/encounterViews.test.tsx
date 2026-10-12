@@ -1131,6 +1131,32 @@ describe("encounter views", () => {
     );
   });
 
+  it("discards canceled encounter metadata when opening a new editing session", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const edit = screen.getByRole("button", { name: "Edit encounter" });
+    await waitFor(() => expect(edit).not.toBeDisabled());
+    fireEvent.click(edit);
+    const dialog = await screen.findByRole("dialog", { name: "Edit encounter" });
+    const name = within(dialog).getByLabelText("Name");
+    const savedName = encounterIndexFixture().encounters[0].name;
+    await waitFor(() => expect(name).toHaveValue(savedName));
+    fireEvent.change(name, { target: { value: "Canceled draft" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Edit encounter" }),
+      ).not.toBeInTheDocument(),
+    );
+    fireEvent.click(edit);
+    const reopened = await screen.findByRole("dialog", { name: "Edit encounter" });
+    await waitFor(() =>
+      expect(within(reopened).getByLabelText("Name")).toHaveValue(savedName),
+    );
+    expect(apiMocks.updateEncounter).not.toHaveBeenCalled();
+  });
+
   it("preserves touched encounter fields across changed server data and resets identity", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: ReactNode }) => (
