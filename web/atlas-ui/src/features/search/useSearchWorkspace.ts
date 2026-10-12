@@ -6,8 +6,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { getReadiness, getRecordDetail, searchPage } from "../../api/atlasApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getRecordDetail, searchPage } from "../../api/atlasApi";
 import type {
   FilterEditorView,
   RecordDetailView,
@@ -80,7 +80,6 @@ export type SearchWorkspaceState = {
     string,
     import("../../generated/atlas").FilterCountsView | undefined
   >;
-  readiness: UseQueryResult<Awaited<ReturnType<typeof getReadiness>>, Error>;
   resultsLoading: boolean;
   resultsRefreshing: boolean;
   resultsPaused?: boolean;
@@ -165,11 +164,6 @@ export function useSearchWorkspace({
     }, SEARCH_REQUEST_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [search, searchToken]);
-
-  const readiness = useQuery({
-    queryKey: ["readiness"],
-    queryFn: getReadiness,
-  });
 
   const resultsKey = [
     "results",
@@ -352,8 +346,7 @@ export function useSearchWorkspace({
     }
   }
 
-  const errorMessage =
-    messageFromError(resultsQuery.error) ?? messageFromError(readiness.error);
+  const errorMessage = messageFromError(resultsQuery.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const resultsRefreshing =
     canRunResultSearch &&
@@ -386,7 +379,6 @@ export function useSearchWorkspace({
     filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
     vocabularyScope: filterDiscovery.vocabularyScope,
     filterDiscoveryError: filterDiscovery.errorMessage,
-    readiness,
     resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing,
     resultsPaused,
@@ -401,7 +393,6 @@ export function useSearchWorkspace({
     },
     errorMessage,
     refresh: () => {
-      void readiness.refetch();
       if (!enabled) {
         return;
       }

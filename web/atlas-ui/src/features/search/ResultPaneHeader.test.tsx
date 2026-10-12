@@ -137,7 +137,6 @@ function workspace(
     },
     vocabularyScope: { kind: "artifact" },
     filterDiscoveryError: null,
-    readiness: {} as SearchWorkspaceState["readiness"],
     resultsLoading: false,
     resultsRefreshing: false,
     detailLoading: false,
