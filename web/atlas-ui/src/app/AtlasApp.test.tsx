@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
 import type {
   FilterEditorView,
   RecordDetailView,
-  ResultWindowPage,
+  SearchResultsPage,
 } from "../generated/atlas";
 import { AtlasApp } from "./AtlasApp";
 
@@ -23,19 +23,18 @@ const apiMocks = vi.hoisted(() => ({
   getReadiness: vi.fn(),
   getRecordDetail: vi.fn(),
   getSavedLists: vi.fn(),
-  openResultWindow: vi.fn(),
-  readResultWindowPage: vi.fn(),
+  searchPage: vi.fn(),
 }));
 
-vi.mock("../api/atlasApi", () => ({
+vi.mock("../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../api/atlasApi")>()),
   addSavedListItem: apiMocks.addSavedListItem,
   discoverFilterEditor: apiMocks.discoverFilterEditor,
   discoverFilterValues: apiMocks.discoverFilterValues,
   getReadiness: apiMocks.getReadiness,
   getRecordDetail: apiMocks.getRecordDetail,
   getSavedLists: apiMocks.getSavedLists,
-  openResultWindow: apiMocks.openResultWindow,
-  readResultWindowPage: apiMocks.readResultWindowPage,
+  searchPage: apiMocks.searchPage,
 }));
 
 describe("AtlasApp routing", () => {
@@ -55,8 +54,7 @@ describe("AtlasApp routing", () => {
       matching_record_count: 0n,
       options: [],
     });
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
-    apiMocks.readResultWindowPage.mockResolvedValue(resultWindowPage());
+    apiMocks.searchPage.mockResolvedValue(searchResultsPage());
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
@@ -77,7 +75,7 @@ describe("AtlasApp routing", () => {
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
     await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
     vi.clearAllMocks();
 
     history.pushState(null, "", "/records/spell%3Aheal");
@@ -87,10 +85,14 @@ describe("AtlasApp routing", () => {
     await act(() => vi.dynamicImportSettled());
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
-    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("spell:heal");
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+      "spell:heal",
+      undefined,
+      expect.any(AbortSignal),
+    );
 
     vi.clearAllMocks();
     history.pushState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
@@ -99,14 +101,14 @@ describe("AtlasApp routing", () => {
 
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
   });
 
   it("opens the search side-detail record as a full-page record route", async () => {
     history.replaceState(null, "", "/search?q=heal&mode=text");
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
+    apiMocks.searchPage.mockResolvedValue(searchResultsPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
     const resultRow = (await screen.findByRole("link", { name: "heal" })).closest(
@@ -121,14 +123,14 @@ describe("AtlasApp routing", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/records/spell:heal"));
     expect(window.location.search).toBe("");
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
   });
 
   it("adds the search side-detail record to a saved list", async () => {
     history.replaceState(null, "", "/search?q=heal&mode=text");
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
+    apiMocks.searchPage.mockResolvedValue(searchResultsPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
     const resultRow = (await screen.findByRole("link", { name: "heal" })).closest(
@@ -192,9 +194,9 @@ function emptyFilterEditor(): FilterEditorView {
   return editorFixture();
 }
 
-function resultWindowPage(recordKeys: string[] = []): ResultWindowPage {
+function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
-    window_id: 1n,
+    artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "", mode: "hybrid" },
     page: {
       number: 1,

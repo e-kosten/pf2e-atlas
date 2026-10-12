@@ -13,7 +13,7 @@ import { RelatedRecords } from "./RelatedRecords";
 
 const api = vi.hoisted(() => ({
   getRelatedRecords: vi.fn(),
-  openResultWindow: vi.fn(),
+  searchPage: vi.fn(),
   getRecordDetail: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -110,8 +110,8 @@ describe("shared related disclosure", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.getRelatedRecords.mockResolvedValue(relatedFixture());
-    api.openResultWindow.mockResolvedValue({
-      window_id: 1n,
+    api.searchPage.mockResolvedValue({
+      artifact_generation: "generation-a",
       mode: { kind: "similar_records", seed: summaryFixture("actors:seed") },
       rows: [],
       page: {
@@ -139,7 +139,7 @@ describe("shared related disclosure", () => {
     expect(screen.queryByRole("tab", { name: "Remaster" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Variants" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Similar" })).toBeNull();
-    expect(api.openResultWindow).not.toHaveBeenCalled();
+    expect(api.searchPage).not.toHaveBeenCalled();
   });
   it("preserves distinct incoming occurrences and checked navigation; modified links stay native", async () => {
     const onReference = renderRelated();
@@ -167,8 +167,8 @@ describe("shared related disclosure", () => {
     const newDetail = { ...oldDetail, artifact_generation: "new-preparation" };
     api.getRecordDetail.mockResolvedValueOnce(oldDetail).mockResolvedValue(newDetail);
     api.getRelatedRecords.mockRejectedValueOnce(
-      new AtlasApiError(400, "Generation changed", {
-        code: "invalid_request",
+      new AtlasApiError(409, "Generation changed", {
+        code: "artifact_generation_changed",
         message: "Generation changed",
         recoverable_action: "reload_record",
       }),
@@ -176,7 +176,11 @@ describe("shared related disclosure", () => {
     function Reader() {
       const detail = useRecordDetail("actors:seed");
       return detail.data ? (
-        <RelatedRecords detail={detail.data} onReference={vi.fn()} />
+        <RelatedRecords
+          detail={detail.data}
+          onReference={vi.fn()}
+          onReload={() => void detail.refetch()}
+        />
       ) : null;
     }
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -190,10 +194,13 @@ describe("shared related disclosure", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Related records" }));
     fireEvent.click(await screen.findByRole("button", { name: "Reload record" }));
     await waitFor(() =>
-      expect(api.getRelatedRecords).toHaveBeenLastCalledWith({
-        selection: newDetail.selected,
-        artifact_generation: "new-preparation",
-      }),
+      expect(api.getRelatedRecords).toHaveBeenLastCalledWith(
+        {
+          selection: newDetail.selected,
+          artifact_generation: "new-preparation",
+        },
+        expect.any(AbortSignal),
+      ),
     );
     expect(api.getRecordDetail).toHaveBeenCalledTimes(2);
     client.clear();
@@ -226,19 +233,27 @@ describe("shared related disclosure", () => {
     renderRelated(detail);
     openRelated();
     await waitFor(() =>
-      expect(api.getRelatedRecords).toHaveBeenCalledWith({
-        selection: detail.selected,
-        artifact_generation: detail.artifact_generation,
-      }),
+      expect(api.getRelatedRecords).toHaveBeenCalledWith(
+        {
+          selection: detail.selected,
+          artifact_generation: detail.artifact_generation,
+        },
+        expect.any(AbortSignal),
+      ),
     );
     fireEvent.click(
       screen.getByRole("button", { name: "Similar to parent record: Viewed creature" }),
     );
     expect(await screen.findByText("No similar records found.")).toBeVisible();
-    expect(api.openResultWindow).toHaveBeenCalledWith(
+    expect(api.searchPage).toHaveBeenCalledWith(
       {
-        mode: { kind: "similar_records", seed_record_key: "actors:seed", filter: null },
+        criteria: {
+          kind: "similar_records",
+          seed_record_key: "actors:seed",
+          filter: null,
+        },
         page: { number: 1, size: 5 },
+        expected_artifact_generation: detail.artifact_generation,
       },
       expect.any(AbortSignal),
     );

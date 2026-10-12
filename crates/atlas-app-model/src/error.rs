@@ -49,8 +49,7 @@ pub enum AppErrorCode {
     EncounterAlreadyExists,
     EncounterParticipantNotFound,
     EncounterParticipantConflict,
-    WindowNotFound,
-    WindowExpired,
+    ArtifactGenerationChanged,
     FilterInvalid,
     FilterFieldInvalid,
     FilterOptionInvalid,
@@ -76,7 +75,7 @@ pub enum AppErrorCode {
 pub enum AppRecoverableAction {
     RunSetupCheck,
     RunSetup,
-    ReopenResultWindow,
+    RefreshResults,
     RefreshReadiness,
     ReloadRecord,
     RebuildFilterEditor,

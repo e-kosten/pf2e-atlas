@@ -1,8 +1,8 @@
 import { Alert, Button, Collapse, Modal, Select, Spin, Tabs, Typography } from "antd";
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
-import { AtlasApiError, getRelatedRecords, openResultWindow } from "../../api/atlasApi";
+import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
 import {
   atlasRoutePath,
   navigateToAtlasRoute,
@@ -17,15 +17,19 @@ import type {
 import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
-import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { useRecordDetail } from "./useRecordDetail";
+import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 
 export function RelatedRecords({
   detail,
   onReference,
+  onReload,
+  reloadLabel = "Reload record",
 }: {
   detail: RecordDetailView;
   onReference: RecordReferenceHandler;
+  onReload?: () => void;
+  reloadLabel?: string;
 }) {
   return (
     <section className="related-records" aria-label="Related records">
@@ -41,6 +45,8 @@ export function RelatedRecords({
                 key={JSON.stringify([detail.selected, detail.artifact_generation])}
                 detail={detail}
                 onReference={onReference}
+                onReload={onReload}
+                reloadLabel={reloadLabel}
               />
             ),
           },
@@ -53,22 +59,28 @@ export function RelatedRecords({
 function RelatedTabs({
   detail,
   onReference,
+  onReload,
+  reloadLabel,
 }: {
   detail: RecordDetailView;
   onReference: RecordReferenceHandler;
+  onReload?: () => void;
+  reloadLabel: string;
 }) {
-  const queryClient = useQueryClient();
   const [active, setActive] = useState("references");
   const [comparison, setComparison] = useState<string | null>(null);
   const key = detail.record.record_key;
   const related = useQuery({
     queryKey: ["related", detail.selected, detail.artifact_generation],
     staleTime: Infinity,
-    queryFn: () =>
-      getRelatedRecords({
-        selection: detail.selected,
-        artifact_generation: detail.artifact_generation,
-      }),
+    queryFn: ({ signal }) =>
+      getRelatedRecords(
+        {
+          selection: detail.selected,
+          artifact_generation: detail.artifact_generation,
+        },
+        signal,
+      ),
   });
   const reloadRecord =
     related.error instanceof AtlasApiError &&
@@ -295,19 +307,13 @@ function RelatedTabs({
           action={
             <Button
               size="small"
+              disabled={reloadRecord && !onReload}
               onClick={() => {
-                if (reloadRecord)
-                  void queryClient.invalidateQueries({
-                    queryKey: recordDetailQueryOptions(
-                      detail.selected.record_key,
-                      detail.selected,
-                    ).queryKey,
-                    exact: true,
-                  });
+                if (reloadRecord) onReload?.();
                 else void related.refetch();
               }}
             >
-              {reloadRecord ? "Reload record" : "Retry"}
+              {reloadRecord ? reloadLabel : "Retry"}
             </Button>
           }
         />
@@ -354,7 +360,14 @@ function RelatedTabs({
             label: detail.selected.owners.length
               ? `Similar to parent record: ${detail.record.title}`
               : "Similar records",
-            children: <SimilarPreview detail={detail} onReference={onReference} />,
+            children: (
+              <SimilarPreview
+                detail={detail}
+                onReference={onReference}
+                onReload={onReload}
+                reloadLabel={reloadLabel}
+              />
+            ),
           },
         ]}
       />
@@ -372,23 +385,29 @@ function RelatedTabs({
 function SimilarPreview({
   detail,
   onReference,
+  onReload,
+  reloadLabel,
 }: {
   detail: RecordDetailView;
   onReference: RecordReferenceHandler;
+  onReload?: () => void;
+  reloadLabel: string;
 }) {
   const seed = detail.record.record_key;
   const similar = useQuery({
     queryKey: ["similar-preview", seed, detail.artifact_generation],
     staleTime: Infinity,
     queryFn: ({ signal }) =>
-      openResultWindow(
+      searchPage(
         {
-          mode: { kind: "similar_records", seed_record_key: seed, filter: null },
+          criteria: { kind: "similar_records", seed_record_key: seed, filter: null },
           page: { number: 1, size: 5 },
+          expected_artifact_generation: detail.artifact_generation,
         },
         signal,
       ),
   });
+  const reloadRecord = isArtifactGenerationChanged(similar.error);
   const route = {
     kind: "search",
     selectedRecordKey: null,
@@ -413,11 +432,13 @@ function SimilarPreview({
           action={
             <Button
               size="small"
+              disabled={reloadRecord && !onReload}
               onClick={() => {
-                void similar.refetch();
+                if (reloadRecord) onReload?.();
+                else void similar.refetch();
               }}
             >
-              Retry
+              {reloadRecord ? reloadLabel : "Retry"}
             </Button>
           }
         />

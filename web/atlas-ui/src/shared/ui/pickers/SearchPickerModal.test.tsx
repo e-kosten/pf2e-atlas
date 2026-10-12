@@ -1,16 +1,20 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Form } from "antd";
+import { Form, Input } from "antd";
 import { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { openResultWindow } from "../../../api/atlasApi";
+import { AtlasApiError, searchPage } from "../../../api/atlasApi";
 import { summaryFixture } from "../../../test/fixtures";
 import { SearchPickerModal } from "./SearchPickerModal";
 
-vi.mock("../../../api/atlasApi", () => ({ openResultWindow: vi.fn() }));
-const search = vi.mocked(openResultWindow);
+vi.mock("../../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../../api/atlasApi")>()),
+  searchPage: vi.fn(),
+}));
+const search = vi.mocked(searchPage);
 const result = {
+  artifact_generation: "generation-a",
   rows: [{ record: summaryFixture("actors:ghoul", "Ghoul"), matches: [] }],
-} as unknown as Awaited<ReturnType<typeof openResultWindow>>;
+} as unknown as Awaited<ReturnType<typeof searchPage>>;
 
 function Picker({
   open = true,
@@ -28,7 +32,8 @@ function Picker({
       open={open}
       form={form}
       buildRequest={(query) => ({
-        mode: { kind: "text_search", query, mode: "hybrid", filter: null },
+        criteria: { kind: "text_search", query, mode: "hybrid", filter: null },
+        expected_artifact_generation: null,
         page: { number: 1, size: 25 },
       })}
       emptyPrompt="Search for a record"
@@ -40,7 +45,11 @@ function Picker({
       onCancel={vi.fn()}
       onFinish={vi.fn()}
       okButtonProps={{ disabled: !selected }}
-    />
+    >
+      <Form.Item name="note" label="Note">
+        <Input />
+      </Form.Item>
+    </SearchPickerModal>
   );
 }
 function renderPicker() {
@@ -52,6 +61,7 @@ function renderPicker() {
   );
   return {
     ...view,
+    client,
     setDisabled: (disabled: boolean) =>
       view.rerender(
         <QueryClientProvider client={client}>
@@ -110,5 +120,69 @@ describe("shared record picker", () => {
     ).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
     expect(search).toHaveBeenCalledTimes(2);
+  });
+
+  it("adopts one generation response without repeating inference, and explicitly refreshes a conflict while retaining the form draft", async () => {
+    search
+      .mockResolvedValueOnce(result)
+      .mockRejectedValueOnce(
+        new AtlasApiError(409, "The reference collection changed.", {
+          code: "artifact_generation_changed",
+          message: "The reference collection changed.",
+          recoverable_action: "refresh_results",
+        }),
+      )
+      .mockResolvedValue({
+        ...result,
+        artifact_generation: "generation-b",
+        rows: [{ record: summaryFixture("actors:dragon", "Dragon"), matches: [] }],
+      });
+    const { client } = renderPicker();
+    client.setQueryData(["encounter", "draft-owner"], { name: "Encounter" });
+    fireEvent.change(screen.getByLabelText("Note"), {
+      target: { value: "Unsaved encounter note" },
+    });
+    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "ghoul" } });
+    expect(
+      await screen.findByRole("radio", { name: "Select Ghoul" }),
+    ).toBeInTheDocument();
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(search.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ expected_artifact_generation: null }),
+    );
+    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "dragon" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The reference collection changed.",
+    );
+    expect(search.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ expected_artifact_generation: "generation-a" }),
+    );
+    expect(screen.queryByRole("radio", { name: "Select Ghoul" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh results" }));
+    expect(
+      await screen.findByRole("radio", { name: "Select Dragon" }),
+    ).toBeInTheDocument();
+    expect(search).toHaveBeenCalledTimes(3);
+    expect(search.mock.calls[2][0]).toEqual({
+      criteria: { kind: "text_search", query: "dragon", mode: "hybrid", filter: null },
+      page: { number: 1, size: 25 },
+      expected_artifact_generation: null,
+    });
+    expect(screen.getByLabelText("Search")).toHaveValue("dragon");
+    expect(screen.getByLabelText("Note")).toHaveValue("Unsaved encounter note");
+    expect(client.getQueryData(["encounter", "draft-owner"])).toEqual({
+      name: "Encounter",
+    });
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: ["search-picker"] })
+        .some(
+          (query) =>
+            query.state.data &&
+            (query.state.data as { artifact_generation: string })
+              .artifact_generation === "generation-a",
+        ),
+    ).toBe(false);
   });
 });

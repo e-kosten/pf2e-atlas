@@ -185,7 +185,7 @@ fn context_parts(
 ) -> AppServiceResult<ContextParts> {
     match context {
         FilterDiscoveryContext::Filtered { filter, text, mode } => {
-            Ok((None, filter, text, crate::windows::retrieval_mode(mode)))
+            Ok((None, filter, text, crate::retrieval::retrieval_mode(mode)))
         }
         FilterDiscoveryContext::SavedList {
             list_ref,
@@ -196,7 +196,7 @@ fn context_parts(
             Some(service.saved_list_record_keys(&list_ref)?),
             filter,
             text,
-            crate::windows::retrieval_mode(mode),
+            crate::retrieval::retrieval_mode(mode),
         )),
     }
 }

@@ -31,8 +31,10 @@ impl AtlasAppService {
         self.submit_retrieval(move |r| {
             let generation = r.artifact_generation()?;
             if request.artifact_generation != generation {
-                return Err(AppServiceError::invalid_request(
-                    "reading belongs to a different artifact; reload the parent record",
+                return Err(AppServiceError::artifact_generation_changed(
+                    &request.artifact_generation,
+                    &generation,
+                    atlas_app_model::AppRecoverableAction::ReloadRecord,
                 ));
             }
             let detail = r
@@ -85,8 +87,10 @@ impl AtlasAppService {
                         index / ABILITY_LIMIT * ABILITY_LIMIT
                     } else if let Some(cursor) = cursor {
                         if cursor.artifact_generation != generation {
-                            return Err(AppServiceError::invalid_request(
-                                "reading cursor belongs to a different artifact",
+                            return Err(AppServiceError::artifact_generation_changed(
+                                &cursor.artifact_generation,
+                                &generation,
+                                atlas_app_model::AppRecoverableAction::ReloadRecord,
                             ));
                         }
                         cursor.offset

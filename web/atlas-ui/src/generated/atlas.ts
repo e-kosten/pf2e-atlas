@@ -78,7 +78,6 @@ export type { ImportSavedListView } from "../../../../crates/atlas-app-model/bin
 export type { IwrEntryView } from "../../../../crates/atlas-app-model/bindings/IwrEntryView";
 export type { NumberAdjustmentView } from "../../../../crates/atlas-app-model/bindings/NumberAdjustmentView";
 export type { NumberFactView } from "../../../../crates/atlas-app-model/bindings/NumberFactView";
-export type { OpenResultWindowRequest } from "../../../../crates/atlas-app-model/bindings/OpenResultWindowRequest";
 export type { OwnedContentIdentity } from "../../../../crates/atlas-app-model/bindings/OwnedContentIdentity";
 export type { OwnedContentLocator } from "../../../../crates/atlas-app-model/bindings/OwnedContentLocator";
 export type { OwnedRecordLinkView } from "../../../../crates/atlas-app-model/bindings/OwnedRecordLinkView";
@@ -104,7 +103,6 @@ export type { QueryValueOptions } from "../../../../crates/atlas-app-model/bindi
 export type { QueryVocabulary } from "../../../../crates/atlas-app-model/bindings/QueryVocabulary";
 export type { QueryVocabularyBasis } from "../../../../crates/atlas-app-model/bindings/QueryVocabularyBasis";
 export type { QueryVocabularyOption } from "../../../../crates/atlas-app-model/bindings/QueryVocabularyOption";
-export type { ReadResultWindowPageRequest } from "../../../../crates/atlas-app-model/bindings/ReadResultWindowPageRequest";
 export type { RecordBadgeView } from "../../../../crates/atlas-app-model/bindings/RecordBadgeView";
 export type { RecordBodyView } from "../../../../crates/atlas-app-model/bindings/RecordBodyView";
 export type { RecordDetailRequest } from "../../../../crates/atlas-app-model/bindings/RecordDetailRequest";
@@ -128,10 +126,11 @@ export type { RemasterLinkView } from "../../../../crates/atlas-app-model/bindin
 export type { RemoveSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/RemoveSavedListItemRequest";
 export type { ReorderEncounterParticipantPlacementView } from "../../../../crates/atlas-app-model/bindings/ReorderEncounterParticipantPlacementView";
 export type { ReorderEncounterParticipantRequest } from "../../../../crates/atlas-app-model/bindings/ReorderEncounterParticipantRequest";
-export type { ResultWindowMode } from "../../../../crates/atlas-app-model/bindings/ResultWindowMode";
-export type { ResultWindowModeSummary } from "../../../../crates/atlas-app-model/bindings/ResultWindowModeSummary";
-export type { ResultWindowPage } from "../../../../crates/atlas-app-model/bindings/ResultWindowPage";
-export type { ResultWindowRow } from "../../../../crates/atlas-app-model/bindings/ResultWindowRow";
+export type { SearchCriteria } from "../../../../crates/atlas-app-model/bindings/SearchCriteria";
+export type { SearchModeSummary } from "../../../../crates/atlas-app-model/bindings/SearchModeSummary";
+export type { SearchResultsRequest } from "../../../../crates/atlas-app-model/bindings/SearchResultsRequest";
+export type { SearchResultsPage } from "../../../../crates/atlas-app-model/bindings/SearchResultsPage";
+export type { SearchResultRow } from "../../../../crates/atlas-app-model/bindings/SearchResultRow";
 export type { RetrievalModeView } from "../../../../crates/atlas-app-model/bindings/RetrievalModeView";
 export type { RollTablePresentationView } from "../../../../crates/atlas-app-model/bindings/RollTablePresentationView";
 export type { RuntimeAdjustmentView } from "../../../../crates/atlas-app-model/bindings/RuntimeAdjustmentView";

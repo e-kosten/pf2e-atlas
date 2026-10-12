@@ -9,6 +9,7 @@ import {
 } from "../../test/fixtures";
 import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { retireImmutableReferenceQueries } from "../../shared/queries/immutableReferenceQueries";
 import {
   act,
   fireEvent,
@@ -26,7 +27,7 @@ import type {
   RecordDetailView,
   RecordPresentationView,
   RecordSummaryView,
-  ResultWindowPage,
+  SearchResultsPage,
 } from "../../generated/atlas";
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
@@ -44,7 +45,7 @@ const apiMocks = vi.hoisted(() => ({
   getRecordDetail: vi.fn(),
   getEncounterReference: vi.fn(),
   getOwnedReading: vi.fn(),
-  openResultWindow: vi.fn(),
+  searchPage: vi.fn(),
   removeEncounterParticipant: vi.fn(),
   removeEncounterParticipantCondition: vi.fn(),
   reorderEncounterParticipant: vi.fn(),
@@ -67,7 +68,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   getRecordDetail: apiMocks.getRecordDetail,
   getEncounterReference: apiMocks.getEncounterReference,
   getOwnedReading: apiMocks.getOwnedReading,
-  openResultWindow: apiMocks.openResultWindow,
+  searchPage: apiMocks.searchPage,
   removeEncounterParticipant: apiMocks.removeEncounterParticipant,
   removeEncounterParticipantCondition: apiMocks.removeEncounterParticipantCondition,
   reorderEncounterParticipant: apiMocks.reorderEncounterParticipant,
@@ -95,7 +96,7 @@ describe("encounter views", () => {
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowFixture());
+    apiMocks.searchPage.mockResolvedValue(searchResultsFixture());
     const receipt = {
       encounter_key: encounterIndexFixture().encounters[0].encounter_key,
     };
@@ -554,7 +555,11 @@ describe("encounter views", () => {
     fireEvent.click(linkedRuleButton);
 
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:linked",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
 
@@ -578,7 +583,11 @@ describe("encounter views", () => {
     }
     fireEvent.click(linkedRuleButtonAfterReselect);
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:linked",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
 
     const closePreview = screen.getByRole("button", {
@@ -696,6 +705,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
         "conditionitems:TBSHQspnbcqxsmjL",
+        undefined,
+        expect.any(AbortSignal),
       ),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
@@ -890,7 +901,7 @@ describe("encounter views", () => {
       expect(screen.getByRole("button", { name: "Add Creature" })).not.toBeDisabled(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Add Creature" }));
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
 
     const dialog = await screen.findByRole("dialog", {
       name: "Add creature or hazard",
@@ -898,7 +909,7 @@ describe("encounter views", () => {
     fireEvent.change(within(dialog).getByLabelText("Search"), {
       target: { value: "goblin" },
     });
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
 
     const goblinOption = await within(dialog).findByText("Goblin Warrior");
     fireEvent.click(goblinOption.closest('[role="button"]') ?? goblinOption);
@@ -1172,6 +1183,13 @@ describe("encounter views", () => {
     );
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My draft" } });
+    client.setQueryData(["record-detail", "old"], {
+      artifact_generation: "generation-a",
+    });
+    await act(async () => retireImmutableReferenceQueries(client));
+    expect(client.getQueryData(["record-detail", "old"])).toBeUndefined();
+    expect(client.getQueryData(["encounter", "ambush"])).toBeDefined();
+    expect(name).toHaveValue("My draft");
     act(() =>
       client.setQueryData(["encounter", "ambush"], {
         ...encounterDetailFixture(),
@@ -1568,9 +1586,9 @@ function participantFixture(
   };
 }
 
-function resultWindowFixture(): ResultWindowPage {
+function searchResultsFixture(): SearchResultsPage {
   return {
-    window_id: 1n,
+    artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "goblin", mode: "hybrid" },
     page: {
       number: 1,

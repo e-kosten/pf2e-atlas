@@ -25,7 +25,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
             ? similar
               ? "Top matches"
               : `${page.total.toLocaleString()} ${workspace.resultPage?.coverage?.exhaustive === false ? "candidate records" : "records"}`
-            : "No result window yet"}
+            : "No results yet"}
       </span>
       {!similar && workspace.resultPage?.coverage?.exhaustive === false && (
         <Tooltip title={workspace.resultPage.coverage.count_basis}>
@@ -39,6 +39,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         <Select
           aria-label="Records per page"
           size="small"
+          disabled={workspace.resultsPaused || workspace.resultsRecovering}
           value={workspace.search.pageSize}
           options={[10, 25, 50, 100].map((value) => ({
             value,
@@ -51,14 +52,24 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         <Button
           aria-label="Previous page"
           className="pager__button"
-          disabled={workspace.pageNumber <= 1 || workspace.resultsRefreshing}
+          disabled={
+            workspace.pageNumber <= 1 ||
+            workspace.resultsRefreshing ||
+            workspace.resultsPaused ||
+            workspace.resultsRecovering
+          }
           icon={<ChevronLeft size={15} />}
           onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
           type="text"
         />
         <PageJump
           key={displayedPageNumber}
-          disabled={workspace.resultsRefreshing || workspace.resultsLoading}
+          disabled={
+            workspace.resultsRefreshing ||
+            workspace.resultsLoading ||
+            Boolean(workspace.resultsPaused) ||
+            Boolean(workspace.resultsRecovering)
+          }
           displayedPageNumber={displayedPageNumber}
           onPageChange={workspace.setPageNumber}
           pageCount={pageCount}
@@ -68,7 +79,12 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         <Button
           aria-label="Next page"
           className="pager__button"
-          disabled={!page?.has_more || workspace.resultsRefreshing}
+          disabled={
+            !page?.has_more ||
+            workspace.resultsRefreshing ||
+            workspace.resultsPaused ||
+            workspace.resultsRecovering
+          }
           icon={<ChevronRight size={15} />}
           onClick={() =>
             workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)

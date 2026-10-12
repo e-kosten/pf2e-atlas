@@ -155,6 +155,16 @@ export function AppShell({
           type="error"
           showIcon
           title={workspace.errorMessage}
+          action={
+            workspace.resultsPaused ? (
+              <Button
+                onClick={() => void workspace.refreshResults()}
+                loading={workspace.resultsRecovering}
+              >
+                Refresh results
+              </Button>
+            ) : undefined
+          }
         />
       )}
       {diagnosticsOpen && <DiagnosticsPanel workspace={workspace} />}

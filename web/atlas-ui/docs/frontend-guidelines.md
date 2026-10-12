@@ -255,7 +255,7 @@ AC/HP/hardness display; keep independent zero saves and unavailable facts intact
 opening, cached by complete selection and artifact generation. Render only content
 categories; keep loading, unavailable checks and local retryable errors distinct
 from known empty categories. Similar is a separate root discovery preview using
-existing result windows, with a native link into the ordinary search workspace.
+stateless search pages, with a native link into the ordinary search workspace.
 Similarity URLs preserve the root seed and canonical filters. Keyword entry replaces
 the seed; clearing it preserves filters. Contextual text counts are disabled while
 catalog choices and vocabulary remain available. Label bounded pages Top matches.
@@ -266,6 +266,18 @@ they do not imply automatic scrolling to an individual marker. Counterparts and 
 relationships of an embedded selection. A separate Similar action can name the
 parent root explicitly. Exact root references use an empty owner path, not an
 all-owners graph query.
+
+Search page keys include committed criteria, the local page number, the current
+artifact generation and the search owner's recovery epoch. An artifact generation
+conflict pauses pagination until the user selects Refresh results. Recovery cancels
+affected immutable reference queries before removing them, resets to page 1 and
+preserves filter input and mutable encounter/list drafts. Never reuse previous-page
+data across that transition or seed caches from an aborted or superseded response.
+An initial live response seeds its generation-keyed page before adopting that key,
+so adoption does not repeat inference. Related and Similar recovery reload the
+owning record; contextual encounter previews reload their encounter and require the
+user to reopen the activity using its current checked selection. Exact source
+fingerprints and snapshot-local ordinals are never silently rebound.
 
 Live browser checks use the maintained Playwright runner against a separately started real Atlas server and isolated local state:
 

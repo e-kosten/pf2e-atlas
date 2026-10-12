@@ -11,12 +11,14 @@ import { ActorActivity } from "./ActorReference";
 import { ContentFields } from "./RecordPresentation";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { activityAnchor, activityAddress } from "./ownedNavigation";
+import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 
 export type OwnedReadingContext = {
   generation: string;
   parent: RecordNavigationView;
   landing?: RecordNavigationView;
   reloadParent?: () => void;
+  reloadParentLabel?: string;
 };
 
 export function OwnedAbilityReading({
@@ -196,6 +198,7 @@ function OwnedAbilityBatch({
                     <p>Earlier abilities are outside this reading range.</p>
                     <Button
                       size="small"
+                      disabled={isArtifactGenerationChanged(reading.error)}
                       loading={reading.isFetchingPreviousPage}
                       onClick={() => {
                         setRetryDirection("previous");
@@ -247,6 +250,7 @@ function OwnedAbilityBatch({
                       <Space wrap>
                         <Button
                           size="small"
+                          disabled={isArtifactGenerationChanged(reading.error)}
                           onClick={() => {
                             if (!pages.length) void reading.refetch();
                             else if (retryDirection === "previous")
@@ -258,7 +262,7 @@ function OwnedAbilityBatch({
                         </Button>
                         {context.reloadParent && (
                           <Button size="small" onClick={context.reloadParent}>
-                            Reload reference
+                            {context.reloadParentLabel ?? "Reload reference"}
                           </Button>
                         )}
                       </Space>

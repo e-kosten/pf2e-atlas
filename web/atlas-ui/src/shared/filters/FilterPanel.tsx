@@ -70,6 +70,7 @@ export function FilterControls({
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
   const [draftRevision, setDraftRevision] = useState(0);
+  const [rangeDrafts, setRangeDrafts] = useState<Record<string, RangeDraft>>({});
   const [draft, setDraft] = useState<{
     baseline: QueryPredicate | null;
     query: RuleGroupType;
@@ -78,6 +79,7 @@ export function FilterControls({
   useEffect(() => {
     const reset = () => {
       setDraft(null);
+      setRangeDrafts({});
       setDraftRevision((revision) => revision + 1);
     };
     window.addEventListener("popstate", reset);
@@ -186,6 +188,10 @@ export function FilterControls({
             <CommonFilter
               key={id + ":" + draftRevision}
               field={field}
+              rangeDraft={rangeDrafts[id] ?? null}
+              onRangeDraftChange={(next) =>
+                setRangeDrafts((current) => ({ ...current, [id]: next }))
+              }
               workspace={{
                 ...workspace,
                 setSearch: (next) => {
@@ -210,6 +216,7 @@ export function FilterControls({
           type="text"
           onClick={() => {
             setDraft(null);
+            setRangeDrafts({});
             setDraftRevision((revision) => revision + 1);
             setSearch(clearAllFilters(search));
           }}
@@ -253,10 +260,14 @@ export function FilterControls({
 
 function CommonFilter({
   field,
+  rangeDraft,
+  onRangeDraftChange,
   workspace,
   onAdvanced,
 }: {
   field: FilterEditorFieldView;
+  rangeDraft: RangeDraft | null;
+  onRangeDraftChange: (draft: RangeDraft) => void;
   workspace: FilterPanelState;
   onAdvanced: () => void;
 }) {
@@ -297,7 +308,13 @@ function CommonFilter({
           </Button>
         </Space>
       ) : field.definition.field_type === "number" ? (
-        <CommonRange field={field} clause={condition.clause} onChange={update} />
+        <CommonRange
+          field={field}
+          clause={condition.clause}
+          onChange={update}
+          draft={rangeDraft}
+          onDraftChange={onRangeDraftChange}
+        />
       ) : (
         <CommonChoicePicker
           field={field}
@@ -311,21 +328,26 @@ function CommonFilter({
   );
 }
 
+type RangeDraft = {
+  baseline: string;
+  range: [string, string];
+  error: string | null;
+};
+
 function CommonRange({
   field,
   clause,
   onChange,
+  draft,
+  onDraftChange,
 }: {
   field: FilterEditorFieldView;
   clause: QueryPredicate | null;
   onChange: (next: QueryPredicate | null) => void;
+  draft: RangeDraft | null;
+  onDraftChange: (draft: RangeDraft) => void;
 }) {
   const baseline = JSON.stringify(clause);
-  const [draft, setDraft] = useState<{
-    baseline: string;
-    range: [string, string];
-    error: string | null;
-  } | null>(null);
   const range = draft?.baseline === baseline ? draft.range : conditionRange(clause);
   const error = draft?.baseline === baseline ? draft.error : null;
   function change(next: [string, string]) {
@@ -372,10 +394,14 @@ function CommonRange({
               children,
             }
           : (children[0] ?? null);
-      setDraft({ baseline: JSON.stringify(replacement), range: next, error: null });
+      onDraftChange({
+        baseline: JSON.stringify(replacement),
+        range: next,
+        error: null,
+      });
       onChange(replacement);
     } catch (error) {
-      setDraft({
+      onDraftChange({
         baseline,
         range: next,
         error: error instanceof Error ? error.message : String(error),

@@ -71,6 +71,57 @@ describe("shared common and maintained advanced filters", () => {
       }),
     );
   });
+  it("retains invalid range input while the catalog reloads and adopts new definitions", async () => {
+    const onChange = vi.fn();
+    const editor = editorFixture([
+      fieldFixture("record.level_or_rank", "number", "Level / rank"),
+    ]);
+    function Harness({ catalog }: { catalog?: FilterEditorView }) {
+      const [search, setSearch] = useState<SearchFormState>({
+        ...DEFAULT_SEARCH_STATE,
+        filter: { kind: "compare", field: "record.level_or_rank", op: "gte", value: 1 },
+      });
+      return (
+        <FilterControls
+          includeSearch={false}
+          filterState={{
+            search,
+            setSearch: (next) => {
+              setSearch(next);
+              onChange(next);
+            },
+            filterEditor: catalog,
+            filterDiscoveryLoading: !catalog,
+          }}
+        />
+      );
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = (catalog?: FilterEditorView) => (
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider client={client}>
+          <Harness catalog={catalog} />
+        </QueryClientProvider>
+      </ConfigProvider>
+    );
+    const { rerender } = render(view(editor));
+    fireEvent.change(screen.getByRole("textbox", { name: "Level / rank minimum" }), {
+      target: { value: "9007199254740993" },
+    });
+    expect(await screen.findByText(/exact numeric range/)).toBeVisible();
+    rerender(view());
+    expect(screen.queryByRole("textbox", { name: "Level / rank minimum" })).toBeNull();
+    const updated = editorFixture([
+      fieldFixture("record.level_or_rank", "number", "Updated level"),
+    ]);
+    rerender(view(updated));
+    expect(screen.getByRole("textbox", { name: "Updated level minimum" })).toHaveValue(
+      "9007199254740993",
+    );
+    expect(screen.getByText(/exact numeric range/)).toBeVisible();
+    expect(screen.queryByText("Level / rank")).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+  });
   it("retains a complex expression and offers the advanced editor instead of flattening it", () => {
     const kind = {
       ...fieldFixture("record.kind", "string", "Kind"),

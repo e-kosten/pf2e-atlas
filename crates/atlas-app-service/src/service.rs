@@ -1,6 +1,5 @@
 use std::path::PathBuf;
-use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
 use atlas_app_model::{AppErrorCode, AppReadinessStatus, AppReadinessView};
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
@@ -11,15 +10,12 @@ use crate::executor::{
     RetrievalExecutor, open_retrieval_service, open_retrieval_service_for_stored_vectors,
     open_retrieval_service_no_embeddings,
 };
-use crate::windows::{MAX_RESULT_WINDOWS, ResultWindowStore};
 
 #[derive(Clone)]
 pub struct AtlasAppService {
     pub(super) retrieval: RetrievalBackend,
     pub(super) runtime_options: AtlasRuntimeOptions,
     pub(super) local_state_path: PathBuf,
-    pub(super) windows: Arc<Mutex<ResultWindowStore>>,
-    pub(super) next_window_id: Arc<AtomicU64>,
 }
 
 #[derive(Debug, Clone)]
@@ -87,17 +83,6 @@ impl AtlasAppService {
             retrieval,
             runtime_options,
             local_state_path,
-            windows: Arc::new(Mutex::new(ResultWindowStore::new(MAX_RESULT_WINDOWS))),
-            next_window_id: Arc::new(AtomicU64::new(1)),
-        })
-    }
-
-    pub(super) fn windows(&self) -> AppServiceResult<MutexGuard<'_, ResultWindowStore>> {
-        self.windows.lock().map_err(|error| {
-            AppServiceError::new(
-                AppErrorCode::InternalError,
-                format!("result-window state lock is poisoned: {error}"),
-            )
         })
     }
 

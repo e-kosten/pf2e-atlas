@@ -2,7 +2,7 @@
 
 Ant Design is the selected component library for the Atlas web prototype.
 
-The comparison started with parallel Ant Design and Mantine implementations over the same Atlas workflow. The implementation used shared API/client/state code, shared generated DTOs, shared URL/result-window behavior, and shared record detail rendering so the library comparison focused on component fit rather than duplicated product behavior.
+The comparison started with parallel Ant Design and Mantine implementations over the same Atlas workflow. The implementation used shared API/client/state code, shared generated DTOs, shared URL/pagination behavior, and shared record detail rendering so the library comparison focused on component fit rather than duplicated product behavior.
 
 ## Decision
 

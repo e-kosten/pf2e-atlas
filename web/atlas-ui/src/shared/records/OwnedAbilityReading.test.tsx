@@ -12,6 +12,7 @@ import type { OwnedReadingBatchView, OwnedReadingRequest } from "../../generated
 import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
 import { atlasRoutePath } from "../../app/routes";
+import { AtlasApiError } from "../../api/atlasApi";
 
 const api = vi.hoisted(() => ({ getOwnedReading: vi.fn(), getRecordDetail: vi.fn() }));
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -110,6 +111,26 @@ beforeEach(() => {
   api.getOwnedReading.mockReset();
   api.getRecordDetail.mockReset();
   api.getOwnedReading.mockImplementation((request) => Promise.resolve(batch(request)));
+});
+
+it("keeps a generation conflict paused until the actual parent owner reloads", async () => {
+  api.getOwnedReading.mockRejectedValue(
+    new AtlasApiError(409, "The reference collection changed", {
+      code: "artifact_generation_changed",
+      message: "The reference collection changed",
+      recoverable_action: "reload_record",
+    }),
+  );
+  const reloadParent = vi.fn();
+  mount({ ...context, reloadParent, reloadParentLabel: "Reload encounter" });
+  expect(await screen.findByText("The reference collection changed")).toBeVisible();
+  const retry = screen.getByRole("button", { name: "Retry" });
+  expect(retry).toBeDisabled();
+  fireEvent.click(retry);
+  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Reload encounter" }));
+  expect(reloadParent).toHaveBeenCalledTimes(1);
+  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
 });
 
 it("reads a finite default batch inline, preserves native permalinks and never seeds full detail", async () => {

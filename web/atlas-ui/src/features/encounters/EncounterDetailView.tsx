@@ -64,6 +64,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     generation: encounter.data?.artifact_generation ?? null,
     parentRecordKey: selected?.record_key,
     presentation: selected?.presentation,
+    reloadEncounter: () => encounter.refetch({ throwOnError: true }),
   });
   const encounterSummary = encounter.data?.encounter ?? null;
   const updateEncounterStatus = async (status: EncounterSummaryView["status"]) => {
@@ -237,6 +238,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             previewLoading={recordPreview.loading}
             previewError={recordPreview.error}
             onRetryPreview={recordPreview.retry}
+            onReloadPreview={recordPreview.reload}
+            reloadPreviewLabel={recordPreview.reloadLabel}
+            retryPreviewLabel={recordPreview.retryLabel}
             previewRecordKey={recordPreview.recordKey}
           />
         }

@@ -36,7 +36,7 @@ impl AtlasAppService {
         self.submit_retrieval(move |r| {
             let result = r.search_text(TextSearchRequest {
                 query: &query,
-                mode: crate::windows::retrieval_mode(mode),
+                mode: retrieval_mode(mode),
                 filter: filter.as_ref(),
                 scope: atlas_search::RecordScope::All,
                 page,
@@ -163,6 +163,16 @@ impl AtlasAppService {
                     .collect(),
             }))
         })
+    }
+}
+
+pub(crate) fn retrieval_mode(
+    mode: atlas_app_model::RetrievalModeView,
+) -> atlas_search::RetrievalMode {
+    match mode {
+        atlas_app_model::RetrievalModeView::Lexical => atlas_search::RetrievalMode::Fts,
+        atlas_app_model::RetrievalModeView::Semantic => atlas_search::RetrievalMode::Vector,
+        atlas_app_model::RetrievalModeView::Hybrid => atlas_search::RetrievalMode::Hybrid,
     }
 }
 

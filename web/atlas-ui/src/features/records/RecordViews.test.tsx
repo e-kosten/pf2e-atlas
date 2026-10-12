@@ -240,10 +240,14 @@ describe("record route views", () => {
       selection: second,
       previewRecordKey: null,
     });
-    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(second.record_key, {
-      ...second,
-      fields: [second.field],
-    });
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+      second.record_key,
+      {
+        ...second,
+        fields: [second.field],
+      },
+      expect.any(AbortSignal),
+    );
   });
 });
 

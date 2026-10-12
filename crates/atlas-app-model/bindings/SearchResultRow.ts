@@ -2,4 +2,4 @@
 import type { RecordSummaryView } from "./RecordSummaryView";
 import type { SearchWitnessView } from "./SearchWitnessView";
 
-export type ResultWindowRow = { record: RecordSummaryView, matches: Array<SearchWitnessView>, };
+export type SearchResultRow = { record: RecordSummaryView, matches: Array<SearchWitnessView>, };

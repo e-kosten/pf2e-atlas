@@ -10,6 +10,9 @@ export function RecordPreviewDrawer({
   loading,
   error,
   onRetry,
+  onReload,
+  reloadLabel,
+  retryLabel,
   onClose,
   onAfterClose,
   onOpenFullPage,
@@ -60,6 +63,9 @@ export function RecordPreviewDrawer({
           loading={loading}
           error={error}
           onRetry={onRetry}
+          onReload={onReload}
+          reloadLabel={reloadLabel}
+          retryLabel={retryLabel}
           onBack={onClose}
           backLabel="Close preview"
           onReference={onReference}

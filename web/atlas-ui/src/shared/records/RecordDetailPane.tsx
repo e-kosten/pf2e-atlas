@@ -18,6 +18,9 @@ export function RecordDetailPane({
   loading,
   loadingMessage = "Loading record…",
   onRetry,
+  onReload = onRetry,
+  reloadLabel = "Reload record",
+  retryLabel = "Retry",
   onBack,
   backLabel = "Back to search",
   onReference,
@@ -32,6 +35,9 @@ export function RecordDetailPane({
   loading: boolean;
   loadingMessage?: string;
   onRetry?: () => void;
+  onReload?: () => void;
+  reloadLabel?: string;
+  retryLabel?: string;
   onBack?: () => void;
   backLabel?: string;
   onReference: RecordReferenceHandler;
@@ -87,7 +93,7 @@ export function RecordDetailPane({
               <Space wrap>
                 {onRetry && (
                   <Button size="small" onClick={onRetry} loading={loading}>
-                    Retry
+                    {retryLabel}
                   </Button>
                 )}
                 {onBack ? (
@@ -130,7 +136,8 @@ export function RecordDetailPane({
                 source_fingerprint: null,
               },
               landing: readingLanding,
-              reloadParent: onRetry,
+              reloadParent: onReload,
+              reloadParentLabel: reloadLabel,
             }}
             onReference={onReference}
             onOwnerReturn={onOwnerReturn}
@@ -140,6 +147,8 @@ export function RecordDetailPane({
               key={JSON.stringify(detail.selected)}
               detail={detail}
               onReference={onReference}
+              onReload={onReload}
+              reloadLabel={reloadLabel}
             />
           )}
         </>
