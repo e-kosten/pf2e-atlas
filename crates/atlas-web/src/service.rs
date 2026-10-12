@@ -7,11 +7,11 @@ use atlas_app_model::{
     DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     EncounterConditionCatalogView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
     EncounterMutationView, FilterEditorView, FilterSavedListRequest, FilterValueListView,
-    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ResultWindowPage,
+    RecordDetailView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
     SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-    SavedListUpdateView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    SavedListUpdateView, SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
@@ -65,16 +65,10 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: DiscoverFilterValuesRequest,
     ) -> Result<FilterValueListView, AppServiceError>;
 
-    fn open_result_window(
+    fn search_page(
         &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError>;
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError>;
+        request: SearchResultsRequest,
+    ) -> Result<SearchResultsPage, AppServiceError>;
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
     fn encounter_reference(
@@ -269,19 +263,11 @@ impl AtlasWebService for AtlasAppService {
         self.discover_filter_values(request)
     }
 
-    fn open_result_window(
+    fn search_page(
         &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        self.open_result_window(request)
-    }
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        self.read_result_window_page(window_id, request)
+        request: SearchResultsRequest,
+    ) -> Result<SearchResultsPage, AppServiceError> {
+        self.search_page(request)
     }
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {

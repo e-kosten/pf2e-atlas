@@ -15,6 +15,9 @@ export type RecordPreviewContentProps = {
   loading: boolean;
   error?: Error | null;
   onRetry?: () => void;
+  onReload?: () => void;
+  reloadLabel?: string;
+  retryLabel?: string;
   onClose: () => void;
   onOpenFullPage: () => void;
   onReference: RecordReferenceHandler;

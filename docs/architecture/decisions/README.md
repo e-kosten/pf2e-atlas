@@ -15,7 +15,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0026-rust-cli-product-surface.md`](./0026-rust-cli-product-surface.md): PF2e Atlas is a Rust CLI plus first-party skill product; future TUI and derived tags are Rust-owned follow-ups.
 - [`0027-rust-runtime-lint-policy.md`](./0027-rust-runtime-lint-policy.md): runtime Rust code denies panic-oriented Clippy lints outside tests, while tests keep assertion-oriented unwrap/expect ergonomics.
 - [`0028-rust-tagging-model.md`](./0028-rust-tagging-model.md): Rust tagging is a typed authored-label subsystem with explicit crate ownership, record-centered assignments, and authoritative `record_tags` artifact rows.
-- [`0029-local-web-app-boundary.md`](./0029-local-web-app-boundary.md): the local web app uses Axum plus an app-model/app-service boundary over runtime/search, with generated TypeScript contracts and full semantic-search startup for web service mode.
+- [`0029-local-web-app-boundary.md`](./0029-local-web-app-boundary.md): Axum/app-model/app-service ownership, generated contracts and full semantic startup; result-window state and command lifetimes are superseded by ADR0049.
 - [`0030-local-state-database.md`](./0030-local-state-database.md): durable mutable local state such as saved lists lives in a separate local-state SQLite database beside the generated artifact.
 - [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): historical generic section/profile transport, superseded by ADR0047; app-service composition ownership is retained.
 - [`0032-ingest-product-intent.md`](./0032-ingest-product-intent.md): product-purpose requirement for derived projections; historical source retention and metric model partially superseded by ADR0046.
@@ -37,6 +37,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0046-source-backed-reference-artifact.md`](./0046-source-backed-reference-artifact.md): checked snapshot authority, named typed query projections, HTML caches, attributed lexical/semantic retrieval, concrete reader generation consistency and coordinated consumer replacement.
 - [`0047-semantic-record-presentation.md`](./0047-semantic-record-presentation.md): transient family facts, one composed encounter presentation, exact selected navigation and shared browser family components with independent CLI layout.
 - [`0048-atomic-mutable-workflows.md`](./0048-atomic-mutable-workflows.md): local-state transaction boundaries, revision-checked participant replacements and durable mutation receipts independent of reference hydration.
+- [`0049-search-lifetimes-and-pages.md`](./0049-search-lifetimes-and-pages.md): coherent worker/command artifact lifetimes, stateless generation-checked pages, deliberate browser recovery and typed query-input errors.
 
 ## Historical ADRs
 

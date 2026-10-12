@@ -24,17 +24,14 @@ pub struct SearchPageView {
     pub next_page: Option<u32>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct OpenResultWindowRequest {
-    pub mode: ResultWindowMode,
+pub struct SearchResultsRequest {
+    pub criteria: SearchCriteria,
     pub page: SearchPageRequest,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct ReadResultWindowPageRequest {
-    pub page: SearchPageRequest,
+    pub expected_artifact_generation: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ResultWindowMode {
+pub enum SearchCriteria {
     SimilarRecords {
         seed_record_key: String,
         filter: Option<QueryPredicate>,
@@ -50,7 +47,7 @@ pub enum ResultWindowMode {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ResultWindowModeSummary {
+pub enum SearchModeSummary {
     SimilarRecords {
         seed: Box<RecordSummaryView>,
     },
@@ -61,15 +58,15 @@ pub enum ResultWindowModeSummary {
     },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct ResultWindowPage {
-    pub window_id: u64,
-    pub mode: ResultWindowModeSummary,
+pub struct SearchResultsPage {
+    pub artifact_generation: String,
+    pub mode: SearchModeSummary,
     pub page: SearchPageView,
-    pub rows: Vec<ResultWindowRow>,
+    pub rows: Vec<SearchResultRow>,
     pub coverage: Option<SearchCoverageView>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct ResultWindowRow {
+pub struct SearchResultRow {
     pub record: RecordSummaryView,
     pub matches: Vec<SearchWitnessView>,
 }

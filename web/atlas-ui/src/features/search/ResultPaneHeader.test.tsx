@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { summaryFixture } from "../../test/fixtures";
-import type { ResultWindowPage } from "../../generated/atlas";
+import type { SearchResultsPage } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
@@ -17,7 +17,7 @@ describe("search pane composition", () => {
         filter: { kind: "all_of", clause_id: "root", children: [] },
       },
       resultPage: {
-        ...resultWindowPage(),
+        ...searchResultsPage(),
         mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
       },
     });
@@ -53,7 +53,7 @@ describe("ResultPaneHeader", () => {
       <ResultPaneHeader
         workspace={workspace({
           resultPage: {
-            ...resultWindowPage(),
+            ...searchResultsPage(),
             mode: { kind: "similar_records", seed: summaryFixture("items:seed") },
             coverage: {
               exhaustive: false,
@@ -80,6 +80,22 @@ describe("ResultPaneHeader", () => {
 
     expect(setPageNumber).toHaveBeenCalledWith(42);
   });
+
+  it.each(["resultsPaused", "resultsRecovering"] as const)(
+    "disables pagination while %s without changing the criterion",
+    (state) => {
+      const setPageNumber = vi.fn();
+      render(
+        <ResultPaneHeader workspace={workspace({ [state]: true, setPageNumber })} />,
+      );
+      expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+      expect(screen.getByRole("textbox", { name: "Current page" })).toBeDisabled();
+      expect(screen.getByRole("combobox", { name: "Records per page" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+      expect(setPageNumber).not.toHaveBeenCalled();
+    },
+  );
 
   it("clamps page jumps to the known page count", () => {
     const setPageNumber = vi.fn();
@@ -108,7 +124,7 @@ function workspace(
     selectRecord: vi.fn(),
     pageNumber: 13,
     setPageNumber: vi.fn(),
-    resultPage: resultWindowPage(),
+    resultPage: searchResultsPage(),
     recordDetail: undefined,
     detailError: null,
     retryDetail: vi.fn(),
@@ -127,20 +143,20 @@ function workspace(
     detailLoading: false,
     filterDiscoveryLoading: false,
     diagnostics: {
-      activeWindowId: "1",
       detailRequest: null,
       resultRequest: null,
       searchDebouncing: false,
     },
     errorMessage: null,
     refresh: vi.fn(),
+    refreshResults: vi.fn(),
     ...overrides,
   };
 }
 
-function resultWindowPage(): ResultWindowPage {
+function searchResultsPage(): SearchResultsPage {
   return {
-    window_id: 1n,
+    artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "", mode: "hybrid" },
     page: {
       number: 13,

@@ -190,14 +190,20 @@ Search collapses semantic units by maximum similarity per root. Hybrid uses one
 rank per root per lane with RRF60; sibling appearance does not penalize a passage.
 Semantic candidate windows are bounded and reported as such. Similar uses the
 stored root identity seed and semantic candidates, excluding the seed. No invented
-trait/graph reranking weights apply. App result windows expose the same bounded
+trait/graph reranking weights apply. App search pages expose the same bounded
 Similar request and body-free seed summary; they do not extend the stored schema.
 
 The full serialized `SourceArtifactBuildContext` SHA-256 identifies the immutable
-artifact generation for detail envelopes and Related availability. It covers
+artifact generation for search pages, detail envelopes and Related availability. It covers
 locale, preparation policies and semantic model as well as source identity.
 Snapshot-local navigation continues to use the source fingerprint; these identities
 serve different purposes and are not interchangeable.
+
+Stateless app requests carry criteria, page and an optional expected generation.
+Generation mismatch is checked before expensive retrieval and requires deliberate
+recovery from page1. This neither changes the artifact schema nor adds a result
+cache. A running web reader pool remains on its opened instance until restart;
+new commands observe later publication on their first reference read.
 
 Legacy suppression occurs only when its verified remaster also matches the complete
 current request, before paging. A legacy-only match remains visible, and exact key

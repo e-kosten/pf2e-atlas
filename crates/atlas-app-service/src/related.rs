@@ -28,13 +28,11 @@ impl AtlasAppService {
         self.submit_retrieval(move |r| {
             let generation = r.artifact_generation()?;
             if request.artifact_generation != generation {
-                let mut error = atlas_app_model::AppError::new(
-                    AppErrorCode::InvalidRequest,
-                    "Related records belong to another artifact generation; refresh the record",
-                );
-                error.recoverable_action =
-                    Some(atlas_app_model::AppRecoverableAction::ReloadRecord);
-                return Err(error.into());
+                return Err(AppServiceError::artifact_generation_changed(
+                    &request.artifact_generation,
+                    &generation,
+                    atlas_app_model::AppRecoverableAction::ReloadRecord,
+                ));
             }
             if crate::projection::navigation_fingerprint(&selection.owners, r.source_fingerprint())
                 .is_some()

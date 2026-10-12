@@ -119,18 +119,28 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
     assert_eq!(late.previous.unwrap().offset, 544);
     assert!(late.next.is_none());
     for generation in ["old", ""] {
-        assert!(
-            f.worker
-                .owned_reading(request(
-                    generation,
-                    OwnedReadingSelection::Abilities {
-                        cursor: first.next.clone(),
-                        target: None
-                    }
-                ))
-                .unwrap_err()
-                .to_string()
-                .contains("different artifact")
+        let error = f
+            .worker
+            .owned_reading(request(
+                generation,
+                OwnedReadingSelection::Abilities {
+                    cursor: first.next.clone(),
+                    target: None,
+                },
+            ))
+            .unwrap_err()
+            .into_app_error();
+        assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
+        assert_eq!(
+            error.recoverable_action,
+            Some(AppRecoverableAction::ReloadRecord)
+        );
+        assert_eq!(
+            error.details,
+            Some(json!({
+                "expected_artifact_generation": generation,
+                "actual_artifact_generation": detail.artifact_generation,
+            }))
         );
     }
     let mut stale = last;

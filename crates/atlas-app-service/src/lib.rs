@@ -14,13 +14,13 @@ mod projection;
 mod records;
 mod related;
 mod retrieval;
+mod search_pages;
 mod service;
-mod windows;
 
 #[cfg(test)]
 mod owned_reading_tests;
 #[cfg(test)]
-mod related_window_tests;
+mod related_tests;
 #[cfg(test)]
 mod source_consumer_tests;
 #[cfg(test)]

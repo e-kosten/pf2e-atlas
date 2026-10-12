@@ -21,10 +21,6 @@ impl WebError {
             format!("invalid JSON request body: {error}"),
         ))
     }
-
-    fn invalid_path(message: impl Into<String>) -> Self {
-        Self(AppError::new(AppErrorCode::InvalidRequest, message))
-    }
 }
 
 impl IntoResponse for WebError {
@@ -46,14 +42,13 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         AppErrorCode::RecordNotFound
         | AppErrorCode::SavedListNotFound
         | AppErrorCode::EncounterNotFound
-        | AppErrorCode::EncounterParticipantNotFound
-        | AppErrorCode::WindowNotFound => StatusCode::NOT_FOUND,
-        AppErrorCode::WindowExpired => StatusCode::GONE,
+        | AppErrorCode::EncounterParticipantNotFound => StatusCode::NOT_FOUND,
         AppErrorCode::SavedListAlreadyExists
         | AppErrorCode::EncounterParticipantConflict
         | AppErrorCode::EncounterAlreadyExists
         | AppErrorCode::FilterEditorConflict
-        | AppErrorCode::SetupInProgress => StatusCode::CONFLICT,
+        | AppErrorCode::SetupInProgress
+        | AppErrorCode::ArtifactGenerationChanged => StatusCode::CONFLICT,
         AppErrorCode::ArtifactNotReady
         | AppErrorCode::ArtifactIncompatible
         | AppErrorCode::SetupRequired
@@ -68,10 +63,4 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
             StatusCode::INTERNAL_SERVER_ERROR
         }
     }
-}
-
-pub(crate) fn parse_window_id(value: &str) -> Result<u64, WebError> {
-    value
-        .parse()
-        .map_err(|error| WebError::invalid_path(format!("invalid result window id: {error}")))
 }

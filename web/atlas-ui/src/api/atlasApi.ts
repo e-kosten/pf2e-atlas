@@ -19,8 +19,7 @@ import type {
   FilterEditorView,
   FilterSavedListRequest,
   FilterValueListView,
-  OpenResultWindowRequest,
-  ReadResultWindowPageRequest,
+  SearchResultsRequest,
   RecordDetailView,
   RecordDetailRequest,
   OwnedReadingRequest,
@@ -28,7 +27,7 @@ import type {
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
   SavedListCreateView,
-  ResultWindowPage,
+  SearchResultsPage,
   SavedListDetailView,
   SavedListIndexView,
   SavedListItemMutationView,
@@ -60,59 +59,52 @@ export async function getReadiness(): Promise<AppReadinessView> {
 
 export async function discoverFilterEditor(
   request: DiscoverFilterEditorRequest,
+  signal?: AbortSignal,
 ): Promise<FilterEditorView> {
   const editor = await atlasFetch<unknown>("/api/filters/editor", {
     method: "POST",
     body: jsonBody(request),
+    signal,
   });
   return editor as FilterEditorView;
 }
 
 export async function discoverFilterValues(
   request: DiscoverFilterValuesRequest,
+  signal?: AbortSignal,
 ): Promise<FilterValueListView> {
   const values = await atlasFetch<unknown>("/api/filters/values", {
     method: "POST",
     body: jsonBody(request),
+    signal,
   });
   return normalizeFilterValueList(values);
 }
 
-export async function openResultWindow(
-  request: OpenResultWindowRequest,
+export async function searchPage(
+  request: SearchResultsRequest,
   signal?: AbortSignal,
-): Promise<ResultWindowPage> {
-  const page = await atlasFetch<unknown>("/api/result-windows", {
+): Promise<SearchResultsPage> {
+  const page = await atlasFetch<unknown>("/api/search/page", {
     signal,
     method: "POST",
     body: jsonBody(request),
   });
-  return normalizeResultWindowPage(page);
-}
-
-export async function readResultWindowPage(
-  windowId: bigint,
-  request: ReadResultWindowPageRequest,
-  signal?: AbortSignal,
-): Promise<ResultWindowPage> {
-  const page = await atlasFetch<unknown>(
-    `/api/result-windows/${windowId.toString()}/page`,
-    {
-      signal,
-      method: "POST",
-      body: jsonBody(request),
-    },
-  );
-  return normalizeResultWindowPage(page);
+  return normalizeSearchResultsPage(page);
 }
 
 export async function getRecordDetail(
   recordKey: string,
   selection?: RecordDetailRequest,
+  signal?: AbortSignal,
 ): Promise<RecordDetailView> {
   return selection
-    ? atlasFetch("/api/records/detail", { method: "POST", body: jsonBody(selection) })
-    : atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
+    ? atlasFetch("/api/records/detail", {
+        method: "POST",
+        body: jsonBody(selection),
+        signal,
+      })
+    : atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`, { signal });
 }
 export async function getOwnedReading(
   request: OwnedReadingRequest,
@@ -510,19 +502,18 @@ function fallbackErrorMessage(
   return response.statusText || `HTTP ${response.status}`;
 }
 
-function normalizeResultWindowPage(value: unknown): ResultWindowPage {
+function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
   if (!isRecord(value)) {
-    throw new AtlasApiError(200, "Invalid result-window response");
+    throw new AtlasApiError(200, "Invalid search-page response");
   }
   const page = isRecord(value.page) ? value.page : {};
   return {
     ...value,
-    window_id: toBigInt(value.window_id),
     page: {
       ...page,
       total: toBigInt(page.total),
     },
-  } as ResultWindowPage;
+  } as SearchResultsPage;
 }
 
 function normalizeFilterValueList(value: unknown): FilterValueListView {
@@ -590,15 +581,21 @@ function isAppError(value: unknown): value is AppError {
 
 export async function getRelatedRecords(
   request: import("../generated/atlas").RelatedRecordsRequest,
+  signal?: AbortSignal,
 ): Promise<import("../generated/atlas").RelatedRecordsView> {
-  return atlasFetch("/api/related", { method: "POST", body: jsonBody(request) });
+  return atlasFetch("/api/related", {
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
 }
 export async function discoverFilterCounts(
   request: import("../generated/atlas").DiscoverFilterCountsRequest,
+  signal?: AbortSignal,
 ): Promise<import("../generated/atlas").FilterCountsView> {
   const result = await atlasFetch<import("../generated/atlas").FilterCountsView>(
     "/api/filters/counts",
-    { method: "POST", body: jsonBody(request) },
+    { method: "POST", body: jsonBody(request), signal },
   );
   if (result.counts.status === "unavailable") return result;
   return {

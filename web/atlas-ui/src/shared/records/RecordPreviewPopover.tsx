@@ -18,6 +18,9 @@ export function RecordPreviewPopover({
   loading,
   error,
   onRetry,
+  onReload,
+  reloadLabel,
+  retryLabel,
   onClose,
   onOpenFullPage,
   onReference,
@@ -91,6 +94,9 @@ export function RecordPreviewPopover({
         loading={loading}
         error={error}
         onRetry={onRetry}
+        onReload={onReload}
+        reloadLabel={reloadLabel}
+        retryLabel={retryLabel}
         onClose={() => setClosingDrawer(true)}
         onAfterClose={onClose}
         onOpenFullPage={openFullPage}
@@ -145,6 +151,9 @@ export function RecordPreviewPopover({
             loading={loading}
             error={error}
             onRetry={onRetry}
+            onReload={onReload}
+            reloadLabel={reloadLabel}
+            retryLabel={retryLabel}
             onBack={onClose}
             backLabel="Close preview"
             onReference={onReference}

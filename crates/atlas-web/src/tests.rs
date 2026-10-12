@@ -10,12 +10,12 @@ use atlas_app_model::{
     EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
     EncounterStatusView, EncounterSummaryView, FilterEditorView, FilterSavedListRequest,
-    FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
-    RecordSummaryView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
-    ResultWindowModeSummary, ResultWindowPage, SavedListCreateView, SavedListDetailView,
+    FilterValueListView, RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
+    ReorderEncounterParticipantRequest, SavedListCreateView, SavedListDetailView,
     SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
     SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    SearchPageView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    SearchModeSummary, SearchPageView, SearchResultsPage, SearchResultsRequest,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
     UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{
@@ -32,7 +32,7 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use super::assets::WebAssets;
-use super::error::{parse_window_id, status_for_error};
+use super::error::status_for_error;
 use super::router::router_with_state;
 use super::service::{AtlasWebService, AtlasWebState, call_service};
 
@@ -51,16 +51,12 @@ fn app_error_codes_map_to_expected_http_statuses() {
         StatusCode::BAD_REQUEST
     );
     assert_eq!(
-        status_for_error(AppErrorCode::WindowNotFound),
-        StatusCode::NOT_FOUND
+        status_for_error(AppErrorCode::ArtifactGenerationChanged),
+        StatusCode::CONFLICT
     );
     assert_eq!(
         status_for_error(AppErrorCode::SavedListNotFound),
         StatusCode::NOT_FOUND
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::WindowExpired),
-        StatusCode::GONE
     );
     assert_eq!(
         status_for_error(AppErrorCode::SavedListAlreadyExists),
@@ -88,16 +84,6 @@ fn app_error_codes_map_to_expected_http_statuses() {
     );
 }
 
-#[test]
-fn invalid_window_id_maps_to_app_error() {
-    let error = parse_window_id("not-a-number")
-        .expect_err("invalid path segment should map into app error")
-        .0;
-
-    assert_eq!(error.code, AppErrorCode::InvalidRequest);
-    assert!(error.message.contains("invalid result window id"));
-}
-
 #[tokio::test]
 async fn call_service_preserves_successful_result() {
     let value = call_service(AtlasWebState::from_service(MockService), || {
@@ -112,7 +98,10 @@ async fn call_service_preserves_successful_result() {
 #[tokio::test]
 async fn call_service_maps_service_error_to_http_envelope() {
     let error = call_service(AtlasWebState::from_service(MockService), || {
-        Err::<(), _>(AppServiceError::new(AppErrorCode::WindowExpired, "expired"))
+        Err::<(), _>(AppServiceError::new(
+            AppErrorCode::ArtifactGenerationChanged,
+            "changed",
+        ))
     })
     .await
     .expect_err("service errors should map to web errors");
@@ -125,9 +114,9 @@ async fn call_service_maps_service_error_to_http_envelope() {
     let app_error: AppError =
         serde_json::from_slice(&body).expect("error body should be AppError JSON");
 
-    assert_eq!(parts.status, StatusCode::GONE);
-    assert_eq!(app_error.code, AppErrorCode::WindowExpired);
-    assert_eq!(app_error.message, "expired");
+    assert_eq!(parts.status, StatusCode::CONFLICT);
+    assert_eq!(app_error.code, AppErrorCode::ArtifactGenerationChanged);
+    assert_eq!(app_error.message, "changed");
 }
 
 #[tokio::test]
@@ -278,58 +267,74 @@ async fn embedded_frontend_assets_get_long_cache_headers() {
 }
 
 #[tokio::test]
-async fn result_window_routes_return_success_and_service_errors() {
-    let open_body = json!({
-        "mode": {
+async fn stateless_search_route_carries_criteria_and_generation_and_rejects_stale_reads() {
+    let first_body = json!({
+        "criteria": {
             "kind": "list_records",
-            "filter": null,
-            "sort": { "kind": "record_key" }
+            "filter": null
         },
-        "page": { "number": 1, "size": 25 },
-        "include_diagnostics": false
+        "page": { "number": 1, "size": 25 }
     });
-    let (status, body) = route_json(Method::POST, "/api/result-windows", Some(open_body)).await;
+    let (status, body) = route_json(Method::POST, "/api/search/page", Some(first_body)).await;
 
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["window_id"], 42);
+    assert_eq!(body["artifact_generation"], "current-generation");
     assert_eq!(body["mode"]["kind"], "list_records");
 
-    let page_body = json!({ "page": { "number": 2, "size": 25 } });
-    let (status, body) = route_json(
-        Method::POST,
-        "/api/result-windows/42/page",
-        Some(page_body.clone()),
-    )
-    .await;
+    let mut page_body = json!({
+        "criteria": {"kind":"text_search","query":"Record","filter":null,"mode":"hybrid"},
+        "page": {"number":2,"size":25},
+        "expected_artifact_generation":"current-generation"
+    });
+    let (status, body) =
+        route_json(Method::POST, "/api/search/page", Some(page_body.clone())).await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["page"]["number"], 2);
-
-    let (status, body) = route_json(
-        Method::POST,
-        "/api/result-windows/not-a-number/page",
-        Some(page_body.clone()),
-    )
-    .await;
-
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert_eq!(body["code"], "invalid_request");
-    assert!(
-        body["message"]
-            .as_str()
-            .expect("message should be string")
-            .contains("invalid result window id")
+    assert_eq!(
+        body["mode"],
+        json!({"kind":"text_search","query":"Record","mode":"hybrid"})
     );
 
+    page_body["expected_artifact_generation"] = json!("previous-generation");
+    let (status, body) = route_json(Method::POST, "/api/search/page", Some(page_body)).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "artifact_generation_changed");
+    assert_eq!(
+        body["details"],
+        json!({"expected_artifact_generation":"previous-generation","actual_artifact_generation":"current-generation"})
+    );
+    assert_eq!(body["recoverable_action"], "refresh_results");
+}
+
+#[tokio::test]
+async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
     let (status, body) = route_json(
         Method::POST,
-        "/api/result-windows/999/page",
-        Some(page_body),
+        "/api/search/page",
+        Some(json!({
+            "criteria":{"kind":"text_search","query":"Record","mode":"unknown"},
+            "page":{"number":1,"size":25}
+        })),
     )
     .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
 
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(body["code"], "window_not_found");
+    for path in ["/api/result-windows", "/api/result-windows/1/page"] {
+        let response = test_router()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(path)
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
 }
 
 #[tokio::test]
@@ -861,36 +866,35 @@ impl AtlasWebService for MockService {
         })
     }
 
-    fn open_result_window(
+    fn search_page(
         &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        let mut page = result_window_page(42, request.page.number);
-        if let atlas_app_model::ResultWindowMode::SimilarRecords {
-            seed_record_key, ..
-        } = request.mode
+        request: SearchResultsRequest,
+    ) -> Result<SearchResultsPage, AppServiceError> {
+        if let Some(expected) = request.expected_artifact_generation
+            && expected != "current-generation"
         {
-            let mut seed = record_summary();
-            seed.record_key = seed_record_key;
-            page.mode = ResultWindowModeSummary::SimilarRecords {
-                seed: Box::new(seed),
-            };
+            let mut error = AppError::new(AppErrorCode::ArtifactGenerationChanged, "reference data changed")
+                .with_details(json!({"expected_artifact_generation":expected,"actual_artifact_generation":"current-generation"}));
+            error.recoverable_action = Some(atlas_app_model::AppRecoverableAction::RefreshResults);
+            return Err(error.into());
         }
+        let mut page = search_results_page(request.page.number);
+        page.mode = match request.criteria {
+            atlas_app_model::SearchCriteria::SimilarRecords {
+                seed_record_key, ..
+            } => {
+                let mut seed = record_summary();
+                seed.record_key = seed_record_key;
+                SearchModeSummary::SimilarRecords {
+                    seed: Box::new(seed),
+                }
+            }
+            atlas_app_model::SearchCriteria::ListRecords { .. } => SearchModeSummary::ListRecords,
+            atlas_app_model::SearchCriteria::TextSearch { query, mode, .. } => {
+                SearchModeSummary::TextSearch { query, mode }
+            }
+        };
         Ok(page)
-    }
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        if window_id == 999 {
-            return Err(AppServiceError::new(
-                AppErrorCode::WindowNotFound,
-                "window missing",
-            ));
-        }
-        Ok(result_window_page(window_id, request.page.number))
     }
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
@@ -1306,11 +1310,11 @@ fn record_summary() -> RecordSummaryView {
     }
 }
 
-fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
-    ResultWindowPage {
-        window_id,
+fn search_results_page(page_number: u32) -> SearchResultsPage {
+    SearchResultsPage {
+        artifact_generation: "current-generation".into(),
         coverage: None,
-        mode: ResultWindowModeSummary::ListRecords,
+        mode: SearchModeSummary::ListRecords,
         page: SearchPageView {
             number: page_number,
             size: 25,
@@ -1319,7 +1323,7 @@ fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
             has_more: page_number < 3,
             next_page: Some(page_number + 1),
         },
-        rows: vec![atlas_app_model::ResultWindowRow {
+        rows: vec![atlas_app_model::SearchResultRow {
             record: record_summary(),
             matches: vec![],
         }],
@@ -1364,8 +1368,8 @@ async fn related_request_transports_complete_selection_and_generation() {
 }
 
 #[tokio::test]
-async fn similar_window_transport_carries_exact_seed_and_body_free_summary() {
-    let (status, body) = route_json(Method::POST, "/api/result-windows", Some(json!({"mode":{"kind":"similar_records","seed_record_key":"items:seed000000000000","filter":null},"page":{"number":2,"size":5}}))).await;
+async fn similar_page_transport_carries_exact_seed_and_body_free_summary() {
+    let (status, body) = route_json(Method::POST, "/api/search/page", Some(json!({"criteria":{"kind":"similar_records","seed_record_key":"items:seed000000000000","filter":null},"page":{"number":2,"size":5},"expected_artifact_generation":"current-generation"}))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["mode"]["kind"], "similar_records");
     assert_eq!(body["mode"]["seed"]["record_key"], "items:seed000000000000");

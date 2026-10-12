@@ -3,7 +3,7 @@ import { AppShell } from "./AppShell";
 import type { SearchWorkspaceState } from "../features/search/useSearchWorkspace";
 import { DEFAULT_SEARCH_STATE } from "../shared/filters/searchState";
 
-function renderShell(errorMessage: string | null = null) {
+function renderShell(errorMessage: string | null = null, resultsPaused = false) {
   const navigate = {
     search: vi.fn(),
     encounters: vi.fn(),
@@ -35,7 +35,6 @@ function renderShell(errorMessage: string | null = null) {
       data: { status: "ready", message: "Ready to search." },
     } as SearchWorkspaceState["readiness"],
     diagnostics: {
-      activeWindowId: null,
       searchDebouncing: false,
       resultRequest: null,
       detailRequest: null,
@@ -49,6 +48,8 @@ function renderShell(errorMessage: string | null = null) {
     selectedRecordKey: null,
     errorMessage,
     refresh,
+    refreshResults: vi.fn(),
+    resultsPaused,
   };
   render(
     <AppShell
@@ -66,7 +67,7 @@ function renderShell(errorMessage: string | null = null) {
       </main>
     </AppShell>,
   );
-  return { navigate, refresh };
+  return { navigate, refresh, refreshResults: workspace.refreshResults };
 }
 
 describe("application navigation and accessibility", () => {
@@ -124,5 +125,14 @@ describe("application navigation and accessibility", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Diagnostics" }));
     expect(screen.getByRole("region", { name: "Diagnostics" })).toBeVisible();
+  });
+
+  it("offers an explicit result restart when a generation conflict pauses paging", () => {
+    const { refreshResults } = renderShell("The reference collection changed.", true);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh results" }));
+    expect(refreshResults).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The reference collection changed.",
+    );
   });
 });
