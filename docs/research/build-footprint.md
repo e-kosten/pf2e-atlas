@@ -5,14 +5,17 @@ Measured on 2026-10-12 at source revision
 
 ## Selected defaults
 
-Development and test profiles use `debug = "limited"` and `incremental = false`.
-This reduced a clean workspace test/build target from 10.48 GiB to 6.46 GiB,
-about 38%, without changing features, test selection, assertions, overflow
-checks, optimization or release settings. Tests inherit development settings.
+Development and test profiles use `debug = "limited"` and enable incremental
+compilation except for the generated `atlas-foundry-model` crate. This measured
+7.94 GiB for a clean workspace test/build target, versus 10.48 GiB with full
+debug/incremental defaults, about 24% less. Clean CI jobs disable incremental
+compilation globally; the equivalent nonincremental local comparison measured
+6.46 GiB. Features, test selection, assertions, overflow checks, optimization
+and release settings are unchanged. Tests inherit development settings.
 
 Limited debug preserves file/line backtraces and qualified function names. Full
 local-variable/type debugging is available through `--profile debug-full`.
-Incremental compilation remains a session opt-in for sustained iteration.
+Incremental application builds use the same defaults in hooks and manual checks.
 See [contributor workflow](../../CONTRIBUTING.md#build-profiles-and-disk-budget).
 [Cargo documents these profile settings](https://doc.rust-lang.org/cargo/reference/profiles.html).
 
@@ -26,17 +29,21 @@ The registry and native dependency downloads were already cached.
 | --- | --- | ---: | ---: | ---: |
 | Full (normal Cargo defaults) | On | 10.48 | 93.3 | 9.4 |
 | Full | Off | 7.60 | 106.1 | 8.6 |
-| Limited | Off | **6.46** | 81.2 | 6.8 |
+| Limited | Off | 6.46 | 81.2 | 6.8 |
 | Line tables only | Off | 6.44 | 85.4 | 7.3 |
 | Limited | On | 8.71 | 91.3 | 8.6 |
 | Line tables only | On | 8.69 | 87.7 | 8.4 |
-| Limited | On except generated Foundry model | 7.94 | 85.8 | 8.7 |
+| Limited | On except generated Foundry model | **7.94** | 85.8 | 8.7 |
 
 These are single samples, not a speed guarantee. In particular the variation
 between full builds is not evidence that incremental compilation slows every
 clean build. A representative application edit rebuilt in 4.1 seconds without
-incremental state and 2.1 seconds with it at line-table debug settings. That
-tradeoff supports an explicit opt-in rather than an unconditional disk cost.
+incremental state and 2.1 seconds with it at line-table debug settings. With
+limited debug, the same edit took 2.14 seconds with incremental enabled everywhere
+and 2.15 seconds with it disabled only for the generated model. The selected
+partial configuration preserves the sampled edit benefit and uses about 0.77 GiB
+less than enabling it everywhere. Tests after the edit took 4.43 and 4.34 seconds
+respectively; this does not establish a speedup for every command or edit.
 
 Limited costs only about 24 MiB more than line tables in the clean comparison
 and retains qualified function names for debugger lookup. Static LLDB inspection
@@ -86,18 +93,35 @@ use of atlas-embedding. A feature boundary might improve focused storage builds,
 but the complete workspace still enables inference through ingest/search.
 Its full-gate benefit is unmeasured; no dependency split was introduced.
 
-A bounded compiler cache could improve reconstruction after retiring checkouts,
-but adds storage and does not cache linked Rust executables. This repository's
-frontend asset embedding also needs correctness checks before cache reuse.
-No compiler cache was installed, and Cargo targets remain checkout-local.
+An isolated sccache 0.18.0 experiment at revision `6696d535`, using nonincremental
+profiles, found real cache reuse but no sampled test/build speedup: 91.5 seconds
+without the wrapper, 100.2 seconds in a second checkout and 94.6 seconds rebuilding
+the first checkout with all eligible compilations hitting the cache. Two targets
+plus cache occupied 12.82–13.15 GiB, versus an estimated 12.93 GiB without it.
+Checkout-specific fixture and cached-library frontend HTML checks passed. Single
+samples do not establish performance on other workloads. The private cache,
+daemon, download and temporary checkouts were removed; no compiler cache was
+adopted, and Cargo targets remain checkout-local.
+
+Retain active targets and remove retired worktrees rather than repeatedly cleaning
+and rebuilding active output. Incremental state adds writes, but may avoid other
+recompilation work. Neither experiment measured physical device writes, APFS write
+amplification or SSD endurance; no write-volume benefit is claimed.
 
 ## Implementation validation
 
-The full configured Rust gate passed formatting, both Clippy gates, the same
+The earlier fully nonincremental Rust gate passed formatting, both Clippy gates,
 507 tests with 20 existing ignores, and the workspace build. With Clippy output
 included, its target occupied 6.81 GiB; this is separate from the clean
-test/build comparison above. The full-debug profile passed 37 local-state tests,
-plus the temporary backtrace and static type-inspection probe.
+test/build comparison above. The full-debug comparison passed 37 local-state
+tests, plus the temporary backtrace and static type-inspection probe.
+
+The selected partial-incremental configuration passed the full Rust gate with
+the same 507 passing tests and 20 ignores. Compiler invocations confirmed the
+exception in both library and test builds. Including both Clippy gates, this
+target occupied 9.04 GiB, distinct from the 7.94 GiB test/build comparison.
+Actionlint passed the workflow containing the CI override. Active task output
+is retained for PR review rather than repeatedly cleaned and rebuilt.
 
 All 46 real-Git hook fixture cases passed with fake Cargo/npm commands, and shell
 syntax and ShellCheck passed. The complete frontend verification also passed

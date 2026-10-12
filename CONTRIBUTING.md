@@ -114,11 +114,13 @@ worktrees. Compiled tests embed checkout-specific fixture paths, so sharing a
 
 ### Build Profiles And Disk Budget
 
-Ordinary development and tests use limited debug information and disable
+Ordinary development and tests use limited debug information and enable
 incremental compilation. This keeps source/function backtraces and qualified
-function names while avoiding full local-variable/type debug information and
-incremental caches. Debug assertions, overflow checks, test coverage and release
-settings are unchanged. Tests inherit the development settings.
+function names and reuses compiler work during editing. The large generated
+`atlas-foundry-model` crate disables incremental compilation to avoid retaining
+its extra compiler cache; Cargo still reuses its unchanged completed output.
+Clean CI jobs set `CARGO_INCREMENTAL=0` globally. Debug assertions, overflow checks,
+test coverage and release settings are unchanged. Tests inherit development settings.
 
 For a debugger session that needs variable/type inspection, use the full-debug
 profile for both builds and tests:
@@ -128,22 +130,19 @@ cargo build -p atlas-cli --profile debug-full
 cargo test -p atlas-local-state --profile debug-full
 ```
 
-That profile writes to `target/debug-full`. Clean it after the debugging session:
+That profile writes to `target/debug-full`. Retain it while debugging; remove it
+when the session is over and the output is no longer needed:
 
 ```bash
 cargo clean --profile debug-full
 ```
 
-For a sustained edit/rebuild session where faster incremental builds matter more
-than disk use, opt in consistently for the session:
-
-```bash
-export CARGO_INCREMENTAL=1
-```
-
-Unset the override when done and clean obsolete task output rather than retaining
-both configurations indefinitely. Avoid profile/env changes for individual
-agents or validation retries. Normal `git push` needs no override.
+Use the checked-in defaults consistently across manual checks and hooks. Avoid
+profile/env changes for individual agents or validation retries, and retire
+obsolete configurations rather than retaining both indefinitely. Normal
+`git push` needs no override. Keep active targets: routinely deleting and
+rebuilding them adds latency and disk writes. Neither retained size nor build
+time alone establishes SSD write volume or endurance.
 
 Before creating a worktree or running expensive gates, check free space and the
 current task's output:
