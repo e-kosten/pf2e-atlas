@@ -223,6 +223,7 @@ function OwnedAbilityBatch({
                         inline
                       />
                       <ContentFields
+                        inlineAbility
                         fields={entry.content}
                         relationships={entry.relationships}
                         onReference={onReference}

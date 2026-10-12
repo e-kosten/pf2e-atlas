@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { ConfigProvider, Grid } from "antd";
 import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 import { ReaderView, RecordView } from "./RecordViews";
 import {
@@ -24,6 +25,7 @@ vi.mock("../../api/atlasApi", () => ({
 }));
 
 describe("record route views", () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(() => {
     vi.clearAllMocks();
     history.replaceState(null, "", "/");
@@ -69,6 +71,33 @@ describe("record route views", () => {
       list_ref: "research",
       record_ref: "spell:heal",
     });
+  });
+
+  it("previews a standalone reference without leaving its parent, with a native full-page link", async () => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
+    history.replaceState(null, "", "/records/spell:heal");
+    render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const trigger = await screen.findByRole("button", { name: "Linked Record" });
+    fireEvent.click(trigger);
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "linked" })).toBeVisible(),
+    );
+    expect(screen.getByRole("heading", { name: "heal" })).toBeVisible();
+    expect(window.location.pathname).toBe("/records/spell:heal");
+    expect(
+      screen.getByRole("link", { name: "Open reference full page" }),
+    ).toHaveAttribute(
+      "href",
+      atlasRoutePath({
+        kind: "record",
+        recordKey: "spell:linked",
+        selection: recordDetailFixture("spell:linked").selected,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("opens linked references in reader preview without replacing the primary record", async () => {
@@ -255,7 +284,11 @@ function queryClientWrapper() {
     },
   });
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+      </QueryClientProvider>
+    );
   };
 }
 

@@ -11,6 +11,7 @@ import { AppShell } from "./AppShell";
 import {
   ATLAS_ROUTE_CHANGE_EVENT,
   currentAtlasRoute,
+  atlasRoutePath,
   navigateToAtlasRoute,
   type AtlasRoute,
 } from "./routes";
@@ -125,7 +126,9 @@ export function AtlasApp() {
             {route.kind === "lists" && <ListIndexView route={route} />}
             {route.kind === "list" && <ListDetailView route={route} />}
             {route.kind === "listEdit" && <ListEditView route={route} />}
-            {route.kind === "record" && <RecordView route={route} />}
+            {route.kind === "record" && (
+              <RecordView key={atlasRoutePath(route)} route={route} />
+            )}
             {route.kind === "reader" && <ReaderView route={route} />}
           </Suspense>
         </AppShell>

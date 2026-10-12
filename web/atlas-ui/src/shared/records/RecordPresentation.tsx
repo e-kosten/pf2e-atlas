@@ -52,10 +52,12 @@ export function ContentFields({
   fields,
   relationships = [],
   onReference,
+  inlineAbility = false,
 }: {
   fields: PreparedContentFieldView[];
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
+  inlineAbility?: boolean;
 }) {
   const visibleFields = fields.filter(contentFieldVisible);
   return (
@@ -65,7 +67,13 @@ export function ContentFields({
           className="record-reference__content"
           key={JSON.stringify(field.locator)}
         >
-          <h3>{contentRoleLabels[field.role] ?? field.role}</h3>
+          {inlineAbility ? (
+            field.role !== "description" && (
+              <h5>{contentRoleLabels[field.role] ?? field.role}</h5>
+            )
+          ) : (
+            <h3>{contentRoleLabels[field.role] ?? field.role}</h3>
+          )}
           <PreparedContent
             content={field}
             relationships={relationships}

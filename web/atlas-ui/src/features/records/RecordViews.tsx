@@ -4,6 +4,8 @@ import { Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
+import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
+import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconButton, PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import {
@@ -27,42 +29,62 @@ const RECORD_VIEW_WIDTH_SPECS = {
 
 export function RecordView({ route }: RecordViewProps) {
   const detail = useRecordDetail(route.recordKey, route.selection);
+  const preview = useRecordPreview();
   return (
-    <RecordViewLayout
-      primary={
-        <RecordPane
-          actions={
-            <>
-              <AddToListButton recordKey={route.recordKey} />
-              <RouteLink
-                route={{
-                  kind: "reader",
-                  recordKey: route.recordKey,
-                  previewRecordKey: null,
-                  selection: route.selection,
-                  landing: route.landing,
-                }}
-              >
-                Reader view
-              </RouteLink>
-            </>
-          }
-          title="Record Detail"
-        >
-          <RecordDetailPane
-            detail={detail.data}
-            error={detail.error}
-            onRetry={() => {
-              void detail.refetch();
-            }}
-            loading={detail.isLoading || detail.isFetching}
-            onReference={(recordKey, _anchor, selection) =>
-              navigateToAtlasRoute({ kind: "record", recordKey, selection })
+    <>
+      <RecordViewLayout
+        primary={
+          <RecordPane
+            actions={
+              <>
+                <AddToListButton recordKey={route.recordKey} />
+                <RouteLink
+                  route={{
+                    kind: "reader",
+                    recordKey: route.recordKey,
+                    previewRecordKey: null,
+                    selection: route.selection,
+                    landing: route.landing,
+                  }}
+                >
+                  Reader view
+                </RouteLink>
+              </>
             }
-          />
-        </RecordPane>
-      }
-    />
+            title="Record Detail"
+          >
+            <RecordDetailPane
+              detail={detail.data}
+              error={detail.error}
+              onRetry={() => {
+                void detail.refetch();
+              }}
+              loading={detail.isLoading || detail.isFetching}
+              onReference={preview.open}
+            />
+          </RecordPane>
+        }
+      />
+      {preview.recordKey && (
+        <RecordPreviewPopover
+          anchor={preview.anchor}
+          detail={preview.detail}
+          loading={preview.loading}
+          error={preview.error}
+          onRetry={preview.retry}
+          onClose={preview.close}
+          onReference={preview.open}
+          onOpenFullPage={() => {
+            navigateToAtlasRoute({
+              kind: "record",
+              recordKey: preview.recordKey!,
+              selection: preview.selection,
+            });
+            preview.close();
+          }}
+        />
+      )}
+    </>
   );
 }
 

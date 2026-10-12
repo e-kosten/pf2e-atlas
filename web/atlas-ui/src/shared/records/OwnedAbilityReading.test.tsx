@@ -111,6 +111,10 @@ it("reads a finite default batch inline, preserves native permalinks and never s
   const { client } = mount();
   await screen.findByText("Ability 0 authored explanation");
   expect(screen.getByText("Ability 31 authored explanation")).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: /Ability 0 Reaction/, level: 4 }),
+  ).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Description" })).toBeNull();
   expect(screen.queryByText("Ability 32 authored explanation")).toBeNull();
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
