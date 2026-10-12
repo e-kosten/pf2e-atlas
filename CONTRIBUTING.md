@@ -21,7 +21,11 @@ For agents, authorization to implement includes logical local commits, pushing t
 
 Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and limitations. Keep review fixes visible as additional logical commits; agree on any published-history rewrite before performing it.
 
-Keep the worktree available while its PR or local build is being reviewed. After merge or cancellation, remove it only when it contains no needed uncommitted work and is no longer serving a preview.
+Keep the worktree available while its PR or local build is being reviewed. After merge or cancellation, remove it as part of task completion once needed work is preserved and no active process or another checkout depends on it. At the next task's start, finish outstanding cleanup. Retaining a branch does not require retaining its checkout or compiler cache.
+
+Before removal, inspect Git status, untracked and ignored files, running previews/builds, and incoming symlinks. Preserve needed dirty files and saved state outside the retiring checkout; do not archive compiler output with them. A live `node_modules` symlink target must remain even if its original PR has merged. Remove worktrees with `git worktree remove`, one at a time, and verify the inventory. Use `--force` only after accounting for every needed file it would discard; do not broadly delete `.worktrees/`.
+
+For retained worktrees, record the path, purpose, owner, and removal condition. Stable previews retain their frozen binary, artifact, saved state, and small review evidence; they normally do not require a compiler cache. Temporary review checkouts last only as long as their review.
 
 ## Local Build Review
 
@@ -107,6 +111,63 @@ Use Cargo's default `target/` directory inside each checkout, including linked
 worktrees. Compiled tests embed checkout-specific fixture paths, so sharing a
 `CARGO_TARGET_DIR` across worktrees can reuse binaries with stale paths. Run
 `git push` directly; its validation hook needs no Cargo environment override.
+
+### Build Profiles And Disk Budget
+
+Ordinary development and tests use limited debug information and disable
+incremental compilation. This keeps source/function backtraces and qualified
+function names while avoiding full local-variable/type debug information and
+incremental caches. Debug assertions, overflow checks, test coverage and release
+settings are unchanged. Tests inherit the development settings.
+
+For a debugger session that needs variable/type inspection, use the full-debug
+profile for both builds and tests:
+
+```bash
+cargo build -p atlas-cli --profile debug-full
+cargo test -p atlas-local-state --profile debug-full
+```
+
+That profile writes to `target/debug-full`. Clean it after the debugging session:
+
+```bash
+cargo clean --profile debug-full
+```
+
+For a sustained edit/rebuild session where faster incremental builds matter more
+than disk use, opt in consistently for the session:
+
+```bash
+export CARGO_INCREMENTAL=1
+```
+
+Unset the override when done and clean obsolete task output rather than retaining
+both configurations indefinitely. Avoid profile/env changes for individual
+agents or validation retries. Normal `git push` needs no override.
+
+Before creating a worktree or running expensive gates, check free space and the
+current task's output:
+
+```bash
+df -h .
+git worktree list
+test ! -d target || du -sh target
+```
+
+Below 30 GiB free, reclaim obsolete task build output before starting another
+large build. A target above 15 GiB warrants inspecting `debug/deps`,
+`debug/incremental`, and `debug/build` for accumulated configurations. These
+thresholds prompt investigation, never automatic deletion of active files.
+Monitor growth during long builds. Source/model assets, user-authored SQLite
+state and artifacts still under review have separate preservation requirements.
+
+Keep one checkout-local Cargo target per task; do not copy or symlink Cargo
+outputs across checkout paths. Before cleaning an inactive checkout, verify that
+no preview, build or retained binary depends on its output. Keep small reports
+and representative screenshots; retire obsolete generated corpora, duplicate
+artifacts and experiments after preserving a reproduction recipe. A cleanup
+handoff records what was removed, what remains, its owner/removal condition, and
+the measured space recovered.
 
 The Rust web server embeds the built frontend in both debug and release binaries.
 Build the frontend before compiling a preview binary, then keep that binary and
@@ -335,7 +396,11 @@ Tracked git hooks live in `.githooks/` and enforce:
 - `pre-commit`: run path-sensitive fast checks for staged Rust and web UI changes; docs-only commits are allowed without code validation
 - `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
 - `pre-merge-commit`: run the same path-sensitive fast checks for non-docs merge commits
-- `pre-push`: run path-sensitive full checks for pushed Rust and web UI changes
+- `pre-push`: run path-sensitive full checks across all pushed refs. New branches
+  use known destination-remote ancestry to recognize documentation-only changes;
+  unknown paths or uncertain ancestry require both gates. Push distinct code tips
+  from their matching checkouts. The hook checks the committed tip against HEAD;
+  keep the working tree clean so validation also matches the pushed source.
 
 When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
 

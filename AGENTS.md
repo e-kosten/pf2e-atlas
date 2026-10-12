@@ -133,9 +133,21 @@ Implement each task in a dedicated linked worktree on a feature branch, normally
 
 Choose the base branch from the task context. For the source-modeling workstream, use `integration/source-modeling`; dependent PRs may target their preceding feature branch. Use `main` for independent work intended for the current mainline. Verify the base before editing, and do not mix unrelated workstreams.
 
-Keep the task worktree available while its PR or local build is under review. After merge or cancellation, remove it only when it contains no needed uncommitted work and is no longer serving a preview. These workflow rules take precedence over older skill defaults requiring separate commit permission, direct local landing, or immediate worktree cleanup.
+Keep the task worktree available while its PR or local build is under review. After merge or cancellation, remove it as part of task completion once needed uncommitted work is preserved and no active preview, agent, build, or symlink depends on it. At the start of the next task, inspect existing worktrees and finish outstanding cleanup. Retaining Git history does not require retaining a checkout or its build output.
+
+If a worktree must remain, record its path, purpose, owner, and removal condition in the task handoff. Preserve only the frozen binary, artifact, saved state, and small review evidence needed for a stable preview; a preview normally does not need its compiler cache. Check Git status and ignored files before removal. Never force-remove needed dirty work, user state, or another checkout's symlink target. Remove worktrees serially with `git worktree remove` and verify the resulting inventory.
+
+These workflow rules take precedence over older skill defaults requiring separate commit permission, direct local landing, or immediate worktree cleanup.
 
 Git commands that mutate repository state must never be run in parallel within the same repository or worktree. Serialize `git add`, `git commit`, `git rebase`, `git merge`, `git cherry-pick`, `git worktree`, and `git stash` operations.
+
+## Disk And Build Output
+
+Before creating a worktree or starting an expensive gate, check free space and the current task's compiler-cache size. Periodically inspect the worktree inventory rather than repeatedly scanning all archived evidence. Below 30 GiB free, reclaim this task's obsolete build output first; stop expanding caches if that cannot be done safely. A checkout target above 15 GiB is an investigation trigger, not permission to delete active files. Check growth during long builds rather than running the disk to exhaustion.
+
+Use checkout-local Cargo output; never share or symlink targets across worktrees because tests can embed checkout-specific paths. Reuse one target per task rather than creating outputs for each agent or validation retry. Ordinary dev/test builds use limited debug information and disable incremental compilation. Use the documented full-debug profile or incremental override only for a specific need, and clean the obsolete configuration afterwards. Keep hooks and manual checks on consistent settings.
+
+Compiler caches are disposable when their task ends; saved state, source/model assets, and builds still under review require explicit preservation. Preserve live dependency targets such as `node_modules` when another checkout links to them. Use focused checks during iteration and full gates at the required milestones; reuse successful evidence for an unchanged candidate. See CONTRIBUTING.md for debugging and retention details.
 
 ## Pull Requests And Human Review
 

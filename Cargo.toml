@@ -78,6 +78,16 @@ unicode-normalization = "0.1.24"
 cel = { version = "=0.14.5", default-features = false }
 ureq = "3.3.0"
 
+# Keep ordinary worktrees small while retaining useful source-level backtraces.
+# Tests inherit dev. Full variable/type debugging is an intentional opt-in.
+[profile.dev]
+debug = "limited"
+incremental = false
+
+[profile.debug-full]
+inherits = "dev"
+debug = "full"
+
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"
