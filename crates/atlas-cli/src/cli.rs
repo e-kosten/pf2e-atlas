@@ -112,6 +112,7 @@ impl Command {
             Self::Record(args) => match &args.command {
                 RecordCommand::Get(options) => options.json,
                 RecordCommand::Resolve(options) => options.json,
+                RecordCommand::Source(options) => options.json,
             },
             Self::Graph(args) => match &args.command {
                 GraphCommand::Links(options) => options.json,
@@ -161,6 +162,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         Command::Record(record) => match record.command {
             RecordCommand::Get(options) => commands::record::run_record_get(*options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
+            RecordCommand::Source(options) => commands::record::source::run_record_source(options),
         },
         Command::Graph(graph) => match graph.command {
             GraphCommand::Links(options) => commands::graph::run_graph_links(options),

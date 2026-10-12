@@ -19,7 +19,7 @@ Before creating a feature-local interaction pattern, check `src/shared/ui`.
 - Use `SearchPickerModal` for modal record-search selection flows.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.
-- Keep lower-level helpers such as `confirmDangerAction` for non-button callbacks where a shared button is not the right shape.
+- Keep lower-level helpers such as `useConfirmDangerAction` for non-button callbacks where a shared button is not the right shape.
 
 If a second surface needs a behavior, move it into `src/shared/ui` instead of copying the feature-local implementation. Feature modules should compose shared primitives with feature-specific requests, labels, mutations, and DTOs. Shared primitives should normally wrap or compose Ant components; do not create plain-button or plain-anchor replacements for generic Ant behavior unless there is a documented product-specific reason.
 
@@ -40,3 +40,9 @@ npm --prefix web/atlas-ui run verify
 ```
 
 For narrow refactors, also run focused tests for the touched surface before the full verify.
+
+Contextual feedback uses the root Ant `App` inside `ConfigProvider`. Destructive
+button and callback flows use `useConfirmDangerAction`; prepared source dialogs
+use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
+Ant internals through documented `classNames`, `styles` and component tokens;
+Atlas-owned classes describe product layout rather than internal Ant DOM.

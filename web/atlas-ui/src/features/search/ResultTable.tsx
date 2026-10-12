@@ -1,5 +1,10 @@
-import { Button, Table, Tag, Typography } from "antd";
-import { navigateToAtlasRoute } from "../../app/routes";
+import { Table, Tag, Typography } from "antd";
+import {
+  atlasRoutePath,
+  navigateToAtlasRoute,
+  recordPath,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
 import type { ColumnsType } from "antd/es/table";
 import type { ResultWindowRow } from "../../generated/atlas";
 import { handleResultKeyboard, useActiveResultScroll } from "./resultKeyboard";
@@ -10,10 +15,21 @@ const RESULT_COLUMNS: ColumnsType<ResultWindowRow> = [
     title: "Name",
     dataIndex: ["record", "title"],
     key: "title",
+    width: 260,
     render: (_value, row) => (
       <span className="result-title">
-        <Typography.Text strong>{row.record.title}</Typography.Text>
-        <Typography.Text type="secondary">{row.record.record_key}</Typography.Text>
+        <Typography.Link
+          strong
+          href={recordPath(row.record.record_key)}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            navigateToAtlasRoute({ kind: "record", recordKey: row.record.record_key });
+          }}
+        >
+          {row.record.title}
+        </Typography.Link>
       </span>
     ),
   },
@@ -22,19 +38,20 @@ const RESULT_COLUMNS: ColumnsType<ResultWindowRow> = [
     dataIndex: ["record", "kind_label"],
     key: "kind",
     render: (_value, row) => row.record.kind_label || row.record.kind,
-    width: 110,
+    width: 100,
   },
   {
     title: "Level",
     dataIndex: ["record", "level_label"],
     key: "level",
     render: (_value, row) => row.record.level_label ?? "",
-    width: 76,
+    width: 70,
   },
   {
     title: "Traits",
     dataIndex: ["record", "traits"],
     key: "traits",
+    width: 170,
     render: (_value, row) => <TraitTags row={row} />,
   },
   {
@@ -46,14 +63,22 @@ const RESULT_COLUMNS: ColumnsType<ResultWindowRow> = [
   {
     title: "Match",
     key: "match",
+    width: 220,
     render: (_value, row) => (
-      <div>
+      <div className="result-matches">
         {row.matches.map((match, i) => (
-          <Button
-            type="link"
+          <Typography.Link
+            className="result-match-link"
+            href={atlasRoutePath({
+              kind: "record",
+              recordKey: match.navigation.record_key,
+              selection: match.navigation,
+            })}
             key={i}
             onClick={(e) => {
               e.stopPropagation();
+              if (!shouldHandleAtlasRouteClick(e)) return;
+              e.preventDefault();
               navigateToAtlasRoute({
                 kind: "record",
                 recordKey: match.navigation.record_key,
@@ -62,7 +87,7 @@ const RESULT_COLUMNS: ColumnsType<ResultWindowRow> = [
             }}
           >
             {match.label || match.navigation.field || match.lane}
-          </Button>
+          </Typography.Link>
         ))}
       </div>
     ),
@@ -88,11 +113,16 @@ export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) 
           loading={workspace.resultsLoading}
           locale={{ emptyText: "No results" }}
           onRow={(row) => ({
+            "aria-selected": row.record.record_key === workspace.selectedRecordKey,
             "data-active-result":
               row.record.record_key === workspace.activeResultKey ? "true" : undefined,
-            onClick: () => workspace.selectRecord(row.record.record_key),
+            onClick: (event) => {
+              if (!(event.target as Element).closest("button,input,label,a"))
+                workspace.selectRecord(row.record.record_key);
+            },
             onFocus: () => workspace.focusResult(row.record.record_key),
             onKeyDown: (event) => {
+              if (event.target !== event.currentTarget) return;
               if (event.key === " ") {
                 event.preventDefault();
                 workspace.selectRecord(row.record.record_key);
@@ -101,16 +131,17 @@ export function ResultTable({ workspace }: { workspace: SearchWorkspaceState }) 
               handleResultKeyboard(event, workspace);
             },
             onMouseEnter: () => workspace.focusResult(row.record.record_key),
-            role: "button",
             tabIndex: 0,
           })}
           pagination={false}
           rowClassName={(row) =>
-            row.record.record_key === workspace.activeResultKey
-              ? "result-row ant-table-row-selected"
+            row.record.record_key === workspace.selectedRecordKey
+              ? "result-row result-row--selected"
               : "result-row"
           }
           rowKey={(row) => row.record.record_key}
+          tableLayout="fixed"
+          scroll={{ x: 1000 }}
           size="middle"
         />
       </div>
@@ -128,7 +159,9 @@ function TraitTags({ row }: { row: ResultWindowRow }) {
   return (
     <span className="result-traits">
       {visibleTraits.map((trait) => (
-        <Tag key={`${trait.kind}-${trait.value}`}>{trait.label}</Tag>
+        <Tag style={{ marginInlineEnd: 0 }} key={`${trait.kind}-${trait.value}`}>
+          {trait.label}
+        </Tag>
       ))}
       {hiddenCount > 0 && (
         <Typography.Text type="secondary">+{hiddenCount}</Typography.Text>

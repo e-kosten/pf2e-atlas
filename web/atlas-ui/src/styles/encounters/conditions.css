@@ -20,18 +20,10 @@
   min-width: min(420px, calc(100vw - 48px));
 }
 
-.encounter-add-condition__row .ant-form-item {
-  margin-bottom: 0;
-}
-
 .encounter-condition-details {
   display: grid;
   gap: 8px;
   min-width: min(320px, calc(100vw - 48px));
-}
-
-.encounter-condition-details .ant-form-item {
-  margin-bottom: 0;
 }
 
 .encounter-condition-note-input {
@@ -48,39 +40,32 @@
   align-items: center;
   border: 1px solid var(--line);
   border-radius: 6px;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  grid-template-columns: minmax(110px, 1fr) 72px auto auto auto auto;
   min-width: 0;
   padding: 8px;
 }
 
-.encounter-condition-row--no-value {
-  grid-template-columns: minmax(110px, 1fr) auto auto auto auto;
+.encounter-condition-row > * {
+  flex-shrink: 0;
+}
+
+.encounter-condition-row > input {
+  flex: 0 0 72px;
+  min-width: 0;
+  width: 72px;
 }
 
 .encounter-condition-row__name {
+  flex: 1 1 110px;
   font-weight: 600;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
-.encounter-condition-row__name-button {
-  background: transparent;
-  border: 0;
-  color: var(--ant-color-link);
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-
-.encounter-condition-row__name-button:hover {
-  text-decoration: underline;
-}
-
-.encounter-condition-row .ant-input-number {
+.encounter-condition-number {
   width: 72px;
 }
 
@@ -100,7 +85,12 @@
   padding-inline: 0;
 }
 
+.encounter-condition-row > .encounter-condition-chip,
+.encounter-condition-row > .encounter-condition-meta {
+  order: 1;
+}
+
 .encounter-conditions h3 {
-  font-size: 14px;
+  font-size: 16px;
   margin: 4px 0 0;
 }

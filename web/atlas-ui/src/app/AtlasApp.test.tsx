@@ -109,14 +109,16 @@ describe("AtlasApp routing", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("button", { name: /spell:heal/ });
+    const resultRow = (await screen.findByRole("link", { name: "heal" })).closest(
+      "tr",
+    )!;
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
     vi.clearAllMocks();
     fireEvent.click(screen.getByRole("link", { name: "Open full page" }));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/records/spell%3Aheal"));
+    await waitFor(() => expect(window.location.pathname).toBe("/records/spell:heal"));
     expect(window.location.search).toBe("");
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
@@ -129,7 +131,9 @@ describe("AtlasApp routing", () => {
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = await screen.findByRole("button", { name: /spell:heal/ });
+    const resultRow = (await screen.findByRole("link", { name: "heal" })).closest(
+      "tr",
+    )!;
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
@@ -214,7 +218,7 @@ function savedListIndexFixture() {
         name: "Research",
         description: "Campaign prep",
         tags: ["arc-one"],
-        item_count: 1n,
+        item_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
       },

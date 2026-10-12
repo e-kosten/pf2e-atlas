@@ -132,33 +132,9 @@ impl AtlasAppService {
     pub fn variant_group(
         &self,
         record_key: RecordKey,
-    ) -> AppServiceResult<Option<atlas_app_model::VariantGroupView>> {
-        self.submit_retrieval(move |r| {
-            Ok(r.variant_group(VariantGroupRequest {
-                record_key: &record_key,
-            })?
-            .map(|g| atlas_app_model::VariantGroupView {
-                seed: crate::projection::localized_summary_view(&g.seed, r),
-                base_name: g.base_name,
-                variants: g
-                    .variants
-                    .iter()
-                    .map(|s| crate::projection::localized_summary_view(s, r))
-                    .collect(),
-                evidence: g
-                    .evidence
-                    .into_iter()
-                    .map(|e| atlas_app_model::VariantEvidenceView {
-                        record_key: e.record.to_string(),
-                        naming_convention: e.naming_convention,
-                        qualifier: e.qualifier,
-                        compatibility: e.compatibility,
-                    })
-                    .collect(),
-                ambiguous: g.ambiguous,
-                truncated: g.truncated,
-            }))
-        })
+    ) -> AppServiceResult<atlas_app_model::RelatedCategoryView<atlas_app_model::VariantGroupView>>
+    {
+        self.submit_retrieval(move |r| variant_group_view(r, &record_key))
     }
     pub fn remaster_links(
         &self,
@@ -188,4 +164,46 @@ impl AtlasAppService {
             }))
         })
     }
+}
+
+pub(crate) fn variant_group_view(
+    r: &atlas_search::AtlasRetrievalService,
+    record_key: &RecordKey,
+) -> AppServiceResult<atlas_app_model::RelatedCategoryView<atlas_app_model::VariantGroupView>> {
+    use atlas_app_model::RelatedCategoryView;
+    Ok(match r.variant_group(VariantGroupRequest { record_key })? {
+        atlas_search::VariantGroupOutcome::Missing => {
+            return Err(AppServiceError::new(
+                AppErrorCode::RecordNotFound,
+                "variant seed not found",
+            ));
+        }
+        atlas_search::VariantGroupOutcome::Empty => RelatedCategoryView::Empty,
+        atlas_search::VariantGroupOutcome::Unavailable { reason } => {
+            RelatedCategoryView::Unavailable { reason }
+        }
+        atlas_search::VariantGroupOutcome::Content(g) => RelatedCategoryView::Content {
+            content: atlas_app_model::VariantGroupView {
+                seed: crate::projection::localized_summary_view(&g.seed, r),
+                base_name: g.base_name,
+                variants: g
+                    .variants
+                    .iter()
+                    .map(|s| crate::projection::localized_summary_view(s, r))
+                    .collect(),
+                evidence: g
+                    .evidence
+                    .into_iter()
+                    .map(|e| atlas_app_model::VariantEvidenceView {
+                        record_key: e.record.to_string(),
+                        naming_convention: e.naming_convention,
+                        qualifier: e.qualifier,
+                        compatibility: e.compatibility,
+                    })
+                    .collect(),
+                ambiguous: g.ambiguous,
+                truncated: g.truncated,
+            },
+        },
+    })
 }

@@ -68,3 +68,27 @@ pub struct GraphContextViewRequest {
     pub outgoing_limit: usize,
     pub backlink_limit: usize,
 }
+
+/// Loading belongs to the client request lifecycle; errors and unavailable evidence are not empty.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RelatedCategoryView<T> {
+    Content { content: T },
+    Empty,
+    Unavailable { reason: String },
+    Error { error: crate::AppError },
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelatedRecordsRequest {
+    pub selection: crate::RecordNavigationView,
+    pub artifact_generation: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelatedRecordsView {
+    pub selection: crate::RecordNavigationView,
+    pub artifact_generation: String,
+    pub seed: RecordSummaryView,
+    pub references: RelatedCategoryView<GraphContextView>,
+    pub counterparts: RelatedCategoryView<RemasterLinksView>,
+    pub variants: RelatedCategoryView<VariantGroupView>,
+}

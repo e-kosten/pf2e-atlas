@@ -33,6 +33,33 @@ normalized names and verified aliases, preserving their evidence. Ambiguous
 resolution requires choosing the intended record; use its returned key in later
 commands. Name similarity and Suggested variants do not establish identity.
 
+Record JSON keeps the root summary in `record` and the exact selected address in
+`selected`. `presentation.identity` describes the selected child when an owner
+chain is supplied; `presentation.body` contains semantic creature, hazard, spell,
+activity, physical, table, or content facts. Read each fact's availability before using its
+value. Spell heightening and forms describe authored changes; Atlas does not
+calculate a selected rank or execute a form. Embedded spells retain their local
+casting context and customizations.
+Form and fixed-heightening changes are sparse authored overrides of the base;
+an omitted member is not an unavailable full form. Explicit null clears remain
+distinct from omitted members. Read casting-entry attack/DC and Lore modifiers
+from their typed activity facts rather than reconstructing them from prose.
+
+For a compact root heading, use `atlas record get PACK:ID --detail summary`.
+This terminal path reads body-free summaries. Selected-child summaries identify
+the child from its parent snapshot. `--json` returns the complete selected Atlas
+reference response and conflicts with explicit `--detail`. The default `--detail standard`
+reads the main reference with inline actor abilities and compact spell rosters.
+Use `--detail full` to also read supported embedded documents, such as spells,
+journal pages and roll-table results. It expands ownership, not graph links.
+An explicit `--field` or `--passage` keeps human output focused on that selection
+at every human detail level. To inspect source information outside Atlas's
+presentation, use `atlas record source PACK:ID --json`. It exports the root's
+complete checked Foundry DTO and embedded documents, with codec identity and
+source path/hash. Presence tags and retained invalid/additional members are part
+of that checked representation; it is not original Foundry JSON. It works without
+the source clone and does not execute rules or macros.
+
 Search broadly, then inspect the returned record and matching passage:
 
 ```sh
@@ -70,6 +97,8 @@ Discover filters before constructing a more specific expression:
 
 ```sh
 atlas filters fields --json
+atlas filters fields --text 'maximum hp' --json
+atlas filters fields --field actor.hp.maximum --json
 atlas filters values --field traits --kind spell --json
 atlas filters values --field actor.hp.maximum --kind creature --json
 atlas search --where 'actor.saves.fortitude >= 12' --print-filter --json
@@ -83,6 +112,10 @@ CEL syntax or fields fail explicitly. The retired metric/reference/filter-JSON
 flags are not available; do not fabricate an alternative expression language.
 Unknown, missing, null, invalid and not-applicable values are distinct. Only a true
 predicate admits a record; do not assume missing stats have a numeric value.
+The human catalog is a compact index; `--field` expands one descriptor. JSON
+always retains complete descriptor metadata, with optional field/text narrowing.
+Numeric and collection discovery return statistics/availability with `values: null`;
+categorical and Boolean fields return paged values plus availability counts.
 
 Use graph commands for actual structural context:
 

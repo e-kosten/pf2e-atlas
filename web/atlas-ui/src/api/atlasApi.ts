@@ -24,6 +24,8 @@ import type {
   ReadResultWindowPageRequest,
   RecordDetailView,
   RecordDetailRequest,
+  OwnedReadingRequest,
+  OwnedReadingBatchView,
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
   SavedListCreateView,
@@ -79,8 +81,10 @@ export async function discoverFilterValues(
 
 export async function openResultWindow(
   request: OpenResultWindowRequest,
+  signal?: AbortSignal,
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>("/api/result-windows", {
+    signal,
     method: "POST",
     body: jsonBody(request),
   });
@@ -90,10 +94,12 @@ export async function openResultWindow(
 export async function readResultWindowPage(
   windowId: bigint,
   request: ReadResultWindowPageRequest,
+  signal?: AbortSignal,
 ): Promise<ResultWindowPage> {
   const page = await atlasFetch<unknown>(
     `/api/result-windows/${windowId.toString()}/page`,
     {
+      signal,
       method: "POST",
       body: jsonBody(request),
     },
@@ -108,6 +114,31 @@ export async function getRecordDetail(
   return selection
     ? atlasFetch("/api/records/detail", { method: "POST", body: jsonBody(selection) })
     : atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
+}
+export async function getOwnedReading(
+  request: OwnedReadingRequest,
+  signal?: AbortSignal,
+): Promise<OwnedReadingBatchView> {
+  return atlasFetch("/api/records/owned-reading", {
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
+}
+export async function getEncounterReference(
+  encounterRef: string,
+  participantKey: string,
+  request: import("../generated/atlas").EncounterReferenceRequest,
+  signal?: AbortSignal,
+): Promise<RecordDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reference`,
+    {
+      signal,
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {
@@ -266,21 +297,20 @@ export async function getSavedLists(): Promise<SavedListIndexView> {
 }
 
 export async function getSavedList(listRef: string): Promise<SavedListDetailView> {
-  const list = await atlasFetch<unknown>(`/api/lists/${encodeURIComponent(listRef)}`);
-  return normalizeSavedListDetail(list);
+  return checkedSavedListDetail(
+    await atlasFetch(`/api/lists/${encodeURIComponent(listRef)}`),
+  );
 }
 
 export async function filterSavedList(
   request: FilterSavedListRequest,
 ): Promise<SavedListDetailView> {
-  const list = await atlasFetch<unknown>(
-    `/api/lists/${encodeURIComponent(request.list_ref)}/filter`,
-    {
+  return checkedSavedListDetail(
+    await atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/filter`, {
       method: "POST",
       body: jsonBody(request),
-    },
+    }),
   );
-  return normalizeSavedListDetail(list);
 }
 
 export async function createSavedList(
@@ -353,7 +383,22 @@ async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     );
   }
 
+  validateResponseNumbers(payload);
   return payload as T;
+}
+
+function validateResponseNumbers(value: unknown): void {
+  if (
+    typeof value === "number" &&
+    (!Number.isFinite(value) ||
+      (Number.isInteger(value) && !Number.isSafeInteger(value)))
+  )
+    throw new AtlasApiError(
+      200,
+      "Invalid numeric field: response exceeds JSON safe numeric range",
+    );
+  if (Array.isArray(value)) value.forEach(validateResponseNumbers);
+  else if (isRecord(value)) Object.values(value).forEach(validateResponseNumbers);
 }
 
 async function atlasFetchEncounter<T>(
@@ -479,34 +524,37 @@ function normalizeResultWindowPage(value: unknown): ResultWindowPage {
 }
 
 function normalizeFilterValueList(value: unknown): FilterValueListView {
-  if (!isRecord(value) || !isRecord(value.values))
-    throw new AtlasApiError(200, "Invalid filter-value response");
-  const values = value.values;
-  return {
-    values: {
-      ...values,
-      total_values: toBigInt(values.total_values),
-      options: Array.isArray(values.options)
-        ? values.options.map((o) =>
-            isRecord(o) ? { ...o, distinct_roots: toBigInt(o.distinct_roots) } : o,
-          )
-        : [],
-    },
-  } as FilterValueListView;
-}
-
-function normalizeSavedListDetail(value: unknown): SavedListDetailView {
-  if (!isRecord(value)) {
-    throw new AtlasApiError(200, "Invalid saved-list response");
+  if (!isRecord(value)) throw new AtlasApiError(200, "Invalid filter-value response");
+  if (value.kind === "vocabulary" && isRecord(value.values)) {
+    return {
+      ...value,
+      values: { ...value.values, total_values: toBigInt(value.values.total_values) },
+    } as FilterValueListView;
   }
-  return {
-    ...value,
-    items: Array.isArray(value.items)
-      ? value.items.map((item) =>
-          isRecord(item) ? { ...item, position: toBigInt(item.position) } : item,
-        )
-      : [],
-  } as SavedListDetailView;
+  if (value.kind === "contextual" && isRecord(value.outcome)) {
+    if (value.outcome.status === "unavailable") return value as FilterValueListView;
+    if (value.outcome.status === "available" && isRecord(value.outcome.value)) {
+      const values = value.outcome.value;
+      return {
+        ...value,
+        outcome: {
+          ...value.outcome,
+          value: {
+            ...values,
+            total_values: toBigInt(values.total_values),
+            options: Array.isArray(values.options)
+              ? values.options.map((option) =>
+                  isRecord(option)
+                    ? { ...option, distinct_roots: toBigInt(option.distinct_roots) }
+                    : option,
+                )
+              : [],
+          },
+        },
+      } as FilterValueListView;
+    }
+  }
+  throw new AtlasApiError(200, "Invalid filter-value response");
 }
 
 function toBigInt(value: unknown): bigint {
@@ -522,6 +570,12 @@ function toBigInt(value: unknown): bigint {
   throw new AtlasApiError(200, "Invalid numeric field in API response");
 }
 
+function checkedSavedListDetail(value: unknown): SavedListDetailView {
+  if (!isRecord(value) || !Array.isArray(value.items))
+    throw new AtlasApiError(200, "Invalid saved-list response");
+  return value as SavedListDetailView;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -532,36 +586,10 @@ function isAppError(value: unknown): value is AppError {
   );
 }
 
-export async function getRecordGraph(
-  record_key: string,
-  owners: import("../generated/atlas").OwnedContentLocator[] = [],
-  source_fingerprint: string | null = null,
-): Promise<import("../generated/atlas").GraphContextView | null> {
-  return atlasFetch("/api/graph", {
-    method: "POST",
-    body: jsonBody({
-      record_key,
-      owners: owners.length ? owners : null,
-      source_fingerprint,
-      outgoing_limit: 100,
-      backlink_limit: 100,
-    }),
-  });
-}
-export async function getRecordRemaster(
-  key: string,
-): Promise<import("../generated/atlas").RemasterLinksView | null> {
-  return atlasFetch("/api/records/" + encodeURIComponent(key) + "/remaster");
-}
-export async function getRecordVariants(
-  key: string,
-): Promise<import("../generated/atlas").VariantGroupView | null> {
-  return atlasFetch("/api/records/" + encodeURIComponent(key) + "/variants");
-}
-export async function getSimilarRecords(
-  key: string,
-): Promise<import("../generated/atlas").SimilarRecordsView | null> {
-  return atlasFetch("/api/records/" + encodeURIComponent(key) + "/similar");
+export async function getRelatedRecords(
+  request: import("../generated/atlas").RelatedRecordsRequest,
+): Promise<import("../generated/atlas").RelatedRecordsView> {
+  return atlasFetch("/api/related", { method: "POST", body: jsonBody(request) });
 }
 export async function discoverFilterCounts(
   request: import("../generated/atlas").DiscoverFilterCountsRequest,
@@ -570,15 +598,19 @@ export async function discoverFilterCounts(
     "/api/filters/counts",
     { method: "POST", body: jsonBody(request) },
   );
+  if (result.counts.status === "unavailable") return result;
   return {
     ...result,
     counts: {
       ...result.counts,
-      states: result.counts.states.map((s) => ({
-        ...s,
-        occurrences: toBigInt(s.occurrences),
-        distinct_roots: toBigInt(s.distinct_roots),
-      })),
+      value: {
+        ...result.counts.value,
+        states: result.counts.value.states.map((s) => ({
+          ...s,
+          occurrences: toBigInt(s.occurrences),
+          distinct_roots: toBigInt(s.distinct_roots),
+        })),
+      },
     },
   };
 }

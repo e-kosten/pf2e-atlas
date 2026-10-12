@@ -9,6 +9,7 @@ mod source_model;
 pub use document::{FoundryDocumentSource, admit_document_source};
 pub use snapshot::{
     SNAPSHOT_VERSION, SOURCE_CONTRACT_ID, SnapshotError, decode_snapshot, encode_snapshot,
+    snapshot_json_value,
 };
 pub use source_model::value::parse_source as parse_source_value;
 pub use source_model::{

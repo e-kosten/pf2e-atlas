@@ -44,6 +44,29 @@ fn prepare(markup: &str) -> PreparedSourceContent {
 }
 
 #[test]
+fn unavailable_reference_labels_preserve_authored_names_and_diagnostic_identity() {
+    let target = "Compendium.pf2e.bestiary-family-ability-glossary.Item.(Harrowkin) Harrowkin Suit";
+    let named = prepare(&format!("@UUID[{target}]"));
+    assert!(named.html.contains(">(Harrowkin) Harrowkin Suit</span>"));
+    assert!(!named.html.contains(">Compendium."));
+    assert_eq!(named.references[0].authored_target, target);
+    assert_eq!(
+        named.references[0].resolution,
+        ContentReferenceResolution::Unresolved
+    );
+    let opaque = prepare("@UUID[Compendium.pf2e.spells-srd.Item.abcdefghijklmnop]");
+    assert!(opaque.html.contains(">Reference unavailable</span>"));
+    let explicit = prepare("@UUID[missing]{Authored label}");
+    assert!(explicit.html.contains(">Authored label</span>"));
+    let single = prepare("@UUID[Compendium.pf2e.conditionitems.Item.Invisible]");
+    assert!(single.html.contains(">Invisible</span>"));
+    assert_eq!(
+        single.references[0].resolution,
+        ContentReferenceResolution::Unresolved
+    );
+}
+
+#[test]
 fn reference_bindings_check_all_visible_facts_without_inventing_hidden_markers() {
     let content=prepare_source_content(locator(),"<p data-visibility='gm'>@UUID[secret]</p><p>@UUID[public]{Public} <a href='javascript:alert(1)'>Blocked</a> <a href='https://example.com'>External</a></p>",ContentAudience {include_gm:false,include_owner:false,implicit_check_dc:ContentVisibilityRule::None},ContentVisibilityRule::All,None,None).unwrap();
     assert!(!content.references[0].visible);
@@ -571,6 +594,40 @@ fn unusual_glyph_contents_do_not_drop_nested_reference_or_interaction_markers() 
     assert!(content.html.contains("data-atlas-reference=\"0\""));
     assert!(content.html.contains("data-atlas-reference=\"1\""));
     assert!(content.html.contains("data-atlas-interaction=\"0\""));
+}
+
+#[test]
+fn prepared_action_glyphs_keep_readable_words_and_cannot_be_spoofed() {
+    let content = prepare(
+        "<pf2-action glyph='1'></pf2-action> <span class='action-glyph'>2</span> <span class='pf2-icon'>3</span> <span class='pf2-icon'>R</span> <span class='pf2-icon'>F</span> <span data-atlas-action-glyph='reaction'>spoof</span>",
+    );
+    assert_eq!(
+        content.interpretation_version,
+        CONTENT_INTERPRETATION_VERSION
+    );
+    assert_eq!(
+        content.text,
+        "one action two actions three actions reaction free action spoof"
+    );
+    for glyph in [
+        "one_action",
+        "two_actions",
+        "three_actions",
+        "reaction",
+        "free_action",
+    ] {
+        assert!(
+            content
+                .html
+                .contains(&format!("data-atlas-action-glyph=\"{glyph}\""))
+        );
+    }
+    assert_eq!(content.html.matches("data-atlas-action-glyph=").count(), 5);
+    assert!(content.html.ends_with("<span>spoof</span>"));
+    let variable =
+        prepare("<pf2-action glyph='1/2'></pf2-action> <span class='pf2-icon'>3,3</span>");
+    assert_eq!(variable.text, "one or two actions two rounds");
+    assert!(!variable.html.contains("data-atlas-action-glyph"));
 }
 
 #[test]

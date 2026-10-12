@@ -3,9 +3,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { RecordDetailView } from "../../generated/atlas";
+import { ConfigProvider, Grid } from "antd";
+import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 import { ReaderView, RecordView } from "./RecordViews";
-import { ATLAS_ROUTE_CHANGE_EVENT, currentAtlasRoute } from "../../app/routes";
+import {
+  ATLAS_ROUTE_CHANGE_EVENT,
+  atlasRoutePath,
+  currentAtlasRoute,
+} from "../../app/routes";
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -20,6 +25,7 @@ vi.mock("../../api/atlasApi", () => ({
 }));
 
 describe("record route views", () => {
+  afterEach(() => vi.restoreAllMocks());
   beforeEach(() => {
     vi.clearAllMocks();
     history.replaceState(null, "", "/");
@@ -44,7 +50,11 @@ describe("record route views", () => {
     });
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    expect(screen.getByText("spell:heal")).toBeInTheDocument();
+    expect(screen.queryByText("spell:heal")).toBeNull();
+    expect(screen.getByRole("link", { name: "Reader view" })).toHaveAttribute(
+      "href",
+      "/reader/spell:heal",
+    );
     expect(screen.getByText("Reader view")).toBeInTheDocument();
   });
 
@@ -63,6 +73,33 @@ describe("record route views", () => {
     });
   });
 
+  it("previews a standalone reference without leaving its parent, with a native full-page link", async () => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
+    history.replaceState(null, "", "/records/spell:heal");
+    render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const trigger = await screen.findByRole("button", { name: "Linked Record" });
+    fireEvent.click(trigger);
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "linked" })).toBeVisible(),
+    );
+    expect(screen.getByRole("heading", { name: "heal" })).toBeVisible();
+    expect(window.location.pathname).toBe("/records/spell:heal");
+    expect(
+      screen.getByRole("link", { name: "Open reference full page" }),
+    ).toHaveAttribute(
+      "href",
+      atlasRoutePath({
+        kind: "record",
+        recordKey: "spell:linked",
+        selection: recordDetailFixture("spell:linked").selected,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
   it("opens linked references in reader preview without replacing the primary record", async () => {
     history.replaceState(null, "", "/reader/spell%3Aheal");
     render(<ReaderHarness />, { wrapper: queryClientWrapper() });
@@ -70,8 +107,13 @@ describe("record route views", () => {
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Linked Record" }));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell%3Aheal"));
-    expect(window.location.search).toBe("?preview=spell%3Alinked");
+    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:heal"));
+    expect(currentAtlasRoute()).toMatchObject({
+      kind: "reader",
+      recordKey: "spell:heal",
+      previewRecordKey: "spell:linked",
+      previewSelection: { record_key: "spell:linked" },
+    });
     expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
   });
@@ -83,9 +125,7 @@ describe("record route views", () => {
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Open preview as reader" }));
 
-    await waitFor(() =>
-      expect(window.location.pathname).toBe("/reader/spell%3Alinked"),
-    );
+    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:linked"));
     expect(window.location.search).toBe("");
   });
 
@@ -124,11 +164,86 @@ describe("record route views", () => {
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell%3Aheal"));
+    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:heal"));
     expect(window.location.search).toBe("");
     expect(
       screen.getByText("Select a linked record to preview it."),
     ).toBeInTheDocument();
+  });
+
+  it("preserves owned field and passage identity through preview follow, close, promotion and history", async () => {
+    const selected = (record_key: string, ordinal: number): RecordNavigationView => ({
+      record_key,
+      owners: [
+        { collection: "items", identity: { SnapshotLocal: { index: ordinal } } },
+      ],
+      field: "system.description.value",
+      passage: {
+        kind: "plain_section",
+        source_text_sha256: "text",
+        selection_version: "v1",
+        section_ordinal: 2,
+        label: "Passage",
+        chunk_bytes: { start: 0, end: 8 },
+      },
+      source_fingerprint: "snapshot",
+    });
+    const primary = selected("actors:primary", 0);
+    const first = selected("actors:first", 1);
+    const second = selected("actors:second", 2);
+    apiMocks.getRecordDetail.mockImplementation((recordKey: string) => {
+      const result = recordDetailFixture(recordKey);
+      result.relationships[0].target =
+        recordKey === primary.record_key ? first : second;
+      return Promise.resolve(result);
+    });
+    history.replaceState(
+      null,
+      "",
+      atlasRoutePath({
+        kind: "reader",
+        recordKey: primary.record_key,
+        previewRecordKey: null,
+        selection: primary,
+      }),
+    );
+    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Linked Record" }));
+    await screen.findByRole("heading", { name: "first" });
+    expect(currentAtlasRoute()).toMatchObject({
+      selection: primary,
+      previewSelection: first,
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Linked Record" })[1]);
+    await screen.findByRole("heading", { name: "second" });
+    const followedPath = window.location.pathname + window.location.search;
+    expect(currentAtlasRoute()).toMatchObject({
+      selection: primary,
+      previewSelection: second,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
+    expect(currentAtlasRoute()).toMatchObject({
+      selection: primary,
+      previewRecordKey: null,
+    });
+    // The browser restores the complete saved URL for Back/Forward.
+    history.replaceState(null, "", followedPath);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await screen.findByRole("heading", { name: "second" });
+    expect(currentAtlasRoute()).toMatchObject({
+      selection: primary,
+      previewSelection: second,
+    });
+    fireEvent.click(screen.getByRole("link", { name: "Open preview as reader" }));
+    expect(currentAtlasRoute()).toMatchObject({
+      recordKey: second.record_key,
+      selection: second,
+      previewRecordKey: null,
+    });
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(second.record_key, {
+      ...second,
+      fields: [second.field],
+    });
   });
 });
 
@@ -138,7 +253,11 @@ function ReaderHarness() {
   useEffect(() => {
     const onRouteChange = () => setRoute(currentAtlasRoute());
     window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
-    return () => window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
+    window.addEventListener("popstate", onRouteChange);
+    return () => {
+      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
+      window.removeEventListener("popstate", onRouteChange);
+    };
   }, []);
 
   return route.kind === "reader" ? <ReaderView route={route} /> : null;
@@ -165,7 +284,11 @@ function queryClientWrapper() {
     },
   });
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+      </QueryClientProvider>
+    );
   };
 }
 
@@ -178,7 +301,7 @@ function savedListIndexFixture() {
         name: "Research",
         description: "Campaign prep",
         tags: ["arc-one"],
-        item_count: 1n,
+        item_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
       },
@@ -188,11 +311,8 @@ function savedListIndexFixture() {
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
   const result = detailFixture(recordKey, undefined, "spell:linked");
-  if (result.surface.sections[0].content?.body.kind === "html")
-    result.surface.sections[0].content.body.html =
-      result.surface.sections[0].content.body.html.replace(
-        "Nested Rule",
-        "Linked Record",
-      );
+  if (result.presentation.content[0]?.body.kind === "html")
+    result.presentation.content[0].body.html =
+      result.presentation.content[0].body.html.replace("Nested Rule", "Linked Record");
   return result;
 }

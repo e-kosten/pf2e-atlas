@@ -98,6 +98,7 @@ export function WorkspaceLayout({
             column: paneColumn("filter", effectiveCollapsed, widths, sizing),
             content: (
               <WorkspacePane
+                pane="filter"
                 collapsed={effectiveCollapsed.filter}
                 headerActions={filterHeaderActions}
                 label={paneLabels.filter}
@@ -123,6 +124,7 @@ export function WorkspaceLayout({
               : twoPaneResultsColumn(effectiveCollapsed),
             content: (
               <WorkspacePane
+                pane="results"
                 collapsed={effectiveCollapsed.results}
                 headerActions={resultsHeaderActions}
                 label={paneLabels.results}
@@ -149,6 +151,7 @@ export function WorkspaceLayout({
               column: paneColumn("detail", effectiveCollapsed, widths, sizing),
               content: (
                 <WorkspacePane
+                  pane="detail"
                   collapsed={effectiveCollapsed.detail}
                   headerActions={detailHeaderActions}
                   label={paneLabels.detail}
@@ -201,12 +204,14 @@ function twoPaneResultsColumn(collapsed: Record<PaneKey, boolean>): string {
 }
 
 function WorkspacePane({
+  pane,
   children,
   collapsed,
   headerActions,
   label,
   onToggle,
 }: {
+  pane: PaneKey;
   children: React.ReactNode;
   collapsed: boolean;
   headerActions?: React.ReactNode;
@@ -215,9 +220,7 @@ function WorkspacePane({
 }) {
   return (
     <PaneFrame
-      className={
-        collapsed ? "workspace-pane workspace-pane--collapsed" : "workspace-pane"
-      }
+      className={`workspace-pane workspace-pane--${pane}${collapsed ? " workspace-pane--collapsed" : ""}`}
       headerActions={
         <>
           {!collapsed && headerActions}

@@ -3,6 +3,22 @@ use super::{ItemSourceView, SourceFieldView};
 use atlas_foundry_model::{SourcePresence, generated::*};
 use serde_json::Number;
 
+/// Exact upstream spell glyph classes; never guess a duration from prose.
+pub fn spell_casting_form(value: &str) -> &'static str {
+    match value.trim().to_lowercase().as_str() {
+        "0" | "free" => "free",
+        "reaction" => "reaction",
+        "1" => "one_action",
+        "2" => "two_actions",
+        "3" => "three_actions",
+        "1 or 2" => "one_or_two",
+        "1 to 3" => "one_to_three",
+        "2 or 3" => "two_or_three",
+        "2 rounds" => "two_rounds",
+        _ => "other",
+    }
+}
+
 macro_rules! family_field {
     ($name:ident, $ty:ty, [$($family:ident),+], [$($excluded:ident),+], $source:ident, $body:expr) => {
         pub fn $name(self) -> SourceFieldView<'a, $ty> {
@@ -531,19 +547,7 @@ impl<'a> ItemSourceView<'a> {
     }
     /// Exact glyph-map classes; timed/free text is retained separately.
     pub fn spell_casting_form(self) -> SourceFieldView<'a, &'static str> {
-        self.spell_casting_time()
-            .map(|s| match s.trim().to_lowercase().as_str() {
-                "0" | "free" => "free",
-                "reaction" => "reaction",
-                "1" => "one_action",
-                "2" => "two_actions",
-                "3" => "three_actions",
-                "1 or 2" => "one_or_two",
-                "1 to 3" => "one_to_three",
-                "2 or 3" => "two_or_three",
-                "2 rounds" => "two_rounds",
-                _ => "other",
-            })
+        self.spell_casting_time().map(spell_casting_form)
     }
     pub fn spell_area_size(self) -> SourceFieldView<'a, &'a Number> {
         match self {

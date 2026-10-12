@@ -2,4 +2,4 @@
 import type { ContentControlView } from "./ContentControlView";
 import type { QueryFieldState } from "./QueryFieldState";
 
-export type PreparedFieldBodyView = { "kind": "html", html: string, controls: Array<ContentControlView>, } | { "kind": "plain", text: string, } | { "kind": "unavailable", state: QueryFieldState, };
+export type PreparedFieldBodyView = { "kind": "html", html: string, controls: Array<ContentControlView>, } | { "kind": "plain", text: string, } | { "kind": "unavailable", state: QueryFieldState, } | { "kind": "bounded", reason: string, };

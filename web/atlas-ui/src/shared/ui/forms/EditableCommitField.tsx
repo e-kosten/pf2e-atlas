@@ -1,6 +1,6 @@
 import { Input } from "antd";
 import type { InputProps } from "antd";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export function EditableCommitField({
   ariaLabel,
@@ -28,10 +28,18 @@ export function EditableCommitField({
   const draft = draftState.committedValue === value ? draftState.draft : value;
   const setDraft = (nextDraft: string) =>
     setDraftState({ committedValue: value, draft: nextDraft });
+  const editFinished = useRef(false);
 
-  const commit = () => {
-    if (draft !== value) {
+  const finishEdit = (commit: boolean) => {
+    if (editFinished.current) {
+      return;
+    }
+    editFinished.current = true;
+    if (commit && draft !== value) {
       onCommit(draft);
+    }
+    if (!commit) {
+      setDraft(value);
     }
   };
 
@@ -40,21 +48,27 @@ export function EditableCommitField({
       aria-label={ariaLabel}
       className={className}
       inputMode={inputMode}
-      onBlur={commit}
-      onChange={(event) => setDraft(event.currentTarget.value)}
+      onBlur={() => finishEdit(true)}
+      onChange={(event) => {
+        editFinished.current = false;
+        setDraft(event.currentTarget.value);
+      }}
       onClick={stopPropagation ? (event) => event.stopPropagation() : undefined}
+      onFocus={() => {
+        editFinished.current = false;
+      }}
       onKeyDown={(event) => {
         if (stopPropagation) {
           event.stopPropagation();
         }
         if (event.key === "Enter") {
           event.preventDefault();
-          commit();
+          finishEdit(true);
           event.currentTarget.blur();
         }
         if (event.key === "Escape") {
           event.preventDefault();
-          setDraftState({ committedValue: value, draft: value });
+          finishEdit(false);
           event.currentTarget.blur();
         }
       }}

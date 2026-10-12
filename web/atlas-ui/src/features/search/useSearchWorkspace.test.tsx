@@ -3,13 +3,13 @@ import {
   editorFixture,
   fieldFixture,
   valuesFixture,
+  detailFixture,
 } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   FilterEditorView,
-  FilterValueListView,
   OpenResultWindowRequest,
   ResultWindowPage,
 } from "../../generated/atlas";
@@ -17,20 +17,25 @@ import {
   DEFAULT_SEARCH_STATE,
   searchStateQueryString,
 } from "../../shared/filters/searchState";
+import { KIND_PREFERENCE_KEY } from "./workspaceState";
+import { AtlasApiError } from "../../api/atlasApi";
 import { useSearchWorkspace } from "./useSearchWorkspace";
 
 const apiMocks = vi.hoisted(() => ({
   discoverFilterEditor: vi.fn(),
   discoverFilterValues: vi.fn(),
+  discoverFilterCounts: vi.fn(),
   getRecordDetail: vi.fn(),
   getReadiness: vi.fn(),
   openResultWindow: vi.fn(),
   readResultWindowPage: vi.fn(),
 }));
 
-vi.mock("../../api/atlasApi", () => ({
+vi.mock("../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../api/atlasApi")>()),
   discoverFilterEditor: apiMocks.discoverFilterEditor,
   discoverFilterValues: apiMocks.discoverFilterValues,
+  discoverFilterCounts: apiMocks.discoverFilterCounts,
   getReadiness: apiMocks.getReadiness,
   getRecordDetail: apiMocks.getRecordDetail,
   openResultWindow: apiMocks.openResultWindow,
@@ -40,15 +45,144 @@ vi.mock("../../api/atlasApi", () => ({
 describe("useSearchWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     apiMocks.getReadiness.mockResolvedValue({
       status: "ready",
       message: "Ready",
     });
     apiMocks.discoverFilterEditor.mockResolvedValue({ ...editorFixture(), groups: [] });
     apiMocks.discoverFilterValues.mockResolvedValue(valuesFixture("record.kind"));
+    apiMocks.discoverFilterCounts.mockResolvedValue({
+      counts: { status: "unavailable", reason: "non_conjunctive_context" },
+    });
     apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
     apiMocks.readResultWindowPage.mockResolvedValue(resultWindowPage());
     history.replaceState(null, "", "/");
+  });
+
+  it("restores similarity URLs, disables contextual counts, recovers expired pages, and replaces or clears the criterion", async () => {
+    localStorage.setItem(
+      KIND_PREFERENCE_KEY,
+      JSON.stringify({ include: ["creature"], exclude: [] }),
+    );
+    const filter = { kind: "in" as const, field: "record.kind", values: ["spell"] };
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: "items:seed",
+      mode: "similar_records" as const,
+      filter,
+    };
+    const similarUrl = "/search" + searchStateQueryString(state);
+    history.replaceState(null, "", similarUrl);
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    apiMocks.openResultWindow.mockImplementation((request: OpenResultWindowRequest) =>
+      Promise.resolve({
+        ...resultWindowPage(),
+        page: { ...resultWindowPage().page, number: request.page.number },
+        mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
+      }),
+    );
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(result.current.resultPage).toBeDefined());
+    expect(result.current.search.filter).toEqual(filter);
+    expect(apiMocks.openResultWindow.mock.calls[0][0].mode).toEqual({
+      kind: "similar_records",
+      seed_record_key: "items:seed",
+      filter,
+    });
+    expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
+    expect(result.current.filterEditor).toBeDefined();
+    apiMocks.readResultWindowPage.mockRejectedValueOnce(
+      new AtlasApiError(410, "expired", { code: "window_expired", message: "expired" }),
+    );
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
+    expect(apiMocks.openResultWindow.mock.calls[1][0]).toEqual({
+      mode: { kind: "similar_records", seed_record_key: "items:seed", filter },
+      page: { number: 2, size: 25 },
+    });
+    act(() => result.current.setSearch({ ...result.current.search, query: "dragon" }));
+    expect(result.current.search.similarSeed).toBeNull();
+    expect(window.location.search).not.toContain("similar=");
+    // Back/Forward use the same popstate restoration owner as real browser history.
+    act(() => {
+      history.replaceState(null, "", similarUrl);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(result.current.search.similarSeed).toBe("items:seed");
+    expect(result.current.pageNumber).toBe(1);
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        similarSeed: null,
+        mode: "browse",
+      }),
+    );
+    expect(result.current.search.filter).toEqual(filter);
+    expect(result.current.search.query).toBe("");
+  });
+
+  it("does not replace the current window handle when an abandoned seed finishes late", async () => {
+    history.replaceState(null, "", "/search?similar=items:first");
+    let finishFirst!: (page: ResultWindowPage) => void;
+    apiMocks.openResultWindow.mockImplementationOnce(
+      () =>
+        new Promise<ResultWindowPage>((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage([], { windowId: 9n }));
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        similarSeed: "items:second",
+      }),
+    );
+    await waitFor(() => expect(result.current.diagnostics.activeWindowId).toBe("9"));
+    await act(async () => finishFirst(resultWindowPage([], { windowId: 3n })));
+    expect(result.current.diagnostics.activeWindowId).toBe("9");
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() =>
+      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(
+        9n,
+        expect.any(Object),
+        expect.any(AbortSignal),
+      ),
+    );
+  });
+
+  it("keeps remembered Kind while editing an authoritative text URL, then clears it on a Kind edit", async () => {
+    const preference = { include: ["creature"], exclude: [] };
+    localStorage.setItem(KIND_PREFERENCE_KEY, JSON.stringify(preference));
+    seedSearchUrl("heal");
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(result.current.filterEditor).toBeDefined());
+    expect(result.current.search.filter).toBeNull();
+    act(() =>
+      result.current.setSearch({ ...result.current.search, query: "Fireball" }),
+    );
+    expect(JSON.parse(localStorage.getItem(KIND_PREFERENCE_KEY)!)).toEqual(preference);
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        filter: { kind: "in", field: "record.kind", values: ["spell"] },
+      }),
+    );
+    expect(JSON.parse(localStorage.getItem(KIND_PREFERENCE_KEY)!)).toEqual({
+      include: ["spell"],
+      exclude: [],
+    });
+    act(() => result.current.setSearch({ ...result.current.search, filter: null }));
+    expect(localStorage.getItem(KIND_PREFERENCE_KEY)).toBeNull();
   });
 
   it("debounces result-window requests while preserving immediate search state", async () => {
@@ -130,7 +264,7 @@ describe("useSearchWorkspace", () => {
 
     act(() => result.current.openActiveResult());
     expect(result.current.selectedRecordKey).toBe("spell:heal");
-    expect(window.location.pathname).toBe("/search/records/spell%3Aheal");
+    expect(window.location.pathname).toBe("/search/records/spell:heal");
     expect(window.location.search).toBe("?q=dirge&mode=text_search");
 
     act(() => result.current.selectRecord(null));
@@ -178,42 +312,6 @@ describe("useSearchWorkspace", () => {
     );
   });
 
-  it("discovers values for count-backed visible editor fields", async () => {
-    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
-
-    await waitFor(() =>
-      expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-        expect.objectContaining({ field_id: "record.kind" }),
-      ),
-    );
-    expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "source.pack" }),
-    );
-    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "actor.level" }),
-    );
-    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "spell.basic_save" }),
-    );
-
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        hiddenFilterIds: ["source.pack"],
-        visibleFilterIds: ["spell.basic_save"],
-      }),
-    );
-
-    await waitFor(() =>
-      expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-        expect.objectContaining({ field_id: "spell.basic_save" }),
-      ),
-    );
-  });
-
   it("does not query collection states as scalar values", async () => {
     apiMocks.discoverFilterEditor.mockResolvedValue(
       editorFixture([fieldFixture("actor.items", "collection")]),
@@ -228,29 +326,6 @@ describe("useSearchWorkspace", () => {
 
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
       expect.objectContaining({ field_id: "common.traits" }),
-    );
-  });
-
-  it("passes selected visible fields to editor discovery", async () => {
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
-
-    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
-
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        visibleFilterIds: ["common.publication.title"],
-      }),
-    );
-
-    await waitFor(() =>
-      expect(apiMocks.discoverFilterEditor).toHaveBeenCalledWith(
-        expect.objectContaining({
-          selected_field_ids: ["common.publication.title"],
-        }),
-      ),
     );
   });
 
@@ -294,109 +369,12 @@ describe("useSearchWorkspace", () => {
     await waitFor(() => expect(result.current.filterEditor?.groups).toEqual([]));
   });
 
-  it("does not discover values from placeholder editor data during editor refresh", async () => {
-    const nextEditor = deferred<FilterEditorView>();
-    apiMocks.discoverFilterEditor
-      .mockResolvedValueOnce(filterEditor())
-      .mockReturnValueOnce(nextEditor.promise);
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.filterEditor).toEqual(filterEditor()));
-    await waitFor(() => expect(apiMocks.discoverFilterValues).toHaveBeenCalled());
-    const valueRequestsBeforeRefresh = apiMocks.discoverFilterValues.mock.calls.length;
-
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        filter: {
-          kind: "all_of",
-          children: [
-            {
-              kind: "in",
-              clause_id: "kind-include_any",
-              field: "record.kind",
-              values: ["creature"],
-            },
-          ],
-        },
-      }),
-    );
-
-    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2));
-    await delay(50);
-
-    expect(apiMocks.discoverFilterValues).toHaveBeenCalledTimes(
-      valueRequestsBeforeRefresh,
-    );
-
-    await act(async () => {
-      nextEditor.resolve({ ...editorFixture(), groups: [] });
-      await nextEditor.promise;
-    });
-  });
-
-  it("keeps previous field values while refreshed value discovery is pending", async () => {
-    const nextKindValues = deferred<FilterValueListView>();
-    let kindValueRequests = 0;
+  it("does not request value discovery for closed catalog choices or hidden controls", async () => {
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
-    apiMocks.discoverFilterValues.mockImplementation(
-      (request: { field_id: string }) => {
-        if (request.field_id !== "record.kind") {
-          return Promise.resolve(emptyValues(request.field_id));
-        }
-        kindValueRequests += 1;
-        return kindValueRequests === 1
-          ? Promise.resolve(kindValues(["spell", "creature"]))
-          : nextKindValues.promise;
-      },
-    );
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
-
-    await waitFor(() =>
-      expect(
-        result.current.filterValuesByField["record.kind"]?.values.options,
-      ).toHaveLength(2),
-    );
-
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        filter: {
-          kind: "all_of",
-          children: [
-            {
-              kind: "in",
-              clause_id: "kind-include_any",
-              field: "record.kind",
-              values: ["creature"],
-            },
-          ],
-        },
-      }),
-    );
-
-    await waitFor(() => expect(kindValueRequests).toBe(2));
-    expect(
-      result.current.filterValuesByField["record.kind:kind-include_any"]?.values
-        .options,
-    ).toHaveLength(2);
-    expect(result.current.filterDiscoveryLoading).toBe(true);
-
-    await act(async () => {
-      nextKindValues.resolve(kindValues(["spell", "creature", "feat"]));
-      await nextKindValues.promise;
-    });
-
-    await waitFor(() =>
-      expect(
-        result.current.filterValuesByField["record.kind:kind-include_any"]?.values
-          .options,
-      ).toHaveLength(3),
-    );
+    renderHook(() => useSearchWorkspace(), { wrapper: queryClientWrapper() });
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
+    await delay(50);
+    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
   });
 
   it("reads later pages from the current result window", async () => {
@@ -416,14 +394,40 @@ describe("useSearchWorkspace", () => {
     act(() => result.current.setPageNumber(2));
 
     await waitFor(() =>
-      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(7n, {
-        page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
-      }),
+      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(
+        7n,
+        {
+          page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
+        },
+        expect.any(AbortSignal),
+      ),
     );
     expect(result.current.pageNumber).toBe(2);
     expect(result.current.diagnostics.resultRequest).toMatchObject({
       kind: "page",
     });
+  });
+  it("keeps selected-detail failures pane-local and retries without changing search/results", async () => {
+    seedSearchUrl();
+    apiMocks.getRecordDetail
+      .mockRejectedValueOnce(new Error("Selected record unavailable"))
+      .mockResolvedValueOnce(detailFixture("spell:heal"));
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    act(() => result.current.selectRecord("spell:heal"));
+    await waitFor(() =>
+      expect(result.current.detailError?.message).toBe("Selected record unavailable"),
+    );
+    const search = result.current.search;
+    const rows = result.current.resultPage;
+    expect(result.current.errorMessage).toBeNull();
+    act(() => result.current.retryDetail());
+    await waitFor(() => expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(2));
+    expect(result.current.search).toEqual(search);
+    expect(result.current.resultPage).toEqual(rows);
+    expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1);
   });
 
   it("keeps previous rows while marking page transitions as refreshing", async () => {
@@ -587,14 +591,6 @@ function filterEditor(): FilterEditorView {
   ]);
   editor.groups[0].fields[4].placement = "addable";
   return editor;
-}
-
-function kindValues(values: string[]): FilterValueListView {
-  return valuesFixture("record.kind", values);
-}
-
-function emptyValues(fieldId: string): FilterValueListView {
-  return valuesFixture(fieldId);
 }
 
 function delay(milliseconds: number) {

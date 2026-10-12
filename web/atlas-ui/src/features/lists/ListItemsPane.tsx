@@ -1,4 +1,4 @@
-import { Table } from "antd";
+import { Alert, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Trash2 } from "lucide-react";
 import type { SavedListItemView } from "../../generated/atlas";
@@ -6,6 +6,7 @@ import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { RowTitleButton } from "../../shared/ui/tables/IndexTable";
 
 export function ListItemsPane({
+  error,
   items,
   loading,
   onRemove,
@@ -13,6 +14,7 @@ export function ListItemsPane({
   removingKey,
   selectedRecordKey,
 }: {
+  error?: Error | null;
   items: SavedListItemView[];
   loading: boolean;
   onRemove: (recordKey: string) => void;
@@ -53,6 +55,14 @@ export function ListItemsPane({
 
   return (
     <section className="results-panel">
+      {error && (
+        <Alert
+          type="error"
+          showIcon
+          title="Unable to remove record"
+          description={`${error.message} Use the record’s Remove button to try again.`}
+        />
+      )}
       <div className="results-scroll">
         <Table
           columns={columns}
@@ -60,11 +70,20 @@ export function ListItemsPane({
           loading={loading}
           locale={{ emptyText: "No saved records" }}
           pagination={false}
-          rowClassName={(item) =>
-            item.record_key === selectedRecordKey
-              ? "result-row ant-table-row-selected"
-              : "result-row"
-          }
+          rowSelection={{
+            type: "radio",
+            columnTitle: "Select",
+            columnWidth: 40,
+            selectedRowKeys: selectedRecordKey ? [selectedRecordKey] : [],
+            onChange: (keys) => {
+              if (keys.length) onSelect(String(keys[0]));
+            },
+            getCheckboxProps: (item) => ({
+              disabled: item.status === "unresolved",
+              "aria-label": `Select ${item.snapshot.title}`,
+            }),
+          }}
+          rowClassName="result-row"
           rowKey={(item) => item.record_key}
           size="middle"
         />

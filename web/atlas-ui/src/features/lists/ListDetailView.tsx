@@ -27,7 +27,7 @@ import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { ListInfoPane } from "./ListInfoPane";
 import { ListItemsPane } from "./ListItemsPane";
-import { useSavedLists } from "./savedListQueries";
+import { invalidateSavedListQueries, useSavedLists } from "./savedListQueries";
 import {
   listSearchQuery,
   useDebouncedSearchFilters,
@@ -76,9 +76,12 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const removeItem = useMutation({
     mutationFn: (recordKey: string) =>
       removeSavedListItem({ list_ref: route.slug, record_ref: recordKey }),
-    onSuccess: async (_view, recordKey) => {
-      await queryClient.invalidateQueries({ queryKey: ["saved-list", route.slug] });
-      await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
+    onSuccess: async (view, recordKey) => {
+      await invalidateSavedListQueries(queryClient, [
+        route.slug,
+        view.slug,
+        view.list_key,
+      ]);
       if (recordKey === route.selectedRecordKey) {
         navigateToAtlasRoute({
           kind: "list",
@@ -95,13 +98,19 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         filter={
           <ListInfoPane
             currentSlug={route.slug}
+            error={list.error}
+            onRetry={() => {
+              void list.refetch();
+            }}
             filterState={{
               search: filters,
               setSearch: setFilters,
               filterEditor: filterDiscovery.filterEditor,
-              filterValuesByField: filterDiscovery.filterValuesByField,
+              filterCountsByField: filterDiscovery.filterCountsByField,
+              filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
+              vocabularyScope: filterDiscovery.vocabularyScope,
               filterDiscoveryLoading: filterDiscovery.loading,
-              errorMessage: filterDiscovery.errorMessage,
+              filterDiscoveryError: filterDiscovery.errorMessage,
             }}
             list={list.data?.list}
             lists={lists.data?.lists ?? []}
@@ -114,6 +123,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         }
         results={
           <ListItemsPane
+            error={removeItem.error}
             items={list.data?.items ?? []}
             loading={list.isLoading || list.isFetching}
             removingKey={
@@ -163,7 +173,18 @@ export function ListDetailView({ route }: ListDetailViewProps) {
                 ? "This saved record is unresolved."
                 : undefined
             }
-            errors={[list.error, detail.error, removeItem.error, recordPreview.error]}
+            error={selectedItem?.status === "unresolved" ? undefined : detail.error}
+            onRetry={() => {
+              void detail.refetch();
+            }}
+            onBack={() =>
+              navigateToAtlasRoute({
+                kind: "list",
+                slug: route.slug,
+                selectedRecordKey: null,
+              })
+            }
+            backLabel="Back to list"
             loading={
               selectedItem?.status === "unresolved"
                 ? false
@@ -178,11 +199,14 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           anchor={recordPreview.anchor}
           detail={recordPreview.detail}
           loading={recordPreview.loading}
+          error={recordPreview.error}
+          onRetry={recordPreview.retry}
           onClose={recordPreview.close}
           onOpenFullPage={() =>
             navigateToAtlasRoute({
               kind: "record",
               recordKey: recordPreview.recordKey!,
+              selection: recordPreview.selection,
             })
           }
           onReference={recordPreview.open}

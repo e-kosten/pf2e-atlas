@@ -81,15 +81,36 @@ Fetch records by keys (generally retrieved from other results and queries):
 ```bash
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
 atlas record get equipment-srd:s1vB3HdXjMigYAnY
+atlas record get equipment-srd:s1vB3HdXjMigYAnY --detail full
+atlas record get equipment-srd:s1vB3HdXjMigYAnY --json
+atlas record source equipment-srd:s1vB3HdXjMigYAnY --json
 ```
+
+Human record reading supports summary, standard (the default), and full detail.
+Prepared HTML uses terminal emphasis when stdout is an interactive terminal.
+Pipes, files, `TERM=dumb` and nonempty `NO_COLOR` use plain text formatting.
+`record get --json` returns the complete selected Atlas reference response;
+explicit `--detail` and `--json` conflict. `record source --json` instead exports
+the complete checked Foundry DTO from the artifact, including embedded documents
+and fields outside Atlas's presentation. Its presence/union tags describe the
+checked model; it is not original Foundry JSON and needs no source clone.
 
 Explore available filters and nearby record context:
 
 ```bash
 atlas filters fields
+atlas filters fields --text 'maximum hp'
+atlas filters fields --field actor.hp.maximum
+atlas filters values --field actor.hp.maximum --kind creature
 atlas similar "Dirge of Doom" --kind spell
 atlas graph links actionspf2e:1kGNdIIhuglAjIp9
 ```
+
+`filters fields` shows a compact field index. `--field` shows a complete
+descriptor, and `--text` finds labels, IDs, scopes and source families. JSON keeps
+complete descriptors, narrowed only when requested. `filters values` reports
+numeric ranges or collection availability for those field types; categorical
+fields provide paged values alongside availability counts.
 
 ## Agent Skill
 

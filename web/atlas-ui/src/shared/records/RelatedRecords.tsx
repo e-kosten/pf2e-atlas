@@ -1,186 +1,363 @@
-import { Alert, Button, List, Modal, Select, Space, Spin, Typography } from "antd";
+import { Alert, Button, Collapse, Modal, Select, Spin, Tabs, Typography } from "antd";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import DOMPurify from "dompurify";
+import { AtlasApiError, getRelatedRecords, openResultWindow } from "../../api/atlasApi";
 import {
-  getRecordGraph,
-  getRecordRemaster,
-  getRecordVariants,
-  getSimilarRecords,
-} from "../../api/atlasApi";
-import { navigateToAtlasRoute } from "../../app/routes";
-import type { RecordDetailView, RecordSummaryView } from "../../generated/atlas";
+  atlasRoutePath,
+  navigateToAtlasRoute,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
+import type {
+  GraphSectionView,
+  RecordDetailView,
+  RecordNavigationView,
+  RecordSummaryView,
+} from "../../generated/atlas";
+import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
+import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
+import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { useRecordDetail } from "./useRecordDetail";
 
-export function RelatedRecords({ detail }: { detail: RecordDetailView }) {
-  const [active, setActive] = useState<string | null>(null);
+export function RelatedRecords({
+  detail,
+  onReference,
+}: {
+  detail: RecordDetailView;
+  onReference: RecordReferenceHandler;
+}) {
+  return (
+    <section className="related-records" aria-label="Related records">
+      <Collapse
+        size="small"
+        destroyOnHidden
+        items={[
+          {
+            key: "related",
+            label: "Related records",
+            children: (
+              <RelatedTabs
+                key={JSON.stringify([detail.selected, detail.artifact_generation])}
+                detail={detail}
+                onReference={onReference}
+              />
+            ),
+          },
+        ]}
+      />
+    </section>
+  );
+}
+
+function RelatedTabs({
+  detail,
+  onReference,
+}: {
+  detail: RecordDetailView;
+  onReference: RecordReferenceHandler;
+}) {
+  const queryClient = useQueryClient();
+  const [active, setActive] = useState("references");
   const [comparison, setComparison] = useState<string | null>(null);
   const key = detail.record.record_key;
-  const graph = useQuery({
-    queryKey: ["graph", detail.selected],
-    enabled: active === "connections",
+  const related = useQuery({
+    queryKey: ["related", detail.selected, detail.artifact_generation],
+    staleTime: Infinity,
     queryFn: () =>
-      getRecordGraph(key, detail.selected.owners, detail.selected.source_fingerprint),
+      getRelatedRecords({
+        selection: detail.selected,
+        artifact_generation: detail.artifact_generation,
+      }),
   });
-  const remaster = useQuery({
-    queryKey: ["remaster", key],
-    enabled: active === "remaster",
-    queryFn: () => getRecordRemaster(key),
-  });
-  const variants = useQuery({
-    queryKey: ["variants", key],
-    enabled: active === "variants",
-    queryFn: () => getRecordVariants(key),
-  });
-  const similar = useQuery({
-    queryKey: ["similar", key],
-    enabled: active === "similar",
-    queryFn: () => getSimilarRecords(key),
-  });
-  const query =
-    active === "connections"
-      ? graph
-      : active === "remaster"
-        ? remaster
-        : active === "variants"
-          ? variants
-          : similar;
-  function records(rows: RecordSummaryView[]) {
+  const reloadRecord =
+    related.error instanceof AtlasApiError &&
+    related.error.appError?.recoverable_action === "reload_record";
+  const graph =
+    related.data?.references.kind === "content"
+      ? related.data.references.content
+      : undefined;
+  const remaster =
+    related.data?.counterparts.kind === "content"
+      ? related.data.counterparts.content
+      : undefined;
+  const variants =
+    related.data?.variants.kind === "content"
+      ? related.data.variants.content
+      : undefined;
+  const variantChoices =
+    variants?.variants.filter((record) => record.record_key !== key) ?? [];
+
+  function link(label: string, selection: RecordNavigationView) {
     return (
-      <List
-        dataSource={rows}
-        renderItem={(record) => (
-          <List.Item>
-            <Button
-              type="link"
-              onClick={() =>
-                navigateToAtlasRoute({ kind: "record", recordKey: record.record_key })
-              }
-            >
-              {record.title}
-            </Button>
-          </List.Item>
-        )}
-      />
+      <Typography.Link
+        href={atlasRoutePath({
+          kind: "record",
+          recordKey: selection.record_key,
+          selection,
+        })}
+        onClick={(event) => {
+          if (!shouldHandleAtlasRouteClick(event)) return;
+          event.preventDefault();
+          onReference(selection.record_key, event.currentTarget, selection);
+        }}
+      >
+        {label}
+      </Typography.Link>
     );
   }
-  return (
-    <section aria-label="Related records">
-      <Space wrap>
-        {["connections", "remaster", "variants", "similar"].map((name) => (
-          <Button
-            key={name}
-            type={active === name ? "primary" : "default"}
-            onClick={() => setActive(active === name ? null : name)}
-          >
-            {name === "variants"
-              ? "Suggested variants"
-              : name[0].toUpperCase() + name.slice(1)}
-          </Button>
+  function records(rows: RecordSummaryView[], empty: string) {
+    return rows.length ? (
+      <ul className="related-records__list">
+        {rows.map((record) => (
+          <li key={record.record_key}>
+            {link(record.title, {
+              record_key: record.record_key,
+              owners: [],
+              field: null,
+              passage: null,
+              source_fingerprint: null,
+            })}
+          </li>
         ))}
-      </Space>
-      {active && query.isFetching && <Spin />}
-      {active && query.error && <Alert type="info" message={query.error.message} />}
-      {active === "connections" && graph.data && (
-        <>
-          <Typography.Title level={5}>Outgoing</Typography.Title>
-          {records(graph.data.outgoing.records)}
-          <Typography.Title level={5}>Backlinks</Typography.Title>
-          {records(graph.data.backlinks.records)}
-          <List
-            dataSource={[
-              ...graph.data.outgoing.occurrences,
-              ...graph.data.backlinks.occurrences,
-            ]}
-            renderItem={(occurrence) => (
-              <List.Item>
-                {occurrence.target ? (
-                  <Button
-                    type="link"
-                    onClick={() =>
-                      navigateToAtlasRoute({
-                        kind: "record",
-                        recordKey: occurrence.target!.record_key,
-                        selection: occurrence.target!,
-                      })
-                    }
+      </ul>
+    ) : (
+      <Typography.Paragraph type="secondary">{empty}</Typography.Paragraph>
+    );
+  }
+  function references(section: GraphSectionView, incoming: boolean) {
+    if (!section.occurrences.length)
+      return (
+        <Typography.Paragraph type="secondary">
+          {incoming
+            ? "No references to this record were found."
+            : "No references were found here."}
+        </Typography.Paragraph>
+      );
+    return (
+      <>
+        <ul className="related-records__list">
+          {section.occurrences.map((occurrence) => {
+            const navigation = incoming
+              ? occurrence.source_navigation
+              : occurrence.target;
+            const summary = section.records.find(
+              (record) => record.record_key === navigation?.record_key,
+            );
+            const label =
+              summary?.title ??
+              (incoming ? "Open referring record" : "Open referenced record");
+            return (
+              <li
+                key={JSON.stringify([
+                  occurrence.source,
+                  occurrence.ordinal,
+                  occurrence.target,
+                ])}
+              >
+                {navigation ? (
+                  link(label, navigation)
+                ) : occurrence.url &&
+                  ["resolved_url", "unverified_url"].includes(occurrence.status) &&
+                  DOMPurify.isValidAttribute("a", "href", occurrence.url) ? (
+                  <Typography.Link
+                    href={occurrence.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    {occurrence.authored_target || occurrence.kind}
-                  </Button>
+                    External reference
+                  </Typography.Link>
                 ) : (
-                  <Typography.Text>
-                    {occurrence.authored_target || occurrence.kind}: {occurrence.status}
+                  <Typography.Text type="secondary">
+                    This reference is unavailable in the current collection.
                   </Typography.Text>
                 )}
-              </List.Item>
-            )}
-          />
-          {(graph.data.outgoing.truncated || graph.data.backlinks.truncated) && (
-            <Alert type="info" message="Showing bounded relationship occurrences." />
-          )}
-        </>
+              </li>
+            );
+          })}
+        </ul>
+        {section.truncated && (
+          <Typography.Paragraph type="secondary">
+            Showing a limited set of references; additional references may exist.
+          </Typography.Paragraph>
+        )}
+      </>
+    );
+  }
+
+  const items = [
+    ...(graph
+      ? [
+          {
+            key: "references",
+            label: "References",
+            children: (
+              <>
+                {graph.outgoing.occurrences.length > 0 && (
+                  <>
+                    <h3>Referenced here</h3>
+                    {references(graph.outgoing, false)}
+                  </>
+                )}
+                {graph.backlinks.occurrences.length > 0 && (
+                  <>
+                    <h3>References to this record</h3>
+                    {references(graph.backlinks, true)}
+                  </>
+                )}
+              </>
+            ),
+          },
+        ]
+      : []),
+    ...(remaster
+      ? [
+          {
+            key: "remaster",
+            label: "Remaster",
+            children: (
+              <ul className="related-records__list">
+                {remaster.links.map((pair) => (
+                  <li
+                    key={
+                      pair.legacy_record.record_key +
+                      ":" +
+                      pair.remaster_record.record_key
+                    }
+                  >
+                    {records([pair.legacy_record, pair.remaster_record], "")}
+                  </li>
+                ))}
+              </ul>
+            ),
+          },
+        ]
+      : []),
+    ...(variants
+      ? [
+          {
+            key: "variants",
+            label: "Variants",
+            children: (
+              <>
+                <Typography.Paragraph type="secondary">
+                  {variants.ambiguous
+                    ? "These suggestions are uncertain; compare the records before treating them as variants."
+                    : "These records share a naming pattern and compatible source facts."}
+                </Typography.Paragraph>
+                {records(variantChoices, "No suggested variants were found.")}
+                <Select
+                  className="related-records__compare"
+                  aria-label="Compare variant"
+                  placeholder="Choose a variant to compare…"
+                  value={comparison}
+                  showSearch={{ optionFilterProp: "label" }}
+                  options={variantChoices.map((record) => ({
+                    value: record.record_key,
+                    label: record.title,
+                  }))}
+                  onChange={setComparison}
+                />
+                {variants.truncated && (
+                  <Typography.Paragraph type="secondary">
+                    Showing a limited set of suggested variants; others may exist.
+                  </Typography.Paragraph>
+                )}
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
+  const selectedTab = items.some((item) => item.key === active)
+    ? active
+    : items[0]?.key;
+  const failures = related.data
+    ? ([
+        ["References", related.data.references],
+        ["Remaster", related.data.counterparts],
+        ["Variants", related.data.variants],
+      ] as const)
+    : [];
+  return (
+    <div className="related-records__body">
+      {related.isFetching && (
+        <div role="status" className="related-records__status">
+          <Spin size="small" /> Loading related records…
+        </div>
       )}
-      {active === "remaster" && remaster.data && (
-        <List
-          dataSource={remaster.data.links}
-          renderItem={(link) => (
-            <List.Item>
-              {records([link.legacy_record, link.remaster_record])}
-              <Typography.Text type="secondary">{link.evidence}</Typography.Text>
-            </List.Item>
-          )}
+      {related.error && (
+        <Alert
+          type="error"
+          showIcon
+          title="Unable to load related records"
+          description={related.error.message}
+          action={
+            <Button
+              size="small"
+              onClick={() => {
+                if (reloadRecord)
+                  void queryClient.invalidateQueries({
+                    queryKey: recordDetailQueryOptions(
+                      detail.selected.record_key,
+                      detail.selected,
+                    ).queryKey,
+                    exact: true,
+                  });
+                else void related.refetch();
+              }}
+            >
+              {reloadRecord ? "Reload record" : "Retry"}
+            </Button>
+          }
         />
       )}
-      {active === "variants" && variants.data && (
-        <>
+      {failures.map(([label, category]) =>
+        category.kind === "error" ? (
           <Alert
-            type="info"
-            message={
-              variants.data.ambiguous
-                ? "Suggested variant evidence is ambiguous."
-                : "Suggestions share naming and compatible source facts; they do not create aliases."
+            key={label}
+            type="error"
+            title={`${label} could not be checked`}
+            description={category.error.message}
+            action={
+              <Button
+                size="small"
+                onClick={() => {
+                  void related.refetch();
+                }}
+              >
+                Retry
+              </Button>
             }
           />
-          {records(variants.data.variants)}
-          <List
-            dataSource={variants.data.evidence}
-            renderItem={(e) => (
-              <List.Item>
-                {e.qualifier}:{" "}
-                {e.naming_convention === "trailing_parenthetical"
-                  ? "Names share a base with parenthesized variants"
-                  : e.naming_convention === "leading_grade"
-                    ? "Names share a base with different grades"
-                    : "Shared naming pattern"}
-                ; {e.compatibility}
-              </List.Item>
-            )}
-          />
-          <Select
-            aria-label="Compare variant"
-            placeholder="Compare variant"
-            options={variants.data.variants
-              .filter((v) => v.record_key !== key)
-              .map((v) => ({ value: v.record_key, label: v.title }))}
-            onChange={setComparison}
-          />
-          {variants.data.truncated && (
-            <Alert type="info" message="Suggested variants are bounded." />
-          )}
-        </>
-      )}
-      {active === "similar" && similar.data && (
-        <>
-          <Typography.Paragraph type="secondary">
-            {similar.data.results.coverage.count_basis};{" "}
-            {similar.data.results.coverage.semantic_unit_window} candidate units
+        ) : category.kind === "unavailable" && detail.selected.owners.length === 0 ? (
+          <Typography.Paragraph key={label} type="secondary">
+            {label}: {category.reason}
           </Typography.Paragraph>
-          {records(similar.data.results.rows.map((row) => row.record))}
-        </>
+        ) : null,
       )}
-      {active && !query.isFetching && !query.error && query.data === null && (
-        <Typography.Paragraph>No related results.</Typography.Paragraph>
+      {items.length > 0 && (
+        <Tabs
+          activeKey={selectedTab}
+          onChange={setActive}
+          destroyOnHidden
+          items={items}
+        />
       )}
+      <Collapse
+        size="small"
+        ghost
+        destroyOnHidden
+        items={[
+          {
+            key: "similar",
+            label: detail.selected.owners.length
+              ? `Similar to parent record: ${detail.record.title}`
+              : "Similar records",
+            children: <SimilarPreview detail={detail} onReference={onReference} />,
+          },
+        ]}
+      />
       {comparison && (
         <Comparison
           source={key}
@@ -188,9 +365,103 @@ export function RelatedRecords({ detail }: { detail: RecordDetailView }) {
           onClose={() => setComparison(null)}
         />
       )}
-    </section>
+    </div>
   );
 }
+
+function SimilarPreview({
+  detail,
+  onReference,
+}: {
+  detail: RecordDetailView;
+  onReference: RecordReferenceHandler;
+}) {
+  const seed = detail.record.record_key;
+  const similar = useQuery({
+    queryKey: ["similar-preview", seed, detail.artifact_generation],
+    staleTime: Infinity,
+    queryFn: ({ signal }) =>
+      openResultWindow(
+        {
+          mode: { kind: "similar_records", seed_record_key: seed, filter: null },
+          page: { number: 1, size: 5 },
+        },
+        signal,
+      ),
+  });
+  const route = {
+    kind: "search",
+    selectedRecordKey: null,
+    query: searchStateQueryString({
+      ...DEFAULT_SEARCH_STATE,
+      mode: "similar_records",
+      similarSeed: seed,
+    }),
+  } as const;
+  return (
+    <>
+      {similar.isFetching && (
+        <div role="status">
+          <Spin size="small" /> Loading similar records…
+        </div>
+      )}
+      {similar.error && (
+        <Alert
+          type="error"
+          title="Unable to load similar records"
+          description={similar.error.message}
+          action={
+            <Button
+              size="small"
+              onClick={() => {
+                void similar.refetch();
+              }}
+            >
+              Retry
+            </Button>
+          }
+        />
+      )}
+      {similar.data &&
+        (similar.data.rows.length ? (
+          <ul className="related-records__list">
+            {similar.data.rows.map((row) => (
+              <li key={row.record.record_key}>
+                <Typography.Link
+                  href={atlasRoutePath({
+                    kind: "record",
+                    recordKey: row.record.record_key,
+                  })}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
+                    onReference(row.record.record_key, event.currentTarget);
+                  }}
+                >
+                  {row.record.title}
+                </Typography.Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Typography.Paragraph type="secondary">
+            No similar records found.
+          </Typography.Paragraph>
+        ))}
+      <Typography.Link
+        href={atlasRoutePath(route)}
+        onClick={(event) => {
+          if (!shouldHandleAtlasRouteClick(event)) return;
+          event.preventDefault();
+          navigateToAtlasRoute(route);
+        }}
+      >
+        See more similar records
+      </Typography.Link>
+    </>
+  );
+}
+
 function Comparison({
   source,
   target,
@@ -202,8 +473,8 @@ function Comparison({
 }) {
   const left = useRecordDetail(source);
   const right = useRecordDetail(target);
-  const navigate = (recordKey: string) =>
-    navigateToAtlasRoute({ kind: "record", recordKey });
+  const navigate: RecordReferenceHandler = (recordKey, _anchor, selection) =>
+    navigateToAtlasRoute({ kind: "record", recordKey, selection });
   return (
     <Modal
       title="Variant comparison"
@@ -215,15 +486,23 @@ function Comparison({
       <div className="record-comparison">
         <RecordDetailPane
           detail={left.data}
-          loading={left.isLoading}
-          errors={[left.error]}
+          loading={left.isLoading || left.isFetching}
+          error={left.error}
+          onRetry={() => {
+            void left.refetch();
+          }}
           onReference={navigate}
+          showRelated={false}
         />
         <RecordDetailPane
           detail={right.data}
-          loading={right.isLoading}
-          errors={[right.error]}
+          loading={right.isLoading || right.isFetching}
+          error={right.error}
+          onRetry={() => {
+            void right.refetch();
+          }}
           onReference={navigate}
+          showRelated={false}
         />
       </div>
     </Modal>

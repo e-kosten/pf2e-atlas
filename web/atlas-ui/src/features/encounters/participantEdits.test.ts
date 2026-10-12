@@ -143,7 +143,6 @@ function participantFixture(
     note: "watch",
     note_hint: "watch",
     conditions: [],
-    stat_block: undefined,
     record: undefined,
     ...overrides,
   };

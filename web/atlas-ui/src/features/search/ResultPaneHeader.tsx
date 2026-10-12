@@ -1,11 +1,12 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button, Tooltip } from "antd";
+import { Button, Select, Tooltip } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
 export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
   const page = workspace.resultPage?.page;
+  const similar = workspace.resultPage?.mode.kind === "similar_records";
   const displayedPageNumber = workspace.resultsRefreshing
     ? workspace.pageNumber
     : (page?.number ?? workspace.pageNumber);
@@ -21,10 +22,12 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         {workspace.resultsRefreshing
           ? "Updating results"
           : page
-            ? `${page.total.toLocaleString()} ${workspace.resultPage?.coverage?.exhaustive === false ? "candidate records" : "records"}`
+            ? similar
+              ? "Top matches"
+              : `${page.total.toLocaleString()} ${workspace.resultPage?.coverage?.exhaustive === false ? "candidate records" : "records"}`
             : "No result window yet"}
       </span>
-      {workspace.resultPage?.coverage?.exhaustive === false && (
+      {!similar && workspace.resultPage?.coverage?.exhaustive === false && (
         <Tooltip title={workspace.resultPage.coverage.count_basis}>
           <span>
             Bounded semantic search (
@@ -33,6 +36,18 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         </Tooltip>
       )}
       <div className="pager pager--compact">
+        <Select
+          aria-label="Records per page"
+          size="small"
+          value={workspace.search.pageSize}
+          options={[10, 25, 50, 100].map((value) => ({
+            value,
+            label: value + " per page",
+          }))}
+          onChange={(pageSize) =>
+            workspace.setSearch({ ...workspace.search, pageSize })
+          }
+        />
         <Button
           aria-label="Previous page"
           className="pager__button"

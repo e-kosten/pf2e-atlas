@@ -134,7 +134,9 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       render: (tags: string[]) => (
         <div className="list-index-view__tags">
           {tags.map((tag) => (
-            <Tag key={tag}>{tag}</Tag>
+            <Tag style={{ marginInlineEnd: 0 }} key={tag}>
+              {tag}
+            </Tag>
           ))}
         </div>
       ),
@@ -144,7 +146,7 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       dataIndex: "item_count",
       align: "right",
       width: 96,
-      render: (value: bigint) => value.toLocaleString(),
+      render: (value: number) => value.toLocaleString(),
     },
     {
       title: "Updated",

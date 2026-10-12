@@ -25,7 +25,7 @@ import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
 import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-import { confirmDangerAction } from "../../shared/ui/actions/confirmDangerAction";
+import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 
@@ -40,12 +40,12 @@ const ENCOUNTER_WIDTH_SPECS = {
 };
 
 export function EncounterDetailView({ route }: EncounterDetailViewProps) {
+  const confirmDangerAction = useConfirmDangerAction();
   const queryClient = useQueryClient();
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
-  const recordPreview = useRecordPreview();
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -63,6 +63,13 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         participant.participant_key === encounter.data?.current_turn_participant_key,
     ) ??
     encounter.data?.participants[0];
+  const recordPreview = useRecordPreview({
+    encounterRef: route.slug,
+    identity: selected?.participant_key ?? "",
+    generation: encounter.data?.artifact_generation ?? null,
+    parentRecordKey: selected?.record_key,
+    presentation: selected?.presentation,
+  });
   const invalidateEncounter = async () => {
     await queryClient.invalidateQueries({ queryKey: ["encounter", route.slug] });
     await queryClient.invalidateQueries({ queryKey: ["encounters"] });
@@ -144,7 +151,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   };
 
   return (
-    <>
+    <div className="encounter-detail-view">
       <section className="encounter-detail-header">
         <div>
           <h2>{encounterSummary?.name ?? route.slug}</h2>
@@ -206,7 +213,11 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             onAddCondition={(request) => addCondition.mutate(request)}
             onCloseRecordPreview={recordPreview.close}
             onOpenRecordFullPage={(recordKey) =>
-              navigateToAtlasRoute({ kind: "record", recordKey })
+              navigateToAtlasRoute({
+                kind: "record",
+                recordKey,
+                selection: recordPreview.selection,
+              })
             }
             onReference={recordPreview.open}
             onRemoveCondition={(participantKey, conditionId) =>
@@ -221,7 +232,10 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
             previewAnchor={recordPreview.anchor}
             previewDetail={recordPreview.detail}
+            previewSelection={recordPreview.selection}
             previewLoading={recordPreview.loading}
+            previewError={recordPreview.error}
+            onRetryPreview={recordPreview.retry}
             previewRecordKey={recordPreview.recordKey}
           />
         }
@@ -261,6 +275,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
           }}
         />
       )}
-    </>
+    </div>
   );
 }

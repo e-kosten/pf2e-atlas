@@ -7,13 +7,20 @@ mod executor;
 mod filter;
 mod filters;
 mod lists;
+mod owned_reading;
+mod prepared_content;
+mod presentation;
 mod projection;
 mod records;
+mod related;
 mod retrieval;
 mod service;
-mod surfaces;
 mod windows;
 
+#[cfg(test)]
+mod owned_reading_tests;
+#[cfg(test)]
+mod related_window_tests;
 #[cfg(test)]
 mod source_consumer_tests;
 #[cfg(test)]

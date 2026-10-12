@@ -5,7 +5,10 @@ mod name_lookup;
 pub mod query;
 pub mod query_discovery;
 pub mod record_key;
-pub use query_discovery::{QueryFieldCounts, QueryStateCount, QueryValueOption, QueryValueOptions};
+pub use query_discovery::{
+    FacetUnavailableReason, QueryFacetOutcome, QueryFieldCounts, QueryStateCount, QueryValueOption,
+    QueryValueOptions, QueryVocabulary, QueryVocabularyBasis, QueryVocabularyOption,
+};
 pub mod source_address;
 pub mod source_summary;
 

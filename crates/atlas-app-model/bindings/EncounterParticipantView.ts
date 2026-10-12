@@ -4,8 +4,7 @@ import type { EncounterParticipantKindView } from "./EncounterParticipantKindVie
 import type { EncounterParticipantSideView } from "./EncounterParticipantSideView";
 import type { EncounterParticipantStatusView } from "./EncounterParticipantStatusView";
 import type { EncounterParticipantVariantView } from "./EncounterParticipantVariantView";
+import type { RecordPresentationView } from "./RecordPresentationView";
 import type { RecordSummaryView } from "./RecordSummaryView";
-import type { RecordSurfaceView } from "./RecordSurfaceView";
-import type { StatBlockView } from "./StatBlockView";
 
-export type EncounterParticipantView = { hp_origin: string, variant_origin: string, participant_key: string, record_key?: string, participant_kind: EncounterParticipantKindView, participant_variant: EncounterParticipantVariantView, status: EncounterParticipantStatusView, position: bigint, display_name: string, side: EncounterParticipantSideView, initiative?: bigint, initiative_order: bigint, max_hp?: bigint, current_hp?: bigint, temporary_hp: bigint, defeated: boolean, hidden: boolean, note?: string, note_hint: string | null, conditions: Array<EncounterParticipantConditionView>, stat_block?: StatBlockView, surface?: RecordSurfaceView, record?: RecordSummaryView, };
+export type EncounterParticipantView = { hp_origin: string, variant_origin: string, participant_key: string, record_key?: string, participant_kind: EncounterParticipantKindView, participant_variant: EncounterParticipantVariantView, status: EncounterParticipantStatusView, position: bigint, display_name: string, side: EncounterParticipantSideView, initiative?: bigint, initiative_order: bigint, max_hp?: bigint, current_hp?: bigint, temporary_hp: bigint, defeated: boolean, hidden: boolean, note?: string, note_hint: string | null, conditions: Array<EncounterParticipantConditionView>, presentation?: RecordPresentationView, record?: RecordSummaryView, };

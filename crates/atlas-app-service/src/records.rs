@@ -1,9 +1,6 @@
 use crate::projection::{navigation_fingerprint, relationship_view};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
-use atlas_app_model::{
-    AppErrorCode, RecordDetailRequest, RecordDetailView, RecordNavigationView,
-    RecordSurfaceProfileView,
-};
+use atlas_app_model::{AppErrorCode, RecordDetailRequest, RecordDetailView, RecordNavigationView};
 use atlas_domain::{QueryPredicate, RecordKey, SourcePassageAddress};
 use atlas_record::source_content::{OwnedContentIdentity, SourceContentLocator};
 use atlas_record::source_record::{
@@ -15,6 +12,28 @@ use atlas_search::{
 };
 
 impl AtlasAppService {
+    /// Explicit source inspection bypasses presentation, using the checked codec.
+    /// Product record eligibility still applies; tooling sources stay developer-only.
+    pub fn record_source(&self, key: &str) -> AppServiceResult<serde_json::Value> {
+        let key = RecordKey::parse(key).map_err(|error| {
+            AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
+        })?;
+        self.submit_retrieval(move |retrieval| {
+            let detail = retrieval.get_record(GetRecordRequest {
+                record_key: &key,
+                selected_content: &[],
+            })?.ok_or_else(|| AppServiceError::new(AppErrorCode::RecordNotFound, format!("record `{key}` was not found")))?;
+            let snapshot = atlas_foundry_model::snapshot_json_value(detail.source.source())
+                .map_err(|error| AppServiceError::new(AppErrorCode::InternalError, error.to_string()))?;
+            let mut output = serde_json::json!({
+                "key": key,
+                "provenance": { "path": detail.summary.source_path, "sha256": detail.summary.content_hash }
+            });
+            output["checked_snapshot"] = snapshot;
+            Ok(output)
+        })
+    }
+
     pub fn get_records(
         &self,
         record_keys: Vec<RecordKey>,
@@ -85,46 +104,169 @@ impl AtlasAppService {
         &self,
         request: RecordDetailRequest,
     ) -> AppServiceResult<RecordDetailView> {
-        validate_request(&request)?;
-        let key = RecordKey::parse(&request.record_key)
-            .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
-        self.submit_retrieval(move |r| {
-            if request.owners.iter().any(|o|matches!(o.identity,OwnedContentIdentity::SnapshotLocal{..})) && request.source_fingerprint.as_deref()!=Some(r.source_fingerprint()) {
-                return Err(AppServiceError::invalid_request("snapshot-local navigation belongs to a different artifact; reopen the search result or parent record"));
-            }
-            let detail=r.get_record(GetRecordRequest{record_key:&key,selected_content:&[]})?.ok_or_else(||AppServiceError::new(AppErrorCode::RecordNotFound,format!("record `{key}` was not found")))?;
-            let node=detail.source.node_at(&request.owners).ok_or_else(||AppServiceError::invalid_request("selected owner does not exist in this source snapshot"))?;
-            let selections=node.content_selections();
-            if request.fields.iter().any(|f|!selections.iter().any(|s|s.field==f)) {
-                return Err(AppServiceError::invalid_request("selected field is not declared content of the selected owner"));
-            }
-            let selected:Vec<_>=selections.into_iter().filter(|s|if request.fields.is_empty(){s.role!=SourceContentRole::Name && matches!(s.text,SourceFieldView::Value(_))}else{request.fields.iter().any(|f|f==s.field)}).collect();
-            if selected.len()>256 {return Err(AppServiceError::invalid_request("select at most 256 content fields per detail request"));}
-            let locators:Vec<_>=selected.iter().filter(|s|matches!(s.format,SourceFieldView::Value(SourceContentFormat::Html))).map(|s|SourceContentLocator{record:key.clone(),owners:request.owners.clone(),field:s.field.into()}).collect();
-            let content=r.read_content(&locators)?;
-            let fields=crate::surfaces::prepared_fields(&key,&request.owners,&selected,&content.fields,r.artifact_context().audience,r.source_fingerprint())?;
-            if let Some(address)=&request.passage {
-                if matches!(address,SourcePassageAddress::Identity{}) {
-                    if !request.fields.is_empty(){return Err(AppServiceError::invalid_request("identity navigation cannot select a prose field"));}
-                }else{
-                    if request.fields.len()!=1{return Err(AppServiceError::invalid_request("passage navigation requires exactly one selected field"));}
-                    let field=fields.iter().find(|f|f.locator.field==request.fields[0]).ok_or_else(||AppServiceError::invalid_request("selected passage field is unavailable"))?;
-                    let(html,plain)=match &field.body {
-                        atlas_app_model::PreparedFieldBodyView::Html{html,..}=>(Some(html.as_str()),None),
-                        atlas_app_model::PreparedFieldBodyView::Plain{text}=>(None,Some(text.as_str())),
-                        _=>return Err(AppServiceError::invalid_request("selected passage field is unavailable")),
-                    };
-                    recover_source_passage(html,plain,address).map_err(|e|AppServiceError::invalid_request(format!("stale or invalid passage: {e}")))?;
-                }
-            }
-            let summary=crate::projection::localized_summary_view(&detail.summary,r);
-            let surface=crate::surfaces::record_surface(&detail.source,node,&summary,&request.owners,fields,RecordSurfaceProfileView::RecordDetail,r);
-            let relationships=r.read_relationships(&SourceRelationshipRequest{record:key.clone(),owners:Some(request.owners.clone()),field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},direction:SourceRelationshipDirection::Outgoing,limit:1024})?;
-            Ok(RecordDetailView{record:summary,surface,selected:RecordNavigationView{record_key:key.to_string(),source_fingerprint:navigation_fingerprint(&request.owners,r.source_fingerprint()),owners:request.owners,field:if request.fields.len()==1{Some(request.fields[0].clone())}else{None},passage:request.passage},relationships:relationships.occurrences.into_iter().map(|o|relationship_view(o,r.source_fingerprint())).collect(),relationships_truncated:relationships.truncated})
-        })
+        self.submit_retrieval(move |r| read_record_detail(r, request).map(|(_, view)| view))
     }
 }
-fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {
+
+/// Decode the selected parent once, retaining it for workflows that compose runtime facts.
+pub(crate) fn read_record_detail(
+    r: &atlas_search::AtlasRetrievalService,
+    request: RecordDetailRequest,
+) -> AppServiceResult<(atlas_search::SourceRecordDetail, RecordDetailView)> {
+    validate_request(&request)?;
+    let key = RecordKey::parse(&request.record_key)
+        .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
+    if request
+        .owners
+        .iter()
+        .any(|o| matches!(o.identity, OwnedContentIdentity::SnapshotLocal { .. }))
+        && request.source_fingerprint.as_deref() != Some(r.source_fingerprint())
+    {
+        return Err(AppServiceError::invalid_request(
+            "snapshot-local navigation belongs to a different artifact; reopen the search result or parent record",
+        ));
+    }
+    let detail = r
+        .get_record(GetRecordRequest {
+            record_key: &key,
+            selected_content: &[],
+        })?
+        .ok_or_else(|| {
+            AppServiceError::new(
+                AppErrorCode::RecordNotFound,
+                format!("record `{key}` was not found"),
+            )
+        })?;
+    let node = detail.source.node_at(&request.owners).ok_or_else(|| {
+        AppServiceError::invalid_request("selected owner does not exist in this source snapshot")
+    })?;
+    let selections = node.content_selections();
+    if request
+        .fields
+        .iter()
+        .any(|f| !selections.iter().any(|s| s.field == f))
+    {
+        return Err(AppServiceError::invalid_request(
+            "selected field is not declared content of the selected owner",
+        ));
+    }
+    let selected: Vec<_> = selections
+        .into_iter()
+        .filter(|s| {
+            if request.fields.is_empty() {
+                s.role != SourceContentRole::Name && matches!(s.text, SourceFieldView::Value(_))
+            } else {
+                request.fields.iter().any(|f| f == s.field)
+            }
+        })
+        .collect();
+    if selected.len() > 256 {
+        return Err(AppServiceError::invalid_request(
+            "select at most 256 content fields per detail request",
+        ));
+    }
+    let locators: Vec<_> = selected
+        .iter()
+        .filter(|s| matches!(s.format, SourceFieldView::Value(SourceContentFormat::Html)))
+        .map(|s| SourceContentLocator {
+            record: key.clone(),
+            owners: request.owners.clone(),
+            field: s.field.into(),
+        })
+        .collect();
+    let content = r.read_attributed_content(&locators)?;
+    let fields = crate::prepared_content::prepared_fields(
+        &key,
+        &request.owners,
+        &selected,
+        &content.content.fields,
+        &content.bounded,
+        r.artifact_context().audience,
+        r.source_fingerprint(),
+    )?;
+    if let Some(address) = &request.passage {
+        if matches!(address, SourcePassageAddress::Identity {}) {
+            if !request.fields.is_empty() {
+                return Err(AppServiceError::invalid_request(
+                    "identity navigation cannot select a prose field",
+                ));
+            }
+        } else {
+            if request.fields.len() != 1 {
+                return Err(AppServiceError::invalid_request(
+                    "passage navigation requires exactly one selected field",
+                ));
+            }
+            let field = fields
+                .iter()
+                .find(|f| f.locator.field == request.fields[0])
+                .ok_or_else(|| {
+                    AppServiceError::invalid_request("selected passage field is unavailable")
+                })?;
+            let (html, plain) = match &field.body {
+                atlas_app_model::PreparedFieldBodyView::Html { html, .. } => {
+                    (Some(html.as_str()), None)
+                }
+                atlas_app_model::PreparedFieldBodyView::Plain { text } => {
+                    (None, Some(text.as_str()))
+                }
+                _ => {
+                    return Err(AppServiceError::invalid_request(
+                        "selected passage field is unavailable",
+                    ));
+                }
+            };
+            recover_source_passage(html, plain, address).map_err(|e| {
+                AppServiceError::invalid_request(format!("stale or invalid passage: {e}"))
+            })?;
+        }
+    }
+    let summary = crate::projection::localized_summary_view(&detail.summary, r);
+    let presentation = crate::presentation::record_presentation(
+        &detail.source,
+        node,
+        &summary,
+        &request.owners,
+        fields,
+        r,
+    );
+    let relationships = r.read_non_content_relationships(&SourceRelationshipRequest {
+        record: key.clone(),
+        owners: Some(request.owners.clone()),
+        field: if request.fields.len() == 1 {
+            Some(request.fields[0].clone())
+        } else {
+            None
+        },
+        direction: SourceRelationshipDirection::Outgoing,
+        limit: 1024,
+    })?;
+    let view = RecordDetailView {
+        artifact_generation: r.artifact_generation()?,
+        record: summary,
+        presentation,
+        selected: RecordNavigationView {
+            record_key: key.to_string(),
+            source_fingerprint: navigation_fingerprint(&request.owners, r.source_fingerprint()),
+            owners: request.owners,
+            field: if request.fields.len() == 1 {
+                Some(request.fields[0].clone())
+            } else {
+                None
+            },
+            passage: request.passage,
+        },
+        relationships: content
+            .relationships
+            .into_iter()
+            .chain(relationships.occurrences)
+            .map(|o| relationship_view(o, r.source_fingerprint()))
+            .collect(),
+        relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
+    };
+    Ok((detail, view))
+}
+pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {
     if r.owners.len() > 32
         || r.fields.len() > 256
         || r.fields.iter().any(|f| f.len() > 512)

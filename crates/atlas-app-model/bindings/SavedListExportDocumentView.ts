@@ -2,4 +2,4 @@
 import type { SavedListExportItemView } from "./SavedListExportItemView";
 import type { SavedListExportListView } from "./SavedListExportListView";
 
-export type SavedListExportDocumentView = { format: string, version: bigint, exported_at: string, list: SavedListExportListView, items: Array<SavedListExportItemView>, };
+export type SavedListExportDocumentView = { format: string, version: number, exported_at: string, list: SavedListExportListView, items: Array<SavedListExportItemView>, };

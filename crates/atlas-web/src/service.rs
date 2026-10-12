@@ -16,12 +16,8 @@ use atlas_app_model::{
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
 };
-use atlas_app_model::{
-    GraphContextView, GraphContextViewRequest, RemasterLinksView, SearchPageRequest,
-    SimilarRecordsView, VariantGroupView,
-};
 use atlas_app_service::{AppServiceError, AtlasAppService};
-use atlas_domain::{QueryPredicate, RecordKey};
+use atlas_domain::QueryPredicate;
 use tokio::sync::Semaphore;
 
 use crate::error::WebError;
@@ -81,6 +77,16 @@ pub(crate) trait AtlasWebService: Send + Sync {
     ) -> Result<ResultWindowPage, AppServiceError>;
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
+    fn encounter_reference(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::EncounterReferenceRequest,
+    ) -> Result<RecordDetailView, AppServiceError>;
+    fn owned_reading(
+        &self,
+        request: atlas_app_model::OwnedReadingRequest,
+    ) -> Result<atlas_app_model::OwnedReadingBatchView, AppServiceError>;
     fn record_detail_at(
         &self,
         request: RecordDetailRequest,
@@ -94,18 +100,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         predicate: QueryPredicate,
     ) -> Result<FilterValidationResult, AppServiceError>;
 
-    fn graph_context(
+    fn related_records(
         &self,
-        request: GraphContextViewRequest,
-    ) -> Result<Option<GraphContextView>, AppServiceError>;
-    fn remaster_links(&self, key: RecordKey) -> Result<Option<RemasterLinksView>, AppServiceError>;
-    fn variant_group(&self, key: RecordKey) -> Result<Option<VariantGroupView>, AppServiceError>;
-    fn similar_records(
-        &self,
-        key: String,
-        filter: Option<QueryPredicate>,
-        page: SearchPageRequest,
-    ) -> Result<Option<SimilarRecordsView>, AppServiceError>;
+        request: atlas_app_model::RelatedRecordsRequest,
+    ) -> Result<atlas_app_model::RelatedRecordsView, AppServiceError>;
+
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
 
     fn encounter_condition_definitions(
@@ -213,6 +212,27 @@ pub(crate) trait AtlasWebService: Send + Sync {
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn encounter_reference(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::EncounterReferenceRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        self.encounter_reference(encounter_ref, participant_key, request)
+    }
+    fn owned_reading(
+        &self,
+        request: atlas_app_model::OwnedReadingRequest,
+    ) -> Result<atlas_app_model::OwnedReadingBatchView, AppServiceError> {
+        self.owned_reading(request)
+    }
+    fn related_records(
+        &self,
+        request: atlas_app_model::RelatedRecordsRequest,
+    ) -> Result<atlas_app_model::RelatedRecordsView, AppServiceError> {
+        self.related_records(request)
+    }
+
     fn record_detail_at(
         &self,
         request: RecordDetailRequest,
@@ -268,26 +288,6 @@ impl AtlasWebService for AtlasAppService {
         self.record_detail(record_key)
     }
 
-    fn graph_context(
-        &self,
-        request: GraphContextViewRequest,
-    ) -> Result<Option<GraphContextView>, AppServiceError> {
-        self.graph_context(request)
-    }
-    fn remaster_links(&self, key: RecordKey) -> Result<Option<RemasterLinksView>, AppServiceError> {
-        self.remaster_links(key)
-    }
-    fn variant_group(&self, key: RecordKey) -> Result<Option<VariantGroupView>, AppServiceError> {
-        self.variant_group(key)
-    }
-    fn similar_records(
-        &self,
-        key: String,
-        filter: Option<QueryPredicate>,
-        page: SearchPageRequest,
-    ) -> Result<Option<SimilarRecordsView>, AppServiceError> {
-        self.similar_records(key, filter, page)
-    }
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
         self.encounters()
     }

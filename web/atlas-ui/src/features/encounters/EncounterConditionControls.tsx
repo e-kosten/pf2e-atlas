@@ -1,5 +1,5 @@
 import { Button, Form, Input, InputNumber, Popover, Select } from "antd";
-import type { BaseSelectRef } from "rc-select";
+import type { GetRef } from "antd";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type {
@@ -39,7 +39,7 @@ export function EncounterConditionControls({
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -49,7 +49,7 @@ export function EncounterConditionControls({
   const [conditionForm] = Form.useForm<AddConditionForm>();
   const [addConditionOpen, setAddConditionOpen] = useState(false);
   const [addDetailsOpen, setAddDetailsOpen] = useState(false);
-  const addConditionSelectRef = useRef<BaseSelectRef>(null);
+  const addConditionSelectRef = useRef<GetRef<typeof Select>>(null);
   const addConditionRef = Form.useWatch("conditionRef", conditionForm);
   const addCondition = conditionDefinition(addConditionRef, conditionDefinitions);
   const addConditionHasValue = addCondition?.has_value ?? false;
@@ -96,12 +96,15 @@ export function EncounterConditionControls({
               }}
             >
               <div className="encounter-add-condition__row">
-                <Form.Item name="conditionRef" rules={[{ required: true }]}>
+                <Form.Item
+                  style={{ marginBottom: 0 }}
+                  name="conditionRef"
+                  rules={[{ required: true }]}
+                >
                   <Select
                     aria-label="Add condition"
                     ref={addConditionSelectRef}
-                    showSearch
-                    optionFilterProp="label"
+                    showSearch={{ optionFilterProp: "label" }}
                     options={conditionDefinitions.map((condition) => ({
                       label: condition.name,
                       value: condition.condition_ref,
@@ -122,8 +125,12 @@ export function EncounterConditionControls({
                   />
                 </Form.Item>
                 {addConditionHasValue && (
-                  <Form.Item name="value">
-                    <InputNumber aria-label="Condition value" min={0} />
+                  <Form.Item style={{ marginBottom: 0 }} name="value">
+                    <InputNumber
+                      className="encounter-condition-number"
+                      aria-label="Condition value"
+                      min={0}
+                    />
                   </Form.Item>
                 )}
                 <Popover
@@ -181,10 +188,14 @@ function ConditionDetailsFields({
 }) {
   return (
     <div className="encounter-condition-details">
-      <Form.Item name="duration" label="Duration">
-        <InputNumber aria-label="Duration rounds" min={0} />
+      <Form.Item style={{ marginBottom: 0 }} name="duration" label="Duration">
+        <InputNumber
+          className="encounter-condition-number"
+          aria-label="Duration rounds"
+          min={0}
+        />
       </Form.Item>
-      <Form.Item name="sourceParticipantKey" label="Source">
+      <Form.Item style={{ marginBottom: 0 }} name="sourceParticipantKey" label="Source">
         <Select
           allowClear
           aria-label="Source"
@@ -194,7 +205,7 @@ function ConditionDetailsFields({
           }))}
         />
       </Form.Item>
-      <Form.Item name="note" label="Note">
+      <Form.Item style={{ marginBottom: 0 }} name="note" label="Note">
         <Input.TextArea
           aria-label="Condition note"
           autoSize={{ minRows: 2, maxRows: 8 }}
@@ -218,7 +229,7 @@ function ConditionEditor({
   participantKey: string;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onRemove: (participantKey: string, conditionId: bigint) => void;
   onUpdate: (
     participantKey: string,
@@ -273,18 +284,16 @@ function ConditionEditor({
         .join(" ")}
     >
       {condition.condition_key ? (
-        <button
-          className="encounter-condition-row__name encounter-condition-row__name-button"
+        <Button
+          type="link"
+          style={{ padding: 0, height: "auto", justifyContent: "start" }}
+          className="encounter-condition-row__name"
           onClick={(event) =>
-            onReference(
-              condition.condition_key!,
-              event.currentTarget.getBoundingClientRect(),
-            )
+            onReference(condition.condition_key!, event.currentTarget)
           }
-          type="button"
         >
           {condition.name}
-        </button>
+        </Button>
       ) : (
         <span className="encounter-condition-row__name">{condition.name}</span>
       )}
@@ -316,7 +325,7 @@ function ConditionEditor({
         }
         open={detailsOpen}
         onOpenChange={openDetails}
-        placement="bottomRight"
+        placement="bottom"
         trigger="click"
       >
         <Button

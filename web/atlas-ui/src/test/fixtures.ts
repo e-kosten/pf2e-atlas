@@ -5,7 +5,104 @@ import type {
   QueryFieldDefinition,
   QueryPredicate,
   FilterValueListView,
+  ActorPresentationView,
+  ActorActivityView,
+  FactView,
+  NumberFactView,
+  SpellPresentationView,
 } from "../generated/atlas";
+export const knownFact = <T>(value: T): FactView<T> => ({ state: "value", value });
+export const unavailableFact = <T>(
+  state: FactView<T>["state"] = "missing",
+): FactView<T> => ({ state, value: null });
+export const numberFact = (value: number): NumberFactView => ({
+  state: "value",
+  value,
+  adjustment: null,
+});
+export function actorFixture(): ActorPresentationView {
+  return {
+    level: numberFact(1),
+    armor_class: numberFact(16),
+    maximum_hp: numberFact(20),
+    perception: numberFact(7),
+    saves: { fortitude: numberFact(7), reflex: numberFact(5), will: numberFact(0) },
+    abilities: knownFact([{ key: "str", label: "Strength", modifier: numberFact(3) }]),
+    skills: knownFact([]),
+    land_speed: numberFact(25),
+    movement: knownFact([]),
+    immunities: knownFact([]),
+    weaknesses: knownFact([]),
+    resistances: knownFact([]),
+    senses: knownFact([]),
+    perception_details: knownFact(""),
+    languages: knownFact(["Common"]),
+    language_details: knownFact(""),
+    activities: knownFact([]),
+    runtime: null,
+  };
+}
+export function activityFixture(
+  title = "Jaws",
+  recordKey = "actors:ghoul",
+): ActorActivityView {
+  const na: NumberFactView = { state: "not_applicable", value: null, adjustment: null };
+  return {
+    title,
+    family: "melee",
+    kind: "strike",
+    navigation: {
+      record_key: recordKey,
+      owners: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],
+      field: null,
+      passage: null,
+      source_fingerprint: "snapshot",
+    },
+    usage: null,
+    action_cost: knownFact({ glyph: "one_action", label: "1 action" }),
+    traits: [],
+    attack: numberFact(9),
+    lore_modifier: na,
+    difficulty_class: na,
+    casting_tradition: unavailableFact("not_applicable"),
+    preparation: unavailableFact("not_applicable"),
+    damage: knownFact([]),
+    casting_entry: null,
+    association: unavailableFact("not_applicable"),
+    base_rank: na,
+    authored_cast_rank: na,
+    casting_context: null,
+    notes: [],
+  };
+}
+export function spellFixture(): SpellPresentationView {
+  return {
+    rank: numberFact(3),
+    traditions: knownFact(["arcane", "primal"]),
+    cast: knownFact({ glyph: "two_actions", label: "2 actions" }),
+    requirements: knownFact(""),
+    cost: knownFact(""),
+    range: knownFact("500 feet"),
+    target: knownFact(""),
+    area: knownFact({
+      shape: knownFact("burst"),
+      size: knownFact("20 feet"),
+      details: knownFact(""),
+    }),
+    defense: knownFact({
+      statistic: knownFact("Reflex"),
+      basic: knownFact(true),
+      passive: knownFact(""),
+    }),
+    duration: knownFact(""),
+    sustained: knownFact(false),
+    damage: knownFact([]),
+    heightening: unavailableFact("not_applicable"),
+    forms: knownFact([]),
+    casting_entry: unavailableFact("not_applicable"),
+    authored_cast_rank: { state: "not_applicable", value: null, adjustment: null },
+  };
+}
 export function summaryFixture(
   record_key: string,
   title = record_key.split(":")[1] || record_key,
@@ -32,6 +129,7 @@ export function detailFixture(
   const record = summaryFixture(record_key, title);
   const locator = { record: record_key, owners: [], field: "system.description.value" };
   return {
+    artifact_generation: "test-generation",
     record,
     selected: {
       record_key,
@@ -45,6 +143,13 @@ export function detailFixture(
       ? [
           {
             source: locator,
+            source_navigation: {
+              record_key,
+              owners: [],
+              field: locator.field,
+              passage: null,
+              source_fingerprint: null,
+            },
             ordinal: 0,
             origin: "prepared_content",
             kind: "uuid",
@@ -64,27 +169,21 @@ export function detailFixture(
           },
         ]
       : [],
-    surface: {
-      record_key,
-      title: record.title,
-      kind: record.kind,
-      profile: "record_detail",
-      header: { traits: [] },
-      sections: target
+    presentation: {
+      classification: record.kind_label,
+      identity: record,
+      owned: [],
+      body: { kind: "content" },
+      content: target
         ? [
             {
-              kind: "description",
-              title: "Description",
-              collapsed_by_default: false,
-              content: {
-                locator,
-                role: "description",
-                source_fingerprint: null,
-                body: {
-                  kind: "html",
-                  html: '<p><a data-atlas-reference="0" href="#">Nested Rule</a></p>',
-                  controls: [],
-                },
+              locator,
+              role: "description",
+              source_fingerprint: null,
+              body: {
+                kind: "html",
+                html: '<p><a data-atlas-reference="0" href="#">Nested Rule</a></p>',
+                controls: [],
               },
             },
           ]
@@ -127,6 +226,12 @@ export function fieldFixture(
 export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditorView {
   return {
     catalog_version: 1,
+    common_field_ids: [
+      "record.kind",
+      "record.level_or_rank",
+      "rarity",
+      "traits",
+    ].filter((id) => fields.some((field) => field.id === id)),
     limits: { source_bytes: 16384, nodes: 256, depth: 32, literal_list: 128 },
     groups: [
       {
@@ -134,6 +239,13 @@ export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditor
         label: "Common",
         fields: fields.map((definition) => ({
           definition,
+          label: definition.label,
+          help: null,
+          choices: definition.choices.map((value) => ({ value, label: value })),
+          operators: definition.operators.map((operator) => ({
+            operator,
+            label: operator,
+          })),
           control:
             definition.field_type === "number"
               ? "numeric"
@@ -151,12 +263,20 @@ export function valuesFixture(
   values: string[] = [],
 ): FilterValueListView {
   return {
-    values: {
-      field,
-      options: values.map((value) => ({ value, distinct_roots: 1n, selected: false })),
-      total_values: BigInt(values.length),
-      exhaustive: true,
-      count_basis: "distinct roots",
+    kind: "contextual",
+    outcome: {
+      status: "available",
+      value: {
+        field,
+        options: values.map((value) => ({
+          value,
+          distinct_roots: 1n,
+          selected: false,
+        })),
+        total_values: BigInt(values.length),
+        exhaustive: true,
+        count_basis: "distinct roots",
+      },
     },
   };
 }

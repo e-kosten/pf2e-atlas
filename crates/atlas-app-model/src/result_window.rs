@@ -35,6 +35,10 @@ pub struct ReadResultWindowPageRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ResultWindowMode {
+    SimilarRecords {
+        seed_record_key: String,
+        filter: Option<QueryPredicate>,
+    },
     ListRecords {
         filter: Option<QueryPredicate>,
     },
@@ -47,6 +51,9 @@ pub enum ResultWindowMode {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ResultWindowModeSummary {
+    SimilarRecords {
+        seed: Box<RecordSummaryView>,
+    },
     ListRecords,
     TextSearch {
         query: String,
