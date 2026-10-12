@@ -2,26 +2,22 @@ import type {
   FilterDiscoveryContext,
   OpenResultWindowRequest,
   QueryPredicate,
-  RetrievalModeView,
 } from "../../generated/atlas";
+export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export type SearchFormState = {
   query: string;
-  mode: "browse" | "text_search";
-  retrievalMode: RetrievalModeView;
+  mode: "browse" | "text_search" | "similar_records";
+  similarSeed: string | null;
   filter: QueryPredicate | null;
   filterError: string | null;
-  visibleFilterIds: string[];
-  hiddenFilterIds: string[];
   pageSize: number;
 };
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
   query: "",
+  similarSeed: null,
   mode: "browse",
-  retrievalMode: "hybrid",
   filter: null,
   filterError: null,
-  visibleFilterIds: [],
-  hiddenFilterIds: [],
   pageSize: 25,
 };
 export function buildFilter(state: SearchFormState): QueryPredicate | null {
@@ -32,22 +28,34 @@ export function buildOpenRequest(
   number: number,
 ): OpenResultWindowRequest {
   if (state.filterError) throw new Error(state.filterError);
+  if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
+  if (state.similarSeed)
+    return {
+      page,
+      mode: {
+        kind: "similar_records",
+        seed_record_key: state.similarSeed,
+        filter: state.filter,
+      },
+    };
   return {
     page,
-    mode:
-      state.mode === "text_search" && state.query.trim()
-        ? {
-            kind: "text_search",
-            query: state.query.trim(),
-            filter: state.filter,
-            mode: state.retrievalMode,
-          }
-        : { kind: "list_records", filter: state.filter },
+    mode: state.query.trim()
+      ? {
+          kind: "text_search",
+          query: state.query.trim(),
+          filter: state.filter,
+          mode: "hybrid",
+        }
+      : { kind: "list_records", filter: state.filter },
   };
 }
 export function hasExecutableSearch(state: SearchFormState): boolean {
-  return !state.filterError && (state.query.trim().length > 0 || state.filter !== null);
+  return (
+    !state.filterError &&
+    (!!state.similarSeed || state.query.trim().length > 0 || state.filter !== null)
+  );
 }
 export function buildFilterDiscoveryContext(
   state: SearchFormState,
@@ -55,8 +63,8 @@ export function buildFilterDiscoveryContext(
   return {
     kind: "filtered",
     filter: state.filter,
-    text: state.mode === "text_search" ? state.query.trim() || null : null,
-    mode: state.retrievalMode,
+    text: state.query.trim() || null,
+    mode: "hybrid",
   };
 }
 export function buildSavedListFilterDiscoveryContext(
@@ -72,8 +80,8 @@ export function encodeSearchExecutionState(state: SearchFormState): string {
   return encodeURIComponent(
     JSON.stringify({
       query: state.query,
+      similarSeed: state.similarSeed,
       mode: state.mode,
-      retrievalMode: state.retrievalMode,
       filter: state.filter,
       filterError: state.filterError,
       pageSize: state.pageSize,
@@ -83,8 +91,8 @@ export function encodeSearchExecutionState(state: SearchFormState): string {
 export function searchStateQueryString(state: SearchFormState): string {
   const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
+  if (state.similarSeed) params.set("similar", state.similarSeed);
   if (state.mode !== "browse") params.set("mode", state.mode);
-  if (state.retrievalMode !== "hybrid") params.set("retrieval", state.retrievalMode);
   if (state.filter) params.set("filter", JSON.stringify(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
   return params.size ? "?" + params.toString() : "";
@@ -104,13 +112,17 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
     filterError = "Invalid structured filter URL";
   }
   const pageSize = Number(params.get("limit") || 25);
-  const retrieval = params.get("retrieval");
+  const similarSeed = params.get("similar")?.trim() || null;
+  if (similarSeed && params.get("q")?.trim()) filterError = SIMILAR_QUERY_CONFLICT;
   return {
     ...DEFAULT_SEARCH_STATE,
     query: params.get("q") || "",
-    mode: params.get("mode") === "text_search" ? "text_search" : "browse",
-    retrievalMode:
-      retrieval === "semantic" || retrieval === "lexical" ? retrieval : "hybrid",
+    similarSeed,
+    mode: similarSeed
+      ? "similar_records"
+      : params.get("q")?.trim()
+        ? "text_search"
+        : "browse",
     filter,
     filterError,
     pageSize:
@@ -124,8 +136,8 @@ export function decodeSearchState(value: string | null): SearchFormState {
     return decodeSearchStateFromParams(
       new URLSearchParams({
         q: typeof parsed.query === "string" ? parsed.query : "",
+        similar: typeof parsed.similarSeed === "string" ? parsed.similarSeed : "",
         mode: parsed.mode === "text_search" ? "text_search" : "browse",
-        retrieval: parsed.retrievalMode || "hybrid",
         filter: parsed.filter ? JSON.stringify(parsed.filter) : "",
         limit: String(parsed.pageSize || 25),
       }),

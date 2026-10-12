@@ -17,7 +17,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0028-rust-tagging-model.md`](./0028-rust-tagging-model.md): Rust tagging is a typed authored-label subsystem with explicit crate ownership, record-centered assignments, and authoritative `record_tags` artifact rows.
 - [`0029-local-web-app-boundary.md`](./0029-local-web-app-boundary.md): the local web app uses Axum plus an app-model/app-service boundary over runtime/search, with generated TypeScript contracts and full semantic-search startup for web service mode.
 - [`0030-local-state-database.md`](./0030-local-state-database.md): durable mutable local state such as saved lists lives in a separate local-state SQLite database beside the generated artifact.
-- [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): app-service composes final app-facing record surfaces from source facts plus product context, while the frontend renders and hosts interactions.
+- [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): historical generic section/profile transport, superseded by ADR0047; app-service composition ownership is retained.
 - [`0032-ingest-product-intent.md`](./0032-ingest-product-intent.md): product-purpose requirement for derived projections; historical source retention and metric model partially superseded by ADR0046.
 
 - [`0033-developer-command-surfaces.md`](./0033-developer-command-surfaces.md): product operations use `atlas`, Rust diagnostics use private `atlas-dev`, and compiler research uses private TypeScript npm commands; shared CLI presentation has a narrow support crate.
@@ -35,6 +35,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 - [`0045-source-backed-record-enrichment.md`](./0045-source-backed-record-enrichment.md): a key and one retained DTO, internal embedded addressing, separate preparation/relationship outputs and focused borrowed views, with developer reporting and a database-independent ingest handoff.
 - [`0046-source-backed-reference-artifact.md`](./0046-source-backed-reference-artifact.md): checked snapshot authority, named typed query projections, HTML caches, attributed lexical/semantic retrieval, concrete reader generation consistency and coordinated consumer replacement.
+- [`0047-semantic-record-presentation.md`](./0047-semantic-record-presentation.md): transient family facts, one composed encounter presentation, exact selected navigation and shared browser family components with independent CLI layout.
 
 ## Historical ADRs
 

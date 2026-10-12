@@ -2,6 +2,7 @@
 pub(crate) mod catalog;
 mod cel;
 pub(crate) mod compiler;
+mod labels;
 pub(crate) mod validation;
 pub use catalog::{QUERY_CAPABILITY_VERSION, query_capabilities};
 pub use cel::parse_where;

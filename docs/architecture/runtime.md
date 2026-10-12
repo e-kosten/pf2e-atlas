@@ -54,6 +54,11 @@ the tagged checked representation with version/identity/recursion guards; it run
 no source admission, defaults or repairs. Original complete source JSON is not
 duplicated in the artifact. Developer source inspection can read the checkout;
 normal runtime reads use the checked codec and work without it.
+`atlas record source` explicitly exports a product record's complete checked
+snapshot and compact provenance through the existing retrieval/app-service path.
+This inspection does not use presentation projections or read the source clone.
+The shared model-owned JSON inspection helper preserves the codec's depth guards;
+developer original-file inspection remains a separate hash-verified operation.
 
 ## Build and preparation
 
@@ -116,6 +121,10 @@ vector workflows remain deliberate modes rather than implicit web fallbacks.
 
 ## Retrieval and application workflows
 
+Short-lived semantic CLI searches open one retrieval service and query embedder
+on demand. The long-running web service retains its bounded worker pool for
+concurrent requests. Lexical and stored-vector commands remain model-free.
+
 `AtlasRetrievalService` is a concrete service over index plus optional query
 embedder. Narrow inherent methods own strict name/key lookup, browse, text search,
 similar, graph, remaster links, Suggested variants and catalog discovery. There
@@ -125,7 +134,26 @@ The shared predicate compiles to index-owned parameterized eligibility SQL.
 CLI CEL and UI structured requests independently target it. Applicable source
 fields retain value/missing/null/invalid/not-applicable states; only true matches.
 Same-child Exists preserves one witness. Facets use the same bindings and explicit
-self-exclusion semantics; unsupported contexts return errors.
+self-exclusion semantics. Index analysis returns typed optional unavailability for
+valid unsupported suggestion contexts before search loads embeddings or ranks
+candidates. Malformed predicates, wrong targets/scopes, invalid types and bounds,
+and actual model/SQLite/service failures remain errors. CLI raw discovery presents
+unavailable contexts as actionable command failures without another analysis.
+
+Count-free vocabulary is a separate discovery request with artifact or saved-list
+membership scope, value-search text, bounded paging and selected literals. It has
+no query predicate, query text or retrieval mode. App-service resolves saved-list
+keys; search forwards scope without embedding; index enumerates known applicable
+product values before edition preference. Empty membership remains empty, and
+retained selections do not inflate suggestion totals. Contextual counts retain
+their exact same-child/counterfactual/remaster and bounded-candidate semantics.
+
+Index owns useful human labels alongside executable filter definitions.
+App-service adds collection-context prefixes, groups, choice and operator labels
+and one ordered common field list: Kind, Level / Rank, Rarity, Traits. Presentation
+decoration does not declare executable fields or choices.
+The common Level / rank primitive is index-owned and uses existing rank/state
+for spells and level/state for other applicable families.
 
 FTS and sqlite-vec apply filters, key scopes and product eligibility before top-k.
 Search aggregates matching units to one root result while preserving useful
@@ -140,12 +168,99 @@ one root and batches required fields. Search result witnesses do not cause
 per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
+App-service result windows reuse browse, text and stored-vector Similar retrieval.
+Similar mode carries the exact root seed and canonical filters, and returns a
+body-free seed summary beside bounded candidate pages. It adds no ranking lane or
+query embedding. Browser URL state owns the removable seed criterion, and expired
+window handles reopen from that same committed request. Similarity uses catalog
+choices and vocabulary without text-scoped contextual facet counts.
+
+One bounded app-service Related operation returns verified nonempty categories
+with separate empty, unavailable and error outcomes. Its reference scope is the
+exact selected owner (including the empty root owner path). Verified counterparts
+and typed variant checks apply only to roots. Variant checks retain their bounded
+source-snapshot compatibility verification; category discovery never runs Similar
+ranking. Responses and browser caches use the complete selection and immutable
+artifact-context hash, distinct from snapshot-local navigation fingerprints.
+
 App-service owns workflow state/result windows, catalog-to-editor controls,
-record surfaces and local-state hydration over runtime/search. Web startup uses
+semantic family presentation and local-state hydration over runtime/search.
+Detail retains a body-free root summary, full selected address, and selected-node
+identity beside prepared content, useful owned links and an explicit family body.
+Authored reference extraction is independent of encounter composition; the private
+encounter arithmetic workspace is never transported. Encounter participants have
+one composed presentation beside their durable local state, with explanations
+attached to adjusted facts. Fact availability distinguishes missing, null, invalid
+and not-applicable parents from known zero, false and empty collections.
+
+Transient physical price facts retain availability for each currency, and table
+results retain collection availability with one owned-link collection in the
+table body. App-service supplies compact kind/level/rank captions from typed
+facts. Shared readers omit optional known-empty baseline rows and empty headings
+without altering source facts; required/unavailable values and explicit authored
+clear/empty changes remain visible. No stored visibility flags or HTML emptiness
+parser participates in this policy.
+
+Spells and their owned copies display authored casting context, damage, fixed or
+interval heightening and partial form changes. This is reference data, including
+explicit clears; it does not execute casting, calculate effective forms or spend
+resources. Renderers share semantic responses while independently formatting
+terminal and browser layouts. Complete selected navigation drives detail caching
+and reader transitions. Root terminal summaries stay body-free.
+
+Selected immediate Actor casting entries obtain associated local spells from the
+already-decoded checked parent, preserving complete owner addresses. Root activity
+rosters expose base and explicit authored cast ranks without duplicating the
+roster in each entry. Hazard defense-block applicability is projected explicitly:
+known zero AC and maximum HP suppress the primary block while original facts and
+valid zero saves remain retained. Shared reference layouts put prose first;
+encounter layouts prioritize combat state. Immediate Ability-class actions, effects and feats read inline by default through
+bounded owned-reading batches: one checked parent decode and one attributed
+prepared-content batch, up to 32 activities and 256 fields. Index owns exact
+locator SQL and complete relationship attribution for each delivered field.
+Fields exceeding the 1024 occurrence response budget have an explicit bounded
+outcome; valid rich content is never delivered with silently disabled links.
+Separate non-content relationship discovery remains bounded. Reading continuations
+and browser caches bind the immutable artifact generation; partial content never
+seeds selected-detail caches. Direct late-owner landing loads its bounded range
+without predecessor reads and retains explicit backward/forward continuation.
+
+All browser reference consumers render the same family meaning, including native
+previews and comparison; compact changes density only. Shared prepared content
+renders authored controls and exact links. Scrolling the actual reading container
+near continuation starts the next finite batch; an idle visible sentinel and a
+collapsed section do not start further batches. Complete checked owner anchors
+are distinct from selected-detail addresses. Native permalinks preserve modified
+clicks, and parent return retains known search/list/reader context and a checked
+reading landing.
+
+Encounter quick lookup requests the same complete selected-document view as other
+reference readers. App-service checks the participant against current local state,
+decodes one checked parent, reads selected content and composes the bounded runtime
+overlay in Rust. Casting entries retain their associated local spell roster;
+equipment keeps its customized authored view. Spells retain full authored details
+and current runtime notes without calculating spell forms or damage adjustments.
+Runtime detail uses a separate cache keyed by participant presentation and complete
+selection; it never seeds immutable reference caches. Changed participants, stale
+generations and missing selections remain explicit. Content-free
+hydration captures the artifact generation in the same deduplicated retrieval;
+source-free encounters have no generation and require no artifact open. Invalid
+referenced participants remain unresolved rather than becoming manual records.
+
+An embedded reader can offer an Original record link only for a resolved explicit
+CompendiumProvenance relationship. It opens the current local catalog record,
+while the selected reader and its full-page permalink retain the embedded copy.
+There is no name-based pairing or substitution of catalog data into local copies.
+
+Web startup uses
 full pooled retrieval; short-lived CLI workflows may choose explicit model-free
 or stored-vector modes. The bounded executor prevents one global serialized lane.
 Web routes are transport glue. App-model generates intentional browser DTOs;
 the browser neither receives whole Foundry bodies nor reimplements gameplay rules.
+
+Web hosting embeds the built frontend into debug and release binaries. A running
+server retains its compiled frontend/backend pair when later builds change the
+checkout's frontend output. Frontend hot reload uses the separate Vite dev server.
 
 Saved lists/encounters preserve unresolved snapshots and explicit user choices.
 Actor display uses authored baselines with bounded source/participant/condition

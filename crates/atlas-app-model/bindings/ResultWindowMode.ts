@@ -2,4 +2,4 @@
 import type { QueryPredicate } from "./QueryPredicate";
 import type { RetrievalModeView } from "./RetrievalModeView";
 
-export type ResultWindowMode = { "kind": "list_records", filter: QueryPredicate | null, } | { "kind": "text_search", query: string, filter: QueryPredicate | null, mode: RetrievalModeView, };
+export type ResultWindowMode = { "kind": "similar_records", seed_record_key: string, filter: QueryPredicate | null, } | { "kind": "list_records", filter: QueryPredicate | null, } | { "kind": "text_search", query: string, filter: QueryPredicate | null, mode: RetrievalModeView, };

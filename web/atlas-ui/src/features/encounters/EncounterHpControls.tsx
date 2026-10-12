@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber } from "antd";
+import { Button, Collapse, Form, Input, InputNumber } from "antd";
 import { useState } from "react";
 import type {
   EncounterParticipantView,
@@ -145,17 +145,11 @@ export function EncounterHpControls({
           )}
         </div>
       )}
-      <p>
-        {hpOriginLabels[current.hp_origin] ?? "HP origin unavailable"};{" "}
-        {adjustmentOriginLabels[current.variant_origin] ??
-          "Adjustment origin unavailable"}
-      </p>
-      <CapacityControl current={current} onUpdate={onUpdate} />
       <div className="encounter-hp-grid">
         <div className="encounter-hp-control">
           <span className="encounter-hp-control__label">HP</span>
           <div className="encounter-hp-control__row">
-            <Form.Item layout="vertical">
+            <Form.Item style={{ marginBottom: 0 }} layout="vertical">
               <Input
                 aria-label="HP"
                 value={hpInput}
@@ -181,7 +175,7 @@ export function EncounterHpControls({
         <div className="encounter-hp-control">
           <span className="encounter-hp-control__label">Temp HP</span>
           <div className="encounter-hp-control__row">
-            <Form.Item layout="vertical">
+            <Form.Item style={{ marginBottom: 0 }} layout="vertical">
               <Input
                 aria-label="Temp HP"
                 value={tempHpInput}
@@ -207,8 +201,9 @@ export function EncounterHpControls({
         <div className="encounter-hp-control encounter-hp-control--wide">
           <span className="encounter-hp-control__label">HP change</span>
           <div className="encounter-hp-control__row">
-            <Form.Item layout="vertical">
+            <Form.Item style={{ marginBottom: 0 }} layout="vertical">
               <InputNumber
+                style={{ width: "100%" }}
                 aria-label="HP change"
                 disabled={!hpKnown}
                 value={amount}
@@ -259,6 +254,28 @@ export function EncounterHpControls({
           </div>
         </div>
       </div>
+      <Collapse
+        key={current.participant_key}
+        ghost
+        size="small"
+        items={[
+          {
+            key: "hp-details",
+            label: "HP details",
+            styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
+            children: (
+              <div className="encounter-hp-details">
+                <p>
+                  {hpOriginLabels[current.hp_origin] ?? "HP origin unavailable"};{" "}
+                  {adjustmentOriginLabels[current.variant_origin] ??
+                    "Adjustment origin unavailable"}
+                </p>
+                <CapacityControl current={current} onUpdate={onUpdate} />
+              </div>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -280,28 +297,30 @@ function CapacityControl({
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? current.max_hp?.toString() ?? "";
   return (
-    <Form.Item label="Maximum HP">
+    <Form.Item style={{ marginBottom: 0 }} label="Maximum HP" layout="vertical">
       <Input
         aria-label="Maximum HP"
         value={value}
         onChange={(e) => setDraft(e.target.value)}
       />
-      <Button
-        onClick={() => {
-          const hp = evaluateHpFormula(value);
-          if (hp !== null) onUpdate({ max_hp: BigInt(hp), max_hp_edit: true });
-        }}
-      >
-        Override maximum
-      </Button>
-      <Button
-        onClick={() => {
-          setDraft(null);
-          onUpdate({ use_derived_max: true });
-        }}
-      >
-        Use authored maximum
-      </Button>
+      <div className="encounter-hp-actions">
+        <Button
+          onClick={() => {
+            const hp = evaluateHpFormula(value);
+            if (hp !== null) onUpdate({ max_hp: BigInt(hp), max_hp_edit: true });
+          }}
+        >
+          Override maximum
+        </Button>
+        <Button
+          onClick={() => {
+            setDraft(null);
+            onUpdate({ use_derived_max: true });
+          }}
+        >
+          Use authored maximum
+        </Button>
+      </div>
     </Form.Item>
   );
 }

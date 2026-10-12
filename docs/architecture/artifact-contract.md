@@ -86,8 +86,33 @@ upstream-backed empty query default only when their typed parent is known.
 CLI CEL uses the maintained parser and a documented supported subset. The UI
 builder submits structured predicates independently. There is no translation
 between CEL and editor state. Field/value discovery shares executable bindings
-and eligibility. Contextual facet counts self-exclude the target predicate while
-preserving same-child siblings; unsupported OR/NOT facet contexts return errors.
+and user-facing catalog labels. Labels name the useful property; source-family
+applicability, stable query IDs and collection scopes remain separate metadata.
+CLI numeric discovery uses range/state statistics rather than enumerating values;
+collection discovery uses states and directs callers to scoped member descriptors.
+Discovery shares query eligibility. Contextual facet counts self-exclude the target predicate while
+preserving same-child siblings. Valid conditions below OR/NOT or using negative
+comparisons can report typed optional discovery unavailability; the query itself
+remains executable. The index validates the complete predicate, target field,
+scope, clause identity, value type and request limits before that classification.
+Malformed requests and service failures remain errors. Search obtains availability
+from the same index analysis before query embeddings or ranking.
+
+Explicit count-free vocabulary discovery has no search predicate or retrieval
+context. It enumerates known applicable values in the product artifact or explicit
+saved-list key scope before edition preference, retaining server text search,
+bounded paging and separately validated selections. An empty key scope stays empty.
+Vocabulary totals describe available matching values, exclude absent selections,
+and never masquerade as displayed-root counts. Closed choices remain in the
+executable catalog even when absent from the corpus.
+
+Query capability version 3 includes intentional shared user-facing labels and
+the root-only numeric `record.level_or_rank`
+binding over existing columns. Spells use spell rank and its availability state;
+other applicable level families use record level and its state. There is no
+fallback from unavailable spell rank to level. Existing explicit family fields
+retain their meanings. Artifacts rebuild for the new catalog identity even though
+the physical tables are unchanged; readers require the exact executable catalog.
 
 Filters, explicit key scopes and product-family eligibility constrain lexical and
 vector units before ranking. Macros remain available for developer inspection and
@@ -103,6 +128,20 @@ context hash. Controls refer to markers local to that field. The browser renders
 sanitized HTML with those narrow facts; html2text formats terminal output at read
 time. Neither renderer executes Foundry scripts or reconstructs a general document
 AST. Terminal formatting is not FTS text.
+
+Preparation emits fixed action glyphs as allowlisted semantic HTML attributes
+with readable text, retaining nested enrichments rather than flattening them.
+Font characters are display decoration, not canonical search or terminal text.
+Prepared unresolved references preserve an explicit authored label or a qualified
+authored root name; opaque UUIDs display as unavailable. Their exact authored
+targets and unresolved status remain in relationship evidence and diagnostics.
+The content interpretation identity is `foundry-content/v6`; older prepared
+artifacts require rebuilding even though the physical schema is unchanged.
+
+App-service derives transient semantic family presentation from these checked
+snapshots and selected caches. Those response DTOs are not stored family bodies
+or another authored authority. Presentation changes alone require neither an
+artifact rebuild nor a schema migration; see [ADR0047](./decisions/0047-semantic-record-presentation.md).
 
 Initial indexing includes GM/owner prose and check DCs, excludes explicit None,
 and defaults to English with a build-time locale override. Search uses the indexed
@@ -151,12 +190,22 @@ Search collapses semantic units by maximum similarity per root. Hybrid uses one
 rank per root per lane with RRF60; sibling appearance does not penalize a passage.
 Semantic candidate windows are bounded and reported as such. Similar uses the
 stored root identity seed and semantic candidates, excluding the seed. No invented
-trait/graph reranking weights apply.
+trait/graph reranking weights apply. App result windows expose the same bounded
+Similar request and body-free seed summary; they do not extend the stored schema.
+
+The full serialized `SourceArtifactBuildContext` SHA-256 identifies the immutable
+artifact generation for detail envelopes and Related availability. It covers
+locale, preparation policies and semantic model as well as source identity.
+Snapshot-local navigation continues to use the source fingerprint; these identities
+serve different purposes and are not interchangeable.
 
 Legacy suppression occurs only when its verified remaster also matches the complete
 current request, before paging. A legacy-only match remains visible, and exact key
 lookup remains available. Suggested variants are bounded evidence-backed same-pack,
-family and compatible-category candidates; they never change identity or suppression.
+family and compatible-category candidates. Verification distinguishes a complete
+empty result from unavailable seed/candidate compatibility or an incomplete
+bounded check; nonempty results retain ambiguity and truncation. These suggestions
+never change identity or suppression.
 
 ## Publication, readers and validation
 
@@ -184,3 +233,13 @@ identity evidence, FTS postings and vector coverage/dimensions/finiteness/normal
 Query summaries and selected cache reads do not decode bodies. Explicit detail
 decodes one root and requests bounded batches of selected content; no per-marker
 or per-field body reads are permitted.
+
+Exact-locator attributed content reading is an index-owned transient operation;
+it changes no stored schema or preparation identity. Requests select at most 256
+fields. Delivered rich fields retain complete validated content-origin occurrence
+attribution within a 1024 occurrence response budget. A whole field exceeding the
+remaining budget has an explicit bounded outcome; readers do not display its HTML
+with silently missing links. Non-content relationship discovery stays a separate
+bounded operation. App-service owned-reading batches check one parent, select at
+most 32 immediate Ability-class activities and reuse this prepared batch without
+recursive detail projection or a second fact authority.

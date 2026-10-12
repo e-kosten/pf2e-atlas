@@ -5,9 +5,12 @@ import {
   readResultWindowPage,
   discoverFilterValues,
   discoverFilterEditor,
+  discoverFilterCounts,
   createSavedList,
   deleteSavedList,
   filterSavedList,
+  getSavedList,
+  getSavedLists,
   AtlasApiError,
   getEncounter,
   updateEncounterParticipant,
@@ -36,6 +39,55 @@ function respond(value: unknown, status = 200) {
   );
 }
 describe("source-backed API transport", () => {
+  it("normalizes tagged vocabulary totals without fabricating option counts", async () => {
+    respond({
+      kind: "vocabulary",
+      scope: { kind: "artifact" },
+      values: {
+        field: "traits",
+        options: [{ value: "fire" }],
+        selected_values: ["absent"],
+        total_values: 1,
+        basis: "product_artifact_before_edition_preference",
+      },
+    });
+    const result = await discoverFilterValues({
+      kind: "vocabulary",
+      scope: { kind: "artifact" },
+      field_id: "traits",
+      text: null,
+      offset: 0,
+      limit: 40,
+      selected_values: ["absent"],
+    });
+    expect(result).toMatchObject({
+      kind: "vocabulary",
+      values: {
+        total_values: 1n,
+        options: [{ value: "fire" }],
+        selected_values: ["absent"],
+      },
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty("context");
+  });
+  it("preserves unavailable count outcomes and actual HTTP failures", async () => {
+    const request = {
+      context: {
+        kind: "filtered" as const,
+        filter: null,
+        text: null,
+        mode: "hybrid" as const,
+      },
+      field_id: "traits",
+      clause_id: "traits",
+    };
+    respond({ counts: { status: "unavailable", reason: "negative_condition" } });
+    expect(await discoverFilterCounts(request)).toEqual({
+      counts: { status: "unavailable", reason: "negative_condition" },
+    });
+    respond({ code: "query_error", message: "Invalid target" }, 400);
+    await expect(discoverFilterCounts(request)).rejects.toThrow("Invalid target");
+  });
   const participantJson = {
     participant_key: "ghoul",
     position: 1,
@@ -143,6 +195,65 @@ describe("source-backed API transport", () => {
     expect(fetchMock.mock.calls[0][0]).toContain("/api/records/detail");
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
   });
+  it("preserves finite semantic real numbers and rejects unsafe authored/effective values", async () => {
+    const detail = detailFixture("actors:ghoul", "Ghoul");
+    const real = {
+      ...detail,
+      presentation: {
+        ...detail.presentation,
+        body: {
+          kind: "physical_reference",
+          value: {
+            usage: { state: "value", value: "held" },
+            bulk: { state: "value", value: 0.1, adjustment: null },
+            price: { state: "value", value: "1 gp" },
+            price_per: { state: "value", value: 1, adjustment: null },
+          },
+        },
+      },
+    };
+    respond(real);
+    expect(await getRecordDetail("actors:ghoul")).toEqual(real);
+    respond({
+      ...detail,
+      presentation: {
+        ...detail.presentation,
+        body: {
+          kind: "creature",
+          value: {
+            armor_class: {
+              state: "value",
+              value: Number.MAX_SAFE_INTEGER + 1,
+              adjustment: null,
+            },
+          },
+        },
+      },
+    });
+    await expect(getRecordDetail("actors:ghoul")).rejects.toThrow("safe numeric range");
+    respond({
+      ...detail,
+      presentation: {
+        ...detail.presentation,
+        body: {
+          kind: "creature",
+          value: {
+            armor_class: {
+              state: "value",
+              value: 30,
+              adjustment: {
+                authored: Number.MAX_SAFE_INTEGER + 1,
+                applied: [],
+                suppressed: [],
+                notes: [],
+              },
+            },
+          },
+        },
+      },
+    });
+    await expect(getRecordDetail("actors:ghoul")).rejects.toThrow("safe numeric range");
+  });
   it("sends typed predicates and distinguishes retrieval mode", async () => {
     respond({
       window_id: 5,
@@ -181,15 +292,20 @@ describe("source-backed API transport", () => {
   });
   it("normalizes only actual integer discovery counts", async () => {
     respond({
-      values: {
-        field: "common.traits",
-        options: [{ value: "fire", distinct_roots: 4, selected: false }],
-        total_values: 1,
-        exhaustive: true,
-        count_basis: "distinct roots",
+      kind: "contextual",
+      outcome: {
+        status: "available",
+        value: {
+          field: "common.traits",
+          options: [{ value: "fire", distinct_roots: 4, selected: false }],
+          total_values: 1,
+          exhaustive: true,
+          count_basis: "distinct roots",
+        },
       },
     });
     const result = await discoverFilterValues({
+      kind: "contextual",
       context: { kind: "filtered", filter: null, text: null, mode: "lexical" },
       field_id: "common.traits",
       clause_id: null,
@@ -197,8 +313,11 @@ describe("source-backed API transport", () => {
       offset: 0,
       limit: 100,
     });
-    expect(result.values.options[0].distinct_roots).toBe(4n);
-    expect(result.values.total_values).toBe(1n);
+    expect(result.kind).toBe("contextual");
+    if (result.kind !== "contextual" || result.outcome.status !== "available")
+      throw new Error("Wrong discovery outcome");
+    expect(result.outcome.value.options[0].distinct_roots).toBe(4n);
+    expect(result.outcome.value.total_values).toBe(1n);
     respond({
       catalog_version: 1,
       limits: { source_bytes: 16384, nodes: 256, depth: 32, literal_list: 128 },
@@ -212,7 +331,7 @@ describe("source-backed API transport", () => {
     ).toMatchObject({ catalog_version: 1 });
   });
   it("preserves useful saved-list CRUD requests", async () => {
-    respond({});
+    respond({ items: [] });
     await createSavedList({ slug: "research", name: "Research", tags: [] });
     await filterSavedList({
       list_ref: "Research",
@@ -224,6 +343,20 @@ describe("source-backed API transport", () => {
       "POST",
       "DELETE",
     ]);
+  });
+  it("keeps safe saved-list JSON counts and positions as numbers with response validation", async () => {
+    respond({ lists: [{ item_count: 2 }] });
+    expect((await getSavedLists()).lists[0].item_count).toBe(2);
+    respond({ list: { item_count: 2 }, items: [{ position: 0 }, { position: 1 }] });
+    const detail = await getSavedList("research");
+    expect(detail.list.item_count).toBe(2);
+    expect(detail.items.map((item) => item.position)).toEqual([0, 1]);
+    respond({ items: [{ position: Number.MAX_SAFE_INTEGER + 1 }] });
+    await expect(getSavedList("research")).rejects.toThrow("safe numeric range");
+    respond([]);
+    await expect(getSavedList("research")).rejects.toThrow(
+      "Invalid saved-list response",
+    );
   });
   it("preserves structured ambiguity/error information", async () => {
     respond(

@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(super) fn hydrate_participant_records(
     service: &AtlasAppService,
     participants: &[EncounterParticipant],
-) -> AppServiceResult<BTreeMap<String, HydratedParticipantRecord>> {
+) -> AppServiceResult<(Option<String>, BTreeMap<String, HydratedParticipantRecord>)> {
     let keys = participants
         .iter()
         .filter_map(|p| {
@@ -19,6 +19,9 @@ pub(super) fn hydrate_participant_records(
                 .and_then(|s| RecordKey::parse(s).ok())
         })
         .collect::<BTreeSet<_>>();
+    if keys.is_empty() {
+        return Ok((None, BTreeMap::new()));
+    }
     service.submit_retrieval(move |r| {
         let mut records = BTreeMap::new();
         for key in keys {
@@ -26,17 +29,45 @@ pub(super) fn hydrate_participant_records(
                 record_key: &key,
                 selected_content: &[],
             })? {
+                let view = crate::projection::localized_summary_view(&detail.summary, r);
+                let node = atlas_record::source_record::SourceQueryView::new(
+                    detail.source.source(),
+                    key.pack().as_str(),
+                    "",
+                )
+                .source;
+                let presentation = crate::presentation::record_presentation(
+                    &detail.source,
+                    node,
+                    &view,
+                    &[],
+                    vec![],
+                    r,
+                );
+                let arithmetic_baseline = super::mechanics::arithmetic_baseline(&presentation);
+                let adjustment_applicable = !matches!(
+                    atlas_record::source_record::SourceQueryView::new(
+                        detail.source.source(),
+                        key.pack().as_str(),
+                        "",
+                    )
+                    .actor()
+                    .authored_adjustment(),
+                    atlas_record::source_record::SourceFieldView::NotApplicable
+                );
                 records.insert(
                     key.to_string(),
                     HydratedParticipantRecord {
-                        view: crate::projection::localized_summary_view(&detail.summary, r),
+                        view,
+                        presentation,
+                        arithmetic_baseline,
+                        adjustment_applicable,
                         detail,
-                        source_fingerprint: r.source_fingerprint().into(),
                     },
                 );
             }
         }
-        Ok(records)
+        Ok((Some(r.artifact_generation()?), records))
     })
 }
 pub(super) fn resolve_record_ref(
@@ -77,7 +108,11 @@ pub(super) fn resolve_record_ref(
 }
 
 pub(super) struct HydratedParticipantRecord {
+    // HP-edit policy reads the checked HP/level fields; participant overlays use
+    // the already extracted semantic and arithmetic baselines below.
     pub detail: SourceRecordDetail,
-    pub source_fingerprint: String,
+    pub arithmetic_baseline: Option<super::mechanics::StatBlockView>,
+    pub adjustment_applicable: bool,
     pub view: atlas_app_model::RecordSummaryView,
+    pub presentation: atlas_app_model::RecordPresentationView,
 }

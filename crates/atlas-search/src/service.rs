@@ -71,6 +71,11 @@ impl AtlasRetrievalService {
             embedder: None,
         }
     }
+    /// Complete immutable artifact preparation identity, separate from source-local addresses.
+    pub fn artifact_generation(&self) -> Result<String, crate::SearchError> {
+        Ok(self.artifact_context().sha256()?)
+    }
+
     pub fn artifact_context(&self) -> &atlas_index::SourceArtifactBuildContext {
         self.index.context()
     }

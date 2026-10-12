@@ -1,35 +1,71 @@
 import { Drawer } from "antd";
+import { useRef } from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
+import { usePreviewContentFocus } from "./usePreviewContentFocus";
 
 export function RecordPreviewDrawer({
   detail,
   loading,
+  error,
+  onRetry,
   onClose,
+  onAfterClose,
   onOpenFullPage,
   onReference,
   open,
-  afterOpenChange,
+  fullPageHref,
+  landing,
+  onOwnerReturn,
 }: {
-  afterOpenChange: (open: boolean) => void;
+  onAfterClose: () => void;
   open: boolean;
 } & RecordPreviewContentProps) {
+  const actions = useRef<HTMLDivElement>(null);
+  const contentFocus = usePreviewContentFocus(open);
   return (
     <Drawer
-      afterOpenChange={afterOpenChange}
+      afterOpenChange={(open) => {
+        if (open)
+          actions.current?.querySelector<HTMLElement>("a[href],button")?.focus();
+        else onAfterClose();
+      }}
+      focusable={{ focusTriggerAfterClose: false }}
       className="record-preview-drawer"
       closable={false}
-      destroyOnHidden
       open={open}
       placement="right"
-      title="Reference"
-      width="min(560px, calc(100vw - 24px))"
-      extra={<RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />}
+      title={<span className="sr-only">Reference</span>}
+      size="min(560px, calc(100vw - 24px))"
+      classNames={{
+        header: "record-preview-drawer__header",
+        body: "record-preview-drawer__body",
+      }}
+      extra={
+        <div ref={actions}>
+          <RecordPreviewActions
+            onClose={onClose}
+            onOpenFullPage={onOpenFullPage}
+            fullPageHref={fullPageHref}
+          />
+        </div>
+      }
       onClose={onClose}
     >
-      <section aria-label="Reference preview" role="dialog">
-        <RecordDetailPane detail={detail} loading={loading} onReference={onReference} />
+      <section {...contentFocus} aria-label="Reference content">
+        <RecordDetailPane
+          compact
+          detail={detail}
+          loading={loading}
+          error={error}
+          onRetry={onRetry}
+          onBack={onClose}
+          backLabel="Close preview"
+          onReference={onReference}
+          landing={landing}
+          onOwnerReturn={onOwnerReturn}
+        />
       </section>
     </Drawer>
   );

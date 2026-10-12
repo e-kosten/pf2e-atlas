@@ -1,8 +1,8 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Form, Input, Modal, Table } from "antd";
+import { useQuery } from "@tanstack/react-query";
+import { Alert, Button, Form, Input, Modal, Table } from "antd";
 import type { FormInstance, ModalProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { openResultWindow } from "../../../api/atlasApi";
 import type {
   OpenResultWindowRequest,
@@ -42,6 +42,7 @@ export function SearchPickerModal<FormValues>({
   selectedRecordKey: string | null;
   title: string;
 }) {
+  const searchId = useId();
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const searchTimeout = useRef<number | undefined>(undefined);
@@ -54,16 +55,14 @@ export function SearchPickerModal<FormValues>({
   const recordResults = useQuery({
     queryKey: ["search-picker", title, activeSearch],
     enabled: open && activeSearch.trim().length > 0,
-    placeholderData: keepPreviousData,
     queryFn: () => openResultWindow(buildRequest(activeSearch)),
   });
-  const selectedRecord = useMemo(
-    () =>
-      recordResults.data?.rows.find(
-        (row) => row.record.record_key === selectedRecordKey,
-      ) ?? null,
-    [recordResults.data?.rows, selectedRecordKey],
-  );
+  const currentRows =
+    activeSearch.trim() && search === activeSearch && !recordResults.error
+      ? (recordResults.data?.rows ?? [])
+      : [];
+  const selectedRecord =
+    currentRows.find((row) => row.record.record_key === selectedRecordKey) ?? null;
 
   const reset = () => {
     setSearch("");
@@ -86,8 +85,10 @@ export function SearchPickerModal<FormValues>({
       title={title}
     >
       <Form form={form} layout="vertical" onFinish={onFinish}>
-        <Form.Item label="Search" layout="vertical">
+        <Form.Item label="Search" htmlFor={searchId} layout="vertical">
           <Input
+            id={searchId}
+            autoComplete="off"
             allowClear
             aria-label="Search"
             onChange={(event) => {
@@ -103,27 +104,55 @@ export function SearchPickerModal<FormValues>({
             value={search}
           />
         </Form.Item>
-        <Table
-          columns={recordPickerColumns(onSelectedRecordKeyChange)}
-          dataSource={activeSearch.trim().length > 0 ? recordResults.data?.rows : []}
-          loading={recordResults.isLoading || recordResults.isFetching}
+        {recordResults.error && search === activeSearch && (
+          <Alert
+            type="error"
+            title="Search failed"
+            description={recordResults.error.message}
+            action={
+              <Button
+                onClick={() => recordResults.refetch()}
+                loading={recordResults.isFetching}
+              >
+                Retry search
+              </Button>
+            }
+          />
+        )}
+        <Table<ResultWindowRow>
+          columns={recordPickerColumns}
+          dataSource={currentRows}
+          loading={recordResults.isFetching || search !== activeSearch}
           locale={{
-            emptyText: activeSearch.trim().length > 0 ? emptyResults : emptyPrompt,
+            emptyText: recordResults.error
+              ? "Search unavailable"
+              : activeSearch.trim()
+                ? emptyResults
+                : emptyPrompt,
           }}
           pagination={false}
-          rowClassName={(row) =>
-            row.record.record_key === selectedRecordKey
-              ? "search-picker__row search-picker__row--selected"
-              : "search-picker__row"
-          }
+          rowSelection={{
+            type: "radio",
+            selectedRowKeys: selectedRecordKey ? [selectedRecordKey] : [],
+            onChange: (keys) =>
+              onSelectedRecordKeyChange(keys.length ? String(keys[0]) : null),
+            getCheckboxProps: (row) => ({
+              "aria-label": `Select ${row.record.title}`,
+              disabled: recordResults.isFetching,
+            }),
+          }}
+          rowClassName="search-picker__row"
           onRow={(row) => ({
-            onClick: () => onSelectedRecordKeyChange(row.record.record_key),
+            onClick: (event) => {
+              if (!(event.target as Element).closest("input,button,label"))
+                onSelectedRecordKeyChange(row.record.record_key);
+            },
           })}
           rowKey={(row) => row.record.record_key}
           scroll={{ y: 280 }}
           size="small"
         />
-        <p className="search-picker__selection">
+        <p className="search-picker__selection" role="status" aria-live="polite">
           {selectedRecord ? selectedLabel(selectedRecord) : selectedPrompt}
         </p>
         {children}
@@ -132,43 +161,13 @@ export function SearchPickerModal<FormValues>({
   );
 }
 
-function recordPickerColumns(
-  onSelectRecord: (recordKey: string) => void,
-): ColumnsType<ResultWindowRow> {
-  return [
-    {
-      title: "Name",
-      dataIndex: ["record", "title"],
-      render: (_, row) => (
-        <span
-          className="search-picker__title"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelectRecord(row.record.record_key);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onSelectRecord(row.record.record_key);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-        >
-          <span>{row.record.title}</span>
-        </span>
-      ),
-    },
-    {
-      title: "Kind",
-      dataIndex: ["record", "kind_label"],
-      width: 100,
-    },
-    {
-      title: "Level",
-      dataIndex: ["record", "level_label"],
-      width: 90,
-      render: (value) => value ?? "",
-    },
-  ];
-}
+const recordPickerColumns: ColumnsType<ResultWindowRow> = [
+  { title: "Name", dataIndex: ["record", "title"] },
+  { title: "Kind", dataIndex: ["record", "kind_label"], width: 100 },
+  {
+    title: "Level",
+    dataIndex: ["record", "level_label"],
+    width: 90,
+    render: (value) => value ?? "",
+  },
+];

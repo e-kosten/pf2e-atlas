@@ -1,5 +1,9 @@
+import { fieldFixture } from "../../test/fixtures";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import {
+  initialWorkspaceInteractionState,
+  rememberKindPreference,
+  KIND_PREFERENCE_KEY,
   workspaceInteractionReducer,
   type WorkspaceInteractionState,
 } from "./workspaceState";
@@ -61,14 +65,12 @@ describe("workspaceInteractionReducer", () => {
   it("restores URL state as one transition", () => {
     const restoredSearch = {
       ...DEFAULT_SEARCH_STATE,
-      filterClauses: [
-        {
-          id: "kind-include_any",
-          field: "kind",
-          operator: "include_any" as const,
-          values: ["creature"],
-        },
-      ],
+      filter: {
+        kind: "in" as const,
+        clause_id: "kind",
+        field: "record.kind",
+        values: ["creature"],
+      },
     };
 
     const next = workspaceInteractionReducer(
@@ -124,3 +126,71 @@ function baseState(
     ...overrides,
   };
 }
+
+describe("remembered Kind default precedence", () => {
+  const field = fieldFixture("record.kind");
+  const predicate = {
+    kind: "all_of" as const,
+    children: [
+      { kind: "in" as const, field: field.path, values: ["creature"] },
+      {
+        kind: "not" as const,
+        predicate: { kind: "in" as const, field: field.path, values: ["hazard"] },
+      },
+    ],
+  };
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+  it("remembers only bounded literal preferences and restores them on a fresh bare search", () => {
+    rememberKindPreference(predicate, field);
+    expect(JSON.parse(localStorage.getItem(KIND_PREFERENCE_KEY)!)).toEqual({
+      include: ["creature"],
+      exclude: ["hazard"],
+    });
+    history.replaceState(null, "", "/search");
+    expect(initialWorkspaceInteractionState().search.filter).toMatchObject({
+      kind: "all_of",
+      children: [
+        { kind: "in", values: ["creature"] },
+        { kind: "not", predicate: { values: ["hazard"] } },
+      ],
+    });
+  });
+  it.each(["?q=heal", "?filter=null", "?filter=bad", "?pageSize=50", "?mode=browse"])(
+    "keeps explicit incoming state authoritative: %s",
+    (query) => {
+      rememberKindPreference(predicate, field);
+      history.replaceState(null, "", "/search" + query);
+      expect(initialWorkspaceInteractionState().search.filter).toBeNull();
+    },
+  );
+  it("uses a deep linked predicate exactly and clears the preference when Kind is removed", () => {
+    rememberKindPreference(predicate, field);
+    const incoming = {
+      kind: "in" as const,
+      clause_id: "url",
+      field: field.path,
+      values: ["spell"],
+    };
+    history.replaceState(
+      null,
+      "",
+      "/search?filter=" + encodeURIComponent(JSON.stringify(incoming)),
+    );
+    expect(initialWorkspaceInteractionState().search.filter).toEqual(incoming);
+    rememberKindPreference(null, field);
+    expect(localStorage.getItem(KIND_PREFERENCE_KEY)).toBeNull();
+    history.replaceState(null, "", "/search");
+    expect(initialWorkspaceInteractionState().search.filter).toBeNull();
+  });
+  it.each([
+    { include: [1], exclude: [] },
+    { include: ["creature"], exclude: ["creature"] },
+    { include: [""], exclude: [] },
+    { include: ["spell", "spell"], exclude: [] },
+  ])("ignores malformed remembered literals: %j", (stored) => {
+    localStorage.setItem(KIND_PREFERENCE_KEY, JSON.stringify(stored));
+    history.replaceState(null, "", "/search");
+    expect(initialWorkspaceInteractionState().search.filter).toBeNull();
+  });
+});

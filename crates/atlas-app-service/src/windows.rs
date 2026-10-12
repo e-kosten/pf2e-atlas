@@ -118,6 +118,35 @@ fn render_result_window_page(
 ) -> AppServiceResult<ResultWindowPage> {
     let page = SearchPage::new(request.page.number, request.page.size)?;
     match &window.mode {
+        ResultWindowMode::SimilarRecords {
+            seed_record_key,
+            filter,
+        } => {
+            let key = atlas_domain::RecordKey::parse(seed_record_key)
+                .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
+            let result = retrieval
+                .similar_records(atlas_search::SimilarRecordRequest {
+                    record_key: &key,
+                    filter: filter.as_ref(),
+                    scope: atlas_search::RecordScope::All,
+                    page,
+                    prefer_remaster: true,
+                })?
+                .ok_or_else(|| {
+                    AppServiceError::new(AppErrorCode::RecordNotFound, "similar seed not found")
+                })?;
+            let seed = localized_summary_view(&result.seed, retrieval);
+            let results = crate::projection::search_results_view(result.results, retrieval);
+            Ok(ResultWindowPage {
+                window_id: id,
+                mode: ResultWindowModeSummary::SimilarRecords {
+                    seed: Box::new(seed),
+                },
+                page: results.page,
+                rows: results.rows,
+                coverage: Some(results.coverage),
+            })
+        }
         ResultWindowMode::ListRecords { filter } => {
             let result = retrieval.list_records(ListRecordsRequest::new(filter.as_ref(), page))?;
             Ok(ResultWindowPage {

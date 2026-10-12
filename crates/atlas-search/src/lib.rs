@@ -17,7 +17,8 @@ pub use atlas_index::{
     SourceRelationshipBundle, SourceRelationshipDirection, SourceRelationshipRequest,
 };
 pub use discovery::{
-    DiscoverFilterCountsRequest, DiscoverFilterValuesRequest, FilterDiscoveryContext,
+    DiscoverFilterCountsRequest, DiscoverFilterValuesRequest, DiscoverFilterVocabularyRequest,
+    FilterDiscoveryContext,
 };
 pub use error::{SearchError, SearchErrorKind};
 pub use graph::{
@@ -36,4 +37,6 @@ pub use text::{
     RetrievalMode, SearchCoverage, SearchLane, SearchWitness, TextSearchRecord, TextSearchRequest,
     TextSearchResult,
 };
-pub use variants::{VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence};
+pub use variants::{
+    VariantGroupOutcome, VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence,
+};

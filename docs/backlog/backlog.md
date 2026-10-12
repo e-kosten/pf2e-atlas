@@ -39,16 +39,19 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust CLI typo tolerant discovery](items/rust-cli-typo-tolerant-discovery.md)
   Track backend-independent typo suggestions, corpus-token dictionaries, and acronym expansion without weakening strict record resolution. Status: proposed.
 
-- [Record presentation and UI architecture review](items/rust-web-ui-architecture-review.md)
-  Review from ingest through borrowed views and app contracts to CLI/UI, using
-  the earlier integration branch for feature inspiration. Refine presentation
-  boundaries before family-specific UI expansion. Status: proposed.
-
 - [Rust web filter UX expansion](items/rust-web-filter-ux-expansion.md)
-  Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: proposed.
+  Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: in_progress.
 
 - [Rust web record detail polish](items/rust-web-record-detail-polish.md)
-  Improve record detail readability, navigation, loading states, and shared presentation-contract usage in the web UI. Status: proposed.
+  Improve record detail readability, navigation, loading states, and shared presentation-contract usage in the web UI. Status: in_progress.
+
+- [Rust web encounter runner polish](items/rust-web-encounter-runner-polish.md)
+  Prioritize combat state and actions, improve roster readability, and reuse
+  shared family layouts with compact editing controls. Status: in_progress.
+
+- [Rust spell rank preview](items/rust-spell-rank-preview.md)
+  Design bounded selected-rank and form preview over checked spell source with
+  explicit supported facts and unavailable outcomes. Status: proposed.
 
 - [Rust localization-backed rules terms](items/rust-localization-backed-rules-terms.md)
   Persist selected localization-backed rules vocabulary such as traits and NPC ability glossary entries as canonical hoverable/linkable terms. Status: proposed.

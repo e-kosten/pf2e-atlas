@@ -2,6 +2,12 @@ use super::*;
 use atlas_domain::query::*;
 use rusqlite::{Connection, params_from_iter, types::Value};
 use serde_json::json;
+fn available<T: std::fmt::Debug>(outcome: atlas_domain::QueryFacetOutcome<T>) -> T {
+    match outcome {
+        atlas_domain::QueryFacetOutcome::Available { value } => value,
+        other => panic!("expected available discovery, got {other:?}"),
+    }
+}
 
 fn database() -> Connection {
     let db = Connection::open_in_memory().unwrap();
@@ -554,7 +560,7 @@ fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices(
         offset: 0,
         limit: 100,
     };
-    let options = field_values(&db, &request).unwrap();
+    let options = available(field_values(&db, &request).unwrap());
     let count = |options: &atlas_domain::query_discovery::QueryValueOptions, value: &str| {
         options
             .options
@@ -569,7 +575,7 @@ fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices(
     assert!(options.exhaustive);
     request.offset = 100;
     request.limit = 1;
-    let retained = field_values(&db, &request).unwrap();
+    let retained = available(field_values(&db, &request).unwrap());
     assert_eq!(retained.options.len(), 1);
     assert!(retained.options[0].selected);
     assert_eq!(
@@ -580,7 +586,7 @@ fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices(
     request.limit = 100;
     request.context.eligible_keys = Some(vec!["test:0000000000000001".parse().unwrap()]);
     request.context.bounded_candidates = true;
-    let options = field_values(&db, &request).unwrap();
+    let options = available(field_values(&db, &request).unwrap());
     assert_eq!(count(&options, "rare"), 1);
     assert_eq!(count(&options, "common"), 0);
     assert!(!options.exhaustive);
@@ -645,17 +651,19 @@ fn child_facets_preserve_remaining_same_child_conditions_and_count_roots_once() 
         offset: 0,
         limit: 100,
     };
-    let options = field_values(&db, &request).unwrap();
-    let numeric = crate::discovery::field_counts(
-        &db,
-        &crate::discovery::QueryCountsRequest {
-            field: "actor.items[].spell.rank".to_owned(),
-            clause_id: Some("rank-choice".to_owned()),
-            query: request.query.clone(),
-            context: request.context.clone(),
-        },
-    )
-    .unwrap();
+    let options = available(field_values(&db, &request).unwrap());
+    let numeric = available(
+        crate::discovery::field_counts(
+            &db,
+            &crate::discovery::QueryCountsRequest {
+                field: "actor.items[].spell.rank".to_owned(),
+                clause_id: Some("rank-choice".to_owned()),
+                query: request.query.clone(),
+                context: request.context.clone(),
+            },
+        )
+        .unwrap(),
+    );
     assert_eq!(numeric.minimum, Some(1.into()));
     assert_eq!(numeric.maximum, Some(5.into()));
     assert_eq!(numeric.states[0].occurrences, 3);
@@ -671,19 +679,70 @@ fn child_facets_preserve_remaining_same_child_conditions_and_count_roots_once() 
             count
         );
     }
+    let other: QueryPredicate = serde_json::from_value(json!({"kind":"exists","collection":"actor.items","scope_id":"another-spell-scope","predicate":{"kind":"compare","field":"spell.rank","op":"lte","value":1}})).unwrap();
+    let mut independent = request.clone();
+    independent.query = validate_query(&QueryPredicate::new(QueryExpression::AllOf {
+        children: vec![request.query.predicate().clone(), other],
+    }))
+    .unwrap();
+    let independent = available(field_values(&db, &independent).unwrap());
+    assert_eq!(
+        independent
+            .options
+            .iter()
+            .find(|o| o.value == QueryLiteral::String("divine".into()))
+            .unwrap()
+            .distinct_roots,
+        1
+    );
+    assert_eq!(
+        independent
+            .options
+            .iter()
+            .find(|o| o.value == QueryLiteral::String("arcane".into()))
+            .unwrap()
+            .distinct_roots,
+        0
+    );
+    let vocabulary = crate::discovery::field_vocabulary(
+        &db,
+        &crate::QueryVocabularyRequest {
+            field: request.field.clone(),
+            eligible_keys: Some(vec!["test:0000000000000001".parse().unwrap()]),
+            text: None,
+            offset: 0,
+            limit: 10,
+            selected_values: vec![],
+        },
+    )
+    .unwrap();
+    assert_eq!(vocabulary.total_values, 2);
+    assert!(
+        vocabulary
+            .options
+            .iter()
+            .any(|o| o.value == QueryLiteral::String("arcane".into()))
+    );
+    assert!(
+        vocabulary
+            .options
+            .iter()
+            .any(|o| o.value == QueryLiteral::String("divine".into()))
+    );
     let mut bad = request.clone();
     let mut p = request.query.predicate().clone();
     p = QueryPredicate::new(QueryExpression::Not {
         predicate: Box::new(p),
     });
     bad.query = validate_query(&p).unwrap();
-    assert!(
-        matches!(field_values(&db,&bad),Err(crate::IndexError::Query(e)) if e.code=="unsupported_facet_context")
-    );
+    assert!(matches!(
+        field_values(&db, &bad),
+        Ok(atlas_domain::QueryFacetOutcome::Unavailable { .. })
+    ));
 }
 
 #[test]
-fn exclusion_or_and_negated_scope_facets_fail_explicitly() {
+fn exclusion_or_and_negated_scope_facets_are_explicitly_unavailable() {
     use crate::discovery::{QueryFacetContext, QueryValuesRequest, field_values};
     let db = database();
     root(&db, 1, "npc", "rare");
@@ -706,9 +765,10 @@ fn exclusion_or_and_negated_scope_facets_fail_explicitly() {
             offset: 0,
             limit: 10,
         };
-        assert!(
-            matches!(field_values(&db,&request),Err(crate::IndexError::Query(e)) if e.code=="unsupported_facet_context")
-        );
+        assert!(matches!(
+            field_values(&db, &request),
+            Ok(atlas_domain::QueryFacetOutcome::Unavailable { .. })
+        ));
     }
 }
 
@@ -722,16 +782,18 @@ fn state_discovery_partitions_roots_and_labels_child_occurrences() {
     for (id, state) in (1..=5).zip(["value", "missing", "null", "invalid", "not_applicable"]) {
         db.execute("UPDATE records SET level_state=?1,level=CASE WHEN ?1='value' THEN 0 END WHERE record_id=?2",rusqlite::params![state,id]).unwrap();
     }
-    let counts = field_counts(
-        &db,
-        &QueryCountsRequest {
-            field: "actor.level".to_owned(),
-            clause_id: None,
-            query: parse_where("true").unwrap(),
-            context: QueryFacetContext::default(),
-        },
-    )
-    .unwrap();
+    let counts = available(
+        field_counts(
+            &db,
+            &QueryCountsRequest {
+                field: "actor.level".to_owned(),
+                clause_id: None,
+                query: parse_where("true").unwrap(),
+                context: QueryFacetContext::default(),
+            },
+        )
+        .unwrap(),
+    );
     assert_eq!(counts.counting_scope, "root");
     assert_eq!(counts.minimum, Some(0.into()));
     assert_eq!(counts.maximum, Some(0.into()));
@@ -741,4 +803,193 @@ fn state_discovery_partitions_roots_and_labels_child_occurrences() {
             .iter()
             .all(|s| s.occurrences == 1 && s.distinct_roots == 1)
     );
+}
+
+#[test]
+fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
+    let db = database();
+    root(&db, 1, "npc", "common");
+    root(&db, 2, "equipment", "common");
+    for (id, state, rank) in [
+        (3, "value", Some(7)),
+        (4, "missing", None),
+        (5, "null", None),
+        (6, "invalid", None),
+        (7, "value", Some(0)),
+    ] {
+        root(&db, id, "spell", "common");
+        row(
+            &db,
+            "spell_projection",
+            &[
+                ("id", id.into()),
+                ("root_record_id", id.into()),
+                ("rank_state", text(state)),
+                ("rank", rank.map(Value::Integer).unwrap_or(Value::Null)),
+            ],
+        );
+    }
+    root(&db, 8, "action", "common");
+    assert_eq!(result(&db, "record.level_or_rank == 3"), vec![1, 2]);
+    assert_eq!(result(&db, "record.level_or_rank == 7"), vec![3]);
+    assert_eq!(result(&db, "record.level_or_rank == 0"), vec![7]);
+    assert_eq!(result(&db, "!(record.level_or_rank == 3)"), vec![3, 7]);
+    for (state, ids) in [
+        ("missing", vec![4]),
+        ("null", vec![5]),
+        ("invalid", vec![6]),
+        ("not_applicable", vec![8]),
+    ] {
+        assert_eq!(
+            result(
+                &db,
+                &format!("availability[\"record.level_or_rank\"] == \"{state}\"")
+            ),
+            ids
+        );
+    }
+    assert_eq!(result(&db, "actor.level == 3"), vec![1]);
+    assert_eq!(result(&db, "item.level == 3"), vec![2]);
+    assert_eq!(result(&db, "spell.rank == 7"), vec![3]);
+    assert_eq!(query_capabilities().unwrap().version, 3);
+    let catalog = query_capabilities().unwrap();
+    assert_eq!(
+        catalog
+            .fields
+            .iter()
+            .filter(|f| f.id == "record.level_or_rank")
+            .count(),
+        1
+    );
+    assert!(
+        !catalog
+            .fields
+            .iter()
+            .any(|f| f.id == "actor.items[].record.level_or_rank")
+    );
+}
+
+#[test]
+fn unsupported_facet_ancestry_does_not_hide_malformed_targets_or_limits() {
+    use crate::discovery::{QueryFacetContext, QueryValuesRequest, field_values};
+    let db = database();
+    root(&db, 1, "npc", "common");
+    let p: QueryPredicate = serde_json::from_value(json!({"kind":"not","predicate":{"clause_id":"target","kind":"compare","field":"rarity","op":"eq","value":"rare"}})).unwrap();
+    let mut request = QueryValuesRequest {
+        field: "rarity".into(),
+        clause_id: Some("target".into()),
+        query: validate_query(&p).unwrap(),
+        context: QueryFacetContext::default(),
+        text: None,
+        offset: 0,
+        limit: 10,
+    };
+    assert!(matches!(
+        field_values(&db, &request),
+        Ok(atlas_domain::QueryFacetOutcome::Unavailable {
+            reason: atlas_domain::FacetUnavailableReason::NonConjunctiveContext
+        })
+    ));
+    request.field = "traits".into();
+    assert!(
+        matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "facet_target_field")
+    );
+    request.field = "actor.items[].rarity".into();
+    assert!(
+        matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "facet_target_scope")
+    );
+    request.field = "rarity".into();
+    request.clause_id = Some("absent".into());
+    assert!(
+        matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "clause_id")
+    );
+    request.clause_id = Some("target".into());
+    request.limit = 0;
+    assert!(
+        matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "discovery_limit")
+    );
+    request.limit = 10;
+    request.field = "record.level_or_rank".into();
+    assert!(
+        matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "discovery_type")
+    );
+    let group: QueryPredicate = serde_json::from_value(json!({"clause_id":"group","kind":"not","predicate":{"kind":"boolean_constant","value":true}})).unwrap();
+    request.field = "rarity".into();
+    request.clause_id = Some("group".into());
+    request.query = validate_query(&group).unwrap();
+    assert!(
+        matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "facet_target_type")
+    );
+}
+
+#[test]
+fn count_free_vocabulary_is_scoped_paged_and_keeps_selections_separately() {
+    use crate::discovery::{QueryVocabularyRequest, field_vocabulary};
+    use atlas_domain::{QueryVocabularyBasis, RecordKey};
+    let db = database();
+    for id in 1..=3 {
+        root(&db, id, "npc", "common");
+    }
+    db.execute(
+        "UPDATE records SET document_kind='Macro' WHERE record_id=3",
+        [],
+    )
+    .unwrap();
+    for (id, trait_value) in [(1, "fire"), (1, "flying"), (2, "cold"), (3, "macro-only")] {
+        db.execute(
+            "INSERT INTO record_traits(record_id,value) VALUES(?1,?2)",
+            rusqlite::params![id, trait_value],
+        )
+        .unwrap();
+    }
+    row(
+        &db,
+        "remaster_pairs",
+        &[
+            ("legacy_record_id", 1.into()),
+            ("remaster_record_id", 2.into()),
+            ("evidence_json", text("{}")),
+        ],
+    );
+    let mut request = QueryVocabularyRequest {
+        field: "traits".into(),
+        eligible_keys: None,
+        text: Some("f".into()),
+        offset: 1,
+        limit: 1,
+        selected_values: vec![QueryLiteral::String("absent-selection".into())],
+    };
+    let page = field_vocabulary(&db, &request).unwrap();
+    assert_eq!(page.total_values, 2);
+    assert_eq!(page.options.len(), 1);
+    assert_eq!(page.selected_values, request.selected_values);
+    assert_eq!(
+        page.basis,
+        QueryVocabularyBasis::ProductArtifactBeforeEditionPreference
+    );
+    let json = serde_json::to_value(&page).unwrap();
+    assert!(json["options"][0].get("distinct_roots").is_none());
+    request.text = None;
+    request.offset = 0;
+    request.eligible_keys = Some(vec![RecordKey::parse("test:0000000000000002").unwrap()]);
+    let scoped = field_vocabulary(&db, &request).unwrap();
+    assert_eq!(scoped.total_values, 1);
+    assert_eq!(scoped.options[0].value, QueryLiteral::String("cold".into()));
+    assert_eq!(
+        scoped.basis,
+        QueryVocabularyBasis::ProductKeyScopeBeforeEditionPreference
+    );
+    request.eligible_keys = Some(vec![]);
+    let empty = field_vocabulary(&db, &request).unwrap();
+    assert_eq!(empty.total_values, 0);
+    assert!(empty.options.is_empty());
+    assert_eq!(empty.selected_values, request.selected_values);
+    request.field = "rarity".into();
+    request.selected_values = vec![QueryLiteral::String("invented".into())];
+    assert!(
+        matches!(field_vocabulary(&db,&request),Err(crate::IndexError::Query(e)) if e.code=="invalid_choice")
+    );
+    request.field = "traits".into();
+    request.selected_values = vec![QueryLiteral::Boolean(true)];
+    assert!(field_vocabulary(&db, &request).is_err());
 }

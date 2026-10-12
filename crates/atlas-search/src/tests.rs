@@ -271,6 +271,11 @@ fn exact_owned_names_and_definition_witnesses_stay_navigable() {
         .find(|w| !w.location.owners.is_empty())
         .unwrap();
     assert_eq!(witness.label.as_deref(), Some("Ghoul Fever"));
+    assert_eq!(
+        service.index.read_metrics().source_body_decodes,
+        0,
+        "owned captions must stay body-free"
+    );
     let detail = service
         .get_record(GetRecordRequest {
             record_key: &result.records[0].record.key,
@@ -388,12 +393,14 @@ fn suggested_variants_report_ambiguity_without_alias_or_pair_evidence() {
         ],
         false,
     ));
-    let result = service
+    let VariantGroupOutcome::Content(result) = service
         .variant_group(VariantGroupRequest {
             record_key: &key("aaaaaaaaaaaaaaaa"),
         })
         .unwrap()
-        .unwrap();
+    else {
+        panic!("expected content");
+    };
     assert_eq!(result.variants.len(), 3);
     assert!(result.ambiguous);
     assert!(
@@ -435,12 +442,14 @@ fn suggested_physical_variants_require_known_category_and_reuse_seed_body() {
     )
     .unwrap();
     service.reset_read_metrics();
-    let result = service
+    let VariantGroupOutcome::Content(result) = service
         .variant_group(VariantGroupRequest {
             record_key: &key("aaaaaaaaaaaaaaaa"),
         })
         .unwrap()
-        .unwrap();
+    else {
+        panic!("expected content");
+    };
     assert_eq!(result.variants.len(), 2);
     assert!(
         result.ambiguous,
@@ -551,7 +560,7 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
         .predicate()
         .clone();
     predicate.clause_id = Some("level-choice".into());
-    let counts = service
+    let atlas_domain::QueryFacetOutcome::Available { value: counts } = service
         .discover_filter_counts(DiscoverFilterCountsRequest {
             field: "item.level",
             clause_id: Some("level-choice"),
@@ -563,7 +572,10 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
                 filter: Some(&predicate),
             },
         })
-        .unwrap();
+        .unwrap()
+    else {
+        panic!("expected supported contextual counts")
+    };
     assert!(counts.exhaustive);
     assert_eq!(counts.minimum.unwrap().as_i64(), Some(1));
     assert_eq!(counts.maximum.unwrap().as_i64(), Some(2));
@@ -861,4 +873,278 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
     );
     assert_eq!(page2.results.page.total, result.results.page.total);
     assert_eq!(page2.results.records[0].record.key, key("cccccccccccccccc"));
+}
+
+#[test]
+fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors() {
+    let (_dir, mut service) = service(input(
+        vec![effect("aaaaaaaaaaaaaaaa", "Flame", 1, "")],
+        false,
+    ));
+    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"not","predicate":{"clause_id":"target","kind":"compare","field":"rarity","op":"eq","value":"common"}})).unwrap();
+    let context = FilterDiscoveryContext {
+        text: Some("flame"),
+        mode: RetrievalMode::Hybrid,
+        scope: RecordScope::All,
+        prefer_remaster: true,
+        filter: Some(&predicate),
+    };
+    assert!(matches!(
+        service
+            .discover_filter_counts(DiscoverFilterCountsRequest {
+                field: "rarity",
+                clause_id: Some("target"),
+                context
+            })
+            .unwrap(),
+        atlas_domain::QueryFacetOutcome::Unavailable { .. }
+    ));
+    let error = service
+        .discover_filter_counts(DiscoverFilterCountsRequest {
+            field: "traits",
+            clause_id: Some("target"),
+            context,
+        })
+        .unwrap_err();
+    assert_eq!(error.kind(), SearchErrorKind::InvalidFilter);
+    assert_eq!(error.query_error.unwrap().code, "facet_target_field");
+    let mut invalid_values = DiscoverFilterValuesRequest {
+        field: "rarity",
+        clause_id: Some("target"),
+        context,
+        text: None,
+        offset: 0,
+        limit: 0,
+    };
+    assert_eq!(
+        service
+            .discover_filter_values(invalid_values)
+            .unwrap_err()
+            .query_error
+            .unwrap()
+            .code,
+        "discovery_limit"
+    );
+    let positive = atlas_domain::QueryPredicate::boolean(true);
+    invalid_values = DiscoverFilterValuesRequest {
+        field: "rarity",
+        clause_id: None,
+        context: FilterDiscoveryContext {
+            filter: Some(&positive),
+            ..context
+        },
+        text: None,
+        offset: 0,
+        limit: 10,
+    };
+    assert_eq!(
+        service
+            .discover_filter_values(invalid_values)
+            .unwrap_err()
+            .kind(),
+        SearchErrorKind::VectorReadinessRequired
+    );
+    let vocabulary = service
+        .discover_filter_vocabulary(DiscoverFilterVocabularyRequest {
+            field: "source.type",
+            scope: RecordScope::All,
+            text: None,
+            offset: 0,
+            limit: 10,
+            selected_values: &[],
+        })
+        .unwrap();
+    assert_eq!(vocabulary.options.len(), 1);
+    assert_eq!(
+        vocabulary.options[0].value,
+        atlas_domain::QueryLiteral::String("effect".into())
+    );
+    let empty = service
+        .discover_filter_vocabulary(DiscoverFilterVocabularyRequest {
+            field: "source.type",
+            scope: RecordScope::Keys(&[]),
+            text: None,
+            offset: 0,
+            limit: 10,
+            selected_values: &[],
+        })
+        .unwrap();
+    assert!(empty.options.is_empty());
+}
+
+#[test]
+fn variant_absence_requires_complete_known_compatibility() {
+    let (_, known) = service(input(
+        vec![effect("aaaaaaaaaaaaaaaa", "Lesser Potion", 1, "")],
+        false,
+    ));
+    assert!(matches!(
+        known
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Empty
+    ));
+    assert!(matches!(
+        known
+            .variant_group(VariantGroupRequest {
+                record_key: &key("bbbbbbbbbbbbbbbb")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Missing
+    ));
+    let (_, unknown) = service(input(
+        vec![record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"weapon","name":"Lesser Blade","system":{"group":"sword"}}),
+        )],
+        false,
+    ));
+    assert!(matches!(
+        unknown
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Unavailable { .. }
+    ));
+    let mut records = vec![effect("aaaaaaaaaaaaaaaa", "Potion (Seed)", 1, "")];
+    for i in 0..257 {
+        records.push(effect(
+            &format!("{:016}", i),
+            &format!("Potion (Other{i})"),
+            1,
+            "",
+        ));
+    }
+    let (_, bounded) = service(input(records, false));
+    let VariantGroupOutcome::Content(result) = bounded
+        .variant_group(VariantGroupRequest {
+            record_key: &key("aaaaaaaaaaaaaaaa"),
+        })
+        .unwrap()
+    else {
+        panic!("content");
+    };
+    assert!(result.truncated);
+    assert!(result.variants.len() <= 256);
+}
+
+#[test]
+fn similar_filters_and_verified_remaster_policy_are_preserved() {
+    let mut fixture = input(
+        vec![
+            effect("aaaaaaaaaaaaaaaa", "Seed", 0, ""),
+            effect("bbbbbbbbbbbbbbbb", "Legacy", 1, ""),
+            effect("cccccccccccccccc", "Remastered", 2, ""),
+            effect("dddddddddddddddd", "Other", 3, ""),
+        ],
+        true,
+    );
+    fixture.remaster_pairs.push(SourceRemasterPairInput {
+        legacy: key("bbbbbbbbbbbbbbbb"),
+        remaster: key("cccccccccccccccc"),
+        evidence: "verified source relation".into(),
+    });
+    let (_, service) = service(fixture);
+    let filtered = service.parse_where("item.level >= 2").unwrap();
+    let result = service
+        .similar_records(SimilarRecordRequest {
+            record_key: &key("aaaaaaaaaaaaaaaa"),
+            filter: Some(filtered.predicate()),
+            scope: RecordScope::All,
+            page: SearchPage::default(),
+            prefer_remaster: true,
+        })
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.results.records.len(), 2);
+    assert!(result.results.records.iter().all(
+        |r| r.record.key != key("aaaaaaaaaaaaaaaa") && r.record.key != key("bbbbbbbbbbbbbbbb")
+    ));
+    let result = service
+        .similar_records(SimilarRecordRequest {
+            record_key: &key("aaaaaaaaaaaaaaaa"),
+            filter: None,
+            scope: RecordScope::All,
+            page: SearchPage::default(),
+            prefer_remaster: true,
+        })
+        .unwrap()
+        .unwrap();
+    assert!(
+        !result
+            .results
+            .records
+            .iter()
+            .any(|r| r.record.key == key("bbbbbbbbbbbbbbbb"))
+    );
+}
+
+#[test]
+fn generation_includes_preparation_context_beyond_navigation_fingerprint() {
+    let (_, service) = service(input(
+        vec![effect("aaaaaaaaaaaaaaaa", "Seed", 1, "")],
+        false,
+    ));
+    let original = service.artifact_generation().unwrap();
+    assert_eq!(original, service.artifact_context().sha256().unwrap());
+    let mut changed = service.artifact_context().clone();
+    changed.indexing_locale = "fr".into();
+    assert_eq!(changed.source_fingerprint, service.source_fingerprint());
+    assert_ne!(original, changed.sha256().unwrap());
+}
+
+#[test]
+fn unavailable_candidate_or_truncated_verification_is_not_a_known_empty_group() {
+    let weapon = |id: String, category: serde_json::Value| {
+        record(
+            "items",
+            "Item",
+            json!({"_id":id,"type":"weapon","name":format!("Blade ({id})"),"system":{"group":"sword","category":category}}),
+        )
+    };
+    let seed = weapon("aaaaaaaaaaaaaaaa".into(), json!("martial"));
+    let (_, unknown) = service(input(
+        vec![seed, weapon("bbbbbbbbbbbbbbbb".into(), json!(null))],
+        false,
+    ));
+    assert!(matches!(
+        unknown
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Unavailable { .. }
+    ));
+    let mut records = vec![weapon("aaaaaaaaaaaaaaaa".into(), json!("martial"))];
+    for i in 0..257 {
+        records.push(weapon(format!("{:016}", i), json!("simple")));
+    }
+    let (_, truncated) = service(input(records, false));
+    assert!(matches!(
+        truncated
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Unavailable { .. }
+    ));
+    let (_, empty) = service(input(
+        vec![
+            weapon("aaaaaaaaaaaaaaaa".into(), json!("martial")),
+            weapon("bbbbbbbbbbbbbbbb".into(), json!("simple")),
+        ],
+        false,
+    ));
+    assert!(matches!(
+        empty
+            .variant_group(VariantGroupRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa")
+            })
+            .unwrap(),
+        VariantGroupOutcome::Empty
+    ));
 }

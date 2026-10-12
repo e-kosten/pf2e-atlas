@@ -38,33 +38,44 @@ pub(crate) fn emit<T: Serialize>(value: Option<T>, json: bool) -> Result<ExitCod
 }
 pub(crate) fn print_summary(view: &atlas_app_model::RecordSummaryView) {
     println!(
-        "{}\t{}\t{}\t{}",
-        view.record_key,
+        "{} — {}{}",
         view.title,
-        view.level_label.as_deref().unwrap_or("-"),
-        view.kind_label
+        view.kind_label,
+        view.level_label
+            .as_ref()
+            .map(|v| format!(" · {v}"))
+            .unwrap_or_default()
     );
+    println!("  {}", view.record_key);
 }
-pub(crate) fn print_search_matches(
-    records: &[atlas_app_model::ResultWindowRow],
-) -> Result<(), String> {
+pub(crate) fn print_search_matches(records: &[atlas_app_model::ResultWindowRow]) {
     for r in records {
         print_summary(&r.record);
-        for w in r.matches.iter().take(3) {
-            println!(
-                "  {:?}: {} owners={} field={} label={}",
-                w.lane,
-                w.navigation.record_key,
-                serde_json::to_string(&w.navigation.owners).map_err(|e| e.to_string())?,
-                w.navigation.field.as_deref().unwrap_or("identity"),
-                w.label.as_deref().unwrap_or("")
-            );
-            if let Some(s) = &w.snippet {
-                println!("    {s}");
-            }
+        if let Some(w) = r
+            .matches
+            .iter()
+            .find(|w| w.snippet.as_ref().is_some_and(|s| !s.trim().is_empty()))
+        {
+            let label = w
+                .label
+                .as_deref()
+                .filter(|label| *label != r.record.title && !label.trim().is_empty());
+            let prefix = label.map(|label| format!("{label}: ")).unwrap_or_default();
+            println!("  {prefix}{}", w.snippet.as_deref().unwrap_or_default());
+        } else if !r
+            .matches
+            .iter()
+            .any(|w| w.navigation.owners.is_empty() && w.navigation.field.is_none())
+            && let Some(label) = r
+                .matches
+                .iter()
+                .find_map(|w| w.label.as_deref())
+                .filter(|label| *label != r.record.title && !label.trim().is_empty())
+        {
+            println!("  Matched: {label}");
         }
+        println!();
     }
-    Ok(())
 }
 pub(crate) fn search_json(result: &atlas_app_model::SearchResultsView) -> serde_json::Value {
     serde_json::json!({"pagination":result.page,"coverage":result.coverage,"results":result.rows})

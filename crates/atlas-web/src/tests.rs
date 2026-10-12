@@ -23,7 +23,7 @@ use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
 };
 use atlas_app_service::AppServiceError;
-use atlas_domain::{QueryPredicate, RecordKey};
+use atlas_domain::QueryPredicate;
 use axum::Router;
 use axum::body::Body;
 use axum::body::to_bytes;
@@ -338,7 +338,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     let (status, body) = route_json(Method::GET, "/api/records/actions:testAction1", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["record"]["record_key"], "actions:testAction1");
-    assert_eq!(body["surface"]["title"], "Test Action 1");
+    assert_eq!(body["presentation"]["identity"]["title"], "Test Action 1");
 
     let editor_request = json!({
         "context": { "kind": "filtered", "filter": null,"text":null,"mode":"lexical" }
@@ -353,14 +353,15 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     );
 
     let values_request = json!({
+        "kind":"contextual",
         "context": { "kind": "filtered", "filter": null,"text":null,"mode":"lexical" },
         "field_id":"source.pack","clause_id":null,"text":null,"offset":0,"limit":100
     });
     let (status, body) =
         route_json(Method::POST, "/api/filters/values", Some(values_request)).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["values"]["field"], "source.pack");
-    assert_eq!(body["values"]["options"][0]["value"], "Actions");
+    assert_eq!(body["outcome"]["value"]["field"], "source.pack");
+    assert_eq!(body["outcome"]["value"]["options"][0]["value"], "Actions");
     let (status, body) = route_json(
         Method::POST,
         "/api/filters/counts",
@@ -371,7 +372,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["counts"]["counting_scope"], "roots");
+    assert_eq!(body["counts"]["value"]["counting_scope"], "roots");
     let (status, body) = route_json(
         Method::POST,
         "/api/filters/validate",
@@ -767,19 +768,45 @@ impl AtlasWebService for MockService {
         &self,
         _request: DiscoverFilterEditorRequest,
     ) -> Result<FilterEditorView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"catalog_version":1,"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","placement":"initially_visible"}]}]})).expect("typed catalog fixture"))
+        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["record.kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is"},{"operator":"in","label":"is any of"},{"operator":"state","label":"availability is"}]}]}]})).expect("typed catalog fixture"))
     }
     fn discover_filter_values(
         &self,
-        _request: DiscoverFilterValuesRequest,
+        request: DiscoverFilterValuesRequest,
     ) -> Result<FilterValueListView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"values":{"field":"source.pack","options":[{"value":"Actions","distinct_roots":3,"selected":false}],"total_values":1,"exhaustive":true,"count_basis":"distinct roots"}})).expect("typed values fixture"))
+        if let DiscoverFilterValuesRequest::Vocabulary {
+            scope,
+            field_id,
+            selected_values,
+            ..
+        } = request
+        {
+            return Ok(FilterValueListView::Vocabulary {
+                scope,
+                values: atlas_domain::QueryVocabulary {
+                    field: field_id,
+                    options: vec![],
+                    selected_values,
+                    total_values: 0,
+                    basis:
+                        atlas_domain::QueryVocabularyBasis::ProductKeyScopeBeforeEditionPreference,
+                },
+            });
+        }
+        Ok(serde_json::from_value(json!({"kind":"contextual","outcome":{"status":"available","value":{"field":"source.pack","options":[{"value":"Actions","distinct_roots":3,"selected":false}],"total_values":1,"exhaustive":true,"count_basis":"distinct roots"}}})).expect("typed values fixture"))
     }
     fn discover_filter_counts(
         &self,
-        _request: DiscoverFilterCountsRequest,
+        request: DiscoverFilterCountsRequest,
     ) -> Result<FilterCountsView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"counts":{"field":"source.pack","counting_scope":"roots","states":[],"exhaustive":true,"count_basis":"distinct roots","minimum":null,"maximum":null}})).expect("typed counts fixture"))
+        if request.clause_id.is_some() {
+            return Ok(FilterCountsView {
+                counts: atlas_domain::QueryFacetOutcome::Unavailable {
+                    reason: atlas_domain::FacetUnavailableReason::NonConjunctiveContext,
+                },
+            });
+        }
+        Ok(serde_json::from_value(json!({"counts":{"status":"available","value":{"field":"source.pack","counting_scope":"roots","states":[],"exhaustive":true,"count_basis":"distinct roots","minimum":null,"maximum":null}}})).expect("typed counts fixture"))
     }
     fn validate_filter(
         &self,
@@ -796,12 +823,47 @@ impl AtlasWebService for MockService {
     ) -> Result<RecordDetailView, AppServiceError> {
         self.record_detail(&request.record_key)
     }
+    fn encounter_reference(
+        &self,
+        _encounter_ref: &str,
+        _participant_key: &str,
+        request: atlas_app_model::EncounterReferenceRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        self.record_detail_at(request.selection)
+    }
+    fn owned_reading(
+        &self,
+        request: atlas_app_model::OwnedReadingRequest,
+    ) -> Result<atlas_app_model::OwnedReadingBatchView, AppServiceError> {
+        Ok(atlas_app_model::OwnedReadingBatchView {
+            artifact_generation: request.artifact_generation,
+            parent: request.parent,
+            availability: atlas_domain::QueryFieldState::Value,
+            total: 0,
+            start: 0,
+            end: 0,
+            previous: None,
+            next: None,
+            entries: vec![],
+        })
+    }
 
     fn open_result_window(
         &self,
-        _request: OpenResultWindowRequest,
+        request: OpenResultWindowRequest,
     ) -> Result<ResultWindowPage, AppServiceError> {
-        Ok(result_window_page(42, 1))
+        let mut page = result_window_page(42, request.page.number);
+        if let atlas_app_model::ResultWindowMode::SimilarRecords {
+            seed_record_key, ..
+        } = request.mode
+        {
+            let mut seed = record_summary();
+            seed.record_key = seed_record_key;
+            page.mode = ResultWindowModeSummary::SimilarRecords {
+                seed: Box::new(seed),
+            };
+        }
+        Ok(page)
     }
 
     fn read_result_window_page(
@@ -821,34 +883,21 @@ impl AtlasWebService for MockService {
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         let mut record = record_summary();
         record.record_key = record_key.to_string();
-        Ok(serde_json::from_value(json!({"record":record,"surface":{"record_key":record_key,"title":"Test Action 1","kind":"rule","profile":"record_detail","header":{"traits":[]},"sections":[]},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
+        Ok(serde_json::from_value(json!({"artifact_generation":"test-generation","record":record.clone(),"presentation":{"classification":record.kind_label,"identity":record,"content":[],"owned":[],"body":{"kind":"content"}},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
     }
 
-    fn graph_context(
+    fn related_records(
         &self,
-        _request: atlas_app_model::GraphContextViewRequest,
-    ) -> Result<Option<atlas_app_model::GraphContextView>, AppServiceError> {
-        Ok(None)
-    }
-    fn remaster_links(
-        &self,
-        _key: RecordKey,
-    ) -> Result<Option<atlas_app_model::RemasterLinksView>, AppServiceError> {
-        Ok(None)
-    }
-    fn variant_group(
-        &self,
-        _key: RecordKey,
-    ) -> Result<Option<atlas_app_model::VariantGroupView>, AppServiceError> {
-        Ok(None)
-    }
-    fn similar_records(
-        &self,
-        _key: String,
-        _filter: Option<QueryPredicate>,
-        _page: atlas_app_model::SearchPageRequest,
-    ) -> Result<Option<atlas_app_model::SimilarRecordsView>, AppServiceError> {
-        Ok(None)
+        request: atlas_app_model::RelatedRecordsRequest,
+    ) -> Result<atlas_app_model::RelatedRecordsView, AppServiceError> {
+        Ok(atlas_app_model::RelatedRecordsView {
+            selection: request.selection,
+            artifact_generation: request.artifact_generation,
+            seed: record_summary(),
+            references: atlas_app_model::RelatedCategoryView::Empty,
+            counterparts: atlas_app_model::RelatedCategoryView::Empty,
+            variants: atlas_app_model::RelatedCategoryView::Empty,
+        })
     }
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
         Ok(EncounterIndexView {
@@ -961,9 +1010,8 @@ impl AtlasWebService for MockService {
             note: request.note.clone(),
             note_hint: request.note,
             conditions: vec![],
-            stat_block: None,
             record: Some(record_summary()),
-            surface: None,
+            presentation: None,
         })
     }
 
@@ -1182,6 +1230,7 @@ fn encounter_detail(
     include_condition: bool,
 ) -> EncounterDetailView {
     EncounterDetailView {
+        artifact_generation: Some("test-generation".into()),
         encounter: encounter_summary(encounter_ref, "Ambush"),
         note: Some("Fixture notes".to_string()),
         current_turn_participant_key,
@@ -1233,9 +1282,8 @@ fn encounter_participant(
         } else {
             vec![]
         },
-        stat_block: None,
         record: Some(record_summary()),
-        surface: None,
+        presentation: None,
     }
 }
 
@@ -1286,4 +1334,51 @@ fn result_window_page(window_id: u64, page_number: u32) -> ResultWindowPage {
             matches: vec![],
         }],
     }
+}
+
+#[tokio::test]
+async fn filter_discovery_transport_keeps_explicit_vocabulary_and_optional_unavailability() {
+    let (status,body)=route_json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"saved_list","list_ref":"my-list"},"field_id":"traits","text":"fire","limit":20,"selected_values":["retained"]}))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["kind"], "vocabulary");
+    assert_eq!(body["scope"]["list_ref"], "my-list");
+    assert_eq!(body["values"]["selected_values"][0], "retained");
+    assert!(body["values"].get("count_basis").is_none());
+    let (status,body)=route_json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid"},"field_id":"traits","clause_id":"negative-condition"}))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["counts"]["status"], "unavailable");
+    let (status,_)=route_json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon","mode":"hybrid"}}))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn related_request_transports_complete_selection_and_generation() {
+    let selection = json!({"record_key":"actors:test000000000000","owners":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"field":"/system/description/value","passage":null,"source_fingerprint":"source-fingerprint"});
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/related",
+        Some(json!({"selection":selection,"artifact_generation":"full-generation"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["selection"], selection);
+    assert_eq!(body["artifact_generation"], "full-generation");
+    assert_eq!(body["references"]["kind"], "empty");
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/related",
+        Some(json!({"selection":selection})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn similar_window_transport_carries_exact_seed_and_body_free_summary() {
+    let (status, body) = route_json(Method::POST, "/api/result-windows", Some(json!({"mode":{"kind":"similar_records","seed_record_key":"items:seed000000000000","filter":null},"page":{"number":2,"size":5}}))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["mode"]["kind"], "similar_records");
+    assert_eq!(body["mode"]["seed"]["record_key"], "items:seed000000000000");
+    assert!(body["mode"]["seed"].get("presentation").is_none());
+    assert_eq!(body["page"]["number"], 2);
 }

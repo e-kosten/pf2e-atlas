@@ -2,4 +2,4 @@
 import type { FilterEditorGroupView } from "./FilterEditorGroupView";
 import type { QueryLimits } from "./QueryLimits";
 
-export type FilterEditorView = { catalog_version: number, limits: QueryLimits, groups: Array<FilterEditorGroupView>, };
+export type FilterEditorView = { catalog_version: number, limits: QueryLimits, groups: Array<FilterEditorGroupView>, common_field_ids: Array<string>, };

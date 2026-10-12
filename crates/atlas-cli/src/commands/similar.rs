@@ -1,4 +1,7 @@
-use super::{filters::build_filter, product::app_result};
+use super::{
+    filters::build_filter,
+    product::{app_result, print_search_matches},
+};
 use crate::client::{ClientOptions, connect};
 use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
@@ -34,20 +37,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         write_json_data(&result)?;
     } else {
         println!("Similar to {}", result.seed.title);
-        for row in &result.results.rows {
-            println!("{}\t{}", row.record.record_key, row.record.title);
-            for witness in &row.matches {
-                println!(
-                    "  {:?}: {}",
-                    witness.lane,
-                    witness.label.as_deref().unwrap_or("identity")
-                );
-            }
-        }
-        println!(
-            "count basis={} bounded window={:?}",
-            result.results.coverage.count_basis, result.results.coverage.semantic_unit_window
-        );
+        print_search_matches(&result.results.rows);
     }
     Ok(ExitCode::SUCCESS)
 }

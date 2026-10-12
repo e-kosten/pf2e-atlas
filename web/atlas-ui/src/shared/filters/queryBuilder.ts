@@ -7,6 +7,12 @@ import type {
   QuerySetMatch,
   QueryFieldState,
 } from "../../generated/atlas";
+// A structural builder condition, never a backend catalog field.
+export const BOOLEAN_CONDITION = "atlas:boolean-constant";
+type PredicateGroup = RuleGroupType & {
+  atlasSinglePredicate?: boolean;
+  atlasNotClauseId?: string;
+};
 export function numericLiteral(value: unknown): number {
   if (typeof value !== "string" && typeof value !== "number")
     throw new Error("Enter a numeric value");
@@ -57,6 +63,19 @@ export function builderPredicate(
       if (child) children.push(child);
       continue;
     }
+    if (node.field === BOOLEAN_CONDITION) {
+      if (
+        node.operator !== "constant" ||
+        ![true, false, "true", "false"].includes(node.value)
+      )
+        throw new Error("Choose All records or No records");
+      children.push({
+        kind: "boolean_constant",
+        clause_id: node.id,
+        value: node.value === true || node.value === "true",
+      });
+      continue;
+    }
     const field = fields.find((f) => f.id === node.field && f.scope === scope);
     if (!field) throw new Error("Choose an available filter field");
     if (!field.operators.includes(node.operator))
@@ -81,7 +100,10 @@ export function builderPredicate(
         kind: "exists",
         clause_id,
         collection: field.path,
-        scope_id: node.id || crypto.randomUUID(),
+        scope_id:
+          (node as RuleType & { atlasScopeId?: string }).atlasScopeId ||
+          node.id ||
+          crypto.randomUUID(),
         predicate: child,
       });
     } else if (node.operator === "in") {
@@ -123,12 +145,24 @@ export function builderPredicate(
     }
   }
   if (!children.length) return null;
-  const predicate: QueryPredicate = {
-    kind: group.combinator === "or" ? "any_of" : "all_of",
-    clause_id: group.id,
-    children,
-  };
-  return group.not ? { kind: "not", predicate } : predicate;
+  const predicate: QueryPredicate =
+    (group as PredicateGroup).atlasSinglePredicate &&
+    children.length === 1 &&
+    group.combinator === "and"
+      ? children[0]
+      : {
+          kind: group.combinator === "or" ? "any_of" : "all_of",
+          clause_id: group.id,
+          children,
+        };
+  return group.not
+    ? {
+        kind: "not",
+        clause_id: (group as RuleGroupType & { atlasNotClauseId?: string })
+          .atlasNotClauseId,
+        predicate,
+      }
+    : predicate;
 }
 export function predicateBuilder(
   predicate: QueryPredicate | null,
@@ -144,12 +178,18 @@ export function predicateBuilder(
     };
   }
   if (predicate.kind === "not")
-    return { ...predicateBuilder(predicate.predicate, fields, scope), not: true };
-  if (predicate.kind === "boolean_constant") {
-    if (predicate.value) return emptyGroup();
-    throw new Error("A false constant cannot be edited as a filter rule");
-  }
-  return { combinator: "and", rules: [predicateNode(predicate, fields, scope)] };
+    return {
+      combinator: "and",
+      rules: [predicateNode(predicate.predicate, fields, scope)],
+      not: true,
+      atlasSinglePredicate: true,
+      atlasNotClauseId: predicate.clause_id,
+    } as PredicateGroup;
+  return {
+    combinator: "and",
+    rules: [predicateNode(predicate, fields, scope)],
+    atlasSinglePredicate: true,
+  } as PredicateGroup;
 }
 function predicateNode(
   predicate: QueryPredicate,
@@ -159,10 +199,16 @@ function predicateNode(
   if (
     predicate.kind === "all_of" ||
     predicate.kind === "any_of" ||
-    predicate.kind === "not" ||
-    predicate.kind === "boolean_constant"
+    predicate.kind === "not"
   )
     return predicateBuilder(predicate, fields, scope);
+  if (predicate.kind === "boolean_constant")
+    return {
+      id: predicate.clause_id,
+      field: BOOLEAN_CONDITION,
+      operator: "constant",
+      value: predicate.value,
+    };
   const fieldPath =
     predicate.kind === "exists" ? predicate.collection : predicate.field;
   const field = fields.find((f) => f.path === fieldPath && f.scope === scope);
@@ -180,9 +226,9 @@ function predicateNode(
     case "exists":
       return {
         ...base,
-        id: predicate.scope_id,
+        atlasScopeId: predicate.scope_id,
         operator: "exists",
         value: predicateBuilder(predicate.predicate, fields, predicate.collection),
-      };
+      } as RuleType & { atlasScopeId: string };
   }
 }

@@ -6,13 +6,19 @@ import {
   valuesFixture,
 } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { ConfigProvider } from "antd";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   RecordDetailView,
   SavedListDetailView,
   SavedListIndexView,
+  DiscoverFilterValuesRequest,
+  FilterVocabularyScope,
 } from "../../generated/atlas";
+import { useFilterVocabulary } from "../../shared/filters/useFilterDiscovery";
+import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
+import { useSavedListFilterDiscovery } from "./useSavedListFilters";
 import { AddToListButton } from "./AddToListButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
@@ -24,6 +30,7 @@ const apiMocks = vi.hoisted(() => ({
   createSavedList: vi.fn(),
   deleteSavedList: vi.fn(),
   discoverFilterEditor: vi.fn(),
+  discoverFilterCounts: vi.fn(),
   discoverFilterValues: vi.fn(),
   filterSavedList: vi.fn(),
   getRecordDetail: vi.fn(),
@@ -38,6 +45,7 @@ vi.mock("../../api/atlasApi", () => ({
   createSavedList: apiMocks.createSavedList,
   deleteSavedList: apiMocks.deleteSavedList,
   discoverFilterEditor: apiMocks.discoverFilterEditor,
+  discoverFilterCounts: apiMocks.discoverFilterCounts,
   discoverFilterValues: apiMocks.discoverFilterValues,
   filterSavedList: apiMocks.filterSavedList,
   getRecordDetail: apiMocks.getRecordDetail,
@@ -55,6 +63,9 @@ describe("list views", () => {
     apiMocks.getSavedList.mockResolvedValue(savedListDetailFixture());
     apiMocks.filterSavedList.mockResolvedValue(savedListDetailFixture());
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditorFixture());
+    apiMocks.discoverFilterCounts.mockResolvedValue({
+      counts: { status: "unavailable", reason: "non_conjunctive_context" },
+    });
     apiMocks.discoverFilterValues.mockImplementation((request: { field_id: string }) =>
       Promise.resolve(valuesFixture(request.field_id)),
     );
@@ -183,7 +194,9 @@ describe("list views", () => {
     expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
     expect(screen.getByText("List")).toBeInTheDocument();
     expect(screen.getByText("Items")).toBeInTheDocument();
-    expect(screen.getByText("Filters")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Advanced filters" }),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
@@ -206,6 +219,116 @@ describe("list views", () => {
         record_ref: "actions:testAction1",
       }),
     );
+  });
+
+  it("refreshes mounted list discovery after removing its last item without refreshing other scopes", async () => {
+    let removed = false;
+    const aliases = ["research", "list_research"];
+    apiMocks.discoverFilterEditor.mockResolvedValue(
+      editorFixture([fieldFixture("traits", "set", "Traits")]),
+    );
+    apiMocks.filterSavedList.mockImplementation(async () => ({
+      ...savedListDetailFixture(),
+      items: removed ? [] : savedListDetailFixture().items,
+    }));
+    apiMocks.removeSavedListItem.mockImplementation(async () => {
+      removed = true;
+      return {
+        list_key: "list_research",
+        slug: "research",
+        record_key: "actions:testAction1",
+        outcome: "removed",
+      };
+    });
+    apiMocks.discoverFilterValues.mockImplementation(
+      async (request: DiscoverFilterValuesRequest) => {
+        if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
+        const affected =
+          request.scope.kind === "saved_list" &&
+          aliases.includes(request.scope.list_ref);
+        const empty = affected && removed;
+        return {
+          kind: "vocabulary",
+          scope: request.scope,
+          values: {
+            field: request.field_id,
+            options: empty ? [] : [{ value: "fire" }],
+            selected_values: request.selected_values,
+            total_values: empty ? 0n : 1n,
+            basis: "product_key_scope_before_edition_preference",
+          },
+        };
+      },
+    );
+    apiMocks.discoverFilterCounts.mockImplementation(async () => ({
+      counts: {
+        status: "available",
+        value: {
+          field: "traits",
+          states: [],
+          exhaustive: true,
+          count_basis: "distinct roots",
+          minimum: null,
+          maximum: null,
+        },
+      },
+    }));
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ListDetailView
+          route={{ kind: "list", slug: "research", selectedRecordKey: null }}
+        />
+        <ListDiscoveryProbe listRef="research" />
+        <ListDiscoveryProbe listRef="list_research" />
+        <ListDiscoveryProbe listRef="other-list" />
+        <VocabularyProbe scope={{ kind: "artifact" }} label="artifact values" />
+      </QueryClientProvider>,
+    );
+    for (const alias of [...aliases, "other-list"])
+      await waitFor(() =>
+        expect(screen.getByLabelText(`values ${alias}`)).toHaveTextContent(
+          '"options":["fire"]',
+        ),
+      );
+    await waitFor(() =>
+      expect(screen.getByLabelText("artifact values")).toHaveTextContent("fire"),
+    );
+    await waitFor(() => expect(apiMocks.discoverFilterCounts).toHaveBeenCalledTimes(3));
+    const otherRequests = apiMocks.discoverFilterValues.mock.calls.filter(
+      ([request]) =>
+        request.scope.kind === "artifact" || request.scope.list_ref === "other-list",
+    ).length;
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Remove Test Action 1" }),
+    );
+
+    for (const alias of aliases) {
+      await waitFor(() =>
+        expect(screen.getByLabelText(`values ${alias}`)).toHaveTextContent(
+          '"options":[],"selected":["retained"],"total":"0"',
+        ),
+      );
+      await waitFor(() =>
+        expect(
+          apiMocks.discoverFilterCounts.mock.calls.filter(
+            ([request]) => request.context.list_ref === alias,
+          ),
+        ).toHaveLength(2),
+      );
+    }
+    expect(screen.getByLabelText("values other-list")).toHaveTextContent("fire");
+    expect(screen.getByLabelText("artifact values")).toHaveTextContent("fire");
+    expect(
+      apiMocks.discoverFilterValues.mock.calls.filter(
+        ([request]) =>
+          request.scope.kind === "artifact" || request.scope.list_ref === "other-list",
+      ),
+    ).toHaveLength(otherRequests);
+    expect(apiMocks.discoverFilterCounts).toHaveBeenCalledTimes(5);
   });
 
   it("opens references from the selected saved-list detail in a popover", async () => {
@@ -248,7 +371,7 @@ describe("list views", () => {
         filter: undefined,
       }),
     );
-    fireEvent.change(await screen.findByPlaceholderText("Search records"), {
+    fireEvent.change(await screen.findByRole("textbox", { name: "Search records" }), {
       target: { value: "Test Action 2" },
     });
 
@@ -336,6 +459,23 @@ describe("list views", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/lists/encounters"));
   });
 
+  it("explains the saved-list action on keyboard focus without loading lists", async () => {
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <AddToListButton recordKey="actions:testAction1" />
+      </ConfigProvider>,
+      { wrapper: queryClientWrapper() },
+    );
+    const action = screen.getByRole("button", { name: "Add to saved list" });
+    act(() => action.focus());
+    expect(action).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Add to saved list");
+    expect(apiMocks.getSavedLists).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    act(() => action.blur());
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+  });
+
   it("adds the current record to a selected list", async () => {
     render(<AddToListButton recordKey="actions:testAction1" />, {
       wrapper: queryClientWrapper(),
@@ -383,6 +523,50 @@ describe("list views", () => {
   });
 });
 
+function VocabularyProbe({
+  scope,
+  label,
+}: {
+  scope: FilterVocabularyScope;
+  label: string;
+}) {
+  const query = useFilterVocabulary(scope, "traits", "", 0, ["retained"]);
+  const values = query.data?.values;
+  return (
+    <output aria-label={label}>
+      {JSON.stringify({
+        options: values?.options.map((option) => option.value),
+        selected: values?.selected_values,
+        total: values?.total_values.toString(),
+      })}
+    </output>
+  );
+}
+
+function ListDiscoveryProbe({ listRef }: { listRef: string }) {
+  const discovery = useSavedListFilterDiscovery(listRef, {
+    ...DEFAULT_SEARCH_STATE,
+    filter: {
+      kind: "set_match",
+      clause_id: "trait",
+      field: "traits",
+      op: "includes_any",
+      values: ["retained"],
+    },
+  });
+  return (
+    <>
+      <VocabularyProbe
+        scope={{ kind: "saved_list", list_ref: listRef }}
+        label={`values ${listRef}`}
+      />
+      <output aria-label={`counts ${listRef}`}>
+        {discovery.filterCountsByField["traits:trait"]?.counts.status}
+      </output>
+    </>
+  );
+}
+
 function queryClientWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -405,7 +589,7 @@ function savedListIndexFixture(): SavedListIndexView {
         name: "Research",
         description: "Campaign prep",
         tags: ["arc-one", "boss"],
-        item_count: 1n,
+        item_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
       },
@@ -415,7 +599,7 @@ function savedListIndexFixture(): SavedListIndexView {
         name: "Encounters",
         description: "Fight prep",
         tags: ["arc-two"],
-        item_count: 0n,
+        item_count: 0,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-03T00:00:00Z",
       },
@@ -429,7 +613,7 @@ function savedListDetailFixture(): SavedListDetailView {
     items: [
       {
         record_key: "actions:testAction1",
-        position: 1n,
+        position: 1,
         status: "active",
         snapshot: {
           title: "Test Action 1",

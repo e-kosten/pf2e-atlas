@@ -54,10 +54,8 @@ pub(crate) fn run_index_record(o: args::RecordInspectOptions) -> Result<ExitCode
         .read_summary_for_inspection(&key)
         .map_err(|e| e.to_string())?
         .ok_or("source provenance not found")?;
-    let snapshot: serde_json::Value = serde_json::from_slice(
-        &atlas_foundry_model::encode_snapshot(source.source()).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    let snapshot =
+        atlas_foundry_model::snapshot_json_value(source.source()).map_err(|e| e.to_string())?;
     let original = if o.original {
         let relative = std::path::Path::new(&summary.source_path);
         if relative

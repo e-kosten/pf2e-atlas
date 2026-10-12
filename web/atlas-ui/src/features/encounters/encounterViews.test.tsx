@@ -1,13 +1,29 @@
-import { detailFixture, summaryFixture } from "../../test/fixtures";
+import {
+  detailFixture,
+  summaryFixture,
+  actorFixture,
+  numberFact,
+  knownFact,
+  unavailableFact,
+  activityFixture,
+} from "../../test/fixtures";
+import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   EncounterDetailView as EncounterDetailViewDto,
   EncounterIndexView as EncounterIndexViewDto,
   EncounterParticipantView,
   RecordDetailView,
-  RecordSurfaceSectionView,
+  RecordPresentationView,
   RecordSummaryView,
   ResultWindowPage,
 } from "../../generated/atlas";
@@ -25,6 +41,8 @@ const apiMocks = vi.hoisted(() => ({
   getEncounterConditionDefinitions: vi.fn(),
   getEncounters: vi.fn(),
   getRecordDetail: vi.fn(),
+  getEncounterReference: vi.fn(),
+  getOwnedReading: vi.fn(),
   openResultWindow: vi.fn(),
   removeEncounterParticipant: vi.fn(),
   removeEncounterParticipantCondition: vi.fn(),
@@ -45,6 +63,8 @@ vi.mock("../../api/atlasApi", () => ({
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
   getEncounters: apiMocks.getEncounters,
   getRecordDetail: apiMocks.getRecordDetail,
+  getEncounterReference: apiMocks.getEncounterReference,
+  getOwnedReading: apiMocks.getOwnedReading,
   openResultWindow: apiMocks.openResultWindow,
   removeEncounterParticipant: apiMocks.removeEncounterParticipant,
   removeEncounterParticipantCondition: apiMocks.removeEncounterParticipantCondition,
@@ -192,6 +212,34 @@ describe("encounter views", () => {
     );
   });
 
+  it("selects the roster by keyboard and commits initiative without setting turn", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await screen.findByText("Kyra");
+    const kyra = rosterRow("Kyra");
+    kyra.focus();
+    fireEvent.keyDown(kyra, { key: "Enter" });
+    expect(await screen.findByLabelText("HP")).toHaveValue("24");
+    expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
+    const initiative = within(kyra).getByLabelText("Kyra initiative");
+    fireEvent.change(initiative, { target: { value: "18" } });
+    fireEvent.keyDown(initiative, { key: "Enter" });
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_b",
+          initiative: 18n,
+          hp_edit: false,
+          variant_edit: false,
+          max_hp_edit: false,
+        }),
+      ),
+    );
+    expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
+  });
+
   it("marks the current roster row and omits max HP from roster text", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -200,6 +248,7 @@ describe("encounter views", () => {
     await screen.findByText("Initiative set");
     const goblinRow = rosterRow("Goblin");
     expect(goblinRow).toHaveClass("encounter-roster__row--current");
+    expect(within(goblinRow).getByText("Current turn")).toBeInTheDocument();
     expect(within(goblinRow).getByLabelText("Goblin current HP")).toHaveValue("10");
     expect(within(goblinRow).queryByText("/ 12")).not.toBeInTheDocument();
   });
@@ -209,10 +258,12 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await screen.findByText("Runtime");
-    const runtimeSection = screen.getByText("Runtime").closest(".record-surface-card");
+    await screen.findByText("Actions");
+    const runtimeSection = screen
+      .getByText("Actions")
+      .closest(".actor-reference__combat-budget");
     if (!(runtimeSection instanceof HTMLElement)) {
-      throw new Error("Runtime section was not rendered");
+      throw new Error("Combat action budget was not rendered");
     }
 
     expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
@@ -221,27 +272,24 @@ describe("encounter views", () => {
       within(runtimeSection).getByLabelText("Show explanation for Actions"),
     ).toBeInTheDocument();
     expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
-    const movementSection = screen
-      .getByText("Senses & Movement")
-      .closest(".record-surface-card");
+    const movementSection = screen.getByText("Speed").closest(".record-fact-list");
     if (!(movementSection instanceof HTMLElement)) {
       throw new Error("Movement section was not rendered");
     }
-    expect(within(movementSection).getAllByText("Land Speed").length).toBeGreaterThan(
-      0,
-    );
-    expect(within(movementSection).getByText("15 ft")).toBeInTheDocument();
+    expect(within(movementSection).getAllByText("Speed").length).toBeGreaterThan(0);
+    expect(within(movementSection).getByText("15 feet")).toBeInTheDocument();
     expect(
-      within(movementSection).getByLabelText("Show explanation for Land Speed"),
+      within(movementSection).getByLabelText("Show explanation for Speed"),
     ).toBeInTheDocument();
     const activitiesSection = screen
-      .getByText("Activities")
-      .closest(".record-surface-card");
+      .getByText("Strikes")
+      .closest(".actor-reference__activities");
     if (!(activitiesSection instanceof HTMLElement)) {
       throw new Error("Activities section was not rendered");
     }
     expect(within(activitiesSection).getByText("Claw")).toBeInTheDocument();
-    expect(within(activitiesSection).getByText("1d6+2 slashing")).toBeInTheDocument();
+    expect(within(activitiesSection).getByText("1d6+2")).toBeInTheDocument();
+    expect(within(activitiesSection).getByText(/slashing/)).toBeInTheDocument();
   });
 
   it("renders manual PC runtime state without inferred speed rows", async () => {
@@ -251,15 +299,17 @@ describe("encounter views", () => {
 
     fireEvent.click((await screen.findByText("Kyra")).closest('[role="button"]')!);
 
-    await screen.findByText("Runtime");
-    const runtimeSection = screen.getByText("Runtime").closest(".record-surface-card");
+    await screen.findByText("Actions");
+    const runtimeSection = screen
+      .getByText("Actions")
+      .closest(".actor-reference__combat-budget");
     if (!(runtimeSection instanceof HTMLElement)) {
-      throw new Error("Runtime section was not rendered");
+      throw new Error("Combat action budget was not rendered");
     }
     expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
     expect(within(runtimeSection).getByText("3")).toBeInTheDocument();
     expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Land Speed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Speed")).not.toBeInTheDocument();
   });
 
   it("edits the selected participant in the participant sheet", async () => {
@@ -287,6 +337,157 @@ describe("encounter views", () => {
         }),
       ),
     );
+  });
+
+  it("starts with combat controls and keeps detailed edits in keyboard disclosures", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const hp = await screen.findByLabelText("HP");
+    expect(screen.getByRole("button", { name: "Damage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Heal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Condition" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Participant name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Maximum HP")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Derived maximum; current HP edited"),
+    ).not.toBeInTheDocument();
+
+    const details = screen.getByRole("button", { name: "Edit details" });
+    expect(details).toHaveAttribute("aria-expanded", "false");
+    expect(
+      hp.compareDocumentPosition(screen.getByText("Strikes")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    details.focus();
+    fireEvent.keyDown(details, { key: "Enter", keyCode: 13 });
+    expect(await screen.findByLabelText("Participant name")).toHaveValue("Goblin");
+    expect(details).toHaveAttribute("aria-expanded", "true");
+
+    const name = screen.getByLabelText("Participant name");
+    fireEvent.change(name, { target: { value: "Goblin Scout" } });
+    fireEvent.keyDown(name, { key: "Enter" });
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          display_name: "Goblin Scout",
+          hp_edit: false,
+          max_hp_edit: false,
+          variant_edit: false,
+        }),
+      ),
+    );
+    expect(screen.getByLabelText("Participant side")).toBeInTheDocument();
+  });
+
+  it("preserves maximum override and adjustment intent through secondary controls", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    const hpDetails = await screen.findByRole("button", { name: "HP details" });
+    hpDetails.focus();
+    fireEvent.keyDown(hpDetails, { key: "Enter", keyCode: 13 });
+    const maximum = await screen.findByLabelText("Maximum HP");
+    fireEvent.change(maximum, { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: "Override maximum" }));
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          max_hp: 30n,
+          max_hp_edit: true,
+          hp_edit: false,
+          variant_edit: false,
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Use authored maximum" }));
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          use_derived_max: true,
+          max_hp_edit: false,
+        }),
+      ),
+    );
+
+    await selectOption(conditionCombobox("Variant"), "Elite");
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          participant_variant: "elite",
+          variant_edit: true,
+          hp_edit: false,
+          max_hp_edit: false,
+        }),
+      ),
+    );
+  });
+
+  it("reloads saved current HP without reapplying edit intent", async () => {
+    const { unmount } = render(
+      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+    const hp = await screen.findByLabelText("HP");
+    fireEvent.change(hp, { target: { value: "8" } });
+    fireEvent.keyDown(hp, { key: "Enter" });
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          current_hp: 8n,
+          hp_edit: true,
+          max_hp_edit: false,
+          variant_edit: false,
+        }),
+      ),
+    );
+    unmount();
+    apiMocks.getEncounter.mockResolvedValue(
+      encounterDetailFixture("participant_a", {
+        current_hp: 8n,
+        hp_origin: "derived_edited",
+      }),
+    );
+    apiMocks.updateEncounterParticipant.mockClear();
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    expect(await screen.findByLabelText("HP")).toHaveValue("8");
+    expect(apiMocks.updateEncounterParticipant).not.toHaveBeenCalled();
+    expect(within(rosterRow("Goblin")).getByLabelText("Goblin current HP")).toHaveValue(
+      "8",
+    );
+  });
+
+  it("resets participant disclosures and drafts when selecting another participant", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "HP details" }));
+    fireEvent.change(await screen.findByLabelText("Maximum HP"), {
+      target: { value: "999" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Edit details" }));
+    fireEvent.click(rosterRow("Kyra"));
+    expect(await screen.findByLabelText("HP")).toHaveValue("24");
+    expect(screen.queryByLabelText("Participant name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Maximum HP")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "HP details" }));
+    expect(await screen.findByLabelText("Maximum HP")).toHaveValue("24");
+    expect(apiMocks.updateEncounterParticipant).not.toHaveBeenCalled();
   });
 
   it("keeps encounter lifecycle actions in the edit modal", async () => {
@@ -350,11 +551,109 @@ describe("encounter views", () => {
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
     );
 
-    fireEvent.keyDown(document, { key: "Escape" });
+    const closePreview = screen.getByRole("button", {
+      name: "Close reference preview",
+    });
+    closePreview.focus();
+    fireEvent.keyDown(closePreview, { key: "Escape" });
 
     await waitFor(() =>
       expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
     );
+  });
+
+  it("quick lookup renders complete participant detail and refetches after runtime updates", async () => {
+    const initial = encounterDetailFixture();
+    const activity = initial.participants[0].presentation!.body;
+    if (activity.kind !== "creature") throw new Error("expected creature fixture");
+    const claw = activity.value.activities.value![0];
+    const selected = recordDetailFixture("actors:goblin");
+    selected.selected = claw.navigation;
+    selected.presentation.identity = { ...selected.record, title: claw.title };
+    selected.presentation.body = { kind: "activity", value: claw };
+    selected.presentation.content = [
+      {
+        locator: {
+          record: "actors:goblin",
+          owners: claw.navigation.owners,
+          field: "/system/description/value",
+        },
+        role: "description",
+        source_fingerprint: null,
+        body: { kind: "plain", text: "Customized participant Claw prose" },
+      },
+    ];
+    apiMocks.getEncounterReference.mockResolvedValue({
+      ...selected,
+      artifact_generation: initial.artifact_generation,
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <App>
+            <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />
+          </App>
+        </ConfigProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Claw" }));
+    const preview = await screen.findByLabelText("Reference preview");
+    await waitFor(() =>
+      expect(
+        within(preview).getByText("Customized participant Claw prose"),
+      ).toBeVisible(),
+    );
+    expect(within(preview).getByText("+12")).toBeVisible();
+    expect(apiMocks.getEncounterReference).toHaveBeenCalledWith(
+      "ambush",
+      "participant_a",
+      expect.objectContaining({
+        artifact_generation: initial.artifact_generation,
+        selection: {
+          record_key: claw.navigation.record_key,
+          owners: claw.navigation.owners,
+          fields: [],
+          passage: claw.navigation.passage,
+          source_fingerprint: claw.navigation.source_fingerprint,
+        },
+      }),
+      expect.any(AbortSignal),
+    );
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
+    const updated = encounterDetailFixture();
+    if (updated.participants[0].presentation!.body.kind !== "creature")
+      throw new Error("expected creature fixture");
+    updated.participants[0].presentation!.body.value.activities.value![0].attack =
+      numberFact(19);
+    updated.participants[0].presentation!.body.value.activities.value![0].notes = [
+      {
+        source: "Elite",
+        label: "Elite",
+        reason: "Current source adjustment retained.",
+      },
+    ];
+    apiMocks.getEncounterReference.mockResolvedValue({
+      ...selected,
+      presentation: {
+        ...selected.presentation,
+        body: {
+          kind: "activity",
+          value: updated.participants[0].presentation!.body.value.activities.value![0],
+        },
+      },
+    });
+    act(() => client.setQueryData(["encounter", "ambush"], updated));
+    await waitFor(() => expect(within(preview).getByText("+19")).toBeVisible());
+    expect(within(preview).queryByText("+12")).toBeNull();
+    expect(
+      within(preview).getByText("Elite: Current source adjustment retained."),
+    ).toBeVisible();
+    expect(apiMocks.getEncounterReference).toHaveBeenCalledTimes(2);
+    expect(apiMocks.getOwnedReading).not.toHaveBeenCalled();
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
   });
 
   it("opens condition reference previews from canonical condition rows", async () => {
@@ -510,10 +809,10 @@ describe("encounter views", () => {
     );
   });
 
-  it("consumes temporary HP before current HP in the surfaced participant view", async () => {
+  it("consumes temporary HP before current HP in participant controls", async () => {
     apiMocks.getEncounter.mockResolvedValue(
       encounterDetailFixture("participant_a", {
-        surface: recordSurfaceFixture(),
+        presentation: participantPresentationFixture(),
       }),
     );
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
@@ -531,6 +830,22 @@ describe("encounter views", () => {
           participant_key: "participant_a",
           temporary_hp: 0n,
           current_hp: 7n,
+        }),
+      ),
+    );
+
+    fireEvent.change(hpChangeInput, { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Heal" }));
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "ambush",
+        expect.objectContaining({
+          participant_key: "participant_a",
+          current_hp: 10n,
+          temporary_hp: 0n,
+          hp_edit: true,
+          variant_edit: false,
+          max_hp_edit: false,
         }),
       ),
     );
@@ -582,7 +897,7 @@ describe("encounter views", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add Condition" }));
     await selectOption(conditionCombobox("Add condition"), "Sickened");
-    expect(screen.getByLabelText("Condition value")).toHaveValue("1");
+    expect(await screen.findByLabelText("Condition value")).toHaveValue("1");
     fireEvent.change(screen.getByLabelText("Condition value"), {
       target: { value: "2" },
     });
@@ -684,9 +999,9 @@ async function selectOption(input: HTMLElement, option: string) {
   fireEvent.mouseDown(input);
   const options = await screen.findAllByText(option);
   const visibleOption = options.find((element) =>
-    element.classList.contains("ant-select-item-option-content"),
+    element.closest(".atlas-select-option"),
   );
-  fireEvent.click(visibleOption ?? options[0]);
+  fireEvent.click(visibleOption?.closest(".atlas-select-option") ?? options[0]);
 }
 
 function conditionCombobox(label: string): HTMLElement {
@@ -726,7 +1041,16 @@ function queryClientWrapper() {
     },
   });
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ConfigProvider
+          theme={{ token: { motion: false } }}
+          select={{ classNames: { popup: { listItem: "atlas-select-option" } } }}
+        >
+          <App component={false}>{children}</App>
+        </ConfigProvider>
+      </QueryClientProvider>
+    );
   };
 }
 
@@ -811,6 +1135,7 @@ function encounterDetailFixture(
   firstParticipantOverrides: Partial<EncounterParticipantView> = {},
 ): EncounterDetailViewDto {
   return {
+    artifact_generation: "test-generation",
     encounter: encounterIndexFixture().encounters[0],
     note: "Encounter note",
     current_turn_participant_key: currentTurnParticipantKey,
@@ -828,7 +1153,7 @@ function encounterDetailFixture(
         current_hp: 10n,
         temporary_hp: 5n,
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
-        surface: recordSurfaceFixture({
+        presentation: participantPresentationFixture({
           actions: 2n,
           actionBase: 3n,
           actionAdjustment: -1n,
@@ -836,62 +1161,7 @@ function encounterDetailFixture(
           speedBase: 25n,
           speedAdjustment: -10n,
         }),
-        stat_block: {
-          record_key: "actors:goblin",
-          title: "Goblin Warrior",
-          level: 1,
-          adjusted_level: 1,
-          values: [],
-          speeds: [
-            {
-              movement_type: "land",
-              label: "Land Speed",
-              base_value_feet: 25,
-              adjusted_value_feet: 15,
-              adjustments: [
-                {
-                  source: "Encumbered",
-                  label: "Speed penalty",
-                  value: -10n,
-                  reason:
-                    "Encumbered reduces speeds by 10 feet, to a minimum of 5 feet.",
-                },
-              ],
-              suppressed_adjustments: [],
-              notes: [],
-            },
-          ],
-          action_budget: {
-            actions: {
-              label: "Actions",
-              base_value: 3n,
-              adjusted_value: 2n,
-              segments: [{ label: "Base", value: 2n, restricted: false }],
-              adjustments: [
-                {
-                  source: "Slowed 1",
-                  label: "Reduced actions regained",
-                  value: -1n,
-                  reason: "Applied to the next action-regain step.",
-                },
-              ],
-              suppressed_adjustments: [],
-            },
-            reactions: {
-              label: "Reactions",
-              base_value: 1n,
-              adjusted_value: 1n,
-              segments: [{ label: "Base", value: 1n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            can_act: { available: true },
-            can_react: { available: true },
-            notes: [],
-          },
-          activities: [],
-          unapplied_effects: [],
-        },
+
         conditions: [
           {
             condition_id: 7n,
@@ -916,36 +1186,8 @@ function encounterDetailFixture(
         initiative: 15n,
         max_hp: 24n,
         current_hp: 24n,
-        stat_block: {
-          record_key: "participant_b",
-          title: "Kyra",
-          values: [],
-          speeds: [],
-          action_budget: {
-            actions: {
-              label: "Actions",
-              base_value: 3n,
-              adjusted_value: 3n,
-              segments: [{ label: "Base", value: 3n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            reactions: {
-              label: "Reactions",
-              base_value: 1n,
-              adjusted_value: 1n,
-              segments: [{ label: "Base", value: 1n, restricted: false }],
-              adjustments: [],
-              suppressed_adjustments: [],
-            },
-            can_act: { available: true },
-            can_react: { available: true },
-            notes: [],
-          },
-          activities: [],
-          unapplied_effects: [],
-        },
-        surface: recordSurfaceFixture({
+
+        presentation: participantPresentationFixture({
           kind: "pc",
           kindLabel: "PC",
           levelLabel: undefined,
@@ -1015,7 +1257,7 @@ function recordSummaryFixture(recordKey: string, title: string): RecordSummaryVi
   };
 }
 
-function recordSurfaceFixture({
+function participantPresentationFixture({
   actionAdjustment,
   actionBase,
   actions,
@@ -1049,145 +1291,95 @@ function recordSurfaceFixture({
   title?: string;
   traits?: Array<{ kind: string; label: string; value: string }>;
 } = {}) {
-  const sections: RecordSurfaceSectionView[] = [
-    {
-      kind: "vitals" as const,
-      title: "Vitals",
-      collapsed_by_default: false,
-    },
-    {
-      kind: "conditions" as const,
-      title: "Conditions",
-      collapsed_by_default: false,
-    },
-  ];
-  if (actions !== undefined) {
-    sections.push({
-      kind: "runtime" as const,
-      title: "Runtime",
-      collapsed_by_default: false,
-      values: [
-        {
-          key: "actions",
-          label: "Actions",
-          value: { kind: "number" as const, value: Number(actions) },
-          ...(actionBase !== undefined
-            ? { base_value: { kind: "number" as const, value: Number(actionBase) } }
-            : {}),
-          adjusted: actionBase !== undefined && actions !== actionBase,
-          display: "static_number" as const,
-          ...(actionAdjustment !== undefined
-            ? {
-                adjustments: [
+  const actor = actorFixture();
+  actor.land_speed =
+    speed === undefined
+      ? { state: "not_applicable", value: null, adjustment: null }
+      : numberFact(Number(speed));
+  if (speedBase !== undefined)
+    actor.land_speed.adjustment = {
+      authored: Number(speedBase),
+      applied:
+        speedAdjustment === undefined
+          ? []
+          : [
+              {
+                source: "Encumbered",
+                label: "Speed penalty",
+                modifier_type: "status",
+                value: speedAdjustment,
+              },
+            ],
+      suppressed: [],
+      notes: [],
+    };
+  const count = (label: string, value: bigint, base = value) => ({
+    label,
+    base_value: base,
+    adjusted_value: value,
+    segments: [],
+    adjustments: [],
+    suppressed_adjustments: [],
+  });
+  if (actions !== undefined)
+    actor.runtime = {
+      action_budget: {
+        actions: {
+          ...count("Actions", actions, actionBase),
+          adjustments:
+            actionAdjustment === undefined
+              ? []
+              : [
                   {
-                    label: "Reduced actions regained",
                     source: "Slowed 1",
-                    delta: { kind: "number" as const, value: Number(actionAdjustment) },
+                    label: "Reduced actions regained",
+                    value: actionAdjustment,
+                    reason: "Applied to the next action-regain step.",
                   },
                 ],
-              }
-            : {}),
         },
-        {
-          key: "reactions",
-          label: "Reactions",
-          value: { kind: "number" as const, value: Number(reactions) },
-          adjusted: false,
-          display: "static_number" as const,
-        },
-      ],
-    });
-  }
-  if (speed !== undefined) {
-    sections.push({
-      kind: "movement" as const,
-      title: "Movement",
-      collapsed_by_default: false,
-      values: [
-        {
-          key: "speed.land",
-          label: "Land Speed",
-          value: { kind: "distance_feet" as const, value: Number(speed) },
-          ...(speedBase !== undefined
-            ? {
-                base_value: {
-                  kind: "distance_feet" as const,
-                  value: Number(speedBase),
-                },
-              }
-            : {}),
-          adjusted: speedBase !== undefined && speed !== speedBase,
-          display: "distance" as const,
-          ...(speedAdjustment !== undefined
-            ? {
-                adjustments: [
-                  {
-                    label: "Speed penalty",
-                    source: "Encumbered",
-                    delta: {
-                      kind: "distance_feet" as const,
-                      value: Number(speedAdjustment),
-                    },
-                  },
-                ],
-              }
-            : {}),
-        },
-      ],
-    });
-  }
-  if (includeActivities) {
-    sections.push({
-      kind: "activities" as const,
-      title: "Activities",
-      collapsed_by_default: false,
-      activities: [
-        {
-          navigation: {
-            record_key: recordKey,
-            owners: [],
-            field: null,
-            passage: null,
-            source_fingerprint: null,
+        reactions: count("Reactions", reactions),
+        can_act: { available: true },
+        can_react: { available: true },
+        notes: [],
+      },
+      unapplied_effects: [],
+    };
+  actor.activities = knownFact(
+    includeActivities
+      ? [
+          {
+            ...activityFixture("Claw", recordKey),
+            attack: numberFact(12),
+            damage: knownFact([
+              {
+                id: "main",
+                formula: knownFact("1d6+2"),
+                damage_type: knownFact("slashing"),
+                kinds: knownFact(["damage"]),
+                category: unavailableFact("not_applicable"),
+                materials: knownFact([]),
+                apply_modifier: knownFact(false),
+              },
+            ]),
           },
-          key: "claw",
-          label: "Claw",
-          kind: "strike",
-          usage: "unlimited",
-          values: [
-            {
-              key: "activity.claw.roll.attack",
-              label: "Attack",
-              value: { kind: "number" as const, value: 12 },
-              base_value: { kind: "number" as const, value: 12 },
-              adjusted: false,
-              display: "signed_modifier" as const,
-            },
-            {
-              key: "activity.claw.damage.main",
-              label: "Damage",
-              value: { kind: "formula" as const, value: "1d6+2 slashing" },
-              base_value: { kind: "formula" as const, value: "1d6+2 slashing" },
-              adjusted: false,
-              display: "formula" as const,
-            },
-          ],
-        },
-      ],
-    });
-  }
-  return {
-    record_key: recordKey,
-    title,
-    kind,
-    profile: "encounter_participant" as const,
-    header: {
-      ...(levelLabel === undefined ? {} : { level_label: levelLabel }),
+        ]
+      : [],
+  );
+  const presentation: RecordPresentationView = {
+    classification: kindLabel,
+    identity: {
+      ...summaryFixture(recordKey, title),
+      kind,
       kind_label: kindLabel,
+      level_label: kind === "pc" ? null : (levelLabel ?? null),
       traits,
     },
-    sections,
+    content: [],
+    owned: [],
+    body: { kind: "creature", value: actor },
   };
+  return presentation;
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
@@ -1196,7 +1388,7 @@ function recordDetailFixture(recordKey: string): RecordDetailView {
     recordKey.startsWith("conditionitems:") ? "Frightened Condition" : "Goblin Warrior",
     "rules:linked",
   );
-  const body = result.surface.sections[0].content?.body;
+  const body = result.presentation.content[0]?.body;
   if (body?.kind === "html")
     body.html = body.html.replace("Nested Rule", "Linked Rule");
   return result;

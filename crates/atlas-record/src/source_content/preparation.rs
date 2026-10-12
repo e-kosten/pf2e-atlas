@@ -74,6 +74,7 @@ pub(super) fn sanitizer() -> ammonia::Builder<'static> {
             "data-atlas-interaction",
             "data-atlas-interaction-kind",
         ])
+        .add_tag_attributes("span", ["data-atlas-action-glyph"])
         .add_tag_attributes("ol", ["start"])
         .add_tag_attributes("li", ["value"])
         .add_tag_attributes("td", ["colspan", "rowspan"])
@@ -238,7 +239,7 @@ impl Projection<'_> {
                         .and_then(Option::as_deref)
                         .map(str::to_string)
                         .unwrap_or_else(|| simple_text(children));
-                    return format!("<span>{}</span>", escape(&self.action(path, &value)));
+                    return self.action_markup(path, &value);
                 }
                 let attributes = attributes
                     .iter()
@@ -404,7 +405,14 @@ impl Projection<'_> {
             .label
             .as_deref()
             .map(|nodes| self.nodes(nodes, &format!("{path}/label"), audiences, visible, true))
-            .unwrap_or_else(|| escape(display.as_deref().unwrap_or(&link.source.authored_target)));
+            .unwrap_or_else(|| {
+                escape(display.as_deref().unwrap_or_else(|| match &resolution {
+                    ContentReferenceResolution::Resolved(ContentReferenceTarget::Url { url }) => {
+                        url.as_str()
+                    }
+                    _ => unavailable_reference_label(&link.source.authored_target),
+                }))
+            });
         if !visible {
             return String::new();
         }
@@ -621,22 +629,29 @@ impl Projection<'_> {
         }
     }
 
-    fn action(&mut self, path: &str, value: &str) -> String {
-        match value.trim() {
-            "F" | "free" | "0" => "free action".into(),
-            "R" | "reaction" => "reaction".into(),
-            "1" => "one action".into(),
-            "2" => "two actions".into(),
-            "3" => "three actions".into(),
-            "1/2" => "one or two actions".into(),
-            "1 - 3" | "1 – 3" => "one to three actions".into(),
-            "2/3" => "two or three actions".into(),
-            "3,3" => "two rounds".into(),
+    fn action_markup(&mut self, path: &str, value: &str) -> String {
+        let (glyph, label) = match value.trim() {
+            "F" | "free" | "0" => (Some("free_action"), "free action"),
+            "R" | "reaction" => (Some("reaction"), "reaction"),
+            "1" => (Some("one_action"), "one action"),
+            "2" => (Some("two_actions"), "two actions"),
+            "3" => (Some("three_actions"), "three actions"),
+            "1/2" => (None, "one or two actions"),
+            "1 - 3" | "1 – 3" => (None, "one to three actions"),
+            "2/3" => (None, "two or three actions"),
+            "3,3" => (None, "two rounds"),
             _ => {
                 self.issue(path, ContentDiagnosticCode::UnknownActionGlyph, value);
-                format!("[action glyph: {value}]")
+                return format!(
+                    "<span>{}</span>",
+                    escape(&format!("[action glyph: {value}]"))
+                );
             }
-        }
+        };
+        let attribute = glyph
+            .map(|g| format!(" data-atlas-action-glyph=\"{g}\""))
+            .unwrap_or_default();
+        format!("<span{attribute}>{label}</span>")
     }
 }
 
@@ -660,6 +675,34 @@ pub(super) fn available_remote_image(src: &str) -> bool {
     src.split_once(':').is_some_and(|(scheme, _)| {
         scheme.eq_ignore_ascii_case("https") || scheme.eq_ignore_ascii_case("http")
     }) && is_safe_content_url(src)
+}
+
+fn unavailable_reference_label(target: &str) -> &str {
+    // Qualified root names are authored text, not an inferred destination. An
+    // opaque ID has no readable name; retain it in occurrence diagnostics rather
+    // than displaying the internal UUID path as prose.
+    let mut parts = target.splitn(5, '.');
+    if parts.next() == Some("Compendium")
+        && parts.next() == Some("pf2e")
+        && parts.next().is_some_and(|pack| !pack.is_empty())
+        && matches!(
+            parts.next(),
+            Some("Item" | "Actor" | "JournalEntry" | "RollTable")
+        )
+        && let Some(name) = parts.next()
+        && !name.is_empty()
+        // Foundry v12's isValidId uses a 16-character alphanumeric UID.
+        // Keep ambiguous ID-shaped tails unavailable rather than guessing names.
+        // https://foundryvtt.com/api/v12/functions/foundry.data.validators.isValidId.html
+        && !(name.len() == 16 && name.bytes().all(|byte| byte.is_ascii_alphanumeric()))
+        && !name.contains(".Item.")
+        && !name.contains(".JournalEntryPage.")
+        && !name.contains(".TableResult.")
+    {
+        name
+    } else {
+        "Reference unavailable"
+    }
 }
 
 fn simple_text(nodes: &[ParsedNode]) -> String {

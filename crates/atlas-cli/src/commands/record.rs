@@ -1,14 +1,17 @@
 use super::{filters::build_filter, product::app_result};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
-    PreparedFieldBodyView, RecordDetailRequest, RecordDetailView, SurfaceScalarView,
-    SurfaceValueView,
+    OwnedReadingEntryView, OwnedReadingRequest, OwnedReadingSelection, RecordBodyView,
+    RecordDetailRequest, RecordDetailView,
 };
 use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
 pub(crate) mod args;
+mod presentation;
+pub(crate) mod source;
 mod terminal;
 use args::{RecordGetOptions, RecordResolveOptions, TerminalDetail};
+#[cfg(test)]
 use terminal::render_html;
 pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
     let s = connect(ClientOptions {
@@ -18,6 +21,26 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
     })
     .map_err(|e| e.message)?;
+    if o.detail == TerminalDetail::Summary
+        && !o.json
+        && o.owners.as_ref().is_none_or(|owners| owners.0.is_empty())
+        && o.field.is_none()
+        && o.passage.is_none()
+    {
+        for key in o.keys {
+            let key = atlas_domain::RecordKey::parse(&key).map_err(|e| e.to_string())?;
+            let Some(record) = s
+                .get_records(vec![key.clone()])
+                .map_err(|e| e.into_app_error().message)?
+                .into_iter()
+                .next()
+            else {
+                return Err(format!("record `{key}` was not found"));
+            };
+            print_header(&record);
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
     let mut records = Vec::new();
     let mut failed = false;
     for key in o.keys {
@@ -43,7 +66,7 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         }
     } else {
         for r in records {
-            print_record(&r, o.detail)?;
+            print_record(&s, &r, o.detail)?;
         }
     }
     Ok(if failed {
@@ -96,61 +119,98 @@ fn width() -> usize {
         .filter(|v| *v >= 20)
         .unwrap_or(80)
 }
-fn print_record(record: &RecordDetailView, detail: TerminalDetail) -> Result<(), String> {
-    println!("{} — {}", record.record.record_key, record.record.title);
-    println!(
-        "{} {}",
-        record.record.kind_label,
-        record.record.level_label.as_deref().unwrap_or("")
-    );
-    if detail == TerminalDetail::Summary {
-        return Ok(());
-    }
-    for section in &record.surface.sections {
-        println!("\n{}", section.title);
-        for value in &section.values {
-            print_value(value);
-        }
-        for group in &section.groups {
-            println!("{}", group.label);
-            for value in &group.values {
-                print_value(value);
-            }
-        }
-        for activity in &section.activities {
-            println!(
-                "{} {}",
-                activity.label,
-                activity.usage.as_deref().unwrap_or("")
-            );
-            for value in &activity.values {
-                print_value(value);
-            }
-        }
-        for note in &section.notes {
-            println!("{}: {}", note.label, note.text);
-        }
-        if let Some(content) = &section.content {
-            match &content.body {
-                PreparedFieldBodyView::Html { html, .. } => {
-                    println!("{}", render_html(html, width())?)
-                }
-                PreparedFieldBodyView::Plain { text } => println!("{text}"),
-                PreparedFieldBodyView::Unavailable { state } => {
-                    println!("[content unavailable: {}]", state.as_str())
-                }
-            }
-        }
-    }
+fn print_record(
+    service: &atlas_app_service::AtlasAppService,
+    record: &RecordDetailView,
+    detail: TerminalDetail,
+) -> Result<(), String> {
+    print!("{}", render_selected_record(service, record, detail)?);
     Ok(())
 }
-fn print_value(value: &SurfaceValueView) {
-    let text = match &value.value {
-        SurfaceScalarView::Number(n) => n.to_string(),
-        SurfaceScalarView::DistanceFeet(n) => format!("{n} feet"),
-        SurfaceScalarView::Text(s) | SurfaceScalarView::Formula(s) => s.clone(),
-    };
-    println!("{}: {}", value.label, text);
+
+fn render_selected_record(
+    service: &atlas_app_service::AtlasAppService,
+    record: &RecordDetailView,
+    detail: TerminalDetail,
+) -> Result<String, String> {
+    let mut reading: Vec<OwnedReadingEntryView> = vec![];
+    if detail != TerminalDetail::Summary
+        && record.selected.owners.is_empty()
+        && record.selected.field.is_none()
+        && matches!(
+            record.presentation.body,
+            RecordBodyView::Creature(_) | RecordBodyView::Hazard(_)
+        )
+    {
+        let mut cursor = None;
+        loop {
+            let batch = service
+                .owned_reading(OwnedReadingRequest {
+                    parent: record.selected.clone(),
+                    artifact_generation: record.artifact_generation.clone(),
+                    selection: OwnedReadingSelection::Abilities {
+                        cursor,
+                        target: None,
+                    },
+                })
+                .map_err(|e| e.into_app_error().message)?;
+            reading.extend(batch.entries);
+            cursor = batch.next;
+            if cursor.is_none() {
+                break;
+            }
+        }
+    }
+    let mut output = presentation::render_record(
+        record,
+        detail,
+        terminal::TerminalLayout::current(width()),
+        &reading,
+    )?;
+    if detail == TerminalDetail::Full && record.selected.field.is_none() {
+        let activities = match &record.presentation.body {
+            RecordBodyView::Creature(actor) => actor.activities.value.as_deref(),
+            RecordBodyView::Hazard(hazard) => hazard.actor.activities.value.as_deref(),
+            _ => None,
+        };
+        let navigation: Vec<_> = if let Some(activities) = activities {
+            activities
+                .iter()
+                .map(|activity| &activity.navigation)
+                .collect()
+        } else {
+            let owned = match &record.presentation.body {
+                RecordBodyView::RollTable(table) => {
+                    table.results.value.as_deref().unwrap_or_default()
+                }
+                _ => &record.presentation.owned,
+            };
+            owned.iter().map(|owned| &owned.navigation).collect()
+        };
+        for navigation in navigation {
+            // Actor abilities are already read inline from the checked parent.
+            if reading.iter().any(|entry| &entry.navigation == navigation) {
+                continue;
+            }
+            let child = service
+                .record_detail_at(RecordDetailRequest {
+                    record_key: navigation.record_key.clone(),
+                    owners: navigation.owners.clone(),
+                    fields: vec![],
+                    passage: None,
+                    source_fingerprint: navigation.source_fingerprint.clone(),
+                })
+                .map_err(|error| error.into_app_error().message)?;
+            output.push_str("\n────────────────────────────────────────\n");
+            output.push_str(&render_selected_record(service, &child, detail)?);
+        }
+    }
+    Ok(output)
+}
+fn print_header(record: &atlas_app_model::RecordSummaryView) {
+    let mut output = String::new();
+    presentation::identity(&mut output, record);
+    print!("{output}");
 }
 #[cfg(test)]
 mod tests {
@@ -166,7 +226,14 @@ mod tests {
             (80, include_str!("../../tests/golden/prepared-80.txt")),
             (120, include_str!("../../tests/golden/prepared-120.txt")),
         ] {
-            let text = render_html(&html, width).expect("render");
+            let text = render_html(
+                &html,
+                terminal::TerminalLayout {
+                    width,
+                    styled: false,
+                },
+            )
+            .expect("render");
             let normalized = text
                 .lines()
                 .map(str::trim_end)
