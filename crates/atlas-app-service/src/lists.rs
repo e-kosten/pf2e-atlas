@@ -359,7 +359,6 @@ impl AtlasAppService {
             items: imported,
             replace: request.replace,
         })?;
-        let records_by_key = hydrate_saved_list_records(self, &imported.items)?;
         let mut active_count = 0;
         let mut unresolved_count = 0;
         for item in &imported.items {

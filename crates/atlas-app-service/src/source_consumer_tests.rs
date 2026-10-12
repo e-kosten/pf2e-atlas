@@ -448,6 +448,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let activities = actor_body(d.participants[0].presentation.as_ref().unwrap())
         .activities

@@ -50,6 +50,7 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::WindowNotFound => StatusCode::NOT_FOUND,
         AppErrorCode::WindowExpired => StatusCode::GONE,
         AppErrorCode::SavedListAlreadyExists
+        | AppErrorCode::EncounterParticipantConflict
         | AppErrorCode::EncounterAlreadyExists
         | AppErrorCode::FilterEditorConflict
         | AppErrorCode::SetupInProgress => StatusCode::CONFLICT,

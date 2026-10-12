@@ -46,6 +46,7 @@ impl EncounterStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EncounterParticipant {
+    pub revision: i64,
     pub hp_origin: ParticipantHpOrigin,
     pub variant_origin: ParticipantVariantOrigin,
     pub participant_key: String,
@@ -173,6 +174,14 @@ pub struct EncounterWithParticipants {
     pub participants: Vec<EncounterParticipant>,
 }
 
+/// An application-chosen turn transition, persisted atomically with its snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncounterTurnState {
+    pub participant_key: Option<String>,
+    pub round_number: i64,
+    pub mark_running: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewEncounter {
     pub slug: String,
@@ -211,6 +220,7 @@ pub struct AddEncounterParticipant {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateEncounterParticipant {
+    pub expected_revision: i64,
     pub hp_origin: ParticipantHpOrigin,
     pub variant_origin: ParticipantVariantOrigin,
     pub participant_key: String,
@@ -252,6 +262,7 @@ pub struct AddEncounterParticipantCondition {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateEncounterParticipantCondition {
+    pub participant_key: String,
     pub condition_id: i64,
     pub condition_key: Option<String>,
     pub name: String,

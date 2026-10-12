@@ -56,6 +56,48 @@ fn saved_lists_preserve_order_and_noop_duplicate_adds() -> Result<(), Box<dyn st
 }
 
 #[test]
+fn failed_tag_insert_rolls_back_creation_and_metadata_replacement()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = LocalStateStore::open(temp_path("tags-rollback"))?;
+    let lists = store.saved_lists();
+    let original = lists.create(NewSavedList {
+        slug: "original".into(),
+        name: "Original".into(),
+        description: Some("Old".into()),
+        tags: vec!["old".into()],
+    })?;
+    store.connection()?.execute_batch(
+        "CREATE TRIGGER reject_tag BEFORE INSERT ON saved_list_tags WHEN NEW.tag='reject'
+         BEGIN SELECT RAISE(ABORT,'injected tag failure'); END;",
+    )?;
+    assert!(
+        lists
+            .create(NewSavedList {
+                slug: "failed".into(),
+                name: "Failed".into(),
+                description: None,
+                tags: vec!["first".into(), "reject".into()],
+            })
+            .is_err()
+    );
+    assert!(lists.get("failed")?.is_none());
+    assert!(
+        lists
+            .update(UpdateSavedList {
+                list_key: original.list_key.clone(),
+                slug: "changed".into(),
+                name: "Changed".into(),
+                description: None,
+                tags: vec!["first".into(), "reject".into()],
+            })
+            .is_err()
+    );
+    assert_eq!(lists.get(&original.list_key)?, Some(original));
+    assert!(lists.get("changed")?.is_none());
+    Ok(())
+}
+
+#[test]
 fn list_key_can_identify_saved_lists() -> Result<(), Box<dyn std::error::Error>> {
     let store = LocalStateStore::open(temp_path("saved-lists-key"))?;
     let lists = store.saved_lists();
