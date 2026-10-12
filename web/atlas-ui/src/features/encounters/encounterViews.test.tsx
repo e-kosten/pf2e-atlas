@@ -88,28 +88,22 @@ describe("encounter views", () => {
       Promise.resolve(recordDetailFixture(recordKey)),
     );
     apiMocks.openResultWindow.mockResolvedValue(resultWindowFixture());
-    apiMocks.setEncounterTurn.mockResolvedValue(
-      encounterDetailFixture("participant_b"),
-    );
-    apiMocks.updateEncounter.mockResolvedValue({
-      encounter: {
-        ...encounterIndexFixture().encounters[0],
-        name: "Renamed Ambush",
-      },
-    });
-    apiMocks.updateEncounterParticipant.mockImplementation((_slug: string, request) =>
-      Promise.resolve(request),
-    );
-    apiMocks.addEncounterRecordParticipant.mockResolvedValue(encounterDetailFixture());
-    apiMocks.addEncounterParticipantCondition.mockResolvedValue(
-      encounterDetailFixture(),
-    );
-    apiMocks.updateEncounterParticipantCondition.mockResolvedValue(
-      encounterDetailFixture(),
-    );
-    apiMocks.removeEncounterParticipantCondition.mockResolvedValue(
-      encounterDetailFixture(),
-    );
+    const receipt = {
+      encounter_key: encounterIndexFixture().encounters[0].encounter_key,
+    };
+    for (const mutation of [
+      apiMocks.setEncounterTurn,
+      apiMocks.updateEncounter,
+      apiMocks.updateEncounterParticipant,
+      apiMocks.addEncounterRecordParticipant,
+      apiMocks.addEncounterManualParticipant,
+      apiMocks.reorderEncounterParticipant,
+      apiMocks.removeEncounterParticipant,
+      apiMocks.addEncounterParticipantCondition,
+      apiMocks.updateEncounterParticipantCondition,
+      apiMocks.removeEncounterParticipantCondition,
+    ])
+      mutation.mockResolvedValue(receipt);
   });
 
   it("renders active encounter rows, hides archived rows, and routes to edit", async () => {
@@ -1206,6 +1200,7 @@ function participantFixture(
   overrides: Partial<EncounterParticipantView>,
 ): EncounterParticipantView {
   return {
+    revision: 0n,
     participant_key: "participant",
     hp_origin: "explicit",
     variant_origin: "explicit",

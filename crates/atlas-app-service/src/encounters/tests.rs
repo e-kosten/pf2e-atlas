@@ -35,6 +35,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
             current_hp: Some(0),
             initiative: None,
         })
+        .and_then(|receipt| worker.encounter(&receipt.encounter_key))
         .unwrap();
     assert_eq!(detail.artifact_generation, None);
     assert_eq!(
@@ -74,6 +75,432 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
     assert!(projected.participants[0].presentation.is_none());
 }
 
+#[test]
+fn quantity_add_returns_receipt_when_any_postcommit_retrieval_would_fail() {
+    let executor = crate::executor::RetrievalExecutor::from_fixture_workers(1, 16);
+    let f = crate::test_support::fixture_worker_with_executor(executor.clone());
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Atomic quantity".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    // The resolved source is the only permitted retrieval; hydration would fail.
+    executor.fail_after_submissions(1);
+    let receipt = f
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.slug,
+            record_ref: "Test Creature 1".into(),
+            quantity: 3,
+            initiative: Some(20),
+        })
+        .unwrap();
+    assert_eq!(receipt.encounter_key, encounter.encounter_key);
+    let persisted = f
+        .worker
+        .local_state_store()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&receipt.encounter_key)
+        .unwrap()
+        .unwrap();
+    assert_eq!(persisted.participants.len(), 3);
+    assert!(
+        persisted
+            .participants
+            .iter()
+            .all(|p| p.current_hp == Some(60))
+    );
+    assert_eq!(
+        f.worker
+            .encounter(&receipt.encounter_key)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::QueryFailed
+    );
+}
+
+#[test]
+fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
+    let executor = crate::executor::RetrievalExecutor::from_fixture_workers(1, 16);
+    let f = crate::test_support::fixture_worker_with_executor(executor.clone());
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Revision guard".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let initial = f
+        .worker
+        .encounter(&encounter.encounter_key)
+        .unwrap()
+        .participants
+        .remove(0);
+    let mut deliberate = update(&initial);
+    deliberate.participant_variant = EncounterParticipantVariantView::Elite;
+    deliberate.variant_edit = true;
+    deliberate.side = EncounterParticipantSideView::Ally;
+    executor.fail_after_submissions(1);
+    let receipt = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, deliberate)
+        .unwrap();
+    assert_eq!(receipt.encounter_key, encounter.encounter_key);
+    let before = f
+        .worker
+        .local_state_store()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap();
+    assert_eq!(before.participants[0].max_hp, Some(80));
+    assert_eq!(
+        before.participants[0].hp_origin,
+        atlas_local_state::ParticipantHpOrigin::DerivedPristine
+    );
+    let mut stale = update(&initial);
+    stale.use_derived_max = true; // Must conflict before attempting unavailable derivation.
+    stale.current_hp = Some(1);
+    stale.hp_edit = true;
+    stale.max_hp = Some(999);
+    let error = f
+        .worker
+        .update_encounter_participant(&encounter.encounter_key, stale)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::EncounterParticipantConflict);
+    assert_eq!(error.retryable, Some(false));
+    assert_eq!(
+        error.details.unwrap()["actual_revision"],
+        serde_json::json!(before.participants[0].revision)
+    );
+    assert_eq!(
+        f.worker
+            .local_state_store()
+            .unwrap()
+            .encounters()
+            .get_with_participants(&encounter.encounter_key)
+            .unwrap()
+            .unwrap(),
+        before
+    );
+}
+
+#[test]
+fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
+    let executor = crate::executor::RetrievalExecutor::from_fixture_workers(1, 16);
+    let f = crate::test_support::fixture_worker_with_executor(executor.clone());
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Precommit validation".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let before = f
+        .worker
+        .local_state_store()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap();
+    assert!(
+        f.worker
+            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                encounter_ref: encounter.encounter_key.clone(),
+                record_ref: "Test Action 1".into(),
+                quantity: 2,
+                initiative: None,
+            })
+            .is_err()
+    );
+    assert_eq!(
+        f.worker
+            .local_state_store()
+            .unwrap()
+            .encounters()
+            .get_with_participants(&encounter.encounter_key)
+            .unwrap()
+            .unwrap(),
+        before
+    );
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let participant = f
+        .worker
+        .encounter(&encounter.encounter_key)
+        .unwrap()
+        .participants
+        .remove(0);
+    let before = f
+        .worker
+        .local_state_store()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap();
+    let mut request = update(&participant);
+    request.use_derived_max = true;
+    executor.fail_after_submissions(0);
+    assert_eq!(
+        f.worker
+            .update_encounter_participant(&encounter.encounter_key, request)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::QueryFailed
+    );
+    assert_eq!(
+        f.worker
+            .local_state_store()
+            .unwrap()
+            .encounters()
+            .get_with_participants(&encounter.encounter_key)
+            .unwrap()
+            .unwrap(),
+        before
+    );
+}
+
+#[test]
+fn reference_independent_mutations_commit_with_unavailable_artifact() {
+    let f = encounter_fixture_worker();
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Unavailable reads".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: Some(20),
+        })
+        .unwrap();
+    let initial = f
+        .worker
+        .encounter(&encounter.encounter_key)
+        .unwrap()
+        .participants
+        .remove(0);
+    let worker = crate::AtlasAppService::new(
+        crate::service::RetrievalBackend::OnDemandNoEmbeddings,
+        atlas_runtime::AtlasRuntimeOptions {
+            path_mode: atlas_runtime::AtlasPathMode::Global,
+            overrides: atlas_runtime::AtlasPathOverrides {
+                index_path: Some(
+                    crate::test_support::fixture_local_state_path()
+                        .with_extension("missing-artifact"),
+                ),
+                ..Default::default()
+            },
+        },
+        f.worker.local_state_path.clone(),
+    )
+    .unwrap();
+    assert!(worker.encounter(&encounter.encounter_key).is_err());
+    let key = encounter.encounter_key.clone();
+    let assert_receipt = |receipt: EncounterMutationView| assert_eq!(receipt.encounter_key, key);
+    assert_receipt(
+        worker
+            .update_encounter(UpdateEncounterRequest {
+                encounter_key: key.clone(),
+                slug: encounter.slug,
+                name: encounter.name,
+                description: Some("Updated".into()),
+                note: None,
+                status: EncounterStatusView::Running,
+            })
+            .unwrap(),
+    );
+    assert_receipt(
+        worker
+            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+                encounter_ref: key.clone(),
+                display_name: "Manual".into(),
+                max_hp: Some(10),
+                current_hp: Some(10),
+                initiative: Some(15),
+            })
+            .unwrap(),
+    );
+    let mut edit = update(&initial);
+    edit.current_hp = Some(32);
+    edit.hp_edit = true;
+    assert_receipt(worker.update_encounter_participant(&key, edit).unwrap());
+    assert_receipt(
+        worker
+            .add_encounter_participant_condition(
+                &key,
+                AddEncounterParticipantConditionRequest {
+                    participant_key: initial.participant_key.clone(),
+                    condition_ref: None,
+                    name: Some("Custom".into()),
+                    value: Some(1),
+                    source_participant_key: None,
+                    duration_rounds: None,
+                    note: None,
+                },
+            )
+            .unwrap(),
+    );
+    let local = worker
+        .local_state_store()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&key)
+        .unwrap()
+        .unwrap();
+    let condition_id = local.participants[0].conditions[0].condition_id;
+    let manual_key = local.participants[1].participant_key.clone();
+    assert_receipt(
+        worker
+            .update_encounter_participant_condition(
+                &key,
+                &initial.participant_key,
+                UpdateEncounterParticipantConditionRequest {
+                    condition_id,
+                    condition_ref: None,
+                    name: "Changed".into(),
+                    value: Some(2),
+                    source_participant_key: None,
+                    duration_rounds: None,
+                    note: None,
+                },
+            )
+            .unwrap(),
+    );
+    assert_receipt(
+        worker
+            .remove_encounter_participant_condition(&key, &initial.participant_key, condition_id)
+            .unwrap(),
+    );
+    assert_receipt(
+        worker
+            .reorder_encounter_participant(
+                &key,
+                ReorderEncounterParticipantRequest {
+                    participant_key: manual_key.clone(),
+                    target_participant_key: initial.participant_key.clone(),
+                    placement: ReorderEncounterParticipantPlacementView::Before,
+                },
+            )
+            .unwrap(),
+    );
+    assert_receipt(
+        worker
+            .set_encounter_turn(SetEncounterTurnRequest {
+                encounter_ref: key.clone(),
+                participant_key: None,
+            })
+            .unwrap(),
+    );
+    assert_receipt(
+        worker
+            .remove_encounter_participant(&key, &manual_key)
+            .unwrap(),
+    );
+    let persisted = worker
+        .local_state_store()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&key)
+        .unwrap()
+        .unwrap();
+    assert_eq!(persisted.participants.len(), 1);
+    assert_eq!(persisted.participants[0].current_hp, Some(32));
+    assert_eq!(
+        persisted.encounter.current_turn_participant_key,
+        Some(initial.participant_key)
+    );
+    assert!(worker.encounter(&key).is_err());
+}
+
+#[test]
+fn list_import_reuses_precommit_summaries_when_further_retrieval_fails() {
+    let executor = crate::executor::RetrievalExecutor::from_fixture_workers(1, 16);
+    let f = crate::test_support::fixture_worker_with_executor(executor.clone());
+    executor.fail_after_submissions(1);
+    let imported = f
+        .worker
+        .import_saved_list(ImportSavedListRequest {
+            document: SavedListExportDocumentView {
+                format: "pf2e-atlas.saved-list".into(),
+                version: 1,
+                exported_at: "now".into(),
+                list: SavedListExportListView {
+                    id: "imported".into(),
+                    name: "Imported".into(),
+                    description: None,
+                    tags: vec![],
+                },
+                items: ["actors:testCreature1000", "actors:missing00000000"]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, key)| SavedListExportItemView {
+                        position: i as i64 + 1,
+                        record_key: key.into(),
+                        record_name: "Snapshot".into(),
+                        kind: Some("creature".into()),
+                        status: SavedListItemStatusView::Unresolved,
+                        note: None,
+                        snapshot: SavedListItemSnapshotView {
+                            title: "Snapshot".into(),
+                            kind: Some("creature".into()),
+                        },
+                    })
+                    .collect(),
+            },
+            id: None,
+            replace: false,
+        })
+        .unwrap();
+    assert_eq!((imported.active_count, imported.unresolved_count), (1, 1));
+    let persisted = f
+        .worker
+        .local_state_store()
+        .unwrap()
+        .saved_lists()
+        .get_with_items("imported")
+        .unwrap()
+        .unwrap();
+    assert_eq!(persisted.items[0].record_title_snapshot, "Test Creature 1");
+    assert_eq!(persisted.items[1].record_title_snapshot, "Snapshot");
+    assert!(f.worker.saved_list("imported").is_err());
+}
+
 fn hazard(p: &EncounterParticipantView) -> &HazardPresentationView {
     let RecordBodyView::Hazard(h) = &p.presentation.as_ref().unwrap().body else {
         panic!("hazard presentation")
@@ -83,6 +510,7 @@ fn hazard(p: &EncounterParticipantView) -> &HazardPresentationView {
 
 pub(super) fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
     UpdateEncounterParticipantRequest {
+        expected_revision: p.revision,
         hp_edit: false,
         max_hp_edit: false,
         variant_edit: false,
@@ -157,13 +585,25 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
             quantity: 3,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let mut change = update(&initial.participants[0]);
     change.participant_variant = EncounterParticipantVariantView::Elite;
     change.variant_edit = true;
-    f.worker
-        .update_encounter_participant(&e.encounter_key, change)
-        .unwrap();
+    {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     f.worker
         .add_encounter_participant_condition(
             &e.encounter_key,
@@ -185,6 +625,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     f.worker
         .submit_retrieval(|r| {
@@ -291,6 +732,7 @@ fn strike_status_penalties_preserve_strongest_and_suppressed_explanations_in_bot
                 quantity: 1,
                 initiative: None,
             })
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
             .unwrap();
         for (reference, value) in conditions {
             f.worker
@@ -409,6 +851,7 @@ fn encounter_projection_keeps_semantic_statistics_and_authored_context() {
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let a = actor(&d.participants[0]);
     assert_eq!(a.armor_class.value, Some(22.into()));
@@ -469,44 +912,101 @@ fn derived_capacity_changes_clamp_valid_damage_at_zero_and_preserve_manual_outli
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let mut change = update(&d.participants[0]);
     change.participant_variant = EncounterParticipantVariantView::Elite;
     change.variant_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&e.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     let mut change = update(&p);
     change.current_hp = Some(3);
     change.hp_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&e.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     let mut change = update(&p);
     change.participant_variant = EncounterParticipantVariantView::Normal;
     change.variant_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&e.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (Some(60), Some(0)));
     for current in [400, -5] {
+        let p = f
+            .worker
+            .encounter(&e.encounter_key)
+            .unwrap()
+            .participants
+            .remove(0);
         let mut change = update(&p);
         change.current_hp = Some(current);
         change.hp_edit = true;
-        let p = f
-            .worker
-            .update_encounter_participant(&e.encounter_key, change)
-            .unwrap();
+        let p = {
+            let participant_key = change.participant_key.clone();
+            f.worker
+                .update_encounter_participant(&e.encounter_key, change)
+                .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+                .map(|detail| {
+                    detail
+                        .participants
+                        .into_iter()
+                        .find(|p| p.participant_key == participant_key)
+                        .unwrap()
+                })
+        }
+        .unwrap();
         let mut change = update(&p);
         change.participant_variant = EncounterParticipantVariantView::Elite;
         change.variant_edit = true;
-        let p = f
-            .worker
-            .update_encounter_participant(&e.encounter_key, change)
-            .unwrap();
+        let p = {
+            let participant_key = change.participant_key.clone();
+            f.worker
+                .update_encounter_participant(&e.encounter_key, change)
+                .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+                .map(|detail| {
+                    detail
+                        .participants
+                        .into_iter()
+                        .find(|p| p.participant_key == participant_key)
+                        .unwrap()
+                })
+        }
+        .unwrap();
         assert_eq!(p.current_hp, Some(current));
     }
 }
@@ -562,6 +1062,7 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let p = &detail.participants[0];
     assert_eq!((p.max_hp, p.current_hp), (Some(60), Some(60)));
@@ -570,10 +1071,20 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
     let mut change = update(p);
     change.participant_variant = EncounterParticipantVariantView::Elite;
     change.variant_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&encounter.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&encounter.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (Some(80), Some(80)));
     let block = actor(&p);
     assert_eq!(
@@ -612,18 +1123,38 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
     change.current_hp = Some(55);
     change.hp_edit = true;
     change.temporary_hp = 9;
-    let p = f
-        .worker
-        .update_encounter_participant(&encounter.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&encounter.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!(p.hp_origin, "derived_edited");
     let mut change = update(&p);
     change.participant_variant = EncounterParticipantVariantView::Weak;
     change.variant_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&encounter.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&encounter.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!(
         (p.max_hp, p.current_hp, p.temporary_hp),
         (Some(45), Some(20), 9)
@@ -633,18 +1164,38 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
     change.max_hp_edit = true;
     change.current_hp = Some(-5);
     change.hp_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&encounter.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&encounter.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!(p.hp_origin, "explicit");
     let mut change = update(&p);
     change.participant_variant = EncounterParticipantVariantView::Normal;
     change.variant_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&encounter.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&encounter.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (Some(200), Some(-5)));
     let read = f.worker.encounter(&encounter.encounter_key).unwrap();
     assert_eq!(
@@ -673,21 +1224,42 @@ fn same_value_hp_edit_is_preserved_and_manual_hp_is_never_clamped() {
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let mut change = update(&detail.participants[0]);
     change.hp_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&encounter.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&encounter.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!(p.hp_origin, "derived_edited");
     let mut change = update(&p);
     change.current_hp = Some(400);
     change.hp_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&encounter.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&encounter.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!(p.current_hp, Some(400));
     let detail = f
         .worker
@@ -698,6 +1270,7 @@ fn same_value_hp_edit_is_preserved_and_manual_hp_is_never_clamped() {
             current_hp: Some(-2),
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let p = detail
         .participants
@@ -771,6 +1344,7 @@ fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_p
                 quantity: 1,
                 initiative: None,
             })
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
             .unwrap()
     };
     let detail = add("Elite source");
@@ -797,10 +1371,20 @@ fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_p
     let mut change = update(p);
     change.participant_variant = EncounterParticipantVariantView::Normal;
     change.variant_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&e.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (Some(60), Some(60)));
     assert_eq!(p.hp_origin, "derived_edited");
     let detail = add("Unknown adjustment");
@@ -822,18 +1406,38 @@ fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_p
     );
     let mut unrelated = update(p);
     unrelated.display_name = "Renamed".into();
-    let p = f
-        .worker
-        .update_encounter_participant(&e.encounter_key, unrelated)
-        .unwrap();
+    let p = {
+        let participant_key = unrelated.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&e.encounter_key, unrelated)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (None, None));
     assert_eq!(p.variant_origin, "inherited_unknown");
     let mut explicit = update(&p);
     explicit.variant_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&e.encounter_key, explicit)
-        .unwrap();
+    let p = {
+        let participant_key = explicit.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&e.encounter_key, explicit)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!(p.max_hp, Some(60));
     assert_eq!(p.current_hp, None);
     assert_eq!(p.variant_origin, "explicit");
@@ -866,6 +1470,7 @@ fn conditions_stack_known_penalties_and_preserve_unapplied_context() {
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let key = detail.participants[0].participant_key.clone();
     for (reference, value) in [
@@ -951,6 +1556,7 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
                     quantity: 3,
                     initiative: None,
                 })
+                .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
                 .unwrap();
             let participants = detail.participants;
             let mut conditions = vec![
@@ -1041,15 +1647,27 @@ fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| before.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let mut change = update(&d.participants[0]);
     change.current_hp = Some(17);
     change.hp_edit = true;
     change.temporary_hp = 4;
-    before
-        .worker
-        .update_encounter_participant(&e.encounter_key, change)
-        .unwrap();
+    {
+        let participant_key = change.participant_key.clone();
+        before
+            .worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .and_then(|receipt| before.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
         Ok(open_source_fixture(
             vec![record(
@@ -1096,6 +1714,7 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let p = &d.participants[0];
     assert_eq!((p.max_hp, p.current_hp), (Some(40), Some(40)));
@@ -1120,10 +1739,20 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
     let mut change = update(p);
     change.participant_variant = EncounterParticipantVariantView::Elite;
     change.variant_edit = true;
-    let p = f
-        .worker
-        .update_encounter_participant(&e.encounter_key, change)
-        .unwrap();
+    let p = {
+        let participant_key = change.participant_key.clone();
+        f.worker
+            .update_encounter_participant(&e.encounter_key, change)
+            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
+            .map(|detail| {
+                detail
+                    .participants
+                    .into_iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .unwrap()
+            })
+    }
+    .unwrap();
     assert_eq!((p.max_hp, p.current_hp), (Some(40), Some(40)));
     assert_eq!(
         actor(&p).armor_class.value.clone().unwrap(),
@@ -1235,6 +1864,7 @@ fn omitted_adjustment_under_known_attributes_defaults_local_hp_without_rewriting
             quantity: 1,
             initiative: None,
         })
+        .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     assert_eq!(
         (d.participants[0].max_hp, d.participants[0].current_hp),

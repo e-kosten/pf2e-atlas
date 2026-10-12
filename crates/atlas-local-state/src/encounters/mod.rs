@@ -4,8 +4,8 @@ mod storage;
 
 pub use model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterStatus, EncounterWithParticipants, NewEncounter,
-    ParticipantHpOrigin, ParticipantKind, ParticipantSide, ParticipantVariant,
+    EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterWithParticipants,
+    NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide, ParticipantVariant,
     ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement, UpdateEncounter,
     UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };

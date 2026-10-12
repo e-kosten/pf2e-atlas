@@ -105,6 +105,7 @@ describe("participantEdits", () => {
       participantUpdate(participantFixture(), { current_hp: BigInt(12) }),
     ).toMatchObject({
       participant_key: "participant-1",
+      expected_revision: 0n,
       display_name: "Goblin 1",
       side: "enemy",
       participant_variant: "normal",
@@ -117,12 +118,27 @@ describe("participantEdits", () => {
       note: "watch",
     });
   });
+  it("binds replacements to the viewed participant identity and revision", () => {
+    const changes = {
+      participant_key: "different-participant",
+      expected_revision: 999n,
+      current_hp: 12n,
+    };
+    expect(
+      participantUpdate(participantFixture({ revision: 7n }), changes),
+    ).toMatchObject({
+      participant_key: "participant-1",
+      expected_revision: 7n,
+      current_hp: 12n,
+    });
+  });
 });
 
 function participantFixture(
   overrides: Partial<EncounterParticipantView> = {},
 ): EncounterParticipantView {
   return {
+    revision: 0n,
     participant_key: "participant-1",
     position: BigInt(1),
     initiative_order: BigInt(1),

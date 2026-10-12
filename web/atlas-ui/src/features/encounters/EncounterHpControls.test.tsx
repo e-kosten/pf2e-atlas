@@ -4,6 +4,7 @@ import type { EncounterParticipantView } from "../../generated/atlas";
 
 it("shows updated derived HP after a submitted edit and variant capacity change", () => {
   const current: EncounterParticipantView = {
+    revision: 0n,
     participant_key: "ghoul",
     position: 1n,
     initiative_order: 1n,

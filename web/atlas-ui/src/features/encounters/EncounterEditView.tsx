@@ -17,10 +17,10 @@ export function EncounterEditView({ route }: EncounterEditViewProps) {
   });
   const updateEncounterMutation = useMutation({
     mutationFn: updateEncounter,
-    onSuccess: async (view) => {
+    onSuccess: async (_receipt, request) => {
       await queryClient.invalidateQueries({ queryKey: ["encounter", route.slug] });
       await queryClient.invalidateQueries({ queryKey: ["encounters"] });
-      navigateToAtlasRoute({ kind: "encounter", slug: view.encounter.slug });
+      navigateToAtlasRoute({ kind: "encounter", slug: request.slug });
     },
   });
   const deleteMutation = useMutation({

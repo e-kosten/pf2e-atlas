@@ -36,6 +36,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0045-source-backed-record-enrichment.md`](./0045-source-backed-record-enrichment.md): a key and one retained DTO, internal embedded addressing, separate preparation/relationship outputs and focused borrowed views, with developer reporting and a database-independent ingest handoff.
 - [`0046-source-backed-reference-artifact.md`](./0046-source-backed-reference-artifact.md): checked snapshot authority, named typed query projections, HTML caches, attributed lexical/semantic retrieval, concrete reader generation consistency and coordinated consumer replacement.
 - [`0047-semantic-record-presentation.md`](./0047-semantic-record-presentation.md): transient family facts, one composed encounter presentation, exact selected navigation and shared browser family components with independent CLI layout.
+- [`0048-atomic-mutable-workflows.md`](./0048-atomic-mutable-workflows.md): local-state transaction boundaries, revision-checked participant replacements and durable mutation receipts independent of reference hydration.
 
 ## Historical ADRs
 

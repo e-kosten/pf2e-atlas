@@ -48,6 +48,7 @@ pub enum AppErrorCode {
     EncounterNotFound,
     EncounterAlreadyExists,
     EncounterParticipantNotFound,
+    EncounterParticipantConflict,
     WindowNotFound,
     WindowExpired,
     FilterInvalid,

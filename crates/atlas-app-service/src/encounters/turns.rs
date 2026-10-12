@@ -1,61 +1,52 @@
-use atlas_local_state::{EncounterParticipant, ParticipantKind, ParticipantSide};
+use atlas_local_state::{
+    EncounterParticipant, EncounterTurnState, EncounterWithParticipants, ParticipantKind,
+    ParticipantSide,
+};
 
-use crate::error::AppServiceResult;
-
-use super::projection::encounter_not_found;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct NextTurn {
-    pub(super) participant_key: Option<String>,
-    pub(super) round_number: i64,
-}
-
-pub(super) fn next_turn(
-    encounters: &atlas_local_state::Encounters<'_>,
-    encounter_ref: &str,
-) -> AppServiceResult<NextTurn> {
-    let detail = encounters
-        .get_with_participants(encounter_ref)?
-        .ok_or_else(|| encounter_not_found(encounter_ref))?;
+pub(super) fn next_turn(detail: &EncounterWithParticipants) -> EncounterTurnState {
     let current_key = detail.encounter.current_turn_participant_key.as_deref();
     let eligible = eligible_turn_participants(&detail.participants);
     if eligible.is_empty() {
-        return Ok(NextTurn {
+        return EncounterTurnState {
+            mark_running: true,
             participant_key: None,
             round_number: detail.encounter.round_number,
-        });
+        };
     }
     let Some(current_key) = current_key else {
-        return Ok(NextTurn {
+        return EncounterTurnState {
+            mark_running: true,
             participant_key: Some(eligible[0].participant_key.clone()),
             round_number: detail.encounter.round_number,
-        });
+        };
     };
     let Some(current_index) = eligible
         .iter()
         .position(|participant| participant.participant_key == current_key)
     else {
-        return Ok(NextTurn {
+        return EncounterTurnState {
+            mark_running: true,
             participant_key: Some(eligible[0].participant_key.clone()),
             round_number: detail.encounter.round_number,
-        });
+        };
     };
     let next_index = (current_index + 1) % eligible.len();
-    Ok(NextTurn {
+    EncounterTurnState {
+        mark_running: true,
         participant_key: Some(eligible[next_index].participant_key.clone()),
         round_number: if next_index == 0 {
             detail.encounter.round_number + 1
         } else {
             detail.encounter.round_number
         },
-    })
+    }
 }
 
 pub(super) fn next_turn_after_removed(
     participants: &[EncounterParticipant],
     removed_participant_key: &str,
     round_number: i64,
-) -> Option<NextTurn> {
+) -> Option<EncounterTurnState> {
     let eligible = eligible_turn_participants(participants);
     let current_index = eligible
         .iter()
@@ -65,7 +56,8 @@ pub(super) fn next_turn_after_removed(
         .filter(|participant| participant.participant_key != removed_participant_key)
         .collect::<Vec<_>>();
     if remaining.is_empty() {
-        return Some(NextTurn {
+        return Some(EncounterTurnState {
+            mark_running: true,
             participant_key: None,
             round_number,
         });
@@ -75,7 +67,8 @@ pub(super) fn next_turn_after_removed(
     } else {
         current_index
     };
-    Some(NextTurn {
+    Some(EncounterTurnState {
+        mark_running: true,
         participant_key: Some(remaining[next_index].participant_key.clone()),
         round_number: if next_index == 0 && current_index >= remaining.len() {
             round_number + 1

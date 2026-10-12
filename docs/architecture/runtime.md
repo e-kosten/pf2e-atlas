@@ -270,6 +270,18 @@ participant choices replace them, and saved HP/overrides/edit intent survive
 artifact rebuilds. No Foundry world execution or guessed aggregate mechanics is
 introduced. Local-state migrations preserve existing ambiguous values.
 
+Local-state initialization and migrations commit schema and metadata together.
+List metadata/tags, quantity additions and removal with replacement turn each
+have one write transaction. Next turn chooses from the same locked snapshot it
+updates, using pure app-service policy. Participant replacements require an
+expected revision and fail with a typed conflict when stale. Condition IDs are
+not reused, and condition edits check participant ownership inside the write.
+Existing-encounter mutations return a durable canonical-key receipt rather than
+hydrating reference presentation after commit. Saved-list import uses its
+precommit resolved summaries for receipt counts. Explicit reads own any later
+projection failure. These boundaries are defined by
+[ADR0048](./decisions/0048-atomic-mutable-workflows.md).
+
 ## Deferred work
 
 New query projections are added only for useful product cases, with typed bindings,
