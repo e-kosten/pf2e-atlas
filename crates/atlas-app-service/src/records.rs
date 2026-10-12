@@ -12,6 +12,28 @@ use atlas_search::{
 };
 
 impl AtlasAppService {
+    /// Explicit source inspection bypasses presentation, using the checked codec.
+    /// Product record eligibility still applies; tooling sources stay developer-only.
+    pub fn record_source(&self, key: &str) -> AppServiceResult<serde_json::Value> {
+        let key = RecordKey::parse(key).map_err(|error| {
+            AppServiceError::new(AppErrorCode::InvalidRecordKey, error.to_string())
+        })?;
+        self.submit_retrieval(move |retrieval| {
+            let detail = retrieval.get_record(GetRecordRequest {
+                record_key: &key,
+                selected_content: &[],
+            })?.ok_or_else(|| AppServiceError::new(AppErrorCode::RecordNotFound, format!("record `{key}` was not found")))?;
+            let snapshot = atlas_foundry_model::snapshot_json_value(detail.source.source())
+                .map_err(|error| AppServiceError::new(AppErrorCode::InternalError, error.to_string()))?;
+            let mut output = serde_json::json!({
+                "key": key,
+                "provenance": { "path": detail.summary.source_path, "sha256": detail.summary.content_hash }
+            });
+            output["checked_snapshot"] = snapshot;
+            Ok(output)
+        })
+    }
+
     pub fn get_records(
         &self,
         record_keys: Vec<RecordKey>,

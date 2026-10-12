@@ -8,6 +8,7 @@ use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
 pub(crate) mod args;
 mod presentation;
+pub(crate) mod source;
 mod terminal;
 use args::{RecordGetOptions, RecordResolveOptions, TerminalDetail};
 #[cfg(test)]

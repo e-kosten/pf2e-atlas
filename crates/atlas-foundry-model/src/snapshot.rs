@@ -79,6 +79,18 @@ pub fn encode_snapshot(model: &FoundryDocumentSource) -> Result<Vec<u8>, Snapsho
     Ok(bytes)
 }
 
+/// Inspect the complete checked codec as JSON, retaining presence and union tags.
+/// Use the same bounded encoder and stack protection as stored snapshots.
+pub fn snapshot_json_value(
+    model: &FoundryDocumentSource,
+) -> Result<serde_json::Value, SnapshotError> {
+    let bytes = encode_snapshot(model)?;
+    let mut decoder = serde_json::Deserializer::from_slice(&bytes);
+    decoder.disable_recursion_limit();
+    serde_json::Value::deserialize(serde_stacker::Deserializer::new(&mut decoder))
+        .map_err(SnapshotError::InvalidSnapshot)
+}
+
 /// Decode a typed model without running authored JSON parsing or admission.
 pub fn decode_snapshot(bytes: &[u8]) -> Result<FoundryDocumentSource, SnapshotError> {
     check_depth(bytes)?;

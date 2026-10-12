@@ -60,8 +60,15 @@ standard reads the selected reference with inline actor abilities and compact
 spell rosters. Full expands supported owned documents with their parent context,
 including spells, journal pages and table results, without following graph links.
 Explicit field or passage selections remain focused rather than expanding the
-surrounding record. JSON always returns the complete selected detail DTO at all
-three terminal detail settings; the terminal detail flag does not alter its facts.
+surrounding record. `record get --json` returns the complete selected Atlas detail
+DTO; explicit human `--detail` and `--json` conflict. `record source` separately
+exports the entire root's checked Foundry DTO, including embedded documents,
+retained additional fields, invalid members and presence/union tags, with source
+path/hash and codec identity. It reads the existing artifact through retrieval
+and app-service, without presentation projection, source admission or a source
+clone. Product eligibility applies; excluded tooling remains developer-only.
+Original-file inspection remains `atlas-dev index record --original`, which
+verifies the configured clone's file against indexed provenance.
 Reference readers omit missing optional price units and IWR exception/double
 qualifiers, and absent baseline damage categories. Null/invalid IWR qualifiers
 and required magnitudes remain visible. Damage captions use presentation order,

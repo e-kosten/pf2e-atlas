@@ -1,7 +1,7 @@
 use atlas_foundry_model::{
     ActorSourcePF2e, FoundryDocumentSource, ItemSourcePF2e, SnapshotError, SourceContext,
     SourcePresence, SourceValue, admit_document_source, admit_rule_source, decode_snapshot,
-    encode_snapshot, parse_source_value,
+    encode_snapshot, parse_source_value, snapshot_json_value,
 };
 
 fn admitted(kind: &str, bytes: &[u8]) -> FoundryDocumentSource {
@@ -89,6 +89,8 @@ fn ordered_values_and_presence_states_roundtrip_without_source_reparsing() {
         let model = admitted(kind, bytes);
         let snapshot = encode_snapshot(&model).unwrap();
         assert_eq!(decode_snapshot(&snapshot).unwrap(), model);
+        let inspected = snapshot_json_value(&model).unwrap();
+        assert_eq!(decode_snapshot(&serde_json::to_vec(&inspected).unwrap()).unwrap(), model);
         // Snapshot JSON is not admitted authored JSON and never a raw fallback.
         assert!(decode_snapshot(bytes).is_err());
     }
@@ -186,6 +188,11 @@ fn deeply_retained_and_typed_nodes_roundtrip_near_authored_json_limit() {
         .unwrap();
         assert!(admission.diagnostics.is_empty());
         let model = admission.model.unwrap();
+        let inspected = snapshot_json_value(&model).unwrap();
+        assert_eq!(
+            decode_snapshot(&serde_json::to_vec(&inspected).unwrap()).unwrap(),
+            model
+        );
         assert_eq!(
             decode_snapshot(&encode_snapshot(&model).unwrap()).unwrap(),
             model
@@ -203,6 +210,11 @@ fn deeply_retained_and_typed_nodes_roundtrip_near_authored_json_limit() {
     .unwrap();
     assert!(admission.diagnostics.is_empty());
     let model = admission.model.unwrap();
+    let inspected = snapshot_json_value(&model).unwrap();
+    assert_eq!(
+        decode_snapshot(&serde_json::to_vec(&inspected).unwrap()).unwrap(),
+        model
+    );
     assert_eq!(
         decode_snapshot(&encode_snapshot(&model).unwrap()).unwrap(),
         model

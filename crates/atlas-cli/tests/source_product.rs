@@ -119,21 +119,6 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
         "--json",
     ]);
     assert_eq!(selected["records"][0]["selected"], *navigation);
-    for level in ["summary", "standard", "full"] {
-        let json = f.data(&[
-            "record",
-            "get",
-            "actions:aaaaaaaaaaaaaaaa",
-            "--field",
-            navigation["field"].as_str().unwrap(),
-            "--passage",
-            &passage,
-            "--detail",
-            level,
-            "--json",
-        ]);
-        assert_eq!(json, selected, "JSON selection changed at {level}");
-    }
     let selected_text = f.command(
         &[
             "record",
@@ -215,14 +200,7 @@ fn root_terminal_summary_does_not_read_source_bodies() {
     let detail = f.command(&["record", "get", "actions:aaaaaaaaaaaaaaaa"], false);
     assert!(!detail.status.success());
     let json = f.command(
-        &[
-            "record",
-            "get",
-            "actions:aaaaaaaaaaaaaaaa",
-            "--detail",
-            "summary",
-            "--json",
-        ],
+        &["record", "get", "actions:aaaaaaaaaaaaaaaa", "--json"],
         false,
     );
     assert!(
@@ -337,20 +315,6 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         1
     );
     assert!(!actor.contains("This customized spell uses local damage"));
-    for level in ["summary", "full"] {
-        assert_eq!(
-            f.data(&[
-                "record",
-                "get",
-                "creatures:dddddddddddddddd",
-                "--detail",
-                level,
-                "--json",
-            ]),
-            root,
-            "JSON facts changed at {level}"
-        );
-    }
     let spell = root["records"][0]["presentation"]["body"]["value"]["activities"]["value"]
         .as_array()
         .unwrap()
@@ -450,6 +414,56 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         "From Local Caster",
     ] {
         assert!(text.contains(expected), "missing {expected:?} in {text}");
+    }
+}
+#[test]
+fn source_dump_retains_unpresented_data_and_works_without_the_clone() {
+    let f = Fixture::new();
+    let path = f.root.join("packs/actions/heal.json");
+    let authored = fs::read_to_string(&path).unwrap().replace(
+        "\"system\":{",
+        "\"futureField\":{\"oneOff\":42},\"system\":{",
+    );
+    fs::write(&path, &authored).unwrap();
+    let built = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(built.status.success());
+    // A source dump uses the checked artifact, even after the original file is gone.
+    fs::remove_file(&path).unwrap();
+    let source = f.data(&["record", "source", "actions:aaaaaaaaaaaaaaaa", "--json"]);
+    assert_eq!(source["key"], "actions:aaaaaaaaaaaaaaaa");
+    assert!(
+        source["provenance"]["path"]
+            .as_str()
+            .unwrap()
+            .ends_with("heal.json")
+    );
+    assert_eq!(source["provenance"]["sha256"].as_str().unwrap().len(), 64);
+    assert_eq!(source["checked_snapshot"]["version"], 1);
+    assert!(source["checked_snapshot"]["source_contract"].is_string());
+    let snapshot = serde_json::to_string(&source["checked_snapshot"]).unwrap();
+    assert!(snapshot.contains("futureField"));
+    assert!(snapshot.contains("oneOff"));
+    assert!(snapshot.contains("@Check[type:fortitude|dc:23]"));
+    assert!(!snapshot.contains("data-atlas-interaction"));
+    let reference = f.data(&["record", "get", "actions:aaaaaaaaaaaaaaaa", "--json"]);
+    assert!(
+        !serde_json::to_string(&reference)
+            .unwrap()
+            .contains("futureField")
+    );
+    let human = f.command(&["record", "source", "actions:aaaaaaaaaaaaaaaa"], false);
+    assert!(human.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&human.stdout).unwrap(),
+        source
+    );
+    for key in ["actions:absent", "macros:bbbbbbbbbbbbbbbb", "not-a-key"] {
+        let output = f.command(&["record", "source", key, "--json"], false);
+        assert!(!output.status.success());
+        assert_eq!(
+            serde_json::from_slice::<Value>(&output.stdout).unwrap()["status"],
+            "error"
+        );
     }
 }
 #[test]

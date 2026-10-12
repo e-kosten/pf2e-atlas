@@ -81,7 +81,17 @@ Fetch records by keys (generally retrieved from other results and queries):
 ```bash
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
 atlas record get equipment-srd:s1vB3HdXjMigYAnY
+atlas record get equipment-srd:s1vB3HdXjMigYAnY --detail full
+atlas record get equipment-srd:s1vB3HdXjMigYAnY --json
+atlas record source equipment-srd:s1vB3HdXjMigYAnY --json
 ```
+
+Human record reading supports summary, standard (the default), and full detail.
+`record get --json` returns the complete selected Atlas reference response;
+explicit `--detail` and `--json` conflict. `record source --json` instead exports
+the complete checked Foundry DTO from the artifact, including embedded documents
+and fields outside Atlas's presentation. Its presence/union tags describe the
+checked model; it is not original Foundry JSON and needs no source clone.
 
 Explore available filters and nearby record context:
 
