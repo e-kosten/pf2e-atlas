@@ -5,6 +5,7 @@ use atlas_app_model::{AppErrorCode, AppReadinessStatus, AppReadinessView};
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::AtlasRetrievalService;
 
+use crate::ReadExecutionContext;
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::executor::{
     RetrievalExecutor, open_retrieval_service, open_retrieval_service_for_stored_vectors,
@@ -86,30 +87,48 @@ impl AtlasAppService {
         })
     }
 
-    pub(super) fn submit_retrieval<T>(
+    pub(super) fn with_retrieval<T>(
         &self,
+        execution: &ReadExecutionContext,
         task: impl FnOnce(&mut AtlasRetrievalService) -> AppServiceResult<T> + Send + 'static,
     ) -> AppServiceResult<T>
     where
         T: Send + 'static,
     {
+        execution.check()?;
         match &self.retrieval {
-            RetrievalBackend::Pooled(executor) => executor.submit(task),
-            RetrievalBackend::Command { mode, retrieval } => {
-                let mut retained = retrieval.lock().map_err(|error| {
-                    AppServiceError::new(
-                        AppErrorCode::InternalError,
-                        format!("command retrieval lock is poisoned: {error}"),
-                    )
-                })?;
-                let retrieval = match &mut *retained {
-                    Some(retrieval) => retrieval,
-                    slot @ None => slot.insert(mode.open(self.runtime_options.clone())?),
-                };
-                task(retrieval)
-            }
+            RetrievalBackend::Pooled(executor) => executor.submit(execution.clone(), task),
+            RetrievalBackend::Command { mode, retrieval } => with_command_reader(
+                *mode,
+                retrieval,
+                self.runtime_options.clone(),
+                execution,
+                task,
+            ),
         }
     }
+}
+
+fn with_command_reader<T>(
+    mode: CommandRetrievalMode,
+    retained: &Mutex<Option<AtlasRetrievalService>>,
+    options: AtlasRuntimeOptions,
+    execution: &ReadExecutionContext,
+    task: impl FnOnce(&mut AtlasRetrievalService) -> AppServiceResult<T>,
+) -> AppServiceResult<T> {
+    let mut retained = retained.lock().map_err(|error| {
+        AppServiceError::new(
+            AppErrorCode::InternalError,
+            format!("command retrieval lock is poisoned: {error}"),
+        )
+    })?;
+    execution.check()?;
+    let retrieval = match &mut *retained {
+        Some(retrieval) => retrieval,
+        slot @ None => slot.insert(mode.open(options)?),
+    };
+    execution.check()?;
+    task(retrieval)
 }
 
 impl Default for AtlasAppServiceOptions {
@@ -173,6 +192,10 @@ impl CommandRetrievalMode {
 #[cfg(test)]
 #[path = "service_lifetime_tests.rs"]
 mod lifetime_tests;
+
+#[cfg(test)]
+#[path = "service_abandonment_tests.rs"]
+mod abandonment_tests;
 
 #[cfg(test)]
 mod tests {

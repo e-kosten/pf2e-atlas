@@ -13,7 +13,7 @@ impl AtlasAppService {
         page: atlas_app_model::SearchPageRequest,
     ) -> AppServiceResult<atlas_app_model::RecordListView> {
         let page = SearchPage::new(page.number, page.size)?;
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             let result = r.list_records(ListRecordsRequest::new(filter.as_ref(), page))?;
             Ok(atlas_app_model::RecordListView {
                 records: result
@@ -33,7 +33,7 @@ impl AtlasAppService {
         mode: atlas_app_model::RetrievalModeView,
     ) -> AppServiceResult<atlas_app_model::SearchResultsView> {
         let page = SearchPage::new(page.number, page.size)?;
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             let result = r.search_text(TextSearchRequest {
                 query: &query,
                 mode: retrieval_mode(mode),
@@ -52,7 +52,7 @@ impl AtlasAppService {
         page: atlas_app_model::SearchPageRequest,
     ) -> AppServiceResult<Option<atlas_app_model::SimilarRecordsView>> {
         let page = SearchPage::new(page.number, page.size)?;
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             let key = match r.resolve_record_ref(ResolveRecordRefRequest {
                 record_ref: &record_ref,
                 filter: None,
@@ -90,7 +90,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<Option<atlas_app_model::GraphContextView>> {
         let key = RecordKey::parse(&request.record_key)
             .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             if let Some(owners) = &request.owners {
                 if crate::projection::navigation_fingerprint(owners, r.source_fingerprint())
                     .is_some()
@@ -134,13 +134,15 @@ impl AtlasAppService {
         record_key: RecordKey,
     ) -> AppServiceResult<atlas_app_model::RelatedCategoryView<atlas_app_model::VariantGroupView>>
     {
-        self.submit_retrieval(move |r| variant_group_view(r, &record_key))
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            variant_group_view(r, &record_key)
+        })
     }
     pub fn remaster_links(
         &self,
         record_key: RecordKey,
     ) -> AppServiceResult<Option<atlas_app_model::RemasterLinksView>> {
-        self.submit_retrieval(move |r| {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             Ok(r.remaster_links(RemasterLinksRequest {
                 record_key: &record_key,
             })?

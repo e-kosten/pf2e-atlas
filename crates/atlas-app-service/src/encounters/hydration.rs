@@ -22,7 +22,7 @@ pub(super) fn hydrate_participant_records(
     if keys.is_empty() {
         return Ok((None, BTreeMap::new()));
     }
-    service.submit_retrieval(move |r| {
+    service.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
         let mut records = BTreeMap::new();
         for key in keys {
             if let Some(detail) = r.get_record(GetRecordRequest {
@@ -75,7 +75,7 @@ pub(super) fn resolve_record_ref(
     record_ref: &str,
 ) -> AppServiceResult<SourceRecordDetail> {
     let reference = record_ref.to_owned();
-    service.submit_retrieval(move |r| {
+    service.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
         let key = match r.resolve_record_ref(ResolveRecordRefRequest {
             record_ref: &reference,
             filter: None,

@@ -147,7 +147,7 @@ fn successful_pool_keeps_parallel_lanes_on_original_artifact_after_publication()
             let entered_sender = entered_sender.clone();
             let release = Arc::clone(&release);
             thread::spawn(move || {
-                executor.submit(move |r| {
+                executor.submit(crate::ReadExecutionContext::uncancellable(), move |r| {
                     entered_sender.send(()).unwrap();
                     let (lock, condvar) = &*release;
                     let released = lock.lock().unwrap();

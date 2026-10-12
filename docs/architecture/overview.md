@@ -100,6 +100,10 @@ not index imports or handcrafted SQL readers. Retain the bounded retrieval
 executor rather than serializing all read-only web requests behind one lane.
 Worker startup compares the actual opened artifact instances and complete build
 contexts. Short-lived commands retain one lazy reader across composed operations.
+Replaceable page and discovery reads carry an explicit app-owned execution context.
+Their awaiting HTTP helper marks abandonment on drop; cooperative checks skip
+queued work and later projection. Blocking work retains its permit until it
+finishes. Durable mutations and their reference reads remain uncancellable.
 Stored-vector Similar is a mode of the stateless search-page request, carrying its
 root seed and canonical filters. Related availability is a bounded app-service
 workflow over exact selected-owner graph reads and root-only verified suggestions,

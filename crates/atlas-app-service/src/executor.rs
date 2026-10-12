@@ -6,6 +6,7 @@ use atlas_app_model::AppErrorCode;
 use atlas_runtime::{AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::{ArtifactInstance, AtlasRetrievalService};
 
+use crate::ReadExecutionContext;
 use crate::error::{AppServiceError, AppServiceResult};
 
 const DEFAULT_RETRIEVAL_WORKERS: usize = 2;
@@ -104,11 +105,29 @@ impl RetrievalExecutor {
 
     pub(super) fn submit<T>(
         &self,
+        execution: ReadExecutionContext,
         task: impl FnOnce(&mut AtlasRetrievalService) -> AppServiceResult<T> + Send + 'static,
     ) -> AppServiceResult<T>
     where
         T: Send + 'static,
     {
+        self.enqueue(execution, task)?.recv().map_err(|error| {
+            AppServiceError::new(
+                AppErrorCode::InternalError,
+                format!("retrieval worker dropped response: {error}"),
+            )
+        })?
+    }
+
+    fn enqueue<T>(
+        &self,
+        execution: ReadExecutionContext,
+        task: impl FnOnce(&mut AtlasRetrievalService) -> AppServiceResult<T> + Send + 'static,
+    ) -> AppServiceResult<Receiver<AppServiceResult<T>>>
+    where
+        T: Send + 'static,
+    {
+        execution.check()?;
         #[cfg(test)]
         {
             let mut budget = self
@@ -127,7 +146,8 @@ impl RetrievalExecutor {
         }
         let (reply, receiver) = mpsc::channel();
         let job = Box::new(move |retrieval: &mut AtlasRetrievalService| {
-            let _ = reply.send(task(retrieval));
+            let result = execution.check().and_then(|()| task(retrieval));
+            let _ = reply.send(result);
         });
 
         self.sender.try_send(job).map_err(|error| match error {
@@ -141,12 +161,7 @@ impl RetrievalExecutor {
             ),
         })?;
 
-        receiver.recv().map_err(|error| {
-            AppServiceError::new(
-                AppErrorCode::InternalError,
-                format!("retrieval worker dropped response: {error}"),
-            )
-        })?
+        Ok(receiver)
     }
 
     #[cfg(test)]
@@ -291,6 +306,10 @@ fn retrieval_worker(
 mod lifetime_tests;
 
 #[cfg(test)]
+#[path = "executor_abandonment_tests.rs"]
+mod abandonment_tests;
+
+#[cfg(test)]
 mod tests {
     use std::sync::mpsc;
     use std::sync::{Arc, Condvar, Mutex};
@@ -323,7 +342,7 @@ mod tests {
         };
 
         let error = executor
-            .submit(|_| Ok(()))
+            .submit(crate::ReadExecutionContext::uncancellable(), |_| Ok(()))
             .expect_err("zero-capacity queue without waiting worker should be busy")
             .into_app_error();
 
@@ -351,7 +370,7 @@ mod tests {
                 let entered_sender = entered_sender.clone();
                 let release = Arc::clone(&release);
                 thread::spawn(move || {
-                    executor.submit(move |_| {
+                    executor.submit(crate::ReadExecutionContext::uncancellable(), move |_| {
                         let _ = entered_sender.send(());
                         let (lock, condvar) = &*release;
                         let mut released = lock.lock().map_err(|_| {

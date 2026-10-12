@@ -31,8 +31,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 ## Soon
 
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
-  Implement coherent retrieval lifetimes and stateless pages, then resolve bounded
-  consumer ownership and error-contract gaps from the downstream review. Status: in_progress.
+  Resolve remaining bounded consumer ownership and error-contract gaps from the
+  downstream review. Status: planned.
 
 - [Rust Ratatui workbench](items/rust-ratatui-workbench.md)
   Build the interactive terminal workbench over the Rust runtime for search, browse, detail reading, filter exploration, graph context, and future editorial workflows. Status: planned.

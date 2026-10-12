@@ -133,6 +133,23 @@ opened different instances. Failed startup closes the queue and joins started
 workers before returning. A running service retains its artifact until restart,
 preserving bounded parallel reads while later artifacts are published.
 
+Search pages, contextual filter counts, and both contextual and count-free value
+discovery receive an explicit, non-serialized `ReadExecutionContext`. Unrelated callers
+choose an uncancellable context. App-service checks abandonment before lazy open
+and queue admission, before a worker enters its expensive closure, and after
+completed retrieval before app projection. A canceled queued item can retain its
+slot and blocking waiter until drained; the contract saves work rather than
+promising immediate capacity reclamation.
+
+Web's `call_read_service` keeps an abandonment guard in the awaiting handler
+future and delegates to the existing bounded blocking-call helper. Dropping the
+wait marks the context; the actual blocking closure retains its semaphore permit
+until completion. Started SQL/model work can finish before reaching the next
+checkpoint. This does not introduce native interruption, deadlines, or a promise
+that every browser abort drops its server handler. Durable mutations, transaction
+receipts and their reference reads use the normal uncancellable path under
+[ADR0048](./decisions/0048-atomic-mutable-workflows.md).
+
 `AtlasRetrievalService` is a concrete service over index plus optional query
 embedder. Narrow inherent methods own strict name/key lookup, browse, text search,
 similar, graph, remaster links, Suggested variants and catalog discovery. There

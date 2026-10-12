@@ -37,7 +37,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0046-source-backed-reference-artifact.md`](./0046-source-backed-reference-artifact.md): checked snapshot authority, named typed query projections, HTML caches, attributed lexical/semantic retrieval, concrete reader generation consistency and coordinated consumer replacement.
 - [`0047-semantic-record-presentation.md`](./0047-semantic-record-presentation.md): transient family facts, one composed encounter presentation, exact selected navigation and shared browser family components with independent CLI layout.
 - [`0048-atomic-mutable-workflows.md`](./0048-atomic-mutable-workflows.md): local-state transaction boundaries, revision-checked participant replacements and durable mutation receipts independent of reference hydration.
-- [`0049-search-lifetimes-and-pages.md`](./0049-search-lifetimes-and-pages.md): coherent worker/command artifact lifetimes, stateless generation-checked pages, deliberate browser recovery and typed query-input errors.
+- [`0049-search-lifetimes-and-pages.md`](./0049-search-lifetimes-and-pages.md): coherent worker/command artifact lifetimes, stateless generation-checked pages, deliberate browser recovery, cooperative read abandonment and typed query-input errors.
 
 ## Historical ADRs
 
