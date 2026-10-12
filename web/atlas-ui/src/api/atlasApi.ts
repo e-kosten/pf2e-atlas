@@ -125,6 +125,21 @@ export async function getOwnedReading(
     signal,
   });
 }
+export async function getEncounterReference(
+  encounterRef: string,
+  participantKey: string,
+  request: import("../generated/atlas").EncounterReferenceRequest,
+  signal?: AbortSignal,
+): Promise<RecordDetailView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reference`,
+    {
+      signal,
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
 
 export async function getEncounters(): Promise<EncounterIndexView> {
   return atlasFetchEncounter("/api/encounters");

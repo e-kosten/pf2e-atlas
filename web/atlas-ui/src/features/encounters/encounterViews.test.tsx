@@ -41,6 +41,7 @@ const apiMocks = vi.hoisted(() => ({
   getEncounterConditionDefinitions: vi.fn(),
   getEncounters: vi.fn(),
   getRecordDetail: vi.fn(),
+  getEncounterReference: vi.fn(),
   getOwnedReading: vi.fn(),
   openResultWindow: vi.fn(),
   removeEncounterParticipant: vi.fn(),
@@ -62,6 +63,7 @@ vi.mock("../../api/atlasApi", () => ({
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
   getEncounters: apiMocks.getEncounters,
   getRecordDetail: apiMocks.getRecordDetail,
+  getEncounterReference: apiMocks.getEncounterReference,
   getOwnedReading: apiMocks.getOwnedReading,
   openResultWindow: apiMocks.openResultWindow,
   removeEncounterParticipant: apiMocks.removeEncounterParticipant,
@@ -560,44 +562,30 @@ describe("encounter views", () => {
     );
   });
 
-  it("quick lookup uses content-only transport and recomposes current encounter activity after updates", async () => {
+  it("quick lookup renders complete participant detail and refetches after runtime updates", async () => {
     const initial = encounterDetailFixture();
     const activity = initial.participants[0].presentation!.body;
     if (activity.kind !== "creature") throw new Error("expected creature fixture");
     const claw = activity.value.activities.value![0];
-    apiMocks.getOwnedReading.mockResolvedValue({
-      artifact_generation: initial.artifact_generation,
-      parent: {
-        record_key: "actors:goblin",
-        owners: [],
-        field: null,
-        passage: null,
-        source_fingerprint: null,
-      },
-      availability: "value",
-      total: 1,
-      start: 0,
-      end: 1,
-      previous: null,
-      next: null,
-      entries: [
-        {
-          navigation: claw.navigation,
-          relationships: [],
-          content: [
-            {
-              locator: {
-                record: "actors:goblin",
-                owners: claw.navigation.owners,
-                field: "/system/description/value",
-              },
-              role: "description",
-              source_fingerprint: null,
-              body: { kind: "plain", text: "Customized participant Claw prose" },
-            },
-          ],
+    const selected = recordDetailFixture("actors:goblin");
+    selected.selected = claw.navigation;
+    selected.presentation.identity = { ...selected.record, title: claw.title };
+    selected.presentation.body = { kind: "activity", value: claw };
+    selected.presentation.content = [
+      {
+        locator: {
+          record: "actors:goblin",
+          owners: claw.navigation.owners,
+          field: "/system/description/value",
         },
-      ],
+        role: "description",
+        source_fingerprint: null,
+        body: { kind: "plain", text: "Customized participant Claw prose" },
+      },
+    ];
+    apiMocks.getEncounterReference.mockResolvedValue({
+      ...selected,
+      artifact_generation: initial.artifact_generation,
     });
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -619,10 +607,18 @@ describe("encounter views", () => {
       ).toBeVisible(),
     );
     expect(within(preview).getByText("+12")).toBeVisible();
-    expect(apiMocks.getOwnedReading).toHaveBeenCalledWith(
+    expect(apiMocks.getEncounterReference).toHaveBeenCalledWith(
+      "ambush",
+      "participant_a",
       expect.objectContaining({
         artifact_generation: initial.artifact_generation,
-        selection: { kind: "activity", navigation: claw.navigation },
+        selection: {
+          record_key: claw.navigation.record_key,
+          owners: claw.navigation.owners,
+          fields: [],
+          passage: claw.navigation.passage,
+          source_fingerprint: claw.navigation.source_fingerprint,
+        },
       }),
       expect.any(AbortSignal),
     );
@@ -639,13 +635,24 @@ describe("encounter views", () => {
         reason: "Current source adjustment retained.",
       },
     ];
+    apiMocks.getEncounterReference.mockResolvedValue({
+      ...selected,
+      presentation: {
+        ...selected.presentation,
+        body: {
+          kind: "activity",
+          value: updated.participants[0].presentation!.body.value.activities.value![0],
+        },
+      },
+    });
     act(() => client.setQueryData(["encounter", "ambush"], updated));
     await waitFor(() => expect(within(preview).getByText("+19")).toBeVisible());
     expect(within(preview).queryByText("+12")).toBeNull();
     expect(
       within(preview).getByText("Elite: Current source adjustment retained."),
     ).toBeVisible();
-    expect(apiMocks.getOwnedReading).toHaveBeenCalledTimes(1);
+    expect(apiMocks.getEncounterReference).toHaveBeenCalledTimes(2);
+    expect(apiMocks.getOwnedReading).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
   });
 

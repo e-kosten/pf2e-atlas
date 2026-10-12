@@ -194,14 +194,23 @@ encode the complete checked owner address, while a separate landing state keeps
 parent return distinct from selected identity. Native permalinks and breadcrumbs
 preserve modified clicks and known search/list/reader context.
 
-Encounter native quick lookup fetches authored content for an existing requested
-activity and composes it with the exact matching current participant activity on
-every update. Adjusted facts and explanations stay in encounter presentation,
-never in reference content caches or a baseline child-detail replacement. The
+Encounter native quick lookup returns the complete selected-document view through
+the shared family renderer, with compact density. Rust app-service composes the
+selected view from one checked parent and the participant's current local state,
+retaining adjusted activities, casting rosters, complete spell details and runtime
+notes, and customized equipment. Runtime results have a separate participant and
+presentation-bound cache and never seed immutable reference detail caches. The
 content-free deduplicated hydration captures an optional immutable artifact
 generation; no valid source keys means no retrieval or artifact open. Invalid
 references remain unresolved. Native source dialogs retain nested Escape and
 trigger focus. These are transient workflows, not stored content or family models.
+
+Embedded previews and full-page readers offer Original record only when a resolved
+explicit CompendiumProvenance relationship identifies an available catalog record.
+The catalog is its current indexed version, not a historical copy. Selected
+navigation always retains local ownership and customization; matching names are
+not provenance evidence. Overlay controls do not repeat the document title or
+display a generic Reference heading; native accessible labels remain available.
 
 This replaces the section/value/profile decision and migration fallback in
 ADR0031, while retaining its app-service composition boundary. Old transport,

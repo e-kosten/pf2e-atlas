@@ -3,9 +3,10 @@ import type { ActionCostView } from "./ActionCostView";
 import type { DamageComponentView } from "./DamageComponentView";
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
+import type { RuntimeEffectNoteView } from "./RuntimeEffectNoteView";
 import type { SpellAreaView } from "./SpellAreaView";
 import type { SpellDefenseView } from "./SpellDefenseView";
 import type { SpellFormView } from "./SpellFormView";
 import type { SpellHeighteningView } from "./SpellHeighteningView";
 
-export type SpellPresentationView = { rank: NumberFactView, traditions: FactView<Array<string>>, cast: FactView<ActionCostView>, requirements: FactView<string> | null, cost: FactView<string> | null, range: FactView<string>, target: FactView<string>, area: FactView<SpellAreaView> | null, defense: FactView<SpellDefenseView> | null, duration: FactView<string>, sustained: FactView<boolean>, damage: FactView<Array<DamageComponentView>>, heightening: FactView<SpellHeighteningView>, forms: FactView<Array<SpellFormView>>, casting_entry: FactView<string> | null, authored_cast_rank: NumberFactView, };
+export type SpellPresentationView = { runtime_notes?: Array<RuntimeEffectNoteView>, rank: NumberFactView, traditions: FactView<Array<string>>, cast: FactView<ActionCostView>, requirements: FactView<string> | null, cost: FactView<string> | null, range: FactView<string>, target: FactView<string>, area: FactView<SpellAreaView> | null, defense: FactView<SpellDefenseView> | null, duration: FactView<string>, sustained: FactView<boolean>, damage: FactView<Array<DamageComponentView>>, heightening: FactView<SpellHeighteningView>, forms: FactView<Array<SpellFormView>>, casting_entry: FactView<string> | null, authored_cast_rank: NumberFactView, };

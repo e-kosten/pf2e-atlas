@@ -1,0 +1,222 @@
+use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
+use atlas_app_model::*;
+use atlas_search::test_support::{open_source_fixture, record};
+use serde_json::json;
+
+#[test]
+fn selected_reference_preserves_local_documents_and_composes_current_participant_facts() {
+    let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Local caster","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}}},"items":[
+        {"_id":"eeeeeeeeeeeeeeee","name":"Staff casting","type":"spellcastingEntry","system":{"description":{"value":""},"spelldc":{"dc":33,"value":23},"prepared":{"value":"spontaneous"},"tradition":{"value":"arcane"}}},
+        {"_id":"ssssssssssssssss","name":"Local Fireball","type":"spell","system":{"description":{"value":"<p>Customized spell prose.</p>"},"level":{"value":3},"location":{"value":"eeeeeeeeeeeeeeee","heightenedLevel":5},"range":{"value":"500 feet"},"damage":{"local":{"formula":"10d6","type":"fire"}}}},
+        {"_id":"wwwwwwwwwwwwwwww","name":"Customized staff","type":"weapon","_stats":{"compendiumSource":"Compendium.pf2e.equipment.Item.oooooooooooooooo"},"system":{"description":{"value":"<p>Customized equipment prose.</p>"},"usage":{"value":"held-in-one-hand"},"price":{"value":{"gp":900}},"bulk":{"value":1},"runes":{"potency":1,"striking":1,"property":[]}}},
+        {"_id":"cccccccccccccccc","name":"Local claw","type":"melee","system":{"bonus":{"value":12},"damageRolls":{"main":{"damage":"1d6+4","damageType":"slashing"}},"description":{"value":"<p>Local claw prose.</p>"}}}
+    ]});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![
+                    record("actors", "Actor", source.clone()),
+                    record(
+                        "equipment",
+                        "Item",
+                        json!({"_id":"oooooooooooooooo","name":"Catalog staff","type":"weapon","system":{"description":{"value":"<p>Catalog prose.</p>"},"price":{"value":{"gp":800}}}}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Selected references".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let current = f
+        .worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.slug.clone(),
+            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let generation = current.artifact_generation.unwrap();
+    let participant = &current.participants[0];
+    let request = |id: &str| EncounterReferenceRequest {
+        artifact_generation: generation.clone(),
+        selection: RecordDetailRequest {
+            record_key: "actors:aaaaaaaaaaaaaaaa".into(),
+            owners: vec![atlas_record::source_content::OwnedContentLocator {
+                collection: "/items".into(),
+                identity: atlas_record::source_content::OwnedContentIdentity::Stable(id.into()),
+            }],
+            fields: vec![],
+            passage: None,
+            source_fingerprint: None,
+        },
+    };
+    f.worker
+        .submit_retrieval(|r| {
+            r.reset_read_metrics();
+            Ok(())
+        })
+        .unwrap();
+    let physical = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant.participant_key,
+            request("wwwwwwwwwwwwwwww"),
+        )
+        .unwrap();
+    let metrics = f.worker.submit_retrieval(|r| Ok(r.read_metrics())).unwrap();
+    assert_eq!(
+        (
+            metrics.source_body_decodes,
+            metrics.prepared_content_batches
+        ),
+        (1, 1)
+    );
+    assert_eq!(physical.presentation.identity.title, "Customized staff");
+    assert!(matches!(
+        physical.presentation.body,
+        RecordBodyView::PhysicalReference(_)
+    ));
+    let serialized = serde_json::to_string(&physical).unwrap();
+    assert!(serialized.contains("Customized equipment prose"));
+    assert!(!serialized.contains("Catalog prose"));
+    let origin = physical
+        .relationships
+        .iter()
+        .find(|r| r.kind == "CompendiumProvenance")
+        .unwrap();
+    assert_eq!(
+        origin.target.as_ref().unwrap().record_key,
+        "equipment:oooooooooooooooo"
+    );
+    assert!(origin.target.as_ref().unwrap().owners.is_empty());
+    let mut update = super::tests::update(participant);
+    update.participant_variant = EncounterParticipantVariantView::Elite;
+    update.variant_edit = true;
+    f.worker
+        .update_encounter_participant(&encounter.slug, update)
+        .unwrap();
+    f.worker
+        .add_encounter_participant_condition(
+            &encounter.slug,
+            AddEncounterParticipantConditionRequest {
+                participant_key: participant.participant_key.clone(),
+                condition_ref: Some("conditionitems:TBSHQspnbcqxsmjL".into()),
+                name: None,
+                value: Some(1),
+                source_participant_key: None,
+                duration_rounds: None,
+                note: None,
+            },
+        )
+        .unwrap();
+    let updated = f.worker.encounter(&encounter.slug).unwrap();
+    let RecordBodyView::Creature(actor) =
+        &updated.participants[0].presentation.as_ref().unwrap().body
+    else {
+        panic!("actor")
+    };
+    let activities = actor.activities.value.as_ref().unwrap();
+    for (id, index) in [
+        ("eeeeeeeeeeeeeeee", 0),
+        ("ssssssssssssssss", 1),
+        ("cccccccccccccccc", 3),
+    ] {
+        let selected = f
+            .worker
+            .encounter_reference(&encounter.slug, &participant.participant_key, request(id))
+            .unwrap();
+        assert_eq!(selected.selected.owners, request(id).selection.owners);
+        match selected.presentation.body {
+            RecordBodyView::Activity(entry) => {
+                assert_eq!(entry.attack, activities[index].attack);
+                if entry.kind == ActorActivityKindView::Strike {
+                    assert_eq!(entry.attack.value, Some(13.into()));
+                    assert!(entry.attack.adjustment.is_some());
+                } else {
+                    let spells = entry.casting_context.unwrap().spells.value.unwrap();
+                    assert_eq!(spells.len(), 1);
+                    assert_eq!(spells[0], activities[1]);
+                }
+            }
+            RecordBodyView::Spell(spell) => {
+                assert_eq!(
+                    spell.damage.value.unwrap()[0].formula.value.as_deref(),
+                    Some("10d6")
+                );
+                let notes = spell.runtime_notes.unwrap();
+                assert!(!notes.is_empty());
+                assert_eq!(notes, activities[index].notes);
+            }
+            _ => panic!("selected family"),
+        }
+    }
+    let mut stale = request("eeeeeeeeeeeeeeee");
+    stale.artifact_generation = "old-generation".into();
+    assert!(
+        f.worker
+            .encounter_reference(&encounter.slug, &participant.participant_key, stale)
+            .unwrap_err()
+            .to_string()
+            .contains("reference collection has changed")
+    );
+    let mut foreign = request("eeeeeeeeeeeeeeee");
+    foreign.selection.record_key = "equipment:oooooooooooooooo".into();
+    assert!(
+        f.worker
+            .encounter_reference(&encounter.slug, &participant.participant_key, foreign)
+            .unwrap_err()
+            .to_string()
+            .contains("does not belong")
+    );
+    assert!(
+        f.worker
+            .encounter_reference(
+                &encounter.slug,
+                "missing-participant",
+                request("eeeeeeeeeeeeeeee")
+            )
+            .is_err()
+    );
+    assert!(
+        f.worker
+            .encounter_reference(
+                &encounter.slug,
+                &participant.participant_key,
+                request("missing-owner")
+            )
+            .is_err()
+    );
+    let root = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant.participant_key,
+            EncounterReferenceRequest {
+                artifact_generation: generation,
+                selection: RecordDetailRequest {
+                    record_key: "actors:aaaaaaaaaaaaaaaa".into(),
+                    owners: vec![],
+                    fields: vec![],
+                    passage: None,
+                    source_fingerprint: None,
+                },
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        root.presentation.body,
+        updated.participants[0].presentation.as_ref().unwrap().body
+    );
+}

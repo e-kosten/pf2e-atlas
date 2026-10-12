@@ -30,30 +30,30 @@ describe("RecordPreviewPopover", () => {
         onOpenFullPage: vi.fn(),
         onReference: vi.fn(),
       };
-      const preview = (showTrigger: boolean, version = 1) => (
-        <StrictMode>
-          <ConfigProvider theme={{ token: { motion: false } }}>
-            <button>Outside preview</button>
-            <RecordPreviewPopover
-              {...props}
-              content={
-                showTrigger ? (
-                  <button key="follow">Follow reference {version}</button>
-                ) : (
-                  <h2>Next reference</h2>
-                )
-              }
-            />
-          </ConfigProvider>
-        </StrictMode>
-      );
+      const preview = (showTrigger: boolean, version = 1) => {
+        const detail = detailFixture("rules:current", `Follow reference ${version}`);
+        detail.presentation.identity = { ...detail.record, title: "Next reference" };
+        detail.selected.owners = showTrigger
+          ? [{ collection: "/items", identity: { Stable: "selected-owner" } }]
+          : [];
+        return (
+          <StrictMode>
+            <ConfigProvider theme={{ token: { motion: false } }}>
+              <button>Outside preview</button>
+              <RecordPreviewPopover {...props} detail={detail} />
+            </ConfigProvider>
+          </StrictMode>
+        );
+      };
       const { rerender } = render(preview(true));
       await waitFor(() =>
         expect(
           screen.getByRole("link", { name: "Open reference full page" }),
         ).toHaveFocus(),
       );
-      const trigger = screen.getByRole("button", { name: "Follow reference 1" });
+      const trigger = screen.getByRole("link", {
+        name: "Return to Follow reference 1",
+      });
       act(() => trigger.focus());
       rerender(preview(true, 2));
       expect(trigger).toHaveFocus();
@@ -64,19 +64,25 @@ describe("RecordPreviewPopover", () => {
       );
       expect(content).toHaveFocus();
       rerender(preview(true));
-      act(() => screen.getByRole("button", { name: "Follow reference 1" }).focus());
+      act(() =>
+        screen.getByRole("link", { name: "Return to Follow reference 1" }).focus(),
+      );
       const header = screen.getByRole("link", { name: "Open reference full page" });
       act(() => header.focus());
       rerender(preview(false));
       expect(header).toHaveFocus();
       rerender(preview(true));
-      act(() => screen.getByRole("button", { name: "Follow reference 1" }).focus());
+      act(() =>
+        screen.getByRole("link", { name: "Return to Follow reference 1" }).focus(),
+      );
       const outside = screen.getByRole("button", { name: "Outside preview" });
       act(() => outside.focus());
       rerender(preview(false));
       expect(outside).toHaveFocus();
       rerender(preview(true));
-      const blurTrigger = screen.getByRole("button", { name: "Follow reference 1" });
+      const blurTrigger = screen.getByRole("link", {
+        name: "Return to Follow reference 1",
+      });
       act(() => blurTrigger.focus());
       act(() => blurTrigger.blur());
       expect(document.body).toHaveFocus();

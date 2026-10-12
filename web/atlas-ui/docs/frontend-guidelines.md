@@ -128,6 +128,14 @@ Reject unsafe integer input before creating numeric literals.
 
 Reference previews use native Ant Popover positioning on desktop and the shared
 Ant Drawer below the Ant `xl` breakpoint (1200px), including tablet layouts.
+Both hosts use RecordDetailPane and its shared family renderer. Encounter preview
+detail is composed by Rust from current participant state, with separate cache
+identity including the participant presentation and exact selected navigation.
+Do not substitute baseline detail or implement a second activity-only reader.
+Compact changes density, not information. The document title appears once; generic
+Reference labels remain accessible without becoming visible overlay headings.
+An Original record link uses only a resolved structured CompendiumProvenance
+relationship; full-page links still open the exact local embedded copy.
 Source content in an encounter loads only on an
 explicit request. HP mutations carry explicit edit intent; unknown current HP
 disables arithmetic and remains unknown until explicitly set.

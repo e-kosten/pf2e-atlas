@@ -220,6 +220,11 @@ function Heightening({ fact }: { fact: FactView<SpellHeighteningView> }) {
 export function SpellReference({ spell }: { spell: SpellPresentationView }) {
   return (
     <div className="spell-reference">
+      {spell.runtime_notes?.map((note, index) => (
+        <p key={index}>
+          {note.label}: {note.reason}
+        </p>
+      ))}
       <div className="spell-reference__casting">
         <FactLine
           label="Traditions"
