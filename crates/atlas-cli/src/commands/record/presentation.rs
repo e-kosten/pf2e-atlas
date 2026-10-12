@@ -119,8 +119,8 @@ pub(super) fn render_record(
         RecordBodyView::Content => {}
     }
     for field in presentation.content.iter().filter(|field| {
-        !is_intro(field)
-            && !(matches!(presentation.body, RecordBodyView::Hazard(_))
+        !(is_intro(field)
+            || matches!(presentation.body, RecordBodyView::Hazard(_))
                 && matches!(field.role.as_str(), "stealth" | "disable"))
     }) {
         content_field(&mut out, field, width, true)?;
