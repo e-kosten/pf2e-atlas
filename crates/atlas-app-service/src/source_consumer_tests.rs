@@ -45,6 +45,7 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
             && let Some(link) = links.first()
         {
             assert_eq!(links.len(), 1);
+            assert_eq!(link.title, "Result 0");
             assert_eq!(link.navigation.owners.len(), 1);
             let selected = f
                 .worker
@@ -56,6 +57,7 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
                     source_fingerprint: link.navigation.source_fingerprint.clone(),
                 })
                 .unwrap();
+            assert_eq!(selected.presentation.identity.title, "Result 0");
             let RecordBodyView::TableResult(result) = selected.presentation.body else {
                 panic!("result")
             };
@@ -222,6 +224,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     assert_eq!(table_body.formula.value.as_deref(), Some("1d4"));
     assert!(table.presentation.owned.is_empty());
     let result = &table_body.results.value.as_ref().unwrap()[0];
+    assert_eq!(result.title, "Result 1–2");
     let detail = f
         .worker
         .record_detail_at(RecordDetailRequest {
@@ -232,6 +235,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
             source_fingerprint: result.navigation.source_fingerprint.clone(),
         })
         .unwrap();
+    assert_eq!(detail.presentation.identity.title, "Result 1–2");
     let RecordBodyView::TableResult(result) = &detail.presentation.body else {
         panic!("result family");
     };

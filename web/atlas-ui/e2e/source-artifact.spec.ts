@@ -465,7 +465,19 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
   await expect(
     page.getByRole("heading", { name: "Wellspring Surges", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Result 1–1", exact: true }).click();
+  await page.getByRole("button", { name: "Result 1", exact: true }).click();
+  await expect(page).not.toHaveURL(/selection=/);
+  const preview = page.getByRole("dialog", {
+    name: "Reference preview",
+    exact: true,
+  });
+  await expect(preview.locator(".prepared-content")).toContainText("Energy Unleashed");
+  const fullPage = page.getByRole("link", {
+    name: "Open reference full page",
+    exact: true,
+  });
+  await expect(fullPage).toHaveAttribute("href", /selection=/);
+  await fullPage.click();
   await expect(page).toHaveURL(/selection=/);
   await expect(page.locator(".prepared-content")).toContainText("Energy Unleashed");
   await page.screenshot({
