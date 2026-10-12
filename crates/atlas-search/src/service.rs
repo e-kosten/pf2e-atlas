@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 pub struct AtlasRetrievalService {
     pub(crate) index: SqliteIndexReader,
     pub(crate) embedder: Option<TextEmbedder>,
+    #[cfg(test)]
+    pub(crate) text_query_embedding_invocations: usize,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchEmbeddingConfig {
@@ -63,12 +65,16 @@ impl AtlasRetrievalService {
         Ok(Self {
             index,
             embedder: Some(embedder),
+            #[cfg(test)]
+            text_query_embedding_invocations: 0,
         })
     }
     pub fn from_prepared_index_without_embeddings(index: SqliteIndexReader) -> Self {
         Self {
             index,
             embedder: None,
+            #[cfg(test)]
+            text_query_embedding_invocations: 0,
         }
     }
     /// Complete immutable artifact preparation identity, separate from source-local addresses.

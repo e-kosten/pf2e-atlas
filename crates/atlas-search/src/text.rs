@@ -176,6 +176,10 @@ impl AtlasRetrievalService {
         }
         let predicate = self.predicate(request.filter)?;
         let vector = if request.mode.uses_vector() {
+            #[cfg(test)]
+            if self.embedder.is_some() {
+                self.text_query_embedding_invocations += 1;
+            }
             Some(
                 self.embedder
                     .as_mut()
@@ -499,6 +503,10 @@ fn reading_excerpt(text: &str) -> String {
         .unwrap_or(boundary);
     format!("{}…", prefix[..end].trim_end())
 }
+
+#[cfg(test)]
+#[path = "text_inference_tests.rs"]
+mod inference_tests;
 
 #[cfg(test)]
 mod excerpt_tests {
