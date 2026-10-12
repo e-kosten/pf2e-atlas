@@ -1,12 +1,9 @@
-import { useMutation } from "@tanstack/react-query";
-import { Button, Form, Input, InputNumber, Modal, Tag } from "antd";
+import { Alert, Button, Form, Input, InputNumber, Modal, Tag } from "antd";
 import { GripVertical, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
-import {
-  addEncounterManualParticipant,
-  addEncounterRecordParticipant,
-} from "../../api/atlasApi";
 import type {
+  AddEncounterManualParticipantRequest,
+  AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
   OpenResultWindowRequest,
   UpdateEncounterParticipantRequest,
@@ -34,7 +31,10 @@ type AddPcForm = {
 export function EncounterRosterPane({
   currentTurnParticipantKey,
   loading,
-  onAddComplete,
+  onAddRecord,
+  onAddManual,
+  disabled,
+  error,
   onAdvanceTurn,
   onRemove,
   onReorder,
@@ -47,7 +47,10 @@ export function EncounterRosterPane({
 }: {
   currentTurnParticipantKey: string | null;
   loading: boolean;
-  onAddComplete: () => void;
+  onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<unknown>;
+  onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<unknown>;
+  disabled: boolean;
+  error?: string;
   onAdvanceTurn: () => void;
   onRemove: (participant: EncounterParticipantView) => void;
   onReorder: (
@@ -57,7 +60,7 @@ export function EncounterRosterPane({
   ) => void;
   onSelect: (participantKey: string) => void;
   onSetTurn: (participant: EncounterParticipantView) => void;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
+  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
   participants: EncounterParticipantView[];
   selectedParticipantKey: string | null;
   slug: string;
@@ -70,39 +73,41 @@ export function EncounterRosterPane({
   const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(null);
   const [recordForm] = Form.useForm<AddRecordForm>();
   const [pcForm] = Form.useForm<AddPcForm>();
-  const addRecord = useMutation({
-    mutationFn: (values: AddRecordForm) =>
-      addEncounterRecordParticipant({
+  const addRecord = async (values: AddRecordForm) => {
+    if (disabled) return;
+    try {
+      await onAddRecord({
         encounter_ref: slug,
         record_ref: selectedRecordKey ?? "",
         quantity: values.quantity ?? 1,
         ...(values.initiative === undefined
           ? {}
           : { initiative: BigInt(values.initiative) }),
-      }),
-    onSuccess: () => {
+      });
       setRecordOpen(false);
       recordForm.resetFields();
       setSelectedRecordKey(null);
-      onAddComplete();
-    },
-  });
-  const addPc = useMutation({
-    mutationFn: (values: AddPcForm) =>
-      addEncounterManualParticipant({
+    } catch {
+      /* The owner displays the failure; retain the form and selection. */
+    }
+  };
+  const addPc = async (values: AddPcForm) => {
+    if (disabled) return;
+    try {
+      await onAddManual({
         encounter_ref: slug,
         display_name: values.name,
         ...(values.maxHp === undefined ? {} : { max_hp: BigInt(values.maxHp) }),
         ...(values.initiative === undefined
           ? {}
           : { initiative: BigInt(values.initiative) }),
-      }),
-    onSuccess: () => {
+      });
       setPcOpen(false);
       pcForm.resetFields();
-      onAddComplete();
-    },
-  });
+    } catch {
+      /* The owner displays the failure; retain this draft. */
+    }
+  };
   const setInitiativeParticipants = participants.filter(
     (participant) => participant.initiative !== undefined,
   );
@@ -117,13 +122,16 @@ export function EncounterRosterPane({
         participant.participant_key === selectedParticipantKey,
       )}
       key={participant.participant_key}
-      draggable
+      draggable={!disabled}
       onDragOver={(event) => event.preventDefault()}
-      onDragStart={() => setDraggingParticipantKey(participant.participant_key)}
+      onDragStart={() => {
+        if (!disabled) setDraggingParticipantKey(participant.participant_key);
+      }}
       onDragEnd={() => setDraggingParticipantKey(null)}
       onDrop={(event) => {
         event.preventDefault();
         if (
+          disabled ||
           !draggingParticipantKey ||
           draggingParticipantKey === participant.participant_key
         ) {
@@ -154,6 +162,7 @@ export function EncounterRosterPane({
       <div className="encounter-roster__initiative">
         <span>Initiative</span>
         <EditableCommitField
+          disabled={disabled}
           ariaLabel={`${participant.display_name} initiative`}
           className="encounter-roster__initiative-input"
           inputMode="numeric"
@@ -173,6 +182,7 @@ export function EncounterRosterPane({
       <div className="encounter-roster__hp">
         <span>HP</span>
         <EditableCommitField
+          disabled={disabled}
           ariaLabel={`${participant.display_name} current HP`}
           className="encounter-roster__hp-input"
           inputMode="numeric"
@@ -185,6 +195,7 @@ export function EncounterRosterPane({
       </div>
       <span className="encounter-roster__row-actions">
         <Button
+          disabled={disabled}
           aria-label={`Set turn to ${participant.display_name}`}
           size="small"
           onClick={(event) => {
@@ -195,6 +206,7 @@ export function EncounterRosterPane({
           Turn
         </Button>
         <Button
+          disabled={disabled}
           danger
           aria-label={`Remove ${participant.display_name}`}
           icon={<Trash2 size={12} aria-hidden="true" />}
@@ -216,6 +228,7 @@ export function EncounterRosterPane({
         </div>
         <div className="encounter-actions">
           <Button
+            disabled={disabled}
             icon={<Play size={14} />}
             size="small"
             type="primary"
@@ -223,10 +236,10 @@ export function EncounterRosterPane({
           >
             {currentTurnParticipantKey ? "Next" : "Play"}
           </Button>
-          <Button size="small" onClick={() => setRecordOpen(true)}>
+          <Button disabled={disabled} size="small" onClick={() => setRecordOpen(true)}>
             Add Creature
           </Button>
-          <Button size="small" onClick={() => setPcOpen(true)}>
+          <Button disabled={disabled} size="small" onClick={() => setPcOpen(true)}>
             Add PC
           </Button>
         </div>
@@ -256,9 +269,10 @@ export function EncounterRosterPane({
         emptyPrompt="Search for a creature or hazard"
         emptyResults="No creatures or hazards"
         form={recordForm}
-        okButtonProps={{ disabled: !selectedRecordKey }}
+        disabled={disabled}
+        okButtonProps={{ disabled: disabled || !selectedRecordKey, loading: disabled }}
         onCancel={() => setRecordOpen(false)}
-        onFinish={(values) => addRecord.mutate(values)}
+        onFinish={(values) => void addRecord(values)}
         onSelectedRecordKeyChange={setSelectedRecordKey}
         open={recordOpen}
         selectedLabel={(row) => `Selected: ${row.record.title}`}
@@ -266,6 +280,13 @@ export function EncounterRosterPane({
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
       >
+        {error && (
+          <Alert
+            type="error"
+            title="Participant could not be added"
+            description={error}
+          />
+        )}
         <Form.Item name="quantity" label="Quantity">
           <InputNumber aria-label="Quantity" min={1} max={50} />
         </Form.Item>
@@ -275,11 +296,28 @@ export function EncounterRosterPane({
       </SearchPickerModal>
       <Modal
         title="Add PC"
+        confirmLoading={disabled}
+        cancelButtonProps={{ disabled }}
+        closable={!disabled}
+        keyboard={!disabled}
+        mask={{ closable: !disabled }}
         open={pcOpen}
         onCancel={() => setPcOpen(false)}
         onOk={() => pcForm.submit()}
       >
-        <Form form={pcForm} layout="vertical" onFinish={(v) => addPc.mutate(v)}>
+        <Form
+          disabled={disabled}
+          form={pcForm}
+          layout="vertical"
+          onFinish={(v) => void addPc(v)}
+        >
+          {error && (
+            <Alert
+              type="error"
+              title="Participant could not be added"
+              description={error}
+            />
+          )}
           <Form.Item name="name" label="Name" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
@@ -322,18 +360,18 @@ function encounterRecordPickerRequest(query: string): OpenResultWindowRequest {
 function commitRosterInitiative(
   participant: EncounterParticipantView,
   value: string,
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => void,
+  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>,
 ) {
   const initiative = optionalBigIntInput(value);
   if (initiative === null) {
     return;
   }
-  onUpdate(participantUpdate(participant, { initiative }));
+  return onUpdate(participantUpdate(participant, { initiative }));
 }
 function commitRosterHp(
   participant: EncounterParticipantView,
   value: string,
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => void,
+  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>,
 ) {
   const hp = optionalHpFormulaInput(value);
   if (hp === null) {
@@ -341,7 +379,7 @@ function commitRosterHp(
   }
   const clampedHp =
     hp === undefined ? undefined : BigInt(clampCurrentHp(participant, Number(hp)));
-  onUpdate(
+  return onUpdate(
     participantUpdate(participant, {
       current_hp: clampedHp,
       defeated: clampedHp === BigInt(0) ? true : participant.defeated,

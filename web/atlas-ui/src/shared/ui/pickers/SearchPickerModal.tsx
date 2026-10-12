@@ -13,6 +13,7 @@ const SEARCH_PICKER_DEBOUNCE_MS = 250;
 
 export function SearchPickerModal<FormValues>({
   buildRequest,
+  disabled = false,
   children,
   emptyPrompt,
   emptyResults,
@@ -28,6 +29,7 @@ export function SearchPickerModal<FormValues>({
   title,
 }: {
   buildRequest: (query: string) => OpenResultWindowRequest;
+  disabled?: boolean;
   children?: React.ReactNode;
   emptyPrompt: string;
   emptyResults: string;
@@ -78,13 +80,22 @@ export function SearchPickerModal<FormValues>({
           reset();
         }
       }}
-      okButtonProps={okButtonProps}
+      okButtonProps={{
+        ...okButtonProps,
+        disabled: disabled || okButtonProps?.disabled,
+      }}
+      cancelButtonProps={{ disabled }}
+      closable={!disabled}
+      keyboard={!disabled}
+      mask={{ closable: !disabled }}
       onCancel={onCancel}
-      onOk={() => form?.submit()}
+      onOk={() => {
+        if (!disabled) form.submit();
+      }}
       open={open}
       title={title}
     >
-      <Form form={form} layout="vertical" onFinish={onFinish}>
+      <Form disabled={disabled} form={form} layout="vertical" onFinish={onFinish}>
         <Form.Item label="Search" htmlFor={searchId} layout="vertical">
           <Input
             id={searchId}
@@ -134,17 +145,19 @@ export function SearchPickerModal<FormValues>({
           rowSelection={{
             type: "radio",
             selectedRowKeys: selectedRecordKey ? [selectedRecordKey] : [],
-            onChange: (keys) =>
-              onSelectedRecordKeyChange(keys.length ? String(keys[0]) : null),
+            onChange: (keys) => {
+              if (!disabled)
+                onSelectedRecordKeyChange(keys.length ? String(keys[0]) : null);
+            },
             getCheckboxProps: (row) => ({
               "aria-label": `Select ${row.record.title}`,
-              disabled: recordResults.isFetching,
+              disabled: disabled || recordResults.isFetching,
             }),
           }}
           rowClassName="search-picker__row"
           onRow={(row) => ({
             onClick: (event) => {
-              if (!(event.target as Element).closest("input,button,label"))
+              if (!disabled && !(event.target as Element).closest("input,button,label"))
                 onSelectedRecordKeyChange(row.record.record_key);
             },
           })}

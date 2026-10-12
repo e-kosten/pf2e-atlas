@@ -282,6 +282,15 @@ precommit resolved summaries for receipt counts. Explicit reads own any later
 projection failure. These boundaries are defined by
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).
 
+The browser's detail/edit mutation owner serializes commands through their
+canonical-key refresh and populates the route alias from the same response.
+There is no private optimistic participant overlay. A failed refresh after a
+receipt is a saved-but-unavailable state with read-only Retry, not a failed
+write. Typed stale conflicts retain the draft and refresh without resubmission.
+Save and deletion confirmations await completion; same-entity dirty metadata
+survives background refresh and old route completions cannot navigate a new
+editor. The index owns its separate awaited deletion and action-local feedback.
+
 ## Deferred work
 
 New query projections are added only for useful product cases, with typed bindings,

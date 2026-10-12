@@ -40,6 +40,22 @@ encounter key resolved before source work, rather than resolving a mutable slug
 again at write time. Reads independently hydrate current presentation; a failed
 read cannot turn a committed write into a failed write.
 
+Encounter detail and edit routes share one route-local mutation owner. It keeps
+controls pending through the write and canonical-key refresh, updates the route
+alias cache from that read, and prevents duplicate submission. It does not
+optimistically calculate participant state. A committed write followed by a
+failed read shows a Saved warning and disables further edits until a read-only
+Retry succeeds. A typed participant conflict refreshes current state while
+retaining the failed draft; retrying the edit requires another user action.
+Other failures remain attached to the initiating action.
+
+Editors await Save before navigating. Destructive confirmations await deletion
+and remain open on failure. The encounter index owns its separate asynchronous
+deletion lifecycle rather than instantiating a detail-route mutation owner.
+Same-entity background refreshes preserve touched metadata drafts; changing
+entity or editing session resets them. Route owners prevent old completions
+from navigating a newer editor. Initial read failures have local Retry controls.
+
 ## Consequences
 
 Existing state migrates in place without resetting HP, provenance, conditions,
