@@ -78,6 +78,9 @@
 .actor-casting__spells {
   margin-left: 16px;
 }
+.actor-casting {
+  align-content: start;
+}
 .record-reference h3 {
   margin: 0 0 8px;
   font-size: 1.125rem;
@@ -86,6 +89,14 @@
 }
 .record-reference h4 {
   margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.record-reference h5 {
+  margin: 0 0 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 .record-fact-list {
   display: flex;
