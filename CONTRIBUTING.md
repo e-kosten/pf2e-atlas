@@ -108,6 +108,12 @@ worktrees. Compiled tests embed checkout-specific fixture paths, so sharing a
 `CARGO_TARGET_DIR` across worktrees can reuse binaries with stale paths. Run
 `git push` directly; its validation hook needs no Cargo environment override.
 
+The Rust web server embeds the built frontend in both debug and release binaries.
+Build the frontend before compiling a preview binary, then keep that binary and
+its reference artifact fixed while they are under review. Later frontend builds
+do not update a running Rust server; restart it with the new binary intentionally.
+Use the Vite dev server when frontend hot reload is wanted.
+
 Build and test from the repository root:
 
 ```bash
