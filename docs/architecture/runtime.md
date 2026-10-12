@@ -121,9 +121,17 @@ vector workflows remain deliberate modes rather than implicit web fallbacks.
 
 ## Retrieval and application workflows
 
-Short-lived semantic CLI searches open one retrieval service and query embedder
-on demand. The long-running web service retains its bounded worker pool for
-concurrent requests. Lexical and stored-vector commands remain model-free.
+Short-lived CLI workflows lazily open one retrieval service and retain it across
+all reference operations until the command ends. Semantic mode loads one query
+embedder; lexical and stored-vector commands remain model-free. Source-free
+local-state operations require no artifact open.
+
+The long-running web service retains two independent retrieval workers. Startup
+compares the index-owned physical instance and complete preparation identity of
+every opened reader; publication during construction fails clearly when workers
+opened different instances. Failed startup closes the queue and joins started
+workers before returning. A running service retains its artifact until restart,
+preserving bounded parallel reads while later artifacts are published.
 
 `AtlasRetrievalService` is a concrete service over index plus optional query
 embedder. Narrow inherent methods own strict name/key lookup, browse, text search,

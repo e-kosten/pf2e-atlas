@@ -12,7 +12,9 @@ pub mod test_support;
 mod tests;
 mod text;
 mod variants;
-pub use atlas_index::{SourcePreparedContent, SourceStoredRelationship, SourceUnitLocation};
+pub use atlas_index::{
+    ArtifactInstance, SourcePreparedContent, SourceStoredRelationship, SourceUnitLocation,
+};
 pub use atlas_index::{
     SourceRelationshipBundle, SourceRelationshipDirection, SourceRelationshipRequest,
 };

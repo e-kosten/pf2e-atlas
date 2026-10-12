@@ -1,4 +1,5 @@
 #![deny(unsafe_code)]
+mod artifact_instance;
 mod codec;
 mod discovery;
 mod error;
@@ -18,6 +19,7 @@ mod validation;
 mod validation_units;
 mod writer;
 
+pub use artifact_instance::ArtifactInstance;
 pub use discovery::{
     QueryCountsRequest, QueryFacetContext, QueryValuesRequest, QueryVocabularyRequest,
     facet_base_query, validate_value_discovery,

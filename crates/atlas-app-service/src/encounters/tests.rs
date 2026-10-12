@@ -4,7 +4,9 @@ use atlas_app_model::*;
 #[test]
 fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
     let worker = crate::AtlasAppService::new(
-        crate::service::RetrievalBackend::OnDemandNoEmbeddings,
+        crate::service::RetrievalBackend::command(
+            crate::service::CommandRetrievalMode::NoEmbeddings,
+        ),
         atlas_runtime::AtlasRuntimeOptions {
             path_mode: atlas_runtime::AtlasPathMode::Global,
             overrides: atlas_runtime::AtlasPathOverrides {
@@ -316,7 +318,9 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
         .participants
         .remove(0);
     let worker = crate::AtlasAppService::new(
-        crate::service::RetrievalBackend::OnDemandNoEmbeddings,
+        crate::service::RetrievalBackend::command(
+            crate::service::CommandRetrievalMode::NoEmbeddings,
+        ),
         atlas_runtime::AtlasRuntimeOptions {
             path_mode: atlas_runtime::AtlasPathMode::Global,
             overrides: atlas_runtime::AtlasPathOverrides {

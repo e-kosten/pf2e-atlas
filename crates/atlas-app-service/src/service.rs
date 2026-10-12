@@ -34,9 +34,11 @@ pub struct AtlasAppServiceOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppServiceRetrievalMode {
     FullPool,
-    /// A short-lived command needs one query embedder, without web concurrency lanes.
+    /// Lazily retain one command-scoped reader and query embedder.
     OnDemandEmbeddings,
+    /// Lazily retain one command-scoped reader without query embeddings.
     OnDemandNoEmbeddings,
+    /// Lazily retain one command-scoped vector reader without query embeddings.
     OnDemandStoredVectors,
 }
 
@@ -48,10 +50,14 @@ impl AtlasAppService {
             AppServiceRetrievalMode::FullPool => {
                 RetrievalBackend::Pooled(RetrievalExecutor::start(runtime_options.clone())?)
             }
-            AppServiceRetrievalMode::OnDemandEmbeddings => RetrievalBackend::OnDemandEmbeddings,
-            AppServiceRetrievalMode::OnDemandNoEmbeddings => RetrievalBackend::OnDemandNoEmbeddings,
+            AppServiceRetrievalMode::OnDemandEmbeddings => {
+                RetrievalBackend::command(CommandRetrievalMode::QueryEmbeddings)
+            }
+            AppServiceRetrievalMode::OnDemandNoEmbeddings => {
+                RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings)
+            }
             AppServiceRetrievalMode::OnDemandStoredVectors => {
-                RetrievalBackend::OnDemandStoredVectors
+                RetrievalBackend::command(CommandRetrievalMode::StoredVectors)
             }
         };
         Self::new(
@@ -104,19 +110,18 @@ impl AtlasAppService {
     {
         match &self.retrieval {
             RetrievalBackend::Pooled(executor) => executor.submit(task),
-            RetrievalBackend::OnDemandEmbeddings => {
-                let mut retrieval = open_retrieval_service(self.runtime_options.clone())?;
-                task(&mut retrieval)
-            }
-            RetrievalBackend::OnDemandNoEmbeddings => {
-                let mut retrieval =
-                    open_retrieval_service_no_embeddings(self.runtime_options.clone())?;
-                task(&mut retrieval)
-            }
-            RetrievalBackend::OnDemandStoredVectors => {
-                let mut retrieval =
-                    open_retrieval_service_for_stored_vectors(self.runtime_options.clone())?;
-                task(&mut retrieval)
+            RetrievalBackend::Command { mode, retrieval } => {
+                let mut retained = retrieval.lock().map_err(|error| {
+                    AppServiceError::new(
+                        AppErrorCode::InternalError,
+                        format!("command retrieval lock is poisoned: {error}"),
+                    )
+                })?;
+                let retrieval = match &mut *retained {
+                    Some(retrieval) => retrieval,
+                    slot @ None => slot.insert(mode.open(self.runtime_options.clone())?),
+                };
+                task(retrieval)
             }
         }
     }
@@ -148,10 +153,41 @@ fn runtime_options(options: &AtlasAppServiceOptions) -> AtlasRuntimeOptions {
 #[derive(Clone)]
 pub(super) enum RetrievalBackend {
     Pooled(RetrievalExecutor),
-    OnDemandEmbeddings,
-    OnDemandNoEmbeddings,
-    OnDemandStoredVectors,
+    Command {
+        mode: CommandRetrievalMode,
+        retrieval: Arc<Mutex<Option<AtlasRetrievalService>>>,
+    },
 }
+
+impl RetrievalBackend {
+    pub(super) fn command(mode: CommandRetrievalMode) -> Self {
+        Self::Command {
+            mode,
+            retrieval: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum CommandRetrievalMode {
+    QueryEmbeddings,
+    NoEmbeddings,
+    StoredVectors,
+}
+
+impl CommandRetrievalMode {
+    fn open(self, options: AtlasRuntimeOptions) -> AppServiceResult<AtlasRetrievalService> {
+        match self {
+            Self::QueryEmbeddings => open_retrieval_service(options),
+            Self::NoEmbeddings => open_retrieval_service_no_embeddings(options),
+            Self::StoredVectors => open_retrieval_service_for_stored_vectors(options),
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "service_lifetime_tests.rs"]
+mod lifetime_tests;
 
 #[cfg(test)]
 mod tests {

@@ -225,6 +225,14 @@ with new caches by reopening the published path. Platforms that prevent replacin
 an in-use artifact return a clear failure preserving the prior bytes rather than
 copying or deleting around the lock.
 
+Index retains a non-serialized physical instance identity from the successful
+reader-open guard. Search exposes it narrowly for application composition. Web
+startup requires every worker to have opened the same instance and complete
+context; comparing context hashes alone does not establish physical identity.
+A composed CLI command retains its first successfully opened reader instead of
+reopening the published path between parent and embedded reads. Physical identity
+stays process-local; public artifact generation remains the full context hash.
+
 Opening a reader checks format, typed context, executable schema/catalog and active
 model metadata. Explicit full validation checks SQLite integrity/foreign keys,
 checked snapshots, exact typed projections, owner addresses, content input/context
