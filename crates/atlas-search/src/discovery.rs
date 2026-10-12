@@ -79,7 +79,7 @@ impl AtlasRetrievalService {
                         )
                     })?
                     .embed_query(text)
-                    .map_err(|e| SearchError::embedding(e.to_string()))?,
+                    .map_err(SearchError::query_embedding)?,
             )
         } else {
             None
