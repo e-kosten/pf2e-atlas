@@ -16,6 +16,8 @@ import {
   type AtlasRoute,
 } from "./routes";
 import { useSearchWorkspace } from "../features/search/useSearchWorkspace";
+import { useQuery } from "@tanstack/react-query";
+import { getReadiness } from "../api/atlasApi";
 
 const SearchView = lazy(() =>
   import("../features/search/SearchView").then((module) => ({
@@ -70,6 +72,7 @@ export function AtlasApp() {
   const resolvedColorScheme =
     colorScheme === "system" ? systemColorScheme : colorScheme;
   const workspace = useSearchWorkspace({ enabled: route.kind === "search" });
+  const readiness = useQuery({ queryKey: ["readiness"], queryFn: getReadiness });
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedColorScheme;
@@ -115,7 +118,10 @@ export function AtlasApp() {
           onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
           onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
           resolvedColorScheme={resolvedColorScheme}
-          workspace={workspace}
+          readiness={readiness.data}
+          readinessError={readiness.error}
+          checkingReadiness={readiness.isFetching}
+          onCheckReadiness={() => void readiness.refetch()}
         >
           <Suspense fallback={<RouteLoading />}>
             {route.kind === "invalid" && <Alert type="error" title={route.message} />}

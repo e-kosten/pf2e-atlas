@@ -1,4 +1,4 @@
-import { Button, Space, Typography } from "antd";
+import { Alert, Button, Space, Typography } from "antd";
 import { ExternalLink } from "lucide-react";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterPanel } from "../../shared/filters/FilterPanel";
@@ -49,7 +49,31 @@ export function SearchView({ workspace }: SearchViewProps) {
           )}
         </FilterPanel>
       }
-      results={<ResultTable workspace={workspace} />}
+      results={
+        <>
+          {workspace.errorMessage && (
+            <Alert
+              type="error"
+              showIcon
+              title="Unable to update results"
+              description={workspace.errorMessage}
+              action={
+                <Button
+                  loading={workspace.resultsRecovering}
+                  onClick={() =>
+                    workspace.resultsPaused
+                      ? void workspace.refreshResults()
+                      : workspace.refresh()
+                  }
+                >
+                  {workspace.resultsPaused ? "Refresh results" : "Retry"}
+                </Button>
+              }
+            />
+          )}
+          <ResultTable workspace={workspace} />
+        </>
+      }
       resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}
       selectedRecordKey={workspace.selectedRecordKey}
       detailHeaderActions={

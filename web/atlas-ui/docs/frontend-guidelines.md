@@ -2,6 +2,8 @@
 
 The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant Design for general application UI and a small first-party shared UI layer for Atlas-specific interaction patterns.
 
+The application shell owns navigation, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability stays in the reference-status drawer; search failures and generation recovery belong beside search results.
+
 ## Boundaries
 
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.

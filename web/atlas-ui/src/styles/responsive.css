@@ -66,15 +66,21 @@
   }
 
   .topbar {
-    align-items: flex-start;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 12px 0;
+  }
+
+  .topbar__brand-prefix {
+    display: none;
   }
 
   .topbar__actions {
-    justify-content: flex-start;
+    margin-left: auto;
   }
 
   .topbar__nav {
+    order: 3;
     min-width: 0;
     width: 100%;
     margin-left: 0;

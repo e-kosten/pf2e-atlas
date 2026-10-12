@@ -41,17 +41,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 76px;
-  padding: 14px 22px;
+  min-height: 56px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
 
-.topbar h1 {
+.topbar__brand {
   margin: 0;
   font-size: 20px;
   line-height: 1.15;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .topbar__identity {
@@ -66,8 +67,8 @@
 
 .topbar__nav {
   flex: 0 1 auto;
-  min-width: 280px;
-  margin-left: auto;
+  min-width: 0;
+  margin-right: auto;
   border-bottom: 0;
   background: transparent;
 }
@@ -76,7 +77,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
