@@ -98,6 +98,7 @@ pub(super) fn participant_view(
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
     EncounterParticipantView {
+        revision: participant.revision,
         hp_origin: match participant.hp_origin {
             atlas_local_state::ParticipantHpOrigin::DerivedPristine => "derived_pristine",
             atlas_local_state::ParticipantHpOrigin::DerivedEdited => "derived_edited",

@@ -270,6 +270,27 @@ participant choices replace them, and saved HP/overrides/edit intent survive
 artifact rebuilds. No Foundry world execution or guessed aggregate mechanics is
 introduced. Local-state migrations preserve existing ambiguous values.
 
+Local-state initialization and migrations commit schema and metadata together.
+List metadata/tags, quantity additions and removal with replacement turn each
+have one write transaction. Next turn chooses from the same locked snapshot it
+updates, using pure app-service policy. Participant replacements require an
+expected revision and fail with a typed conflict when stale. Condition IDs are
+not reused, and condition edits check participant ownership inside the write.
+Existing-encounter mutations return a durable canonical-key receipt rather than
+hydrating reference presentation after commit. Saved-list import uses its
+precommit resolved summaries for receipt counts. Explicit reads own any later
+projection failure. These boundaries are defined by
+[ADR0048](./decisions/0048-atomic-mutable-workflows.md).
+
+The browser's detail/edit mutation owner serializes commands through their
+canonical-key refresh and populates the route alias from the same response.
+There is no private optimistic participant overlay. A failed refresh after a
+receipt is a saved-but-unavailable state with read-only Retry, not a failed
+write. Typed stale conflicts retain the draft and refresh without resubmission.
+Save and deletion confirmations await completion; same-entity dirty metadata
+survives background refresh and old route completions cannot navigate a new
+editor. The index owns its separate awaited deletion and action-local feedback.
+
 ## Deferred work
 
 New query projections are added only for useful product cases, with typed bindings,

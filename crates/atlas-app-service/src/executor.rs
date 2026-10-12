@@ -18,6 +18,8 @@ pub(super) struct RetrievalExecutor {
     sender: SyncSender<RetrievalJob>,
     #[cfg(test)]
     worker_count: usize,
+    #[cfg(test)]
+    submission_budget: Arc<Mutex<Option<usize>>>,
     queue_capacity: usize,
 }
 
@@ -53,6 +55,8 @@ impl RetrievalExecutor {
             sender,
             #[cfg(test)]
             worker_count,
+            #[cfg(test)]
+            submission_budget: Arc::new(Mutex::new(None)),
             queue_capacity,
         })
     }
@@ -64,6 +68,22 @@ impl RetrievalExecutor {
     where
         T: Send + 'static,
     {
+        #[cfg(test)]
+        {
+            let mut budget = self
+                .submission_budget
+                .lock()
+                .expect("test submission budget");
+            if let Some(remaining) = budget.as_mut() {
+                if *remaining == 0 {
+                    return Err(AppServiceError::new(
+                        AppErrorCode::QueryFailed,
+                        "injected retrieval failure",
+                    ));
+                }
+                *remaining -= 1;
+            }
+        }
         let (reply, receiver) = mpsc::channel();
         let job = Box::new(move |retrieval: &mut AtlasRetrievalService| {
             let _ = reply.send(task(retrieval));
@@ -91,6 +111,14 @@ impl RetrievalExecutor {
     #[cfg(test)]
     pub(super) fn worker_count(&self) -> usize {
         self.worker_count
+    }
+
+    #[cfg(test)]
+    pub(super) fn fail_after_submissions(&self, count: usize) {
+        *self
+            .submission_budget
+            .lock()
+            .expect("test submission budget") = Some(count);
     }
 
     #[cfg(test)]
@@ -140,6 +168,7 @@ impl RetrievalExecutor {
         Self {
             sender,
             worker_count,
+            submission_budget: Arc::new(Mutex::new(None)),
             queue_capacity,
         }
     }
@@ -230,6 +259,7 @@ mod tests {
         let (sender, _receiver) = mpsc::sync_channel(1);
         let executor = RetrievalExecutor {
             sender,
+            submission_budget: Arc::new(Mutex::new(None)),
             worker_count: DEFAULT_RETRIEVAL_WORKERS,
             queue_capacity: DEFAULT_RETRIEVAL_QUEUE_CAPACITY,
         };
@@ -242,6 +272,7 @@ mod tests {
         let (sender, _receiver) = mpsc::sync_channel(0);
         let executor = RetrievalExecutor {
             sender,
+            submission_budget: Arc::new(Mutex::new(None)),
             worker_count: 1,
             queue_capacity: 0,
         };

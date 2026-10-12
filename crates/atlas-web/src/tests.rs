@@ -6,18 +6,17 @@ use atlas_app_model::{
     DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, EncounterUpdateView, FilterEditorView, FilterSavedListRequest,
+    EncounterDetailView, EncounterIndexView, EncounterMutationView,
+    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterStatusView, EncounterSummaryView, FilterEditorView, FilterSavedListRequest,
     FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
-    RecordSummaryView, RemoveSavedListItemRequest, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, ResultWindowModeSummary, ResultWindowPage,
-    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
-    SavedListUpdateView, SearchPageView, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest, UpdateSavedListRequest,
+    RecordSummaryView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
+    ResultWindowModeSummary, ResultWindowPage, SavedListCreateView, SavedListDetailView,
+    SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
+    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
+    SearchPageView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
@@ -535,8 +534,8 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["encounter"]["encounter_key"], "ambush");
-    assert_eq!(body["encounter"]["slug"], "renamed-ambush");
+    assert_eq!(body["encounter_key"], "ambush");
+    assert_eq!(body, json!({"encounter_key": "ambush"}));
 
     let (status, body) = route_json(
         Method::POST,
@@ -550,7 +549,7 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["encounter"]["encounter_key"], "ambush");
+    assert_eq!(body["encounter_key"], "ambush");
 
     let (status, body) = route_json(
         Method::POST,
@@ -565,13 +564,14 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["encounter"]["encounter_key"], "ambush");
+    assert_eq!(body["encounter_key"], "ambush");
 
     let (status, body) = route_json(
         Method::PATCH,
         "/api/encounters/ambush/participants/participant_a",
         Some(json!({
             "participant_key": "ignored",
+            "expected_revision": 7,
             "display_name": "Renamed Goblin",
             "side": "enemy",
             "participant_variant": "normal",
@@ -586,8 +586,7 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["participant_key"], "participant_a");
-    assert_eq!(body["display_name"], "Renamed Goblin");
+    assert_eq!(body, json!({"encounter_key": "ambush"}));
 
     let (status, body) = route_json(
         Method::POST,
@@ -600,7 +599,7 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["encounter"]["encounter_key"], "ambush");
+    assert_eq!(body["encounter_key"], "ambush");
 
     let (status, body) = route_json(
         Method::POST,
@@ -612,7 +611,7 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["current_turn_participant_key"], "participant_a");
+    assert_eq!(body, json!({"encounter_key": "ambush"}));
 
     let (status, body) = route_json(
         Method::POST,
@@ -626,10 +625,7 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(
-        body["participants"][0]["conditions"][0]["name"],
-        "Frightened"
-    );
+    assert_eq!(body, json!({"encounter_key": "ambush"}));
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -643,8 +639,7 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["participants"][0]["conditions"][0]["condition_id"], 7);
-    assert_eq!(body["participants"][0]["conditions"][0]["value"], 2);
+    assert_eq!(body, json!({"encounter_key": "ambush"}));
 
     let (status, body) = route_json(
         Method::PATCH,
@@ -675,12 +670,7 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert!(
-        body["participants"][0]["conditions"]
-            .as_array()
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(body, json!({"encounter_key": "ambush"}));
 
     let (status, body) = route_json(
         Method::DELETE,
@@ -689,7 +679,7 @@ async fn encounter_routes_use_real_router_wiring() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["encounter"]["encounter_key"], "ambush");
+    assert_eq!(body["encounter_key"], "ambush");
 
     let (status, body) = route_json(Method::DELETE, "/api/encounters/ambush", None).await;
     assert_eq!(status, StatusCode::OK);
@@ -723,6 +713,29 @@ async fn malformed_json_route_body_returns_app_error_envelope() {
             .expect("message should be string")
             .contains("invalid JSON request body")
     );
+}
+
+#[tokio::test]
+async fn participant_revision_is_required_and_stale_edits_return_409() {
+    let (status, detail) = route_json(Method::GET, "/api/encounters/ambush", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(detail["participants"][0]["revision"], json!(7));
+    let mut request = json!({
+        "participant_key":"participant_a", "display_name":"Edited", "side":"enemy",
+        "participant_variant":"normal", "temporary_hp":0, "defeated":false, "hidden":false,
+    });
+    let path = "/api/encounters/ambush/participants/participant_a";
+    let (status, body) = route_json(Method::PATCH, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+    request["expected_revision"] = json!(6);
+    let (status, body) = route_json(Method::PATCH, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "encounter_participant_conflict");
+    request["expected_revision"] = json!(7);
+    let (status, body) = route_json(Method::PATCH, path, Some(request)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!({"encounter_key":"ambush"}));
 }
 
 async fn route_json(method: Method, path: &str, body: Option<Value>) -> (StatusCode, Value) {
@@ -951,149 +964,125 @@ impl AtlasWebService for MockService {
     fn update_encounter(
         &self,
         request: UpdateEncounterRequest,
-    ) -> Result<EncounterUpdateView, AppServiceError> {
-        Ok(EncounterUpdateView {
-            encounter: EncounterSummaryView {
-                encounter_key: request.encounter_key,
-                slug: request.slug,
-                name: request.name,
-                description: request.description,
-                status: request.status,
-                round_number: 1,
-                participant_count: 2,
-                created_at: "2026-01-01T00:00:00Z".to_string(),
-                updated_at: "2026-01-02T00:00:00Z".to_string(),
-            },
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: request.encounter_key,
         })
     }
 
     fn add_encounter_record_participant(
         &self,
         request: AddEncounterRecordParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
-        Ok(encounter_detail(&request.encounter_ref, None, false))
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: request.encounter_ref,
+        })
     }
 
     fn add_encounter_manual_participant(
         &self,
         request: AddEncounterManualParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
-        Ok(encounter_detail(&request.encounter_ref, None, false))
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: request.encounter_ref,
+        })
     }
 
     fn update_encounter_participant(
         &self,
         encounter_ref: &str,
         request: UpdateEncounterParticipantRequest,
-    ) -> Result<EncounterParticipantView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         if encounter_ref == "missing" {
             return Err(encounter_not_found(encounter_ref));
         }
-        Ok(EncounterParticipantView {
-            hp_origin: "explicit".into(),
-            variant_origin: "explicit".into(),
-            participant_key: request.participant_key,
-            record_key: Some("actors:testCreature".to_string()),
-            participant_kind: EncounterParticipantKindView::Creature,
-            participant_variant: request.participant_variant,
-            status: EncounterParticipantStatusView::Active,
-            position: 1,
-            display_name: request.display_name,
-            side: request.side,
-            initiative: request.initiative,
-            initiative_order: 1,
-            max_hp: request.max_hp,
-            current_hp: request.current_hp,
-            temporary_hp: request.temporary_hp,
-            defeated: request.defeated,
-            hidden: request.hidden,
-            note: request.note.clone(),
-            note_hint: request.note,
-            conditions: vec![],
-            record: Some(record_summary()),
-            presentation: None,
+        if request.participant_key != "participant_a" {
+            return Err(AppServiceError::invalid_request(
+                "participant path override missing",
+            ));
+        }
+        if request.expected_revision != 7 {
+            return Err(AppServiceError::new(
+                AppErrorCode::EncounterParticipantConflict,
+                "participant changed",
+            ));
+        }
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.to_string(),
         })
     }
 
     fn reorder_encounter_participant(
         &self,
         encounter_ref: &str,
-        request: ReorderEncounterParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
-        let mut detail = encounter_detail(encounter_ref, None, false);
-        if request.placement == ReorderEncounterParticipantPlacementView::Before {
-            detail.participants.reverse();
-        }
-        Ok(detail)
+        _request: ReorderEncounterParticipantRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.to_string(),
+        })
     }
 
     fn remove_encounter_participant(
         &self,
         encounter_ref: &str,
         _participant_key: &str,
-    ) -> Result<EncounterDetailView, AppServiceError> {
-        Ok(encounter_detail(encounter_ref, None, false))
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.to_string(),
+        })
     }
 
     fn set_encounter_turn(
         &self,
         request: SetEncounterTurnRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
-        Ok(encounter_detail(
-            &request.encounter_ref,
-            request.participant_key,
-            false,
-        ))
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: request.encounter_ref,
+        })
     }
 
     fn add_encounter_participant_condition(
         &self,
         encounter_ref: &str,
-        request: AddEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
-        Ok(encounter_detail(
-            encounter_ref,
-            None,
-            request.name.as_deref() == Some("Frightened"),
-        ))
+        _request: AddEncounterParticipantConditionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.to_string(),
+        })
     }
 
     fn update_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
-        request: UpdateEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+        _request: UpdateEncounterParticipantConditionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
         if participant_key != "participant_a" {
             return Err(AppServiceError::new(
                 AppErrorCode::EncounterParticipantNotFound,
-                format!(
-                    "encounter participant condition `{}` was not found for participant `{participant_key}`",
-                    request.condition_id
-                ),
+                "condition not found for participant",
             ));
         }
-        let mut detail = encounter_detail(encounter_ref, None, true);
-        detail.participants[0].conditions[0].condition_id = request.condition_id;
-        detail.participants[0].conditions[0].value = request.value;
-        Ok(detail)
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.to_string(),
+        })
     }
 
     fn remove_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
-        condition_id: i64,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+        _condition_id: i64,
+    ) -> Result<EncounterMutationView, AppServiceError> {
         if participant_key != "participant_a" {
             return Err(AppServiceError::new(
                 AppErrorCode::EncounterParticipantNotFound,
-                format!(
-                    "encounter participant condition `{condition_id}` was not found for participant `{participant_key}`"
-                ),
+                "condition not found for participant",
             ));
         }
-        Ok(encounter_detail(encounter_ref, None, false))
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.to_string(),
+        })
     }
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
@@ -1248,6 +1237,7 @@ fn encounter_participant(
     include_condition: bool,
 ) -> EncounterParticipantView {
     EncounterParticipantView {
+        revision: 7,
         hp_origin: "explicit".into(),
         variant_origin: "explicit".into(),
         participant_key: participant_key.to_string(),

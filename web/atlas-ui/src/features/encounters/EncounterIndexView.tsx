@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Checkbox } from "antd";
+import { Alert, Button, Checkbox } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -24,10 +24,16 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
     (encounter) => showArchived || encounter.status !== "archived",
   );
   const deleteMutation = useMutation({
-    mutationFn: deleteEncounter,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["encounters"] }),
+    retry: false,
+    mutationFn: (encounter: EncounterSummaryView) =>
+      deleteEncounter(encounter.encounter_key),
+    onSuccess: async (receipt, encounter) => {
+      for (const ref of [receipt.encounter_key, receipt.slug, encounter.slug]) {
+        queryClient.removeQueries({ queryKey: ["encounter", ref], exact: true });
+      }
+      await queryClient.invalidateQueries({ queryKey: ["encounters"] });
+    },
   });
-
   return (
     <EntityIndexPage
       actions={
@@ -61,11 +67,34 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       summary={`${visible.length} active encounters`}
       title="Encounters"
     >
+      {encounters.error && (
+        <Alert
+          type="error"
+          title="Encounters could not load"
+          description={encounters.error.message}
+          action={
+            <Button
+              onClick={() => void encounters.refetch()}
+              loading={encounters.isFetching}
+            >
+              Retry encounters
+            </Button>
+          }
+        />
+      )}
+      {deleteMutation.error && (
+        <Alert
+          type="error"
+          title="Encounter could not be deleted"
+          description={deleteMutation.error.message}
+        />
+      )}
       <IndexTable
         columns={encounterColumns(
           (encounter) =>
             navigateToAtlasRoute({ kind: "encounterEdit", slug: encounter.slug }),
-          (encounter) => deleteMutation.mutate(encounter.slug),
+          (encounter) => deleteMutation.mutateAsync(encounter),
+          deleteMutation.isPending,
         )}
         dataSource={visible}
         loading={encounters.isLoading || encounters.isFetching}
@@ -81,7 +110,8 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
 
 function encounterColumns(
   onEdit: (encounter: EncounterSummaryView) => void,
-  onDelete: (encounter: EncounterSummaryView) => void,
+  onDelete: (encounter: EncounterSummaryView) => Promise<unknown>,
+  deleting: boolean,
 ): ColumnsType<EncounterSummaryView> {
   return [
     {
@@ -115,6 +145,7 @@ function encounterColumns(
             }}
           />
           <DangerActionButton
+            disabled={deleting}
             aria-label={`Delete ${encounter.name}`}
             confirmContent="This permanently deletes the encounter."
             confirmOkText="Delete"

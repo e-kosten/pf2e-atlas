@@ -15,8 +15,7 @@ import type {
   EncounterConditionCatalogView,
   EncounterDetailView,
   EncounterIndexView,
-  EncounterParticipantView,
-  EncounterUpdateView,
+  EncounterMutationView,
   FilterEditorView,
   FilterSavedListRequest,
   FilterValueListView,
@@ -172,20 +171,17 @@ export async function deleteEncounter(
 
 export async function updateEncounter(
   request: UpdateEncounterRequest,
-): Promise<EncounterUpdateView> {
-  return atlasFetchEncounter(
-    `/api/encounters/${encodeURIComponent(request.encounter_key)}`,
-    {
-      method: "PATCH",
-      body: jsonBody(request),
-    },
-  );
+): Promise<EncounterMutationView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(request.encounter_key)}`, {
+    method: "PATCH",
+    body: jsonBody(request),
+  });
 }
 
 export async function addEncounterRecordParticipant(
   request: AddEncounterRecordParticipantRequest,
-): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(request.encounter_ref)}/participants/record`,
     {
       method: "POST",
@@ -196,8 +192,8 @@ export async function addEncounterRecordParticipant(
 
 export async function addEncounterManualParticipant(
   request: AddEncounterManualParticipantRequest,
-): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(request.encounter_ref)}/participants/manual`,
     {
       method: "POST",
@@ -209,8 +205,8 @@ export async function addEncounterManualParticipant(
 export async function updateEncounterParticipant(
   encounterRef: string,
   request: UpdateEncounterParticipantRequest,
-): Promise<EncounterParticipantView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}`,
     {
       method: "PATCH",
@@ -222,8 +218,8 @@ export async function updateEncounterParticipant(
 export async function reorderEncounterParticipant(
   encounterRef: string,
   request: ReorderEncounterParticipantRequest,
-): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/reorder`,
     {
       method: "POST",
@@ -235,8 +231,8 @@ export async function reorderEncounterParticipant(
 export async function removeEncounterParticipant(
   encounterRef: string,
   participantKey: string,
-): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}`,
     { method: "DELETE" },
   );
@@ -244,8 +240,8 @@ export async function removeEncounterParticipant(
 
 export async function setEncounterTurn(
   request: SetEncounterTurnRequest,
-): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(request.encounter_ref)}/turn`,
     {
       method: "POST",
@@ -257,8 +253,8 @@ export async function setEncounterTurn(
 export async function addEncounterParticipantCondition(
   encounterRef: string,
   request: AddEncounterParticipantConditionRequest,
-): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/conditions`,
     {
       method: "POST",
@@ -271,8 +267,8 @@ export async function updateEncounterParticipantCondition(
   encounterRef: string,
   participantKey: string,
   request: UpdateEncounterParticipantConditionRequest,
-): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${request.condition_id.toString()}`,
     {
       method: "PATCH",
@@ -285,8 +281,8 @@ export async function removeEncounterParticipantCondition(
   encounterRef: string,
   participantKey: string,
   conditionId: bigint,
-): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(
+): Promise<EncounterMutationView> {
+  return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${conditionId.toString()}`,
     { method: "DELETE" },
   );
@@ -429,8 +425,15 @@ async function atlasFetchEncounter<T>(
   const participant = (value: unknown) => {
     if (!isRecord(value) || !Array.isArray(value.conditions))
       throw new AtlasApiError(200, "Invalid encounter participant");
+    if (
+      typeof value.revision !== "number" ||
+      !Number.isSafeInteger(value.revision) ||
+      value.revision < 0
+    )
+      throw new AtlasApiError(200, "Invalid participant revision in API response");
     return {
       ...value,
+      revision: BigInt(value.revision),
       position: toBigInt(value.position),
       initiative_order: toBigInt(value.initiative_order),
       temporary_hp: toBigInt(value.temporary_hp),
@@ -443,7 +446,6 @@ async function atlasFetchEncounter<T>(
   if (result.encounter !== undefined) result.encounter = summary(result.encounter);
   if (Array.isArray(result.participants))
     result.participants = result.participants.map(participant);
-  if (result.participant_key !== undefined) return participant(result) as T;
   if (Array.isArray(result.conditions))
     result.conditions = result.conditions.map((value) => {
       if (!isRecord(value))

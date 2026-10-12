@@ -1,7 +1,42 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { EditableCommitField } from "./EditableCommitField";
 
 describe("EditableCommitField", () => {
+  it("does not submit on disabled blur or Enter", () => {
+    const onCommit = vi.fn();
+    const { rerender } = render(
+      <EditableCommitField ariaLabel="HP" value="10" onCommit={onCommit} />,
+    );
+    const input = screen.getByLabelText("HP");
+    fireEvent.change(input, { target: { value: "3" } });
+    rerender(
+      <EditableCommitField ariaLabel="HP" value="10" onCommit={onCommit} disabled />,
+    );
+    fireEvent.blur(input);
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input).toBeDisabled();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+  it("retains a rejected draft but releases it after a successful retry", async () => {
+    const onCommit = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Failed"))
+      .mockResolvedValue(undefined);
+    const { rerender } = render(
+      <EditableCommitField ariaLabel="HP" value="10" onCommit={onCommit} />,
+    );
+    const input = screen.getByLabelText("HP");
+    fireEvent.change(input, { target: { value: "3" } });
+    await act(async () => fireEvent.blur(input));
+    rerender(<EditableCommitField ariaLabel="HP" value="9" onCommit={onCommit} />);
+    expect(input).toHaveValue("3");
+    await act(async () => fireEvent.blur(input));
+    await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(2));
+    rerender(<EditableCommitField ariaLabel="HP" value="3" onCommit={onCommit} />);
+    expect(input).toHaveValue("3");
+    rerender(<EditableCommitField ariaLabel="HP" value="7" onCommit={onCommit} />);
+    expect(input).toHaveValue("7");
+  });
   it("commits edited values on blur", () => {
     const onCommit = vi.fn();
     render(

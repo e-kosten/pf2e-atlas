@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Modal, Select } from "antd";
-import { useEffect } from "react";
+import { Alert, Button, Form, Input, Modal, Select } from "antd";
+import { useEffect, useRef } from "react";
 import { createEncounter } from "../../api/atlasApi";
 import type {
   EncounterStatusView,
@@ -43,9 +43,28 @@ export function CreateEncounterModal({
       title="New encounter"
       open={open}
       onCancel={onCancel}
+      confirmLoading={mutation.isPending}
+      cancelButtonProps={{ disabled: mutation.isPending }}
+      closable={!mutation.isPending}
+      keyboard={!mutation.isPending}
+      mask={{ closable: !mutation.isPending }}
       onOk={() => form.submit()}
     >
-      <Form form={form} layout="vertical" onFinish={(v) => mutation.mutate(v)}>
+      <Form
+        disabled={mutation.isPending}
+        form={form}
+        layout="vertical"
+        onFinish={(v) => {
+          if (!mutation.isPending) mutation.mutate(v);
+        }}
+      >
+        {mutation.error && (
+          <Alert
+            type="error"
+            title="Encounter could not be created"
+            description={mutation.error.message}
+          />
+        )}
         <Form.Item name="name" label="Name" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
@@ -63,20 +82,38 @@ export function EditEncounterModal({
   onComplete,
   onDelete,
   onSave,
+  disabled = false,
+  pending = false,
+  error,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
-  onArchive?: () => void;
+  onArchive?: () => Promise<unknown>;
   open: boolean;
   onCancel: () => void;
-  onComplete?: () => void;
+  onComplete?: () => Promise<unknown>;
   onDelete?: () => void;
-  onSave: (encounter: UpdateEncounterRequest) => void;
+  onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
+  disabled?: boolean;
+  pending?: boolean;
+  error?: string;
 }) {
   return (
-    <Modal title="Edit encounter" open={open} onCancel={onCancel} footer={null}>
+    <Modal
+      title="Edit encounter"
+      open={open}
+      destroyOnHidden
+      onCancel={onCancel}
+      footer={null}
+      closable={!pending}
+      keyboard={!pending}
+      mask={{ closable: !pending }}
+    >
       <EditEncounterForm
         encounter={encounter}
+        disabled={disabled}
+        pending={pending}
+        error={error}
         encounterNote={encounterNote}
         onArchive={onArchive}
         onCancel={onCancel}
@@ -96,39 +133,75 @@ export function EditEncounterForm({
   onComplete,
   onDelete,
   onSave,
+  disabled = false,
+  pending = false,
+  error,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
-  onArchive?: () => void;
+  onArchive?: () => Promise<unknown>;
   onCancel?: () => void;
-  onComplete?: () => void;
+  onComplete?: () => Promise<unknown>;
   onDelete?: () => void;
-  onSave: (encounter: UpdateEncounterRequest) => void;
+  onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
+  disabled?: boolean;
+  pending?: boolean;
+  error?: string;
 }) {
   const [form] = Form.useForm<EditEncounterFormValues>();
+  const initializedKey = useRef<string | null>(null);
   useEffect(() => {
-    form.setFieldsValue({
+    const values = {
       name: encounter.name,
       description: encounter.description,
       note: encounterNote,
       status: encounter.status,
-    });
+    };
+    if (initializedKey.current !== encounter.encounter_key) {
+      form.resetFields();
+      form.setFieldsValue(values);
+      form.setFields(
+        (Object.keys(values) as Array<keyof EditEncounterFormValues>).map((name) => ({
+          name,
+          touched: false,
+        })),
+      );
+      initializedKey.current = encounter.encounter_key;
+    } else {
+      for (const field of Object.keys(values) as Array<keyof EditEncounterFormValues>) {
+        if (!form.isFieldTouched(field)) form.setFieldValue(field, values[field]);
+      }
+    }
   }, [encounter, encounterNote, form]);
   return (
     <Form
+      disabled={disabled}
       form={form}
       layout="vertical"
-      onFinish={(values) =>
-        onSave({
-          encounter_key: encounter.encounter_key,
-          slug: encounter.slug,
-          name: values.name,
-          ...(values.description ? { description: values.description } : {}),
-          ...(values.note ? { note: values.note } : {}),
-          status: values.status,
-        })
-      }
+      onFinish={async (values) => {
+        if (disabled) return;
+        try {
+          await onSave({
+            encounter_key: encounter.encounter_key,
+            slug: encounter.slug,
+            name: values.name,
+            ...(values.description ? { description: values.description } : {}),
+            ...(values.note ? { note: values.note } : {}),
+            status: values.status,
+          });
+          form.setFields(
+            (Object.keys(values) as Array<keyof EditEncounterFormValues>).map(
+              (name) => ({ name, touched: false }),
+            ),
+          );
+        } catch {
+          /* The owner displays the failure; keep this draft. */
+        }
+      }}
     >
+      {error && (
+        <Alert type="error" title="Encounter action failed" description={error} />
+      )}
       <Form.Item name="name" label="Name" rules={[{ required: true }]}>
         <Input />
       </Form.Item>
@@ -147,15 +220,32 @@ export function EditEncounterForm({
         />
       </Form.Item>
       <div className="encounter-actions">
-        {onCancel ? <Button onClick={onCancel}>Cancel</Button> : null}
-        {onComplete ? <Button onClick={onComplete}>Complete</Button> : null}
-        {onArchive ? <Button onClick={onArchive}>Archive</Button> : null}
+        {onCancel ? (
+          <Button disabled={pending} onClick={onCancel}>
+            Cancel
+          </Button>
+        ) : null}
+        {onComplete ? (
+          <Button disabled={disabled} onClick={() => void onComplete().catch(() => {})}>
+            Complete
+          </Button>
+        ) : null}
+        {onArchive ? (
+          <Button disabled={disabled} onClick={() => void onArchive().catch(() => {})}>
+            Archive
+          </Button>
+        ) : null}
         {onDelete ? (
-          <Button danger onClick={onDelete}>
+          <Button disabled={disabled} danger onClick={onDelete}>
             Delete
           </Button>
         ) : null}
-        <Button type="primary" onClick={() => form.submit()}>
+        <Button
+          disabled={disabled}
+          loading={pending}
+          type="primary"
+          onClick={() => form.submit()}
+        >
           Save
         </Button>
       </div>

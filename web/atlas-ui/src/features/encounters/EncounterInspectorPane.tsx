@@ -1,4 +1,4 @@
-import { Button, Collapse, Form, Input, Select, Modal } from "antd";
+import { Alert, Button, Collapse, Form, Input, Select, Modal } from "antd";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 import type { getRecordDetail } from "../../api/atlasApi";
@@ -10,11 +10,7 @@ import type {
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
-import {
-  applyParticipantUpdate,
-  optionalBigIntInput,
-  participantUpdate,
-} from "./participantEdits";
+import { optionalBigIntInput, participantUpdate } from "./participantEdits";
 import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
@@ -29,6 +25,11 @@ import { EncounterHpControls } from "./EncounterHpControls";
 import { atlasRoutePath } from "../../app/routes";
 
 export function EncounterInspectorPane({
+  disabled,
+  conditionsDisabled,
+  conditionError,
+  onRetryConditions,
+  error,
   onCloseRecordPreview,
   onOpenRecordFullPage,
   onReference,
@@ -47,16 +48,23 @@ export function EncounterInspectorPane({
   previewAnchor,
   previewSelection,
 }: {
+  disabled: boolean;
+  conditionsDisabled: boolean;
+  conditionError: Error | null;
+  onRetryConditions: () => void;
+  error?: string;
   onCloseRecordPreview: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
-  onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
+  onAddCondition: (
+    condition: AddEncounterParticipantConditionRequest,
+  ) => Promise<unknown>;
+  onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<unknown>;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
-  ) => void;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
+  ) => Promise<unknown>;
+  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
@@ -78,6 +86,11 @@ export function EncounterInspectorPane({
       {
         <EncounterParticipantSurface
           key={`participant-${participant.participant_key}`}
+          disabled={disabled}
+          conditionsDisabled={conditionsDisabled}
+          conditionError={conditionError}
+          onRetryConditions={onRetryConditions}
+          error={error}
           conditionDefinitions={conditionDefinitions}
           onAddCondition={onAddCondition}
           onReference={onReference}
@@ -117,6 +130,11 @@ export function EncounterInspectorPane({
 }
 
 function EncounterParticipantSurface({
+  disabled,
+  conditionsDisabled,
+  conditionError,
+  onRetryConditions,
+  error,
   conditionDefinitions,
   onAddCondition,
   onReference,
@@ -126,47 +144,39 @@ function EncounterParticipantSurface({
   participant,
   participants,
 }: {
+  disabled: boolean;
+  conditionsDisabled: boolean;
+  conditionError: Error | null;
+  onRetryConditions: () => void;
+  error?: string;
   conditionDefinitions: EncounterConditionDefinitionView[];
-  onAddCondition: (condition: AddEncounterParticipantConditionRequest) => void;
+  onAddCondition: (
+    condition: AddEncounterParticipantConditionRequest,
+  ) => Promise<unknown>;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => void;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => void;
+  onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<unknown>;
+  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
-  ) => void;
+  ) => Promise<unknown>;
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
 }) {
-  const [projectedCurrent, setProjectedCurrent] = useState<{
-    source: EncounterParticipantView | null;
-    participant: EncounterParticipantView | null;
-  }>({ source: null, participant: null });
   const [noteOpen, setNoteOpen] = useState(false);
-  const activeCurrent =
-    projectedCurrent.source === participant &&
-    projectedCurrent.participant?.participant_key === participant.participant_key
-      ? projectedCurrent.participant
-      : participant;
-  const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) => {
-    const request = participantUpdate(activeCurrent, changes);
-    setProjectedCurrent({
-      source: participant,
-      participant: applyParticipantUpdate(activeCurrent, request),
-    });
-    onUpdate(request);
-  };
-  const presentation = activeCurrent.presentation ?? participant.presentation;
+  const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
+    onUpdate(participantUpdate(participant, changes));
+  const presentation = participant.presentation;
   return (
     <section className="encounter-reference">
       <div className="encounter-reference__header">
         {presentation ? (
           <RecordIdentity
-            identity={{ ...presentation.identity, title: activeCurrent.display_name }}
+            identity={{ ...presentation.identity, title: participant.display_name }}
             classification={presentation.classification}
           />
         ) : (
-          <h2>{activeCurrent.display_name}</h2>
+          <h2>{participant.display_name}</h2>
         )}
         <div className="encounter-reference__header-actions">
           <Button
@@ -177,19 +187,35 @@ function EncounterParticipantSurface({
             type={noteOpen ? "primary" : "default"}
           />
           <ParticipantVariantControl
-            participant={activeCurrent}
+            disabled={disabled}
+            participant={participant}
             onUpdate={updateParticipant}
           />
         </div>
       </div>
-      {activeCurrent.status === "unresolved" && (
+      {participant.status === "unresolved" && (
         <p>Authored record unavailable. Saved participant settings remain editable.</p>
       )}
       <div className="encounter-reference__controls">
-        <EncounterHpControls current={activeCurrent} onUpdate={updateParticipant} />
+        <EncounterHpControls
+          disabled={disabled}
+          current={participant}
+          onUpdate={updateParticipant}
+        />
+        {conditionError && (
+          <Alert
+            type="error"
+            title="Conditions could not load"
+            description={conditionError.message}
+            action={<Button onClick={onRetryConditions}>Retry conditions</Button>}
+          />
+        )}
         <EncounterConditionControls
+          disabled={disabled}
+          addDisabled={conditionsDisabled}
+          error={error}
           conditionDefinitions={conditionDefinitions}
-          current={activeCurrent}
+          current={participant}
           onAddCondition={onAddCondition}
           onReference={onReference}
           onRemoveCondition={onRemoveCondition}
@@ -207,7 +233,8 @@ function EncounterParticipantSurface({
             styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
             children: (
               <ParticipantEditStrip
-                participant={activeCurrent}
+                disabled={disabled}
+                participant={participant}
                 onUpdate={updateParticipant}
               />
             ),
@@ -224,7 +251,8 @@ function EncounterParticipantSurface({
       )}
       {noteOpen && (
         <ParticipantNoteEditor
-          participant={activeCurrent}
+          disabled={disabled}
+          participant={participant}
           onUpdate={updateParticipant}
         />
       )}
@@ -233,11 +261,13 @@ function EncounterParticipantSurface({
 }
 
 function ParticipantVariantControl({
+  disabled,
   onUpdate,
   participant,
 }: {
-  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => Promise<unknown>;
   participant: EncounterParticipantView;
+  disabled: boolean;
 }) {
   if (participant.participant_kind !== "creature") {
     return null;
@@ -246,10 +276,11 @@ function ParticipantVariantControl({
     <div className="encounter-variant-control">
       <span>Variant</span>
       <Select
+        disabled={disabled}
         aria-label="Variant"
         className="encounter-variant-select"
         onChange={(value: EncounterParticipantVariantView) =>
-          onUpdate({ participant_variant: value })
+          void onUpdate({ participant_variant: value }).catch(() => {})
         }
         options={[
           { label: "Normal", value: "normal" },
@@ -264,16 +295,19 @@ function ParticipantVariantControl({
 }
 
 function ParticipantEditStrip({
+  disabled,
   onUpdate,
   participant,
 }: {
-  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => Promise<unknown>;
   participant: EncounterParticipantView;
+  disabled: boolean;
 }) {
   return (
     <section className="encounter-participant-strip">
       <Form.Item style={{ marginBottom: 0 }} label="Name" layout="vertical">
         <EditableCommitField
+          disabled={disabled}
           ariaLabel="Participant name"
           onCommit={(displayName) => onUpdate({ display_name: displayName })}
           value={participant.display_name}
@@ -281,12 +315,13 @@ function ParticipantEditStrip({
       </Form.Item>
       <Form.Item style={{ marginBottom: 0 }} label="Initiative" layout="vertical">
         <EditableCommitField
+          disabled={disabled}
           ariaLabel="Participant initiative"
           inputMode="numeric"
           onCommit={(value) => {
             const initiative = optionalBigIntInput(value);
             if (initiative !== null) {
-              onUpdate({ initiative });
+              return onUpdate({ initiative });
             }
           }}
           value={participant.initiative?.toString() ?? ""}
@@ -294,16 +329,22 @@ function ParticipantEditStrip({
       </Form.Item>
       <Form.Item style={{ marginBottom: 0 }} label="Side" layout="vertical">
         <Select
+          disabled={disabled}
           aria-label="Participant side"
           value={participant.side}
-          onChange={(side) => onUpdate({ side })}
+          onChange={(side) => void onUpdate({ side }).catch(() => {})}
           options={["pc", "ally", "enemy", "neutral", "hazard"].map((value) => ({
             value,
             label: value,
           }))}
         />
       </Form.Item>
-      <Button onClick={() => onUpdate({ defeated: !participant.defeated })}>
+      <Button
+        disabled={disabled}
+        onClick={() =>
+          void onUpdate({ defeated: !participant.defeated }).catch(() => {})
+        }
+      >
         {participant.defeated ? "Mark active" : "Mark defeated"}
       </Button>
     </section>
@@ -311,21 +352,27 @@ function ParticipantEditStrip({
 }
 
 function ParticipantNoteEditor({
+  disabled,
   onUpdate,
   participant,
 }: {
-  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => void;
+  disabled: boolean;
+  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => Promise<unknown>;
   participant: EncounterParticipantView;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? participant.note ?? "";
   return (
     <Input.TextArea
+      disabled={disabled}
       aria-label="Participant note text"
-      key={`note-${participant.participant_key}-${participant.note ?? ""}`}
-      defaultValue={participant.note ?? ""}
-      onBlur={(event) => {
-        const nextNote = event.currentTarget.value;
-        if (nextNote !== (participant.note ?? "")) {
-          onUpdate({ note: nextNote });
+      value={value}
+      onChange={(event) => setDraft(event.currentTarget.value)}
+      onBlur={() => {
+        if (!disabled && value !== (participant.note ?? "")) {
+          void onUpdate({ note: value })
+            .then(() => setDraft(null))
+            .catch(() => {});
         }
       }}
     />

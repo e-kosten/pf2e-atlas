@@ -310,7 +310,12 @@ test("saved list creation and unknown manual participant HP use actual local-sta
     .click();
   await page.getByRole("textbox", { name: "HP", exact: true }).fill("13");
   await page.getByRole("button", { name: "Set", exact: true }).first().click();
-  await page.getByRole("combobox", { name: "Variant", exact: true }).press("ArrowDown");
+  await expect(
+    page.getByRole("textbox", { name: "Ghoul current HP", exact: true }),
+  ).toHaveValue("13");
+  const variant = page.getByRole("combobox", { name: "Variant", exact: true });
+  await expect(variant).toBeEnabled();
+  await variant.press("ArrowDown");
   await page
     .locator(".atlas-select-popup:visible")
     .getByText("Elite", { exact: true })

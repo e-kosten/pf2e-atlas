@@ -18,10 +18,10 @@ pub use encounter::{
     CreateEncounterRequest, DeleteEncounterView, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterReferenceRequest,
-    EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    EncounterDetailView, EncounterIndexView, EncounterMutationView,
+    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterReferenceRequest, EncounterStatusView, EncounterSummaryView,
     ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
     RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
     RuntimeEffectNoteView, SetEncounterTurnRequest, StatModifierTypeView, StatModifierView,
@@ -178,8 +178,8 @@ mod tests {
             .expect("EncounterParticipantConditionView bindings should export");
         EncounterParticipantVariantView::export_all_to(path)
             .expect("EncounterParticipantVariantView bindings should export");
-        EncounterUpdateView::export_all_to(path)
-            .expect("EncounterUpdateView bindings should export");
+        EncounterMutationView::export_all_to(path)
+            .expect("EncounterMutationView bindings should export");
 
         RuntimeAdjustmentView::export_all_to(path)
             .expect("RuntimeAdjustmentView bindings should export");
