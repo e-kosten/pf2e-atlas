@@ -171,6 +171,13 @@ Verified legacy preference applies only among records matching the complete requ
 before paging. Exact legacy keys remain accessible. Macros are excluded on every
 product path; RollTables remain browse/search/detail records.
 
+Text search and semantic contextual discovery share an exhaustive query-embedding
+error conversion. Empty input and exact token-budget overflow remain invalid
+requests, with useful counts and a shortening instruction; model/cache/inference
+failures retain their availability classification. Queries are never truncated or
+downgraded to lexical retrieval to conceal semantic input errors. Optional facet
+availability is still checked before embeddings when its context is unsupported.
+
 Index summaries and selected cache bundles are body free. Explicit detail decodes
 one root and batches required fields. Search result witnesses do not cause
 per-field/per-marker body reads. Reader connections stay on one generation while
