@@ -86,63 +86,65 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
 
   return (
     <div className="encounter-detail-view">
-      <section className="encounter-detail-header">
-        <div>
-          <h2>{encounterSummary?.name ?? route.slug}</h2>
-          <p>
-            {encounterSummary
-              ? `${encounterSummary.status} - round ${
-                  encounterSummary.round_number ?? 1
-                } - ${encounterSummary.participant_count} participants`
-              : "Loading encounter"}
-          </p>
-        </div>
-        <Button
-          aria-label="Edit encounter"
-          disabled={disabled}
-          icon={<Edit2 size={14} />}
-          onClick={() => setEditEncounterOpen(true)}
-        >
-          Edit
-        </Button>
-      </section>
-      {encounter.error && !mutations.refreshError && (
-        <Alert
-          type="error"
-          title="Encounter could not load"
-          description={encounter.error.message}
-          action={
-            <Button
-              loading={encounter.isFetching}
-              onClick={() => void encounter.refetch()}
-            >
-              Retry encounter
-            </Button>
-          }
-        />
-      )}
-      {mutations.refreshError && (
-        <Alert
-          type="error"
-          title={mutations.refreshMessage}
-          description={mutations.refreshError.message}
-          action={
-            <Button
-              loading={mutations.pending}
-              onClick={() => void mutations.retryRefresh()}
-            >
-              Retry encounter refresh
-            </Button>
-          }
-        />
-      )}
-      {mutations.error && (
-        <Alert
-          type="error"
-          title="Encounter action failed"
-          description={mutations.errorMessage}
-        />
-      )}
+      <div>
+        <section className="encounter-detail-header">
+          <div>
+            <h2>{encounterSummary?.name ?? route.slug}</h2>
+            <p>
+              {encounterSummary
+                ? `${encounterSummary.status} - round ${
+                    encounterSummary.round_number ?? 1
+                  } - ${encounterSummary.participant_count} participants`
+                : "Loading encounter"}
+            </p>
+          </div>
+          <Button
+            aria-label="Edit encounter"
+            disabled={disabled}
+            icon={<Edit2 size={14} />}
+            onClick={() => setEditEncounterOpen(true)}
+          >
+            Edit
+          </Button>
+        </section>
+        {encounter.error && !mutations.refreshError && (
+          <Alert
+            type="error"
+            title="Encounter could not load"
+            description={encounter.error.message}
+            action={
+              <Button
+                loading={encounter.isFetching}
+                onClick={() => void encounter.refetch()}
+              >
+                Retry encounter
+              </Button>
+            }
+          />
+        )}
+        {mutations.refreshError && (
+          <Alert
+            type="error"
+            title={mutations.refreshMessage}
+            description={mutations.refreshError.message}
+            action={
+              <Button
+                loading={mutations.pending}
+                onClick={() => void mutations.retryRefresh()}
+              >
+                Retry encounter refresh
+              </Button>
+            }
+          />
+        )}
+        {mutations.error && (
+          <Alert
+            type="error"
+            title="Encounter action failed"
+            description={mutations.errorMessage}
+          />
+        )}
+      </div>
       <WorkspaceLayout
         filter={
           <EncounterRosterPane
