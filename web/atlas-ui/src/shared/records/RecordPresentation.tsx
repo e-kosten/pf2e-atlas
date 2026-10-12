@@ -30,6 +30,7 @@ import type { OwnedReadingContext } from "./OwnedAbilityReading";
 import { activityAddress } from "./ownedNavigation";
 import {
   ownerReturnPath,
+  atlasRoutePath,
   navigateToAtlasPath,
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
@@ -101,12 +102,16 @@ export function RecordIdentity({
   root,
   selection,
   onOwnerReturn,
+  originalRecord,
+  onReference,
 }: {
   identity: RecordSummaryView;
   classification: string;
   actionCost?: FactView<ActionCostView>;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
+  originalRecord?: RecordNavigationView;
+  onReference?: RecordReferenceHandler;
   onOwnerReturn?: (
     parent: string,
     landing: RecordNavigationView,
@@ -141,6 +146,23 @@ export function RecordIdentity({
           {root.title}
         </Button>
       ) : null}
+      {originalRecord && (
+        <Button
+          type="link"
+          size="small"
+          href={atlasRoutePath({
+            kind: "record",
+            recordKey: originalRecord.record_key,
+          })}
+          onClick={(event) => {
+            if (!onReference || !shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            onReference(originalRecord.record_key, event.currentTarget, originalRecord);
+          }}
+        >
+          Original record
+        </Button>
+      )}
       <div className="record-reference__title">
         <h2>
           {identity.title} {actionCost && <ActionCost fact={actionCost} />}
@@ -221,6 +243,17 @@ export function RecordPresentation({
           root={root}
           selection={selection}
           onOwnerReturn={onOwnerReturn}
+          originalRecord={
+            selection?.owners.length
+              ? (relationships.find(
+                  (relationship) =>
+                    relationship.origin === "structured" &&
+                    relationship.kind === "CompendiumProvenance" &&
+                    relationship.status === "resolved_record",
+                )?.target ?? undefined)
+              : undefined
+          }
+          onReference={onReference}
         />
       )}
       {!encounter && (

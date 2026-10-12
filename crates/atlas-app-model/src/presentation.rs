@@ -204,6 +204,9 @@ pub struct DamageComponentView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SpellPresentationView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub runtime_notes: Option<Vec<crate::RuntimeEffectNoteView>>,
     pub rank: NumberFactView,
     pub traditions: FactView<Vec<String>>,
     pub cast: FactView<ActionCostView>,

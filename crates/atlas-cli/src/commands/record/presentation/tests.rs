@@ -324,6 +324,7 @@ fn damage_component() -> DamageComponentView {
 }
 fn spell() -> SpellPresentationView {
     SpellPresentationView {
+        runtime_notes: None,
         rank: numeric(2),
         traditions: known(vec!["arcane".into(), "primal".into()]),
         cast: known(ActionCostView {

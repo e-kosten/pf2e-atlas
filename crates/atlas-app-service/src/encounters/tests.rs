@@ -81,7 +81,7 @@ fn hazard(p: &EncounterParticipantView) -> &HazardPresentationView {
     h
 }
 
-fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
+pub(super) fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
     UpdateEncounterParticipantRequest {
         hp_edit: false,
         max_hp_edit: false,

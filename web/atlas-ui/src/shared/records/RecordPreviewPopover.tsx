@@ -21,7 +21,6 @@ export function RecordPreviewPopover({
   onClose,
   onOpenFullPage,
   onReference,
-  content,
   fullPageHref,
 }: RecordPreviewPopoverProps) {
   const screens = Grid.useBreakpoint();
@@ -96,7 +95,6 @@ export function RecordPreviewPopover({
         onAfterClose={onClose}
         onOpenFullPage={openFullPage}
         onReference={onReference}
-        content={content}
         landing={landing}
         onOwnerReturn={returnToOwner}
         fullPageHref={href}
@@ -127,7 +125,6 @@ export function RecordPreviewPopover({
       }}
       title={
         <div className="record-preview-popover__header">
-          <span>Reference</span>
           <RecordPreviewActions
             onClose={onClose}
             onOpenFullPage={openFullPage}
@@ -142,20 +139,18 @@ export function RecordPreviewPopover({
           className="record-preview-popover__body"
           role="dialog"
         >
-          {content ?? (
-            <RecordDetailPane
-              compact
-              detail={detail}
-              loading={loading}
-              error={error}
-              onRetry={onRetry}
-              onBack={onClose}
-              backLabel="Close preview"
-              onReference={onReference}
-              landing={landing}
-              onOwnerReturn={returnToOwner}
-            />
-          )}
+          <RecordDetailPane
+            compact
+            detail={detail}
+            loading={loading}
+            error={error}
+            onRetry={onRetry}
+            onBack={onClose}
+            backLabel="Close preview"
+            onReference={onReference}
+            landing={landing}
+            onOwnerReturn={returnToOwner}
+          />
         </section>
       }
     >

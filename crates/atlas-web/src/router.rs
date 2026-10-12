@@ -50,6 +50,10 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             axum::routing::patch(update_encounter_participant).delete(remove_encounter_participant),
         )
         .route(
+            "/api/encounters/{encounter_ref}/participants/{participant_key}/reference",
+            post(crate::handlers::encounter_reference),
+        )
+        .route(
             "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions",
             post(add_encounter_participant_condition),
         )

@@ -63,18 +63,12 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
         participant.participant_key === encounter.data?.current_turn_participant_key,
     ) ??
     encounter.data?.participants[0];
-  const selectedBody = selected?.presentation?.body;
-  const selectedActor =
-    selectedBody?.kind === "creature"
-      ? selectedBody.value
-      : selectedBody?.kind === "hazard"
-        ? selectedBody.value.actor
-        : undefined;
   const recordPreview = useRecordPreview({
+    encounterRef: route.slug,
     identity: selected?.participant_key ?? "",
     generation: encounter.data?.artifact_generation ?? null,
     parentRecordKey: selected?.record_key,
-    activities: selectedActor?.activities.value ?? [],
+    presentation: selected?.presentation,
   });
   const invalidateEncounter = async () => {
     await queryClient.invalidateQueries({ queryKey: ["encounter", route.slug] });
@@ -238,7 +232,6 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
             previewAnchor={recordPreview.anchor}
             previewDetail={recordPreview.detail}
-            previewContextual={recordPreview.contextual}
             previewSelection={recordPreview.selection}
             previewLoading={recordPreview.loading}
             previewError={recordPreview.error}

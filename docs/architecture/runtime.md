@@ -234,14 +234,23 @@ are distinct from selected-detail addresses. Native permalinks preserve modified
 clicks, and parent return retains known search/list/reader context and a checked
 reading landing.
 
-Encounter quick lookup requests only the selected activity's authored content,
-including existing strike, spell and casting-entry triggers. Each render resolves
-its exact current participant activity facts and explanations; reference caches
-never retain adjusted facts or replace them with baseline child detail. Changed
-participants, stale generations and missing activities remain explicit. Content-free
+Encounter quick lookup requests the same complete selected-document view as other
+reference readers. App-service checks the participant against current local state,
+decodes one checked parent, reads selected content and composes the bounded runtime
+overlay in Rust. Casting entries retain their associated local spell roster;
+equipment keeps its customized authored view. Spells retain full authored details
+and current runtime notes without calculating spell forms or damage adjustments.
+Runtime detail uses a separate cache keyed by participant presentation and complete
+selection; it never seeds immutable reference caches. Changed participants, stale
+generations and missing selections remain explicit. Content-free
 hydration captures the artifact generation in the same deduplicated retrieval;
 source-free encounters have no generation and require no artifact open. Invalid
 referenced participants remain unresolved rather than becoming manual records.
+
+An embedded reader can offer an Original record link only for a resolved explicit
+CompendiumProvenance relationship. It opens the current local catalog record,
+while the selected reader and its full-page permalink retain the embedded copy.
+There is no name-based pairing or substitution of catalog data into local copies.
 
 Web startup uses
 full pooled retrieval; short-lived CLI workflows may choose explicit model-free

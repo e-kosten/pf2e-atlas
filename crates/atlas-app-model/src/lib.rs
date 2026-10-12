@@ -20,13 +20,13 @@ pub use encounter::{
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
     EncounterDetailView, EncounterIndexView, EncounterParticipantConditionView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, EncounterUpdateView, ReorderEncounterParticipantPlacementView,
-    ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
-    RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
-    StatModifierTypeView, StatModifierView, UnappliedEffectView,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterReferenceRequest,
+    EncounterStatusView, EncounterSummaryView, EncounterUpdateView,
+    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
+    RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
+    RuntimeEffectNoteView, SetEncounterTurnRequest, StatModifierTypeView, StatModifierView,
+    UnappliedEffectView, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
@@ -171,6 +171,8 @@ mod tests {
             .expect("EncounterConditionDefinitionView bindings should export");
         EncounterDetailView::export_all_to(path)
             .expect("EncounterDetailView bindings should export");
+        EncounterReferenceRequest::export_all_to(path)
+            .expect("EncounterReferenceRequest bindings should export");
         EncounterIndexView::export_all_to(path).expect("EncounterIndexView bindings should export");
         EncounterParticipantConditionView::export_all_to(path)
             .expect("EncounterParticipantConditionView bindings should export");

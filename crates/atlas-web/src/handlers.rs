@@ -387,6 +387,20 @@ pub(crate) async fn record_detail_at(
         call_service(state, move || service.record_detail_at(request)).await?,
     ))
 }
+pub(crate) async fn encounter_reference(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<atlas_app_model::EncounterReferenceRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.encounter_reference(&encounter_ref, &participant_key, request)
+        })
+        .await?,
+    ))
+}
 pub(crate) async fn owned_reading(
     State(state): State<AtlasWebState>,
     payload: Result<Json<atlas_app_model::OwnedReadingRequest>, JsonRejection>,

@@ -94,6 +94,50 @@ describe("semantic family presentation", () => {
     expect(onReference).not.toHaveBeenCalled();
   });
 
+  it("offers the explicit original record separately from the customized embedded copy", () => {
+    const onReference = vi.fn();
+    const detail = detailFixture(
+      "actors:caster",
+      "Customized staff",
+      "equipment:catalog-staff",
+    );
+    const selected = activityFixture("Customized staff", "actors:caster").navigation;
+    const relationship = {
+      ...detail.relationships[0],
+      origin: "structured",
+      kind: "CompendiumProvenance",
+      status: "resolved_record",
+    };
+    const view = (available = true) => (
+      <RecordPresentation
+        presentation={detail.presentation}
+        root={summaryFixture("actors:caster", "Caster")}
+        selection={selected}
+        relationships={[
+          available
+            ? relationship
+            : { ...relationship, status: "unresolved", target: null },
+        ]}
+        onReference={onReference}
+      />
+    );
+    const { rerender } = render(view());
+    expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
+    const original = screen.getByRole("link", { name: "Original record" });
+    expect(original).toHaveAttribute("href", "/records/equipment:catalog-staff");
+    fireEvent.click(original);
+    expect(onReference).toHaveBeenCalledWith(
+      "equipment:catalog-staff",
+      original,
+      relationship.target,
+    );
+    onReference.mockClear();
+    fireEvent.click(original, { ctrlKey: true });
+    expect(onReference).not.toHaveBeenCalled();
+    rerender(view(false));
+    expect(screen.queryByRole("link", { name: "Original record" })).toBeNull();
+  });
+
   it("shows selected activity traits once in its identity and retains traits on owned activities", () => {
     const disease = { kind: "trait", value: "disease", label: "Disease" };
     const activity = { ...activityFixture("Ghoul Fever"), traits: [disease] };

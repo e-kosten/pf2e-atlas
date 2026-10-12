@@ -11,62 +11,69 @@ import { App, ConfigProvider, Grid } from "antd";
 import { StrictMode } from "react";
 import type {
   ActorActivityView,
-  OwnedReadingBatchView,
-  OwnedReadingRequest,
+  RecordDetailView,
+  EncounterReferenceRequest,
 } from "../../generated/atlas";
-import { activityFixture, numberFact } from "../../test/fixtures";
+import {
+  activityFixture,
+  actorFixture,
+  detailFixture,
+  knownFact,
+  numberFact,
+  unavailableFact,
+} from "../../test/fixtures";
 import { useRecordPreview } from "./useRecordPreview";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
-import { ActivityContentPane } from "./ActivityContentPane";
 import { atlasRoutePath } from "../../app/routes";
 
-const api = vi.hoisted(() => ({ getOwnedReading: vi.fn(), getRecordDetail: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getEncounterReference: vi.fn(),
+  getRecordDetail: vi.fn(),
+}));
+let currentActivity = activityFixture();
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   ...api,
 }));
-function response(request: OwnedReadingRequest): OwnedReadingBatchView {
-  if (request.selection.kind !== "activity") throw new Error("wrong request");
+function response(request: EncounterReferenceRequest): RecordDetailView {
+  const detail = detailFixture(request.selection.record_key, "Current actor");
   return {
+    ...detail,
     artifact_generation: request.artifact_generation,
-    parent: request.parent,
-    availability: "value",
-    total: 1,
-    start: 0,
-    end: 1,
-    previous: null,
-    next: null,
-    entries: [
-      {
-        navigation: request.selection.navigation,
-        relationships: [],
-        content: [
-          {
-            locator: {
-              record: request.parent.record_key,
-              owners: request.selection.navigation.owners,
-              field: "/system/description/value",
-            },
-            role: "description",
-            source_fingerprint: "snapshot",
-            body: {
-              kind: "html",
-              html: '<p>Exact local Jaws prose <span data-atlas-interaction="0">Reflex check</span></p>',
-              controls: [
-                {
-                  ordinal: 0,
-                  control: {
-                    kind: "check",
-                    statistic: "Reflex",
-                    options: { dc: "15" },
-                  },
+    selected: currentActivity.navigation,
+    presentation: {
+      ...detail.presentation,
+      identity: { ...detail.record, title: currentActivity.title },
+      body: { kind: "activity", value: currentActivity },
+      content:
+        currentActivity.kind === "casting_entry"
+          ? []
+          : [
+              {
+                locator: {
+                  record: request.selection.record_key,
+                  owners: request.selection.owners,
+                  field: "/system/description/value",
                 },
-              ],
-            },
-          },
-        ],
-      },
-    ],
+                role: "description",
+                source_fingerprint: "snapshot",
+                body: {
+                  kind: "html",
+                  html: '<p>Exact local Jaws prose <span data-atlas-interaction="0">Reflex check</span></p>',
+                  controls: [
+                    {
+                      ordinal: 0,
+                      control: {
+                        kind: "check",
+                        statistic: "Reflex",
+                        options: { dc: "15" },
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+    },
   };
 }
 function Flow({
@@ -80,10 +87,19 @@ function Flow({
 }) {
   const jaws = activityFixture();
   const preview = useRecordPreview({
+    encounterRef: "test-encounter",
     identity,
     generation,
     parentRecordKey: jaws.navigation.record_key,
-    activities: activity ? [activity] : [],
+    presentation: activity
+      ? {
+          ...detailFixture(jaws.navigation.record_key).presentation,
+          body: {
+            kind: "creature",
+            value: { ...actorFixture(), activities: knownFact([activity]) },
+          },
+        }
+      : undefined,
   });
   return (
     <>
@@ -109,24 +125,13 @@ function Flow({
             recordKey: jaws.navigation.record_key,
             selection: preview.selection,
           })}
-          content={
-            preview.contextual && (
-              <ActivityContentPane
-                activity={preview.contextual.activity}
-                entry={preview.contextual.entry}
-                error={preview.error}
-                loading={preview.loading}
-                onRetry={preview.contextual.recoverable ? preview.retry : undefined}
-                onReference={preview.open}
-              />
-            )
-          }
         />
       )}
     </>
   );
 }
 function mount(activity = activityFixture()) {
+  currentActivity = activity;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -153,19 +158,54 @@ function mount(activity = activityFixture()) {
       value?: ActorActivityView,
       identity = "participant-a",
       generation: string | null = "generation-a",
-    ) => mounted.rerender(view(value, identity, generation)),
+    ) => {
+      if (value) currentActivity = value;
+      mounted.rerender(view(value, identity, generation));
+    },
   };
 }
 beforeEach(() => {
-  api.getOwnedReading.mockReset();
+  currentActivity = activityFixture();
+  api.getEncounterReference.mockReset();
   api.getRecordDetail.mockReset();
-  api.getOwnedReading.mockImplementation((request) =>
+  api.getEncounterReference.mockImplementation((_encounter, _participant, request) =>
     Promise.resolve(response(request)),
   );
 });
 afterEach(() => vi.restoreAllMocks());
 
-it("composes cached authored prose with current adjusted facts and explanations on every update", async () => {
+it("renders a complete casting entry, its local spell roster, and one title through the shared reader", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
+  const entry = activityFixture("Staff of Fire (Major)");
+  entry.kind = "casting_entry";
+  entry.family = "spellcastingEntry";
+  entry.action_cost = unavailableFact("not_applicable");
+  const spell = activityFixture("Local Fireball");
+  spell.kind = "spell";
+  spell.base_rank = numberFact(3);
+  spell.authored_cast_rank = numberFact(5);
+  entry.casting_context = {
+    parent: { ...entry.navigation, owners: [] },
+    parent_title: "Current actor",
+    spells: knownFact([spell]),
+  };
+  mount(entry);
+  fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", { name: "Staff of Fire (Major)", level: 2 }),
+    ).toBeVisible(),
+  );
+  expect(
+    screen.getAllByRole("heading", { name: "Staff of Fire (Major)" }),
+  ).toHaveLength(1);
+  expect(screen.getByRole("button", { name: /Local Fireball/ })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Description" })).toBeNull();
+  expect(screen.queryByText("Reference")).toBeNull();
+  expect(api.getRecordDetail).not.toHaveBeenCalled();
+});
+
+it("loads complete selected views in an isolated participant cache and refreshes changed runtime facts", async () => {
   vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
   const jaws = activityFixture();
   const { update, client } = mount(jaws);
@@ -183,25 +223,23 @@ it("composes cached authored prose with current adjusted facts and explanations 
       },
     ],
   });
-  expect(screen.getByText("+17")).toBeVisible();
+  await waitFor(() => expect(screen.getByText("+17")).toBeVisible());
   expect(screen.queryByText("+9")).toBeNull();
   expect(
     screen.getByText("Clumsy 1: Current condition penalty is included."),
   ).toBeVisible();
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEncounterReference).toHaveBeenCalledTimes(2);
   expect(api.getRecordDetail).not.toHaveBeenCalled();
   expect(
     client
       .getQueryCache()
-      .findAll({ queryKey: ["owned-reading"] })
+      .findAll({ queryKey: ["record-detail"] })
       .map((query) => JSON.stringify(query.state.data))
       .join(),
   ).not.toContain('"attack"');
   update(undefined);
   expect(
-    screen.getByText(
-      "This activity is no longer available on the current participant.",
-    ),
+    screen.getByText("This participant's reference is no longer available."),
   ).toBeVisible();
   expect(screen.queryByText("+17")).toBeNull();
   expect(screen.queryByText(/Exact local Jaws prose/)).toBeNull();
@@ -218,7 +256,7 @@ it("keeps changed participants and stale generations explicit without baseline f
   expect(screen.getByText(/selected participant has changed/)).toBeVisible();
   update(jaws, "participant-a", "generation-b");
   expect(screen.getByText(/reference collection has changed/)).toBeVisible();
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEncounterReference).toHaveBeenCalledTimes(1);
   expect(api.getRecordDetail).not.toHaveBeenCalled();
 });
 

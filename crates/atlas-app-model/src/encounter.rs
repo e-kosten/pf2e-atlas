@@ -244,6 +244,13 @@ pub struct EncounterDetailView {
     pub participants: Vec<EncounterParticipantView>,
 }
 
+/// A complete selected reference in one current participant's runtime context.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterReferenceRequest {
+    pub artifact_generation: String,
+    pub selection: crate::RecordDetailRequest,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateEncounterRequest {

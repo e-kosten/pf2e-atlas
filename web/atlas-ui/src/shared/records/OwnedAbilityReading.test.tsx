@@ -2,7 +2,12 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Grid } from "antd";
 import { OwnedAbilityReading, type OwnedReadingContext } from "./OwnedAbilityReading";
-import { activityFixture, knownFact } from "../../test/fixtures";
+import {
+  activityFixture,
+  actorFixture,
+  detailFixture,
+  knownFact,
+} from "../../test/fixtures";
 import type { OwnedReadingBatchView, OwnedReadingRequest } from "../../generated/atlas";
 import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
@@ -222,6 +227,12 @@ it.each(["popover", "drawer", "comparison"])(
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+    const detail = detailFixture(context.parent.record_key);
+    detail.artifact_generation = context.generation;
+    detail.presentation.body = {
+      kind: "creature",
+      value: { ...actorFixture(), activities: knownFact(abilities) },
+    };
     const content = (
       <OwnedAbilityReading
         abilities={abilities}
@@ -237,12 +248,11 @@ it.each(["popover", "drawer", "comparison"])(
           ) : (
             <RecordPreviewPopover
               anchor={document.createElement("button")}
-              detail={undefined}
+              detail={detail}
               loading={false}
               onClose={vi.fn()}
               onOpenFullPage={vi.fn()}
               onReference={vi.fn()}
-              content={content}
             />
           )}
         </ConfigProvider>

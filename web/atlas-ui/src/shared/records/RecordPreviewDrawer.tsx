@@ -15,7 +15,6 @@ export function RecordPreviewDrawer({
   onOpenFullPage,
   onReference,
   open,
-  content,
   fullPageHref,
   landing,
   onOwnerReturn,
@@ -37,7 +36,7 @@ export function RecordPreviewDrawer({
       closable={false}
       open={open}
       placement="right"
-      title="Reference"
+      title={<span className="sr-only">Reference</span>}
       size="min(560px, calc(100vw - 24px))"
       classNames={{
         header: "record-preview-drawer__header",
@@ -55,20 +54,18 @@ export function RecordPreviewDrawer({
       onClose={onClose}
     >
       <section {...contentFocus} aria-label="Reference content">
-        {content ?? (
-          <RecordDetailPane
-            compact
-            detail={detail}
-            loading={loading}
-            error={error}
-            onRetry={onRetry}
-            onBack={onClose}
-            backLabel="Close preview"
-            onReference={onReference}
-            landing={landing}
-            onOwnerReturn={onOwnerReturn}
-          />
-        )}
+        <RecordDetailPane
+          compact
+          detail={detail}
+          loading={loading}
+          error={error}
+          onRetry={onRetry}
+          onBack={onClose}
+          backLabel="Close preview"
+          onReference={onReference}
+          landing={landing}
+          onOwnerReturn={onOwnerReturn}
+        />
       </section>
     </Drawer>
   );

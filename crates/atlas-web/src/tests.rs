@@ -823,6 +823,14 @@ impl AtlasWebService for MockService {
     ) -> Result<RecordDetailView, AppServiceError> {
         self.record_detail(&request.record_key)
     }
+    fn encounter_reference(
+        &self,
+        _encounter_ref: &str,
+        _participant_key: &str,
+        request: atlas_app_model::EncounterReferenceRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        self.record_detail_at(request.selection)
+    }
     fn owned_reading(
         &self,
         request: atlas_app_model::OwnedReadingRequest,

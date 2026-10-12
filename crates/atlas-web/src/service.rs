@@ -77,6 +77,12 @@ pub(crate) trait AtlasWebService: Send + Sync {
     ) -> Result<ResultWindowPage, AppServiceError>;
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
+    fn encounter_reference(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::EncounterReferenceRequest,
+    ) -> Result<RecordDetailView, AppServiceError>;
     fn owned_reading(
         &self,
         request: atlas_app_model::OwnedReadingRequest,
@@ -206,6 +212,14 @@ pub(crate) trait AtlasWebService: Send + Sync {
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn encounter_reference(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::EncounterReferenceRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        self.encounter_reference(encounter_ref, participant_key, request)
+    }
     fn owned_reading(
         &self,
         request: atlas_app_model::OwnedReadingRequest,
