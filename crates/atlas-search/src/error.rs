@@ -1,4 +1,5 @@
 use atlas_domain::QueryError;
+use atlas_embedding::EmbeddingError;
 use atlas_index::IndexError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchErrorKind {
@@ -42,6 +43,33 @@ impl SearchError {
     pub(crate) fn embedding(message: impl Into<String>) -> Self {
         Self::new(SearchErrorKind::EmbeddingUnavailable, message)
     }
+    pub(crate) fn query_embedding(error: EmbeddingError) -> Self {
+        match error {
+            EmbeddingError::EmptyInput => Self::invalid_search_options(
+                "query is empty or has no body tokens; provide nonempty query text",
+            ),
+            EmbeddingError::TokenBudgetExceeded { actual, max } => {
+                Self::invalid_search_options(format!(
+                    "query exceeded embedding token budget: actual {actual}, max {max}; shorten the query"
+                ))
+            }
+            error @ (EmbeddingError::TokenizerLoadFailed { .. }
+            | EmbeddingError::TokenizationFailed(_)
+            | EmbeddingError::ModelLoadFailed { .. }
+            | EmbeddingError::ModelCachePrepareFailed { .. }
+            | EmbeddingError::ModelCacheDownloadFailed { .. }
+            | EmbeddingError::AssetChecksumMismatch { .. }
+            | EmbeddingError::UnsupportedModelContract
+            | EmbeddingError::ModelRunFailed(_)
+            | EmbeddingError::DimensionMismatch { .. }
+            | EmbeddingError::UnexpectedEmbeddingOutputCount { .. }
+            | EmbeddingError::InvalidVector) => Self::embedding(error.to_string()),
+            // These describe document preparation, not repairable query input.
+            error @ (EmbeddingError::SplitterFailed(_)
+            | EmbeddingError::InvalidPassageAddress(_)
+            | EmbeddingError::PreparedInputMismatch) => Self::query_failed(error.to_string()),
+        }
+    }
     fn new(kind: SearchErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
@@ -75,3 +103,6 @@ impl From<IndexError> for SearchError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

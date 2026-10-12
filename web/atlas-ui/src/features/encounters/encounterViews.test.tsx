@@ -9,8 +9,10 @@ import {
 } from "../../test/fixtures";
 import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { retireImmutableReferenceQueries } from "../../shared/queries/immutableReferenceQueries";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -26,11 +28,12 @@ import type {
   RecordDetailView,
   RecordPresentationView,
   RecordSummaryView,
-  ResultWindowPage,
+  SearchResultsPage,
 } from "../../generated/atlas";
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
+import { EditEncounterForm } from "./EncounterModals";
 
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),
@@ -44,7 +47,7 @@ const apiMocks = vi.hoisted(() => ({
   getRecordDetail: vi.fn(),
   getEncounterReference: vi.fn(),
   getOwnedReading: vi.fn(),
-  openResultWindow: vi.fn(),
+  searchPage: vi.fn(),
   removeEncounterParticipant: vi.fn(),
   removeEncounterParticipantCondition: vi.fn(),
   reorderEncounterParticipant: vi.fn(),
@@ -67,7 +70,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   getRecordDetail: apiMocks.getRecordDetail,
   getEncounterReference: apiMocks.getEncounterReference,
   getOwnedReading: apiMocks.getOwnedReading,
-  openResultWindow: apiMocks.openResultWindow,
+  searchPage: apiMocks.searchPage,
   removeEncounterParticipant: apiMocks.removeEncounterParticipant,
   removeEncounterParticipantCondition: apiMocks.removeEncounterParticipantCondition,
   reorderEncounterParticipant: apiMocks.reorderEncounterParticipant,
@@ -78,6 +81,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
 }));
 
 let serverEncounter: EncounterDetailViewDto;
+const testQueryClients = new Set<QueryClient>();
 function setEncounterDetail(view: EncounterDetailViewDto) {
   serverEncounter = view;
   apiMocks.getEncounter.mockImplementation(() => Promise.resolve(serverEncounter));
@@ -85,6 +89,7 @@ function setEncounterDetail(view: EncounterDetailViewDto) {
 
 describe("encounter views", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.clearAllMocks();
     history.replaceState(null, "", "/encounters");
     apiMocks.getEncounters.mockResolvedValue(encounterIndexFixture());
@@ -95,7 +100,7 @@ describe("encounter views", () => {
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowFixture());
+    apiMocks.searchPage.mockResolvedValue(searchResultsFixture());
     const receipt = {
       encounter_key: encounterIndexFixture().encounters[0].encounter_key,
     };
@@ -128,6 +133,14 @@ describe("encounter views", () => {
       slug: "ambush",
       deleted: true,
     });
+  });
+
+  afterEach(async () => {
+    try {
+      await disposeEncounterTest();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("renders active encounter rows, hides archived rows, and routes to edit", async () => {
@@ -554,7 +567,11 @@ describe("encounter views", () => {
     fireEvent.click(linkedRuleButton);
 
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:linked",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
 
@@ -578,7 +595,11 @@ describe("encounter views", () => {
     }
     fireEvent.click(linkedRuleButtonAfterReselect);
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:linked"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:linked",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
 
     const closePreview = screen.getByRole("button", {
@@ -620,6 +641,7 @@ describe("encounter views", () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
+    testQueryClients.add(client);
     render(
       <QueryClientProvider client={client}>
         <ConfigProvider theme={{ token: { motion: false } }}>
@@ -696,6 +718,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
         "conditionitems:TBSHQspnbcqxsmjL",
+        undefined,
+        expect.any(AbortSignal),
       ),
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
@@ -890,7 +914,7 @@ describe("encounter views", () => {
       expect(screen.getByRole("button", { name: "Add Creature" })).not.toBeDisabled(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Add Creature" }));
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
 
     const dialog = await screen.findByRole("dialog", {
       name: "Add creature or hazard",
@@ -898,7 +922,7 @@ describe("encounter views", () => {
     fireEvent.change(within(dialog).getByLabelText("Search"), {
       target: { value: "goblin" },
     });
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
 
     const goblinOption = await within(dialog).findByText("Goblin Warrior");
     fireEvent.click(goblinOption.closest('[role="button"]') ?? goblinOption);
@@ -1159,6 +1183,7 @@ describe("encounter views", () => {
 
   it("preserves touched encounter fields across changed server data and resets identity", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    testQueryClients.add(client);
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>
         <ConfigProvider theme={{ token: { motion: false } }}>
@@ -1172,6 +1197,13 @@ describe("encounter views", () => {
     );
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My draft" } });
+    client.setQueryData(["record-detail", "old"], {
+      artifact_generation: "generation-a",
+    });
+    await act(async () => retireImmutableReferenceQueries(client));
+    expect(client.getQueryData(["record-detail", "old"])).toBeUndefined();
+    expect(client.getQueryData(["encounter", "ambush"])).toBeDefined();
+    expect(name).toHaveValue("My draft");
     act(() =>
       client.setQueryData(["encounter", "ambush"], {
         ...encounterDetailFixture(),
@@ -1335,7 +1367,62 @@ describe("encounter views", () => {
     expect(window.location.pathname).toBe("/encounters/other/edit");
     expect(screen.getByLabelText("Name")).toHaveValue("Other");
   });
+
+  it("finishes scheduled form feedback before disposing the encounter test environment", async () => {
+    const clockSetTimeout = globalThis.setTimeout;
+    const feedbackCallbacks: ReturnType<typeof vi.fn>[] = [];
+    const timerSpy = vi
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((callback, delay, ...args) => {
+        if (delay === 10 && typeof callback === "function") {
+          const feedback = vi.fn(() => callback(...args));
+          feedbackCallbacks.push(feedback);
+          return clockSetTimeout(feedback, delay);
+        }
+        return clockSetTimeout(callback, delay, ...args);
+      });
+    try {
+      render(
+        <EditEncounterForm
+          encounter={encounterIndexFixture().encounters[0]}
+          encounterNote="Encounter note"
+          onSave={vi.fn()}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
+      expect(screen.getByLabelText("Name")).toHaveValue("Ambush");
+      const clients = [...testQueryClients];
+      for (const client of clients) client.setQueryData(["disposal-probe"], "retained");
+      cleanup();
+      for (const client of testQueryClients) client.clear();
+      // Ant Form's empty error/warning feedback schedules debounce work even
+      // without validation errors. Unmounting does not cancel those callbacks.
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      expect(feedbackCallbacks.length).toBeGreaterThan(0);
+      expect(
+        feedbackCallbacks.every((callback) => callback.mock.calls.length === 0),
+      ).toBe(true);
+      await disposeEncounterTest();
+      expect(vi.getTimerCount()).toBe(0);
+      expect(feedbackCallbacks.some((callback) => callback.mock.calls.length > 0)).toBe(
+        true,
+      );
+      for (const client of clients) expect(client.getQueryCache().getAll()).toEqual([]);
+    } finally {
+      timerSpy.mockRestore();
+    }
+  });
 });
+
+async function disposeEncounterTest() {
+  cleanup();
+  for (const client of testQueryClients) client.clear();
+  testQueryClients.clear();
+  // Execute pending native Form feedback while jsdom/React still exist. The
+  // suite owns this fake clock; QueryClient disposal removes its GC work first.
+  await act(async () => vi.runOnlyPendingTimersAsync());
+  expect(vi.getTimerCount()).toBe(0);
+}
 
 async function selectOption(input: HTMLElement, option: string) {
   fireEvent.mouseDown(input);
@@ -1382,6 +1469,7 @@ function queryClientWrapper() {
       queries: { retry: false },
     },
   });
+  testQueryClients.add(queryClient);
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -1568,9 +1656,9 @@ function participantFixture(
   };
 }
 
-function resultWindowFixture(): ResultWindowPage {
+function searchResultsFixture(): SearchResultsPage {
   return {
-    window_id: 1n,
+    artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "goblin", mode: "hybrid" },
     page: {
       number: 1,

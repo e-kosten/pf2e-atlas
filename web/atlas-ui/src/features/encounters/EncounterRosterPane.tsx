@@ -5,7 +5,7 @@ import type {
   AddEncounterManualParticipantRequest,
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
-  OpenResultWindowRequest,
+  SearchResultsRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
@@ -333,7 +333,7 @@ export function EncounterRosterPane({
   );
 }
 
-function encounterRecordPickerRequest(query: string): OpenResultWindowRequest {
+function encounterRecordPickerRequest(query: string): SearchResultsRequest {
   const filter = {
     kind: "in" as const,
     field: "record.kind",
@@ -341,7 +341,8 @@ function encounterRecordPickerRequest(query: string): OpenResultWindowRequest {
   };
   const trimmed = query.trim();
   return {
-    mode:
+    expected_artifact_generation: null,
+    criteria:
       trimmed.length > 0
         ? {
             kind: "text_search",

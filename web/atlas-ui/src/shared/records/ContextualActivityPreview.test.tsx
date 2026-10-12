@@ -25,10 +25,13 @@ import {
 import { useRecordPreview } from "./useRecordPreview";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
 import { atlasRoutePath } from "../../app/routes";
+import { AtlasApiError } from "../../api/atlasApi";
 
 const api = vi.hoisted(() => ({
   getEncounterReference: vi.fn(),
   getRecordDetail: vi.fn(),
+  getRelatedRecords: vi.fn(),
+  searchPage: vi.fn(),
 }));
 let currentActivity = activityFixture();
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -80,16 +83,19 @@ function Flow({
   activity,
   identity = "participant-a",
   generation = "generation-a",
+  reloadEncounter,
 }: {
   activity?: ActorActivityView;
   identity?: string;
   generation?: string | null;
+  reloadEncounter?: () => Promise<unknown>;
 }) {
-  const jaws = activityFixture();
+  const jaws = activity ?? activityFixture();
   const preview = useRecordPreview({
     encounterRef: "test-encounter",
     identity,
     generation,
+    reloadEncounter,
     parentRecordKey: jaws.navigation.record_key,
     presentation: activity
       ? {
@@ -117,6 +123,9 @@ function Flow({
           loading={preview.loading}
           error={preview.error}
           onRetry={preview.retry}
+          onReload={preview.reload}
+          reloadLabel={preview.reloadLabel}
+          retryLabel={preview.retryLabel}
           onClose={preview.close}
           onOpenFullPage={vi.fn()}
           onReference={preview.open}
@@ -130,7 +139,7 @@ function Flow({
     </>
   );
 }
-function mount(activity = activityFixture()) {
+function mount(activity = activityFixture(), reloadEncounter?: () => Promise<unknown>) {
   currentActivity = activity;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -144,7 +153,12 @@ function mount(activity = activityFixture()) {
       <QueryClientProvider client={client}>
         <ConfigProvider theme={{ token: { motion: false } }}>
           <App>
-            <Flow activity={value} identity={identity} generation={generation} />
+            <Flow
+              activity={value}
+              identity={identity}
+              generation={generation}
+              reloadEncounter={reloadEncounter}
+            />
           </App>
         </ConfigProvider>
       </QueryClientProvider>
@@ -168,6 +182,18 @@ beforeEach(() => {
   currentActivity = activityFixture();
   api.getEncounterReference.mockReset();
   api.getRecordDetail.mockReset();
+  api.getRelatedRecords.mockReset();
+  api.searchPage.mockReset();
+  api.getRelatedRecords.mockImplementation((request) =>
+    Promise.resolve({
+      selection: request.selection,
+      artifact_generation: request.artifact_generation,
+      seed: detailFixture(request.selection.record_key, "Current actor").record,
+      references: { kind: "empty" },
+      counterparts: { kind: "empty" },
+      variants: { kind: "empty" },
+    }),
+  );
   api.getEncounterReference.mockImplementation((_encounter, _participant, request) =>
     Promise.resolve(response(request)),
   );
@@ -257,6 +283,173 @@ it("keeps changed participants and stale generations explicit without baseline f
   update(jaws, "participant-a", "generation-b");
   expect(screen.getByText(/reference collection has changed/)).toBeVisible();
   expect(api.getEncounterReference).toHaveBeenCalledTimes(1);
+  expect(api.getRecordDetail).not.toHaveBeenCalled();
+});
+
+it.each(["Related", "Similar"])(
+  "%s conflict in a successful contextual preview reloads the encounter before a fresh selection can be opened",
+  async (category) => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
+    const conflict = new AtlasApiError(409, "The reference collection changed", {
+      code: "artifact_generation_changed",
+      message: "The reference collection changed",
+      recoverable_action: "reload_record",
+      details: {
+        expected_artifact_generation: "generation-a",
+        actual_artifact_generation: "generation-b",
+      },
+    });
+    if (category === "Related") api.getRelatedRecords.mockRejectedValue(conflict);
+    else api.searchPage.mockRejectedValue(conflict);
+    let finishReload!: () => void;
+    const reloadEncounter = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishReload = resolve;
+        }),
+    );
+    const activityA = activityFixture();
+    const { update } = mount(activityA, reloadEncounter);
+    fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
+    await waitFor(() =>
+      expect(screen.getByText(/Exact local Jaws prose/)).toBeVisible(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Related records" }));
+    if (category === "Similar") {
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: "Similar to parent record: Current actor",
+        }),
+      );
+      await waitFor(() =>
+        expect(api.searchPage).toHaveBeenCalledWith(
+          expect.objectContaining({ expected_artifact_generation: "generation-a" }),
+          expect.any(AbortSignal),
+        ),
+      );
+    }
+    const reloadButton = await screen.findByRole("button", {
+      name: "Reload encounter",
+    });
+    const similarRequestCount = api.searchPage.mock.calls.length;
+    const relatedRequestCount = api.getRelatedRecords.mock.calls.length;
+    fireEvent.click(reloadButton);
+    expect(reloadEncounter).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Exact local Jaws prose/)).toBeNull();
+
+    const activityB = {
+      ...activityA,
+      navigation: {
+        ...activityA.navigation,
+        owners: [{ collection: "/items", identity: { SnapshotLocal: { index: 7 } } }],
+        source_fingerprint: "snapshot-b",
+      },
+    };
+    update(activityB, "participant-a", "generation-b");
+    await act(async () => {
+      finishReload();
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Close this preview and reopen the activity/),
+      ).toBeVisible(),
+    );
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(api.getEncounterReference).toHaveBeenCalledTimes(1);
+    expect(api.searchPage).toHaveBeenCalledTimes(similarRequestCount);
+    expect(api.getRelatedRecords).toHaveBeenCalledTimes(relatedRequestCount);
+    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
+    await waitFor(() =>
+      expect(screen.getByText(/Exact local Jaws prose/)).toBeVisible(),
+    );
+    expect(api.getEncounterReference).toHaveBeenCalledTimes(2);
+    expect(api.getEncounterReference.mock.calls[0][2]).toEqual(
+      expect.objectContaining({
+        artifact_generation: "generation-a",
+        selection: expect.objectContaining({
+          owners: activityA.navigation.owners,
+          source_fingerprint: activityA.navigation.source_fingerprint,
+        }),
+      }),
+    );
+    expect(api.getEncounterReference.mock.calls[1][2]).toEqual(
+      expect.objectContaining({
+        artifact_generation: "generation-b",
+        selection: expect.objectContaining({
+          owners: activityB.navigation.owners,
+          source_fingerprint: "snapshot-b",
+        }),
+      }),
+    );
+    expect(api.getRecordDetail).not.toHaveBeenCalled();
+  },
+);
+
+it("retries a failed encounter refresh through its owner and reopens an initial conflict using a fresh exact selection", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
+  const conflict = new AtlasApiError(409, "The reference collection changed", {
+    code: "artifact_generation_changed",
+    message: "The reference collection changed",
+    recoverable_action: "reload_record",
+  });
+  api.getEncounterReference.mockImplementation((_encounter, _participant, request) =>
+    request.artifact_generation === "generation-a"
+      ? Promise.reject(conflict)
+      : Promise.resolve(response(request)),
+  );
+  let finishReload!: () => void;
+  const reloadEncounter = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Encounter refresh unavailable"))
+    .mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishReload = resolve;
+        }),
+    );
+  const activityA = activityFixture();
+  const { update } = mount(activityA, reloadEncounter);
+  fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Reload encounter" }));
+  await waitFor(() =>
+    expect(screen.getByText("Encounter refresh unavailable")).toBeVisible(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Reload encounter" }));
+  const activityB = {
+    ...activityA,
+    navigation: {
+      ...activityA.navigation,
+      owners: [{ collection: "/items", identity: { SnapshotLocal: { index: 11 } } }],
+      source_fingerprint: "initial-conflict-snapshot-b",
+    },
+  };
+  update(activityB, "participant-a", "generation-b");
+  await act(async () => {
+    finishReload();
+  });
+  await waitFor(() =>
+    expect(
+      screen.getByText(/Close this preview and reopen the activity/),
+    ).toBeVisible(),
+  );
+  expect(reloadEncounter).toHaveBeenCalledTimes(2);
+  expect(api.getEncounterReference).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button", { name: "Reload encounter" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+  fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
+  await waitFor(() => expect(screen.getByText(/Exact local Jaws prose/)).toBeVisible());
+  expect(api.getEncounterReference).toHaveBeenCalledTimes(2);
+  expect(api.getEncounterReference.mock.calls[1][2]).toEqual(
+    expect.objectContaining({
+      artifact_generation: "generation-b",
+      selection: expect.objectContaining({
+        owners: activityB.navigation.owners,
+        source_fingerprint: "initial-conflict-snapshot-b",
+      }),
+    }),
+  );
   expect(api.getRecordDetail).not.toHaveBeenCalled();
 });
 

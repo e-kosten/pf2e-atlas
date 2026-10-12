@@ -77,6 +77,7 @@ describe("shared value control vocabulary", () => {
           offset: 40,
           selected_values: ["absent-selected"],
         }),
+        expect.any(AbortSignal),
       ),
     );
     expect(screen.getAllByText("absent-selected").length).toBeGreaterThan(0);
@@ -96,6 +97,7 @@ describe("shared value control vocabulary", () => {
           offset: 0,
           selected_values: ["absent-selected"],
         }),
+        expect.any(AbortSignal),
       ),
     );
   });
@@ -113,6 +115,7 @@ describe("shared value control vocabulary", () => {
       });
       expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
         expect.objectContaining({ offset: 40 }),
+        expect.any(AbortSignal),
       );
       await act(async () => {
         await vi.advanceTimersByTimeAsync(250);
@@ -153,6 +156,7 @@ describe("shared value control vocabulary", () => {
           text: null,
           offset: 0,
         }),
+        expect.any(AbortSignal),
       ),
     );
   });

@@ -1,5 +1,5 @@
 use crate::{
-    RecordRelationshipView, RecordSummaryView, ResultWindowRow, SearchCoverageView, SearchPageView,
+    RecordRelationshipView, RecordSummaryView, SearchCoverageView, SearchPageView, SearchResultRow,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -44,7 +44,7 @@ pub struct VariantEvidenceView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsView {
-    pub rows: Vec<ResultWindowRow>,
+    pub rows: Vec<SearchResultRow>,
     pub page: SearchPageView,
     pub coverage: SearchCoverageView,
 }

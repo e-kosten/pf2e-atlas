@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import type { RelatedRecordsView, ResultWindowPage } from "../src/generated/atlas";
+import type { RelatedRecordsView, SearchResultsPage } from "../src/generated/atlas";
 
 test("narrow preview restores focus after closing during opening, reopening and nested Escape", async ({
   page,
@@ -601,13 +601,13 @@ test("suggested variants compare authored details and Similar uses its real rout
   }
   const similarResponse = page.waitForResponse(
     (response) =>
-      new URL(response.url()).pathname === "/api/result-windows" &&
-      response.request().postDataJSON()?.mode?.kind === "similar_records",
+      new URL(response.url()).pathname === "/api/search/page" &&
+      response.request().postDataJSON()?.criteria?.kind === "similar_records",
   );
   await related.getByRole("button", { name: "Similar records", exact: true }).click();
   const similarResult = await similarResponse;
   expect(similarResult.ok()).toBeTruthy();
-  const similar: ResultWindowPage = await similarResult.json();
+  const similar: SearchResultsPage = await similarResult.json();
   expect(similar.mode.kind).toBe("similar_records");
   expect(similar.page.size).toBe(5);
   expect(

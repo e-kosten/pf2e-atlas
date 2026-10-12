@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { RecordNavigationView, ResultWindowPage } from "../../generated/atlas";
+import type { RecordNavigationView, SearchResultsPage } from "../../generated/atlas";
 import { detailFixture, editorFixture, summaryFixture } from "../../test/fixtures";
 import { ResultTable } from "./ResultTable";
 import { useSearchWorkspace } from "./useSearchWorkspace";
@@ -11,8 +11,7 @@ const api = vi.hoisted(() => ({
   discoverFilterCounts: vi.fn(),
   getRecordDetail: vi.fn(),
   getReadiness: vi.fn(),
-  openResultWindow: vi.fn(),
-  readResultWindowPage: vi.fn(),
+  searchPage: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
@@ -28,8 +27,8 @@ const selection: RecordNavigationView = {
 };
 const matchLabel =
   "A creature’s locally authored Fireball description and targeting details";
-const page: ResultWindowPage = {
-  window_id: 1n,
+const page: SearchResultsPage = {
+  artifact_generation: "generation-a",
   mode: { kind: "text_search", query: "Fireball", mode: "hybrid" },
   page: { number: 1, size: 25, count: 2, total: 2n, has_more: false, next_page: null },
   coverage: null,
@@ -90,8 +89,7 @@ describe("ResultTable committed selection", () => {
     api.discoverFilterCounts.mockResolvedValue({
       counts: { status: "unavailable", reason: "non_conjunctive_context" },
     });
-    api.openResultWindow.mockResolvedValue(page);
-    api.readResultWindowPage.mockResolvedValue(page);
+    api.searchPage.mockResolvedValue(page);
     api.getRecordDetail.mockImplementation((key: string) =>
       Promise.resolve(detailFixture(key)),
     );
@@ -108,7 +106,11 @@ describe("ResultTable committed selection", () => {
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     fireEvent.click(fireball);
     await waitFor(() =>
-      expect(api.getRecordDetail).toHaveBeenCalledWith("spells:fireball"),
+      expect(api.getRecordDetail).toHaveBeenCalledWith(
+        "spells:fireball",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(fireball).toHaveAttribute("aria-selected", "true");
     expect(window.location.pathname).toBe("/search/records/spells:fireball");
@@ -134,7 +136,11 @@ describe("ResultTable committed selection", () => {
     expect(window.location.pathname).toBe("/search/records/spells:fireball");
     fireEvent.keyDown(healRow, { key: "Enter" });
     await waitFor(() =>
-      expect(api.getRecordDetail).toHaveBeenCalledWith("spells:heal"),
+      expect(api.getRecordDetail).toHaveBeenCalledWith(
+        "spells:heal",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(heal).toHaveAttribute("aria-selected", "true");
     expect(fireball).toHaveAttribute("aria-selected", "false");
@@ -148,12 +154,20 @@ describe("ResultTable committed selection", () => {
     )!;
     fireEvent.click(fireball);
     await waitFor(() =>
-      expect(api.getRecordDetail).toHaveBeenCalledWith("spells:fireball"),
+      expect(api.getRecordDetail).toHaveBeenCalledWith(
+        "spells:fireball",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     const heal = screen.getByRole("link", { name: "Heal" }).closest("tr")!;
     fireEvent.keyDown(heal.closest("tr")!, { key: " " });
     await waitFor(() =>
-      expect(api.getRecordDetail).toHaveBeenCalledWith("spells:heal"),
+      expect(api.getRecordDetail).toHaveBeenCalledWith(
+        "spells:heal",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
     expect(heal).toHaveAttribute("aria-selected", "true");
     expect(fireball).toHaveAttribute("aria-selected", "false");

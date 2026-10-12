@@ -663,6 +663,7 @@ fn live_reader_remains_on_one_artifact_when_atomic_publish_replaces_path() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
     let reader = SqliteIndexReader::open_read_only(&path).unwrap();
+    let original_instance = reader.artifact_instance().clone();
     let mut replacement = fixture(false);
     replacement.records[0] = record(
         "actors",
@@ -697,9 +698,12 @@ fn live_reader_remains_on_one_artifact_when_atomic_publish_replaces_path() {
             .unwrap()
             .is_empty()
     );
+    let fresh = SqliteIndexReader::open_read_only(path).unwrap();
+    assert_eq!(fresh.context(), reader.context());
+    assert_ne!(fresh.artifact_instance(), &original_instance);
+    assert_eq!(reader.artifact_instance(), &original_instance);
     assert_eq!(
-        SqliteIndexReader::open_read_only(path)
-            .unwrap()
+        fresh
             .read_summary(input.records[0].record.key())
             .unwrap()
             .unwrap()
@@ -708,6 +712,14 @@ fn live_reader_remains_on_one_artifact_when_atomic_publish_replaces_path() {
             .unwrap(),
         "Replacement"
     );
+}
+
+#[test]
+fn independently_opened_readers_share_one_artifact_instance() {
+    let (_directory, path) = build(&fixture(false));
+    let first = SqliteIndexReader::open_read_only(&path).unwrap();
+    let second = SqliteIndexReader::open_read_only(&path).unwrap();
+    assert_eq!(first.artifact_instance(), second.artifact_instance());
 }
 
 #[test]

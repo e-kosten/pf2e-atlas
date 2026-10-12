@@ -21,7 +21,7 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, attributable witnesses, graph, verified edition preference and Suggested variants. |
 | `atlas-runtime` | Paths, setup/source-fetch/cache policy, artifact readiness and retrieval service construction. |
 | `atlas-local-state` | Durable mutable saved lists and encounters in a separate SQLite database, with independent migrations. |
-| `atlas-app-model` | Intentional app DTOs and generated TypeScript contracts for filters, result windows, record content, lists and encounters. |
+| `atlas-app-model` | Intentional app DTOs and generated TypeScript contracts for filters, search pages, record content, lists and encounters. |
 | `atlas-app-service` | Cross-layer app workflows, bounded retrieval execution, catalog editor presentation, source-based product projections and local-state hydration. |
 | `atlas-web` | Thin Axum transport over app-service and static frontend serving. |
 | `atlas-cli` | Product grammar, terminal/JSON presentation, progress/exit behavior, web startup and agent skill installation. |
@@ -98,19 +98,30 @@ request; variants are separate derived suggestions.
 Keep application workflows in app-service. It uses runtime/search/local-state,
 not index imports or handcrafted SQL readers. Retain the bounded retrieval
 executor rather than serializing all read-only web requests behind one lane.
-Stored-vector Similar is a mode of the existing app result window, carrying its
+Worker startup compares the actual opened artifact instances and complete build
+contexts. Short-lived commands retain one lazy reader across composed operations.
+Replaceable page and discovery reads carry an explicit app-owned execution context.
+Their awaiting HTTP helper marks abandonment on drop; cooperative checks skip
+queued work and later projection. Blocking work retains its permit until it
+finishes. Durable mutations and their reference reads remain uncancellable.
+Stored-vector Similar is a mode of the stateless search-page request, carrying its
 root seed and canonical filters. Related availability is a bounded app-service
 workflow over exact selected-owner graph reads and root-only verified suggestions,
 with complete artifact-generation cache identity and truthful empty/unavailable
 outcomes. It does not add a retrieval, ranking or stored-record model.
 
-App-service owns useful catalog control presentation, result windows, semantic
+App-service owns useful catalog control presentation, search pages, semantic
 family presentation and hydration. Reference reads project authored facts directly;
 encounters compose the existing bounded runtime overlays into one presentation.
 There is no generic section/value/profile layout interpreter or second encounter
 stat-block response. App-model stays a transient DTO/export boundary; run
 `cargo test -p atlas-app-model` and regenerate checked bindings intentionally
 with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
+
+Search-page requests include criteria, page and an optional expected artifact
+generation. Mismatches require an explicit browser refresh from page1, preserving
+criteria and mutable drafts. See
+[ADR0049](./decisions/0049-search-lifetimes-and-pages.md).
 
 Keep local state separate from artifact generation. Unknown saved keys retain
 their snapshots. NPC variants/conditions are read-time participant overlays over

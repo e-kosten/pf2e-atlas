@@ -7,11 +7,11 @@ use crate::handlers::{
     add_encounter_manual_participant, add_encounter_participant_condition,
     add_encounter_record_participant, add_saved_list_item, create_encounter, create_saved_list,
     delete_encounter, delete_saved_list, discover_filter_editor, discover_filter_values, encounter,
-    encounter_condition_definitions, encounters, filter_saved_list, open_result_window,
-    read_result_window_page, readiness, record_detail, remove_encounter_participant,
-    remove_encounter_participant_condition, remove_saved_list_item, reorder_encounter_participant,
-    saved_list, saved_lists, set_encounter_turn, update_encounter, update_encounter_participant,
-    update_encounter_participant_condition, update_saved_list,
+    encounter_condition_definitions, encounters, filter_saved_list, readiness, record_detail,
+    remove_encounter_participant, remove_encounter_participant_condition, remove_saved_list_item,
+    reorder_encounter_participant, saved_list, saved_lists, search_page, set_encounter_turn,
+    update_encounter, update_encounter_participant, update_encounter_participant_condition,
+    update_saved_list,
 };
 use crate::service::AtlasWebState;
 
@@ -82,11 +82,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/filters/values", post(discover_filter_values))
         .route("/api/filters/counts", post(crate::handlers::discover_filter_counts))
         .route("/api/filters/validate", post(crate::handlers::validate_filter))
-        .route("/api/result-windows", post(open_result_window))
-        .route(
-            "/api/result-windows/{window_id}/page",
-            post(read_result_window_page),
-        )
+        .route("/api/search/page", post(search_page))
         .route("/api/records/{record_key}", get(record_detail))
         .route("/api/records/detail", post(crate::handlers::record_detail_at))
         .route("/api/records/owned-reading", post(crate::handlers::owned_reading))

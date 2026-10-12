@@ -1,6 +1,6 @@
 import type {
   FilterDiscoveryContext,
-  OpenResultWindowRequest,
+  SearchResultsRequest,
   QueryPredicate,
 } from "../../generated/atlas";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
@@ -23,17 +23,19 @@ export const DEFAULT_SEARCH_STATE: SearchFormState = {
 export function buildFilter(state: SearchFormState): QueryPredicate | null {
   return state.filter;
 }
-export function buildOpenRequest(
+export function buildSearchRequest(
   state: SearchFormState,
   number: number,
-): OpenResultWindowRequest {
+  expected_artifact_generation: string | null = null,
+): SearchResultsRequest {
   if (state.filterError) throw new Error(state.filterError);
   if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
   if (state.similarSeed)
     return {
       page,
-      mode: {
+      expected_artifact_generation,
+      criteria: {
         kind: "similar_records",
         seed_record_key: state.similarSeed,
         filter: state.filter,
@@ -41,7 +43,8 @@ export function buildOpenRequest(
     };
   return {
     page,
-    mode: state.query.trim()
+    expected_artifact_generation,
+    criteria: state.query.trim()
       ? {
           kind: "text_search",
           query: state.query.trim(),

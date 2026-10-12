@@ -7,16 +7,16 @@ use atlas_app_model::{
     DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     EncounterConditionCatalogView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
     EncounterMutationView, FilterEditorView, FilterSavedListRequest, FilterValueListView,
-    OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ResultWindowPage,
+    RecordDetailView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
     SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-    SavedListUpdateView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    SavedListUpdateView, SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
 };
-use atlas_app_service::{AppServiceError, AtlasAppService};
+use atlas_app_service::{AppServiceError, AtlasAppService, ReadExecutionContext};
 use atlas_domain::QueryPredicate;
 use tokio::sync::Semaphore;
 
@@ -63,18 +63,14 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn discover_filter_values(
         &self,
         request: DiscoverFilterValuesRequest,
+        execution: &ReadExecutionContext,
     ) -> Result<FilterValueListView, AppServiceError>;
 
-    fn open_result_window(
+    fn search_page(
         &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError>;
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError>;
+        request: SearchResultsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<SearchResultsPage, AppServiceError>;
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
     fn encounter_reference(
@@ -94,6 +90,7 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn discover_filter_counts(
         &self,
         request: DiscoverFilterCountsRequest,
+        execution: &ReadExecutionContext,
     ) -> Result<FilterCountsView, AppServiceError>;
     fn validate_filter(
         &self,
@@ -242,8 +239,9 @@ impl AtlasWebService for AtlasAppService {
     fn discover_filter_counts(
         &self,
         request: DiscoverFilterCountsRequest,
+        execution: &ReadExecutionContext,
     ) -> Result<FilterCountsView, AppServiceError> {
-        self.discover_filter_counts(request)
+        self.discover_filter_counts(request, execution)
     }
     fn validate_filter(
         &self,
@@ -265,23 +263,17 @@ impl AtlasWebService for AtlasAppService {
     fn discover_filter_values(
         &self,
         request: DiscoverFilterValuesRequest,
+        execution: &ReadExecutionContext,
     ) -> Result<FilterValueListView, AppServiceError> {
-        self.discover_filter_values(request)
+        self.discover_filter_values(request, execution)
     }
 
-    fn open_result_window(
+    fn search_page(
         &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        self.open_result_window(request)
-    }
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        self.read_result_window_page(window_id, request)
+        request: SearchResultsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<SearchResultsPage, AppServiceError> {
+        self.search_page(request, execution)
     }
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
@@ -440,6 +432,29 @@ impl AtlasWebService for AtlasAppService {
     fn delete_saved_list(&self, list_ref: &str) -> Result<DeleteSavedListView, AppServiceError> {
         self.delete_saved_list(list_ref)
     }
+}
+
+struct AbandonReadOnDrop(ReadExecutionContext);
+
+impl Drop for AbandonReadOnDrop {
+    fn drop(&mut self) {
+        self.0.abandon();
+    }
+}
+
+pub(crate) async fn call_read_service<T: Send + 'static>(
+    state: AtlasWebState,
+    call: impl FnOnce(ReadExecutionContext) -> Result<T, AppServiceError> + Send + 'static,
+) -> Result<T, WebError> {
+    let execution = ReadExecutionContext::tracked();
+    // This guard belongs to the awaiting handler, independently of the blocking
+    // work which must retain its permit until it actually finishes.
+    let _guard = AbandonReadOnDrop(execution.clone());
+    call_service(state, move || {
+        execution.check()?;
+        call(execution)
+    })
+    .await
 }
 
 pub(crate) async fn call_service<T: Send + 'static>(

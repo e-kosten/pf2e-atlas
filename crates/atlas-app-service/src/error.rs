@@ -1,4 +1,4 @@
-use atlas_app_model::{AppError, AppErrorCode};
+use atlas_app_model::{AppError, AppErrorCode, AppRecoverableAction};
 use atlas_local_state::LocalStateError;
 use atlas_search::{SearchError, SearchErrorKind};
 use thiserror::Error;
@@ -25,6 +25,24 @@ impl AppServiceError {
     pub fn service_busy(message: impl Into<String>) -> Self {
         let mut error = AppError::new(AppErrorCode::ServiceBusy, message);
         error.retryable = Some(true);
+        Self { error }
+    }
+
+    pub(super) fn artifact_generation_changed(
+        expected: &str,
+        actual: &str,
+        recovery: AppRecoverableAction,
+    ) -> Self {
+        let mut error = AppError::new(
+            AppErrorCode::ArtifactGenerationChanged,
+            "reference data changed; refresh before continuing",
+        )
+        .with_details(serde_json::json!({
+            "expected_artifact_generation": expected,
+            "actual_artifact_generation": actual,
+        }));
+        error.retryable = Some(false);
+        error.recoverable_action = Some(recovery);
         Self { error }
     }
 

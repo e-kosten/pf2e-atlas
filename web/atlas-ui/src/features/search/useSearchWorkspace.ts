@@ -1,20 +1,21 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
-import { keepPreviousData, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
-  AtlasApiError,
-  getReadiness,
-  getRecordDetail,
-  openResultWindow,
-  readResultWindowPage,
-} from "../../api/atlasApi";
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import { getReadiness, getRecordDetail, searchPage } from "../../api/atlasApi";
 import type {
   FilterEditorView,
   RecordDetailView,
-  ResultWindowPage,
+  SearchResultsPage,
 } from "../../generated/atlas";
 import {
   buildFilterDiscoveryContext,
-  buildOpenRequest,
+  buildSearchRequest,
   DEFAULT_SEARCH_STATE,
   SIMILAR_QUERY_CONFLICT,
   encodeSearchExecutionState,
@@ -37,6 +38,11 @@ import {
   searchPath,
 } from "../../app/routes";
 
+import {
+  isArtifactGenerationChanged,
+  retireImmutableReferenceQueries,
+} from "../../shared/queries/immutableReferenceQueries";
+
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
 export type AtlasRequestTiming = {
@@ -45,19 +51,13 @@ export type AtlasRequestTiming = {
 };
 
 export type AtlasWorkspaceDiagnostics = {
-  activeWindowId: string | null;
   detailRequest: AtlasRequestTiming | null;
   resultRequest:
     | (AtlasRequestTiming & {
-        kind: "open_window" | "page";
+        kind: "page";
       })
     | null;
   searchDebouncing: boolean;
-};
-
-type ResultWindowHandle = {
-  searchExecutionToken: string;
-  windowId: bigint;
 };
 
 export type SearchWorkspaceState = {
@@ -71,7 +71,7 @@ export type SearchWorkspaceState = {
   selectRecord: (recordKey: string | null) => void;
   pageNumber: number;
   setPageNumber: (page: number) => void;
-  resultPage: ResultWindowPage | undefined;
+  resultPage: SearchResultsPage | undefined;
   recordDetail: RecordDetailView | undefined;
   detailError: Error | null;
   retryDetail: () => void;
@@ -83,6 +83,9 @@ export type SearchWorkspaceState = {
   readiness: UseQueryResult<Awaited<ReturnType<typeof getReadiness>>, Error>;
   resultsLoading: boolean;
   resultsRefreshing: boolean;
+  resultsPaused?: boolean;
+  resultsRecovering?: boolean;
+  refreshResults: () => Promise<void>;
   detailLoading: boolean;
   filterDiscoveryLoading: boolean;
   filterDiscoveryContext: import("../../generated/atlas").FilterDiscoveryContext;
@@ -112,7 +115,13 @@ export function useSearchWorkspace({
   );
   const [lastResultRequest, setLastResultRequest] =
     useState<AtlasWorkspaceDiagnostics["resultRequest"]>(null);
-  const [resultWindow, setResultWindow] = useState<ResultWindowHandle | null>(null);
+  const queryClient = useQueryClient();
+  const [retrieval, setRetrieval] = useState({
+    epoch: 0,
+    generation: null as string | null,
+    recovering: false,
+  });
+  const liveRequest = useRef({ token: "", epoch: 0, retiring: false });
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const searchExecutionToken = useMemo(
     () => encodeSearchExecutionState(search),
@@ -123,6 +132,16 @@ export function useSearchWorkspace({
     [activeSearch],
   );
   const canRunResultSearch = enabled && hasExecutableSearch(activeSearch);
+  useLayoutEffect(() => {
+    liveRequest.current = {
+      token: activeSearchExecutionToken,
+      epoch: retrieval.epoch,
+      retiring: retrieval.recovering,
+    };
+    return () => {
+      liveRequest.current.retiring = true;
+    };
+  }, [activeSearchExecutionToken, retrieval.epoch, retrieval.recovering]);
   useEffect(() => {
     const onUrlStateChange = () => {
       const route = currentAtlasRoute();
@@ -152,57 +171,78 @@ export function useSearchWorkspace({
     queryFn: getReadiness,
   });
 
-  const resultsQuery = useQuery({
-    queryKey: ["results", activeSearchExecutionToken, pageNumber],
-    enabled: canRunResultSearch,
-    placeholderData: keepPreviousData,
+  const resultsKey = [
+    "results",
+    activeSearchExecutionToken,
+    retrieval.epoch,
+    retrieval.generation,
+    pageNumber,
+  ];
+  const resultsQuery = useQuery<SearchResultsPage>({
+    queryKey: resultsKey,
+    enabled: canRunResultSearch && !retrieval.recovering,
+    staleTime: 20_000,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === retrieval.epoch &&
+      previousQuery.queryKey[3] === retrieval.generation
+        ? previous
+        : undefined,
     queryFn: async ({ signal }) => {
       const startedAt = performance.now();
-      if (
-        pageNumber === 1 ||
-        resultWindow?.searchExecutionToken !== activeSearchExecutionToken
-      ) {
-        try {
-          const page = await openResultWindow(
-            buildOpenRequest(activeSearch, pageNumber),
-            signal,
+      const isCurrent = () =>
+        !signal.aborted &&
+        !liveRequest.current.retiring &&
+        liveRequest.current.epoch === retrieval.epoch &&
+        liveRequest.current.token === activeSearchExecutionToken;
+      try {
+        const page = await searchPage(
+          buildSearchRequest(activeSearch, pageNumber, retrieval.generation),
+          signal,
+        );
+        if (retrieval.generation === null && isCurrent()) {
+          // Adopt the returned generation without issuing the same search again.
+          queryClient.setQueryData(
+            [
+              "results",
+              activeSearchExecutionToken,
+              retrieval.epoch,
+              page.artifact_generation,
+              pageNumber,
+            ],
+            page,
           );
-          if (!signal.aborted)
-            setResultWindow({
-              searchExecutionToken: activeSearchExecutionToken,
-              windowId: page.window_id,
-            });
-          return page;
-        } finally {
+          setRetrieval((current) =>
+            current.epoch === retrieval.epoch && !current.recovering
+              ? { ...current, generation: page.artifact_generation }
+              : current,
+          );
+        }
+        return page;
+      } finally {
+        if (isCurrent())
           setLastResultRequest({
             durationMs: elapsedMilliseconds(startedAt),
             finishedAt: Date.now(),
-            kind: "open_window",
+            kind: "page",
           });
-        }
-      }
-      try {
-        const page = await readOrReopenResultWindow(
-          resultWindow.windowId,
-          activeSearch,
-          pageNumber,
-          signal,
-        );
-        if (!signal.aborted)
-          setResultWindow({
-            searchExecutionToken: activeSearchExecutionToken,
-            windowId: page.window_id,
-          });
-        return page;
-      } finally {
-        setLastResultRequest({
-          durationMs: elapsedMilliseconds(startedAt),
-          finishedAt: Date.now(),
-          kind: "page",
-        });
       }
     },
   });
+  const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
+
+  async function refreshResults() {
+    if (liveRequest.current.retiring) return;
+    // Retire the owner before awaiting cancellation, so a late completion cannot seed.
+    liveRequest.current.retiring = true;
+    setRetrieval((current) => ({ ...current, recovering: true }));
+    await retireImmutableReferenceQueries(queryClient);
+    dispatch({ type: "resultPage.changed", pageNumber: 1 });
+    setRetrieval((current) => ({
+      epoch: current.epoch + 1,
+      generation: null,
+      recovering: false,
+    }));
+  }
 
   const filterDiscoveryContext = useMemo(
     () => buildFilterDiscoveryContext(activeSearch),
@@ -211,25 +251,27 @@ export function useSearchWorkspace({
 
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
-    enabled,
+    enabled: enabled && !retrieval.recovering,
     countsEnabled: !activeSearch.similarSeed,
-    queryKeyPrefix: ["filter-discovery", activeSearchExecutionToken],
+    queryKeyPrefix: ["filter-discovery", retrieval.epoch, activeSearchExecutionToken],
+    placeholderIdentity: [retrieval.epoch],
   });
 
   const detailQuery = useQuery({
-    ...recordDetailQueryOptions(selectedRecordKey),
-    queryFn: async () => {
+    ...recordDetailQueryOptions(selectedRecordKey, undefined, retrieval.epoch),
+    queryFn: async ({ signal }) => {
       const startedAt = performance.now();
       try {
-        return await getRecordDetail(selectedRecordKey!);
+        return await getRecordDetail(selectedRecordKey!, undefined, signal);
       } finally {
-        setLastDetailRequest({
-          durationMs: elapsedMilliseconds(startedAt),
-          finishedAt: Date.now(),
-        });
+        if (!signal.aborted)
+          setLastDetailRequest({
+            durationMs: elapsedMilliseconds(startedAt),
+            finishedAt: Date.now(),
+          });
       }
     },
-    enabled: enabled && selectedRecordKey !== null,
+    enabled: enabled && selectedRecordKey !== null && !retrieval.recovering,
   });
 
   const resultRows = useMemo(
@@ -313,10 +355,6 @@ export function useSearchWorkspace({
   const errorMessage =
     messageFromError(resultsQuery.error) ?? messageFromError(readiness.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
-  const activeWindowId =
-    resultWindow?.searchExecutionToken === activeSearchExecutionToken
-      ? resultWindow.windowId.toString()
-      : null;
   const resultsRefreshing =
     canRunResultSearch &&
     (searchDebouncing ||
@@ -333,7 +371,10 @@ export function useSearchWorkspace({
     selectedRecordKey,
     selectRecord,
     pageNumber,
-    setPageNumber: (pageNumber) => dispatch({ type: "resultPage.changed", pageNumber }),
+    setPageNumber: (pageNumber) => {
+      if (!resultsPaused && !retrieval.recovering)
+        dispatch({ type: "resultPage.changed", pageNumber });
+    },
     resultPage: canRunResultSearch ? resultsQuery.data : undefined,
     recordDetail: detailQuery.data,
     detailError: detailQuery.error,
@@ -348,10 +389,12 @@ export function useSearchWorkspace({
     readiness,
     resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing,
+    resultsPaused,
+    resultsRecovering: retrieval.recovering,
+    refreshResults,
     detailLoading: detailQuery.isLoading || detailQuery.isFetching,
     filterDiscoveryLoading: filterDiscovery.loading,
     diagnostics: {
-      activeWindowId,
       detailRequest: lastDetailRequest,
       resultRequest: lastResultRequest,
       searchDebouncing,
@@ -360,6 +403,10 @@ export function useSearchWorkspace({
     refresh: () => {
       void readiness.refetch();
       if (!enabled) {
+        return;
+      }
+      if (resultsPaused) {
+        void refreshResults();
         return;
       }
       if (canRunResultSearch) {
@@ -386,28 +433,4 @@ function elapsedMilliseconds(startedAt: number): number {
 
 export function resetSearchState(): SearchFormState {
   return DEFAULT_SEARCH_STATE;
-}
-
-/** Expired or evicted server handles are reopened once from the committed criterion. */
-export async function readOrReopenResultWindow(
-  windowId: bigint,
-  search: SearchFormState,
-  pageNumber: number,
-  signal?: AbortSignal,
-) {
-  try {
-    return await readResultWindowPage(
-      windowId,
-      { page: { number: pageNumber, size: search.pageSize } },
-      signal,
-    );
-  } catch (error) {
-    if (
-      !(error instanceof AtlasApiError) ||
-      !["window_expired", "window_not_found"].includes(error.appError?.code ?? "") ||
-      signal?.aborted
-    )
-      throw error;
-    return openResultWindow(buildOpenRequest(search, pageNumber), signal);
-  }
 }

@@ -2,4 +2,4 @@
 import type { RecordSummaryView } from "./RecordSummaryView";
 import type { RetrievalModeView } from "./RetrievalModeView";
 
-export type ResultWindowModeSummary = { "kind": "similar_records", seed: RecordSummaryView, } | { "kind": "list_records" } | { "kind": "text_search", query: string, mode: RetrievalModeView, };
+export type SearchModeSummary = { "kind": "similar_records", seed: RecordSummaryView, } | { "kind": "list_records" } | { "kind": "text_search", query: string, mode: RetrievalModeView, };

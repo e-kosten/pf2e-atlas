@@ -10,8 +10,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   FilterEditorView,
-  OpenResultWindowRequest,
-  ResultWindowPage,
+  SearchResultsRequest,
+  SearchResultsPage,
 } from "../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
@@ -27,8 +27,7 @@ const apiMocks = vi.hoisted(() => ({
   discoverFilterCounts: vi.fn(),
   getRecordDetail: vi.fn(),
   getReadiness: vi.fn(),
-  openResultWindow: vi.fn(),
-  readResultWindowPage: vi.fn(),
+  searchPage: vi.fn(),
 }));
 
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -38,8 +37,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
   discoverFilterCounts: apiMocks.discoverFilterCounts,
   getReadiness: apiMocks.getReadiness,
   getRecordDetail: apiMocks.getRecordDetail,
-  openResultWindow: apiMocks.openResultWindow,
-  readResultWindowPage: apiMocks.readResultWindowPage,
+  searchPage: apiMocks.searchPage,
 }));
 
 describe("useSearchWorkspace", () => {
@@ -55,12 +53,11 @@ describe("useSearchWorkspace", () => {
     apiMocks.discoverFilterCounts.mockResolvedValue({
       counts: { status: "unavailable", reason: "non_conjunctive_context" },
     });
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
-    apiMocks.readResultWindowPage.mockResolvedValue(resultWindowPage());
+    apiMocks.searchPage.mockResolvedValue(searchResultsPage());
     history.replaceState(null, "", "/");
   });
 
-  it("restores similarity URLs, disables contextual counts, recovers expired pages, and replaces or clears the criterion", async () => {
+  it("restores similarity URLs, disables contextual counts, sends stateless pages, and replaces or clears the criterion", async () => {
     localStorage.setItem(
       KIND_PREFERENCE_KEY,
       JSON.stringify({ include: ["creature"], exclude: [] }),
@@ -75,10 +72,10 @@ describe("useSearchWorkspace", () => {
     const similarUrl = "/search" + searchStateQueryString(state);
     history.replaceState(null, "", similarUrl);
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
-    apiMocks.openResultWindow.mockImplementation((request: OpenResultWindowRequest) =>
+    apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
       Promise.resolve({
-        ...resultWindowPage(),
-        page: { ...resultWindowPage().page, number: request.page.number },
+        ...searchResultsPage(),
+        page: { ...searchResultsPage().page, number: request.page.number },
         mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
       }),
     );
@@ -87,21 +84,19 @@ describe("useSearchWorkspace", () => {
     });
     await waitFor(() => expect(result.current.resultPage).toBeDefined());
     expect(result.current.search.filter).toEqual(filter);
-    expect(apiMocks.openResultWindow.mock.calls[0][0].mode).toEqual({
+    expect(apiMocks.searchPage.mock.calls[0][0].criteria).toEqual({
       kind: "similar_records",
       seed_record_key: "items:seed",
       filter,
     });
     expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
     expect(result.current.filterEditor).toBeDefined();
-    apiMocks.readResultWindowPage.mockRejectedValueOnce(
-      new AtlasApiError(410, "expired", { code: "window_expired", message: "expired" }),
-    );
     act(() => result.current.setPageNumber(2));
     await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
-    expect(apiMocks.openResultWindow.mock.calls[1][0]).toEqual({
-      mode: { kind: "similar_records", seed_record_key: "items:seed", filter },
+    expect(apiMocks.searchPage.mock.calls[1][0]).toEqual({
+      criteria: { kind: "similar_records", seed_record_key: "items:seed", filter },
       page: { number: 2, size: 25 },
+      expected_artifact_generation: "generation-a",
     });
     act(() => result.current.setSearch({ ...result.current.search, query: "dragon" }));
     expect(result.current.search.similarSeed).toBeNull();
@@ -124,37 +119,160 @@ describe("useSearchWorkspace", () => {
     expect(result.current.search.query).toBe("");
   });
 
-  it("does not replace the current window handle when an abandoned seed finishes late", async () => {
+  it("does not adopt a generation when an abandoned criterion finishes late", async () => {
     history.replaceState(null, "", "/search?similar=items:first");
-    let finishFirst!: (page: ResultWindowPage) => void;
-    apiMocks.openResultWindow.mockImplementationOnce(
-      () =>
-        new Promise<ResultWindowPage>((resolve) => {
-          finishFirst = resolve;
-        }),
-    );
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage([], { windowId: 9n }));
+    const first = deferred<SearchResultsPage>();
+    apiMocks.searchPage
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(searchResultsPage([], { generation: "generation-b" }));
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     act(() =>
       result.current.setSearch({
         ...result.current.search,
         similarSeed: "items:second",
       }),
     );
-    await waitFor(() => expect(result.current.diagnostics.activeWindowId).toBe("9"));
-    await act(async () => finishFirst(resultWindowPage([], { windowId: 3n })));
-    expect(result.current.diagnostics.activeWindowId).toBe("9");
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-b"),
+    );
+    await act(async () =>
+      first.resolve(searchResultsPage([], { generation: "generation-a" })),
+    );
+    expect(result.current.resultPage?.artifact_generation).toBe("generation-b");
     act(() => result.current.setPageNumber(2));
     await waitFor(() =>
-      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(
-        9n,
-        expect.any(Object),
+      expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          expected_artifact_generation: "generation-b",
+          page: { number: 2, size: 25 },
+        }),
         expect.any(AbortSignal),
       ),
     );
+  });
+
+  it("adopts the first generation without repeating retrieval", async () => {
+    seedSearchUrl();
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-a"),
+    );
+    await delay(40);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    expect(apiMocks.searchPage).toHaveBeenCalledWith(
+      expect.objectContaining({ expected_artifact_generation: null }),
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("pauses a changed generation and refreshes page one without retaining late A reads", async () => {
+    seedSearchUrl();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const oldDetail = deferred<ReturnType<typeof detailFixture>>();
+    const oldPage = deferred<SearchResultsPage>();
+    const oldCatalog = deferred<FilterEditorView>();
+    const freshPage = deferred<SearchResultsPage>();
+    const freshCatalog = deferred<FilterEditorView>();
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:old"]))
+      .mockReturnValueOnce(oldPage.promise)
+      .mockRejectedValueOnce(
+        new AtlasApiError(409, "The reference collection has changed", {
+          code: "artifact_generation_changed",
+          message: "The reference collection has changed",
+          recoverable_action: "refresh_results",
+        }),
+      )
+      .mockReturnValue(freshPage.promise);
+    apiMocks.getRecordDetail.mockReturnValueOnce(oldDetail.promise).mockResolvedValue({
+      ...detailFixture("spell:heal"),
+      artifact_generation: "generation-b",
+    });
+    apiMocks.discoverFilterEditor
+      .mockResolvedValueOnce(filterEditor())
+      .mockReturnValueOnce(oldCatalog.promise)
+      .mockReturnValue(freshCatalog.promise);
+    const { result } = renderHook(() => useSearchWorkspace(), {
+      wrapper: queryClientWrapper(client),
+    });
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-a"),
+    );
+    act(() => result.current.selectRecord("spell:heal"));
+    await waitFor(() => expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(1));
+    // A background catalog read can remain queued when another page reports B.
+    act(() => {
+      void client.invalidateQueries({ queryKey: ["filter-discovery"] });
+    });
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2));
+    act(() => {
+      void client.invalidateQueries({ queryKey: ["results"] });
+    });
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(result.current.resultsPaused).toBe(true));
+    expect(result.current.pageNumber).toBe(2);
+    act(() => result.current.setPageNumber(3));
+    expect(result.current.pageNumber).toBe(2);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(3);
+    client.setQueryData(["encounter", "draft"], { name: "Preserved encounter" });
+    client.setQueryData(["saved-list", "draft"], { name: "Preserved list" });
+    const criteria = result.current.search;
+    await act(async () => result.current.refreshResults());
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(4));
+    expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
+      {
+        criteria: { kind: "text_search", query: "dirge", filter: null, mode: "hybrid" },
+        page: { number: 1, size: 25 },
+        expected_artifact_generation: null,
+      },
+      expect.any(AbortSignal),
+    );
+    expect(result.current.resultPage).toBeUndefined();
+    expect(result.current.filterEditor).toBeUndefined();
+    expect(result.current.search).toEqual(criteria);
+    expect(result.current.selectedRecordKey).toBe("spell:heal");
+    expect(client.getQueryData(["encounter", "draft"])).toEqual({
+      name: "Preserved encounter",
+    });
+    expect(client.getQueryData(["saved-list", "draft"])).toEqual({
+      name: "Preserved list",
+    });
+    expect(apiMocks.getRecordDetail.mock.calls[0][2].aborted).toBe(true);
+    expect(apiMocks.discoverFilterEditor.mock.calls[1][1].aborted).toBe(true);
+    await act(async () => {
+      oldDetail.resolve(detailFixture("spell:heal", "Old A detail"));
+      oldCatalog.resolve(filterEditor());
+      oldPage.resolve(searchResultsPage(["spell:late-old"]));
+    });
+    expect(result.current.recordDetail?.record.title).not.toBe("Old A detail");
+    expect(result.current.filterEditor).toBeUndefined();
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: ["results"] })
+        .some((query) => query.queryKey.includes("generation-a")),
+    ).toBe(false);
+    const editorB = { ...filterEditor(), groups: [] };
+    await act(async () => {
+      freshPage.resolve(
+        searchResultsPage(["spell:new"], { generation: "generation-b" }),
+      );
+      freshCatalog.resolve(editorB);
+    });
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-b"),
+    );
+    expect(result.current.resultPage?.page.number).toBe(1);
+    expect(result.current.resultPage?.rows[0].record.record_key).toBe("spell:new");
+    expect(result.current.filterEditor).toEqual(editorB);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(4);
+    expect(window.location.search).toBe("?q=dirge&mode=text_search");
   });
 
   it("keeps remembered Kind while editing an authoritative text URL, then clears it on a Kind edit", async () => {
@@ -185,13 +303,13 @@ describe("useSearchWorkspace", () => {
     expect(localStorage.getItem(KIND_PREFERENCE_KEY)).toBeNull();
   });
 
-  it("debounces result-window requests while preserving immediate search state", async () => {
+  it("debounces search-page requests while preserving immediate search state", async () => {
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
 
     await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).toHaveBeenCalled();
 
     act(() => {
@@ -212,16 +330,15 @@ describe("useSearchWorkspace", () => {
     expect(window.location.pathname).toBe("/search");
     expect(window.location.search).toBe("?q=fi&mode=text_search");
     await delay(150);
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     expect(result.current.diagnostics.searchDebouncing).toBe(false);
     expect(result.current.diagnostics.resultRequest).toMatchObject({
-      kind: "open_window",
+      kind: "page",
     });
-    const request = apiMocks.openResultWindow.mock
-      .calls[0][0] as OpenResultWindowRequest;
-    expect(request.mode).toMatchObject({
+    const request = apiMocks.searchPage.mock.calls[0][0] as SearchResultsRequest;
+    expect(request.criteria).toMatchObject({
       kind: "text_search",
       query: "fi",
     });
@@ -237,7 +354,7 @@ describe("useSearchWorkspace", () => {
     await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(2));
     await delay(50);
 
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
@@ -246,8 +363,8 @@ describe("useSearchWorkspace", () => {
 
   it("tracks keyboard result selection separately from opened detail routes", async () => {
     seedSearchUrl();
-    apiMocks.openResultWindow.mockResolvedValue(
-      resultWindowPage(["spell:dirge-of-doom", "spell:heal"]),
+    apiMocks.searchPage.mockResolvedValue(
+      searchResultsPage(["spell:dirge-of-doom", "spell:heal"]),
     );
     apiMocks.getRecordDetail.mockResolvedValue({ record_key: "spell:heal" });
     const { result } = renderHook(() => useSearchWorkspace(), {
@@ -326,6 +443,7 @@ describe("useSearchWorkspace", () => {
 
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
       expect.objectContaining({ field_id: "common.traits" }),
+      expect.any(AbortSignal),
     );
   });
 
@@ -377,26 +495,29 @@ describe("useSearchWorkspace", () => {
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
   });
 
-  it("reads later pages from the current result window", async () => {
+  it("sends complete criteria and the adopted generation on later pages", async () => {
     seedSearchUrl();
-    apiMocks.openResultWindow.mockResolvedValue(
-      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
-    );
-    apiMocks.readResultWindowPage.mockResolvedValue(
-      resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
-    );
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:dirge-of-doom"]))
+      .mockResolvedValue(searchResultsPage(["spell:heal"], { pageNumber: 2 }));
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
 
     act(() => result.current.setPageNumber(2));
 
     await waitFor(() =>
-      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(
-        7n,
+      expect(apiMocks.searchPage).toHaveBeenCalledWith(
         {
+          expected_artifact_generation: "generation-a",
+          criteria: {
+            kind: "text_search",
+            query: "dirge",
+            filter: null,
+            mode: "hybrid",
+          },
           page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
         },
         expect.any(AbortSignal),
@@ -415,7 +536,7 @@ describe("useSearchWorkspace", () => {
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     act(() => result.current.selectRecord("spell:heal"));
     await waitFor(() =>
       expect(result.current.detailError?.message).toBe("Selected record unavailable"),
@@ -427,16 +548,15 @@ describe("useSearchWorkspace", () => {
     await waitFor(() => expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(2));
     expect(result.current.search).toEqual(search);
     expect(result.current.resultPage).toEqual(rows);
-    expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
   });
 
   it("keeps previous rows while marking page transitions as refreshing", async () => {
     seedSearchUrl();
-    const nextPage = deferred<ResultWindowPage>();
-    apiMocks.openResultWindow.mockResolvedValue(
-      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
-    );
-    apiMocks.readResultWindowPage.mockReturnValue(nextPage.promise);
+    const nextPage = deferred<SearchResultsPage>();
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:dirge-of-doom"]))
+      .mockReturnValue(nextPage.promise);
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
@@ -454,9 +574,7 @@ describe("useSearchWorkspace", () => {
     );
 
     await act(async () => {
-      nextPage.resolve(
-        resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
-      );
+      nextPage.resolve(searchResultsPage(["spell:heal"], { pageNumber: 2 }));
       await nextPage.promise;
     });
 
@@ -467,19 +585,16 @@ describe("useSearchWorkspace", () => {
 
   it("resets page execution when search changes from a later page", async () => {
     seedSearchUrl();
-    apiMocks.openResultWindow.mockResolvedValue(
-      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
-    );
-    apiMocks.readResultWindowPage.mockResolvedValue(
-      resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
-    );
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:dirge-of-doom"]))
+      .mockResolvedValue(searchResultsPage(["spell:heal"], { pageNumber: 2 }));
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     act(() => result.current.setPageNumber(2));
-    await waitFor(() => expect(apiMocks.readResultWindowPage).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
 
     act(() =>
       result.current.setSearch({
@@ -489,16 +604,14 @@ describe("useSearchWorkspace", () => {
       }),
     );
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
-    expect(apiMocks.readResultWindowPage).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(3));
     expect(result.current.pageNumber).toBe(1);
-    const request = apiMocks.openResultWindow.mock
-      .calls[1][0] as OpenResultWindowRequest;
+    const request = apiMocks.searchPage.mock.calls[2][0] as SearchResultsRequest;
     expect(request.page).toEqual({
       number: 1,
       size: DEFAULT_SEARCH_STATE.pageSize,
     });
-    expect(request.mode).toMatchObject({
+    expect(request.criteria).toMatchObject({
       kind: "text_search",
       query: "heal",
     });
@@ -515,7 +628,7 @@ describe("useSearchWorkspace", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
 
     history.pushState(
       null,
@@ -526,28 +639,28 @@ describe("useSearchWorkspace", () => {
 
     expect(result.current.search.query).toBe("acid");
     expect(result.current.selectedRecordKey).toBe("spell:acid-arrow");
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
-    const request = apiMocks.openResultWindow.mock
-      .calls[1][0] as OpenResultWindowRequest;
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    const request = apiMocks.searchPage.mock.calls[1][0] as SearchResultsRequest;
     expect(request.page).toEqual({
       number: 1,
       size: DEFAULT_SEARCH_STATE.pageSize,
     });
-    expect(request.mode).toMatchObject({
+    expect(request.criteria).toMatchObject({
       kind: "text_search",
       query: "acid",
     });
   });
 });
 
-function queryClientWrapper() {
-  const queryClient = new QueryClient({
+function queryClientWrapper(
+  queryClient = new QueryClient({
     defaultOptions: {
       queries: {
         retry: false,
       },
     },
-  });
+  }),
+) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
@@ -561,12 +674,12 @@ function seedSearchUrl(query = "dirge") {
   );
 }
 
-function resultWindowPage(
+function searchResultsPage(
   recordKeys: string[] = [],
-  options: { pageNumber?: number; windowId?: bigint } = {},
-): ResultWindowPage {
+  options: { pageNumber?: number; generation?: string } = {},
+): SearchResultsPage {
   return {
-    window_id: options.windowId || 1n,
+    artifact_generation: options.generation ?? "generation-a",
     mode: { kind: "text_search", query: "", mode: "hybrid" },
     page: {
       number: options.pageNumber || 1,

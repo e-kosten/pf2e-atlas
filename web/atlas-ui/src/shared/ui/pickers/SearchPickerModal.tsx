@@ -1,13 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Form, Input, Modal, Table } from "antd";
 import type { FormInstance, ModalProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useId, useRef, useState } from "react";
-import { openResultWindow } from "../../../api/atlasApi";
-import type {
-  OpenResultWindowRequest,
-  ResultWindowRow,
-} from "../../../generated/atlas";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { searchPage } from "../../../api/atlasApi";
+import type { SearchResultsRequest, SearchResultRow } from "../../../generated/atlas";
+import {
+  isArtifactGenerationChanged,
+  retireImmutableReferenceQueries,
+} from "../../queries/immutableReferenceQueries";
 
 const SEARCH_PICKER_DEBOUNCE_MS = 250;
 
@@ -28,7 +29,7 @@ export function SearchPickerModal<FormValues>({
   selectedRecordKey,
   title,
 }: {
-  buildRequest: (query: string) => OpenResultWindowRequest;
+  buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
   children?: React.ReactNode;
   emptyPrompt: string;
@@ -39,7 +40,7 @@ export function SearchPickerModal<FormValues>({
   onSelectedRecordKeyChange: (recordKey: string | null) => void;
   open: boolean;
   okButtonProps?: ModalProps["okButtonProps"];
-  selectedLabel: (row: ResultWindowRow) => string;
+  selectedLabel: (row: SearchResultRow) => string;
   selectedPrompt: string;
   selectedRecordKey: string | null;
   title: string;
@@ -48,6 +49,21 @@ export function SearchPickerModal<FormValues>({
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const searchTimeout = useRef<number | undefined>(undefined);
+  const queryClient = useQueryClient();
+  const [retrieval, setRetrieval] = useState({
+    generation: null as string | null,
+    epoch: 0,
+    recovering: false,
+  });
+  const request = buildRequest(activeSearch);
+  const requestToken = JSON.stringify(request);
+  const liveRequest = useRef({ token: "", epoch: 0, active: false });
+  useLayoutEffect(() => {
+    liveRequest.current = { token: requestToken, epoch: retrieval.epoch, active: open };
+    return () => {
+      liveRequest.current.active = false;
+    };
+  }, [requestToken, retrieval.epoch, open]);
   useEffect(
     () => () => {
       window.clearTimeout(searchTimeout.current);
@@ -55,10 +71,45 @@ export function SearchPickerModal<FormValues>({
     [],
   );
   const recordResults = useQuery({
-    queryKey: ["search-picker", title, activeSearch],
-    enabled: open && activeSearch.trim().length > 0,
-    queryFn: () => openResultWindow(buildRequest(activeSearch)),
+    queryKey: ["search-picker", title, request, retrieval.epoch, retrieval.generation],
+    enabled: open && activeSearch.trim().length > 0 && !retrieval.recovering,
+    staleTime: 20_000,
+    queryFn: async ({ signal }) => {
+      const page = await searchPage(
+        { ...request, expected_artifact_generation: retrieval.generation },
+        signal,
+      );
+      if (
+        retrieval.generation === null &&
+        !signal.aborted &&
+        liveRequest.current.active &&
+        liveRequest.current.token === requestToken &&
+        liveRequest.current.epoch === retrieval.epoch
+      ) {
+        queryClient.setQueryData(
+          ["search-picker", title, request, retrieval.epoch, page.artifact_generation],
+          page,
+        );
+        setRetrieval((current) =>
+          current.epoch === retrieval.epoch && !current.recovering
+            ? { ...current, generation: page.artifact_generation }
+            : current,
+        );
+      }
+      return page;
+    },
   });
+  const generationChanged = isArtifactGenerationChanged(recordResults.error);
+  async function refreshResults() {
+    liveRequest.current.active = false;
+    setRetrieval((current) => ({ ...current, recovering: true }));
+    await retireImmutableReferenceQueries(queryClient);
+    setRetrieval((current) => ({
+      generation: null,
+      epoch: current.epoch + 1,
+      recovering: false,
+    }));
+  }
   const currentRows =
     activeSearch.trim() && search === activeSearch && !recordResults.error
       ? (recordResults.data?.rows ?? [])
@@ -69,6 +120,11 @@ export function SearchPickerModal<FormValues>({
   const reset = () => {
     setSearch("");
     setActiveSearch("");
+    setRetrieval((current) => ({
+      generation: null,
+      epoch: current.epoch + 1,
+      recovering: false,
+    }));
     window.clearTimeout(searchTimeout.current);
     onSelectedRecordKeyChange(null);
   };
@@ -122,15 +178,18 @@ export function SearchPickerModal<FormValues>({
             description={recordResults.error.message}
             action={
               <Button
-                onClick={() => recordResults.refetch()}
-                loading={recordResults.isFetching}
+                onClick={() => {
+                  if (generationChanged) void refreshResults();
+                  else void recordResults.refetch();
+                }}
+                loading={recordResults.isFetching || retrieval.recovering}
               >
-                Retry search
+                {generationChanged ? "Refresh results" : "Retry search"}
               </Button>
             }
           />
         )}
-        <Table<ResultWindowRow>
+        <Table<SearchResultRow>
           columns={recordPickerColumns}
           dataSource={currentRows}
           loading={recordResults.isFetching || search !== activeSearch}
@@ -174,7 +233,7 @@ export function SearchPickerModal<FormValues>({
   );
 }
 
-const recordPickerColumns: ColumnsType<ResultWindowRow> = [
+const recordPickerColumns: ColumnsType<SearchResultRow> = [
   { title: "Name", dataIndex: ["record", "title"] },
   { title: "Kind", dataIndex: ["record", "kind_label"], width: 100 },
   {

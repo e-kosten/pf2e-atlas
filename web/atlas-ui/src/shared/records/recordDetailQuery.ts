@@ -5,6 +5,7 @@ import type { RecordNavigationView } from "../../generated/atlas";
 export function recordDetailQueryOptions(
   recordKey: string | null,
   selection?: RecordNavigationView,
+  epoch?: number,
 ) {
   const request =
     selection &&
@@ -15,9 +16,13 @@ export function recordDetailQueryOptions(
       ? { ...selection, fields: selection.field ? [selection.field] : [] }
       : undefined;
   return queryOptions({
-    queryKey: ["record-detail", recordKey, request ?? null],
-    queryFn: () =>
-      request ? getRecordDetail(recordKey!, request) : getRecordDetail(recordKey!),
+    queryKey: [
+      "record-detail",
+      recordKey,
+      request ?? null,
+      ...(epoch === undefined ? [] : [epoch]),
+    ],
+    queryFn: ({ signal }) => getRecordDetail(recordKey!, request, signal),
     enabled: recordKey !== null,
   });
 }
