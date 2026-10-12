@@ -106,13 +106,9 @@ pub(crate) fn record_presentation(
         }
         SourceNodeView::Result(result) => {
             RecordBodyView::TableResult(Box::new(TableResultPresentationView {
-                range: fact(SourceFieldView::from(&result.range).map(|(lo, hi)| {
-                    if lo == hi {
-                        lo.to_string()
-                    } else {
-                        format!("{lo}–{hi}")
-                    }
-                })),
+                range: fact(
+                    SourceFieldView::from(&result.range).map(|(lo, hi)| table_range(lo, hi)),
+                ),
                 weight: number((&result.weight).into()),
                 result_type: identifier((&result.r#type).into()),
             }))
@@ -305,11 +301,18 @@ fn selected_identity(
         pack: summary.pack.clone(),
     }
 }
+fn table_range(lo: &serde_json::Number, hi: &serde_json::Number) -> String {
+    if lo == hi {
+        lo.to_string()
+    } else {
+        format!("{lo}–{hi}")
+    }
+}
 fn node_title(node: SourceNodeView<'_>) -> String {
     node.name().value().cloned().unwrap_or_else(|| match node {
         SourceNodeView::Result(r) => SourceFieldView::from(&r.range)
             .value()
-            .map(|(l, h)| format!("Result {l}–{h}"))
+            .map(|(lo, hi)| format!("Result {}", table_range(lo, hi)))
             .unwrap_or_else(|| "Table result".into()),
         _ => node
             .source_type()
