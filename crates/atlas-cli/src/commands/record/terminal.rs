@@ -43,7 +43,7 @@ pub(super) fn render_html(html: &str, layout: TerminalLayout) -> Result<String, 
                 element.name.local = "p".into();
             }
             node.append(Node::Text(Text {
-                text: "────────────".into(),
+                text: "─".repeat(layout.width).into(),
             }));
         }
     }
@@ -174,6 +174,24 @@ pub(super) fn render_html(html: &str, layout: TerminalLayout) -> Result<String, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn horizontal_rules_use_the_output_width_in_plain_and_styled_reading() {
+        for width in [40, 80, 120] {
+            for styled in [false, true] {
+                let text = render_html(
+                    "<p>Before</p><hr><p>After</p>",
+                    TerminalLayout { width, styled },
+                )
+                .unwrap();
+                let rule = "─".repeat(width);
+                assert_eq!(text.lines().filter(|line| *line == rule).count(), 1);
+                let before = text.find("Before").unwrap();
+                let separator = text.find(&rule).unwrap();
+                let after = text.find("After").unwrap();
+                assert!(before < separator && separator < after);
+            }
+        }
+    }
     #[test]
     fn styled_html_uses_annotations_without_markdown_prefixes() {
         let html = "<h2>Harrowkin Agency</h2><p><strong>Trigger</strong> A creature moves. <em>Once per round.</em></p><ul><li>Retain the list</li></ul>";
