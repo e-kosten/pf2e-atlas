@@ -1,3 +1,4 @@
+import { sentenceCase } from "../ui/labels";
 import {
   CloseOutlined,
   DownOutlined,
@@ -77,11 +78,11 @@ export function CommonChoicePicker({
   const choices = closedChoices
     ? field.choices.map((choice) => ({
         value: String(choice.value),
-        label: choice.label,
+        label: sentenceCase(choice.label),
       }))
     : (query.data?.values.options ?? []).map((option) => ({
         value: String(option.value),
-        label: String(option.value),
+        label: sentenceCase(String(option.value)),
       }));
   // Retain initial selections and every edited value through this open session.
   // Suggestions always keep server/catalog order, irrespective of selection.
@@ -89,7 +90,7 @@ export function CommonChoicePicker({
     ...choices,
     ...[...new Set([...sessionValues, ...selected])]
       .filter((value) => !choices.some((choice) => choice.value === value))
-      .map((value) => ({ value, label: value })),
+      .map((value) => ({ value, label: sentenceCase(value) })),
   ];
   const rows = closedChoices
     ? options.filter((option) =>
@@ -269,7 +270,7 @@ export function CommonChoicePicker({
       onClick={narrow ? () => setMenuOpen(true) : undefined}
       onKeyDown={closeOnEscape}
     >
-      {selected.length ? "Edit choices" : "Any " + field.label.toLowerCase()}
+      {selected.length ? field.label : "Any " + field.label.toLowerCase()}
     </Button>
   );
   return (
@@ -317,7 +318,8 @@ export function CommonChoicePicker({
           {selected.map((value) => {
             const state = choiceValueState(clause, value);
             const label =
-              choices.find((choice) => choice.value === value)?.label ?? value;
+              choices.find((choice) => choice.value === value)?.label ??
+              sentenceCase(value);
             return (
               <Button
                 key={value}

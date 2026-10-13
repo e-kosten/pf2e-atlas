@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUrl";
 
 const creatureKey = "stolen-fate-bestiary:5jXQKIwhlOfs9F6e";
 const hazardKey = "pfs-season-3-bestiary:wun5VzDIMSZCVLuI";
@@ -87,7 +88,10 @@ test("GM Core Hidden Pit is available in the preview through normal search", asy
   page,
 }) => {
   await page.goto("/search?q=hidden%20pit");
-  const result = page.getByRole("link", { name: "Hidden Pit", exact: true }).first();
+  const result = page
+    .locator("[data-record-key]")
+    .filter({ hasText: "Hidden Pit" })
+    .first();
   await expect(result).toBeVisible();
   await result.click();
   await expect(
@@ -101,14 +105,14 @@ test("owned reference return retains Similar, canonical filters, selected result
   context,
 }) => {
   const filter = {
-    kind: "in",
+    kind: "in" as const,
     clause_id: "hazard-kind",
     field: "record.kind",
     values: ["hazard"],
   };
   const params = new URLSearchParams({
     similar: "pathfinder-bestiary:LHHgGSs0ELCR4CYK",
-    filter: JSON.stringify(filter),
+    filter: encodeFilterUrl(filter),
   });
   await page.goto("/search/records/" + hazardKey + "?" + params.toString());
   const permalink = page.getByRole("link", {
@@ -123,7 +127,11 @@ test("owned reference return retains Similar, canonical filters, selected result
   const target = new URL(href, page.url());
   expect(target.pathname).toBe("/search/records/" + hazardKey);
   expect(target.searchParams.get("similar")).toBe(params.get("similar"));
-  expect(JSON.parse(target.searchParams.get("filter")!)).toEqual(filter);
+  expect(decodeFilterUrl(target.searchParams.get("filter")!)).toMatchObject({
+    kind: "in",
+    field: filter.field,
+    values: filter.values,
+  });
   expect(target.searchParams.has("selection")).toBe(false);
   expect(JSON.parse(target.searchParams.get("landing")!).owners).toEqual(
     JSON.parse(new URL(selectedHref!, page.url()).searchParams.get("selection")!)

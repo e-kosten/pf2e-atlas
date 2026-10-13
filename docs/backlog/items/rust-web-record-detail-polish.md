@@ -88,6 +88,9 @@ The pass should consider:
 
 ## Constraints
 
+- Revisit creature spell rosters' Base rank / Cast rank presentation as a separate
+  product design discussion. It remains unchanged by the reference workspace pass.
+
 - Extend narrow app-service family facts when current consumer data is insufficient;
   do not reintroduce RichDocument or a generic section/value/profile contract.
 - Do not duplicate rich document parsing or record-kind semantics in TypeScript.

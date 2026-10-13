@@ -43,8 +43,36 @@ Expected generation is checked before embedding/ranking. A mismatch returns
 `ArtifactGenerationChanged`, HTTP409, with expected and actual hashes. Window
 registries, identifiers, expiration, open/read operations and recovery are removed.
 
-Browser URL state retains committed criteria; page and generation remain request
-state. The search owner tracks generation and an epoch. Query keys include
+Browser URL state retains committed criteria and the complete selected reading
+address or parent landing. The browser's common filter controls and Advanced
+builder edit one shared in-progress tree; Advanced displays the complete expression.
+Simple positive conjunctions can be edited through common controls without
+rewriting unrelated branches. Complex expressions retain their grouping and use
+the full builder. Successful edits project the executable predicate without
+reconstructing the editing tree. Empty authored groups, range editors and
+unfinished siblings remain available. An invalid edit retains the last committed
+criteria; a completed common-control edit replaces its exact committed condition
+while retaining unfinished unrelated editing state. External changed criteria
+restore the tree; local URL updates and record-preview navigation do not reset it.
+Individual conditions support exclusion independently of genuine group negation.
+Operand transitions follow app-service metadata, preserving compatible values
+and resetting incompatible shapes before rendering a different input.
+
+Filter URL state uses a versioned lz-string URI encoding of the existing predicate
+JSON. Clause and collection-scope IDs are editor/discovery identities, omitted
+from the URL and reconstructed distinctly and deterministically on restoration.
+Groups, literals and collection boundaries remain intact. Backend catalog and
+query validation retain semantic authority. Query text, similarity seed and
+nondefault page size use ordinary parameters; retrieval mode is derived. This
+replaces raw predicate JSON in URLs without another expression language, a
+parallel simple-filter dialect or a server-side short-link registry.
+
+Page remains request state and is retained in browser
+history state for same-tab Back; generation stays in the search owner. That owner
+remains mounted across application routes, while its requests are disabled outside
+Search. Non-search route changes do not reset its committed criteria or page.
+Result-list and per-address reader positions are separate in-memory browser state;
+restoring them does not claim a frozen result set or survive a full reload. The search owner tracks generation and an epoch. Query keys include
 criteria, page and known generation. It adopts a first response only for current
 criteria/epoch with a live signal, seeding the final key without another inference
 request. Generation mismatch pauses paging. Explicit `Refresh results` cancels

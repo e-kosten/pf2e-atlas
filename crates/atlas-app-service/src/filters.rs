@@ -39,18 +39,13 @@ impl AtlasAppService {
         &self,
         request: DiscoverFilterEditorRequest,
     ) -> AppServiceResult<FilterEditorView> {
-        let (_, filter, _, _) = context_parts(self, request.context)?;
+        // Editor metadata describes the global executable catalog. Invalid current
+        // criteria must not prevent discovering the controls needed to repair them.
         self.with_retrieval(
             &crate::ReadExecutionContext::uncancellable(),
             move |retrieval| {
-                if let Some(filter) = filter {
-                    retrieval.validate_filter(&filter)?;
-                }
                 let catalog = retrieval.discover_filter_fields()?;
-                Ok(crate::discovery::filter_editor_view(
-                    catalog,
-                    &request.selected_field_ids,
-                ))
+                crate::discovery::filter_editor_view(catalog, &request.selected_field_ids)
             },
         )
     }
@@ -233,5 +228,135 @@ fn required_facet<T>(outcome: QueryFacetOutcome<T>) -> AppServiceResult<T> {
                 "Contextual discovery is unavailable for this condition ({reason:?}); query execution remains supported. Discover unscoped values without a target clause."
             )))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::fixture_worker;
+    use atlas_app_model::{
+        AppErrorCode, FilterOperandView, RetrievalModeView, SearchCriteria, SearchPageRequest,
+        SearchResultsRequest,
+    };
+    use serde_json::json;
+    use std::collections::BTreeMap;
+
+    fn editor_request() -> DiscoverFilterEditorRequest {
+        DiscoverFilterEditorRequest {
+            selected_field_ids: vec!["actor.hp.maximum".into()],
+        }
+    }
+
+    #[test]
+    fn filter_editor_remains_available_to_repair_invalid_fields_and_choices() {
+        let f = fixture_worker();
+        let baseline = f.worker.discover_filter_editor(editor_request()).unwrap();
+        for input in [
+            json!({"kind":"compare","clause_id":"invalid","field":"invented.field","op":"eq","value":"example"}),
+            json!({"kind":"in","clause_id":"invalid","field":"record.kind","values":["action"]}),
+        ] {
+            let predicate: QueryPredicate = serde_json::from_value(input).unwrap();
+            assert!(
+                !f.worker
+                    .validate_filter(predicate.clone())
+                    .unwrap()
+                    .errors
+                    .is_empty()
+            );
+            let search_error = f
+                .worker
+                .search_page(
+                    SearchResultsRequest {
+                        criteria: SearchCriteria::ListRecords {
+                            filter: Some(predicate.clone()),
+                        },
+                        page: SearchPageRequest {
+                            number: 1,
+                            size: 10,
+                        },
+                        expected_artifact_generation: None,
+                    },
+                    &ReadExecutionContext::uncancellable(),
+                )
+                .unwrap_err()
+                .into_app_error();
+            assert_eq!(search_error.code, AppErrorCode::FilterInvalid);
+            let count_error = f
+                .worker
+                .discover_filter_counts(
+                    DiscoverFilterCountsRequest {
+                        context: FilterDiscoveryContext::Filtered {
+                            filter: Some(predicate),
+                            text: None,
+                            mode: RetrievalModeView::Lexical,
+                        },
+                        field_id: "record.kind".into(),
+                        clause_id: Some("invalid".into()),
+                    },
+                    &ReadExecutionContext::uncancellable(),
+                )
+                .unwrap_err()
+                .into_app_error();
+            assert_eq!(count_error.code, AppErrorCode::FilterInvalid);
+            assert_eq!(
+                f.worker.discover_filter_editor(editor_request()).unwrap(),
+                baseline,
+            );
+        }
+    }
+
+    #[test]
+    fn filter_editor_operands_cover_the_real_executable_catalog() {
+        use FilterOperandView::{List, Predicate, Range, Scalar, State};
+        let f = fixture_worker();
+        let editor = f.worker.discover_filter_editor(editor_request()).unwrap();
+        let actual: BTreeMap<_, _> = editor
+            .groups
+            .iter()
+            .flat_map(|group| &group.fields)
+            .flat_map(|field| &field.operators)
+            .map(|operator| (operator.operator.as_str(), operator.operand))
+            .collect();
+        assert_eq!(
+            actual,
+            BTreeMap::from([
+                ("eq", Scalar),
+                ("neq", Scalar),
+                ("lt", Scalar),
+                ("lte", Scalar),
+                ("gt", Scalar),
+                ("gte", Scalar),
+                ("includes", Scalar),
+                ("in", List),
+                ("includes_any", List),
+                ("includes_all", List),
+                ("excludes_any", List),
+                ("between", Range),
+                ("state", State),
+                ("exists", Predicate),
+            ])
+        );
+
+        let includes = |values| {
+            serde_json::from_value::<QueryPredicate>(json!({
+                "kind":"set_match","field":"traits","op":"includes","values":values
+            }))
+            .unwrap()
+        };
+        assert!(
+            f.worker
+                .validate_filter(includes(vec!["fire"]))
+                .unwrap()
+                .errors
+                .is_empty()
+        );
+        assert!(
+            !f.worker
+                .validate_filter(includes(vec!["fire", "magical"]))
+                .unwrap()
+                .errors
+                .is_empty()
+        );
     }
 }

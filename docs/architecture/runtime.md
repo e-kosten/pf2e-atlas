@@ -177,6 +177,11 @@ Index owns useful human labels alongside executable filter definitions.
 App-service adds collection-context prefixes, groups, choice and operator labels
 and one ordered common field list: Kind, Level / Rank, Rarity, Traits. Presentation
 decoration does not declare executable fields or choices.
+Editor catalog discovery is independent of active criteria and saved-list
+membership. It remains available to repair invalid URL conditions. Operator
+metadata includes the input shape (scalar, list, range, availability or nested
+predicate); rendering and value transitions use this contract. Executable search
+and contextual counts retain their separate index-owned validation.
 The common Level / rank primitive is index-owned and uses existing rank/state
 for spells and level/state for other applicable families.
 

@@ -1,10 +1,10 @@
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { encodeFilterUrl } from "../src/shared/filters/filterUrl";
 
-// Run against the caller's real Atlas server and the maintained source artifact.
-// These bounds test pane composition and readable coverage, not screenshot pixels.
-for (const width of [1680, 820, 390]) {
+// These checks use the caller's real source artifact and application service.
+for (const width of [1440, 1100, 390]) {
   for (const similar of [false, true]) {
-    test(`${similar ? "Similar" : "browse"} search keeps usable panes and coverage at ${width}px`, async ({
+    test(`${similar ? "Similar" : "browse"} uses a usable result browser at ${width}px`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 1000 });
@@ -13,127 +13,147 @@ for (const width of [1680, 820, 390]) {
           ? "/search?similar=equipment-srd%3A7jolv0cuttvjI1JD"
           : "/search?filter=" +
               encodeURIComponent(
-                JSON.stringify({
+                encodeFilterUrl({
                   kind: "in",
-                  clause_id: "responsive-kind",
+                  clause_id: "kind",
                   field: "record.kind",
                   values: ["creature"],
                 }),
               ),
       );
-      const filter = page.locator(".workspace-pane--filter");
-      const results = page.locator(".workspace-pane--results");
-      const detail = page.locator(".workspace-pane--detail");
-      await expect(page.locator(".result-row").first()).toBeVisible();
-      await expect(filter.locator(":scope > *")).toHaveCount(2);
-      const body = filter.locator(":scope > .filter-panel");
-      await expect(body.getByRole("textbox", { name: "Search records" })).toBeVisible();
-      const coverage = results.locator(".result-pane-header > span").first();
-      await expect(coverage).toHaveText(similar ? "Top matches" : /\d[\d,]* records/);
-      if (similar) {
-        const criterion = body.getByText("Similar to Wovenwood Shield (Minor)", {
-          exact: true,
-        });
-        await expect(criterion).toBeVisible();
-        const criterionBox = await bounds(criterion);
-        const filterHeader = await bounds(filter.locator(":scope > .pane-header"));
-        expect(criterionBox.y - (filterHeader.y + filterHeader.height)).toBeLessThan(
-          60,
-        );
-      }
-
-      const filterBox = await bounds(filter);
-      const resultsBox = await bounds(results);
-      const detailBox = await bounds(detail);
-      expect(resultsBox.width).toBeGreaterThan(width === 820 ? 400 : 340);
-      if (width === 1680) {
-        expect(resultsBox.x).toBeGreaterThanOrEqual(filterBox.x + filterBox.width);
-        expect(detailBox.x).toBeGreaterThanOrEqual(resultsBox.x + resultsBox.width);
+      const results = page.getByRole("region", { name: "Search results", exact: true });
+      const row = page.locator("[data-record-key]").first();
+      await expect(row).toBeVisible();
+      await expect(
+        page.getByRole("searchbox", { name: "Search records" }),
+      ).toBeVisible();
+      const coverage = page.locator(".result-pane-header > span").first();
+      await expect(coverage).toHaveText(similar ? /Top matches/ : /\d[\d,]* records/);
+      if (similar)
         await expect(
-          page.getByRole("separator", { name: "Resize filters" }),
+          page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
         ).toBeVisible();
-      } else {
-        await expect(page.getByRole("separator")).toHaveCount(0);
-        expect(detailBox.y).toBeGreaterThanOrEqual(
-          Math.max(filterBox.y + filterBox.height, resultsBox.y + resultsBox.height) -
-            1,
-        );
-        expect(detailBox.x).toBeCloseTo(filterBox.x, 0);
-        if (width === 390) {
-          expect(resultsBox.y).toBeGreaterThanOrEqual(filterBox.y + filterBox.height);
-        } else {
-          expect(resultsBox.y).toBeCloseTo(filterBox.y, 0);
-          expect(resultsBox.x).toBeGreaterThanOrEqual(filterBox.x + filterBox.width);
-        }
-      }
-      await coverage.scrollIntoViewIfNeeded();
-      expect(
-        await coverage.evaluate((element) => {
-          const text = document.createRange();
-          text.selectNodeContents(element);
-          const content = text.getBoundingClientRect();
-          const box = element.getBoundingClientRect();
-          return (
-            content.width <= box.width + 1 &&
-            box.left >= 0 &&
-            box.right <= window.innerWidth
-          );
-        }),
-      ).toBe(true);
-      const title = results.locator(":scope > .pane-header > span");
-      expect(
-        await title.evaluate((element) => element.scrollWidth <= element.clientWidth),
-      ).toBe(true);
       for (const control of [
         results.getByRole("combobox", { name: "Records per page" }),
         results.getByRole("textbox", { name: "Current page" }),
         results.getByRole("button", { name: "Next page" }),
       ]) {
-        const box = await bounds(control);
-        expect(box.x).toBeGreaterThanOrEqual(resultsBox.x);
-        expect(box.x + box.width).toBeLessThanOrEqual(resultsBox.x + resultsBox.width);
+        const box = await control.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      }
+      await row.click();
+      const reader = page.getByRole("region", { name: "Record preview", exact: true });
+      await expect(reader.locator(".record-reference__title")).toBeVisible();
+      const box = await reader.boundingBox();
+      expect(box!.width).toBeGreaterThan(width === 390 ? 340 : 600);
+      if (width === 390) {
+        await expect(
+          page.getByRole("searchbox", { name: "Search records" }),
+        ).toBeHidden();
+        await reader.getByRole("button", { name: "Results", exact: true }).click();
+        await expect(row).toBeFocused();
+        await expect(row).toBeVisible();
+      } else {
+        const resultBox = await results.boundingBox();
+        expect(box!.x).toBeGreaterThanOrEqual(resultBox!.x + resultBox!.width);
       }
       expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= window.innerWidth,
-        ),
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       ).toBe(true);
-      await page.screenshot({
-        path: `../../scratch/browser-validation/search-${similar ? "similar" : "browse"}-${width}.png`,
-      });
     });
   }
 }
 
-test("responsive reflow preserves wide resize state and collapse controls", async ({
+test("Back keeps page, selected result and nonzero list/reader positions", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1680, height: 1000 });
-  await page.goto("/search");
-  const filter = page.locator(".workspace-pane--filter");
-  const handle = page.getByRole("separator", { name: "Resize filters" });
-  await handle.focus();
-  await handle.press("ArrowRight");
-  await expect(handle).toHaveAttribute("aria-valuenow", "324");
-  expect((await bounds(filter)).width).toBeCloseTo(324, 0);
-  await page.setViewportSize({ width: 820, height: 1000 });
-  expect((await bounds(filter)).width).toBeCloseTo(290, 0);
-  await page.getByRole("button", { name: "Collapse Filters", exact: true }).click();
-  expect((await bounds(filter)).width).toBeCloseTo(44, 0);
-  expect(
-    (await bounds(page.locator(".workspace-pane--results"))).width,
-  ).toBeGreaterThan(700);
-  await page
-    .getByRole("button", { name: "Expand Filters", exact: true })
-    .first()
-    .click();
-  await page.setViewportSize({ width: 1680, height: 1000 });
-  expect((await bounds(filter)).width).toBeCloseTo(324, 0);
-  await expect(handle).toBeVisible();
+  await page.goto("/search?q=fire&mode=text_search");
+  await page.locator("[data-record-key]").first().waitFor();
+  await page.getByRole("button", { name: "Next page", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Current page" })).toHaveValue("2");
+  const row = page.locator("[data-record-key]").nth(4);
+  await row.click();
+  await expect(
+    page.locator(".reference-reader__scroll .record-reference__title"),
+  ).toBeVisible();
+  await page.locator(".reference-results__scroll").evaluate((e) => (e.scrollTop = 200));
+  const selected = await row.getAttribute("data-record-key");
+  await page.getByRole("link", { name: "Open full page", exact: true }).click();
+  await expect(page).toHaveURL(/\/records\//);
+  await page.goBack();
+  await expect(page.getByRole("textbox", { name: "Current page" })).toHaveValue("2");
+  await expect(page.locator("[data-record-key][aria-current=true]")).toHaveAttribute(
+    "data-record-key",
+    selected!,
+  );
+  await expect
+    .poll(() => page.locator(".reference-results__scroll").evaluate((e) => e.scrollTop))
+    .toBe(200);
+  // Use a long creature reader to establish actual nonzero reader continuity.
+  const search = page.getByRole("searchbox", { name: "Search records", exact: true });
+  await search.fill("Imeckus Stroon");
+  await search.press("Enter");
+  await expect(page.getByRole("textbox", { name: "Current page" })).toHaveValue("1");
+  await expect(page.locator(".reference-results__scroll")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await page.locator("[data-record-key]").filter({ hasText: "Imeckus Stroon" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Imeckus Stroon", exact: true }),
+  ).toBeVisible();
+  const scroll = page.locator(".reference-reader__scroll");
+  await scroll.evaluate((e) => (e.scrollTop = 400));
+  await expect.poll(() => scroll.evaluate((e) => e.scrollTop)).toBe(400);
+  await page.getByRole("link", { name: "Open full page", exact: true }).click();
+  await page.goBack();
+  await expect.poll(() => scroll.evaluate((e) => e.scrollTop)).toBe(400);
+  // Back remounts the browser without its original preview-trigger ref.
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.getByRole("button", { name: "Results", exact: true }).click();
+  await expect(page.locator('[data-record-key][aria-current="true"]')).toBeFocused();
 });
 
-async function bounds(locator: Locator) {
-  const box = await locator.boundingBox();
-  expect(box).not.toBeNull();
-  return box!;
-}
+test("match popovers retain row layout and land inline without scrolling the app chrome", async ({
+  page,
+}) => {
+  await page.goto("/search?q=fire&mode=text_search");
+  const row = page.locator(".reference-result").filter({
+    has: page.locator("[data-record-key]").filter({ hasText: "Imeckus Stroon" }),
+  });
+  const trigger = row.getByRole("button", {
+    name: "3 matches in Imeckus Stroon",
+    exact: true,
+  });
+  await expect(trigger).toBeVisible();
+  const before = await row.boundingBox();
+  await trigger.click();
+  const popup = page.locator(".reference-match-list:visible");
+  await expect(
+    popup.getByRole("link", { name: "Staff of Fire (Major)", exact: true }),
+  ).toBeFocused();
+  expect((await row.boundingBox())!.height).toBe(before!.height);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await popup.getByRole("link", { name: "Staff of Fire (Major)", exact: true }).click();
+  await expect(popup).toBeHidden();
+  await expect(page.locator(".reference-landing-highlight")).toContainText(
+    "Staff of Fire",
+  );
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  await expect(
+    page.getByRole("heading", { name: "Imeckus Stroon", exact: true }),
+  ).toHaveCount(1);
+  await trigger.click();
+  await popup.getByRole("link", { name: "Fire Shield", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Fire Shield", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".reference-landing-highlight")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Return to Imeckus Stroon", exact: true }),
+  ).toBeVisible();
+});

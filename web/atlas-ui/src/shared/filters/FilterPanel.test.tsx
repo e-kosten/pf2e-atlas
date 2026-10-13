@@ -11,12 +11,14 @@ function renderControls(
   editor: FilterEditorView,
   predicate: QueryPredicate | null = null,
   counts = {},
+  filterError: string | null = null,
 ) {
   const onChange = vi.fn();
   function Harness() {
     const [search, setSearch] = useState<SearchFormState>({
       ...DEFAULT_SEARCH_STATE,
       filter: predicate,
+      filterError,
     });
     return (
       <FilterControls
@@ -47,6 +49,155 @@ function renderControls(
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
+  it("keeps individual exclusion reversible after successful edits", () => {
+    const kind = {
+      ...fieldFixture("record.kind", "string", "Kind"),
+      choices: ["companion"],
+    };
+    const change = renderControls(editorFixture([kind]), {
+      kind: "not",
+      predicate: { kind: "in", field: kind.path, values: ["companion"] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    const exclude = screen.getByRole("checkbox", { name: "Exclude" });
+    expect(exclude).toBeChecked();
+    fireEvent.click(exclude);
+    expect(exclude).not.toBeChecked();
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({ filter: expect.objectContaining({ kind: "in" }) }),
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Exclude" }));
+    expect(screen.getByRole("checkbox", { name: "Exclude" })).toBeChecked();
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({ filter: expect.objectContaining({ kind: "not" }) }),
+    );
+  });
+  it("converts a selected singleton when changing In to Is not", () => {
+    const kind = {
+      ...fieldFixture("record.kind", "string", "Kind"),
+      choices: ["companion"],
+    };
+    const change = renderControls(editorFixture([kind]), {
+      kind: "in",
+      field: kind.path,
+      values: ["companion"],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Condition for Kind" }));
+    fireEvent.click(screen.getAllByText("neq", { exact: true }).slice(-1)[0]);
+    expect(screen.queryByText("Enter a value")).toBeNull();
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({ op: "neq", value: "companion" }),
+      }),
+    );
+  });
+  it("renders restored boolean choices and commits their typed values", () => {
+    const field = fieldFixture("actor.has_reactions", "boolean", "Has reactions");
+    const editor = editorFixture([field]);
+    editor.groups[0].fields[0].choices = [
+      { value: true, label: "Yes" },
+      { value: false, label: "No" },
+    ];
+    const change = renderControls(editor, {
+      kind: "compare",
+      field: field.path,
+      op: "eq",
+      value: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    const value = screen.getByRole("combobox", { name: "Has reactions" });
+    expect(value.parentElement).toHaveTextContent("No");
+    fireEvent.mouseDown(value);
+    fireEvent.click(screen.getAllByText("Yes", { exact: true }).slice(-1)[0]);
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({ kind: "compare", value: true }),
+      }),
+    );
+  });
+  it("keeps a newly added empty group available for its first condition", () => {
+    renderControls(
+      editorFixture([fieldFixture("actor.hp.maximum", "number", "Maximum HP")]),
+      {
+        kind: "compare",
+        field: "actor.hp.maximum",
+        op: "gte",
+        value: 80,
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add group" }));
+    expect(screen.getAllByRole("button", { name: "Add condition" })).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole("button", { name: "Add condition" })[1]);
+    expect(screen.getAllByRole("combobox", { name: "Filter field" })).toHaveLength(2);
+  });
+  it("shares unfinished common numeric input with Advanced and corrects it there", () => {
+    const level = fieldFixture("record.level_or_rank", "number", "Level / rank");
+    const change = renderControls(editorFixture([level]), {
+      kind: "compare",
+      field: level.path,
+      op: "gte",
+      value: 1,
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Level / rank minimum" }), {
+      target: { value: "-" },
+    });
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    expect(screen.getByRole("textbox", { name: "Level / rank" })).toHaveValue("-");
+    fireEvent.change(screen.getByRole("textbox", { name: "Level / rank" }), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("textbox", { name: "Level / rank minimum" })).toHaveValue(
+      "2",
+    );
+  });
+  it("shows the current Kind draft while an unrelated numeric condition is unfinished", async () => {
+    const kind = {
+      ...fieldFixture("record.kind", "string", "Kind"),
+      choices: ["creature", "spell"],
+    };
+    const hp = fieldFixture("actor.hp.maximum", "number", "Maximum HP");
+    const change = renderControls(editorFixture([kind, hp]), {
+      kind: "all_of",
+      children: [
+        { kind: "compare", field: kind.path, op: "eq", value: "creature" },
+        { kind: "compare", field: hp.path, op: "gte", value: 80 },
+      ],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Maximum HP" }), {
+      target: { value: "-" },
+    });
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Kind" }));
+    fireEvent.click(screen.getAllByText("spell", { exact: true }).slice(-1)[0]);
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", {
+          name: "Kind: Spell, included; activate to exclude",
+        }),
+      ).toBeVisible(),
+    );
+  });
+  it("explains a malformed URL with the drawer closed and lets Clear recover", () => {
+    const onChange = renderControls(
+      editorFixture([fieldFixture("record.kind")]),
+      null,
+      {},
+      "Invalid structured filter URL",
+    );
+    expect(screen.getByText("Invalid structured filter URL")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.queryByText("Invalid structured filter URL")).toBeNull();
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ filter: null, filterError: null }),
+    );
+  });
   it("uses ordered backend common labels and keeps invalid ranges local", async () => {
     const editor = editorFixture([
       fieldFixture("record.level_or_rank", "number", "Level / rank"),
@@ -69,6 +220,18 @@ describe("shared common and maintained advanced filters", () => {
         filterError: null,
         filter: expect.objectContaining({ clause_id: "level", value: 2 }),
       }),
+    );
+    fireEvent.change(input, { target: { value: "-" } });
+    expect(await screen.findByText("Enter a finite numeric value")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("textbox", { name: "Level / rank minimum" })).toHaveValue(
+      "",
+    );
+    expect(screen.queryByText("Enter a finite numeric value")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Advanced filters" })).toHaveFocus();
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ filter: null, filterError: null }),
     );
   });
   it("retains invalid range input while the catalog reloads and adopts new definitions", async () => {
@@ -135,8 +298,7 @@ describe("shared common and maintained advanced filters", () => {
       ],
     };
     const change = renderControls(editorFixture([kind]), predicate);
-    expect(screen.getByText("Defined in advanced filters")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Edit kind" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kind: Advanced" }));
     expect(
       screen.getByRole("checkbox", { name: "Exclude this group" }),
     ).toBeInTheDocument();
@@ -166,13 +328,13 @@ describe("shared common and maintained advanced filters", () => {
       },
     );
     expect(
-      screen.getByText("Counts unavailable for this condition"),
-    ).toBeInTheDocument();
+      screen.queryByText("Counts unavailable for this condition"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
     expect(
       screen.getByRole("button", {
-        name: "Kind: creature, excluded; activate to clear",
+        name: "Kind: Creature, excluded; activate to clear",
       }),
     ).toBeEnabled();
   });
@@ -208,7 +370,7 @@ describe("shared common and maintained advanced filters", () => {
     expect(
       screen.queryByRole("button", { name: "Edit Traits filter" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Edit traits" }));
+    fireEvent.click(screen.getByRole("button", { name: "Traits: Advanced" }));
     expect(
       screen.getByRole("combobox", { name: "Condition for Traits" }),
     ).toBeInTheDocument();
@@ -266,7 +428,7 @@ describe("shared common and maintained advanced filters", () => {
   });
 });
 
-describe("per-value states and additional conditions", () => {
+describe("per-value states and the complete query", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
   function choose(label: string, state: string) {
@@ -285,16 +447,16 @@ describe("per-value states and additional conditions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Kind: creature, neutral; activate to include",
+        name: "Kind: Creature, neutral; activate to include",
       }),
     );
     const spell = screen.getByRole("button", {
-      name: "Kind: spell, neutral; activate to include",
+      name: "Kind: Spell, neutral; activate to include",
     });
     spell.focus();
     fireEvent.click(spell);
     await waitFor(() =>
-      expect(spell).toHaveAccessibleName("Kind: spell, included; activate to exclude"),
+      expect(spell).toHaveAccessibleName("Kind: Spell, included; activate to exclude"),
     );
     expect(spell).toHaveFocus();
     fireEvent.click(spell);
@@ -312,17 +474,20 @@ describe("per-value states and additional conditions", () => {
         }),
       }),
     );
+    expect(screen.getByRole("button", { name: "Edit Kind filter" })).toHaveTextContent(
+      "Kind",
+    );
     expect(
       screen.queryByRole("combobox", { name: "Kind include or exclude" }),
     ).not.toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Kind: creature, included; activate to exclude",
+        name: "Kind: Creature, included; activate to exclude",
       }),
     );
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Kind: creature, excluded; activate to clear",
+        name: "Kind: Creature, excluded; activate to clear",
       }),
     );
     expect(change).toHaveBeenLastCalledWith(
@@ -334,7 +499,7 @@ describe("per-value states and additional conditions", () => {
       }),
     );
   });
-  it("hides recognized common clauses from Advanced and preserves them through an invalid local draft", async () => {
+  it("shows common clauses in Advanced and adds exactly one additional condition", async () => {
     const kind = {
       ...fieldFixture("record.kind", "string", "Kind"),
       choices: ["creature", "spell"],
@@ -350,13 +515,18 @@ describe("per-value states and additional conditions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     const advanced = screen.getByRole("region", { name: "Advanced filters" });
     expect(
-      within(advanced).queryByRole("combobox", { name: "Filter field" }),
-    ).not.toBeInTheDocument();
+      within(advanced).getByRole("combobox", { name: "Filter field" }),
+    ).toBeInTheDocument();
     fireEvent.click(within(advanced).getByRole("button", { name: "Add condition" }));
     expect(change).not.toHaveBeenCalled();
     expect(screen.queryByText("Complete this filter")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    const field = within(advanced).getByRole("combobox", { name: "Filter field" });
+    expect(
+      within(advanced).getAllByRole("combobox", { name: "Filter field" }),
+    ).toHaveLength(2);
+    const field = within(advanced).getAllByRole("combobox", {
+      name: "Filter field",
+    })[1];
     fireEvent.mouseDown(field);
     fireEvent.click(screen.getAllByText("Maximum HP", { exact: true }).slice(-1)[0]);
     fireEvent.change(screen.getByRole("textbox", { name: "Maximum HP" }), {
@@ -370,8 +540,8 @@ describe("per-value states and additional conditions", () => {
           children: [
             common,
             expect.objectContaining({
-              kind: "all_of",
-              children: [expect.objectContaining({ field: hp.path, value: 12 })],
+              field: hp.path,
+              value: 12,
             }),
           ],
         }),
@@ -389,6 +559,108 @@ describe("per-value states and additional conditions", () => {
     expect(change).toHaveBeenLastCalledWith(
       expect.objectContaining({
         filter: { kind: "boolean_constant", clause_id: "constant", value: true },
+      }),
+    );
+  });
+  it("shows the original Kind immediately and never introduces a hidden duplicate while adding Kind", async () => {
+    const kind = {
+      ...fieldFixture("record.kind", "string", "Kind"),
+      choices: ["creature", "spell"],
+    };
+    const original: QueryPredicate = {
+      kind: "in",
+      clause_id: "original-kind",
+      field: kind.path,
+      values: ["creature"],
+    };
+    const change = renderControls(editorFixture([kind]), original);
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    const advanced = screen.getByRole("region", { name: "Advanced filters" });
+    expect(
+      within(advanced).getAllByRole("combobox", { name: "Filter field" }),
+    ).toHaveLength(1);
+    fireEvent.click(within(advanced).getByRole("button", { name: "Add condition" }));
+    expect(
+      within(advanced).getAllByRole("combobox", { name: "Filter field" }),
+    ).toHaveLength(2);
+    const field = within(advanced).getAllByRole("combobox", {
+      name: "Filter field",
+    })[1];
+    fireEvent.mouseDown(field);
+    fireEvent.click(screen.getAllByRole("option", { name: "Kind" }).slice(-1)[0]);
+    const value = within(advanced).getAllByRole("combobox", { name: "Kind" })[1];
+    fireEvent.mouseDown(value);
+    fireEvent.click(screen.getAllByText("creature", { exact: true }).slice(-1)[0]);
+    await waitFor(() => expect(change).toHaveBeenCalled());
+    expect(
+      within(advanced).getAllByRole("combobox", { name: "Filter field" }),
+    ).toHaveLength(2);
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          kind: "all_of",
+          children: [
+            original,
+            expect.objectContaining({ field: kind.path, value: "creature" }),
+          ],
+        }),
+      }),
+    );
+    expect(screen.queryByText("Defined in advanced filters")).toBeNull();
+    fireEvent.click(within(advanced).getAllByRole("button", { name: "Remove" })[1]);
+    expect(
+      within(advanced).getAllByRole("combobox", { name: "Filter field" }),
+    ).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "Edit Kind filter" }),
+    ).toBeInTheDocument();
+  });
+  it("updates the shared Kind row while preserving an unfinished advanced number", async () => {
+    const kind = {
+      ...fieldFixture("record.kind", "string", "Kind"),
+      choices: ["creature", "spell"],
+    };
+    const hp = fieldFixture("actor.hp.maximum", "number", "Maximum HP");
+    const original: QueryPredicate = {
+      kind: "all_of",
+      children: [
+        { kind: "in", clause_id: "kind", field: kind.path, values: ["creature"] },
+        { kind: "compare", clause_id: "hp", field: hp.path, op: "gte", value: 80 },
+      ],
+    };
+    const change = renderControls(editorFixture([kind, hp]), original);
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Maximum HP" }), {
+      target: { value: "-" },
+    });
+    expect(await screen.findByText("Enter a finite numeric value")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Kind: Creature, included; activate to exclude",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    expect(screen.getByRole("textbox", { name: "Maximum HP" })).toHaveValue("-");
+    expect(
+      screen.getByRole("button", { name: "Remove excluded Creature from Kind" }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Maximum HP" }), {
+      target: { value: "90" },
+    });
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          kind: "all_of",
+          children: [
+            expect.objectContaining({
+              kind: "not",
+              predicate: expect.objectContaining({ values: ["creature"] }),
+            }),
+            expect.objectContaining({ field: hp.path, value: 90 }),
+          ],
+        }),
       }),
     );
   });

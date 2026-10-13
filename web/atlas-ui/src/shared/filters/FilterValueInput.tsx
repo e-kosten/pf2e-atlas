@@ -22,7 +22,8 @@ export function FilterValueInput({
   label?: string;
 }) {
   const definition = field.definition;
-  if (operator === "state")
+  const operand = field.operators.find((entry) => entry.operator === operator)?.operand;
+  if (operand === "state")
     return (
       <Select
         className="filter-value-control"
@@ -38,7 +39,7 @@ export function FilterValueInput({
         onChange={onChange}
       />
     );
-  if (definition.field_type === "number" && operator === "between") {
+  if (operand === "range") {
     const range = Array.isArray(value) ? value : ["", ""];
     return (
       <div className="filter-range">
@@ -62,7 +63,7 @@ export function FilterValueInput({
       </div>
     );
   }
-  const multiple = definition.field_type === "set" || operator === "in";
+  const multiple = operand === "list";
   if (field.choices.length || definition.field_type === "boolean")
     return (
       <Select
@@ -71,7 +72,13 @@ export function FilterValueInput({
         mode={multiple ? "multiple" : undefined}
         allowClear
         showSearch={{ optionFilterProp: "label" }}
-        value={value === "" || value == null ? undefined : value}
+        value={
+          value === "" || value == null
+            ? undefined
+            : definition.field_type === "boolean"
+              ? String(value)
+              : value
+        }
         options={field.choices.map((choice) => ({
           value: String(choice.value),
           label: choice.label,

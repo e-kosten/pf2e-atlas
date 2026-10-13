@@ -6,6 +6,7 @@ export type AtlasRoute =
   | {
       kind: "search";
       selectedRecordKey: string | null;
+      selection?: RecordNavigationView;
       query?: string;
       landing?: RecordNavigationView;
     }
@@ -54,6 +55,7 @@ function parseRoute(pathname: string, search = ""): AtlasRoute {
     return {
       kind: "search",
       selectedRecordKey: decodeURIComponent(searchRecord[1]),
+      selection: selectedNavigation(search),
       landing: selectedNavigation(search, "landing"),
     };
   }
@@ -142,7 +144,10 @@ export function atlasRoutePath(route: AtlasRoute): string {
       return "/search";
     case "search":
       return withLanding(
-        searchPath(route.selectedRecordKey) + (route.query ?? ""),
+        withSelection(
+          searchPath(route.selectedRecordKey) + (route.query ?? ""),
+          route.selection,
+        ),
         route.landing,
       );
     case "encounters":
@@ -176,6 +181,12 @@ export function atlasRoutePath(route: AtlasRoute): string {
       return path + (params.size ? "?" + params.toString() : "");
     }
   }
+}
+function withSelection(path: string, selection?: RecordNavigationView) {
+  if (!selection) return path;
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set("selection", JSON.stringify(selection));
+  return url.pathname + url.search;
 }
 function withLanding(path: string, landing?: RecordNavigationView) {
   return landing

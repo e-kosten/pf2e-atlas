@@ -1,7 +1,29 @@
-.search-picker__row {
-  cursor: pointer;
-}
 .search-picker__selection {
   color: var(--muted);
   margin: 8px 0 12px;
+}
+.reference-picker .filter-toolbar {
+  padding: 8px 0 12px;
+  flex-shrink: 0;
+}
+.reference-picker__footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.reference-picker__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.reference-picker__fields .ant-form-item {
+  margin-bottom: 0;
+}
+.reference-picker__footer .search-picker__selection {
+  align-self: center;
+  flex: 1 1 100%;
 }

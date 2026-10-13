@@ -2,6 +2,8 @@
 
 The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant Design for general application UI and a small first-party shared UI layer for Atlas-specific interaction patterns.
 
+The application shell owns navigation, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability needs no status control. Connection failures show an actionable error with Retry; search failures and generation recovery belong beside search results.
+
 ## Boundaries
 
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.
@@ -18,7 +20,7 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `tables/IndexTable.tsx`: clickable, keyboard-activatable index tables.
 - `pages/EntityIndexPage.tsx`: common index page structure for title, summary, actions, and table content.
 - `forms/EditableCommitField.tsx`: inline draft fields that commit on blur or Enter and revert on Escape.
-- `pickers/SearchPickerModal.tsx`: modal record search and selection flow with debounced backend search.
+- `pickers/SearchPickerModal.tsx`: modal record browsing and preview, with an explicit candidate and feature-owned Add form.
 - `actions/PaneAction.tsx`: pane-header icon buttons and links.
 - `actions/DangerActionButton.tsx`: destructive button plus confirmation modal.
 - `actions/useConfirmDangerAction.tsx`: confirmation helper for cases that are not naturally buttons.
@@ -78,7 +80,8 @@ Render generated app DTOs. Prepared content is sanitized HTML with field-local r
 Use react-querybuilder with its maintained Ant integration for structured predicates.
 Backend descriptors supply fields, human labels and groups, operators, units,
 choices, discovery policy and the ordered common Kind, Level / rank, Rarity and
-Traits fields. Common and advanced controls edit one canonical QueryPredicate.
+Traits fields. Common and advanced controls edit one shared builder tree and
+project executable QueryPredicates from it.
 Common categorical controls cycle each value through neutral, included and
 excluded in a compact searchable Ant Popover or mobile Drawer, allowing both
 included and excluded values in one field. Menu rows show a name and a small
@@ -92,31 +95,91 @@ Initial selections and values edited during the open session remain reachable in
 stable edit order outside the current suggestion page, including after clearing
 them to neutral. Reset that transient history when the menu closes.
 Do not represent exclusion as checkbox indeterminate or a boolean aria-pressed.
-They recognize
-bounded root conjunctions and an exact numeric range group. Advanced editing
-shows residual conditions without duplicating common rows; complex expressions
+They recognize simple conditions through positive conjunctions and exact numeric
+range groups. Advanced displays the complete expression. Individual conditions
+have an Exclude control stored in the builder's rule metadata. Negation of a
+conjunction or disjunction uses the
+builder group's native exclusion flag, retaining the group and negation identities;
+complex expressions
 remain editable through the full builder. Structural true/false conditions have
 explicit editor controls and lower to boolean constants, never synthetic backend
 catalog fields. Preserve clause/scope identities and unrelated clauses. Invalid
 input remains a local draft with local guidance, retaining committed results.
-URL restoration resets drafts and retains the exact canonical predicate.
+Successful edits retain the builder tree rather than reconstructing it from the
+executable predicate. External changed criteria reset drafts; preview navigation
+and local URL updates preserve them. Operator input shapes come from app-service
+metadata; apply value transitions atomically before rendering a different input.
+Editor catalog loading is independent of criteria validity so invalid URL fields
+and choices remain repairable.
 
 Browser-local remembered Kind is only a default for a fresh bare search visit.
 An incoming search URL is authoritative, and clearing Kind clears the preference.
-Result rows activate detail without radio selection; retain separate focus and
-committed highlight, keyboard activation and native full-page name/match links.
-Actual single-choice picker dialogs retain radio selection.
+Search and encounter selection share `ReferenceBrowser` and `useReferenceReading`.
+A compact common-filter toolbar sits above results and the generous reader. Search
+occupies its own row; common pickers and Advanced/Clear actions share a wrapping,
+top-aligned row underneath, including when selected chips add height. Use
+an icon beside the Advanced label. Clear is an icon with an accessible label and
+tooltip, shown when criteria or unfinished drafts can be cleared; clearing returns
+keyboard focus to the retained Advanced control. Use
+native Ant Splitter on desktop; below the lg breakpoint show results or the reader,
+with Results returning focus to the initiating row or match control. Keyword
+`SearchEntry` edits stay local until Enter or the Search button; filters commit
+independently. Advanced filters always use the native Drawer, full catalog and
+complete in-progress expression. Common controls edit recognized conditions in that
+same query; never hide their conditions in a separate residual editor. Recognize
+simple conditions through positive AND wrappers without rewriting unrelated
+groups. Conditions whose branching cannot be represented by a quick control use
+its `Kind: Advanced`-style opener at the same native Ant size as peer controls. Preserve unrelated unfinished rules
+when a common control changes. Incomplete drafts stay local and do not execute
+or enter URLs.
+
+Search filter URLs use one versioned, self-contained lz-string encoding of the
+existing predicate JSON. Omit clause/scope editor identities and reconstruct
+distinct deterministic identities on restore, preserving exact groups, literals
+and collection scopes. Field/operator eligibility and query limits stay backend
+owned. Keep query text, similarity seed and nondefault page size as ordinary
+parameters; derive retrieval mode rather than serializing it. No CEL translation,
+saved-token registry or separate simple-filter URL dialect is introduced.
+
+The whole result summary previews on ordinary click or Space. Arrow/j/k move
+focus without changing selection; Enter opens the full reference in the same tab.
+Keep native hrefs and modified clicks. Results contain scan metadata and wrapping
+traits; rarity is separate metadata. Never dump matched content into the row.
+The N matches text action opens a bounded native Ant click Popover, with checked
+links and no chevron. Escape returns trigger focus; choosing a match closes it.
+
+Typed parent-visible ability, strike and casting-entry matches land in that parent.
+Other owners and precise fields/passages retain the exact addressed reader.
+Briefly mark an actual within-parent landing, never the owned document's primary
+heading. Search keeps its criteria, page and in-memory result/reader positions
+when navigating out and Back. Keep page in browser history state, not a new URL
+query dialect. The search owner remains mounted and ignores non-search routes;
+scroll state is independent of query caches and mutable encounter drafts. Fixed
+viewport search composition and clipped non-scroll hosts keep native landing
+scrolling inside the reader. Lists and encounter runtime retain their layouts.
+
+The encounter chooser shares browsing/reading without copying search state or
+mutation rules. Following references changes the reader, not the Add candidate.
+Provide Return to selection, preserve quantity/initiative through retrieval and
+Add failures, and disable competing actions during Add. Only the encounter owner
+commits the explicit candidate. Reset the chooser after successful close.
 
 The web product uses hybrid text retrieval and filter-only browsing. Retrieval
 options are not browser criteria or URL overrides; CLI modes remain independent.
 Page size belongs with results. The advanced editor uses searchable grouped Ant
 fields and readable operator labels; value controls stack at narrow editor widths.
 Its narrow Ant Drawer preserves native keyboard behavior and focus return.
+Within each rule, top-align operation, value and Remove controls independently
+of helper text, validation and counts. Keep messages below their value control.
+Load query-builder defaults in their CSS layer before Atlas styles; lazy feature
+loading must not override the filter row layout.
+At narrow group widths, keep operation and Remove together with a full-width
+value beneath; use the group's available width so nested rules also fit.
 Do not offer another collection scope inside an existing Exists condition.
 
-Optional contextual counts use the backend's available/unavailable outcomes.
-Unavailable counts receive condition-local text; actual request failures remain
-errors. Never label retained counts from another context as current. Open values
+Contextual option counts are deferred; ordinary filter editing does not request
+them or display unavailable-count notices. The backend count contract remains
+available for the planned restoration. Open values
 use explicit count-free vocabulary requests with artifact or saved-list scope,
 server search and bounded paging; selected literals remain visible separately
 from suggestion pages. Common pickers show concise totals as values, never result
@@ -208,7 +271,9 @@ from empty prices; table results use their one fact-owned link collection.
 The shared identity header places the name and selected activity glyph on the
 left and the service-supplied compact classification on the right, wrapping to
 the actual pane. Show the title glyph once and ability modifiers before skills.
-Do not parse legacy level labels or show ordinary technical keys. Product record
+Do not infer game semantics from prose or show ordinary technical keys.
+Compact result classification uses the supplied kind and level/rank labels;
+removing the Level/Rank display prefix does not create a typed fact. Product record
 paths use literal colons through the shared serializer; keep API encoding and
 complete selection identity intact.
 
