@@ -312,6 +312,9 @@ describe("per-value states and additional conditions", () => {
         }),
       }),
     );
+    expect(screen.getByRole("button", { name: "Edit Kind filter" })).toHaveTextContent(
+      "Kind",
+    );
     expect(
       screen.queryByRole("combobox", { name: "Kind include or exclude" }),
     ).not.toBeInTheDocument();

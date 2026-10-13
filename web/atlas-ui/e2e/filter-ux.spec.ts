@@ -1,5 +1,89 @@
 import { expect, test } from "@playwright/test";
 
+test("group exclusion remains one group through edits, toggles and URL reload", async ({
+  page,
+}) => {
+  const common = {
+    kind: "in",
+    clause_id: "kind",
+    field: "record.kind",
+    values: ["creature"],
+  };
+  const group = {
+    kind: "all_of",
+    clause_id: "hp-group",
+    children: [
+      {
+        kind: "compare",
+        clause_id: "hp-min",
+        field: "actor.hp.maximum",
+        op: "gte",
+        value: 80,
+      },
+      {
+        kind: "compare",
+        clause_id: "hp-max",
+        field: "actor.hp.maximum",
+        op: "lte",
+        value: 200,
+      },
+    ],
+  };
+  await page.goto(
+    "/search?filter=" +
+      encodeURIComponent(
+        JSON.stringify({
+          kind: "all_of",
+          clause_id: "root",
+          children: [common, group],
+        }),
+      ),
+  );
+  const open = () =>
+    page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  await open();
+  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const exclude = drawer.getByRole("checkbox", {
+    name: "Exclude this group",
+    exact: true,
+  });
+  const read = () => JSON.parse(new URL(page.url()).searchParams.get("filter")!);
+  for (let index = 0; index < 3; index++) {
+    await expect(exclude).toHaveCount(1);
+    await exclude.check();
+    await expect(exclude).toBeChecked();
+    await drawer
+      .getByRole("textbox", { name: "Maximum HP", exact: true })
+      .first()
+      .fill(String(81 + index));
+    await expect
+      .poll(() => read().children[1])
+      .toMatchObject({
+        kind: "not",
+        predicate: {
+          kind: "all_of",
+          clause_id: "hp-group",
+          children: [
+            { clause_id: "hp-min", value: 81 + index },
+            { clause_id: "hp-max", value: 200 },
+          ],
+        },
+      });
+    await expect(exclude).toHaveCount(1);
+    await exclude.uncheck();
+    await expect.poll(() => read().children[1].kind).toBe("all_of");
+    expect(read().children[0]).toEqual(common);
+  }
+  await exclude.check();
+  await expect.poll(() => read().children[1].kind).toBe("not");
+  const before = read();
+  await page.reload();
+  await open();
+  await expect(exclude).toHaveCount(1);
+  await expect(exclude).toBeChecked();
+  expect(read()).toEqual(before);
+});
+
 test("common filters retain valid results through drafts and exact URL reload", async ({
   page,
 }) => {
@@ -237,7 +321,9 @@ test("remembered Kind is only a default for bare search and clear removes it", a
     }),
   ).toHaveCount(0);
   await page.goto("/search");
-  await page.getByRole("button", { name: "Clear Kind", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Remove included Creature from Kind", exact: true })
+    .click();
   await page.goto("/search");
   await expect(
     page.getByRole("button", {

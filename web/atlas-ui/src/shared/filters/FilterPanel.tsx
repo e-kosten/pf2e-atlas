@@ -174,65 +174,65 @@ export function FilterControls({
           }
         />
       )}
-      <div className="common-filters">
-        {(editor?.common_field_ids ?? []).map((id) => {
-          const field = fields.find((candidate) => candidate.definition.id === id);
-          return field ? (
-            <CommonFilter
-              key={id + ":" + draftRevision}
-              field={field}
-              layout={layout}
-              rangeDraft={rangeDrafts[id] ?? null}
-              onRangeDraftChange={(next) =>
-                setRangeDrafts((current) => ({ ...current, [id]: next }))
-              }
-              workspace={{
-                ...workspace,
-                setSearch: (next) => {
-                  setDraft((current) =>
-                    current?.baseline === search.filter
-                      ? { ...current, baseline: next.filter }
-                      : current,
-                  );
-                  setSearch(next);
-                },
-              }}
-              onAdvanced={() => setAdvanced(true)}
-            />
-          ) : null;
-        })}
+      <div className="filter-controls__criteria">
+        <div className="common-filters">
+          {(editor?.common_field_ids ?? []).map((id) => {
+            const field = fields.find((candidate) => candidate.definition.id === id);
+            return field ? (
+              <CommonFilter
+                key={id + ":" + draftRevision}
+                field={field}
+                layout={layout}
+                rangeDraft={rangeDrafts[id] ?? null}
+                onRangeDraftChange={(next) =>
+                  setRangeDrafts((current) => ({ ...current, [id]: next }))
+                }
+                workspace={{
+                  ...workspace,
+                  setSearch: (next) => {
+                    setDraft((current) =>
+                      current?.baseline === search.filter
+                        ? { ...current, baseline: next.filter }
+                        : current,
+                    );
+                    setSearch(next);
+                  },
+                }}
+                onAdvanced={() => setAdvanced(true)}
+              />
+            ) : null;
+          })}
+        </div>
+        <div className="filter-panel-actions">
+          <Button onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}>
+            Advanced filters
+          </Button>
+          <Button
+            type="text"
+            onClick={() => {
+              setDraft(null);
+              setRangeDrafts({});
+              setDraftRevision((revision) => revision + 1);
+              setSearch(clearAllFilters(search));
+            }}
+          >
+            Clear filters
+          </Button>
+        </div>
       </div>
-      <div className="filter-panel-actions">
-        <Button onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}>
-          Advanced filters
-        </Button>
-        <Button
-          type="text"
-          onClick={() => {
-            setDraft(null);
-            setRangeDrafts({});
-            setDraftRevision((revision) => revision + 1);
-            setSearch(clearAllFilters(search));
-          }}
-        >
-          Clear filters
-        </Button>
-      </div>
-      {
-        <Drawer
-          title="Advanced filters"
-          placement="left"
-          size="min(100vw, 640px)"
-          open={advanced}
-          onClose={() => setAdvanced(false)}
-        >
-          <section className="advanced-filters" aria-label="Advanced filters">
-            <Typography.Text type="secondary">Additional conditions</Typography.Text>
-            {advancedEditor}
-            {inlineError}
-          </section>
-        </Drawer>
-      }
+      <Drawer
+        title="Advanced filters"
+        placement="left"
+        size="min(100vw, 640px)"
+        open={advanced}
+        onClose={() => setAdvanced(false)}
+      >
+        <section className="advanced-filters" aria-label="Advanced filters">
+          <Typography.Text type="secondary">Additional conditions</Typography.Text>
+          {advancedEditor}
+          {inlineError}
+        </section>
+      </Drawer>
       {!advanced && prepared.error && inlineError}
       {workspace.filterDiscoveryError && (
         <Alert
@@ -279,19 +279,21 @@ function CommonFilter({
       }
       aria-label={field.label + " filter"}
     >
-      <div className="common-filter-heading">
-        <Typography.Text strong>{field.label}</Typography.Text>
-        {condition.status === "editable" && (
-          <Button
-            type="text"
-            size="small"
-            aria-label={"Clear " + field.label}
-            onClick={() => update(null)}
-          >
-            Clear
-          </Button>
-        )}
-      </div>
+      {layout === "panel" && (
+        <div className="common-filter-heading">
+          <Typography.Text strong>{field.label}</Typography.Text>
+          {condition.status === "editable" && (
+            <Button
+              type="text"
+              size="small"
+              aria-label={"Clear " + field.label}
+              onClick={() => update(null)}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
       {condition.status === "advanced" ? (
         <Space orientation="vertical" size="small">
           <Typography.Text type="secondary">
@@ -316,16 +318,32 @@ function CommonFilter({
             placement="bottomLeft"
             title={field.label}
             content={
-              <CommonRange
-                field={field}
-                clause={condition.clause}
-                onChange={update}
-                draft={rangeDraft}
-                onDraftChange={onRangeDraftChange}
-              />
+              <Space orientation="vertical">
+                <CommonRange
+                  field={field}
+                  clause={condition.clause}
+                  onChange={update}
+                  draft={rangeDraft}
+                  onDraftChange={onRangeDraftChange}
+                />
+                <Button
+                  type="text"
+                  onClick={() => {
+                    onRangeDraftChange({
+                      baseline: "null",
+                      range: ["", ""],
+                      error: null,
+                    });
+                    update(null);
+                  }}
+                >
+                  Clear range
+                </Button>
+              </Space>
             }
           >
             <Button aria-label={"Edit " + field.label + " range"}>
+              {field.label}:{" "}
               {conditionRange(condition.clause).filter(Boolean).join(" – ") || "Any"}
             </Button>
           </Popover>
