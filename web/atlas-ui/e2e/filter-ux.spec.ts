@@ -1,3 +1,4 @@
+import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUrl";
 import { expect, test } from "@playwright/test";
 
 test("group exclusion remains one group through edits, toggles and URL reload", async ({
@@ -32,7 +33,7 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
   await page.goto(
     "/search?filter=" +
       encodeURIComponent(
-        JSON.stringify({
+        encodeFilterUrl({
           kind: "all_of",
           clause_id: "root",
           children: [common, group],
@@ -43,13 +44,23 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
     page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await open();
   const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
-  const exclude = drawer.getByRole("checkbox", {
+  const exclude = drawer
+    .getByRole("checkbox", {
+      name: "Exclude this group",
+      exact: true,
+    })
+    .nth(1);
+  const allExclude = drawer.getByRole("checkbox", {
     name: "Exclude this group",
     exact: true,
   });
-  const read = () => JSON.parse(new URL(page.url()).searchParams.get("filter")!);
+  const read = () => {
+    const predicate = decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!);
+    if (predicate.kind !== "all_of") throw new Error("Expected conjunction");
+    return predicate;
+  };
   for (let index = 0; index < 3; index++) {
-    await expect(exclude).toHaveCount(1);
+    await expect(allExclude).toHaveCount(2);
     await exclude.check();
     await expect(exclude).toBeChecked();
     await drawer
@@ -62,24 +73,24 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
         kind: "not",
         predicate: {
           kind: "all_of",
-          clause_id: "hp-group",
-          children: [
-            { clause_id: "hp-min", value: 81 + index },
-            { clause_id: "hp-max", value: 200 },
-          ],
+          children: [{ value: 81 + index }, { value: 200 }],
         },
       });
-    await expect(exclude).toHaveCount(1);
+    await expect(allExclude).toHaveCount(2);
     await exclude.uncheck();
     await expect.poll(() => read().children[1].kind).toBe("all_of");
-    expect(read().children[0]).toEqual(common);
+    expect(read().children[0]).toMatchObject({
+      kind: "in",
+      field: "record.kind",
+      values: ["creature"],
+    });
   }
   await exclude.check();
   await expect.poll(() => read().children[1].kind).toBe("not");
   const before = read();
   await page.reload();
   await open();
-  await expect(exclude).toHaveCount(1);
+  await expect(allExclude).toHaveCount(2);
   await expect(exclude).toBeChecked();
   expect(read()).toEqual(before);
 });
@@ -106,9 +117,10 @@ test("common filters retain valid results through drafts and exact URL reload", 
   await spell.click();
   await spell.click();
   await expect
-    .poll(() => new URL(page.url()).searchParams.get("filter"))
-    .toContain("creature");
-  const mixed = JSON.parse(new URL(page.url()).searchParams.get("filter")!);
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({ kind: "all_of" });
+  const mixed = decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!);
+  if (mixed.kind !== "all_of") throw new Error("Expected mixed Kind conjunction");
   expect(mixed.children).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ kind: "in", values: ["creature"] }),
@@ -123,7 +135,7 @@ test("common filters retain valid results through drafts and exact URL reload", 
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await expect(
     page.getByRole("combobox", { name: "Filter field", exact: true }),
-  ).toHaveCount(0);
+  ).toHaveCount(2);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /Edit Level \/ rank range/i }).click();
   await page.getByRole("textbox", { name: /Level \/ rank minimum/i }).fill("1");
@@ -163,16 +175,16 @@ test("complex conditions remain advanced with searchable fields and local option
       },
     ],
   };
-  await page.goto("/search?filter=" + encodeURIComponent(JSON.stringify(predicate)));
+  await page.goto("/search?filter=" + encodeURIComponent(encodeFilterUrl(predicate)));
   await expect(
-    page.getByText("Defined in advanced filters", { exact: true }),
+    page.getByRole("button", { name: "Kind: Advanced", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("Counts unavailable for this condition").first(),
   ).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
   const importedFilter = new URL(page.url()).searchParams.get("filter");
-  await page.getByRole("button", { name: "Edit kind" }).click();
+  await page.getByRole("button", { name: "Kind: Advanced" }).click();
   expect(new URL(page.url()).searchParams.get("filter")).toBe(importedFilter);
   const field = page.getByRole("combobox", { name: "Filter field" });
   await field.fill("Armor Class");
@@ -199,6 +211,68 @@ test("narrow advanced filters use a native drawer with keyboard focus return", a
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Advanced filters" })).toBeHidden();
   await expect(trigger).toBeFocused();
+});
+
+test("Advanced starts with the existing Kind and adding Kind creates exactly one new row", async ({
+  page,
+}) => {
+  await page.goto("/search");
+  await page.getByRole("button", { name: "Edit Kind filter", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Kind: Creature, neutral; activate to include",
+      exact: true,
+    })
+    .click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const fields = drawer.getByRole("combobox", { name: "Filter field", exact: true });
+  await expect(fields).toHaveCount(1);
+  await drawer.getByRole("button", { name: "Add condition", exact: true }).click();
+  await expect(fields).toHaveCount(2);
+  await fields.nth(1).fill("Kind");
+  await fields.nth(1).press("Enter");
+  const values = drawer.getByRole("combobox", { name: "Kind", exact: true });
+  await values.nth(1).fill("Creature");
+  await values.nth(1).press("Enter");
+  await expect(fields).toHaveCount(2);
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "all_of",
+      children: [
+        { kind: "in", field: "record.kind", values: ["creature"] },
+        { kind: "compare", field: "record.kind", op: "eq", value: "creature" },
+      ],
+    });
+  await drawer.getByRole("button", { name: "Remove", exact: true }).nth(1).click();
+  await expect(fields).toHaveCount(1);
+  await drawer.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Edit Kind filter", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Edit Kind filter", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Kind: Creature, included; activate to exclude",
+      exact: true,
+    })
+    .click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  await expect(fields).toHaveCount(1);
+  await expect(
+    drawer.getByRole("checkbox", { name: "Exclude this group", exact: true }).nth(1),
+  ).toBeChecked();
+  const url = page.url();
+  await page.reload();
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  await expect(fields).toHaveCount(1);
+  await expect(
+    drawer.getByRole("checkbox", { name: "Exclude this group", exact: true }).nth(1),
+  ).toBeChecked();
+  expect(page.url()).toBe(url);
 });
 
 for (const width of [1680, 820]) {

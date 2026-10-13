@@ -118,7 +118,22 @@ keyboard focus to the retained Advanced control. Use
 native Ant Splitter on desktop; below the lg breakpoint show results or the reader,
 with Results returning focus to the initiating row or match control. Keyword
 `SearchEntry` edits stay local until Enter or the Search button; filters commit
-independently. Advanced filters always use the native Drawer and full catalog.
+independently. Advanced filters always use the native Drawer, full catalog and
+complete committed predicate. Common controls edit recognized conditions in that
+same query; never hide their conditions in a separate residual editor. Recognize
+simple conditions through positive AND wrappers without rewriting unrelated
+groups. Conditions whose branching cannot be represented by a quick control use
+its compact `Kind: Advanced`-style opener. Preserve unrelated unfinished rules
+when a common control changes. Incomplete drafts stay local and do not execute
+or enter URLs.
+
+Search filter URLs use one versioned, self-contained lz-string encoding of the
+existing predicate JSON. Omit clause/scope editor identities and reconstruct
+distinct deterministic identities on restore, preserving exact groups, literals
+and collection scopes. Field/operator eligibility and query limits stay backend
+owned. Keep query text, similarity seed and nondefault page size as ordinary
+parameters; derive retrieval mode rather than serializing it. No CEL translation,
+saved-token registry or separate simple-filter URL dialect is introduced.
 
 The whole result summary previews on ordinary click or Space. Arrow/j/k move
 focus without changing selection; Enter opens the full reference in the same tab.

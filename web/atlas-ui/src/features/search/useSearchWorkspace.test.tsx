@@ -83,18 +83,22 @@ describe("useSearchWorkspace", () => {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() => expect(result.current.resultPage).toBeDefined());
-    expect(result.current.search.filter).toEqual(filter);
+    expect(result.current.search.filter).toMatchObject(filter);
     expect(apiMocks.searchPage.mock.calls[0][0].criteria).toEqual({
       kind: "similar_records",
       seed_record_key: "items:seed",
-      filter,
+      filter: result.current.search.filter,
     });
     expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
     expect(result.current.filterEditor).toBeDefined();
     act(() => result.current.setPageNumber(2));
     await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
     expect(apiMocks.searchPage.mock.calls[1][0]).toEqual({
-      criteria: { kind: "similar_records", seed_record_key: "items:seed", filter },
+      criteria: {
+        kind: "similar_records",
+        seed_record_key: "items:seed",
+        filter: result.current.search.filter,
+      },
       page: { number: 2, size: 25 },
       expected_artifact_generation: "generation-a",
     });
@@ -115,7 +119,7 @@ describe("useSearchWorkspace", () => {
         mode: "browse",
       }),
     );
-    expect(result.current.search.filter).toEqual(filter);
+    expect(result.current.search.filter).toMatchObject(filter);
     expect(result.current.search.query).toBe("");
   });
 
@@ -272,7 +276,7 @@ describe("useSearchWorkspace", () => {
     expect(result.current.resultPage?.rows[0].record.record_key).toBe("spell:new");
     expect(result.current.filterEditor).toEqual(editorB);
     expect(apiMocks.searchPage).toHaveBeenCalledTimes(4);
-    expect(window.location.search).toBe("?q=dirge&mode=text_search");
+    expect(window.location.search).toBe("?q=dirge");
   });
 
   it("keeps remembered Kind while editing an authoritative text URL, then clears it on a Kind edit", async () => {
@@ -327,7 +331,7 @@ describe("useSearchWorkspace", () => {
 
     expect(result.current.search.query).toBe("fi");
     expect(window.location.pathname).toBe("/search");
-    expect(window.location.search).toBe("?q=fi&mode=text_search");
+    expect(window.location.search).toBe("?q=fi");
     await delay(150);
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
 
@@ -375,12 +379,12 @@ describe("useSearchWorkspace", () => {
     act(() => result.current.selectRecord("spell:heal"));
     expect(result.current.selectedRecordKey).toBe("spell:heal");
     expect(window.location.pathname).toBe("/search/records/spell:heal");
-    expect(window.location.search).toBe("?q=dirge&mode=text_search");
+    expect(window.location.search).toBe("?q=dirge");
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
     expect(window.location.pathname).toBe("/search");
-    expect(window.location.search).toBe("?q=dirge&mode=text_search");
+    expect(window.location.search).toBe("?q=dirge");
   });
 
   it("writes shared structured predicates in URL state", async () => {
@@ -417,9 +421,7 @@ describe("useSearchWorkspace", () => {
     );
 
     expect(window.location.pathname).toBe("/search");
-    expect(window.location.search).toBe(
-      "?filter=" + encodeURIComponent(JSON.stringify(result.current.search.filter)),
-    );
+    expect(window.location.search).toBe(searchStateQueryString(result.current.search));
   });
 
   it("does not query collection states as scalar values", async () => {
@@ -659,11 +661,7 @@ function queryClientWrapper(
 }
 
 function seedSearchUrl(query = "dirge") {
-  history.replaceState(
-    null,
-    "",
-    `/search?q=${encodeURIComponent(query)}&mode=text_search`,
-  );
+  history.replaceState(null, "", `/search?q=${encodeURIComponent(query)}`);
 }
 
 function searchResultsPage(

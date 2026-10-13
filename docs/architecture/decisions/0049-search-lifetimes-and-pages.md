@@ -44,7 +44,22 @@ Expected generation is checked before embedding/ranking. A mismatch returns
 registries, identifiers, expiration, open/read operations and recovery are removed.
 
 Browser URL state retains committed criteria and the complete selected reading
-address or parent landing. Page remains request state and is retained in browser
+address or parent landing. The browser's common filter controls and Advanced
+builder edit one canonical predicate; Advanced displays the complete expression.
+Simple positive conjunctions can be edited through common controls without
+rewriting unrelated branches. Complex expressions retain their grouping and use
+the full builder. Unfinished rules stay local and cannot change executed criteria.
+
+Filter URL state uses a versioned lz-string URI encoding of the existing predicate
+JSON. Clause and collection-scope IDs are editor/discovery identities, omitted
+from the URL and reconstructed distinctly and deterministically on restoration.
+Groups, literals and collection boundaries remain intact. Backend catalog and
+query validation retain semantic authority. Query text, similarity seed and
+nondefault page size use ordinary parameters; retrieval mode is derived. This
+replaces raw predicate JSON in URLs without another expression language, a
+parallel simple-filter dialect or a server-side short-link registry.
+
+Page remains request state and is retained in browser
 history state for same-tab Back; generation stays in the search owner. That owner
 remains mounted across application routes, while its requests are disabled outside
 Search. Non-search route changes do not reset its committed criteria or page.

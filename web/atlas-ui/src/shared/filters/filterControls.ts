@@ -92,7 +92,7 @@ export type CommonCondition =
   | { status: "empty"; clause: null }
   | { status: "editable"; clause: QueryPredicate }
   | { status: "advanced"; clause: null };
-/** Recognize a bounded common-control representation, never simplify a tree. */
+/** Recognize quick controls within positive conjunctions, never simplify a tree. */
 export function commonCondition(
   predicate: QueryPredicate | null,
   field: QueryFieldDefinition,
@@ -101,16 +101,20 @@ export function commonCondition(
     return { status: "empty", clause: null };
   if (commonShape(predicate, field)) return { status: "editable", clause: predicate };
   if (predicate.kind !== "all_of") return { status: "advanced", clause: null };
-  const matches = predicate.children.filter((child) =>
-    predicateMentionsField(child, field.path),
-  );
+  const matches = commonMatches(predicate, field);
   return matches.length === 1 && commonShape(matches[0], field)
     ? { status: "editable", clause: matches[0] }
-    : field.field_type !== "number" &&
-        matches.length === 2 &&
-        commonShape({ kind: "all_of", children: matches }, field)
+    : matches.length === 2 && commonShape({ kind: "all_of", children: matches }, field)
       ? { status: "editable", clause: { kind: "all_of", children: matches } }
       : { status: "advanced", clause: null };
+}
+function commonMatches(
+  predicate: QueryPredicate,
+  field: QueryFieldDefinition,
+): QueryPredicate[] {
+  if (!predicateMentionsField(predicate, field.path)) return [];
+  if (commonShape(predicate, field) || predicate.kind !== "all_of") return [predicate];
+  return predicate.children.flatMap((child) => commonMatches(child, field));
 }
 export function replaceCommonCondition(
   predicate: QueryPredicate | null,
@@ -122,20 +126,23 @@ export function replaceCommonCondition(
     throw new Error("Edit this condition in advanced filters");
   if (current.clause === predicate) return replacement;
   if (predicate?.kind === "all_of") {
-    const removed =
-      current.clause?.kind === "all_of" && !predicate.children.includes(current.clause)
-        ? current.clause.children
-        : current.clause
-          ? [current.clause]
-          : [];
+    const removed = commonMatches(predicate, field);
     let inserted = false;
-    const children = predicate.children.flatMap((child) =>
-      removed.includes(child)
-        ? !inserted && replacement
-          ? ((inserted = true), [replacement])
-          : []
-        : [child],
-    );
+    function replace(node: QueryPredicate): QueryPredicate | null {
+      if (removed.includes(node)) {
+        if (inserted || !replacement) return null;
+        inserted = true;
+        return replacement;
+      }
+      if (node.kind !== "all_of") return node;
+      const children = node.children.flatMap((child) => {
+        const next = replace(child);
+        return next ? [next] : [];
+      });
+      return children.length ? { ...node, children } : null;
+    }
+    const updated = replace(predicate);
+    const children = updated?.kind === "all_of" ? updated.children : [];
     if (!current.clause && replacement) children.push(replacement);
     return children.length ? { ...predicate, children } : null;
   }
@@ -190,86 +197,6 @@ export function changeChoiceValue(
     : (children[0] ?? null);
 }
 
-/** Only remove recognized common clauses from a positive root conjunction. */
-export function advancedResidual(
-  predicate: QueryPredicate | null,
-  fields: QueryFieldDefinition[],
-): { common: QueryPredicate[]; residual: QueryPredicate | null } {
-  const common = fields.flatMap((field) => {
-    const recognized = commonCondition(predicate, field);
-    if (!recognized.clause) return [];
-    if (
-      recognized.clause === predicate ||
-      predicate?.kind !== "all_of" ||
-      predicate.children.includes(recognized.clause)
-    )
-      return [recognized.clause];
-    return choiceClauses(recognized.clause);
-  });
-  if (common.includes(predicate!)) return { common, residual: null };
-  if (predicate?.kind !== "all_of") return { common, residual: predicate };
-  if (!common.length) return { common, residual: predicate };
-  const children = predicate.children.filter((child) => !common.includes(child));
-  // The common-field conjunction is outside the advanced editor. A sole
-  // remaining condition/group can be edited directly without another UI level.
-  return {
-    common,
-    residual:
-      children.length === 1
-        ? children[0]
-        : children.length
-          ? { ...predicate, children }
-          : null,
-  };
-}
-export function replaceAdvancedResidual(
-  predicate: QueryPredicate | null,
-  fields: QueryFieldDefinition[],
-  replacement: QueryPredicate | null,
-): QueryPredicate | null {
-  const { common, residual } = advancedResidual(predicate, fields);
-  if (!common.length) return replacement;
-  if (predicate?.kind !== "all_of" || common.includes(predicate))
-    return replacement
-      ? { kind: "all_of", children: [...common, replacement] }
-      : predicate;
-  const residualIsRoot = residual !== null && !predicate.children.includes(residual);
-  // Negating/changing the projected conjunction creates a distinct advanced
-  // group inside the common conjunction; it must not reuse the outer group ID.
-  if (
-    residualIsRoot &&
-    replacement?.kind === "not" &&
-    replacement.predicate.kind === "all_of" &&
-    replacement.predicate.clause_id === residual?.clause_id
-  )
-    replacement = {
-      ...replacement,
-      predicate: { ...replacement.predicate, clause_id: crypto.randomUUID() },
-    };
-  else if (
-    residualIsRoot &&
-    replacement?.kind === "any_of" &&
-    replacement.clause_id === residual?.clause_id
-  )
-    replacement = { ...replacement, clause_id: crypto.randomUUID() };
-  const replacements =
-    residualIsRoot &&
-    replacement?.kind === "all_of" &&
-    replacement.clause_id === residual?.clause_id
-      ? replacement.children
-      : replacement
-        ? [replacement]
-        : [];
-  let inserted = false;
-  const children = predicate.children.flatMap((child) => {
-    if (common.includes(child)) return [child];
-    if (inserted) return [];
-    inserted = true;
-    return replacements;
-  });
-  if (!inserted) children.push(...replacements);
-  return children.length ? { ...predicate, children } : null;
-}
 export function conditionLeaf(clause: QueryPredicate | null): QueryPredicate | null {
   return clause?.kind === "not" ? clause.predicate : clause;
 }

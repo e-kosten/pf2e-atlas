@@ -1,15 +1,19 @@
 import {
-  advancedResidual,
   changeChoiceValue,
   choiceValueState,
-  replaceAdvancedResidual,
   clearAllFilters,
   choiceCondition,
   commonCondition,
   replaceCommonCondition,
 } from "./filterControls";
 import { DEFAULT_SEARCH_STATE } from "./searchState";
-import { builderPredicate, predicateBuilder, numericLiteral } from "./queryBuilder";
+import {
+  builderPredicate,
+  predicateBuilder,
+  numericLiteral,
+  replaceCommonDraft,
+  canReplaceCommonDraft,
+} from "./queryBuilder";
 import { fieldFixture } from "../../test/fixtures";
 import type { QueryPredicate } from "../../generated/atlas";
 describe("typed builder translation", () => {
@@ -193,6 +197,72 @@ describe("common filter editing without predicate simplification", () => {
     });
     expect(replaceCommonCondition(predicate, kind, replacement)?.kind).toBe("all_of");
   });
+  it("edits a simple condition within AND wrappers without changing unrelated groups", () => {
+    const predicate: QueryPredicate = {
+      kind: "all_of",
+      clause_id: "root",
+      children: [{ kind: "all_of", clause_id: "wrapper", children: [leaf] }, other],
+    };
+    expect(commonCondition(predicate, kind)).toEqual({
+      status: "editable",
+      clause: leaf,
+    });
+    const replacement = { ...leaf, values: ["hazard"] };
+    expect(replaceCommonCondition(predicate, kind, replacement)).toEqual({
+      ...predicate,
+      children: [
+        { kind: "all_of", clause_id: "wrapper", children: [replacement] },
+        other,
+      ],
+    });
+    expect(replaceCommonCondition(predicate, kind, null)).toEqual({
+      ...predicate,
+      children: [other],
+    });
+  });
+  it("refreshes the common field in an unfinished builder without dropping an unrelated invalid value", () => {
+    const draft = {
+      combinator: "and",
+      rules: [
+        { id: "kind", field: kind.id, operator: "in", value: ["creature"] },
+        { id: "hp", field: "actor.hp.maximum", operator: "gte", value: "-" },
+      ],
+    };
+    const refreshed = replaceCommonDraft(draft, kind, { ...leaf, values: ["hazard"] });
+    expect(refreshed.rules).toEqual([
+      expect.objectContaining({ id: "kind", value: ["hazard"] }),
+      draft.rules[1],
+    ]);
+    expect(() =>
+      builderPredicate(refreshed, [kind, fieldFixture("actor.hp.maximum", "number")]),
+    ).toThrow("finite numeric");
+  });
+  it("requires Advanced when unfinished rules move Kind into a mixed OR or excluded group", () => {
+    for (const shape of [{ combinator: "or" }, { combinator: "and", not: true }]) {
+      const draft = {
+        ...shape,
+        rules: [
+          { field: kind.id, operator: "in", value: ["creature"] },
+          { field: "actor.hp.maximum", operator: "gte", value: "-" },
+        ],
+      };
+      expect(canReplaceCommonDraft(draft, kind.id)).toBe(false);
+      expect(() => replaceCommonDraft(draft, kind, leaf)).toThrow("advanced filters");
+    }
+  });
+  it("adds a new quick condition outside an unrelated unfinished OR rather than into it", () => {
+    const draft = {
+      combinator: "or",
+      rules: [
+        { field: "actor.hp.maximum", operator: "gte", value: "-" },
+        { field: "actor.level", operator: "eq", value: "12" },
+      ],
+    };
+    expect(replaceCommonDraft(draft, kind, leaf)).toMatchObject({
+      combinator: "and",
+      rules: [draft, { field: kind.id, value: ["creature"] }],
+    });
+  });
   it("recognizes imported direct Not(In) and retains the inner clause ID across include/exclude", () => {
     const excluded = { kind: "not" as const, clause_id: "exclude", predicate: leaf };
     const predicate = {
@@ -232,7 +302,7 @@ describe("common filter editing without predicate simplification", () => {
       expect(() => replaceCommonCondition(predicate, kind, null)).toThrow("advanced");
     }
   });
-  it("recognizes one exact range group without flattening separately authored bounds", () => {
+  it("recognizes grouped and separately authored range bounds without flattening the query", () => {
     const low = {
       kind: "compare" as const,
       clause_id: "low",
@@ -251,7 +321,7 @@ describe("common filter editing without predicate simplification", () => {
     ).toBe("editable");
     expect(
       commonCondition({ kind: "all_of", children: [low, high, other] }, level).status,
-    ).toBe("advanced");
+    ).toBe("editable");
     expect(
       commonCondition({ ...range, children: [low, { ...high, op: "lt" }] }, level)
         .status,
@@ -310,95 +380,41 @@ describe("common filter editing without predicate simplification", () => {
   });
 });
 
-describe("mixed common values and residual advanced editing", () => {
+describe("mixed common values and complete advanced editing", () => {
   const kind = fieldFixture("record.kind");
   const traits = fieldFixture("traits", "set");
-  it("edits an excluded advanced group directly without growing the common conjunction", () => {
-    const common: QueryPredicate = {
-      kind: "in",
-      clause_id: "kind",
-      field: kind.path,
-      values: ["creature"],
-    };
+  it("round trips the complete query without growing excluded groups", () => {
     const hp = fieldFixture("actor.hp.maximum", "number");
-    const excluded: QueryPredicate = {
-      kind: "not",
-      clause_id: "exclude",
-      predicate: {
-        kind: "all_of",
-        clause_id: "advanced",
-        children: [
-          { kind: "compare", clause_id: "hp", field: hp.path, op: "gte", value: 80 },
-        ],
-      },
-    };
-    let predicate: QueryPredicate = {
+    const predicate: QueryPredicate = {
       kind: "all_of",
       clause_id: "root",
-      children: [common, excluded],
+      children: [
+        { kind: "in", clause_id: "kind", field: kind.path, values: ["creature"] },
+        {
+          kind: "not",
+          clause_id: "exclude",
+          predicate: {
+            kind: "all_of",
+            clause_id: "advanced",
+            children: [
+              {
+                kind: "compare",
+                clause_id: "hp",
+                field: hp.path,
+                op: "gte",
+                value: 80,
+              },
+            ],
+          },
+        },
+      ],
     };
+    let next: QueryPredicate = predicate;
     for (let index = 0; index < 4; index++) {
-      const residual: QueryPredicate = advancedResidual(predicate, [kind]).residual!;
-      expect(residual).toEqual(excluded);
-      predicate = replaceAdvancedResidual(
-        predicate,
-        [kind],
-        builderPredicate(predicateBuilder(residual, [kind, hp]), [kind, hp]),
-      )!;
-      expect(predicate).toEqual({
-        kind: "all_of",
-        clause_id: "root",
-        children: [common, excluded],
-      });
+      next = builderPredicate(predicateBuilder(next, [kind, hp]), [kind, hp])!;
+      expect(next).toEqual(predicate);
     }
   });
-  it.each(["not", "any_of"] as const)(
-    "gives a newly %s advanced conjunction its own identity",
-    (operation) => {
-      const common: QueryPredicate = {
-        kind: "in",
-        clause_id: "kind",
-        field: kind.path,
-        values: ["creature"],
-      };
-      const hp: QueryPredicate = {
-        kind: "compare",
-        clause_id: "hp",
-        field: "actor.hp.maximum",
-        op: "gte",
-        value: 80,
-      };
-      const ac: QueryPredicate = {
-        ...hp,
-        clause_id: "ac",
-        field: "actor.ac",
-        value: 20,
-      };
-      const predicate: QueryPredicate = {
-        kind: "all_of",
-        clause_id: "root",
-        children: [common, hp, ac],
-      };
-      const residual = advancedResidual(predicate, [kind]).residual!;
-      const replacement: QueryPredicate =
-        operation === "not"
-          ? { kind: "not", clause_id: "exclude", predicate: residual }
-          : { kind: "any_of", clause_id: "root", children: [hp, ac] };
-      const updated = replaceAdvancedResidual(predicate, [kind], replacement)!;
-      expect(updated.kind).toBe("all_of");
-      if (updated.kind !== "all_of") throw new Error("Expected conjunction");
-      expect(updated.clause_id).toBe("root");
-      expect(updated.children).toHaveLength(2);
-      expect(updated.children[0]).toEqual(common);
-      const group =
-        updated.children[1].kind === "not"
-          ? updated.children[1].predicate
-          : updated.children[1];
-      expect(group.clause_id).not.toBe("root");
-      expect(group).toMatchObject({ children: [hp, ac] });
-      expect(advancedResidual(updated, [kind]).residual).toEqual(updated.children[1]);
-    },
-  );
   it.each([kind, traits])("keeps mixed states and surviving IDs for $id", (field) => {
     let condition = changeChoiceValue(field, null, "creature", "include");
     condition = changeChoiceValue(field, condition, "spell", "include");
@@ -452,49 +468,8 @@ describe("mixed common values and residual advanced editing", () => {
       clause_id: "root",
       children: [included, other, excluded],
     };
-    const projection = advancedResidual(predicate, [kind]);
-    expect(projection.residual).toEqual(other);
-    const updated = replaceAdvancedResidual(predicate, [kind], {
-      ...other,
-      value: 90,
-    });
-    expect(updated).toEqual({
-      ...predicate,
-      children: [included, { ...other, value: 90 }, excluded],
-    });
     const clear = replaceCommonCondition(predicate, kind, null);
     expect(clear).toEqual({ ...predicate, children: [other] });
-  });
-  it("keeps advanced OR residual grouped under common conjunction", () => {
-    const common = {
-      kind: "in" as const,
-      clause_id: "kind",
-      field: kind.path,
-      values: ["creature"],
-    };
-    const a = {
-      kind: "compare" as const,
-      clause_id: "hp",
-      field: "actor.hp.maximum",
-      op: "gte" as const,
-      value: 80,
-    };
-    const or = {
-      kind: "any_of" as const,
-      clause_id: "or",
-      children: [a, { ...a, clause_id: "hp2", value: 120 }],
-    };
-    const predicate = {
-      kind: "all_of" as const,
-      clause_id: "root",
-      children: [common, or],
-    };
-    expect(
-      replaceAdvancedResidual(predicate, [kind], { ...or, children: [a] }),
-    ).toEqual({ ...predicate, children: [common, { ...or, children: [a] }] });
-    expect(advancedResidual({ kind: "any_of", children: [common, a] }, [kind])).toEqual(
-      { common: [], residual: { kind: "any_of", children: [common, a] } },
-    );
   });
 });
 

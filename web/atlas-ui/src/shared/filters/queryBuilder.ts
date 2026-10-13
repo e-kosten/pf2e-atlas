@@ -31,6 +31,58 @@ const states: QueryFieldState[] = [
   "not_applicable",
 ];
 export const emptyGroup = (): RuleGroupType => ({ combinator: "and", rules: [] });
+const draftMentionsField = (node: RuleType | RuleGroupType, field: string): boolean =>
+  "rules" in node
+    ? node.rules.some((child) => draftMentionsField(child, field))
+    : node.field === field;
+const draftOnlyField = (node: RuleType | RuleGroupType, field: string): boolean =>
+  "rules" in node
+    ? node.rules.length > 0 && node.rules.every((child) => draftOnlyField(child, field))
+    : node.field === field;
+export function canReplaceCommonDraft(query: RuleGroupType, field: string): boolean {
+  if (!draftMentionsField(query, field) || draftOnlyField(query, field)) return true;
+  if (query.not || query.combinator !== "and") return false;
+  return query.rules.every(
+    (node) => !("rules" in node) || canReplaceCommonDraft(node, field),
+  );
+}
+/** Refresh a quick-control field without discarding unfinished unrelated rules. */
+export function replaceCommonDraft(
+  query: RuleGroupType,
+  field: QueryFieldDefinition,
+  replacement: QueryPredicate | null,
+): RuleGroupType {
+  const next = predicateBuilder(replacement, [field]);
+  const nextNode =
+    (next as PredicateGroup).atlasSinglePredicate && !next.not ? next.rules[0] : next;
+  const onlyField = (node: RuleType | RuleGroupType) => draftOnlyField(node, field.id);
+  if (onlyField(query)) return next;
+  if (!canReplaceCommonDraft(query, field.id))
+    throw new Error("Edit this condition in advanced filters");
+  if (query.not || query.combinator !== "and")
+    return replacement ? { combinator: "and", rules: [query, nextNode] } : query;
+  let inserted = false;
+  function update(group: RuleGroupType): RuleGroupType {
+    return {
+      ...group,
+      rules: group.rules.flatMap((node): Array<RuleType | RuleGroupType> => {
+        if (onlyField(node)) {
+          if (inserted || !replacement) return [];
+          inserted = true;
+          return [nextNode];
+        }
+        if ("rules" in node && node.combinator === "and" && !node.not) {
+          const updated = update(node);
+          return updated.rules.length ? [updated] : [];
+        }
+        return [node];
+      }),
+    };
+  }
+  const updated = update(query);
+  if (!inserted && replacement) updated.rules.push(nextNode);
+  return updated;
+}
 function literal(value: unknown, field: QueryFieldDefinition): QueryLiteral {
   if (field.field_type === "number") return numericLiteral(value);
   if (field.field_type === "boolean") {

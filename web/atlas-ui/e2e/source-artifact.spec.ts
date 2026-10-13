@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUrl";
 import type { RelatedRecordsView, SearchResultsPage } from "../src/generated/atlas";
 
 test("narrow preview restores focus after closing during opening, reopening and nested Escape", async ({
@@ -473,7 +474,7 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
   await page.goto(
     "/search?filter=" +
       encodeURIComponent(
-        JSON.stringify({
+        encodeFilterUrl({
           kind: "compare",
           clause_id: "tables",
           field: "source.document_kind",
@@ -494,10 +495,11 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
   await expect(
     advanced.getByRole("button", { name: "Add condition", exact: true }),
   ).toBeVisible();
-  const importedFilter = JSON.parse(new URL(page.url()).searchParams.get("filter")!);
-  expect(importedFilter).toEqual({
+  const importedFilter = decodeFilterUrl(
+    new URL(page.url()).searchParams.get("filter")!,
+  );
+  expect(importedFilter).toMatchObject({
     kind: "compare",
-    clause_id: "tables",
     field: "source.document_kind",
     op: "eq",
     value: "RollTable",
