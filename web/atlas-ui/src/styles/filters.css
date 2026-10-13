@@ -6,6 +6,7 @@
   overflow: auto;
 }
 .common-filters,
+.filter-controls__criteria,
 .common-filter,
 .filter-panel-actions,
 .advanced-filters {

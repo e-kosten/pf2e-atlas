@@ -2,7 +2,7 @@
 
 The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant Design for general application UI and a small first-party shared UI layer for Atlas-specific interaction patterns.
 
-The application shell owns navigation, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability stays in the reference-status drawer; search failures and generation recovery belong beside search results.
+The application shell owns navigation, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability needs no status control. Connection failures show an actionable error with Retry; search failures and generation recovery belong beside search results.
 
 ## Boundaries
 
@@ -96,7 +96,10 @@ them to neutral. Reset that transient history when the menu closes.
 Do not represent exclusion as checkbox indeterminate or a boolean aria-pressed.
 They recognize
 bounded root conjunctions and an exact numeric range group. Advanced editing
-shows residual conditions without duplicating common rows; complex expressions
+shows residual conditions without duplicating common rows or adding a wrapper for
+the common-field conjunction. Negation of a conjunction or disjunction uses the
+builder group's native exclusion flag, retaining the group and negation identities;
+complex expressions
 remain editable through the full builder. Structural true/false conditions have
 explicit editor controls and lower to boolean constants, never synthetic backend
 catalog fields. Preserve clause/scope identities and unrelated clauses. Invalid
@@ -106,7 +109,9 @@ URL restoration resets drafts and retains the exact canonical predicate.
 Browser-local remembered Kind is only a default for a fresh bare search visit.
 An incoming search URL is authoritative, and clearing Kind clears the preference.
 Search and encounter selection share `ReferenceBrowser` and `useReferenceReading`.
-A compact common-filter toolbar sits above results and the generous reader. Use
+A compact common-filter toolbar sits above results and the generous reader. Search
+occupies its own row; common pickers and Advanced/Clear actions share a wrapping,
+top-aligned row underneath, including when selected chips add height. Use
 native Ant Splitter on desktop; below the lg breakpoint show results or the reader,
 with Results returning focus to the initiating row or match control. Keyword
 `SearchEntry` edits stay local until Enter or the Search button; filters commit

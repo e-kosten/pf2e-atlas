@@ -270,7 +270,7 @@ export function CommonChoicePicker({
       onClick={narrow ? () => setMenuOpen(true) : undefined}
       onKeyDown={closeOnEscape}
     >
-      {selected.length ? "Edit choices" : "Any " + field.label.toLowerCase()}
+      {selected.length ? field.label : "Any " + field.label.toLowerCase()}
     </Button>
   );
   return (
