@@ -615,11 +615,6 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
-            context: FilterDiscoveryContext::Filtered {
-                filter: Some(predicate.clone()),
-                text: None,
-                mode: RetrievalModeView::Lexical,
-            },
             selected_field_ids: vec!["actor.hp.maximum".into()],
         })
         .unwrap();
@@ -764,11 +759,6 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
-            context: FilterDiscoveryContext::Filtered {
-                filter: None,
-                text: None,
-                mode: RetrievalModeView::Hybrid,
-            },
             selected_field_ids: vec![],
         })
         .unwrap();

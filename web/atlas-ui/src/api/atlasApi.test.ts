@@ -406,7 +406,6 @@ describe("source-backed API transport", () => {
     respond({ fields: [], scopes: [] });
     await discoverFilterEditor(
       {
-        context: { kind: "filtered", filter: null, text: null, mode: "hybrid" },
         selected_field_ids: [],
       },
       controller.signal,
@@ -556,7 +555,6 @@ describe("source-backed API transport", () => {
     });
     expect(
       await discoverFilterEditor({
-        context: { kind: "filtered", filter: null, text: null, mode: "lexical" },
         selected_field_ids: [],
       }),
     ).toMatchObject({ catalog_version: 1 });

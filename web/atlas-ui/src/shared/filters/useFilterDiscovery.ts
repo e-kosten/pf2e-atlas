@@ -38,28 +38,23 @@ export function findClauseIds(
 export function useFilterDiscovery({
   context,
   enabled = true,
-  countsEnabled = true,
+  countsEnabled = false,
   queryKeyPrefix,
-  placeholderIdentity = null,
+  catalogIdentity = [],
   vocabularyScope = { kind: "artifact" },
 }: {
   context: FilterDiscoveryContext;
   enabled?: boolean;
   countsEnabled?: boolean;
   queryKeyPrefix: readonly unknown[];
-  placeholderIdentity?: readonly unknown[] | null;
+  catalogIdentity?: readonly unknown[];
   vocabularyScope?: FilterVocabularyScope;
 }) {
   const editor = useQuery<FilterEditorView>({
-    queryKey: [...queryKeyPrefix, "editor", placeholderIdentity],
+    queryKey: ["filter-discovery", "editor", ...catalogIdentity],
     enabled,
-    placeholderData: (previous, previousQuery) =>
-      JSON.stringify(previousQuery?.queryKey[previousQuery.queryKey.length - 1]) ===
-      JSON.stringify(placeholderIdentity)
-        ? previous
-        : undefined,
-    queryFn: ({ signal }) =>
-      discoverFilterEditor({ context, selected_field_ids: [] }, signal),
+    staleTime: Infinity,
+    queryFn: ({ signal }) => discoverFilterEditor({ selected_field_ids: [] }, signal),
   });
   const definitions = (editor.data?.groups ?? []).flatMap((group) =>
     group.fields.map((field) => field.definition),

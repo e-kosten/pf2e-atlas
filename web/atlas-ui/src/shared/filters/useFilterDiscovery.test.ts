@@ -108,7 +108,12 @@ describe("typed optional discovery and explicit scoped vocabulary", () => {
       mode: "hybrid" as const,
     };
     const { result } = renderHook(
-      () => useFilterDiscovery({ context, queryKeyPrefix: ["negative", context] }),
+      () =>
+        useFilterDiscovery({
+          context,
+          countsEnabled: true,
+          queryKeyPrefix: ["negative", context],
+        }),
       { wrapper: wrapper() },
     );
     await waitFor(() =>
@@ -140,7 +145,8 @@ describe("typed optional discovery and explicit scoped vocabulary", () => {
       mode: "hybrid" as const,
     };
     const { result } = renderHook(
-      () => useFilterDiscovery({ context, queryKeyPrefix: ["bad"] }),
+      () =>
+        useFilterDiscovery({ context, countsEnabled: true, queryKeyPrefix: ["bad"] }),
       { wrapper: wrapper() },
     );
     await waitFor(() =>
@@ -163,7 +169,11 @@ describe("typed optional discovery and explicit scoped vocabulary", () => {
     const pending = new Promise(() => {});
     const { result, rerender } = renderHook(
       ({ context }) =>
-        useFilterDiscovery({ context, queryKeyPrefix: ["counts", context] }),
+        useFilterDiscovery({
+          context,
+          countsEnabled: true,
+          queryKeyPrefix: ["counts", context],
+        }),
       { initialProps: { context: first }, wrapper: wrapper() },
     );
     await waitFor(() =>

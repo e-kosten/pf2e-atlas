@@ -130,7 +130,7 @@ export function SearchPickerModal<FormValues>({
     context,
     enabled: open && !retrieval.recovering,
     queryKeyPrefix: ["filter-discovery", "picker", retrieval.epoch, requestToken],
-    placeholderIdentity: [retrieval.epoch],
+    catalogIdentity: [retrieval.epoch],
   });
   const generationChanged = isArtifactGenerationChanged(recordResults.error);
   async function refreshResults() {

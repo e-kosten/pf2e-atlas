@@ -259,9 +259,8 @@ export function useSearchWorkspace({
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
     enabled: enabled && !retrieval.recovering,
-    countsEnabled: !activeSearch.similarSeed,
     queryKeyPrefix: ["filter-discovery", retrieval.epoch, activeSearchExecutionToken],
-    placeholderIdentity: [retrieval.epoch],
+    catalogIdentity: [retrieval.epoch],
   });
 
   function setSearch(next: SearchFormState) {

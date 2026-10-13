@@ -23,8 +23,8 @@ pub enum FilterDiscoveryContext {
     },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 pub struct DiscoverFilterEditorRequest {
-    pub context: FilterDiscoveryContext,
     #[serde(default)]
     pub selected_field_ids: Vec<String>,
 }
@@ -95,6 +95,18 @@ pub struct FilterChoiceView {
 pub struct FilterOperatorView {
     pub operator: String,
     pub label: String,
+    pub operand: FilterOperandView,
+}
+/// The editor input required by an executable operator.
+/// Field definitions retain literal types and allowed choices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum FilterOperandView {
+    Scalar,
+    List,
+    Range,
+    State,
+    Predicate,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -136,6 +148,46 @@ pub struct FilterCountsView {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn editor_catalog_request_has_no_query_context() {
+        let request: DiscoverFilterEditorRequest = serde_json::from_value(json!({})).unwrap();
+        assert!(request.selected_field_ids.is_empty());
+        assert_eq!(
+            serde_json::to_value(request).unwrap(),
+            json!({"selected_field_ids":[]})
+        );
+        assert!(
+            serde_json::from_value::<DiscoverFilterEditorRequest>(json!({
+                "context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid"}
+            }))
+            .is_err()
+        );
+    }
+    #[test]
+    fn operator_contract_preserves_operand_shapes_in_json() {
+        for (operand, name) in [
+            (FilterOperandView::Scalar, "scalar"),
+            (FilterOperandView::List, "list"),
+            (FilterOperandView::Range, "range"),
+            (FilterOperandView::State, "state"),
+            (FilterOperandView::Predicate, "predicate"),
+        ] {
+            let view = FilterOperatorView {
+                operator: "example".into(),
+                label: "Example".into(),
+                operand,
+            };
+            let encoded = serde_json::to_value(&view).unwrap();
+            assert_eq!(
+                encoded,
+                json!({"operator":"example","label":"Example","operand":name})
+            );
+            assert_eq!(
+                serde_json::from_value::<FilterOperatorView>(encoded).unwrap(),
+                view
+            );
+        }
+    }
     #[test]
     fn vocabulary_contract_cannot_silently_drop_query_context() {
         let input = json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","text":"fire","limit":20});

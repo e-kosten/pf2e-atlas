@@ -80,7 +80,8 @@ Render generated app DTOs. Prepared content is sanitized HTML with field-local r
 Use react-querybuilder with its maintained Ant integration for structured predicates.
 Backend descriptors supply fields, human labels and groups, operators, units,
 choices, discovery policy and the ordered common Kind, Level / rank, Rarity and
-Traits fields. Common and advanced controls edit one canonical QueryPredicate.
+Traits fields. Common and advanced controls edit one shared builder tree and
+project executable QueryPredicates from it.
 Common categorical controls cycle each value through neutral, included and
 excluded in a compact searchable Ant Popover or mobile Drawer, allowing both
 included and excluded values in one field. Menu rows show a name and a small
@@ -94,17 +95,22 @@ Initial selections and values edited during the open session remain reachable in
 stable edit order outside the current suggestion page, including after clearing
 them to neutral. Reset that transient history when the menu closes.
 Do not represent exclusion as checkbox indeterminate or a boolean aria-pressed.
-They recognize
-bounded root conjunctions and an exact numeric range group. Advanced editing
-shows residual conditions without duplicating common rows or adding a wrapper for
-the common-field conjunction. Negation of a conjunction or disjunction uses the
+They recognize simple conditions through positive conjunctions and exact numeric
+range groups. Advanced displays the complete expression. Individual conditions
+have an Exclude control stored in the builder's rule metadata. Negation of a
+conjunction or disjunction uses the
 builder group's native exclusion flag, retaining the group and negation identities;
 complex expressions
 remain editable through the full builder. Structural true/false conditions have
 explicit editor controls and lower to boolean constants, never synthetic backend
 catalog fields. Preserve clause/scope identities and unrelated clauses. Invalid
 input remains a local draft with local guidance, retaining committed results.
-URL restoration resets drafts and retains the exact canonical predicate.
+Successful edits retain the builder tree rather than reconstructing it from the
+executable predicate. External changed criteria reset drafts; preview navigation
+and local URL updates preserve them. Operator input shapes come from app-service
+metadata; apply value transitions atomically before rendering a different input.
+Editor catalog loading is independent of criteria validity so invalid URL fields
+and choices remain repairable.
 
 Browser-local remembered Kind is only a default for a fresh bare search visit.
 An incoming search URL is authoritative, and clearing Kind clears the preference.
@@ -119,11 +125,11 @@ native Ant Splitter on desktop; below the lg breakpoint show results or the read
 with Results returning focus to the initiating row or match control. Keyword
 `SearchEntry` edits stay local until Enter or the Search button; filters commit
 independently. Advanced filters always use the native Drawer, full catalog and
-complete committed predicate. Common controls edit recognized conditions in that
+complete in-progress expression. Common controls edit recognized conditions in that
 same query; never hide their conditions in a separate residual editor. Recognize
 simple conditions through positive AND wrappers without rewriting unrelated
 groups. Conditions whose branching cannot be represented by a quick control use
-its compact `Kind: Advanced`-style opener. Preserve unrelated unfinished rules
+its `Kind: Advanced`-style opener at the same native Ant size as peer controls. Preserve unrelated unfinished rules
 when a common control changes. Incomplete drafts stay local and do not execute
 or enter URLs.
 
@@ -163,11 +169,17 @@ options are not browser criteria or URL overrides; CLI modes remain independent.
 Page size belongs with results. The advanced editor uses searchable grouped Ant
 fields and readable operator labels; value controls stack at narrow editor widths.
 Its narrow Ant Drawer preserves native keyboard behavior and focus return.
+Within each rule, top-align operation, value and Remove controls independently
+of helper text, validation and counts. Keep messages below their value control.
+Load query-builder defaults in their CSS layer before Atlas styles; lazy feature
+loading must not override the filter row layout.
+At narrow group widths, keep operation and Remove together with a full-width
+value beneath; use the group's available width so nested rules also fit.
 Do not offer another collection scope inside an existing Exists condition.
 
-Optional contextual counts use the backend's available/unavailable outcomes.
-Unavailable counts receive condition-local text; actual request failures remain
-errors. Never label retained counts from another context as current. Open values
+Contextual option counts are deferred; ordinary filter editing does not request
+them or display unavailable-count notices. The backend count contract remains
+available for the planned restoration. Open values
 use explicit count-free vocabulary requests with artifact or saved-list scope,
 server search and bounded paging; selected literals remain visible separately
 from suggestion pages. Common pickers show concise totals as values, never result

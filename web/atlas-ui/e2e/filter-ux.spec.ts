@@ -1,6 +1,141 @@
 import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUrl";
 import { expect, test } from "@playwright/test";
 
+test("single-condition exclusion stays reversible and singleton operands follow the selected operator", async ({
+  page,
+}) => {
+  await page.goto(
+    "/search?filter=" +
+      encodeURIComponent(
+        encodeFilterUrl({
+          kind: "not",
+          predicate: { kind: "in", field: "record.kind", values: ["companion"] },
+        }),
+      ),
+  );
+  const open = () =>
+    page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  await open();
+  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const exclude = drawer.getByRole("checkbox", { name: "Exclude", exact: true });
+  const groups = drawer.locator(".ruleGroup");
+  for (let i = 0; i < 2; i++) {
+    await exclude.uncheck();
+    await expect(groups).toHaveCount(1);
+    await exclude.check();
+    await expect(groups).toHaveCount(1);
+  }
+  await page.reload();
+  await open();
+  await expect(exclude).toBeChecked();
+  await exclude.uncheck();
+  await drawer.getByRole("combobox", { name: "Condition for Kind" }).click();
+  await page.getByText("is not", { exact: true }).last().click();
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "compare",
+      field: "record.kind",
+      op: "neq",
+      value: "companion",
+    });
+  await expect(drawer.getByText("Enter a value", { exact: true })).toHaveCount(0);
+  await expect(
+    drawer.getByRole("combobox", { name: "Kind", exact: true }),
+  ).toBeVisible();
+});
+
+test("collection availability becomes a safe nested editor and can switch back", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(
+    "/search?filter=" +
+      encodeURIComponent(
+        encodeFilterUrl({
+          kind: "state_match",
+          field: "actor.items",
+          state: "missing",
+        }),
+      ),
+  );
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const operator = drawer.locator(".rule-operators").getByRole("combobox").first();
+  await operator.click();
+  await page.getByText("has a matching entry", { exact: true }).last().click();
+  await expect(drawer.locator(".ruleGroup")).toHaveCount(2);
+  await expect(
+    drawer.getByRole("button", { name: "Add condition", exact: true }).nth(1),
+  ).toBeVisible();
+  await operator.click();
+  await page.getByText("availability is", { exact: true }).last().click();
+  await drawer.getByRole("combobox", { name: /availability$/ }).click();
+  await page.getByText("Missing from source", { exact: true }).last().click();
+  await expect(drawer.locator(".ruleGroup")).toHaveCount(1);
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "state_match",
+      field: "actor.items",
+      state: "missing",
+    });
+  expect(errors).toEqual([]);
+});
+
+test("wrapped values and validation retain the advanced control grid", async ({
+  page,
+}) => {
+  await page.goto(
+    "/search?filter=" +
+      encodeURIComponent(
+        encodeFilterUrl({
+          kind: "all_of",
+          children: [
+            {
+              kind: "in",
+              field: "record.kind",
+              values: [
+                "creature",
+                "character",
+                "companion",
+                "hazard",
+                "equipment",
+                "feat",
+                "spell",
+                "affliction",
+              ],
+            },
+            { kind: "compare", field: "actor.hp.maximum", op: "gte", value: 80 },
+          ],
+        }),
+      ),
+  );
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  await drawer.getByRole("textbox", { name: "Maximum HP", exact: true }).fill("-");
+  await expect(
+    drawer.getByText("Enter a finite numeric value", { exact: true }),
+  ).toBeVisible();
+  for (const row of await drawer.locator(".rule").all()) {
+    await expect(row).toHaveCSS("display", "grid");
+    const operator = await row.locator(".rule-operators").boundingBox();
+    const value = await row.locator(".filter-rule-value").boundingBox();
+    const remove = await row.locator(".rule-remove").boundingBox();
+    expect(operator).not.toBeNull();
+    expect(value).not.toBeNull();
+    expect(remove).not.toBeNull();
+    expect(
+      Math.max(operator!.y, value!.y, remove!.y) -
+        Math.min(operator!.y, value!.y, remove!.y),
+    ).toBeLessThanOrEqual(2);
+    expect(
+      await row.evaluate((element) => element.scrollWidth <= element.clientWidth + 1),
+    ).toBe(true);
+  }
+});
+
 test("group exclusion remains one group through edits, toggles and URL reload", async ({
   page,
 }) => {
@@ -146,7 +281,9 @@ test("common filters retain valid results through drafts and exact URL reload", 
   const validFilter = new URL(validUrl).searchParams.get("filter");
   await page.getByRole("textbox", { name: /Level \/ rank minimum/i }).fill("-");
   await expect(
-    page.getByText("Enter a finite numeric value", { exact: true }),
+    page
+      .getByText("Enter a finite numeric value", { exact: true })
+      .filter({ visible: true }),
   ).toBeVisible();
   expect(page.url()).toBe(validUrl);
   await expect(page.locator(".result-pane-header")).toContainText("records");
@@ -160,7 +297,7 @@ test("common filters retain valid results through drafts and exact URL reload", 
   expect(errors).toEqual([]);
 });
 
-test("complex conditions remain advanced with searchable fields and local optional counts", async ({
+test("complex conditions remain advanced with searchable fields and no unavailable-count notices", async ({
   page,
 }) => {
   const predicate = {
@@ -179,9 +316,7 @@ test("complex conditions remain advanced with searchable fields and local option
   await expect(
     page.getByRole("button", { name: "Kind: Advanced", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Counts unavailable for this condition").first(),
-  ).toBeVisible();
+  await expect(page.getByText("Counts unavailable for this condition")).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveCount(0);
   const importedFilter = new URL(page.url()).searchParams.get("filter");
   await page.getByRole("button", { name: "Kind: Advanced" }).click();
@@ -263,14 +398,14 @@ test("Advanced starts with the existing Kind and adding Kind creates exactly one
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await expect(fields).toHaveCount(1);
   await expect(
-    drawer.getByRole("checkbox", { name: "Exclude this group", exact: true }).nth(1),
+    drawer.getByRole("checkbox", { name: "Exclude", exact: true }),
   ).toBeChecked();
   const url = page.url();
   await page.reload();
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await expect(fields).toHaveCount(1);
   await expect(
-    drawer.getByRole("checkbox", { name: "Exclude this group", exact: true }).nth(1),
+    drawer.getByRole("checkbox", { name: "Exclude", exact: true }),
   ).toBeChecked();
   expect(page.url()).toBe(url);
 });

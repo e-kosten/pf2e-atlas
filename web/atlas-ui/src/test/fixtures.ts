@@ -208,12 +208,14 @@ export function fieldFixture(
     choices: [],
     operators:
       field_type === "number"
-        ? ["eq", "gt", "gte", "lt", "lte", "between", "state"]
+        ? ["eq", "neq", "gt", "gte", "lt", "lte", "between", "state"]
         : field_type === "set"
           ? ["includes", "includes_all", "includes_any", "excludes_any", "state"]
           : field_type === "collection"
             ? ["exists", "state"]
-            : ["eq", "neq", "in", "state"],
+            : field_type === "boolean"
+              ? ["eq", "neq", "state"]
+              : ["eq", "neq", "in", "state"],
     examples: [],
     value_discovery:
       field_type === "number"
@@ -245,6 +247,18 @@ export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditor
           operators: definition.operators.map((operator) => ({
             operator,
             label: operator,
+            operand:
+              operator === "exists"
+                ? ("predicate" as const)
+                : operator === "state"
+                  ? ("state" as const)
+                  : operator === "between"
+                    ? ("range" as const)
+                    : ["in", "includes_any", "includes_all", "excludes_any"].includes(
+                          operator,
+                        )
+                      ? ("list" as const)
+                      : ("scalar" as const),
           })),
           control:
             definition.field_type === "number"
