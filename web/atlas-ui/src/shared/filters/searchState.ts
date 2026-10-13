@@ -3,6 +3,7 @@ import type {
   SearchResultsRequest,
   QueryPredicate,
 } from "../../generated/atlas";
+import { decodeFilterUrl, encodeFilterUrl } from "./filterUrl";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export type SearchFormState = {
   query: string;
@@ -95,8 +96,7 @@ export function searchStateQueryString(state: SearchFormState): string {
   const params = new URLSearchParams();
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
-  if (state.mode !== "browse") params.set("mode", state.mode);
-  if (state.filter) params.set("filter", JSON.stringify(state.filter));
+  if (state.filter) params.set("filter", encodeFilterUrl(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
   return params.size ? "?" + params.toString() : "";
 }
@@ -104,13 +104,8 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
   let filter: QueryPredicate | null = null;
   let filterError: string | null = null;
   try {
-    const json = params.get("filter");
-    if (json) {
-      const value = JSON.parse(json);
-      if (typeof value !== "object" || value === null || !("kind" in value))
-        throw new Error("Invalid structured filter URL");
-      filter = value as QueryPredicate;
-    }
+    const encoded = params.get("filter");
+    if (encoded) filter = decodeFilterUrl(encoded);
   } catch {
     filterError = "Invalid structured filter URL";
   }
@@ -131,21 +126,4 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
     pageSize:
       Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100 ? pageSize : 25,
   };
-}
-export function decodeSearchState(value: string | null): SearchFormState {
-  if (!value) return DEFAULT_SEARCH_STATE;
-  try {
-    const parsed = JSON.parse(decodeURIComponent(value));
-    return decodeSearchStateFromParams(
-      new URLSearchParams({
-        q: typeof parsed.query === "string" ? parsed.query : "",
-        similar: typeof parsed.similarSeed === "string" ? parsed.similarSeed : "",
-        mode: parsed.mode === "text_search" ? "text_search" : "browse",
-        filter: parsed.filter ? JSON.stringify(parsed.filter) : "",
-        limit: String(parsed.pageSize || 25),
-      }),
-    );
-  } catch {
-    return { ...DEFAULT_SEARCH_STATE, filterError: "Invalid search state URL" };
-  }
 }

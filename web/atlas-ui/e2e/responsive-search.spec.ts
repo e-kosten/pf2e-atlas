@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { encodeFilterUrl } from "../src/shared/filters/filterUrl";
 
 // These checks use the caller's real source artifact and application service.
 for (const width of [1440, 1100, 390]) {
@@ -12,7 +13,7 @@ for (const width of [1440, 1100, 390]) {
           ? "/search?similar=equipment-srd%3A7jolv0cuttvjI1JD"
           : "/search?filter=" +
               encodeURIComponent(
-                JSON.stringify({
+                encodeFilterUrl({
                   kind: "in",
                   clause_id: "kind",
                   field: "record.kind",

@@ -1,3 +1,4 @@
+import { encodeFilterUrl } from "../../shared/filters/filterUrl";
 import { fieldFixture } from "../../test/fixtures";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import {
@@ -159,9 +160,12 @@ describe("remembered Kind default precedence", () => {
     history.replaceState(
       null,
       "",
-      "/search?filter=" + encodeURIComponent(JSON.stringify(incoming)),
+      "/search?filter=" + encodeURIComponent(encodeFilterUrl(incoming)),
     );
-    expect(initialWorkspaceInteractionState().search.filter).toEqual(incoming);
+    expect(initialWorkspaceInteractionState().search.filter).toMatchObject({
+      ...incoming,
+      clause_id: expect.any(String),
+    });
     rememberKindPreference(null, field);
     expect(localStorage.getItem(KIND_PREFERENCE_KEY)).toBeNull();
     history.replaceState(null, "", "/search");

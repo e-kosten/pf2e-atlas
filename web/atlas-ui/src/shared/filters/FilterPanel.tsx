@@ -32,18 +32,18 @@ import type {
 import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
 import {
   builderPredicate,
+  canReplaceCommonDraft,
   BOOLEAN_CONDITION,
   emptyGroup,
   numericLiteral,
   predicateBuilder,
+  replaceCommonDraft,
 } from "./queryBuilder";
 import {
-  advancedResidual,
   clearAllFilters,
   commonCondition,
   conditionRange,
   replaceCommonCondition,
-  replaceAdvancedResidual,
   type FilterPanelState,
 } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
@@ -101,21 +101,13 @@ export function FilterControls({
     [editor],
   );
   const definitions = useMemo(() => fields.map((field) => field.definition), [fields]);
-  const commonDefinitions = useMemo(
-    () => definitions.filter((field) => editor?.common_field_ids.includes(field.id)),
-    [definitions, editor],
-  );
-  const residual = useMemo(
-    () => advancedResidual(search.filter, commonDefinitions).residual,
-    [search.filter, commonDefinitions],
-  );
   const prepared = useMemo(() => {
     if (!editor) return { query: null, error: search.filterError };
     if (draft?.baseline === search.filter)
       return { query: draft.query, error: draft.error };
     try {
       return {
-        query: predicateBuilder(residual, definitions),
+        query: predicateBuilder(search.filter, definitions),
         error: search.filterError,
       };
     } catch (error) {
@@ -124,14 +116,10 @@ export function FilterControls({
         error: error instanceof Error ? error.message : String(error),
       };
     }
-  }, [definitions, editor, draft, search.filter, search.filterError, residual]);
+  }, [definitions, editor, draft, search.filter, search.filterError]);
   function change(query: RuleGroupType) {
     try {
-      const filter = replaceAdvancedResidual(
-        search.filter,
-        commonDefinitions,
-        builderPredicate(query, definitions),
-      );
+      const filter = builderPredicate(query, definitions);
       setDraft(null);
       setSearch({ ...search, filter, filterError: null });
     } catch (error) {
@@ -152,7 +140,7 @@ export function FilterControls({
       />
     ) : null;
   const inlineError =
-    prepared.error && !prepared.query ? (
+    prepared.error && (search.filterError || !prepared.query) ? (
       <Typography.Text type="danger" role="status">
         {prepared.error}
       </Typography.Text>
@@ -187,17 +175,33 @@ export function FilterControls({
                 field={field}
                 layout={layout}
                 rangeDraft={rangeDrafts[id] ?? null}
+                advancedDraft={
+                  draft?.baseline === search.filter &&
+                  !canReplaceCommonDraft(draft.query, field.definition.id)
+                }
                 onRangeDraftChange={(next) =>
                   setRangeDrafts((current) => ({ ...current, [id]: next }))
                 }
                 workspace={{
                   ...workspace,
                   setSearch: (next) => {
-                    setDraft((current) =>
-                      current?.baseline === search.filter
-                        ? { ...current, baseline: next.filter }
-                        : current,
-                    );
+                    setDraft((current) => {
+                      if (!current || current.baseline !== search.filter)
+                        return current;
+                      const query = replaceCommonDraft(
+                        current.query,
+                        field.definition,
+                        commonCondition(next.filter, field.definition).clause,
+                      );
+                      let error: string | null = null;
+                      try {
+                        builderPredicate(query, definitions);
+                      } catch (failure) {
+                        error =
+                          failure instanceof Error ? failure.message : String(failure);
+                      }
+                      return { baseline: next.filter, query, error };
+                    });
                     setSearch(next);
                   },
                 }}
@@ -244,7 +248,6 @@ export function FilterControls({
         onClose={() => setAdvanced(false)}
       >
         <section className="advanced-filters" aria-label="Advanced filters">
-          <Typography.Text type="secondary">Additional conditions</Typography.Text>
           {advancedEditor}
           {inlineError}
         </section>
@@ -268,15 +271,19 @@ function CommonFilter({
   workspace,
   onAdvanced,
   layout,
+  advancedDraft,
 }: {
   field: FilterEditorFieldView;
   layout: "panel" | "toolbar";
+  advancedDraft: boolean;
   rangeDraft: RangeDraft | null;
   onRangeDraftChange: (draft: RangeDraft) => void;
   workspace: FilterPanelState;
   onAdvanced: () => void;
 }) {
-  const condition = commonCondition(workspace.search.filter, field.definition);
+  const condition = advancedDraft
+    ? { status: "advanced" as const, clause: null }
+    : commonCondition(workspace.search.filter, field.definition);
   function update(replacement: QueryPredicate | null) {
     workspace.setSearch({
       ...workspace.search,
@@ -311,14 +318,9 @@ function CommonFilter({
         </div>
       )}
       {condition.status === "advanced" ? (
-        <Space orientation="vertical" size="small">
-          <Typography.Text type="secondary">
-            Defined in advanced filters
-          </Typography.Text>
-          <Button size="small" onClick={onAdvanced}>
-            Edit {field.label.toLowerCase()}
-          </Button>
-        </Space>
+        <Button size="small" onClick={onAdvanced}>
+          {field.label}: Advanced
+        </Button>
       ) : field.definition.field_type === "number" ? (
         layout === "panel" ? (
           <CommonRange
