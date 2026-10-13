@@ -1,16 +1,31 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Input, Modal, Table } from "antd";
+import {
+  Alert,
+  Button,
+  ConfigProvider,
+  Form,
+  Modal,
+  Pagination,
+  Space,
+  Typography,
+} from "antd";
 import type { FormInstance, ModalProps } from "antd";
-import type { ColumnsType } from "antd/es/table";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
 import type { SearchResultsRequest, SearchResultRow } from "../../../generated/atlas";
+import {
+  DEFAULT_SEARCH_STATE,
+  buildFilterDiscoveryContext,
+  type SearchFormState,
+} from "../../filters/searchState";
+import { FilterControls } from "../../filters/FilterPanel";
+import { useFilterDiscovery } from "../../filters/useFilterDiscovery";
+import { ReferenceBrowser } from "../../records/ReferenceBrowser";
+import { rootNavigation, useReferenceReading } from "../../records/useReferenceReading";
 import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
 } from "../../queries/immutableReferenceQueries";
-
-const SEARCH_PICKER_DEBOUNCE_MS = 250;
 
 export function SearchPickerModal<FormValues>({
   buildRequest,
@@ -45,34 +60,40 @@ export function SearchPickerModal<FormValues>({
   selectedRecordKey: string | null;
   title: string;
 }) {
-  const searchId = useId();
-  const [search, setSearch] = useState("");
-  const [activeSearch, setActiveSearch] = useState("");
-  const searchTimeout = useRef<number | undefined>(undefined);
+  const [search, setSearch] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [candidate, setCandidate] = useState<SearchResultRow | null>(null);
   const queryClient = useQueryClient();
   const [retrieval, setRetrieval] = useState({
     generation: null as string | null,
     epoch: 0,
     recovering: false,
   });
-  const request = buildRequest(activeSearch);
+  const base = buildRequest(search.query);
+  const filter =
+    base.criteria.filter && search.filter
+      ? { kind: "all_of" as const, children: [base.criteria.filter, search.filter] }
+      : (base.criteria.filter ?? search.filter);
+  const request: SearchResultsRequest = {
+    ...base,
+    criteria: { ...base.criteria, filter },
+    page: { number: pageNumber, size: search.pageSize },
+  };
   const requestToken = JSON.stringify(request);
   const liveRequest = useRef({ token: "", epoch: 0, active: false });
   useLayoutEffect(() => {
-    liveRequest.current = { token: requestToken, epoch: retrieval.epoch, active: open };
+    liveRequest.current = {
+      token: requestToken,
+      epoch: retrieval.epoch,
+      active: open && !retrieval.recovering,
+    };
     return () => {
       liveRequest.current.active = false;
     };
-  }, [requestToken, retrieval.epoch, open]);
-  useEffect(
-    () => () => {
-      window.clearTimeout(searchTimeout.current);
-    },
-    [],
-  );
+  }, [requestToken, retrieval.epoch, open, retrieval.recovering]);
   const recordResults = useQuery({
     queryKey: ["search-picker", title, request, retrieval.epoch, retrieval.generation],
-    enabled: open && activeSearch.trim().length > 0 && !retrieval.recovering,
+    enabled: open && !retrieval.recovering && !search.filterError,
     staleTime: 20_000,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
@@ -99,89 +120,106 @@ export function SearchPickerModal<FormValues>({
       return page;
     },
   });
+  const reading = useReferenceReading(
+    null,
+    open && !retrieval.recovering,
+    retrieval.epoch,
+  );
+  const context = buildFilterDiscoveryContext({ ...search, filter });
+  const discovery = useFilterDiscovery({
+    context,
+    enabled: open && !retrieval.recovering,
+    queryKeyPrefix: ["filter-discovery", "picker", retrieval.epoch, requestToken],
+    placeholderIdentity: [retrieval.epoch],
+  });
   const generationChanged = isArtifactGenerationChanged(recordResults.error);
   async function refreshResults() {
     liveRequest.current.active = false;
     setRetrieval((current) => ({ ...current, recovering: true }));
     await retireImmutableReferenceQueries(queryClient);
+    setPageNumber(1);
     setRetrieval((current) => ({
       generation: null,
       epoch: current.epoch + 1,
       recovering: false,
     }));
   }
-  const currentRows =
-    activeSearch.trim() && search === activeSearch && !recordResults.error
-      ? (recordResults.data?.rows ?? [])
-      : [];
+  const currentRows = recordResults.error ? [] : (recordResults.data?.rows ?? []);
   const selectedRecord =
-    currentRows.find((row) => row.record.record_key === selectedRecordKey) ?? null;
-
+    candidate?.record.record_key === selectedRecordKey
+      ? candidate
+      : currentRows.find((row) => row.record.record_key === selectedRecordKey);
+  const linked =
+    selectedRecord &&
+    reading.request &&
+    (reading.request.navigation.record_key !== selectedRecordKey ||
+      reading.request.navigation.owners.length ||
+      reading.request.match);
   const reset = () => {
-    setSearch("");
-    setActiveSearch("");
+    setSearch(DEFAULT_SEARCH_STATE);
+    setPageNumber(1);
+    setCandidate(null);
+    reading.inspect(null);
     setRetrieval((current) => ({
       generation: null,
       epoch: current.epoch + 1,
       recovering: false,
     }));
-    window.clearTimeout(searchTimeout.current);
     onSelectedRecordKeyChange(null);
   };
-
   return (
-    <Modal
-      afterOpenChange={(isOpen) => {
-        if (!isOpen) {
-          reset();
-        }
-      }}
-      okButtonProps={{
-        ...okButtonProps,
-        disabled: disabled || okButtonProps?.disabled,
-      }}
-      cancelButtonProps={{ disabled }}
-      closable={!disabled}
-      keyboard={!disabled}
-      mask={{ closable: !disabled }}
-      onCancel={onCancel}
-      onOk={() => {
-        if (!disabled) form.submit();
-      }}
-      open={open}
-      title={title}
-    >
-      <Form disabled={disabled} form={form} layout="vertical" onFinish={onFinish}>
-        <Form.Item label="Search" htmlFor={searchId} layout="vertical">
-          <Input
-            id={searchId}
-            autoComplete="off"
-            allowClear
-            aria-label="Search"
-            onChange={(event) => {
-              const query = event.target.value;
-              setSearch(query);
-              onSelectedRecordKeyChange(null);
-              window.clearTimeout(searchTimeout.current);
-              searchTimeout.current = window.setTimeout(
-                () => setActiveSearch(query),
-                SEARCH_PICKER_DEBOUNCE_MS,
-              );
-            }}
-            value={search}
-          />
-        </Form.Item>
-        {recordResults.error && search === activeSearch && (
+    <ConfigProvider componentDisabled={disabled}>
+      <Modal
+        className="reference-picker"
+        width="min(1400px, calc(100vw - 32px))"
+        styles={{
+          body: {
+            height: "min(70dvh, 820px)",
+            display: "flex",
+            flexDirection: "column",
+          },
+        }}
+        afterOpenChange={(isOpen) => {
+          if (!isOpen) reset();
+        }}
+        footer={null}
+        closable={!disabled}
+        keyboard={!disabled}
+        mask={{ closable: !disabled }}
+        onCancel={onCancel}
+        open={open}
+        title={title}
+      >
+        <FilterControls
+          layout="toolbar"
+          filterState={{
+            search,
+            setSearch: (next) => {
+              if (!disabled) {
+                setSearch(next);
+                setPageNumber(1);
+              }
+            },
+            filterEditor: discovery.filterEditor,
+            filterCountsByField: discovery.filterCountsByField,
+            filterDiscoveryContext: discovery.filterDiscoveryContext,
+            vocabularyScope: discovery.vocabularyScope,
+            filterDiscoveryLoading: discovery.loading,
+            filterDiscoveryError: discovery.errorMessage,
+          }}
+        />
+        {recordResults.error && (
           <Alert
             type="error"
             title="Search failed"
             description={recordResults.error.message}
             action={
               <Button
-                onClick={() => {
-                  if (generationChanged) void refreshResults();
-                  else void recordResults.refetch();
-                }}
+                onClick={() =>
+                  generationChanged
+                    ? void refreshResults()
+                    : void recordResults.refetch()
+                }
                 loading={recordResults.isFetching || retrieval.recovering}
               >
                 {generationChanged ? "Refresh results" : "Retry search"}
@@ -189,57 +227,92 @@ export function SearchPickerModal<FormValues>({
             }
           />
         )}
-        <Table<SearchResultRow>
-          columns={recordPickerColumns}
-          dataSource={currentRows}
-          loading={recordResults.isFetching || search !== activeSearch}
-          locale={{
-            emptyText: recordResults.error
+        <ReferenceBrowser
+          rows={currentRows}
+          loading={recordResults.isFetching}
+          disabled={disabled}
+          selectedRecordKey={selectedRecordKey}
+          onSelect={(row) => {
+            if (!disabled) {
+              setCandidate(row);
+              onSelectedRecordKeyChange(row.record.record_key);
+            }
+          }}
+          reading={reading}
+          emptyMessage={
+            recordResults.error
               ? "Search unavailable"
-              : activeSearch.trim()
+              : search.query
                 ? emptyResults
-                : emptyPrompt,
-          }}
-          pagination={false}
-          rowSelection={{
-            type: "radio",
-            selectedRowKeys: selectedRecordKey ? [selectedRecordKey] : [],
-            onChange: (keys) => {
-              if (!disabled)
-                onSelectedRecordKeyChange(keys.length ? String(keys[0]) : null);
-            },
-            getCheckboxProps: (row) => ({
-              "aria-label": `Select ${row.record.title}`,
-              disabled: disabled || recordResults.isFetching,
-            }),
-          }}
-          rowClassName="search-picker__row"
-          onRow={(row) => ({
-            onClick: (event) => {
-              if (!disabled && !(event.target as Element).closest("input,button,label"))
-                onSelectedRecordKeyChange(row.record.record_key);
-            },
-          })}
-          rowKey={(row) => row.record.record_key}
-          scroll={{ y: 280 }}
-          size="small"
+                : emptyPrompt
+          }
+          resultsHeader={
+            <Space wrap>
+              <Typography.Text>
+                {recordResults.data?.page
+                  ? `${recordResults.data.page.total.toLocaleString()} records`
+                  : "Results"}
+              </Typography.Text>
+              <Pagination
+                simple
+                size="small"
+                current={pageNumber}
+                pageSize={search.pageSize}
+                total={Number(recordResults.data?.page?.total ?? 0)}
+                disabled={
+                  disabled ||
+                  recordResults.isFetching ||
+                  generationChanged ||
+                  retrieval.recovering
+                }
+                showSizeChanger={false}
+                onChange={setPageNumber}
+              />
+            </Space>
+          }
+          readerActions={
+            linked && (
+              <Button
+                size="small"
+                onClick={() =>
+                  reading.inspect({ navigation: rootNavigation(selectedRecordKey!) })
+                }
+              >
+                Return to selection
+              </Button>
+            )
+          }
         />
-        <p className="search-picker__selection" role="status" aria-live="polite">
-          {selectedRecord ? selectedLabel(selectedRecord) : selectedPrompt}
-        </p>
-        {children}
-      </Form>
-    </Modal>
+        <Form
+          className="reference-picker__footer"
+          disabled={disabled}
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+        >
+          <Typography.Text
+            className="search-picker__selection"
+            role="status"
+            aria-live="polite"
+          >
+            {selectedRecord ? selectedLabel(selectedRecord) : selectedPrompt}
+          </Typography.Text>
+          <div className="reference-picker__fields">{children}</div>
+          <Space>
+            <Button disabled={disabled} onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button
+              {...okButtonProps}
+              disabled={disabled || !selectedRecordKey || okButtonProps?.disabled}
+              type="primary"
+              htmlType="submit"
+            >
+              Add
+            </Button>
+          </Space>
+        </Form>
+      </Modal>
+    </ConfigProvider>
   );
 }
-
-const recordPickerColumns: ColumnsType<SearchResultRow> = [
-  { title: "Name", dataIndex: ["record", "title"] },
-  { title: "Kind", dataIndex: ["record", "kind_label"], width: 100 },
-  {
-    title: "Level",
-    dataIndex: ["record", "level_label"],
-    width: 90,
-    render: (value) => value ?? "",
-  },
-];
