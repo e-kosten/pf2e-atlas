@@ -1,15 +1,6 @@
-import { Activity, Monitor, Moon, Sun } from "lucide-react";
-import { useRef, useState } from "react";
-import {
-  Alert,
-  Button,
-  Drawer,
-  Menu,
-  Popover,
-  Segmented,
-  Space,
-  Typography,
-} from "antd";
+import { Monitor, Moon, Sun } from "lucide-react";
+import { useRef } from "react";
+import { Alert, Button, Menu, Popover, Segmented, Space, Typography } from "antd";
 import type { MenuProps } from "antd";
 import type { AppReadinessView } from "../generated/atlas";
 import type {
@@ -53,7 +44,6 @@ export function AppShell({
   onCheckReadiness,
   children,
 }: AppShellProps) {
-  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const selectedView = topLevelView(activeView);
   const destinations = [
@@ -128,12 +118,6 @@ export function AppShell({
           selectedKeys={[selectedView]}
         />
         <Space className="topbar__actions" size="small">
-          <Button
-            type="text"
-            aria-label="Reference status"
-            icon={<Activity size={18} />}
-            onClick={() => setDiagnosticsOpen(true)}
-          />
           <Popover
             trigger="click"
             placement="bottom"
@@ -171,36 +155,17 @@ export function AppShell({
           className="error-banner"
           type="error"
           showIcon
-          title="Reference unavailable"
+          title={
+            readinessError ? "Unable to connect to Atlas" : "Reference unavailable"
+          }
           description={availabilityError}
           action={
             <Button loading={checkingReadiness} onClick={onCheckReadiness}>
-              Check again
+              Retry
             </Button>
           }
         />
       )}
-      <Drawer
-        title="Reference status"
-        open={diagnosticsOpen}
-        onClose={() => setDiagnosticsOpen(false)}
-      >
-        <Space orientation="vertical" size="middle">
-          <Typography.Text strong>
-            {checkingReadiness
-              ? "Checking availability…"
-              : readiness?.status === "ready"
-                ? "Reference ready"
-                : "Reference unavailable"}
-          </Typography.Text>
-          <Typography.Paragraph>
-            {readinessError?.message ?? readiness?.message}
-          </Typography.Paragraph>
-          <Button loading={checkingReadiness} onClick={onCheckReadiness}>
-            Check again
-          </Button>
-        </Space>
-      </Drawer>
       <div
         className="atlas-app__content"
         id="atlas-main"
