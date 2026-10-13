@@ -11,7 +11,59 @@ import {
 import { DEFAULT_SEARCH_STATE } from "./searchState";
 import { builderPredicate, predicateBuilder, numericLiteral } from "./queryBuilder";
 import { fieldFixture } from "../../test/fixtures";
+import type { QueryPredicate } from "../../generated/atlas";
 describe("typed builder translation", () => {
+  it.each(["all_of", "any_of"] as const)(
+    "keeps an excluded %s as one editable group across repeated edits",
+    (kind) => {
+      const field = fieldFixture("actor.hp.maximum", "number");
+      let predicate: QueryPredicate = {
+        kind: "not",
+        clause_id: "exclude",
+        predicate: {
+          kind,
+          clause_id: "group",
+          children: [
+            {
+              kind: "compare",
+              clause_id: "hp",
+              field: field.path,
+              op: "gte",
+              value: 80,
+            },
+          ],
+        },
+      };
+      for (let index = 0; index < 4; index++) {
+        const group = predicateBuilder(predicate, [field]);
+        expect(group).toMatchObject({
+          id: "group",
+          not: true,
+          atlasNotClauseId: "exclude",
+        });
+        expect(group.rules).toHaveLength(1);
+        expect(group.rules[0]).toMatchObject({ id: "hp", field: field.id });
+        predicate = builderPredicate(group, [field])!;
+        expect(predicate).toEqual({
+          kind: "not",
+          clause_id: "exclude",
+          predicate: {
+            kind,
+            clause_id: "group",
+            children: [
+              {
+                kind: "compare",
+                clause_id: "hp",
+                field: field.path,
+                op: "gte",
+                value: 80,
+              },
+            ],
+          },
+        });
+      }
+    },
+  );
   it("rejects unsafe integers and nonfinite numbers before query submission", () => {
     for (const value of ["9007199254740993", "NaN", "Infinity", "-Infinity", ""])
       expect(() => numericLiteral(value)).toThrow();
@@ -261,6 +313,92 @@ describe("common filter editing without predicate simplification", () => {
 describe("mixed common values and residual advanced editing", () => {
   const kind = fieldFixture("record.kind");
   const traits = fieldFixture("traits", "set");
+  it("edits an excluded advanced group directly without growing the common conjunction", () => {
+    const common: QueryPredicate = {
+      kind: "in",
+      clause_id: "kind",
+      field: kind.path,
+      values: ["creature"],
+    };
+    const hp = fieldFixture("actor.hp.maximum", "number");
+    const excluded: QueryPredicate = {
+      kind: "not",
+      clause_id: "exclude",
+      predicate: {
+        kind: "all_of",
+        clause_id: "advanced",
+        children: [
+          { kind: "compare", clause_id: "hp", field: hp.path, op: "gte", value: 80 },
+        ],
+      },
+    };
+    let predicate: QueryPredicate = {
+      kind: "all_of",
+      clause_id: "root",
+      children: [common, excluded],
+    };
+    for (let index = 0; index < 4; index++) {
+      const residual: QueryPredicate = advancedResidual(predicate, [kind]).residual!;
+      expect(residual).toEqual(excluded);
+      predicate = replaceAdvancedResidual(
+        predicate,
+        [kind],
+        builderPredicate(predicateBuilder(residual, [kind, hp]), [kind, hp]),
+      )!;
+      expect(predicate).toEqual({
+        kind: "all_of",
+        clause_id: "root",
+        children: [common, excluded],
+      });
+    }
+  });
+  it.each(["not", "any_of"] as const)(
+    "gives a newly %s advanced conjunction its own identity",
+    (operation) => {
+      const common: QueryPredicate = {
+        kind: "in",
+        clause_id: "kind",
+        field: kind.path,
+        values: ["creature"],
+      };
+      const hp: QueryPredicate = {
+        kind: "compare",
+        clause_id: "hp",
+        field: "actor.hp.maximum",
+        op: "gte",
+        value: 80,
+      };
+      const ac: QueryPredicate = {
+        ...hp,
+        clause_id: "ac",
+        field: "actor.ac",
+        value: 20,
+      };
+      const predicate: QueryPredicate = {
+        kind: "all_of",
+        clause_id: "root",
+        children: [common, hp, ac],
+      };
+      const residual = advancedResidual(predicate, [kind]).residual!;
+      const replacement: QueryPredicate =
+        operation === "not"
+          ? { kind: "not", clause_id: "exclude", predicate: residual }
+          : { kind: "any_of", clause_id: "root", children: [hp, ac] };
+      const updated = replaceAdvancedResidual(predicate, [kind], replacement)!;
+      expect(updated.kind).toBe("all_of");
+      if (updated.kind !== "all_of") throw new Error("Expected conjunction");
+      expect(updated.clause_id).toBe("root");
+      expect(updated.children).toHaveLength(2);
+      expect(updated.children[0]).toEqual(common);
+      const group =
+        updated.children[1].kind === "not"
+          ? updated.children[1].predicate
+          : updated.children[1];
+      expect(group.clause_id).not.toBe("root");
+      expect(group).toMatchObject({ children: [hp, ac] });
+      expect(advancedResidual(updated, [kind]).residual).toEqual(updated.children[1]);
+    },
+  );
   it.each([kind, traits])("keeps mixed states and surviving IDs for $id", (field) => {
     let condition = changeChoiceValue(field, null, "creature", "include");
     condition = changeChoiceValue(field, condition, "spell", "include");
@@ -315,10 +453,10 @@ describe("mixed common values and residual advanced editing", () => {
       children: [included, other, excluded],
     };
     const projection = advancedResidual(predicate, [kind]);
-    expect(projection.residual).toEqual({ ...predicate, children: [other] });
+    expect(projection.residual).toEqual(other);
     const updated = replaceAdvancedResidual(predicate, [kind], {
-      ...predicate,
-      children: [{ ...other, value: 90 }],
+      ...other,
+      value: 90,
     });
     expect(updated).toEqual({
       ...predicate,

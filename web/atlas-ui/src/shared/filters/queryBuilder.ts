@@ -177,7 +177,15 @@ export function predicateBuilder(
       rules: predicate.children.map((p) => predicateNode(p, fields, scope)),
     };
   }
-  if (predicate.kind === "not")
+  if (predicate.kind === "not") {
+    // QueryBuilder represents a group's negation on the group itself. Wrapping
+    // it in another group adds an editor level after every controlled update.
+    if (predicate.predicate.kind === "all_of" || predicate.predicate.kind === "any_of")
+      return {
+        ...predicateBuilder(predicate.predicate, fields, scope),
+        not: true,
+        atlasNotClauseId: predicate.clause_id,
+      } as PredicateGroup;
     return {
       combinator: "and",
       rules: [predicateNode(predicate.predicate, fields, scope)],
@@ -185,6 +193,7 @@ export function predicateBuilder(
       atlasSinglePredicate: true,
       atlasNotClauseId: predicate.clause_id,
     } as PredicateGroup;
+  }
   return {
     combinator: "and",
     rules: [predicateNode(predicate, fields, scope)],

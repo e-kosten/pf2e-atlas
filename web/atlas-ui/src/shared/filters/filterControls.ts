@@ -208,8 +208,19 @@ export function advancedResidual(
   });
   if (common.includes(predicate!)) return { common, residual: null };
   if (predicate?.kind !== "all_of") return { common, residual: predicate };
+  if (!common.length) return { common, residual: predicate };
   const children = predicate.children.filter((child) => !common.includes(child));
-  return { common, residual: children.length ? { ...predicate, children } : null };
+  // The common-field conjunction is outside the advanced editor. A sole
+  // remaining condition/group can be edited directly without another UI level.
+  return {
+    common,
+    residual:
+      children.length === 1
+        ? children[0]
+        : children.length
+          ? { ...predicate, children }
+          : null,
+  };
 }
 export function replaceAdvancedResidual(
   predicate: QueryPredicate | null,
@@ -222,8 +233,29 @@ export function replaceAdvancedResidual(
     return replacement
       ? { kind: "all_of", children: [...common, replacement] }
       : predicate;
+  const residualIsRoot = residual !== null && !predicate.children.includes(residual);
+  // Negating/changing the projected conjunction creates a distinct advanced
+  // group inside the common conjunction; it must not reuse the outer group ID.
+  if (
+    residualIsRoot &&
+    replacement?.kind === "not" &&
+    replacement.predicate.kind === "all_of" &&
+    replacement.predicate.clause_id === residual?.clause_id
+  )
+    replacement = {
+      ...replacement,
+      predicate: { ...replacement.predicate, clause_id: crypto.randomUUID() },
+    };
+  else if (
+    residualIsRoot &&
+    replacement?.kind === "any_of" &&
+    replacement.clause_id === residual?.clause_id
+  )
+    replacement = { ...replacement, clause_id: crypto.randomUUID() };
   const replacements =
-    replacement?.kind === "all_of" && replacement.clause_id === residual?.clause_id
+    residualIsRoot &&
+    replacement?.kind === "all_of" &&
+    replacement.clause_id === residual?.clause_id
       ? replacement.children
       : replacement
         ? [replacement]
