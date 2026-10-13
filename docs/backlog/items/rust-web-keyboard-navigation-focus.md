@@ -3,7 +3,7 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-06-07
+Last reviewed: 2026-10-12
 
 ## Problem
 
@@ -12,6 +12,12 @@ The Atlas web UI should support a keyboard-driven workflow for users who prefer 
 Without a focused pass, keyboard behavior can become a set of local handlers that conflict with browser defaults, Ant Design controls, editable inputs, and future detail/preview workflows.
 
 ## Desired Outcome
+
+The reference workspace provides native row links, arrow/j/k focus movement,
+Space preview, same-tab Enter/Open, and Escape focus return from match popovers.
+Mobile Results returns focus to the row or match that opened the reader.
+Same-tab Back restores the search page and result/reader positions. A broader
+cross-surface shortcut and discoverability design remains open.
 
 Define and implement a coherent keyboard navigation and focus model for the web UI.
 

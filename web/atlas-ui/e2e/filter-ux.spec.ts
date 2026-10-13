@@ -40,23 +40,25 @@ test("common filters retain valid results through drafts and exact URL reload", 
   await expect(
     page.getByRole("combobox", { name: "Filter field", exact: true }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
-  await page.getByRole("textbox", { name: "Level / rank minimum" }).fill("1");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /Edit Level \/ rank range/i }).click();
+  await page.getByRole("textbox", { name: /Level \/ rank minimum/i }).fill("1");
   await expect
     .poll(() => page.locator(".result-pane-header").innerText())
     .toMatch(/\d+ records/);
   const validUrl = page.url();
   const validFilter = new URL(validUrl).searchParams.get("filter");
-  await page.getByRole("textbox", { name: "Level / rank minimum" }).fill("-");
+  await page.getByRole("textbox", { name: /Level \/ rank minimum/i }).fill("-");
   await expect(
     page.getByText("Enter a finite numeric value", { exact: true }),
   ).toBeVisible();
   expect(page.url()).toBe(validUrl);
   await expect(page.locator(".result-pane-header")).toContainText("records");
   await page.reload();
-  await expect(page.getByRole("textbox", { name: "Level / rank minimum" })).toHaveValue(
-    "1",
-  );
+  await page.getByRole("button", { name: /Edit Level \/ rank range/i }).click();
+  await expect(
+    page.getByRole("textbox", { name: /Level \/ rank minimum/i }),
+  ).toHaveValue("1");
   expect(new URL(page.url()).searchParams.get("filter")).toBe(validFilter);
   await expect(page.getByRole("combobox", { name: "Records per page" })).toBeVisible();
   expect(errors).toEqual([]);
@@ -147,7 +149,7 @@ for (const width of [1680, 820]) {
     await expect(row).toHaveAccessibleName(
       "Kind: Creature, neutral; activate to include",
     );
-    await row.press("Enter");
+    await row.press("Space");
     await expect(row).toBeFocused();
     await expect(row).toHaveAccessibleName(
       "Kind: Creature, included; activate to exclude",
@@ -249,20 +251,20 @@ test("result browsing uses keyboard rows, committed highlight and native name li
   page,
 }) => {
   await page.goto("/search?q=Ghoul");
-  const row = page.locator(".result-row").first();
+  const row = page.locator("[data-record-key]").first();
   await expect(row).toBeVisible();
   await expect(row.getByRole("radio")).toHaveCount(0);
-  const name = row.getByRole("link").first();
+  const name = row;
   await expect(name).toHaveAttribute("href", /\/records\//);
-  await expect(row).toHaveAttribute("aria-selected", "false");
+  await expect(row).not.toHaveAttribute("aria-current");
   await row.focus();
-  await row.press("Enter");
-  await expect(row).toHaveAttribute("aria-selected", "true");
-  const other = page.locator(".result-row").nth(1);
+  await row.press("Space");
+  await expect(row).toHaveAttribute("aria-current", "true");
+  const other = page.locator("[data-record-key]").nth(1);
   if (await other.count()) {
     await other.hover();
-    await expect(row).toHaveAttribute("aria-selected", "true");
-    await expect(other).toHaveAttribute("aria-selected", "false");
+    await expect(row).toHaveAttribute("aria-current", "true");
+    await expect(other).not.toHaveAttribute("aria-current");
   }
   const searchUrl = page.url();
   const popup = page.context().waitForEvent("page");

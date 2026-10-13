@@ -20,7 +20,7 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `tables/IndexTable.tsx`: clickable, keyboard-activatable index tables.
 - `pages/EntityIndexPage.tsx`: common index page structure for title, summary, actions, and table content.
 - `forms/EditableCommitField.tsx`: inline draft fields that commit on blur or Enter and revert on Escape.
-- `pickers/SearchPickerModal.tsx`: modal record search and selection flow with debounced backend search.
+- `pickers/SearchPickerModal.tsx`: modal record browsing and preview, with an explicit candidate and feature-owned Add form.
 - `actions/PaneAction.tsx`: pane-header icon buttons and links.
 - `actions/DangerActionButton.tsx`: destructive button plus confirmation modal.
 - `actions/useConfirmDangerAction.tsx`: confirmation helper for cases that are not naturally buttons.
@@ -105,9 +105,35 @@ URL restoration resets drafts and retains the exact canonical predicate.
 
 Browser-local remembered Kind is only a default for a fresh bare search visit.
 An incoming search URL is authoritative, and clearing Kind clears the preference.
-Result rows activate detail without radio selection; retain separate focus and
-committed highlight, keyboard activation and native full-page name/match links.
-Actual single-choice picker dialogs retain radio selection.
+Search and encounter selection share `ReferenceBrowser` and `useReferenceReading`.
+A compact common-filter toolbar sits above results and the generous reader. Use
+native Ant Splitter on desktop; below the lg breakpoint show results or the reader,
+with Results returning focus to the initiating row or match control. Keyword
+`SearchEntry` edits stay local until Enter or the Search button; filters commit
+independently. Advanced filters always use the native Drawer and full catalog.
+
+The whole result summary previews on ordinary click or Space. Arrow/j/k move
+focus without changing selection; Enter opens the full reference in the same tab.
+Keep native hrefs and modified clicks. Results contain scan metadata and wrapping
+traits; rarity is separate metadata. Never dump matched content into the row.
+The N matches text action opens a bounded native Ant click Popover, with checked
+links and no chevron. Escape returns trigger focus; choosing a match closes it.
+
+Typed parent-visible ability, strike and casting-entry matches land in that parent.
+Other owners and precise fields/passages retain the exact addressed reader.
+Briefly mark an actual within-parent landing, never the owned document's primary
+heading. Search keeps its criteria, page and in-memory result/reader positions
+when navigating out and Back. Keep page in browser history state, not a new URL
+query dialect. The search owner remains mounted and ignores non-search routes;
+scroll state is independent of query caches and mutable encounter drafts. Fixed
+viewport search composition and clipped non-scroll hosts keep native landing
+scrolling inside the reader. Lists and encounter runtime retain their layouts.
+
+The encounter chooser shares browsing/reading without copying search state or
+mutation rules. Following references changes the reader, not the Add candidate.
+Provide Return to selection, preserve quantity/initiative through retrieval and
+Add failures, and disable competing actions during Add. Only the encounter owner
+commits the explicit candidate. Reset the chooser after successful close.
 
 The web product uses hybrid text retrieval and filter-only browsing. Retrieval
 options are not browser criteria or URL overrides; CLI modes remain independent.
@@ -210,7 +236,9 @@ from empty prices; table results use their one fact-owned link collection.
 The shared identity header places the name and selected activity glyph on the
 left and the service-supplied compact classification on the right, wrapping to
 the actual pane. Show the title glyph once and ability modifiers before skills.
-Do not parse legacy level labels or show ordinary technical keys. Product record
+Do not infer game semantics from prose or show ordinary technical keys.
+Compact result classification uses the supplied kind and level/rank labels;
+removing the Level/Rank display prefix does not create a typed fact. Product record
 paths use literal colons through the shared serializer; keep API encoding and
 complete selection identity intact.
 
