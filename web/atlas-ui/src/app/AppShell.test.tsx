@@ -82,15 +82,16 @@ describe("application navigation and accessibility", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The local service is unavailable.",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refresh).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Reference status" }));
-    expect(screen.getByText("Reference ready")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Reference status" })).toBeNull();
   });
 
   it("offers system appearance without a persistent healthy-status banner", () => {
     const { changeTheme } = renderShell();
     expect(screen.queryByText("Ready to search.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reference status" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Theme" }));
     fireEvent.click(screen.getByText("System"));
     expect(changeTheme).toHaveBeenCalledWith("system");
