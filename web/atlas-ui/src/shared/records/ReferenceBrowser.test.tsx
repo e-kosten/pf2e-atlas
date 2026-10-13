@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Grid } from "antd";
 import { useState } from "react";
 import { getRecordDetail } from "../../api/atlasApi";
 import {
@@ -123,24 +124,29 @@ it("keeps typed inline activities in their parent but excludes spells and precis
   expect(parentShowsActivity(other, navigation)).toBe(false);
 });
 
-it("snapshots live scroll hosts on navigation before queued scroll events or DOM removal", async () => {
-  const positions = {
-    readList: () => 0,
-    saveList: vi.fn(),
-    readReader: () => 0,
-    saveReader: vi.fn(),
-  };
-  renderBrowser(positions);
-  fireEvent.click(screen.getByRole("link", { name: /Ghoul/ }));
-  await waitFor(() => expect(getDetail).toHaveBeenCalledTimes(1));
-  const list = document.querySelector(".reference-results__scroll")!;
-  const reader = document.querySelector(".reference-reader__scroll")!;
-  list.scrollTop = 211;
-  reader.scrollTop = 400;
-  fireEvent(window, new Event(ATLAS_ROUTE_CHANGE_EVENT));
-  expect(positions.saveList).toHaveBeenLastCalledWith(211);
-  expect(positions.saveReader).toHaveBeenLastCalledWith(
-    expect.stringContaining("actors:ghoul"),
-    400,
-  );
-});
+it.each([true, false])(
+  "snapshots only visible scroll hosts before navigation (desktop=%s)",
+  async (desktop) => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: desktop });
+    const positions = {
+      readList: () => 0,
+      saveList: vi.fn(),
+      readReader: () => 0,
+      saveReader: vi.fn(),
+    };
+    renderBrowser(positions);
+    fireEvent.click(screen.getByRole("link", { name: /Ghoul/ }));
+    await waitFor(() => expect(getDetail).toHaveBeenCalledTimes(1));
+    const list = document.querySelector(".reference-results__scroll")!;
+    const reader = document.querySelector(".reference-reader__scroll")!;
+    list.scrollTop = 211;
+    reader.scrollTop = 400;
+    fireEvent(window, new Event(ATLAS_ROUTE_CHANGE_EVENT));
+    if (desktop) expect(positions.saveList).toHaveBeenLastCalledWith(211);
+    else expect(positions.saveList).not.toHaveBeenCalled();
+    expect(positions.saveReader).toHaveBeenLastCalledWith(
+      expect.stringContaining("actors:ghoul"),
+      400,
+    );
+  },
+);
