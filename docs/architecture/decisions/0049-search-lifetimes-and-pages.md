@@ -43,8 +43,13 @@ Expected generation is checked before embedding/ranking. A mismatch returns
 `ArtifactGenerationChanged`, HTTP409, with expected and actual hashes. Window
 registries, identifiers, expiration, open/read operations and recovery are removed.
 
-Browser URL state retains committed criteria; page and generation remain request
-state. The search owner tracks generation and an epoch. Query keys include
+Browser URL state retains committed criteria and the complete selected reading
+address or parent landing. Page remains request state and is retained in browser
+history state for same-tab Back; generation stays in the search owner. That owner
+remains mounted across application routes, while its requests are disabled outside
+Search. Non-search route changes do not reset its committed criteria or page.
+Result-list and per-address reader positions are separate in-memory browser state;
+restoring them does not claim a frozen result set or survive a full reload. The search owner tracks generation and an epoch. Query keys include
 criteria, page and known generation. It adopts a first response only for current
 criteria/epoch with a live signal, seeding the final key without another inference
 request. Generation mismatch pauses paging. Explicit `Refresh results` cancels

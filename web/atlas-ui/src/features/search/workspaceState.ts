@@ -88,7 +88,6 @@ function preferredKindPredicate(): QueryPredicate | null {
 export type WorkspaceInteractionState = {
   search: SearchFormState;
   selectedRecordKey: string | null;
-  focusedResultKey: string | null;
   pageNumber: number;
   activeSearch: SearchFormState;
 };
@@ -96,13 +95,13 @@ export type WorkspaceInteractionState = {
 export type WorkspaceInteractionEvent =
   | {
       type: "url.restored";
+      pageNumber?: number;
       search: SearchFormState;
       selectedRecordKey: string | null;
     }
   | { type: "search.changed"; search: SearchFormState }
   | { type: "search.executionCommitted"; search: SearchFormState }
   | { type: "resultPage.changed"; pageNumber: number }
-  | { type: "result.focused"; recordKey: string | null }
   | { type: "record.selected"; recordKey: string | null };
 
 export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
@@ -113,8 +112,11 @@ export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
   return {
     search,
     selectedRecordKey: route.kind === "search" ? route.selectedRecordKey : null,
-    focusedResultKey: null,
-    pageNumber: 1,
+    pageNumber:
+      Number.isSafeInteger(history.state?.atlasSearchPage) &&
+      history.state.atlasSearchPage > 0
+        ? history.state.atlasSearchPage
+        : 1,
     activeSearch: search,
   };
 }
@@ -130,8 +132,10 @@ export function workspaceInteractionReducer(
         search: event.search,
         activeSearch: event.search,
         selectedRecordKey: event.selectedRecordKey,
-        focusedResultKey: null,
-        pageNumber: 1,
+        pageNumber:
+          Number.isSafeInteger(event.pageNumber) && event.pageNumber! > 0
+            ? event.pageNumber!
+            : 1,
       };
     case "search.changed":
       return {
@@ -146,18 +150,11 @@ export function workspaceInteractionReducer(
         ...state,
         activeSearch: event.search,
         pageNumber: 1,
-        focusedResultKey: null,
       };
     case "resultPage.changed":
       return {
         ...state,
         pageNumber: event.pageNumber,
-        focusedResultKey: null,
-      };
-    case "result.focused":
-      return {
-        ...state,
-        focusedResultKey: event.recordKey,
       };
     case "record.selected":
       return {

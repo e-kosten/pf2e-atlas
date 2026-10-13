@@ -55,16 +55,6 @@
   white-space: nowrap;
 }
 
-.topbar__identity {
-  min-width: 0;
-}
-
-.topbar p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .topbar__nav {
   flex: 0 1 auto;
   min-width: 0;
@@ -80,46 +70,9 @@
   justify-content: flex-end;
 }
 
-.status-pill {
-  margin-inline-end: 0;
-}
-
 .error-banner {
   margin: 12px 22px 0;
   flex-shrink: 0;
-}
-
-.diagnostics-panel {
-  flex-shrink: 0;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
-  gap: 1px;
-  margin: 0;
-  border-bottom: 1px solid var(--line);
-  background: var(--line);
-}
-
-.diagnostics-panel__item {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  padding: 8px 12px;
-  background: var(--panel-subtle);
-}
-
-.diagnostics-panel__item span {
-  color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0;
-}
-
-.diagnostics-panel__item strong {
-  overflow: hidden;
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .workspace-grid {

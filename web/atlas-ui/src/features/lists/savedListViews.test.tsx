@@ -376,9 +376,11 @@ describe("list views", () => {
         filter: undefined,
       }),
     );
-    fireEvent.change(await screen.findByRole("textbox", { name: "Search records" }), {
+    const search = await screen.findByRole("searchbox", { name: "Search records" });
+    fireEvent.change(search, {
       target: { value: "Test Action 2" },
     });
+    fireEvent.keyDown(search, { key: "Enter", keyCode: 13 });
 
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({

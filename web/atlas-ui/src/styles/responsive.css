@@ -9,10 +9,6 @@
     overflow: visible;
   }
 
-  .diagnostics-panel {
-    grid-template-columns: repeat(3, minmax(120px, 1fr));
-  }
-
   .workspace-grid {
     --filter-column: 290px;
     --results-column: minmax(0, 1fr);
@@ -61,10 +57,6 @@
 }
 
 @media (max-width: 760px) {
-  .diagnostics-panel {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .topbar {
     flex-wrap: wrap;
     gap: 4px;

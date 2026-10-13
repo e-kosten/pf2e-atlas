@@ -172,7 +172,7 @@ describe("shared common and maintained advanced filters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
     expect(
       screen.getByRole("button", {
-        name: "Kind: creature, excluded; activate to clear",
+        name: "Kind: Creature, excluded; activate to clear",
       }),
     ).toBeEnabled();
   });
@@ -285,16 +285,16 @@ describe("per-value states and additional conditions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Kind: creature, neutral; activate to include",
+        name: "Kind: Creature, neutral; activate to include",
       }),
     );
     const spell = screen.getByRole("button", {
-      name: "Kind: spell, neutral; activate to include",
+      name: "Kind: Spell, neutral; activate to include",
     });
     spell.focus();
     fireEvent.click(spell);
     await waitFor(() =>
-      expect(spell).toHaveAccessibleName("Kind: spell, included; activate to exclude"),
+      expect(spell).toHaveAccessibleName("Kind: Spell, included; activate to exclude"),
     );
     expect(spell).toHaveFocus();
     fireEvent.click(spell);
@@ -317,12 +317,12 @@ describe("per-value states and additional conditions", () => {
     ).not.toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Kind: creature, included; activate to exclude",
+        name: "Kind: Creature, included; activate to exclude",
       }),
     );
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Kind: creature, excluded; activate to clear",
+        name: "Kind: Creature, excluded; activate to clear",
       }),
     );
     expect(change).toHaveBeenLastCalledWith(

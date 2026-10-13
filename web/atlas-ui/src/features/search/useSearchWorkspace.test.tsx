@@ -250,7 +250,7 @@ describe("useSearchWorkspace", () => {
       oldCatalog.resolve(filterEditor());
       oldPage.resolve(searchResultsPage(["spell:late-old"]));
     });
-    expect(result.current.recordDetail?.record.title).not.toBe("Old A detail");
+    expect(result.current.reading.detail?.record.title).not.toBe("Old A detail");
     expect(result.current.filterEditor).toBeUndefined();
     expect(
       client
@@ -326,17 +326,12 @@ describe("useSearchWorkspace", () => {
     });
 
     expect(result.current.search.query).toBe("fi");
-    expect(result.current.diagnostics.searchDebouncing).toBe(true);
     expect(window.location.pathname).toBe("/search");
     expect(window.location.search).toBe("?q=fi&mode=text_search");
     await delay(150);
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
 
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
-    expect(result.current.diagnostics.searchDebouncing).toBe(false);
-    expect(result.current.diagnostics.resultRequest).toMatchObject({
-      kind: "page",
-    });
     const request = apiMocks.searchPage.mock.calls[0][0] as SearchResultsRequest;
     expect(request.criteria).toMatchObject({
       kind: "text_search",
@@ -349,9 +344,8 @@ describe("useSearchWorkspace", () => {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
+    expect(apiMocks.getReadiness).not.toHaveBeenCalled();
     act(() => result.current.refresh());
-    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(2));
     await delay(50);
 
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
@@ -361,25 +355,24 @@ describe("useSearchWorkspace", () => {
     expect(result.current.resultsLoading).toBe(false);
   });
 
-  it("tracks keyboard result selection separately from opened detail routes", async () => {
+  it("keeps preview selection explicit and restores the search URL when cleared", async () => {
     seedSearchUrl();
     apiMocks.searchPage.mockResolvedValue(
       searchResultsPage(["spell:dirge-of-doom", "spell:heal"]),
     );
-    apiMocks.getRecordDetail.mockResolvedValue({ record_key: "spell:heal" });
+    apiMocks.getRecordDetail.mockResolvedValue(detailFixture("spell:heal"));
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
 
     await waitFor(() =>
-      expect(result.current.activeResultKey).toBe("spell:dirge-of-doom"),
+      expect(result.current.resultPage?.rows[0]?.record.record_key).toBe(
+        "spell:dirge-of-doom",
+      ),
     );
 
-    act(() => result.current.moveResultSelection("next"));
-    expect(result.current.activeResultKey).toBe("spell:heal");
     expect(result.current.selectedRecordKey).toBeNull();
-
-    act(() => result.current.openActiveResult());
+    act(() => result.current.selectRecord("spell:heal"));
     expect(result.current.selectedRecordKey).toBe("spell:heal");
     expect(window.location.pathname).toBe("/search/records/spell:heal");
     expect(window.location.search).toBe("?q=dirge&mode=text_search");
@@ -524,9 +517,6 @@ describe("useSearchWorkspace", () => {
       ),
     );
     expect(result.current.pageNumber).toBe(2);
-    expect(result.current.diagnostics.resultRequest).toMatchObject({
-      kind: "page",
-    });
   });
   it("keeps selected-detail failures pane-local and retries without changing search/results", async () => {
     seedSearchUrl();
@@ -539,12 +529,12 @@ describe("useSearchWorkspace", () => {
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     act(() => result.current.selectRecord("spell:heal"));
     await waitFor(() =>
-      expect(result.current.detailError?.message).toBe("Selected record unavailable"),
+      expect(result.current.reading.error?.message).toBe("Selected record unavailable"),
     );
     const search = result.current.search;
     const rows = result.current.resultPage;
     expect(result.current.errorMessage).toBeNull();
-    act(() => result.current.retryDetail());
+    act(() => result.current.reading.retry());
     await waitFor(() => expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(2));
     expect(result.current.search).toEqual(search);
     expect(result.current.resultPage).toEqual(rows);
@@ -562,7 +552,9 @@ describe("useSearchWorkspace", () => {
     });
 
     await waitFor(() =>
-      expect(result.current.activeResultKey).toBe("spell:dirge-of-doom"),
+      expect(result.current.resultPage?.rows[0]?.record.record_key).toBe(
+        "spell:dirge-of-doom",
+      ),
     );
 
     act(() => result.current.setPageNumber(2));

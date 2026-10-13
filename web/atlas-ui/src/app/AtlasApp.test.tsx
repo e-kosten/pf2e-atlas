@@ -111,9 +111,7 @@ describe("AtlasApp routing", () => {
     apiMocks.searchPage.mockResolvedValue(searchResultsPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = (await screen.findByRole("link", { name: "heal" })).closest(
-      "tr",
-    )!;
+    const resultRow = await screen.findByRole("link", { name: /^heal/ });
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
@@ -133,9 +131,7 @@ describe("AtlasApp routing", () => {
     apiMocks.searchPage.mockResolvedValue(searchResultsPage(["spell:heal"]));
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
-    const resultRow = (await screen.findByRole("link", { name: "heal" })).closest(
-      "tr",
-    )!;
+    const resultRow = await screen.findByRole("link", { name: /^heal/ });
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 

@@ -4,8 +4,8 @@ import {
   Checkbox,
   Drawer,
   Form,
-  Grid,
   Input,
+  Popover,
   Select,
   Space,
   Spin,
@@ -45,6 +45,7 @@ import {
   type FilterPanelState,
 } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
+import { SearchEntry } from "./SearchEntry";
 import { CommonChoicePicker } from "./CommonChoicePicker";
 import "react-querybuilder/dist/query-builder.css";
 import { ATLAS_ROUTE_CHANGE_EVENT } from "../../app/routes";
@@ -61,10 +62,12 @@ export function FilterPanel({
 export function FilterControls({
   filterState: workspace,
   includeSearch = true,
+  layout = "panel",
   children,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
+  layout?: "panel" | "toolbar";
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
@@ -89,7 +92,6 @@ export function FilterControls({
       window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, reset);
     };
   }, []);
-  const screens = Grid.useBreakpoint();
   const editor = workspace.filterEditor;
   const fields = useMemo(
     () => editor?.groups.flatMap((group) => group.fields) ?? [],
@@ -153,7 +155,7 @@ export function FilterControls({
       </Typography.Text>
     ) : null;
   return (
-    <aside className="filter-panel">
+    <aside className={layout === "toolbar" ? "filter-toolbar" : "filter-panel"}>
       {children}
       {!editor && workspace.filterDiscoveryLoading && (
         <Spin description="Loading filters…">
@@ -161,25 +163,16 @@ export function FilterControls({
         </Spin>
       )}
       {includeSearch && (
-        <Form layout="vertical">
-          <Form.Item label="Search records" htmlFor="atlas-record-search">
-            <Input
-              id="atlas-record-search"
-              name="search"
-              autoComplete="off"
-              placeholder="Name or description…"
-              value={search.query}
-              onChange={(event) =>
-                setSearch({
-                  ...search,
-                  query: event.target.value,
-                  mode: event.target.value.trim() ? "text_search" : "browse",
-                })
-              }
-              allowClear
-            />
-          </Form.Item>
-        </Form>
+        <SearchEntry
+          query={search.query}
+          onSearch={(query) =>
+            setSearch({
+              ...search,
+              query,
+              mode: query.trim() ? "text_search" : "browse",
+            })
+          }
+        />
       )}
       <div className="common-filters">
         {(editor?.common_field_ids ?? []).map((id) => {
@@ -188,6 +181,7 @@ export function FilterControls({
             <CommonFilter
               key={id + ":" + draftRevision}
               field={field}
+              layout={layout}
               rangeDraft={rangeDrafts[id] ?? null}
               onRangeDraftChange={(next) =>
                 setRangeDrafts((current) => ({ ...current, [id]: next }))
@@ -224,14 +218,7 @@ export function FilterControls({
           Clear filters
         </Button>
       </div>
-      {screens.lg && advanced && (
-        <section className="advanced-filters" aria-label="Advanced filters">
-          <Typography.Text type="secondary">Additional conditions</Typography.Text>
-          {advancedEditor}
-          {inlineError}
-        </section>
-      )}
-      {!screens.lg && (
+      {
         <Drawer
           title="Advanced filters"
           placement="left"
@@ -245,7 +232,7 @@ export function FilterControls({
             {inlineError}
           </section>
         </Drawer>
-      )}
+      }
       {!advanced && prepared.error && inlineError}
       {workspace.filterDiscoveryError && (
         <Alert
@@ -264,8 +251,10 @@ function CommonFilter({
   onRangeDraftChange,
   workspace,
   onAdvanced,
+  layout,
 }: {
   field: FilterEditorFieldView;
+  layout: "panel" | "toolbar";
   rangeDraft: RangeDraft | null;
   onRangeDraftChange: (draft: RangeDraft) => void;
   workspace: FilterPanelState;
@@ -284,7 +273,12 @@ function CommonFilter({
     });
   }
   return (
-    <section className="common-filter" aria-label={field.label + " filter"}>
+    <section
+      className={
+        layout === "toolbar" ? "common-filter common-filter--toolbar" : "common-filter"
+      }
+      aria-label={field.label + " filter"}
+    >
       <div className="common-filter-heading">
         <Typography.Text strong>{field.label}</Typography.Text>
         {condition.status === "editable" && (
@@ -308,13 +302,34 @@ function CommonFilter({
           </Button>
         </Space>
       ) : field.definition.field_type === "number" ? (
-        <CommonRange
-          field={field}
-          clause={condition.clause}
-          onChange={update}
-          draft={rangeDraft}
-          onDraftChange={onRangeDraftChange}
-        />
+        layout === "panel" ? (
+          <CommonRange
+            field={field}
+            clause={condition.clause}
+            onChange={update}
+            draft={rangeDraft}
+            onDraftChange={onRangeDraftChange}
+          />
+        ) : (
+          <Popover
+            trigger="click"
+            placement="bottomLeft"
+            title={field.label}
+            content={
+              <CommonRange
+                field={field}
+                clause={condition.clause}
+                onChange={update}
+                draft={rangeDraft}
+                onDraftChange={onRangeDraftChange}
+              />
+            }
+          >
+            <Button aria-label={"Edit " + field.label + " range"}>
+              {conditionRange(condition.clause).filter(Boolean).join(" – ") || "Any"}
+            </Button>
+          </Popover>
+        )
       ) : (
         <CommonChoicePicker
           field={field}

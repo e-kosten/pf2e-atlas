@@ -114,19 +114,19 @@ describe("compact common choice picker", () => {
     open();
     act(() => popup.mount?.());
     const row = screen.getByRole("button", {
-      name: "Traits: fire, neutral; activate to include",
+      name: "Traits: Fire, neutral; activate to include",
     });
     row.focus();
     fireEvent.click(row);
     await waitFor(() =>
-      expect(row).toHaveAccessibleName("Traits: fire, included; activate to exclude"),
+      expect(row).toHaveAccessibleName("Traits: Fire, included; activate to exclude"),
     );
     expect(row).toHaveFocus();
     act(() => popup.complete?.(true));
     expect(row).toHaveFocus();
     expect(
       screen.getByRole("button", {
-        name: "Traits: fire, included; activate to exclude",
+        name: "Traits: Fire, included; activate to exclude",
       }),
     ).toBe(row);
     fireEvent.keyDown(row, { key: "Escape" });
@@ -144,7 +144,7 @@ describe("compact common choice picker", () => {
     open();
     act(() => popup.mount?.());
     const row = screen.getByRole("button", {
-      name: "Traits: fire, neutral; activate to include",
+      name: "Traits: Fire, neutral; activate to include",
     });
     fireEvent.pointerDown(row);
     act(() => popup.complete?.(true));
@@ -166,12 +166,12 @@ describe("compact common choice picker", () => {
     act(() => popup.complete?.(true));
     await waitFor(() => expect(search).toHaveFocus());
     const row = screen.getByRole("button", {
-      name: "Traits: fire, neutral; activate to include",
+      name: "Traits: Fire, neutral; activate to include",
     });
     row.focus();
     fireEvent.click(row);
     await waitFor(() =>
-      expect(row).toHaveAccessibleName("Traits: fire, included; activate to exclude"),
+      expect(row).toHaveAccessibleName("Traits: Fire, included; activate to exclude"),
     );
     expect(row).toHaveFocus();
     fireEvent.keyDown(row, { key: "Escape" });
@@ -199,19 +199,19 @@ describe("compact common choice picker", () => {
     fireEvent.change(search, { target: { value: "fi" } });
     expect(within(menu).queryByText("cold")).not.toBeInTheDocument();
     const row = within(menu).getByRole("button", {
-      name: "Traits: fire, neutral; activate to include",
+      name: "Traits: Fire, neutral; activate to include",
     });
     row.focus();
     fireEvent.click(row);
     await waitFor(() =>
-      expect(row).toHaveAccessibleName("Traits: fire, included; activate to exclude"),
+      expect(row).toHaveAccessibleName("Traits: Fire, included; activate to exclude"),
     );
     expect(row).toHaveFocus();
     expect(row).not.toHaveAttribute("aria-pressed");
-    expect(row).toHaveTextContent(/^fire$/);
+    expect(row).toHaveTextContent(/^Fire$/);
     fireEvent.click(row);
     await waitFor(() =>
-      expect(row).toHaveAccessibleName("Traits: fire, excluded; activate to clear"),
+      expect(row).toHaveAccessibleName("Traits: Fire, excluded; activate to clear"),
     );
     expect(change).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -226,7 +226,7 @@ describe("compact common choice picker", () => {
         within(menu)
           .getAllByRole("button")
           .map((button) => button.textContent),
-      ).toEqual(["fire", "cold", "magical"]),
+      ).toEqual(["Fire", "Cold", "Magical"]),
     );
     fireEvent.keyDown(row, { key: "Escape" });
     await waitFor(() =>
@@ -236,9 +236,9 @@ describe("compact common choice picker", () => {
     );
     expect(screen.getByRole("button", { name: "Edit Traits filter" })).toHaveFocus();
     const remove = screen.getByRole("button", {
-      name: "Remove excluded fire from Traits",
+      name: "Remove excluded Fire from Traits",
     });
-    expect(remove).toHaveTextContent("fire");
+    expect(remove).toHaveTextContent("Fire");
     expect(screen.queryByText("cold")).not.toBeInTheDocument();
     fireEvent.click(remove);
     expect(change).toHaveBeenLastCalledWith(null);
@@ -255,18 +255,18 @@ describe("compact common choice picker", () => {
     });
     open();
     const row = screen.getByRole("button", {
-      name: "Traits: absent-selected, included; activate to exclude",
+      name: "Traits: Absent-selected, included; activate to exclude",
     });
     fireEvent.click(row);
     await waitFor(() =>
       expect(row).toHaveAccessibleName(
-        "Traits: absent-selected, excluded; activate to clear",
+        "Traits: Absent-selected, excluded; activate to clear",
       ),
     );
     fireEvent.click(row);
     await waitFor(() =>
       expect(row).toHaveAccessibleName(
-        "Traits: absent-selected, neutral; activate to include",
+        "Traits: Absent-selected, neutral; activate to include",
       ),
     );
     expect(
@@ -294,12 +294,12 @@ describe("compact common choice picker", () => {
     open();
     const menu = screen.getByRole("dialog", { name: "Traits choices" });
     await within(menu).findByRole("button", {
-      name: "Traits: fire, neutral; activate to include",
+      name: "Traits: Fire, neutral; activate to include",
     });
     expect(screen.getByText("90 values in this list")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "More values" }));
     await within(menu).findByRole("button", {
-      name: "Traits: second-page, neutral; activate to include",
+      name: "Traits: Second-page, neutral; activate to include",
     });
     expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -312,7 +312,7 @@ describe("compact common choice picker", () => {
     );
     expect(
       within(menu).getByRole("button", {
-        name: "Traits: absent-selected, included; activate to exclude",
+        name: "Traits: Absent-selected, included; activate to exclude",
       }),
     ).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: "Search traits choices" }), {
@@ -335,11 +335,11 @@ describe("compact common choice picker", () => {
     open();
     const menu = screen.getByRole("dialog", { name: "Traits choices" });
     const cold = await within(menu).findByRole("button", {
-      name: "Traits: cold, neutral; activate to include",
+      name: "Traits: Cold, neutral; activate to include",
     });
     fireEvent.click(cold);
     const fire = within(menu).getByRole("button", {
-      name: "Traits: fire, neutral; activate to include",
+      name: "Traits: Fire, neutral; activate to include",
     });
     fireEvent.click(fire);
     await waitFor(() =>
@@ -347,49 +347,49 @@ describe("compact common choice picker", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "More values" }));
     await within(menu).findByRole("button", {
-      name: "Traits: second-page, neutral; activate to include",
+      name: "Traits: Second-page, neutral; activate to include",
     });
     const retained = within(menu).getByRole("button", {
-      name: "Traits: cold, included; activate to exclude",
+      name: "Traits: Cold, included; activate to exclude",
     });
     const names = () =>
       within(menu)
         .getAllByRole("button")
         .filter((button) => button.classList.contains("common-choice-row"))
         .map((button) => button.textContent);
-    expect(names()).toEqual(["second-page", "cold", "fire"]);
+    expect(names()).toEqual(["Second-page", "Cold", "Fire"]);
     retained.focus();
     fireEvent.click(retained);
     await waitFor(() =>
       expect(retained).toHaveAccessibleName(
-        "Traits: cold, excluded; activate to clear",
+        "Traits: Cold, excluded; activate to clear",
       ),
     );
-    expect(names()).toEqual(["second-page", "cold", "fire"]);
+    expect(names()).toEqual(["Second-page", "Cold", "Fire"]);
     expect(retained).toHaveFocus();
     fireEvent.click(retained);
     await waitFor(() =>
       expect(retained).toHaveAccessibleName(
-        "Traits: cold, neutral; activate to include",
+        "Traits: Cold, neutral; activate to include",
       ),
     );
-    expect(names()).toEqual(["second-page", "cold", "fire"]);
+    expect(names()).toEqual(["Second-page", "Cold", "Fire"]);
     expect(retained).toBeInTheDocument();
     expect(retained).toHaveFocus();
     fireEvent.click(retained);
     await waitFor(() =>
       expect(retained).toHaveAccessibleName(
-        "Traits: cold, included; activate to exclude",
+        "Traits: Cold, included; activate to exclude",
       ),
     );
-    expect(names()).toEqual(["second-page", "cold", "fire"]);
+    expect(names()).toEqual(["Second-page", "Cold", "Fire"]);
     expect(retained).toHaveFocus();
     // Neutral history belongs to this open session, not subsequent visits.
     fireEvent.click(retained);
     fireEvent.click(retained);
     await waitFor(() =>
       expect(retained).toHaveAccessibleName(
-        "Traits: cold, neutral; activate to include",
+        "Traits: Cold, neutral; activate to include",
       ),
     );
     fireEvent.keyDown(retained, { key: "Escape" });
@@ -399,16 +399,16 @@ describe("compact common choice picker", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "More values" }));
     await screen.findByRole("button", {
-      name: "Traits: second-page, neutral; activate to include",
+      name: "Traits: Second-page, neutral; activate to include",
     });
     expect(
       screen.queryByRole("button", {
-        name: "Traits: cold, neutral; activate to include",
+        name: "Traits: Cold, neutral; activate to include",
       }),
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: "Traits: fire, included; activate to exclude",
+        name: "Traits: Fire, included; activate to exclude",
       }),
     ).toBeInTheDocument();
   });
@@ -425,7 +425,7 @@ describe("compact common choice picker", () => {
     picker({ closed: false });
     open();
     const row = await screen.findByRole("button", {
-      name: "Traits: fire, neutral; activate to include",
+      name: "Traits: Fire, neutral; activate to include",
     });
     row.focus();
     fireEvent.click(row);
@@ -434,7 +434,7 @@ describe("compact common choice picker", () => {
     expect(row).toHaveFocus();
     expect(
       screen.getByRole("button", {
-        name: "Traits: cold, neutral; activate to include",
+        name: "Traits: Cold, neutral; activate to include",
       }),
     ).toBeInTheDocument();
     finish!({
@@ -449,7 +449,7 @@ describe("compact common choice picker", () => {
       },
     });
     await waitFor(() =>
-      expect(row).toHaveAccessibleName("Traits: fire, included; activate to exclude"),
+      expect(row).toHaveAccessibleName("Traits: Fire, included; activate to exclude"),
     );
     expect(row).toHaveFocus();
   });
@@ -468,7 +468,7 @@ describe("compact common choice picker", () => {
       expect(screen.getByRole("button", { name: "Previous values" })).toBeEnabled();
       expect(
         screen.getByRole("button", {
-          name: "Traits: second-page, neutral; activate to include",
+          name: "Traits: Second-page, neutral; activate to include",
         }),
       ).toBeInTheDocument();
     } finally {
@@ -495,14 +495,14 @@ describe("compact common choice picker", () => {
     );
     expect(
       screen.getByRole("button", {
-        name: "Traits: absent-selected, excluded; activate to clear",
+        name: "Traits: Absent-selected, excluded; activate to clear",
       }),
     ).toBeInTheDocument();
     expect(change).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Retry values" }));
     expect(
       await screen.findByRole("button", {
-        name: "Traits: fire, neutral; activate to include",
+        name: "Traits: Fire, neutral; activate to include",
       }),
     ).toBeInTheDocument();
     expect(change).not.toHaveBeenCalled();

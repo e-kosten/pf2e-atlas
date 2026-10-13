@@ -671,8 +671,8 @@ export function ActorActivities({
       {target && !targetActivity && (
         <Alert
           type="info"
-          title="Reading position unavailable"
-          description="This activity is not present at the checked address in the current reference. Reload the reference to recover its current contents."
+          title="This entry has changed"
+          description="Reload the record to find its current entry."
         />
       )}
       <div className="actor-reference__actions">
