@@ -29,9 +29,8 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
       </span>
       {!similar && workspace.resultPage?.coverage?.exhaustive === false && (
         <Tooltip title={workspace.resultPage.coverage.count_basis}>
-          <span>
-            Bounded semantic search (
-            {workspace.resultPage.coverage.semantic_unit_window} units)
+          <span aria-label="Search coverage">
+            Top matches ({workspace.resultPage.coverage.semantic_unit_window} units)
           </span>
         </Tooltip>
       )}
@@ -39,11 +38,12 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         <Select
           aria-label="Records per page"
           size="small"
+          style={{ width: 128 }}
           disabled={workspace.resultsPaused || workspace.resultsRecovering}
           value={workspace.search.pageSize}
           options={[10, 25, 50, 100].map((value) => ({
             value,
-            label: value + " per page",
+            label: value + " / page",
           }))}
           onChange={(pageSize) =>
             workspace.setSearch({ ...workspace.search, pageSize })

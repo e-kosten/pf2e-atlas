@@ -1,3 +1,4 @@
+import { sentenceCase } from "../ui/labels";
 import { Button, Collapse, Tag } from "antd";
 import type {
   PreparedContentFieldView,
@@ -170,9 +171,13 @@ export function RecordIdentity({
         <p className="record-reference__kind">{classification}</p>
       </div>
       <div className="badge-row">
-        {identity.rarity?.trim() && <Tag>{identity.rarity}</Tag>}
+        {identity.rarity?.trim() && identity.rarity !== "common" && (
+          <span className="record-reference__rarity">
+            {sentenceCase(identity.rarity)}
+          </span>
+        )}
         {identity.traits.map((trait) => (
-          <Tag key={`${trait.kind}-${trait.value}`}>{trait.label}</Tag>
+          <Tag key={`${trait.kind}-${trait.value}`}>{sentenceCase(trait.label)}</Tag>
         ))}
       </div>
       {identity.publication?.trim() && <p className="muted">{identity.publication}</p>}
