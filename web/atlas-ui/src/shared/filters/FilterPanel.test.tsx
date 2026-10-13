@@ -70,6 +70,18 @@ describe("shared common and maintained advanced filters", () => {
         filter: expect.objectContaining({ clause_id: "level", value: 2 }),
       }),
     );
+    fireEvent.change(input, { target: { value: "-" } });
+    expect(await screen.findByText("Enter a finite numeric value")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("textbox", { name: "Level / rank minimum" })).toHaveValue(
+      "",
+    );
+    expect(screen.queryByText("Enter a finite numeric value")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Advanced filters" })).toHaveFocus();
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ filter: null, filterError: null }),
+    );
   });
   it("retains invalid range input while the catalog reloads and adopts new definitions", async () => {
     const onChange = vi.fn();
