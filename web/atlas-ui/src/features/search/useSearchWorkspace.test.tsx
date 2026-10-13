@@ -437,16 +437,13 @@ describe("useSearchWorkspace", () => {
     await delay(50);
 
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "common.traits" }),
+      expect.objectContaining({ field_id: "actor.items" }),
       expect.any(AbortSignal),
     );
   });
 
-  it("keeps previous filter editor data while refreshed discovery is pending", async () => {
-    const nextEditor = deferred<FilterEditorView>();
-    apiMocks.discoverFilterEditor
-      .mockResolvedValueOnce(filterEditor())
-      .mockReturnValueOnce(nextEditor.promise);
+  it("reuses the static editor catalog when search criteria change", async () => {
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
     const { result } = renderHook(() => useSearchWorkspace(), {
       wrapper: queryClientWrapper(),
     });
@@ -470,16 +467,13 @@ describe("useSearchWorkspace", () => {
       }),
     );
 
-    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.search.filter).not.toBeNull());
     expect(result.current.filterEditor).toEqual(filterEditor());
-    expect(result.current.filterDiscoveryLoading).toBe(true);
-
-    await act(async () => {
-      nextEditor.resolve({ ...editorFixture(), groups: [] });
-      await nextEditor.promise;
-    });
-
-    await waitFor(() => expect(result.current.filterEditor?.groups).toEqual([]));
+    expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(1);
+    expect(apiMocks.discoverFilterEditor).toHaveBeenCalledWith(
+      { selected_field_ids: [] },
+      expect.any(AbortSignal),
+    );
   });
 
   it("does not request value discovery for closed catalog choices or hidden controls", async () => {

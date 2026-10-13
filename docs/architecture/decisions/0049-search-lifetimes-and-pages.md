@@ -45,10 +45,18 @@ registries, identifiers, expiration, open/read operations and recovery are remov
 
 Browser URL state retains committed criteria and the complete selected reading
 address or parent landing. The browser's common filter controls and Advanced
-builder edit one canonical predicate; Advanced displays the complete expression.
+builder edit one shared in-progress tree; Advanced displays the complete expression.
 Simple positive conjunctions can be edited through common controls without
 rewriting unrelated branches. Complex expressions retain their grouping and use
-the full builder. Unfinished rules stay local and cannot change executed criteria.
+the full builder. Successful edits project the executable predicate without
+reconstructing the editing tree. Empty authored groups, range editors and
+unfinished siblings remain available. An invalid edit retains the last committed
+criteria; a completed common-control edit replaces its exact committed condition
+while retaining unfinished unrelated editing state. External changed criteria
+restore the tree; local URL updates and record-preview navigation do not reset it.
+Individual conditions support exclusion independently of genuine group negation.
+Operand transitions follow app-service metadata, preserving compatible values
+and resetting incompatible shapes before rendering a different input.
 
 Filter URL state uses a versioned lz-string URI encoding of the existing predicate
 JSON. Clause and collection-scope IDs are editor/discovery identities, omitted

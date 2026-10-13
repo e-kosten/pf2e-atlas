@@ -13,10 +13,164 @@ import {
   numericLiteral,
   replaceCommonDraft,
   canReplaceCommonDraft,
+  commonDraftCondition,
+  commonDraftRange,
+  replaceCommonRangeDraft,
+  type PredicateRule,
 } from "./queryBuilder";
 import { fieldFixture } from "../../test/fixtures";
 import type { QueryPredicate } from "../../generated/atlas";
 describe("typed builder translation", () => {
+  it("restores atomic NOT as an excluded rule and keeps its toggle across edits", () => {
+    const field = fieldFixture("record.kind");
+    const predicate: QueryPredicate = {
+      kind: "all_of",
+      clause_id: "root",
+      children: [
+        {
+          kind: "not",
+          clause_id: "exclude",
+          predicate: {
+            kind: "in",
+            clause_id: "kind",
+            field: field.path,
+            values: ["companion"],
+          },
+        },
+      ],
+    };
+    const query = predicateBuilder(predicate, [field]);
+    const rule = query.rules[0] as PredicateRule;
+    expect(rule).toMatchObject({
+      id: "kind",
+      meta: { atlasExcluded: true, atlasNotClauseId: "exclude" },
+    });
+    expect(rule).not.toHaveProperty("rules");
+    expect(builderPredicate(query, [field])).toEqual(predicate);
+    for (const excluded of [false, true, false, true]) {
+      rule.meta = { ...rule.meta, atlasExcluded: excluded };
+      const restored = predicateBuilder(builderPredicate(query, [field]), [field]);
+      expect(restored.rules).toHaveLength(1);
+      expect(restored.rules[0]).not.toHaveProperty("rules");
+      expect(restored.rules[0]).toMatchObject({
+        id: "kind",
+        ...(excluded
+          ? { meta: { atlasExcluded: true, atlasNotClauseId: "exclude" } }
+          : {}),
+      });
+    }
+  });
+  it("preserves authored double negation rather than applying operator inversion", () => {
+    const field = fieldFixture("record.kind");
+    const predicate: QueryPredicate = {
+      kind: "not",
+      clause_id: "outer",
+      predicate: {
+        kind: "not",
+        clause_id: "inner",
+        predicate: {
+          kind: "compare",
+          clause_id: "kind",
+          field: field.path,
+          op: "eq",
+          value: "creature",
+        },
+      },
+    };
+    expect(builderPredicate(predicateBuilder(predicate, [field]), [field])).toEqual(
+      predicate,
+    );
+  });
+  it("keeps unavailable URL fields in the editor while blocking execution", () => {
+    const predicate: QueryPredicate = {
+      kind: "not",
+      clause_id: "exclude",
+      predicate: {
+        kind: "compare",
+        clause_id: "unknown",
+        field: "retired.field",
+        op: "eq",
+        value: "original value",
+      },
+    };
+    const query = predicateBuilder(predicate, []);
+    expect(query.rules[0]).toMatchObject({
+      field: "retired.field",
+      value: "original value",
+      meta: { atlasExcluded: true },
+    });
+    expect(() => builderPredicate(query, [])).toThrow("available filter field");
+  });
+  it("retains unavailable closed choices for repair but refuses to execute them", () => {
+    const field = { ...fieldFixture("record.kind"), choices: ["creature", "hazard"] };
+    const query = predicateBuilder(
+      { kind: "in", field: field.path, values: ["action"] },
+      [field],
+    );
+    expect(query.rules[0]).toMatchObject({ value: ["action"] });
+    expect(() => builderPredicate(query, [field])).toThrow("available value");
+  });
+  it("keeps comma-containing vocabulary literals intact and enforces Includes cardinality", () => {
+    const field = {
+      ...fieldFixture("traits", "set"),
+      operators: ["includes", "includes_any", "state"],
+    };
+    const query = {
+      combinator: "and",
+      rules: [
+        { id: "trait", field: field.id, operator: "includes", value: "fire, cold" },
+      ],
+    };
+    const predicate = builderPredicate(query, [field]);
+    expect(predicate).toMatchObject({
+      children: [{ kind: "set_match", op: "includes", values: ["fire, cold"] }],
+    });
+    expect(predicateBuilder(predicate, [field]).rules[0]).toMatchObject({
+      value: "fire, cold",
+    });
+    expect(() =>
+      builderPredicate(
+        { ...query, rules: [{ ...query.rules[0], value: ["fire", "cold"] }] },
+        [field],
+      ),
+    ).toThrow("Choose one value");
+  });
+  it("keeps invalid imported Includes operands without silently choosing their first value", () => {
+    const field = {
+      ...fieldFixture("traits", "set"),
+      operators: ["includes", "includes_any", "state"],
+    };
+    const query = predicateBuilder(
+      {
+        kind: "set_match",
+        field: field.path,
+        op: "includes",
+        values: ["fire", "cold"],
+      },
+      [field],
+    );
+    expect(query.rules[0]).toMatchObject({ value: ["fire", "cold"] });
+    expect(() => builderPredicate(query, [field])).toThrow("Choose one value");
+    const empty = predicateBuilder(
+      { kind: "set_match", field: field.path, op: "includes", values: [] },
+      [field],
+    );
+    expect(empty.rules[0]).toMatchObject({ value: [] });
+    expect(() => builderPredicate(empty, [field])).toThrow("Choose at least one value");
+  });
+  it("rejects malformed collection operands with a controlled validation error", () => {
+    const field = fieldFixture("actor.items", "collection");
+    for (const value of ["missing", ["missing"], {}, { rules: [] }])
+      expect(() =>
+        builderPredicate(
+          {
+            combinator: "and",
+            rules: [{ field: field.id, operator: "exists", value }],
+          },
+          [field],
+        ),
+      ).toThrow("Choose a valid condition group");
+  });
   it.each(["all_of", "any_of"] as const)(
     "keeps an excluded %s as one editable group across repeated edits",
     (kind) => {
@@ -237,6 +391,99 @@ describe("common filter editing without predicate simplification", () => {
       builderPredicate(refreshed, [kind, fieldFixture("actor.hp.maximum", "number")]),
     ).toThrow("finite numeric");
   });
+  it("reads a valid common condition from the draft rather than its earlier execution value", () => {
+    const query = {
+      combinator: "and",
+      rules: [
+        { id: "kind", field: kind.id, operator: "in", value: ["hazard"] },
+        { id: "hp", field: "actor.hp.maximum", operator: "gte", value: "-" },
+      ],
+    };
+    expect(commonDraftCondition(query, kind)).toEqual({
+      status: "editable",
+      clause: { ...leaf, values: ["hazard"] },
+    });
+  });
+  it("retains the identity of an authored mixed-choice group in the common draft view", () => {
+    const choices: QueryPredicate = {
+      kind: "all_of",
+      clause_id: "choices",
+      children: [
+        leaf,
+        {
+          kind: "not",
+          predicate: { ...leaf, clause_id: "exclude", values: ["hazard"] },
+        },
+      ],
+    };
+    const query = {
+      combinator: "and",
+      rules: [
+        predicateBuilder(choices, [kind]),
+        { field: "actor.hp.maximum", operator: "gte", value: "-" },
+      ],
+    };
+    expect(commonDraftCondition(query, kind)).toEqual({
+      status: "editable",
+      clause: choices,
+    });
+  });
+  it("keeps raw numeric edits in the shared tree and allows correction without losing siblings", () => {
+    const query = {
+      id: "root",
+      combinator: "and",
+      rules: [
+        {
+          id: "range-wrapper",
+          combinator: "and",
+          rules: [{ id: "level", field: level.id, operator: "gte", value: 2 }],
+        },
+        { id: "kind", field: kind.id, operator: "eq", value: "" },
+      ],
+    };
+    const valid = replaceCommonRangeDraft(query, level, ["1.", ""]);
+    expect(commonDraftRange(valid, level)).toEqual(["1.", ""]);
+    expect(commonDraftCondition(valid, level)).toMatchObject({
+      status: "editable",
+      clause: { value: 1 },
+    });
+    const invalid = replaceCommonRangeDraft(valid, level, ["-", "5"]);
+    expect(commonDraftRange(invalid, level)).toEqual(["-", "5"]);
+    expect(canReplaceCommonDraft(invalid, level)).toBe(true);
+    expect(invalid).toMatchObject({
+      id: "root",
+      rules: [
+        {
+          id: "range-wrapper",
+          rules: [{ id: "level", operator: "between", value: ["-", "5"] }],
+        },
+        query.rules[1],
+      ],
+    });
+    const corrected = replaceCommonRangeDraft(invalid, level, ["3", "5"]);
+    expect(commonDraftRange(corrected, level)).toEqual(["3", "5"]);
+    expect(() => builderPredicate(corrected, [level, kind])).toThrow("Enter a value");
+    expect(replaceCommonRangeDraft(corrected, level, ["", ""]).rules).toEqual([
+      { ...query.rules[0], rules: [] },
+      query.rules[1],
+    ]);
+  });
+  it("does not treat numeric OR, NOT, excluded leaves or repeated bounds as a common range", () => {
+    const low = { field: level.id, operator: "gte", value: "-" };
+    for (const query of [
+      { combinator: "or", rules: [low] },
+      { combinator: "and", not: true, rules: [low] },
+      { combinator: "and", rules: [{ ...low, meta: { atlasExcluded: true } }] },
+      { combinator: "and", rules: [low, { ...low, value: "3" }] },
+      { combinator: "and", rules: [{ ...low, operator: "gt" }] },
+    ]) {
+      expect(commonDraftRange(query, level)).toBeNull();
+      expect(canReplaceCommonDraft(query, level)).toBe(false);
+      expect(() => replaceCommonRangeDraft(query, level, ["3", "5"])).toThrow(
+        "advanced filters",
+      );
+    }
+  });
   it("requires Advanced when unfinished rules move Kind into a mixed OR or excluded group", () => {
     for (const shape of [{ combinator: "or" }, { combinator: "and", not: true }]) {
       const draft = {
@@ -246,9 +493,122 @@ describe("common filter editing without predicate simplification", () => {
           { field: "actor.hp.maximum", operator: "gte", value: "-" },
         ],
       };
-      expect(canReplaceCommonDraft(draft, kind.id)).toBe(false);
+      expect(canReplaceCommonDraft(draft, kind)).toBe(false);
       expect(() => replaceCommonDraft(draft, kind, leaf)).toThrow("advanced filters");
     }
+  });
+  it("does not replace same-field unfinished OR, NOT, or repeated conditions", () => {
+    for (const shape of [
+      { combinator: "or" },
+      { combinator: "and", not: true },
+      { combinator: "and" },
+    ]) {
+      const query = {
+        ...shape,
+        rules: [
+          { id: "kind", field: kind.id, operator: "in", value: ["creature"] },
+          { id: "draft", field: kind.id, operator: "neq", value: "" },
+        ],
+      };
+      expect(canReplaceCommonDraft(query, kind)).toBe(false);
+      expect(() => replaceCommonDraft(query, kind, leaf)).toThrow("advanced filters");
+      expect(query.rules[1].value).toBe("");
+    }
+  });
+  it("preserves authored AND wrappers and unrelated empty groups during a quick edit", () => {
+    const wrapper = {
+      id: "authored",
+      combinator: "and",
+      rules: [{ id: "kind", field: kind.id, operator: "in", value: ["creature"] }],
+    };
+    const empty = { id: "unfinished", combinator: "or", rules: [] };
+    const query = { id: "root", combinator: "and", rules: [wrapper, empty] };
+    expect(canReplaceCommonDraft(query, kind)).toBe(true);
+    expect(
+      replaceCommonDraft(query, kind, { ...leaf, values: ["hazard"] }),
+    ).toMatchObject({
+      id: "root",
+      rules: [{ id: "authored", rules: [{ id: "kind", value: ["hazard"] }] }, empty],
+    });
+    expect(replaceCommonDraft(query, kind, null)).toEqual({
+      ...query,
+      rules: [{ ...wrapper, rules: [] }, empty],
+    });
+  });
+  it("updates a mixed include/exclude group without duplicating its identity", () => {
+    const condition: QueryPredicate = {
+      kind: "all_of",
+      clause_id: "choices",
+      children: [
+        leaf,
+        {
+          kind: "not",
+          clause_id: "exclude",
+          predicate: {
+            ...leaf,
+            clause_id: "excluded-kind",
+            values: ["hazard"],
+          },
+        },
+      ],
+    };
+    const query = predicateBuilder(condition, [kind]);
+    const replacement = changeChoiceValue(kind, condition, "spell", "include");
+    const updated = replaceCommonDraft(query, kind, replacement);
+    expect(updated.id).toBe("choices");
+    expect(updated.rules).toHaveLength(2);
+    expect(updated.rules.every((node) => !("rules" in node))).toBe(true);
+    expect(builderPredicate(updated, [kind])).toEqual(replacement);
+  });
+  it("projects the initially empty editor into one common include/exclude conjunction", () => {
+    const empty = predicateBuilder(null, [kind]);
+    const included = changeChoiceValue(kind, null, "creature", "include");
+    const first = replaceCommonDraft(empty, kind, included);
+    expect(builderPredicate(first, [kind])).toEqual(included);
+    const mixed = changeChoiceValue(kind, included, "hazard", "exclude");
+    const second = replaceCommonDraft(first, kind, mixed);
+    expect(builderPredicate(second, [kind])).toEqual(mixed);
+    expect(builderPredicate(second, [kind])).toMatchObject({
+      kind: "all_of",
+      children: [{ kind: "in" }, { kind: "not", predicate: { kind: "in" } }],
+    });
+    const excludedOnly = changeChoiceValue(kind, mixed, "creature", "neutral");
+    const third = replaceCommonDraft(second, kind, excludedOnly);
+    expect(builderPredicate(third, [kind])).toEqual(excludedOnly);
+    expect(builderPredicate(third, [kind])?.kind).toBe("not");
+  });
+  it("does not strip a restored authored conjunction when common choices shrink to one NOT", () => {
+    const authored: QueryPredicate = {
+      kind: "all_of",
+      clause_id: "authored",
+      children: [
+        leaf,
+        {
+          kind: "not",
+          predicate: { ...leaf, clause_id: "excluded", values: ["hazard"] },
+        },
+      ],
+    };
+    const query = predicateBuilder(authored, [kind]);
+    const excluded = changeChoiceValue(kind, authored, "creature", "neutral");
+    const updated = replaceCommonDraft(query, kind, excluded);
+    expect(builderPredicate(updated, [kind])).toEqual({
+      kind: "all_of",
+      clause_id: "authored",
+      children: [excluded],
+    });
+  });
+  it("assigns a stable identity to the first common numeric draft before mounting a builder", () => {
+    const query = replaceCommonRangeDraft(predicateBuilder(null, [level]), level, [
+      "-",
+      "",
+    ]);
+    const rule = query.rules[0];
+    expect(rule.id).toEqual(expect.any(String));
+    expect(rule.id).not.toBe("");
+    const updated = replaceCommonRangeDraft(query, level, ["3", "5"]);
+    expect(updated.rules[0].id).toBe(rule.id);
+    expect(commonDraftRange(updated, level)).toEqual(["3", "5"]);
   });
   it("adds a new quick condition outside an unrelated unfinished OR rather than into it", () => {
     const draft = {

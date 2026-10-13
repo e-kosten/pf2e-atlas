@@ -261,19 +261,6 @@ describe("list views", () => {
         };
       },
     );
-    apiMocks.discoverFilterCounts.mockImplementation(async () => ({
-      counts: {
-        status: "available",
-        value: {
-          field: "traits",
-          states: [],
-          exhaustive: true,
-          count_basis: "distinct roots",
-          minimum: null,
-          maximum: null,
-        },
-      },
-    }));
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -297,7 +284,7 @@ describe("list views", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("artifact values")).toHaveTextContent("fire"),
     );
-    await waitFor(() => expect(apiMocks.discoverFilterCounts).toHaveBeenCalledTimes(3));
+    expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
     const otherRequests = apiMocks.discoverFilterValues.mock.calls.filter(
       ([request]) =>
         request.scope.kind === "artifact" || request.scope.list_ref === "other-list",
@@ -313,13 +300,6 @@ describe("list views", () => {
           '"options":[],"selected":["retained"],"total":"0"',
         ),
       );
-      await waitFor(() =>
-        expect(
-          apiMocks.discoverFilterCounts.mock.calls.filter(
-            ([request]) => request.context.list_ref === alias,
-          ),
-        ).toHaveLength(2),
-      );
     }
     expect(screen.getByLabelText("values other-list")).toHaveTextContent("fire");
     expect(screen.getByLabelText("artifact values")).toHaveTextContent("fire");
@@ -329,7 +309,7 @@ describe("list views", () => {
           request.scope.kind === "artifact" || request.scope.list_ref === "other-list",
       ),
     ).toHaveLength(otherRequests);
-    expect(apiMocks.discoverFilterCounts).toHaveBeenCalledTimes(5);
+    expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
   });
 
   it("opens references from the selected saved-list detail in a popover", async () => {
@@ -605,7 +585,7 @@ function VocabularyProbe({
 }
 
 function ListDiscoveryProbe({ listRef }: { listRef: string }) {
-  const discovery = useSavedListFilterDiscovery(listRef, {
+  useSavedListFilterDiscovery(listRef, {
     ...DEFAULT_SEARCH_STATE,
     filter: {
       kind: "set_match",
@@ -616,15 +596,10 @@ function ListDiscoveryProbe({ listRef }: { listRef: string }) {
     },
   });
   return (
-    <>
-      <VocabularyProbe
-        scope={{ kind: "saved_list", list_ref: listRef }}
-        label={`values ${listRef}`}
-      />
-      <output aria-label={`counts ${listRef}`}>
-        {discovery.filterCountsByField["traits:trait"]?.counts.status}
-      </output>
-    </>
+    <VocabularyProbe
+      scope={{ kind: "saved_list", list_ref: listRef }}
+      label={`values ${listRef}`}
+    />
   );
 }
 
