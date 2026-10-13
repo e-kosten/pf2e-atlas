@@ -9,9 +9,11 @@ import {
   Select,
   Space,
   Spin,
+  Tooltip,
   Typography,
 } from "antd";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { ClearOutlined, FilterOutlined } from "@ant-design/icons";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   QueryBuilder,
   type RuleGroupType,
@@ -72,6 +74,7 @@ export function FilterControls({
 }) {
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
+  const advancedTrigger = useRef<HTMLButtonElement>(null);
   const [draftRevision, setDraftRevision] = useState(0);
   const [rangeDrafts, setRangeDrafts] = useState<Record<string, RangeDraft>>({});
   const [draft, setDraft] = useState<{
@@ -204,20 +207,33 @@ export function FilterControls({
           })}
         </div>
         <div className="filter-panel-actions">
-          <Button onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}>
+          <Button
+            ref={advancedTrigger}
+            icon={<FilterOutlined aria-hidden="true" />}
+            onClick={() => setAdvanced(!advanced)}
+            aria-expanded={advanced}
+          >
             Advanced filters
           </Button>
-          <Button
-            type="text"
-            onClick={() => {
-              setDraft(null);
-              setRangeDrafts({});
-              setDraftRevision((revision) => revision + 1);
-              setSearch(clearAllFilters(search));
-            }}
-          >
-            Clear filters
-          </Button>
+          {(search.filter ||
+            search.filterError ||
+            draft ||
+            Object.values(rangeDrafts).some((range) => range.error)) && (
+            <Tooltip title="Clear filters">
+              <Button
+                type="text"
+                icon={<ClearOutlined aria-hidden="true" />}
+                aria-label="Clear filters"
+                onClick={() => {
+                  setDraft(null);
+                  setRangeDrafts({});
+                  setDraftRevision((revision) => revision + 1);
+                  setSearch(clearAllFilters(search));
+                  advancedTrigger.current?.focus();
+                }}
+              />
+            </Tooltip>
+          )}
         </div>
       </div>
       <Drawer
