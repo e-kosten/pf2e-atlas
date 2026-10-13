@@ -4,16 +4,21 @@ import {
   Checkbox,
   Drawer,
   Form,
-  Grid,
   Input,
+  Popover,
   Select,
   Space,
   Spin,
+  Tooltip,
   Typography,
 } from "antd";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { ClearOutlined, FilterOutlined } from "@ant-design/icons";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import {
   QueryBuilder,
+  RuleComponents,
+  useRule,
+  type RuleProps,
   type RuleGroupType,
   type ValueEditorProps,
   type FieldSelectorProps,
@@ -30,24 +35,25 @@ import type {
 import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
 import {
   builderPredicate,
+  commonDraftCondition,
+  commonDraftRange,
   BOOLEAN_CONDITION,
   emptyGroup,
   numericLiteral,
-  predicateBuilder,
+  replaceCommonDraft,
+  replaceCommonRangeDraft,
+  type PredicateRule,
 } from "./queryBuilder";
 import {
-  advancedResidual,
   clearAllFilters,
-  commonCondition,
-  conditionRange,
-  replaceCommonCondition,
-  replaceAdvancedResidual,
+  type CommonCondition,
   type FilterPanelState,
 } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
+import { SearchEntry } from "./SearchEntry";
 import { CommonChoicePicker } from "./CommonChoicePicker";
-import "react-querybuilder/dist/query-builder.css";
-import { ATLAS_ROUTE_CHANGE_EVENT } from "../../app/routes";
+import { useFilterEditor } from "./useFilterEditor";
+import { isBuilderGroup, normalizeBuilderEdit } from "./builderEdits";
 
 export function FilterPanel({
   workspace,
@@ -61,99 +67,41 @@ export function FilterPanel({
 export function FilterControls({
   filterState: workspace,
   includeSearch = true,
+  layout = "panel",
   children,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
+  layout?: "panel" | "toolbar";
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
+  const advancedTrigger = useRef<HTMLButtonElement>(null);
   const [draftRevision, setDraftRevision] = useState(0);
-  const [rangeDrafts, setRangeDrafts] = useState<Record<string, RangeDraft>>({});
-  const [draft, setDraft] = useState<{
-    baseline: QueryPredicate | null;
-    query: RuleGroupType;
-    error: string | null;
-  } | null>(null);
-  useEffect(() => {
-    const reset = () => {
-      setDraft(null);
-      setRangeDrafts({});
-      setDraftRevision((revision) => revision + 1);
-    };
-    window.addEventListener("popstate", reset);
-    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, reset);
-    return () => {
-      window.removeEventListener("popstate", reset);
-      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, reset);
-    };
-  }, []);
-  const screens = Grid.useBreakpoint();
   const editor = workspace.filterEditor;
   const fields = useMemo(
     () => editor?.groups.flatMap((group) => group.fields) ?? [],
     [editor],
   );
-  const definitions = useMemo(() => fields.map((field) => field.definition), [fields]);
-  const commonDefinitions = useMemo(
-    () => definitions.filter((field) => editor?.common_field_ids.includes(field.id)),
-    [definitions, editor],
-  );
-  const residual = useMemo(
-    () => advancedResidual(search.filter, commonDefinitions).residual,
-    [search.filter, commonDefinitions],
-  );
-  const prepared = useMemo(() => {
-    if (!editor) return { query: null, error: search.filterError };
-    if (draft?.baseline === search.filter)
-      return { query: draft.query, error: draft.error };
-    try {
-      return {
-        query: predicateBuilder(residual, definitions),
-        error: search.filterError,
-      };
-    } catch (error) {
-      return {
-        query: null,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [definitions, editor, draft, search.filter, search.filterError, residual]);
-  function change(query: RuleGroupType) {
-    try {
-      const filter = replaceAdvancedResidual(
-        search.filter,
-        commonDefinitions,
-        builderPredicate(query, definitions),
-      );
-      setDraft(null);
-      setSearch({ ...search, filter, filterError: null });
-    } catch (error) {
-      setDraft({
-        baseline: search.filter,
-        query,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  const prepared = useFilterEditor(search, fields, setSearch);
   const advancedEditor =
     editor && prepared.query ? (
       <StructuredBuilder
         editor={editor}
         query={prepared.query}
-        onChange={change}
+        onChange={prepared.change}
         workspace={workspace}
       />
     ) : null;
   const inlineError =
-    prepared.error && !prepared.query ? (
+    prepared.error && (search.filterError || !prepared.query) ? (
       <Typography.Text type="danger" role="status">
         {prepared.error}
       </Typography.Text>
     ) : null;
   return (
-    <aside className="filter-panel">
+    <aside className={layout === "toolbar" ? "filter-toolbar" : "filter-panel"}>
       {children}
       {!editor && workspace.filterDiscoveryLoading && (
         <Spin description="Loading filters…">
@@ -161,91 +109,97 @@ export function FilterControls({
         </Spin>
       )}
       {includeSearch && (
-        <Form layout="vertical">
-          <Form.Item label="Search records" htmlFor="atlas-record-search">
-            <Input
-              id="atlas-record-search"
-              name="search"
-              autoComplete="off"
-              placeholder="Name or description…"
-              value={search.query}
-              onChange={(event) =>
-                setSearch({
-                  ...search,
-                  query: event.target.value,
-                  mode: event.target.value.trim() ? "text_search" : "browse",
-                })
-              }
-              allowClear
-            />
-          </Form.Item>
-        </Form>
+        <SearchEntry
+          query={search.query}
+          onSearch={(query) =>
+            setSearch({
+              ...search,
+              query,
+              mode: query.trim() ? "text_search" : "browse",
+            })
+          }
+        />
       )}
-      <div className="common-filters">
-        {(editor?.common_field_ids ?? []).map((id) => {
-          const field = fields.find((candidate) => candidate.definition.id === id);
-          return field ? (
-            <CommonFilter
-              key={id + ":" + draftRevision}
-              field={field}
-              rangeDraft={rangeDrafts[id] ?? null}
-              onRangeDraftChange={(next) =>
-                setRangeDrafts((current) => ({ ...current, [id]: next }))
-              }
-              workspace={{
-                ...workspace,
-                setSearch: (next) => {
-                  setDraft((current) =>
-                    current?.baseline === search.filter
-                      ? { ...current, baseline: next.filter }
-                      : current,
-                  );
-                  setSearch(next);
-                },
-              }}
-              onAdvanced={() => setAdvanced(true)}
-            />
-          ) : null;
-        })}
+      <div className="filter-controls__criteria">
+        <div className="common-filters">
+          {(editor?.common_field_ids ?? []).map((id) => {
+            const field = fields.find((candidate) => candidate.definition.id === id);
+            return field ? (
+              <CommonFilter
+                key={id + ":" + draftRevision}
+                field={field}
+                layout={layout}
+                condition={
+                  prepared.query
+                    ? commonDraftCondition(prepared.query, field.definition)
+                    : { status: "empty", clause: null }
+                }
+                range={
+                  prepared.query
+                    ? commonDraftRange(prepared.query, field.definition)
+                    : null
+                }
+                onChange={(replacement) => {
+                  if (prepared.query)
+                    prepared.changeCommon(
+                      replaceCommonDraft(prepared.query, field.definition, replacement),
+                      field.definition,
+                    );
+                }}
+                onRangeChange={(range) => {
+                  if (prepared.query)
+                    prepared.changeCommon(
+                      replaceCommonRangeDraft(prepared.query, field.definition, range),
+                      field.definition,
+                    );
+                }}
+                workspace={workspace}
+                onAdvanced={() => setAdvanced(true)}
+              />
+            ) : null;
+          })}
+        </div>
+        <div className="filter-panel-actions">
+          <Button
+            ref={advancedTrigger}
+            icon={<FilterOutlined aria-hidden="true" />}
+            onClick={() => setAdvanced(!advanced)}
+            aria-expanded={advanced}
+          >
+            Advanced filters
+          </Button>
+          {(search.filter ||
+            search.filterError ||
+            prepared.error ||
+            (prepared.query?.rules.length ?? 0) > 0) && (
+            <Tooltip title="Clear filters">
+              <Button
+                type="text"
+                icon={<ClearOutlined aria-hidden="true" />}
+                aria-label="Clear filters"
+                onClick={() => {
+                  prepared.clear();
+                  setDraftRevision((revision) => revision + 1);
+                  setSearch(clearAllFilters(search));
+                  advancedTrigger.current?.focus();
+                }}
+              />
+            </Tooltip>
+          )}
+        </div>
       </div>
-      <div className="filter-panel-actions">
-        <Button onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}>
-          Advanced filters
-        </Button>
-        <Button
-          type="text"
-          onClick={() => {
-            setDraft(null);
-            setRangeDrafts({});
-            setDraftRevision((revision) => revision + 1);
-            setSearch(clearAllFilters(search));
-          }}
-        >
-          Clear filters
-        </Button>
-      </div>
-      {screens.lg && advanced && (
+      <Drawer
+        title="Advanced filters"
+        placement="left"
+        size="min(100vw, 640px)"
+        open={advanced}
+        onClose={() => setAdvanced(false)}
+      >
         <section className="advanced-filters" aria-label="Advanced filters">
-          <Typography.Text type="secondary">Additional conditions</Typography.Text>
           {advancedEditor}
           {inlineError}
         </section>
-      )}
-      {!screens.lg && (
-        <Drawer
-          title="Advanced filters"
-          placement="left"
-          size="min(100vw, 640px)"
-          open={advanced}
-          onClose={() => setAdvanced(false)}
-        >
-          <section className="advanced-filters" aria-label="Advanced filters">
-            <Typography.Text type="secondary">Additional conditions</Typography.Text>
-            {advancedEditor}
-            {inlineError}
-          </section>
-        </Drawer>
-      )}
+      </Drawer>
       {!advanced && prepared.error && inlineError}
       {workspace.filterDiscoveryError && (
         <Alert
@@ -260,61 +214,83 @@ export function FilterControls({
 
 function CommonFilter({
   field,
-  rangeDraft,
-  onRangeDraftChange,
+  range,
+  onRangeChange,
+  condition,
+  onChange,
   workspace,
   onAdvanced,
+  layout,
 }: {
   field: FilterEditorFieldView;
-  rangeDraft: RangeDraft | null;
-  onRangeDraftChange: (draft: RangeDraft) => void;
+  layout: "panel" | "toolbar";
+  condition: CommonCondition;
+  range: [string, string] | null;
+  onRangeChange: (range: [string, string]) => void;
+  onChange: (replacement: QueryPredicate | null) => void;
   workspace: FilterPanelState;
   onAdvanced: () => void;
 }) {
-  const condition = commonCondition(workspace.search.filter, field.definition);
-  function update(replacement: QueryPredicate | null) {
-    workspace.setSearch({
-      ...workspace.search,
-      filter: replaceCommonCondition(
-        workspace.search.filter,
-        field.definition,
-        replacement,
-      ),
-      filterError: null,
-    });
-  }
+  const update = onChange;
   return (
-    <section className="common-filter" aria-label={field.label + " filter"}>
-      <div className="common-filter-heading">
-        <Typography.Text strong>{field.label}</Typography.Text>
-        {condition.status === "editable" && (
-          <Button
-            type="text"
-            size="small"
-            aria-label={"Clear " + field.label}
-            onClick={() => update(null)}
-          >
-            Clear
-          </Button>
-        )}
-      </div>
-      {condition.status === "advanced" ? (
-        <Space orientation="vertical" size="small">
-          <Typography.Text type="secondary">
-            Defined in advanced filters
-          </Typography.Text>
-          <Button size="small" onClick={onAdvanced}>
-            Edit {field.label.toLowerCase()}
-          </Button>
-        </Space>
+    <section
+      className={
+        layout === "toolbar" ? "common-filter common-filter--toolbar" : "common-filter"
+      }
+      aria-label={field.label + " filter"}
+    >
+      {layout === "panel" && (
+        <div className="common-filter-heading">
+          <Typography.Text strong>{field.label}</Typography.Text>
+          {condition.status === "editable" && (
+            <Button
+              type="text"
+              size="small"
+              aria-label={"Clear " + field.label}
+              onClick={() => update(null)}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
+      {condition.status === "advanced" && !range ? (
+        <Button onClick={onAdvanced}>{field.label}: Advanced</Button>
       ) : field.definition.field_type === "number" ? (
-        <CommonRange
-          field={field}
-          clause={condition.clause}
-          onChange={update}
-          draft={rangeDraft}
-          onDraftChange={onRangeDraftChange}
-        />
+        layout === "panel" ? (
+          <CommonRange
+            field={field}
+            range={range ?? ["", ""]}
+            onChange={onRangeChange}
+          />
+        ) : (
+          <Popover
+            trigger="click"
+            placement="bottomLeft"
+            title={field.label}
+            content={
+              <Space orientation="vertical">
+                <CommonRange
+                  field={field}
+                  range={range ?? ["", ""]}
+                  onChange={onRangeChange}
+                />
+                <Button
+                  type="text"
+                  onClick={() => {
+                    onRangeChange(["", ""]);
+                  }}
+                >
+                  Clear range
+                </Button>
+              </Space>
+            }
+          >
+            <Button aria-label={"Edit " + field.label + " range"}>
+              {field.label}: {range?.filter(Boolean).join(" – ") || "Any"}
+            </Button>
+          </Popover>
+        )
       ) : (
         <CommonChoicePicker
           field={field}
@@ -323,90 +299,27 @@ function CommonFilter({
           onChange={update}
         />
       )}
-      <CountAvailability fieldId={field.definition.id} workspace={workspace} />
     </section>
   );
 }
 
-type RangeDraft = {
-  baseline: string;
-  range: [string, string];
-  error: string | null;
-};
-
 function CommonRange({
   field,
-  clause,
+  range,
   onChange,
-  draft,
-  onDraftChange,
 }: {
   field: FilterEditorFieldView;
-  clause: QueryPredicate | null;
-  onChange: (next: QueryPredicate | null) => void;
-  draft: RangeDraft | null;
-  onDraftChange: (draft: RangeDraft) => void;
+  range: [string, string];
+  onChange: (range: [string, string]) => void;
 }) {
-  const baseline = JSON.stringify(clause);
-  const range = draft?.baseline === baseline ? draft.range : conditionRange(clause);
-  const error = draft?.baseline === baseline ? draft.error : null;
-  function change(next: [string, string]) {
-    try {
-      const min = next[0].trim() ? numericLiteral(next[0]) : null;
-      const max = next[1].trim() ? numericLiteral(next[1]) : null;
-      if (min !== null && max !== null && min > max)
-        throw new Error("Minimum must not exceed maximum");
-      const existing =
-        clause?.kind === "all_of" ? clause.children : clause ? [clause] : [];
-      const clauseId = (op: string) =>
-        existing.find((child) => child.kind === "compare" && child.op === op)
-          ?.clause_id ??
-        (existing.length === 1 &&
-        existing[0].kind === "compare" &&
-        existing[0].op === "eq" &&
-        (op === "gte" || min === null)
-          ? existing[0].clause_id
-          : undefined) ??
-        crypto.randomUUID();
-      const children: QueryPredicate[] = [];
-      if (min !== null)
-        children.push({
-          kind: "compare",
-          clause_id: clauseId("gte"),
-          field: field.definition.path,
-          op: "gte",
-          value: min,
-        });
-      if (max !== null)
-        children.push({
-          kind: "compare",
-          clause_id: clauseId("lte"),
-          field: field.definition.path,
-          op: "lte",
-          value: max,
-        });
-      const replacement: QueryPredicate | null =
-        children.length === 2
-          ? {
-              kind: "all_of",
-              clause_id:
-                clause?.kind === "all_of" ? clause.clause_id : crypto.randomUUID(),
-              children,
-            }
-          : (children[0] ?? null);
-      onDraftChange({
-        baseline: JSON.stringify(replacement),
-        range: next,
-        error: null,
-      });
-      onChange(replacement);
-    } catch (error) {
-      onDraftChange({
-        baseline,
-        range: next,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+  let error: string | null = null;
+  try {
+    const min = range[0].trim() ? numericLiteral(range[0]) : null;
+    const max = range[1].trim() ? numericLiteral(range[1]) : null;
+    if (min !== null && max !== null && min > max)
+      throw new Error("Minimum exceeds maximum");
+  } catch (failure) {
+    error = failure instanceof Error ? failure.message : String(failure);
   }
   return (
     <div>
@@ -419,7 +332,7 @@ function CommonRange({
           placeholder="Minimum…"
           status={error ? "error" : undefined}
           value={range[0]}
-          onChange={(event) => change([event.target.value, range[1]])}
+          onChange={(event) => onChange([event.target.value, range[1]])}
         />
         <span>to</span>
         <Input
@@ -430,7 +343,7 @@ function CommonRange({
           placeholder="Maximum…"
           status={error ? "error" : undefined}
           value={range[1]}
-          onChange={(event) => change([range[0], event.target.value])}
+          onChange={(event) => onChange([range[0], event.target.value])}
         />
       </div>
       {error && (
@@ -440,29 +353,6 @@ function CommonRange({
       )}
     </div>
   );
-}
-
-function CountAvailability({
-  fieldId,
-  clauseId,
-  workspace,
-}: {
-  fieldId: string;
-  clauseId?: string;
-  workspace: FilterPanelState;
-}) {
-  const outcomes = Object.entries(workspace.filterCountsByField ?? {})
-    .filter(([key]) =>
-      clauseId
-        ? key === fieldId + ":" + clauseId
-        : key === fieldId || key.startsWith(fieldId + ":"),
-    )
-    .map(([, outcome]) => outcome?.counts);
-  return outcomes.some((outcome) => outcome?.status === "unavailable") ? (
-    <Typography.Text type="secondary" className="filter-count-note">
-      Counts unavailable for this condition
-    </Typography.Text>
-  ) : null;
 }
 
 type BuilderContext = {
@@ -494,7 +384,16 @@ function StructuredBuilder({
     <QueryBuilderAntD>
       <QueryBuilder
         query={query}
-        onQueryChange={onChange}
+        onQueryChange={(next) =>
+          onChange(
+            normalizeBuilderEdit(
+              query,
+              next,
+              editor.groups.flatMap((group) => group.fields),
+              scope,
+            ),
+          )
+        }
         showNotToggle
         enableMountQueryChange={false}
         fields={[
@@ -535,6 +434,7 @@ function StructuredBuilder({
           removeGroup: { label: "Remove group", title: "Remove group" },
         }}
         controlElements={{
+          rule: FilterRule,
           valueEditor: BuilderValueEditor,
           fieldSelector: BuilderFieldSelector,
           operatorSelector: BuilderOperatorSelector,
@@ -543,6 +443,28 @@ function StructuredBuilder({
         }}
       />
     </QueryBuilderAntD>
+  );
+}
+function FilterRule(props: RuleProps) {
+  const rule = useRule(props);
+  const excluded = !!(props.rule as PredicateRule).meta?.atlasExcluded;
+  return (
+    <div className={rule.outerClassName} data-rule-id={props.rule.id}>
+      <RuleComponents {...rule} />
+      <Checkbox
+        className="filter-rule-exclude"
+        checked={excluded}
+        disabled={props.disabled}
+        onChange={(event) =>
+          rule.generateOnChangeHandler("meta")({
+            ...props.rule.meta,
+            atlasExcluded: event.target.checked,
+          })
+        }
+      >
+        Exclude
+      </Checkbox>
+    </div>
   );
 }
 function BuilderFieldSelector(props: FieldSelectorProps) {
@@ -649,13 +571,18 @@ function BuilderValueEditor(props: ValueEditorProps) {
       (field) =>
         field.definition.id === props.field && field.definition.scope === scope,
     );
-  if (!field) return null;
+  if (!field)
+    return (
+      <Typography.Text type="danger" role="status" className="filter-rule-value">
+        This field is unavailable. Choose another field or remove this condition.
+      </Typography.Text>
+    );
   if (props.operator === "exists")
     return (
       <div className="filter-collection-condition">
         <StructuredBuilder
           editor={editor}
-          query={props.value || emptyGroup()}
+          query={isBuilderGroup(props.value) ? props.value : emptyGroup()}
           onChange={props.handleOnChange}
           scope={field.definition.path}
           workspace={workspace}
@@ -679,6 +606,7 @@ function BuilderValueEditor(props: ValueEditorProps) {
   return (
     <div className="filter-rule-value">
       <Form.Item
+        style={{ marginBottom: 0 }}
         validateStatus={error && !incomplete ? "error" : undefined}
         help={error ? <span role="status">{error}</span> : undefined}
       >
@@ -690,11 +618,6 @@ function BuilderValueEditor(props: ValueEditorProps) {
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
         />
       </Form.Item>
-      <CountAvailability
-        fieldId={field.definition.id}
-        clauseId={props.rule.id}
-        workspace={workspace}
-      />
     </div>
   );
 }

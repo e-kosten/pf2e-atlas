@@ -33,7 +33,8 @@ pub use filter::{
     DiscoverFilterCountsRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     FilterChoiceView, FilterControlView, FilterCountsView, FilterDiscoveryContext,
     FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
-    FilterOperatorView, FilterValidationResult, FilterValueListView, FilterVocabularyScope,
+    FilterOperandView, FilterOperatorView, FilterValidationResult, FilterValueListView,
+    FilterVocabularyScope,
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,

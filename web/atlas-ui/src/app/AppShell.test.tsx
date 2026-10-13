@@ -1,73 +1,34 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { AppShell } from "./AppShell";
-import type { SearchWorkspaceState } from "../features/search/useSearchWorkspace";
-import { DEFAULT_SEARCH_STATE } from "../shared/filters/searchState";
 
-function renderShell(errorMessage: string | null = null, resultsPaused = false) {
+function renderShell(errorMessage: string | null = null) {
   const navigate = {
     search: vi.fn(),
     encounters: vi.fn(),
     lists: vi.fn(),
   };
   const refresh = vi.fn();
-  const workspace: SearchWorkspaceState = {
-    search: DEFAULT_SEARCH_STATE,
-    setSearch: vi.fn(),
-    activeResultKey: null,
-    focusResult: vi.fn(),
-    moveResultSelection: vi.fn(),
-    openActiveResult: vi.fn(),
-    selectRecord: vi.fn(),
-    setPageNumber: vi.fn(),
-    recordDetail: undefined,
-    detailError: null,
-    retryDetail: vi.fn(),
-    filterEditor: undefined,
-    filterDiscoveryContext: {
-      kind: "filtered",
-      filter: null,
-      text: null,
-      mode: "hybrid",
-    },
-    vocabularyScope: { kind: "artifact" },
-    filterDiscoveryError: null,
-    readiness: {
-      data: { status: "ready", message: "Ready to search." },
-    } as SearchWorkspaceState["readiness"],
-    diagnostics: {
-      searchDebouncing: false,
-      resultRequest: null,
-      detailRequest: null,
-    },
-    resultPage: undefined,
-    resultsLoading: false,
-    resultsRefreshing: false,
-    detailLoading: false,
-    filterDiscoveryLoading: false,
-    pageNumber: 1,
-    selectedRecordKey: null,
-    errorMessage,
-    refresh,
-    refreshResults: vi.fn(),
-    resultsPaused,
-  };
+  const changeTheme = vi.fn();
   render(
     <AppShell
       activeView="search"
       colorScheme="light"
       resolvedColorScheme="light"
-      onColorSchemeChange={vi.fn()}
+      onColorSchemeChange={changeTheme}
       onNavigateSearch={navigate.search}
       onNavigateEncounters={navigate.encounters}
       onNavigateLists={navigate.lists}
-      workspace={workspace}
+      readiness={{ status: "ready", message: "Ready to search." }}
+      readinessError={errorMessage ? new Error(errorMessage) : null}
+      checkingReadiness={false}
+      onCheckReadiness={refresh}
     >
       <main>
         <h2>Search records</h2>
       </main>
     </AppShell>,
   );
-  return { navigate, refresh, refreshResults: workspace.refreshResults };
+  return { navigate, refresh, changeTheme };
 }
 
 describe("application navigation and accessibility", () => {
@@ -121,18 +82,18 @@ describe("application navigation and accessibility", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The local service is unavailable.",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refresh).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Diagnostics" }));
-    expect(screen.getByRole("region", { name: "Diagnostics" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Reference status" })).toBeNull();
   });
 
-  it("offers an explicit result restart when a generation conflict pauses paging", () => {
-    const { refreshResults } = renderShell("The reference collection changed.", true);
-    fireEvent.click(screen.getByRole("button", { name: "Refresh results" }));
-    expect(refreshResults).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "The reference collection changed.",
-    );
+  it("offers system appearance without a persistent healthy-status banner", () => {
+    const { changeTheme } = renderShell();
+    expect(screen.queryByText("Ready to search.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reference status" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Theme" }));
+    fireEvent.click(screen.getByText("System"));
+    expect(changeTheme).toHaveBeenCalledWith("system");
   });
 });

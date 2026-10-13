@@ -914,18 +914,25 @@ describe("encounter views", () => {
       expect(screen.getByRole("button", { name: "Add Creature" })).not.toBeDisabled(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Add Creature" }));
-    expect(apiMocks.searchPage).not.toHaveBeenCalled();
-
     const dialog = await screen.findByRole("dialog", {
       name: "Add creature or hazard",
     });
-    fireEvent.change(within(dialog).getByLabelText("Search"), {
+    const search = within(dialog).getByRole("searchbox", { name: "Search records" });
+    fireEvent.change(search, {
       target: { value: "goblin" },
     });
-    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    fireEvent.keyDown(search, { key: "Enter", keyCode: 13 });
+    await waitFor(() =>
+      expect(apiMocks.searchPage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          criteria: expect.objectContaining({ query: "goblin" }),
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
 
     const goblinOption = await within(dialog).findByText("Goblin Warrior");
-    fireEvent.click(goblinOption.closest('[role="button"]') ?? goblinOption);
+    fireEvent.click(goblinOption.closest("a")!);
     await screen.findByText("Selected: Goblin Warrior");
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "2" },
@@ -933,7 +940,7 @@ describe("encounter views", () => {
     fireEvent.change(within(dialog).getByLabelText("Initiative"), {
       target: { value: "18" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "OK" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
     await waitFor(() =>
       expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledWith({

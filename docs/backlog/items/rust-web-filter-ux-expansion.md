@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-12
 
 ## Problem
 
@@ -53,7 +53,14 @@ keyboard focus during edits, including selected literals outside the current
 vocabulary page. Scoped vocabulary remains count-free with bounded server search
 and paging; complex Any/All conditions retain the maintained advanced editor.
 
-Similar search reuses stateless search pages, the table and canonical predicate.
+Search and the encounter Add chooser share the compact result browser and the
+full reference renderer. Common controls sit in a toolbar; full advanced editing
+remains in a native Ant Drawer. Keyword entry submits on Enter or Search; filter
+edits remain independent. Per-row matches open a bounded native Popover. The
+chooser preserves its explicit candidate while reading related references and
+retains quantity/initiative through failed Add attempts.
+
+Similar search reuses stateless search pages, the browser and canonical predicate.
 Its URL preserves the root seed and filters through reload, Back/Forward and
 generation recovery from page1. Keyword entry replaces the seed; clearing the criterion
 preserves filters. Similarity uses catalog choices and count-free vocabulary,

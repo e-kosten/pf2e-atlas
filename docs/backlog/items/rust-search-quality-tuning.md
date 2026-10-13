@@ -19,6 +19,14 @@ That acceptance check does not settle every future relevance tradeoff.
 
 ## Follow-up
 
+Build the next evaluation artifact from the full PF2e corpus after the reference
+workspace UI lands. Have independent agents exercise realistic CLI searches and
+inspect attribution, ranking and latency; the curated 223-record preview cannot
+establish behavior across the corpus. In particular, assess roots returned because
+of copied embedded equipment or spells against records whose own prose matches.
+Keep the evaluation separate from the UI implementation and use its evidence to
+decide whether default embedded-document retrieval should change.
+
 Build a repeatable source-backed evaluation set with expected records and
 explanatory passages. Include creature lore, owned afflictions, spell mechanics,
 long documents, copied embedded spells, multilingual labels and noise-prone small

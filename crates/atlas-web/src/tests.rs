@@ -345,7 +345,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     assert_eq!(body["presentation"]["identity"]["title"], "Test Action 1");
 
     let editor_request = json!({
-        "context": { "kind": "filtered", "filter": null,"text":null,"mode":"lexical" }
+        "selected_field_ids": []
     });
     let (status, body) =
         route_json(Method::POST, "/api/filters/editor", Some(editor_request)).await;
@@ -791,7 +791,7 @@ impl AtlasWebService for MockService {
         &self,
         _request: DiscoverFilterEditorRequest,
     ) -> Result<FilterEditorView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["record.kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is"},{"operator":"in","label":"is any of"},{"operator":"state","label":"availability is"}]}]}]})).expect("typed catalog fixture"))
+        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["record.kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
     }
     fn discover_filter_values(
         &self,

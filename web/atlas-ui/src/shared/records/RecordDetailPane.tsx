@@ -13,7 +13,7 @@ import { currentAtlasRoute } from "../../app/routes";
 type RecordDetailPaneError = Error | { message: string } | null | undefined;
 export function RecordDetailPane({
   detail,
-  emptyMessage = "Select a result to inspect it.",
+  emptyMessage = "Select a record",
   error,
   loading,
   loadingMessage = "Loading record…",

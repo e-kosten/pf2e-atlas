@@ -1,3 +1,4 @@
+import { encodeFilterUrl } from "../../shared/filters/filterUrl";
 import { fieldFixture } from "../../test/fixtures";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import {
@@ -12,7 +13,6 @@ describe("workspaceInteractionReducer", () => {
   it("changes search immediately without resetting execution state", () => {
     const state = baseState({
       pageNumber: 3,
-      focusedResultKey: "spell:heal",
     });
     const nextSearch = {
       ...DEFAULT_SEARCH_STATE,
@@ -28,30 +28,27 @@ describe("workspaceInteractionReducer", () => {
     expect(next.search).toBe(nextSearch);
     expect(next.activeSearch).toBe(state.activeSearch);
     expect(next.pageNumber).toBe(3);
-    expect(next.focusedResultKey).toBe("spell:heal");
   });
 
-  it("resets page and focus when search execution commits", () => {
+  it("resets the page when search execution commits", () => {
     const nextSearch = {
       ...DEFAULT_SEARCH_STATE,
       query: "fireball",
       mode: "text_search" as const,
     };
 
-    const next = workspaceInteractionReducer(
-      baseState({ pageNumber: 4, focusedResultKey: "spell:heal" }),
-      { type: "search.executionCommitted", search: nextSearch },
-    );
+    const next = workspaceInteractionReducer(baseState({ pageNumber: 4 }), {
+      type: "search.executionCommitted",
+      search: nextSearch,
+    });
 
     expect(next.activeSearch).toBe(nextSearch);
     expect(next.pageNumber).toBe(1);
-    expect(next.focusedResultKey).toBeNull();
   });
 
   it("does not reset state when the committed search is already active", () => {
     const state = baseState({
       pageNumber: 4,
-      focusedResultKey: "spell:heal",
     });
 
     const next = workspaceInteractionReducer(state, {
@@ -73,44 +70,33 @@ describe("workspaceInteractionReducer", () => {
       },
     };
 
-    const next = workspaceInteractionReducer(
-      baseState({ pageNumber: 3, focusedResultKey: "spell:heal" }),
-      {
-        type: "url.restored",
-        search: restoredSearch,
-        selectedRecordKey: "spell:heal",
-      },
-    );
+    const next = workspaceInteractionReducer(baseState({ pageNumber: 3 }), {
+      type: "url.restored",
+      search: restoredSearch,
+      selectedRecordKey: "spell:heal",
+    });
 
     expect(next.search).toBe(restoredSearch);
     expect(next.activeSearch).toBe(restoredSearch);
     expect(next.selectedRecordKey).toBe("spell:heal");
     expect(next.pageNumber).toBe(1);
-    expect(next.focusedResultKey).toBeNull();
   });
 
   it("tracks result and record interactions explicitly", () => {
-    const focused = workspaceInteractionReducer(baseState(), {
-      type: "result.focused",
-      recordKey: "spell:heal",
-    });
-    const selected = workspaceInteractionReducer(focused, {
+    const selected = workspaceInteractionReducer(baseState(), {
       type: "record.selected",
       recordKey: "spell:heal",
     });
-
-    expect(selected.focusedResultKey).toBe("spell:heal");
     expect(selected.selectedRecordKey).toBe("spell:heal");
   });
 
-  it("clears focused result when the page changes", () => {
-    const next = workspaceInteractionReducer(
-      baseState({ pageNumber: 1, focusedResultKey: "spell:heal" }),
-      { type: "resultPage.changed", pageNumber: 2 },
-    );
+  it("changes page without dropping the selected record", () => {
+    const next = workspaceInteractionReducer(baseState({ pageNumber: 1 }), {
+      type: "resultPage.changed",
+      pageNumber: 2,
+    });
 
     expect(next.pageNumber).toBe(2);
-    expect(next.focusedResultKey).toBeNull();
   });
 });
 
@@ -120,7 +106,6 @@ function baseState(
   return {
     search: DEFAULT_SEARCH_STATE,
     selectedRecordKey: null,
-    focusedResultKey: null,
     pageNumber: 1,
     activeSearch: DEFAULT_SEARCH_STATE,
     ...overrides,
@@ -175,9 +160,12 @@ describe("remembered Kind default precedence", () => {
     history.replaceState(
       null,
       "",
-      "/search?filter=" + encodeURIComponent(JSON.stringify(incoming)),
+      "/search?filter=" + encodeURIComponent(encodeFilterUrl(incoming)),
     );
-    expect(initialWorkspaceInteractionState().search.filter).toEqual(incoming);
+    expect(initialWorkspaceInteractionState().search.filter).toMatchObject({
+      ...incoming,
+      clause_id: expect.any(String),
+    });
     rememberKindPreference(null, field);
     expect(localStorage.getItem(KIND_PREFERENCE_KEY)).toBeNull();
     history.replaceState(null, "", "/search");

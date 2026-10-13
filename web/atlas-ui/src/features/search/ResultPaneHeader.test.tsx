@@ -23,12 +23,10 @@ describe("search pane composition", () => {
     });
     const { container, rerender } = render(<SearchView workspace={state} />);
     const criterion = screen.getByText("Similar to Seed");
-    const body = criterion.closest(".filter-panel");
-    const pane = body?.parentElement;
-    expect(pane).toHaveClass("workspace-pane--filter");
-    expect(pane?.children).toHaveLength(2);
+    const body = criterion.closest(".filter-toolbar");
+    expect(body).toBeVisible();
     expect(body).toContainElement(
-      screen.getByRole("textbox", { name: "Search records" }),
+      screen.getByRole("searchbox", { name: "Search records" }),
     );
     expect(screen.getByText("Top matches")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear similar criterion" }));
@@ -41,9 +39,7 @@ describe("search pane composition", () => {
     rerender(<SearchView workspace={workspace()} />);
     expect(screen.queryByText("Similar to Seed")).toBeNull();
     expect(screen.getByText("14,736 records")).toBeVisible();
-    expect(container.querySelector(".workspace-pane--filter")?.children).toHaveLength(
-      2,
-    );
+    expect(container.querySelector(".filter-toolbar")).toBeVisible();
   });
 });
 
@@ -116,18 +112,26 @@ function workspace(
   return {
     search: DEFAULT_SEARCH_STATE,
     setSearch: vi.fn(),
-    activeResultKey: null,
-    focusResult: vi.fn(),
-    moveResultSelection: vi.fn(),
-    openActiveResult: vi.fn(),
     selectedRecordKey: null,
     selectRecord: vi.fn(),
     pageNumber: 13,
     setPageNumber: vi.fn(),
     resultPage: searchResultsPage(),
-    recordDetail: undefined,
-    detailError: null,
-    retryDetail: vi.fn(),
+    reading: {
+      request: null,
+      inspect: vi.fn(),
+      detail: undefined,
+      landing: undefined,
+      error: null,
+      loading: false,
+      retry: vi.fn(),
+    },
+    positions: {
+      readList: () => 0,
+      saveList: vi.fn(),
+      readReader: () => 0,
+      saveReader: vi.fn(),
+    },
     filterEditor: undefined,
     filterDiscoveryContext: {
       kind: "filtered",
@@ -137,16 +141,9 @@ function workspace(
     },
     vocabularyScope: { kind: "artifact" },
     filterDiscoveryError: null,
-    readiness: {} as SearchWorkspaceState["readiness"],
     resultsLoading: false,
     resultsRefreshing: false,
-    detailLoading: false,
     filterDiscoveryLoading: false,
-    diagnostics: {
-      detailRequest: null,
-      resultRequest: null,
-      searchDebouncing: false,
-    },
     errorMessage: null,
     refresh: vi.fn(),
     refreshResults: vi.fn(),

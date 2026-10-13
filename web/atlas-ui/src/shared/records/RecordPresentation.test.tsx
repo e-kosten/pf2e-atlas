@@ -59,7 +59,7 @@ describe("semantic family presentation", () => {
     );
     expect(screen.getByRole("heading", { name: "Ghoul" })).toBeVisible();
     expect(screen.getByText("Monster Core")).toBeVisible();
-    expect(screen.getByText("uncommon")).toBeVisible();
+    expect(screen.getByText("Uncommon")).toBeVisible();
     expect(screen.getByText(/except force, ghost touch, vitality/)).toBeVisible();
     expect(screen.getByText(/double against non-magical attacks/)).toBeVisible();
     expect(screen.getByText("+0")).toBeVisible();

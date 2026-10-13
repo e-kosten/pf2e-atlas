@@ -1,7 +1,7 @@
 //! Product editor metadata decorates, but never replaces, the executable catalog.
 use atlas_app_model::{
     FilterChoiceView, FilterControlView, FilterEditorFieldView, FilterEditorGroupView,
-    FilterEditorView, FilterFieldPlacement, FilterOperatorView,
+    FilterEditorView, FilterFieldPlacement, FilterOperandView, FilterOperatorView,
 };
 use atlas_domain::{QueryCapability, QueryFieldDefinition, QueryFieldType, QueryLiteral};
 use std::collections::BTreeMap;
@@ -51,7 +51,7 @@ impl ProductGroup {
 pub(crate) fn filter_editor_view(
     catalog: QueryCapability,
     selected: &[String],
-) -> FilterEditorView {
+) -> crate::AppServiceResult<FilterEditorView> {
     let mut groups = BTreeMap::<ProductGroup, FilterEditorGroupView>::new();
     for definition in catalog.fields {
         let group = product_group(&definition);
@@ -98,11 +98,8 @@ pub(crate) fn filter_editor_view(
         let operators = definition
             .operators
             .iter()
-            .map(|operator| FilterOperatorView {
-                operator: operator.clone(),
-                label: operator_label(operator).into(),
-            })
-            .collect();
+            .map(|operator| operator_view(operator))
+            .collect::<crate::AppServiceResult<Vec<_>>>()?;
         let help = match definition.id.as_str() {
             "record.level_or_rank" => Some("Spell rank for spells; authored level for other applicable records. Unavailable values stay unknown.".into()),
             "item.level" => Some("Authored level for applicable physical items, feats, campaign features, effects and afflictions; use Level / rank to include spells and creatures.".into()),
@@ -146,12 +143,12 @@ pub(crate) fn filter_editor_view(
         });
     }
 
-    FilterEditorView {
+    Ok(FilterEditorView {
         catalog_version: catalog.version,
         limits: catalog.limits,
         groups: groups.into_values().collect(),
         common_field_ids: COMMON.into_iter().map(str::to_owned).collect(),
-    }
+    })
 }
 fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
     if COMMON.contains(&d.id.as_str()) {
@@ -203,22 +200,45 @@ fn words(value: &str) -> String {
         None => String::new(),
     }
 }
-fn operator_label(operator: &str) -> &str {
-    match operator {
-        "eq" => "is",
-        "neq" => "is not",
-        "in" => "is any of",
-        "lt" => "below",
-        "lte" => "at most",
-        "gt" => "above",
-        "gte" => "at least",
-        "between" => "between",
-        "includes" => "includes",
-        "includes_any" => "includes any",
-        "includes_all" => "includes all",
-        "excludes_any" => "excludes any",
-        "exists" => "has a matching entry",
-        "state" => "availability is",
-        _ => operator,
+fn operator_view(operator: &str) -> crate::AppServiceResult<FilterOperatorView> {
+    use FilterOperandView::{List, Predicate, Range, Scalar, State};
+    let (label, operand) = match operator {
+        "eq" => ("is", Scalar),
+        "neq" => ("is not", Scalar),
+        "in" => ("is any of", List),
+        "lt" => ("below", Scalar),
+        "lte" => ("at most", Scalar),
+        "gt" => ("above", Scalar),
+        "gte" => ("at least", Scalar),
+        "between" => ("between", Range),
+        "includes" => ("includes", Scalar),
+        "includes_any" => ("includes any", List),
+        "includes_all" => ("includes all", List),
+        "excludes_any" => ("excludes any", List),
+        "exists" => ("has a matching entry", Predicate),
+        "state" => ("availability is", State),
+        _ => {
+            return Err(crate::AppServiceError::new(
+                atlas_app_model::AppErrorCode::InternalError,
+                format!("Executable operator {operator} has no editor operand contract"),
+            ));
+        }
+    };
+    Ok(FilterOperatorView {
+        operator: operator.into(),
+        label: label.into(),
+        operand,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn unsupported_catalog_operator_has_no_fallback_operand() {
+        let error = super::operator_view("new_operator")
+            .unwrap_err()
+            .into_app_error();
+        assert_eq!(error.code, atlas_app_model::AppErrorCode::InternalError);
+        assert!(error.message.contains("new_operator"));
     }
 }

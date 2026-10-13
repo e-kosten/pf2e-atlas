@@ -74,7 +74,7 @@ describe("RecordDetailPane", () => {
       />,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Record unavailable");
-    expect(screen.queryByText("Select a result to inspect it.")).toBeNull();
+    expect(screen.queryByText("Select a record")).toBeNull();
     expect(screen.queryByText("Internal record key was not found")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back to results" }));
     expect(onBack).toHaveBeenCalledTimes(1);

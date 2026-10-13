@@ -1,3 +1,4 @@
+import { encodeFilterUrl } from "./filterUrl";
 import {
   DEFAULT_SEARCH_STATE,
   buildSearchRequest,
@@ -21,7 +22,10 @@ describe("source query state", () => {
     };
     expect(
       decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(state))),
-    ).toEqual(state);
+    ).toMatchObject({
+      ...state,
+      filter: { ...state.filter, clause_id: expect.any(String) },
+    });
     expect(buildSearchRequest(state, 2).criteria).toEqual({
       kind: "text_search",
       query: "dragon",
@@ -68,7 +72,7 @@ describe("source query state", () => {
       new URLSearchParams(
         "limit=1000&filter=" +
           encodeURIComponent(
-            JSON.stringify({
+            encodeFilterUrl({
               kind: "compare",
               field: "actor.level",
               op: "eq",
@@ -96,7 +100,10 @@ it("round trips a root similar criterion and filters without adding a kind filte
   };
   expect(
     decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(state))),
-  ).toEqual(state);
+  ).toMatchObject({
+    ...state,
+    filter: { ...state.filter, clause_id: expect.any(String) },
+  });
   expect(buildSearchRequest(state, 3)).toEqual({
     page: { number: 3, size: 25 },
     expected_artifact_generation: null,

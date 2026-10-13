@@ -1,97 +1,71 @@
-import { Button, Space, Typography } from "antd";
-import { ExternalLink } from "lucide-react";
+import { Alert, Button, Space, Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
-import { FilterPanel } from "../../shared/filters/FilterPanel";
-import { ResultTable } from "./ResultTable";
-import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
+import { FilterControls } from "../../shared/filters/FilterPanel";
+import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
-import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
-import {
-  navigateToAtlasRoute,
-  recordPath,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
-import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 
-type SearchViewProps = {
-  workspace: SearchWorkspaceState;
-};
-
-export function SearchView({ workspace }: SearchViewProps) {
+export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
   return (
-    <WorkspaceLayout
-      filter={
-        <FilterPanel workspace={workspace}>
-          {workspace.search.similarSeed && (
-            <Space wrap>
-              <Typography.Text>
-                {workspace.resultPage?.mode.kind === "similar_records" &&
-                workspace.resultPage.mode.seed.record_key ===
-                  workspace.search.similarSeed
-                  ? `Similar to ${workspace.resultPage.mode.seed.title}`
-                  : "Similar records"}
-              </Typography.Text>
-              <Button
-                size="small"
-                aria-label="Clear similar criterion"
-                onClick={() =>
-                  workspace.setSearch({
-                    ...workspace.search,
-                    similarSeed: null,
-                    mode: "browse",
-                  })
-                }
-              >
-                Clear
-              </Button>
-            </Space>
-          )}
-        </FilterPanel>
-      }
-      results={<ResultTable workspace={workspace} />}
-      resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}
-      selectedRecordKey={workspace.selectedRecordKey}
-      detailHeaderActions={
-        workspace.selectedRecordKey ? (
-          <>
-            <AddToListButton recordKey={workspace.selectedRecordKey} />
-            <PaneIconLink
-              href={recordPath(workspace.selectedRecordKey)}
-              icon={<ExternalLink size={16} />}
-              label="Open full page"
-              onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) {
-                  return;
-                }
-                event.preventDefault();
-                navigateToAtlasRoute({
-                  kind: "record",
-                  recordKey: workspace.selectedRecordKey!,
-                });
-              }}
-            />
-          </>
-        ) : null
-      }
-      detail={
-        <RecordDetailPane
-          detail={workspace.recordDetail}
-          error={workspace.detailError}
-          onRetry={workspace.retryDetail}
-          onBack={() => workspace.selectRecord(null)}
-          backLabel="Back to results"
-          loading={workspace.detailLoading}
-          onReference={(recordKey, _anchor, selection) => {
-            if (
-              selection &&
-              (selection.owners.length || selection.field || selection.passage)
-            )
-              navigateToAtlasRoute({ kind: "record", recordKey, selection });
-            else workspace.selectRecord(recordKey);
-          }}
+    <main className="search-workspace">
+      <FilterControls filterState={workspace} layout="toolbar">
+        {workspace.search.similarSeed && (
+          <Space>
+            <Typography.Text>
+              {workspace.resultPage?.mode.kind === "similar_records"
+                ? `Similar to ${workspace.resultPage.mode.seed.title}`
+                : "Similar records"}
+            </Typography.Text>
+            <Button
+              aria-label="Clear similar criterion"
+              size="small"
+              onClick={() =>
+                workspace.setSearch({
+                  ...workspace.search,
+                  similarSeed: null,
+                  mode: "browse",
+                })
+              }
+            >
+              Clear
+            </Button>
+          </Space>
+        )}
+      </FilterControls>
+      {workspace.errorMessage && (
+        <Alert
+          type="error"
+          showIcon
+          title="Unable to update results"
+          description={workspace.errorMessage}
+          action={
+            <Button
+              loading={workspace.resultsRecovering}
+              onClick={() =>
+                workspace.resultsPaused
+                  ? void workspace.refreshResults()
+                  : workspace.refresh()
+              }
+            >
+              {workspace.resultsPaused ? "Refresh results" : "Retry"}
+            </Button>
+          }
         />
-      }
-    />
+      )}
+      <ReferenceBrowser
+        rows={workspace.resultPage?.rows ?? []}
+        loading={workspace.resultsLoading || workspace.resultsRefreshing}
+        selectedRecordKey={workspace.selectedRecordKey}
+        onSelect={(row) => workspace.selectRecord(row.record.record_key)}
+        reading={workspace.reading}
+        positions={workspace.positions}
+        resultsHeader={<ResultPaneHeader workspace={workspace} />}
+        readerActions={
+          workspace.reading.detail && (
+            <AddToListButton recordKey={workspace.reading.detail.record.record_key} />
+          )
+        }
+      />
+    </main>
   );
 }

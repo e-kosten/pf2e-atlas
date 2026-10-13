@@ -1,3 +1,7 @@
+import {
+  searchStateQueryString,
+  DEFAULT_SEARCH_STATE,
+} from "../shared/filters/searchState";
 import type React from "react";
 import {
   atlasRoutePath,
@@ -194,8 +198,12 @@ it.each(["search", "list", "reader"])(
       passage: null,
       source_fingerprint: "checked-snapshot",
     };
-    const query =
-      "?similar=spells%3Aseed&filter=%7B%22kind%22%3A%22in%22%2C%22clause_id%22%3A%22kind%22%2C%22field%22%3A%22record.kind%22%2C%22values%22%3A%5B%22Creature%22%5D%7D&q=";
+    const query = searchStateQueryString({
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: "spells:seed",
+      mode: "similar_records",
+      filter: { kind: "in", field: "record.kind", values: ["creature"] },
+    });
     const original =
       kind === "search"
         ? "/search/records/actors:checked" + query
@@ -210,7 +218,7 @@ it.each(["search", "list", "reader"])(
     expect(url.pathname).toBe(original.split("?")[0]);
     expect(url.searchParams.get("similar")).toBe("spells:seed");
     expect(url.searchParams.get("filter")).toBe(
-      '{"kind":"in","clause_id":"kind","field":"record.kind","values":["Creature"]}',
+      new URLSearchParams(query).get("filter"),
     );
     expect(JSON.parse(url.searchParams.get("landing")!)).toEqual(selection);
     expect(url.searchParams.has("selection")).toBe(false);
