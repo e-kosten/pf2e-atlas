@@ -87,7 +87,10 @@ test("GM Core Hidden Pit is available in the preview through normal search", asy
   page,
 }) => {
   await page.goto("/search?q=hidden%20pit");
-  const result = page.getByRole("link", { name: "Hidden Pit", exact: true }).first();
+  const result = page
+    .locator("[data-record-key]")
+    .filter({ hasText: "Hidden Pit" })
+    .first();
   await expect(result).toBeVisible();
   await result.click();
   await expect(

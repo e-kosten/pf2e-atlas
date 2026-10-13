@@ -16,12 +16,14 @@ test("narrow preview restores focus after closing during opening, reopening and 
   try {
     await page.getByRole("button", { name: "Add Creature", exact: true }).click();
     const picker = page.getByRole("dialog");
-    await picker.getByRole("textbox", { name: "Search", exact: true }).fill("Ghoul");
-    const row = picker
-      .getByRole("row")
-      .filter({ has: page.getByText("Ghoul", { exact: true }) });
-    await row.getByRole("radio").check();
-    await picker.getByRole("button", { name: "OK", exact: true }).click();
+    await picker
+      .getByRole("searchbox", { name: "Search records", exact: true })
+      .fill("Ghoul");
+    await picker
+      .getByRole("searchbox", { name: "Search records", exact: true })
+      .press("Enter");
+    await picker.locator("[data-record-key]").filter({ hasText: "Ghoul" }).click();
+    await picker.getByRole("button", { name: "Add", exact: true }).click();
     await expect(picker).not.toBeVisible();
     await page.getByText("Ghoul", { exact: true }).first().click();
     const jaws = page.getByRole("button", { name: "Jaws", exact: true });
@@ -60,13 +62,16 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await page.getByRole("button", { name: "Add Creature", exact: true }).click();
     const hazardPicker = page.getByRole("dialog");
     await hazardPicker
-      .getByRole("textbox", { name: "Search", exact: true })
+      .getByRole("searchbox", { name: "Search records", exact: true })
       .fill("Waking Nightmare");
-    const hazardRow = hazardPicker
-      .getByRole("row")
-      .filter({ has: page.getByText("Waking Nightmare", { exact: true }) });
-    await hazardRow.getByRole("radio").check();
-    await hazardPicker.getByRole("button", { name: "OK", exact: true }).click();
+    await hazardPicker
+      .getByRole("searchbox", { name: "Search records", exact: true })
+      .press("Enter");
+    await hazardPicker
+      .locator("[data-record-key]")
+      .filter({ hasText: "Waking Nightmare" })
+      .click();
+    await hazardPicker.getByRole("button", { name: "Add", exact: true }).click();
     await expect(hazardPicker).not.toBeVisible();
     await page.getByText("Waking Nightmare", { exact: true }).first().click();
     const seize = page.getByRole("button", { name: /^Seize\b/ });
@@ -218,10 +223,21 @@ test("saved list creation and unknown manual participant HP use actual local-sta
   await page.goto("/records/pathfinder-bestiary%3ALHHgGSs0ELCR4CYK");
   await page.getByRole("button", { name: "Add to saved list", exact: true }).click();
   await page.getByRole("dialog").getByRole("combobox").click();
-  await page
-    .locator(".atlas-select-popup:visible")
-    .getByText("Browser List " + suffix, { exact: true })
-    .click();
+  // Ant virtualizes long lists; reveal the option rather than assuming it is mounted.
+  const listPopup = page.locator(".atlas-select-popup:visible");
+  const listOption = listPopup.getByText("Browser List " + suffix, { exact: true });
+  await expect
+    .poll(async () => {
+      if (await listOption.isVisible()) return true;
+      await listPopup
+        .locator(".ant-select-dropdown-list-holder")
+        .evaluate((element) => {
+          element.scrollTop += element.clientHeight;
+        });
+      return false;
+    })
+    .toBe(true);
+  await listOption.click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Add", exact: true })
@@ -266,10 +282,16 @@ test("saved list creation and unknown manual participant HP use actual local-sta
   await page.getByRole("button", { name: "Add Creature", exact: true }).click();
   const creatureDialog = page.getByRole("dialog");
   await creatureDialog
-    .getByRole("textbox", { name: "Search", exact: true })
+    .getByRole("searchbox", { name: "Search records", exact: true })
     .fill("Ghoul");
-  await creatureDialog.getByText("Ghoul", { exact: true }).click();
-  await creatureDialog.getByRole("button", { name: "OK", exact: true }).click();
+  await creatureDialog
+    .getByRole("searchbox", { name: "Search records", exact: true })
+    .press("Enter");
+  await creatureDialog
+    .locator("[data-record-key]")
+    .filter({ hasText: "Ghoul" })
+    .click();
+  await creatureDialog.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.getByText("Ghoul", { exact: true }).first().click();
   await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
@@ -395,7 +417,18 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/search?q=%22Ghoul%20Fever%22");
-  await page.getByRole("link", { name: "Ghoul Fever", exact: true }).first().click();
+  const ghoul = page.locator(".reference-result").filter({
+    has: page.locator('[data-record-key="pathfinder-bestiary:LHHgGSs0ELCR4CYK"]'),
+  });
+  await ghoul.getByRole("button", { name: /matches in Ghoul$/ }).click();
+  await page
+    .locator(".reference-match-list:visible")
+    .getByRole("link", { name: "Ghoul Fever", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("link", { name: "Open Ghoul Fever full reference", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/records\/.*selection=/);
   const fever = page.getByRole("heading", { name: /^Ghoul Fever\b/ });
   await expect(fever).toBeVisible();
@@ -409,6 +442,12 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
   });
   await page.goto("/search?q=%22Soul%20Degradation%22");
   await page
+    .locator(".reference-result")
+    .first()
+    .getByRole("button", { name: /matches in/ })
+    .click();
+  await page
+    .locator(".reference-match-list:visible")
     .getByRole("link", { name: "Soul Degradation (Curse 7)", exact: true })
     .first()
     .click();
@@ -429,7 +468,7 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
   await page.goto("/search?q=transform%20into%20a%20dragon");
   await expect(page.getByText(/candidate records/)).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Dragon Form", exact: true }).first(),
+    page.locator("[data-record-key]").filter({ hasText: "Dragon Form" }).first(),
   ).toBeVisible();
   await page.goto(
     "/search?filter=" +
@@ -443,7 +482,9 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
         }),
       ),
   );
-  await expect(page.getByRole("columnheader", { name: "Name" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Search results", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/Wellspring Surges/).first()).toBeVisible();
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   const advanced = page.getByRole("region", {
@@ -629,8 +670,11 @@ test("suggested variants compare authored details and Similar uses its real rout
     page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("textbox", { name: "Search records", exact: true })
+    .getByRole("searchbox", { name: "Search records", exact: true })
     .fill("dragon");
+  await page
+    .getByRole("searchbox", { name: "Search records", exact: true })
+    .press("Enter");
   await expect(page).not.toHaveURL(/similar=/);
   await page.goBack();
   await expect(page).toHaveURL(/similar=/);
@@ -639,7 +683,7 @@ test("suggested variants compare authored details and Similar uses its real rout
   ).toBeVisible();
   await page.goForward();
   await expect(
-    page.getByRole("textbox", { name: "Search records", exact: true }),
+    page.getByRole("searchbox", { name: "Search records", exact: true }),
   ).toHaveValue("dragon");
   await page.goBack();
   await page.getByRole("button", { name: "Clear similar criterion" }).click();
