@@ -106,7 +106,7 @@ Run these in addition to plan-block validation when applicable:
 - **Architecture consistency**: relevant `docs/architecture/` and ADR guidance match the implementation, and required doc updates landed.
 - **Refactor completion**: old implementations, compatibility wrappers, temporary shims, unused exports, and mixed old/new call paths are gone.
 - **Search/index/data implications**: required refresh steps, schema changes, fixtures, generated indexes, and migration notes are accounted for.
-- **Git/worktree completion**: expected commit, merge, branch, validation on main, and temporary worktree cleanup obligations are satisfied when the plan or repo policy requires them.
+- **Git/worktree completion**: expected commit, PR/merge, branch, post-merge validation and worktree retention/cleanup obligations are satisfied when the plan or repo policy requires them.
 
 ## Validation Artifact
 
@@ -116,17 +116,10 @@ Write a new artifact under:
 
 Do not overwrite an existing validation artifact for a new pass. Treat the artifact as scratch output unless the user explicitly asks to commit it.
 
-Include:
-
-1. Plan and implementation scope
-2. Overall verdict
-3. Validation matrix
-4. Delegated focus areas and assigned validators
-5. Findings by focus area
-6. Cross-cutting findings
-7. Missing, partial, or unproven plan items
-8. Recommended remediation order
-9. Commands or checks run
+Include the scope and overall verdict, a checkable validation matrix, evidence
+and findings for each focus area, cross-cutting results, unresolved items and
+recommended remediation. Identify delegated coverage and checks performed.
+Choose sections that make the evidence and remaining work easy to assess.
 
 Use checkboxes in the validation matrix:
 

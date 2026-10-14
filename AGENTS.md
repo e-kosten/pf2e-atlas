@@ -61,8 +61,8 @@ Use a written plan for substantial work, with one current plan per task. Reuse i
 as the discussion evolves; routine fixes and next-step questions need no new file.
 Keep plans concise and their status explicit. Consult the local
 `scratch/plans/README.md` when present; keep it current and archive completed or
-superseded plans with references/provenance preserved. Plan in the current checkout
-without switching to `main`. See the repo-plan skill for the local lifecycle.
+superseded plans with references/provenance preserved. Use the task's appropriate
+checkout and base. See the repo-plan skill for the local lifecycle.
 
 ## Frontend UI Direction
 

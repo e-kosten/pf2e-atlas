@@ -41,8 +41,8 @@ status and concrete acceptance checks. The local `scratch/plans/README.md`, when
 present, indexes current and deferred work. Archive completed or superseded plans,
 update mutable links, and retain provenance-bound originals. Plans are local working
 artifacts; architecture docs and the tracked backlog remain durable shared guidance.
-Planning does not require switching to `main` and does not authorize implementation,
-commits or publication. Keep planning uncommitted unless explicitly requested.
+Use the task's appropriate checkout while planning. Plan approval and execution
+authorization are separate; keep planning uncommitted unless explicitly requested.
 
 ## Commit Messages
 
@@ -130,8 +130,8 @@ incremental compilation. This keeps source/function backtraces and qualified
 function names and reuses compiler work during editing. The large generated
 `atlas-foundry-model` crate disables incremental compilation to avoid retaining
 its extra compiler cache; Cargo still reuses its unchanged completed output.
-Clean CI jobs set `CARGO_INCREMENTAL=0` globally. Debug assertions, overflow checks,
-test coverage and release settings are unchanged. Tests inherit development settings.
+Clean CI jobs set `CARGO_INCREMENTAL=0` globally. Tests inherit development settings,
+including debug assertions and overflow checks; release uses its own profile.
 
 For a debugger session that needs variable/type inspection, use the full-debug
 profile for both builds and tests:

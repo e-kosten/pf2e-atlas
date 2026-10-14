@@ -1,6 +1,6 @@
 # PF2e Atlas
 
-PF2e Atlas gives players, GMs, tool builders, and local coding agents a fast way to search and reference Pathfinder Second Edition content locally. It supports record lookup, ranked search, structured filters, name resolution, similar-record retrieval, and graph context.
+PF2e Atlas gives players, GMs, tool builders, and local coding agents a fast way to search and reference Pathfinder Second Edition content locally. It supports record lookup, ranked search, structured filters, name resolution, similar-record retrieval, graph context, and a local web workspace.
 
 The `atlas` CLI indexes PF2E data from the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e) and exposes tools for people and agents.
 
@@ -8,11 +8,12 @@ The `atlas` CLI indexes PF2E data from the [Foundry PF2E repository](https://git
 
 With `atlas`, you can:
 
+- browse reference records in the local web app, maintain saved lists, and run encounters
 - search PF2E records by text, kind, and structured filters
 - resolve names (including by pre-remaster aliases)
 - find records similar to a known seed record
 - inspect nearby references around a known record
-- install a PF2e Atlas skill to educate local agents about the CLI so they can find PF2E content 
+- install a PF2e Atlas skill that guides local agents through lookup and discovery
 
 ## Quick Start
 
