@@ -3,7 +3,7 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-13
 
 ## Problem
 
@@ -41,6 +41,30 @@ description key. Preserve missing descriptions. Foundry otherTags can have
 family-specific vocabularies and remain distinct from traits and Atlas authored
 tags. Description prose does not itself supply structured implication edges or
 executable mechanics. AoN-style citations/links require a separate source review.
+
+## Follow-up: rules references within prose
+
+The user flagged Create Demiplane's Gravity feature: AoN links to useful
+[gravity rules](https://2e.aonprd.com/Rules.aspx?ID=3017&Redirected=1), while Atlas
+offers no definition or navigation at that mention. Investigate this alongside
+trait/glossary definitions, keeping actual record trait membership distinct from
+rules concepts mentioned in prose.
+
+An initial check of the pinned PF2e 6.12.4 export (source commit `4cbdaa37`)
+found Gravity as a plain feature heading in Create Demiplane, with no authored
+reference. The ritual's structured traits are Mythic and Teleportation. Its English
+catalog has a Subjective Gravity label but no matching definition; the journal
+pack did not contain the gravity-rules section. This is a source-coverage question,
+not evidence that the renderer dropped an authored Gravity link.
+
+Review the earlier trait/tag catalog extraction, explicit description mappings,
+localization, rule journals and any authored references. Distinguish labels alone,
+usable definitions and resolvable rule destinations, and verify the pinned source
+before relying on newer Foundry content. Determine what can be supported directly
+from Foundry and what would require a separately reviewed external mapping or
+additional rules source. Discuss the presentation and association policy before
+implementation; do not auto-link arbitrary prose from label matches or invent
+relationships where source evidence is absent.
 
 ## Initial Scope
 

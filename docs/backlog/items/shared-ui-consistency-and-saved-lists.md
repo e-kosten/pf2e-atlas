@@ -1,7 +1,7 @@
 # Shared UI consistency and saved-list presentation
 
 Status: proposed
-Last reviewed: 2026-10-12
+Last reviewed: 2026-10-13
 
 ## Problem
 
@@ -36,6 +36,15 @@ This is a separate follow-up to the full-corpus search evaluation, not part of
 that evaluation's implementation scope. Completion requires a cross-surface
 comparison, justified component reuse, behavior checks and visual/user review.
 A saved-list-only cosmetic pass does not establish application-wide consistency.
+
+## Reported reading-width inconsistency
+
+Create Demiplane shows some content constrained to roughly half the available
+reading space while horizontal rules span the full space. Review the shared
+document layout and inherited styles for paragraphs, lists, other blocks and
+horizontal rules. Agree a coherent reading width with the user before changing
+it; narrower prose can be deliberate, but mixed block widths should be intentional.
+Check wide and narrow screens and the shared full-page/preview presentations.
 
 ## References
 
