@@ -1,39 +1,24 @@
-# Rust CLI And Skill Capability Follow-Through
+# CLI and Skill Usability
 
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-05-19
+Last reviewed: 2026-10-13
 
-## Problem
+Improve the CLI and first-party skill around observed lookup, discovery, output
+and readiness friction. Prioritize changes that help people and agents choose
+commands and interpret results reliably.
 
-The CLI plus first-party skill is the primary product surface. Product ideas that previously would have been phrased as transport or tool-schema enhancements should be evaluated as CLI command, JSON contract, setup, discovery, graph, or skill-guidance improvements.
+Candidate work includes concise kind-specific search facts, useful miss handling,
+pack/source discovery, clearer command examples, graph-context guidance,
+actionable readiness remediation and batch JSON examples. Filter guidance should
+use the typed catalog and distinguish field availability from matching values.
 
-Without a dedicated follow-up, useful query/discovery ideas can be lost when their old implementation wording is retired.
+Keep each improvement tied to a concrete task and evaluate its result. Shared
+product behavior belongs to its runtime, search or application owner; CLI
+presentation belongs in atlas-cli. Coordinate overlapping browser discovery
+needs through the shared contracts.
 
-## Desired Outcome
-
-Improve the CLI and skill around real task friction found during use.
-
-Candidate areas:
-
-- richer kind-specific preview facts in search results
-- typo-tolerant or suggestion-oriented discovery without weakening strict `record resolve`
-- pack/source listing if it proves useful for agents
-- clearer command examples and command-choice rules in the skill package
-- graph context guidance for common rule, condition, trait, and action questions
-- better setup/readiness remediation text when an agent hits an artifact or embedding problem
-- JSON examples for common batch workflows
-- filter-discovery examples that reduce guessing around metadata, metrics, references, and traits
-
-## Constraints
-
-- Prefer small measured improvements tied to observed CLI or skill friction.
-- Keep the product surface CLI-first; do not introduce a transport-specific compatibility layer.
-- Keep durable behavior in runtime/search/index crates and command presentation in `atlas-cli`.
-
-## Related
-
-- [Runtime architecture](../../architecture/runtime.md)
-- [ADR 0023: Rust CLI JSON contract](../../architecture/decisions/0023-rust-cli-json-contract.md)
-- [ADR 0026: Rust CLI product surface](../../architecture/decisions/0026-rust-cli-product-surface.md)
+Related: [kind preview facts](rust-cli-kind-preview-facts.md),
+[query spelling](rust-cli-typo-tolerant-discovery.md),
+[runtime architecture](../../architecture/runtime.md).

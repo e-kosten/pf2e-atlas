@@ -1,21 +1,21 @@
-# Rust CLI Typo Tolerant Discovery
+# Query Spelling and Name Suggestions
 
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-05-22
+Last reviewed: 2026-10-13
 
 ## Problem
 
 Strict record resolution intentionally misses misspelled names, but the fallback search path is not currently useful for simple typo recovery. A misspelled query such as `Treet Wonds` can return unrelated ranked results instead of surfacing likely nearby canonical names such as `Treat Wounds`.
 
-This is not a short-term blocker for agent workflows because agents usually issue copied or canonical names. It is still worth tracking for human CLI use and for resilience when user-provided names contain small mistakes.
+Offer useful spelling assistance in human CLI and browser search, while keeping canonical-name lookup reliable for agents.
 
-The same problem appears in ranked search: FTS backends are not a reliable place to depend on fuzzy matching, and neither the current SQLite path nor the Ladybug spike should be expected to own typo correction as a storage feature. Typo checking is better treated as a backend-independent query analysis layer that can run before or after strict FTS attempts.
+Treat typo checking as shared query analysis over corpus vocabulary, with explicit suggestions available to CLI and browser consumers. Evaluate it alongside lexical attempts without making correction behavior a storage-backend responsibility.
 
 ## Desired Outcome
 
-The CLI offers a deliberate typo-tolerant discovery path without weakening strict resolution semantics.
+CLI and browser search offer deliberate spelling/name assistance while record resolution stays strict.
 
 Potential solutions include:
 
@@ -32,7 +32,7 @@ Potential solutions include:
 - Keep `record resolve` strict by default.
 - Do not let fuzzy name behavior silently replace ranked semantic search.
 - Avoid broad synonym maps or hand-maintained typo rules.
-- Do not require a specific DB backend to provide fuzzy matching. This should work across SQLite, Ladybug, or a future storage backend.
+- Keep spelling/name assistance in shared product behavior with a clear vocabulary source.
 - Do not auto-apply corrections by default. PF2e has many source-specific proper nouns and invented terms, so correction should generally be presented as a suggestion unless a future confidence model proves safe.
 - Keep acronym expansion small, explicit, and product-owned. It should improve known abbreviations without becoming a general synonym system.
 

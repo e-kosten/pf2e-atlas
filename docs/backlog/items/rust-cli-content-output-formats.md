@@ -1,20 +1,25 @@
-# Rust CLI Content Output Formats
+# Additional CLI Content Formats
 
 Status: deferred
 
-## Context
+## Current Surface
 
-The Rust CLI now exposes structured presentation-content blocks derived from canonical `RichDocument` values and renders terminal output directly from that DTO. Future consumers may still need additional output formats tailored to automation, source auditing, or web presentation.
+Human record reading supports summary, standard and full detail. Record JSON
+returns the complete selected Atlas reference response. A separate source command
+exports the checked Foundry DTO and provenance; developer original-file inspection
+reads the configured source checkout with hash verification.
 
-There are plausible future consumers for more than one content representation:
+Prepared sanitized HTML is the shared display input, with terminal rendering
+performed at read time. These surfaces follow
+[ADR 0047](../../architecture/decisions/0047-semantic-record-presentation.md).
 
-- structured `RichDocument` JSON for source-preserving audit/debug use
-- structured presentation-content JSON for user-facing record output
-- original Foundry rich text or source document fragments
-- plain text projections for simple terminal and shell use
+## Open Question
 
-## Desired Outcome
+Identify a concrete consumer need before adding another content format. Possible
+needs include selected prepared HTML, authored markup fragments, or plain text
+for shell workflows. Decide what information the existing reference/source
+responses lack and how callers would request the additional output.
 
-Decide which non-default content formats the Rust CLI should expose, how callers select them, and whether optional output should represent canonical `RichDocument` structure, presentation content, plain text, or Foundry-origin format where available.
-
-The default record output should remain stable while adding any optional content format.
+Keep the human detail axis, reference JSON contract, source inspection and any new
+format clearly distinguished. Use the existing checked source and preparation
+outputs when they satisfy the request. This item selects no new format or model.

@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-12
+Last reviewed: 2026-10-13
 
 ## Problem
 
@@ -27,51 +27,19 @@ The pass should decide:
 - how counts and disabled/unavailable options behave as filters compose;
 - how common simple queries remain easy within the structured group editor.
 
-## Current implementation scope
+## Current Baseline
 
-Backend contracts provide a catalog-owned common Level / rank field, ordered
-Kind/Level-rank/Rarity/Traits roles and readable editor metadata. Contextual
-suggestions/counts use typed optional availability independently of valid search.
-Explicit count-free vocabulary retains artifact/list scope and selected values.
-The shared browser controls now expose those common fields, preserve complex
-conditions in the advanced editor, retain invalid input as local drafts and use
-searchable grouped fields with readable operators. Value controls use explicit
-server-side vocabulary search/paging and retain selected values. The browser
-uses its hybrid product default, with page size beside results; filter URLs
-retain the canonical predicate. A narrow Ant Drawer and pane-width layout serve
-search and saved lists through the same owners. Per-value include/exclude states
-share one canonical predicate, while the advanced editor shows residual conditions
-without duplicating common clauses. Structural boolean constants remain editable.
-Unfinished drafts use local feedback. Browsing results use row activation and
-native full-page links without radio selection. Browser-local remembered Kind
-is a default only for fresh bare search visits; incoming URLs remain authoritative.
+Search, saved-list filtering and encounter selection reuse the backend catalog,
+canonical predicate and shared browser controls. Common Kind, Level/rank, Rarity
+and Traits controls coexist with a maintained advanced query builder. Categorical
+choices use per-value include/exclude state; vocabulary search is bounded and
+selected values remain available. URL state and local drafts have distinct owners.
 
-Common categorical fields use one compact searchable Ant picker shared by search
-and saved lists. Each option cycles neutral/include/exclude with a small marker;
-only active removable selections appear when closed. Menus retain row order and
-keyboard focus during edits, including selected literals outside the current
-vocabulary page. Scoped vocabulary remains count-free with bounded server search
-and paging; complex Any/All conditions retain the maintained advanced editor.
-
-Search and the encounter Add chooser share the compact result browser and the
-full reference renderer. Common controls sit in a toolbar; full advanced editing
-remains in a native Ant Drawer. Keyword entry submits on Enter or Search; filter
-edits remain independent. Per-row matches open a bounded native Popover. The
-chooser preserves its explicit candidate while reading related references and
-retains quantity/initiative through failed Add attempts.
-
-Similar search reuses stateless search pages, the browser and canonical predicate.
-Its URL preserves the root seed and filters through reload, Back/Forward and
-generation recovery from page1. Keyword entry replaces the seed; clearing the criterion
-preserves filters. Similarity uses catalog choices and count-free vocabulary,
-with contextual text counts disabled. Top matches and available pages retain
-bounded-search meaning without an exhaustive total claim or a hidden same-kind
-filter. The related-record preview links to this same search workflow.
-
-Focused frontend tests and read-only real API/browser workflows are implemented.
-Completion requires integrated verification, independent Astra task/visual review,
-and product feedback on the common and advanced workflows. Local tests alone do
-not finish this backlog item.
+Current behavior is documented in
+[frontend guidelines](../../../web/atlas-ui/docs/frontend-guidelines.md).
+Further UX work should improve priority, labels, grouping and discoverability
+through those owners. [Option counts](web-contextual-option-counts.md) are a
+separate follow-up; current count-free vocabulary stays useful for valid filters.
 
 ## Constraints
 
