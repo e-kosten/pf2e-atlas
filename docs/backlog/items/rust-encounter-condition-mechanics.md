@@ -44,9 +44,9 @@ Condition automation uses a backend-owned modeled-condition catalog for the firs
 
 ## Related
 
-- [Runnable encounters design](../../../scratch/plans/2026-06-22-runnable-encounters-design.md)
-- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
-- [Encounter runtime surfaces plan](../../../scratch/plans/2026-06-25-encounter-runtime-surfaces-plan.md)
+- Runnable encounters design (historical local plan: `scratch/plans/archive/2026-06/2026-06-22-runnable-encounters-design.md`)
+- Encounter mechanics activity model (historical local plan: `scratch/plans/archive/2026-06/2026-06-24-encounter-mechanics-activity-model.md`)
+- Encounter runtime surfaces plan (historical local plan: `scratch/plans/archive/2026-06/2026-06-25-encounter-runtime-surfaces-plan.md`)
 - [Rust encounter elite and weak projection](./rust-encounter-elite-weak-projection.md)
 - [Rust encounter actor context effects](./rust-encounter-actor-context-effects.md)
 - [Rust encounter runtime mechanics surfaces](./rust-encounter-runtime-mechanics-surfaces.md)

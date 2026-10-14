@@ -33,6 +33,17 @@ Provide a stable local build when a change is useful to inspect. State its branc
 
 UI changes require interaction and visual review alongside automated checks. Agents use Astra sub-agents for presentation review, including actual browser inspection. Local validation, hosted CI, and human acceptance are separate outcomes; a passing gate does not establish visual acceptance.
 
+## Working Plans
+
+Substantial tasks may use one concise local plan under `scratch/plans/`; ordinary
+fixes do not require one. Refine the same plan as scope evolves, using an explicit
+status and concrete acceptance checks. The local `scratch/plans/README.md`, when
+present, indexes current and deferred work. Archive completed or superseded plans,
+update mutable links, and retain provenance-bound originals. Plans are local working
+artifacts; architecture docs and the tracked backlog remain durable shared guidance.
+Planning does not require switching to `main` and does not authorize implementation,
+commits or publication. Keep planning uncommitted unless explicitly requested.
+
 ## Commit Messages
 
 Use Conventional Commits for all changes. Every commit message must include a Conventional Commit summary line. A short description body is optional, but when present it must appear after a blank line.
