@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-13
 
 ## Problem
 
@@ -53,6 +53,42 @@ candidate is offered for product feedback.
 - Keep adjustment, HP and condition arithmetic in Rust.
 - Separate restoration of genuinely missing runtime behavior from layout repairs.
 - Validate on disposable local state rather than modifying user encounters.
+
+## Follow-up from encounter use
+
+Review the encounter workflow as a whole before implementing these reported
+issues. The current shared reference layouts are useful ingredients, not proof
+that the runner's information hierarchy or interaction design is complete.
+
+- Add several creatures without repeatedly reopening the picker. Quantity already
+  supports copies of one selection; the current picker closes after each successful
+  add. Compare keeping it open for successive additions with batch selection,
+  retaining useful previews, quantities and clear mutation/failure feedback.
+- Make the roster substantially more compact. Preserve readable names, initiative,
+  current turn and HP while reducing repeated labels, multi-line controls and
+  per-row actions. Evaluate a realistic larger encounter on laptop and wide screens.
+- Review HP controls, HP details and participant Edit details together. Put frequent
+  combat changes first and occasional setup/override controls where their purpose
+  is clear. Preserve existing HP intent and persistence semantics.
+- Align the creature classification and variant controls in the selected header,
+  including wrapping and narrow-pane behavior.
+- Clarify the top-right Edit action. The page action edits encounter metadata and
+  lifecycle; the creature pencil edits a participant note. Distinguish both from
+  participant Edit details through placement, labels and discoverable context.
+- Replace the vague More creature facts disclosure with a deliberate secondary
+  information arrangement. It currently contains perception details, languages,
+  ability modifiers, skills and runtime notes. Reproduce the reported duplication
+  across primary, secondary, adjustment explanations and source-reference views;
+  do not assume those are all the same data. Avoid unnecessary repeated reading.
+
+Reusable party definitions are tracked in [party presets](encounter-party-presets.md).
+Creature initiative rolling and general dice interaction are tracked in
+[product actions](foundry-inspired-product-actions.md); they require behavior
+contracts as well as presentation work, rather than a cosmetic button addition.
+
+Discuss the proposed end-to-end interaction with the user before UI changes.
+Use the existing shared Ant controls and family renderers, and have Astra review
+real visual output and interactions before presenting an implementation for review.
 
 ## Known Accessibility Follow-up
 

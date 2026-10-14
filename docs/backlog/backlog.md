@@ -76,6 +76,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Later
 
+- [Reusable encounter party definitions](items/encounter-party-presets.md)
+  Define a party once and add its members to encounters without repeatedly
+  entering their details. Status: proposed.
+
 - [Source query catalog expansion](items/source-query-catalog-expansion.md)
   Add useful authored fields and collection scopes with shared catalog semantics
   and direct DTO evidence. Status: deferred.
