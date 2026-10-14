@@ -24,26 +24,18 @@ participant names, while defenses and abilities require substantial scrolling.
 Use the earlier integration branch as feature/layout inspiration. Validate
 mechanical correctness against current Rust policies and source evidence.
 
-## Current Implementation Scope
+## Current Baseline
 
-Shared family presentation supplies grouped combat mechanics. Existing activity
-buttons open native quick lookup containing only requested authored prose and
-current exact participant activity facts/explanations. Reference-content caches
-retain no adjusted facts; participant, generation and activity changes remain
-explicit without baseline child-detail fallback. Native full reference links and
-nested source-dialog Escape/focus remain available. Content-free hydration
-captures source generation once per deduplicated retrieval; manual-only encounters
-remain usable without opening an artifact. The runner prioritizes HP, damage/heal and conditions, with
-initially closed Edit details and HP details disclosures. Roster names wrap and
-current turn has an explicit label. Existing participant state and edit-intent
-semantics remain unchanged. Source content is available through explicit loading.
-Immediate defenses, movement and actions share the useful combat view; secondary
-skills, communication and runtime facts remain available below actions.
+The runner composes persisted participant state with the shared family
+presentation and bounded Rust overlays. HP, damage/heal and conditions are
+primary controls; participant and HP settings have separate disclosures. Owned
+activity lookups use shared reference rendering and exact participant context.
+Source reference remains explicitly accessible.
 
-Focused tests cover keyboard controls, disclosure reset across participants,
-HP/override intent and saved-response reload. Integrated gates, actual browser
-state persistence and independent Astra visual review are required before the
-candidate is offered for product feedback.
+The next usability review should evaluate this composition through actual
+encounter tasks, including the reported follow-ups below. Preserve coherent
+mutations, availability states and participant-local changes while improving
+information hierarchy and density.
 
 ## Constraints
 

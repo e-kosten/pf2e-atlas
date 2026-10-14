@@ -3,7 +3,7 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-25
+Last reviewed: 2026-10-13
 
 ## Problem
 
@@ -29,10 +29,10 @@ The implementation should:
 ## Constraints
 
 - Do not persist derived trait effects in local-state rows.
-- Do not make trait automation depend on the current static `RecordPresentationDocument` shape.
+- Read traits from checked source facts; keep automation independent of display layout.
 - Do not build a general PF2E rules engine in this slice.
 - Do not force all future trait-like behavior to come from the base record; participant-applied effects must remain possible for cases such as summoned creatures or source-specific minion behavior.
-- Avoid expanding runtime presentation sidecars before the broader record/mechanics presentation unification question is addressed.
+- Compose supported effects through the existing encounter presentation under ADR 0047.
 
 ## Related
 

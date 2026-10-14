@@ -1,150 +1,62 @@
-# Source-backed search quality evaluation
+# Source-backed Search Quality Evaluation
 
 Status: proposed
 Priority: soon
 Owner: unassigned
 Last reviewed: 2026-10-13
 
-## Current baseline
+## Current Baseline
 
-ADR 0046 governs the source-backed artifact and search policy. Precision FTS uses
-identity, verified aliases, typed vocabulary and named definitions. Semantic units
-independently cover selected root and owned prose. One maximum accepted unit score
-represents a root; hybrid RRF combines one root rank per lane, with specificity
-tiers for exact identity/alias/owned-label evidence before fusion score. Eligibility
-applies before ranking, and semantic candidate windows are bounded.
+Precision FTS covers identity, verified aliases, typed vocabulary and named
+owned definitions. Semantic selection covers selected root and owned explanatory
+passages. Search uses one accepted semantic contribution per root and fuses root
+ranks with lexical specificity tiers. Eligibility and bounded candidate selection
+follow [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md).
 
-The full pinned PF2e 6.12.4 artifact has now been built and deeply validated, with
-25,560 product roots and 130,566 semantic units. Local evidence is under
-`scratch/full-corpus-search/`: frozen source-backed queries, raw CLI results,
-independent judgments, human/JSON navigation checks and latency receipts. This
-focused sample is not an exhaustive search-quality certification. Independent
-evidence audit passed; policy recommendations remain local research awaiting
-user review before implementation.
+Local full-corpus experiments exposed tradeoffs between descriptive discovery and
+useful owner capabilities. No experimental ranking policy has been selected for
+production. The [dated evaluation notes](../../research/source-backed-search-evaluation.md)
+preserve findings, sample sizes, evidence limits and local artifact references.
 
-## Follow-up decisions
+## Next Evaluation
 
-The local hierarchy comparison now covers eight policies on the same frozen 24
-intents and unchanged embeddings. All baseline top 10 orders and candidate-root
-counts replay exactly. Source review covers 228 unique query/root pairs across all
-policy top 5 results. Lower owned semantic influence improves descriptive discovery
-but damages unique owned abilities, primary journal-page content and deliberately
-requested carried-spell capabilities. Removing owned FTS alone does not fix the
-descriptive cases. See `scratch/full-corpus-search/hierarchy/README.md` for measured
-tradeoffs and evidence limits; no experimental policy has replaced product ranking.
+Compare the distinct roles of primary identity, the root's own explanation,
+intrinsic local mechanics and associated content. Preserve useful exact embedded
+name discovery and genuine queries for an owner's capabilities while reducing
+noisy partial-label and associated-body influence where evidence supports it.
 
-The subsequent research inventoried primary and associated content and compared
-role-aware ranking policies. Ownership depth and compendium origin alone cannot
-define those roles. Exact local definitions and capability searches constrain any
-weight changes; production implementation still requires user review.
+The proposed work should:
 
-The content-role inventory now reconciles every existing lexical/semantic unit to
-its pinned source node/field and checks all 25,641 source hashes. The proposal in
-`scratch/full-corpus-search/content-roles/PROPOSAL.md` distinguishes root/intrinsic
-explanation from named components and associated bodies. Nested spells inside root
-consumables differ from the same spells inside carried items. Build-option/status
-bodies and attached subitems remain explicit policy-review categories.
+- Compare partial embedded-label influence separately from primary-name behavior
+  and exact embedded-name specificity.
+- Test reduced associated semantic influence with one contribution per root,
+  using matched candidate budgets and explicit source attribution.
+- Evaluate self-description and intrinsic mechanics as separate evidence classes;
+  their usefulness depends on the query, not an implicit product intent setting.
+- Probe paragraph/context embedding inputs separately from ranking changes over
+  existing vectors. Define source coverage, reuse identity and inference cost
+  before generating inputs.
+- Include masked-spirit paraphrases, repeated-match observations and actual
+  associated-only owner positives. Keep exposed development cases distinct from
+  a fresh source-grounded holdout and cluster related scenarios.
 
-A local ignored review harness piloted 12 curated development query/root pairs
-with three fresh Luna reviewers (36 votes). It preserves ballots, abstentions,
-packet hashes and literal source citations, separating root relevance from witness
-support. The pilot revealed usefulness-boundary disagreement; source adjudication
-does not use numerical majority as truth or overwrite earlier grades. It is not a
-policy-quality or judge-reliability estimate. Actual prepared-snippet packets and
-rubric anchors are required before scaling beyond calibration.
+Freeze candidate policies and evaluation rules before opening the holdout. Judge
+root relevance and witness support separately; use source evidence to resolve
+consequential disagreements. A small target-only embedding probe establishes
+input behavior, not full-corpus ranking quality. Preserve exact lookup and broad
+semantic discovery while evaluating changes.
 
-Broader evaluation intent is 48 development/24 new held-out scenarios, stratified
-by task/family and split by concept/target clusters rather than paraphrases. Freeze
-source-grounded queries before retrieval, preserve non-exhaustive positives and
-source-authored bias, and expose holdout results only after bounded candidate
-policies are fixed. Any later tuning needs a new held-out cycle. Classification
-review and this evaluation protocol precede new policy tests; production behavior
-and the successful artifact remain unchanged.
+## Execution Boundaries
 
-The role-aware development comparison is complete: nine declared hypotheses on 48
-frozen queries, with two panels covering 479 root/query pairs and 1,872 displayed
-witnesses each. Source review verifies canonical spell/item discovery gains,
-genuine character-owned capability admission losses under support-only treatment,
-and flavor regressions caused by adding separate primary and associated ranks.
-Three unchanged diagnostic policies were frozen before opening the 24-case holdout;
-all 72 development/holdout baseline outputs replay exactly.
+Reuse the pinned artifact and model where input identity permits. Agree resource
+budgets and any full-corpus rebuild separately. New models, learned rerankers,
+search backends, product intent controls and narrative FTS expansion require their
+own evidence and design decision. Keep ordinary filters explicit user criteria.
 
-The independent annotation audit found wrong answer-kind credit, missed qualifiers
-and evidence credited beyond displayed snippets, including unanimous errors.
-Raw witness aggregates do not select a policy; raw root aggregates remain
-exploratory. Consequential source checks and explicit uncertainty are required.
-The holdout's capability-labeled cases concern standalone options, so they cannot
-establish protection for genuine associated-only owner searches. Local evidence
-and the source-bounded recommendation are in
-`scratch/full-corpus-search/role-evaluation/FINDINGS.md`.
+Maintained evaluation tooling, if needed, belongs in a reviewed developer surface.
+The current local plan is under scratch/plans, indexed by its local README;
+implementation and publication require authorization for that scope.
 
-Do not adopt a blanket associated-content exclusion or a by-kind formula from this
-comparison. A reduced-associated, single-semantic-contribution candidate requires
-a new frozen experiment with real ownership positives. Changed embedding inputs
-(primary prose plus associated names, or typed gameplay facts) remain untested and
-need a separate input/reuse/cost design. This opened holdout is unavailable for
-subsequent tuning as unseen evidence. Production implementation awaits user review.
-
-- Agree what default discovery should return when a matching embedded spell or
-  equipment entry belongs to a root that does not itself answer the request.
-  Compare that with useful local afflictions, unique creature abilities and
-  explicitly requested spell-carrying creatures; do not blanket-exclude embedded
-  Item types. A copied spell may itself contain a useful affliction definition.
-- Evaluate answer identity, ownership scope and repeated-copy diversity before
-  changing RRF constants or switching models. Descriptive failures in the sample
-  occur in vector-only results as well, so hybrid ordering is not a universal cause.
-- Preserve ordinary kind/trait filters as explicit criteria. They improve answer
-  shape in post-baseline diagnostics but do not settle unfiltered discovery or
-  within-kind conceptual relevance. Do not silently infer filters from query text.
-- Compare exact embedded-name specificity separately from semantic candidate-window
-  diversity. The controlled comparison finds no named-example admission miss in
-  this packet; balanced semantic pools add roots but do not change its top 5 under
-  unchanged maximum aggregation. This is focused evidence, not proof that candidate
-  crowding never affects other queries.
-- Evaluate witness quality separately from root relevance: the correct owned
-  lexical definition can coexist with an unrelated highest semantic passage.
-- Keep fresh CLI model/artifact startup separate from warm service end-to-end
-  latency. Neither wall-time measurement isolates SQL or represents release builds.
-
-## Evaluation direction
-
-Next proposed research scope is recorded in
-`scratch/plans/2026-10-13-search-evidence-and-semantic-input-evaluation.md`.
-Evaluate partial embedded-label influence without losing exact embedded-name
-discovery, one semantic contribution with reduced associated influence, and a
-separate self-description/intrinsic-mechanics preference hypothesis. Preserve
-primary-title/alias rules and meaningful ownership answers. Include real-user
-masked-spirit and duplicate-match observations as exposed development cases.
-Fresh holdout must contain actual associated-only owner positives, with paraphrases
-clustered rather than counted as independent scenarios.
-
-Bundle bounded paragraph/context input probes using the pinned model, separately
-from existing-vector ranking results. Target-only re-embedding cannot establish a
-full-corpus gain; a broader input experiment needs a separate cost/exposure decision.
-No intent controls, narrative FTS expansion, alternate model or production policy
-is selected by this proposed scope.
-
-Retain and reuse the successful full artifact and shared pinned model assets.
-Build a repeatable source-backed judgment set with expected records and explanatory
-passages. Include creature lore, owned afflictions, spell mechanics, long documents,
-copied spells/equipment and noise-prone small sections. Later multilingual/source
-upgrade experiments need their own pinned baselines. Expected positives are not
-an exhaustive relevance oracle; lower unjudged results remain unjudged.
-
-Compare changes to lexical vocabulary, section selection, context, token budgets,
-overlap, FTS weights, RRF constants and candidate windows one at a time. Record
-intended differences and corpus costs instead of per-query ranking exceptions.
-Alternative embedding models, inference upgrades, learned rerankers and new search
-backends require separate evidence and agreement. Do not restore retired weighted
-fusion, weak-match heuristics or product-facing retrieval knobs as compatibility.
-
-Maintained evaluation tooling, if needed, belongs in a separately reviewed developer
-surface. The local TypeScript research harness does not add a product command or
-establish a second retrieval implementation.
-
-## References
-
-- [Artifact contract](../../architecture/artifact-contract.md)
-- [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md)
-- [FTS tokenization exploration](rust-fts-tokenization-stemming.md)
-- [Saved-list and app-wide UI consistency](shared-ui-consistency-and-saved-lists.md)
+Related: [tokenization](rust-fts-tokenization-stemming.md),
+[query spelling](rust-cli-typo-tolerant-discovery.md),
+[shared UI consistency](shared-ui-consistency-and-saved-lists.md).

@@ -1,55 +1,35 @@
-# Rust Record Presentation Mechanics Unification
+# Shared Record and Encounter Presentation
 
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-27
+Last reviewed: 2026-10-13
 
-## Problem
+## Current Baseline
 
-Encounter adjusted mechanics now render structured activity and damage facts in the encounter inspector, while normal record detail rendering still uses the rich prose-oriented presentation document. This is acceptable for the first encounter mechanics slice, but it creates two presentation paths for facts that should eventually feel like one coherent record view.
+App-service composes semantic family presentation from checked source facts and,
+for encounters, bounded participant overlays. Browser detail, preview, comparison
+and encounters reuse family components. CLI rendering uses the same meaning with
+its own layout. [ADR 0047](../../architecture/decisions/0047-semantic-record-presentation.md)
+defines this contract.
 
-The broader record detail experience also needs to become more character-sheet-like and less like a generic rich-text dump. Static source facts, adjusted encounter facts, runtime HP/conditions, activities, rich prose, and references need one final composition point that decides what should be shown, replaced, suppressed, annotated, or linked for a given view.
+## Remaining Work
 
-## Desired Outcome
+Evaluate where family layouts and information hierarchy need refinement as
+additional consumers and record kinds become useful. Preserve introductory prose,
+readable mechanics, exact embedded navigation and explanations of adjusted facts.
+Keep participant state and authored source context distinguishable without
+unnecessary repeated information.
 
-Unify or standardize record presentation so rich prose, structured mechanics, activity facts, and adjusted encounter mechanics share a deliberate presentation model.
+A future table view with useful configurable columns remains a presentation
+option to evaluate against actual scan/comparison workflows. Agree its required
+facts and summary-read cost before extending the search response.
 
-The end state should let record detail views display structured spells, strikes, saves, damage, and prose in one readable hierarchy while still allowing encounter runtime projections to overlay adjusted values and modifier explanations.
+Coordinate specific work through [shared UI consistency](shared-ui-consistency-and-saved-lists.md),
+[record reading](rust-web-record-detail-polish.md),
+[encounters](rust-web-encounter-runner-polish.md) and
+[spell previews](rust-spell-rank-preview.md). These tasks refine the shared model;
+this item does not propose another presentation contract.
 
-The chosen v1 target is:
-
-- use a shared `RecordSurfaceView`-style app contract composed by `atlas-app-service`;
-- use rich list rows as the default creature search result presentation, with no search-row mutation controls or variant selector;
-- preserve a future table-compatible search mode with configurable columns backed by stable surface fact keys and filter/discovery fields;
-- use the structured encounter participant layout from `scratch/plans/archive/2026-06/2026-06-26-record-surface-live-implementation-plan.md` for selected encounter participants;
-- render adjusted final values inline, highlight modified values, and expose base/final/modifier explanations through tooltip or popover details instead of inline `base ...` text;
-- hide participant notes by default behind a note-specific encounter affordance, and never show participant notes in search;
-- continue rendering the current static `RecordPresentationDocument` at the bottom of creature detail/encounter surfaces during v1 as a sanity check against information loss.
-
-The implementation should:
-
-- separate semantic fact extraction from final user-facing presentation composition;
-- introduce a composed app presentation for contexts such as record detail and encounter participant detail;
-- consume structured embedded activity, spellcasting, and resource entities from the artifact instead of treating embedded capability prose as equivalent to native description text;
-- avoid rendering an adjusted runtime sidecar above a complete static record presentation when that duplicates HP, defenses, movement, activities, or other facts;
-- support future character-sheet-style record layouts that organize defenses, actions, activities, traits, spells, prose, and references intentionally;
-- let app-service compose source-derived facts with local/runtime encounter state before the browser renders the final shape;
-- keep the browser responsible for layout components and interactions, not reconciling source facts against adjusted facts.
-
-## Constraints
-
-- Do not make the browser parse raw Foundry text or duplicate backend mechanics rules.
-- Keep authored rich prose available; structured mechanics should supplement or organize it, not discard it.
-- Preserve source/provenance links so activity facts can still open or reference the content they came from.
-- Avoid rewriting the central record reader during the first encounter mechanics implementation unless the mechanics DTO shape requires it.
-- Do not continue adding runtime-only presentation sidecars without revisiting whether the composed record/participant presentation should own that surface.
-
-## Related
-
-- Record surface live implementation plan (historical local plan: `scratch/plans/archive/2026-06/2026-06-26-record-surface-live-implementation-plan.md`)
-- Record presentation composition plan (historical local plan: `scratch/plans/archive/2026-06/2026-06-26-record-presentation-composition-plan.md`)
-- Embedded mechanics artifact plan (historical local plan: `scratch/plans/archive/2026-06/2026-06-27-embedded-mechanics-artifact-plan.md`)
-- Encounter mechanics activity model (historical local plan: `scratch/plans/archive/2026-06/2026-06-24-encounter-mechanics-activity-model.md`)
-- [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
-- [Rust encounter elite and weak projection](./rust-encounter-elite-weak-projection.md)
+Keep mechanics and semantic composition Rust-owned, presentation layouts
+consumer-owned, and references attributable to their checked source addresses.
