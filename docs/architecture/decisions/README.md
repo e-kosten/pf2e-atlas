@@ -6,18 +6,15 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 - [`0018-rust-default-embedding-model.md`](./0018-rust-default-embedding-model.md): BGE small default; historical pooling/chunk modes are superseded by ADR0046.
 - [`0019-rust-cli-search-record-surface.md`](./0019-rust-cli-search-record-surface.md): the CLI separates record identification from result-set search.
-- [`0020-rust-content-documents.md`](./0020-rust-content-documents.md): historical RichDocument authority, superseded by ADR0046.
 - [`0021-rust-runtime-index-and-retrieval-boundaries.md`](./0021-rust-runtime-index-and-retrieval-boundaries.md): runtime/index/search ownership; historical capability interfaces are superseded by ADR0046.
 - [`0022-rust-artifact-policy-ownership.md`](./0022-rust-artifact-policy-ownership.md): index shape/vector ownership; metric authority and graph defaults are superseded by ADR0046.
 - [`0023-rust-cli-json-contract.md`](./0023-rust-cli-json-contract.md): JSON envelope and exit behavior; historical record payloads partially superseded by ADR0046.
-- [`0024-rust-search-retrieval-and-fusion-controls.md`](./0024-rust-search-retrieval-and-fusion-controls.md): historical ranking/control policy, superseded by ADR0046.
 - [`0025-rust-graph-context-retrieval.md`](./0025-rust-graph-context-retrieval.md): graph context retrieval is key-based, one-hop, and separate from search relationship filters.
-- [`0026-rust-cli-product-surface.md`](./0026-rust-cli-product-surface.md): PF2e Atlas is a Rust CLI plus first-party skill product; future TUI and derived tags are Rust-owned follow-ups.
+- [`0026-rust-cli-product-surface.md`](./0026-rust-cli-product-surface.md): CLI and first-party skill ownership; browser workflows follow ADR 0029, with TUI and derived tags as Rust-owned follow-ups.
 - [`0027-rust-runtime-lint-policy.md`](./0027-rust-runtime-lint-policy.md): runtime Rust code denies panic-oriented Clippy lints outside tests, while tests keep assertion-oriented unwrap/expect ergonomics.
 - [`0028-rust-tagging-model.md`](./0028-rust-tagging-model.md): Rust tagging is a typed authored-label subsystem with explicit crate ownership, record-centered assignments, and authoritative `record_tags` artifact rows.
 - [`0029-local-web-app-boundary.md`](./0029-local-web-app-boundary.md): Axum/app-model/app-service ownership, generated contracts and full semantic startup; result-window state and command lifetimes are superseded by ADR0049.
 - [`0030-local-state-database.md`](./0030-local-state-database.md): durable mutable local state such as saved lists lives in a separate local-state SQLite database beside the generated artifact.
-- [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): historical generic section/profile transport, superseded by ADR0047; app-service composition ownership is retained.
 - [`0032-ingest-product-intent.md`](./0032-ingest-product-intent.md): product-purpose requirement for derived projections; historical source retention and metric model partially superseded by ADR0046.
 
 - [`0033-developer-command-surfaces.md`](./0033-developer-command-surfaces.md): product operations use `atlas`, Rust diagnostics use private `atlas-dev`, and compiler research uses private TypeScript npm commands; shared CLI presentation has a narrow support crate.
@@ -41,4 +38,10 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Historical ADRs
 
-ADRs 0001-0017 preserve design history for earlier architecture work and migration sequencing. They are retained as context, but current implementation guidance lives in the Rust architecture docs and current ADRs above. ADR 0026 supersedes ADR 0017 for product surface and workspace layout.
+Historical ADRs preserve earlier architecture and migration decisions. Read their
+status and successor links to understand which parts remain applicable; current
+editing guidance is in the architecture docs and the active decisions above.
+
+- [`0020-rust-content-documents.md`](./0020-rust-content-documents.md): historical RichDocument authority, superseded by ADR0046.
+- [`0024-rust-search-retrieval-and-fusion-controls.md`](./0024-rust-search-retrieval-and-fusion-controls.md): historical ranking/control policy, superseded by ADR0046.
+- [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): historical generic section/profile transport, superseded by ADR0047; app-service composition ownership is retained.

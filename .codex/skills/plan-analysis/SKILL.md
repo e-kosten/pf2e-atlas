@@ -14,10 +14,9 @@ This skill is specifically about full-pass plan analysis in this repository. It 
 1. Read the target plan file first.
    Identify the requested end state, the plan’s major slices, and any explicit assumptions or architecture claims.
 2. Read the governing architecture docs before judging the plan.
-   Start with:
-   - `docs/architecture/overview.md`
-   - `docs/architecture/boundaries.md`
-   Then read the focused doc closest to the plan area, such as `search.md`, `tui.md`, `editorial.md`, `extending.md`, or relevant ADRs.
+   Start with `docs/architecture/overview.md`, then the governing runtime,
+   artifact, tagging or frontend guidance and relevant ADRs. Follow their links
+   to current owners and contracts for the plan area.
 3. Inspect the live code owners and abstractions the plan would need to build on.
    Prefer concrete file/module checks over abstract guesses.
 4. Complete the full review pass before surfacing detailed findings in chat.
@@ -38,15 +37,8 @@ The default output of this skill is a new file under:
 Use `scratch/plan-review/`, not `scratch/plans/`, for review artifacts.
 These review artifacts are transient scratch files. Create the directory on demand if it does not exist, and do not commit the review artifact unless the user explicitly asks.
 
-The review file should include:
-
-1. Summary
-2. Review scope
-3. Docs and code owners consulted
-4. Findings checklist
-5. Detailed findings
-6. Open questions or non-issues
-7. Recommended plan tightenings
+Describe the review scope, governing docs/code evidence, findings, open questions
+and recommended plan changes. Choose sections that make the review easy to use.
 
 Use a findings checklist with Markdown checkboxes so the review can be worked through interactively:
 
@@ -97,7 +89,7 @@ Prefer concrete owner checks such as:
 - composition roots
 - app/service boundaries
 - shared modal or list/detail infrastructure
-- shared contracts in `src/domain/`
+- shared Rust domain and application contracts
 - search execution vs shared semantic contract boundaries
 - TUI-derived presentation vs durable semantic state
 
