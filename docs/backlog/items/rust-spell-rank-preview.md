@@ -3,7 +3,7 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-13
 
 ## Problem
 
@@ -11,6 +11,10 @@ Spell reference shows authored baseline, fixed/interval heightening and form
 changes. Users cannot yet preview how a selected rank changes supported spell
 facts. Adding a rank selector without a computed result would misrepresent the
 current reference contract.
+
+The user also flagged creature-roster wording such as “Base rank 4 / Cast rank 5”
+as confusing. Review that wording and its relationship to selected-rank preview
+before implementation. Agree the presentation with the user first.
 
 ## Desired Outcome
 
@@ -38,3 +42,6 @@ using it as a general mechanics parser.
 
 - [Semantic record presentation](../../architecture/decisions/0047-semantic-record-presentation.md)
 - [Rust web record detail polish](rust-web-record-detail-polish.md)
+
+Historical discussion (local untracked plan):
+`scratch/plans/archive/2026-10/2026-10-10-record-presentation-followup.md#5-separate-selected-rank-preview-design`.

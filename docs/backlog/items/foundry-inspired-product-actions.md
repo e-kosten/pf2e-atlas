@@ -3,7 +3,7 @@
 Status: deferred
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-13
 
 Review upstream Macro documents, enrichments and runtime hooks as inspiration for
 useful Atlas controls, such as rolling an authored formula or presenting a
@@ -23,3 +23,24 @@ Do not infer executable mechanics from trait-description prose.
 
 Define bounded action contracts and tests before adding UI behavior. Keep
 readiness, display, dice execution and contextual gameplay adjudication distinct.
+
+## Concrete encounter requests
+
+The user requested creature initiative rolling and dice rolling while running
+encounters. Start with those workflows rather than broad Macro execution.
+
+- Define how a creature initiative roll chooses an available effective modifier,
+  how a user can select another supported basis, and how unknown or situational
+  modifiers are handled. Show the die, modifier and total; agree when the result
+  updates participant initiative and how deliberate rerolls work.
+- Review simple manual dice entry and prepared authored roll/check controls as
+  separate entry points over shared bounded dice behavior. Evaluate maintained
+  parsing/rolling libraries before adding custom formula logic. Keep unsupported
+  Foundry expressions explicit and do not imply full contextual rules execution.
+- Agree where results appear, whether any history persists, and which operations
+  change encounter state. Initiative and general roll results should not silently
+  spend resources or apply damage/conditions. These remain design decisions.
+
+Coordinate the interaction with [encounter usability](rust-web-encounter-runner-polish.md).
+Discuss the design with the user before implementation and retain Rust ownership
+of product rules rather than duplicating them in frontend controls.

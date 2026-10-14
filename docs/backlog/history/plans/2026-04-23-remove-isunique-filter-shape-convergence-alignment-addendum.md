@@ -2,7 +2,7 @@
 
 ## 1. Summary
 
-This addendum reviews `scratch/plans/2026-04-22-remove-isunique-filter-shape-convergence-plan.md` against the current architecture docs and the live TUI/search abstractions.
+This addendum reviews `docs/backlog/history/plans/2026-04-22-remove-isunique-filter-shape-convergence-plan.md` against the current architecture docs and the live TUI/search abstractions.
 
 Use the April 22 plan as the scope-and-sequencing draft, but treat this addendum as the architectural alignment layer for implementation. The main corrections are:
 
@@ -158,7 +158,7 @@ This is still planning-only work on `main`. Do not commit this addendum by itsel
 
 When implementation starts in a `/tmp` worktree, treat:
 
-- `scratch/plans/2026-04-22-remove-isunique-filter-shape-convergence-plan.md`
-- `scratch/plans/2026-04-23-remove-isunique-filter-shape-convergence-alignment-addendum.md`
+- `docs/backlog/history/plans/2026-04-22-remove-isunique-filter-shape-convergence-plan.md`
+- `docs/backlog/history/plans/2026-04-23-remove-isunique-filter-shape-convergence-alignment-addendum.md`
 
 as the combined execution contract.

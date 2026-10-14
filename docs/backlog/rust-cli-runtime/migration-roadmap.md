@@ -1,57 +1,39 @@
 # Rust Runtime Roadmap
 
 Status: active
-Last reviewed: 2026-05-19
+Last reviewed: 2026-10-13
 
-PF2e Atlas is centered on a Rust local runtime with `atlas` as the command surface and the first-party skill as the local-agent guidance surface.
+This roadmap groups durable runtime work. Use the linked backlog items for scope
+and current status, and the architecture docs for ownership.
 
-## Current Product Surface
+## Discovery
 
-- `atlas setup`: source, embedding cache, artifact build, repair, and readiness.
-- `atlas record get`: exact key lookup.
-- `atlas record resolve`: strict name and verified-alias resolution.
-- `atlas search`: ranked text search and deterministic filter-only listing.
-- `atlas similar`: stored-embedding record-to-record retrieval with modest shared-reference/shared-trait evidence.
-- `atlas filters fields|values`: schema and value discovery.
-- `atlas graph links|uses|variants|remaster`: bounded graph/product context for known or strictly resolved records.
-- `atlas agent skills install|doctor`: first-party skill installation and inspection.
+- [Search quality](../items/rust-search-quality-tuning.md): evaluate lexical and
+  semantic relevance, ownership evidence and bounded candidate selection.
+- [Query spelling](../items/rust-cli-typo-tolerant-discovery.md): offer useful
+  suggestions while preserving strict record resolution and semantic discovery.
+- [Filter catalog](../items/source-query-catalog-expansion.md): expose useful typed
+  fields and scopes with consistent discovery and compilation.
+- [Graph context](../items/rust-graph-context-deeper-local-graph.md): evaluate deeper
+  related-record evidence where it improves reference workflows.
 
-`atlas index build|check|validate` is the product artifact maintenance surface; user-facing setup and repair guidance leads with `atlas setup`. Source analysis and path auditing live under `atlas-dev source`, and read-only artifact inspection is `atlas-dev index inspect`.
+## Product Presentation
 
-## Roadmap
+- [CLI and skill follow-through](../items/rust-cli-skill-capability-follow-through.md):
+  address observed command, output and agent-guidance friction.
+- [Shared UI consistency](../items/shared-ui-consistency-and-saved-lists.md): use a
+  coherent component and interaction language across browser surfaces.
+- [Encounter usability](../items/rust-web-encounter-runner-polish.md): prioritize
+  construction, combat actions and readable participant information.
 
-### CLI And Skill Follow-Through
+## Additional Consumers
 
-- Improve skill examples as real task friction appears.
-- Add kind-specific preview facts where they help users and agents choose results faster.
-- Add typo-tolerant discovery or suggestions without weakening strict record resolution.
-- Keep setup and readiness errors actionable for local agents.
+- [Ratatui workbench](../items/rust-ratatui-workbench.md): build terminal workflows
+  over the shared application and retrieval owners.
+- [Derived tags](../items/rust-derived-tag-redesign.md): agree the ontology,
+  assessment and editorial model before introducing runtime integration.
 
-### Search And Retrieval Quality
-
-- Tune FTS weights, retrieval windows, weighted fusion defaults, and tokenization choices with fixture-backed quality runs.
-- Preserve one opinionated default search surface with advanced retrieval flags for diagnostics.
-
-### Artifact And Ingest Completeness
-
-- Audit Foundry JSON field coverage against Rust ingest.
-- Add content subdocument treatment for journal pages and table results when the model is accepted.
-- Converge overlapping side-data and metric source facts where a shared source interpretation is clear.
-
-### Ratatui Workbench
-
-- Build a Rust terminal workbench over the runtime crates.
-- Cover search/browse, detail pages, filter exploration, graph context, and navigation.
-- Add render tests and terminal capability abstractions.
-
-### Derived Tags
-
-- Redesign retained derived-tag concepts against record kinds, explicit source axes, typed discovery, and artifact ownership.
-- Add Rust-owned runtime/editorial crates only when the accepted model is ready to implement.
-
-## Non-Goals
-
-- Do not add compatibility shims or parallel runtime owners.
-- Do not add placeholder crates before a real implementation slice.
-- Do not put durable retrieval or artifact semantics in CLI code.
-- Do not port derived-tag/editorial concepts directly without a Rust model decision.
+Current source loading, storage and retrieval follow
+[ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md).
+The [historical checklist](../history/rust-cli-runtime/migration-checklist.md)
+records the migration baseline; it does not define new implementation work.

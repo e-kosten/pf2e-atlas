@@ -1,25 +1,13 @@
-# Rust CLI Runtime
+# Rust Runtime Work
 
-This directory tracks the active Rust runtime work that remains after the CLI and first-party skill became the primary product surface.
+This directory provides navigation for cross-cutting runtime follow-ups. The
+[backlog](../backlog.md) owns their status; the
+[architecture overview](../../architecture/overview.md) owns current boundaries.
 
-## Active Documents
+- [Runtime roadmap](migration-roadmap.md) groups ongoing discovery, presentation,
+  terminal and tagging work by purpose.
+- [Migration checklist](../history/rust-cli-runtime/migration-checklist.md) records
+  the historical runtime migration and source-backed cutover.
 
-- [migration-checklist.md](./migration-checklist.md): current completion and follow-up checklist for Rust runtime work.
-- [migration-roadmap.md](./migration-roadmap.md): forward-looking roadmap for CLI, skill, Ratatui, derived-tag, search, graph, and artifact improvements.
-
-Historical spike notes and contract-mapping research live under [`docs/backlog/history/rust-cli-runtime/`](../history/rust-cli-runtime/).
-
-## Current Focus
-
-The active everyday product surface is:
-
-- `atlas setup`
-- `atlas record`
-- `atlas search`
-- `atlas filters`
-- `atlas graph`
-- `atlas agent skills`
-
-`atlas index` remains available for diagnostics and contributor workflows, but normal users should usually reach for `atlas setup` first.
-
-Open work should be framed as Rust CLI, skill, runtime, artifact, search, graph, Ratatui, or derived-tag redesign work.
+Product setup and commands are documented in the [README](../../../README.md).
+Contributor commands and validation live in [CONTRIBUTING](../../../CONTRIBUTING.md).

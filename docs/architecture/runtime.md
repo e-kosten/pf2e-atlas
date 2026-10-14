@@ -83,8 +83,8 @@ record keys alone. Before accepting cached vectors, ingest reconstructs the old
 selected inputs with the pinned tokenizer and verifies their stored hash, token
 count and source attribution. Index remains independent of tokenizer/model assets.
 
-The content interpreter produces sanitized HTML and narrow marker/control facts.
-It uses an existing HTML parser/sanitizer rather than a persistent generic tree.
+The content interpreter produces sanitized HTML and narrow marker/control facts
+using the shared HTML parser and sanitizer.
 The selected cache is stored once per field; authored markup remains in the DTO.
 CLI formatting is derived with html2text at read time. UI controls use field-local
 ordinals and intentional app contracts, never arbitrary Foundry JavaScript.
@@ -96,8 +96,8 @@ labels and meaningful structural definition labels. It does not dump descriptive
 prose into FTS. Semantic selection independently covers selected explanatory
 root/owned passages plus compact root identity. text-splitter segments passages;
 the actual tokenizer checks every final input with complete body/tail coverage.
-FastEmbed executes the pinned BGE-small model using CLS/L2. No custom universal
-pooling, clipping, estimator fallback or model catalog alternatives remain.
+FastEmbed executes the pinned BGE-small model using CLS/L2. Exact tokenizer
+budgets and the pinned model contract govern every accepted input.
 
 ## Runtime paths and setup
 
@@ -152,8 +152,8 @@ receipts and their reference reads use the normal uncancellable path under
 
 `AtlasRetrievalService` is a concrete service over index plus optional query
 embedder. Narrow inherent methods own strict name/key lookup, browse, text search,
-similar, graph, remaster links, Suggested variants and catalog discovery. There
-is no capability-trait compatibility layer or alternate old reader.
+similar, graph, remaster links, Suggested variants and catalog discovery. The
+service uses the concrete index reader defined by the artifact contract.
 
 The shared predicate compiles to index-owned parameterized eligibility SQL.
 CLI CEL and UI structured requests independently target it. Applicable source

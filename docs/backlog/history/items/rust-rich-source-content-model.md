@@ -37,8 +37,8 @@ The model should:
 
 ## Related
 
-- Rich source document model plan (historical untracked reference: `../../../../scratch/plans/2026-06-02-rich-source-document-model.md`)
-- RichDocument production migration plan (historical untracked reference: `../../../../scratch/plans/2026-06-02-rich-document-production-migration.md`)
+- Rich source document model plan (historical untracked reference: `../../../../scratch/plans/archive/2026-06/2026-06-02-rich-source-document-model.md`)
+- RichDocument production migration plan (historical untracked reference: `../../../../scratch/plans/archive/2026-06/2026-06-02-rich-document-production-migration.md`)
 - [Runtime architecture](../../../architecture/runtime.md)
 - [Rust artifact contract](../../../architecture/artifact-contract.md)
 - [Rust content documents ADR](../../../architecture/decisions/0020-rust-content-documents.md)

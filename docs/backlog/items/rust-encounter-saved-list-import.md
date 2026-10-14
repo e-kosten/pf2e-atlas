@@ -30,5 +30,5 @@ The design should answer:
 
 ## Related
 
-- [Runnable encounters design](../../../scratch/plans/2026-06-22-runnable-encounters-design.md)
+- Runnable encounters design (historical local plan: `scratch/plans/archive/2026-06/2026-06-22-runnable-encounters-design.md`)
 - [Rust local-state import and export](./rust-local-state-import-export.md)

@@ -53,5 +53,5 @@ The accepted planning direction for embedded activity mechanics is a hybrid arti
 ## Related
 
 - [Rust Side Data And Metric Source Fact Convergence](rust-side-data-metric-source-fact-convergence.md)
-- Encounter mechanics activity model (historical untracked reference: `../../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md`)
-- Embedded mechanics artifact plan (historical untracked reference: `../../../../scratch/plans/2026-06-27-embedded-mechanics-artifact-plan.md`)
+- Encounter mechanics activity model (historical untracked reference: `../../../../scratch/plans/archive/2026-06/2026-06-24-encounter-mechanics-activity-model.md`)
+- Embedded mechanics artifact plan (historical untracked reference: `../../../../scratch/plans/archive/2026-06/2026-06-27-embedded-mechanics-artifact-plan.md`)

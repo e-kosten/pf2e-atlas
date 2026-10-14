@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-13
 
 ## Problem
 
@@ -16,57 +16,19 @@ Further detail work should improve source-backed semantic contracts only when a
 consumer needs another fact, and reuse shared family presentation across detail,
 preview, comparison and encounters.
 
-## Current implementation scope
+## Current Baseline
 
-The current repair reuses shared record insets, wrapping identity/traits and
-measured prose across detail and compact previews. Shared detail recovery retains
-valid content during refresh of the same complete address, keeps failures local,
-and offers retry and back navigation. One closed secondary disclosure requests
-bounded Related availability for the complete selected address and immutable
-artifact generation. Only nonempty reference, verified counterpart and suggested
-variant categories appear; known empty, unavailable and failed checks remain
-distinct. References use the exact selected owner, and incoming references
-navigate the actual referring owner and field. Root-only counterpart and variant
-categories do not appear as relationships of an owned selection. Comparison reuses
-the same family renderer, and generation changes offer local record reload.
+Reference, preview, comparison and encounter surfaces reuse semantic family
+components and selected prepared HTML. Exact owner addresses govern navigation,
+Related availability and bounded owned reading. Similar discovery uses the shared
+search browser with explicit seed/filter state. These contracts are documented in
+[ADR 0047](../../architecture/decisions/0047-semantic-record-presentation.md) and
+[frontend guidelines](../../../web/atlas-ui/docs/frontend-guidelines.md).
 
-Similar is separate root discovery: a bounded five-record preview links into the
-existing search workspace with a removable seed criterion and ordinary filters.
-The shared search-page operation uses the stored root vector and existing filter, remaster
-and seed-exclusion policy. Top matches and available pages describe its bounded
-results; Similar does not become a relationship category.
-
-Authored action costs use shared accessible glyphs in typed facts and prepared
-content. Dedicated
-equipment, journal and table presentation remains future family work, rather than
-an expansion of this shared workflow slice.
-
-Reference layouts put prose first and group facts/mechanics by actual pane width.
-Immediate Ability-class activities read inline by default in finite 32-activity,
-256-field batches. One checked parent and one attributed prepared batch provide
-exact relationships without duplicate facts or detail-cache seeding. Actual
-container scrolling starts continuation; idle visibility stays bounded, collapse
-halts future loading and local retry retains text. Direct late-owner landing
-loads its range with readable backward/forward paths. Native permalinks and
-parent breadcrumbs preserve checked anchors and known navigation context.
-Compact previews and comparison render the same reference meaning. Casting entries show checked
-parent membership and local spell ranks without executing selected-rank changes.
-Hazards group Detection content and use explicit backend defense-block presence;
-valid zero saves and unavailable values remain visible. Known-empty optional
-content has no heading. Rank preview has a separate bounded-design backlog item.
-
-Shared baseline fact formatting omits optional whitespace text and empty lists
-without hiding required, zero, false or unavailable facts. Explicit authored
-clear/empty changes remain readable. Physical currency and table result
-availability stay intact in transient family responses. Compact typed identity
-captions, one selected ability glyph, modifiers before skills and literal-colon
-record paths apply across reference consumers. These fact repairs retain the
-existing family model and shared presentation owners.
-
-Similar windows and Related availability have local automated coverage. This
-item remains in progress pending integrated full verification, real-browser and
-independent visual acceptance of bounded owned reading and contextual encounter
-lookup. Dedicated future family work and rank execution remain separate.
+Creature, hazard and authored spell reference have dedicated layouts. Equipment,
+journal and table presentation and selected-rank execution remain separate design
+work. Further changes should preserve useful content, availability states,
+source attribution and consistent behavior across hosts.
 
 ## Desired Outcome
 
@@ -92,7 +54,7 @@ The pass should consider:
   product design discussion. It remains unchanged by the reference workspace pass.
 
 - Extend narrow app-service family facts when current consumer data is insufficient;
-  do not reintroduce RichDocument or a generic section/value/profile contract.
+  keep checked source and prepared HTML authoritative under ADR 0047.
 - Do not duplicate rich document parsing or record-kind semantics in TypeScript.
 - Keep browser-specific layout code separate from shared Rust presentation contracts.
 - Reuse family components and shared Ant primitives rather than duplicating
