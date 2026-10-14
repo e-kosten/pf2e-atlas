@@ -1,51 +1,42 @@
 ---
 name: repo-plan
-description: Create or refine a concise repository plan for substantial implementation or research, connecting scope and acceptance to architecture and backlog. Reuse the current task plan; routine fixes and conversational clarifications need no plan document.
+description: Create or refine a concise repository plan for substantial implementation or research, connecting scope and acceptance to architecture and backlog. Reuse the current task plan; routine changes usually need no plan document.
 ---
 
 # Repo Plan
 
-Use a written plan when work has meaningful design decisions, several dependent
-steps, or enough duration that a durable handoff helps. Handle routine changes
-directly; a question about the next step does not automatically need a new file.
+Use a written plan when design decisions, dependent work or a durable handoff
+justify one. Match its structure and detail to what the next executor needs.
 
-## Find the current task
+## Ground the task
 
-- Start with the local `scratch/plans/README.md` when present, the related backlog
-  item and the user's current instructions. Search for an existing task plan before
-  creating one. Follow-ups, revised proposals and execution notes belong in that
-  plan unless the deliverable or workstream materially changes.
-- Work in the current checkout during planning. Authenticate the relevant checkout
-  and baseline; preserve unrelated dirt and running previews. Never switch to
-  `main` merely to write a plan. Use a worktree for implementation only when the
-  user asks or isolation has a concrete benefit.
-- Read the relevant architecture docs before deciding ownership. Start with
-  `docs/architecture/overview.md`, then the focused docs/ADRs that exist and govern
-  the task. Do not require imaginary or retired document paths.
+Start with the user's scope, the local `scratch/plans/README.md` when present,
+and the related backlog item. Reuse an existing task plan while its deliverable
+evolves; create a separate plan when the workstream or outcome is distinct.
 
-## Write only what execution needs
+Verify the relevant checkout and baseline. Follow `AGENTS.md` for Git workflow,
+authorization and validation. Read the architecture documents governing the task,
+starting with `docs/architecture/overview.md` when ownership or boundaries matter.
 
-Keep one active plan per substantial task, normally under
-`scratch/plans/YYYY-MM-DD-topic.md`. Prefer a short document; a few paragraphs and
-an ordered list often suffice. Expand only for decisions, contracts or dependencies
-that the executor would otherwise have to rediscover. Do not impose eight sections,
-restate general repo instructions or create separate assignment/ledger plans by
-default. Detailed evidence belongs in the task's research/review directory.
+## Make the plan actionable
 
-Include the outcome, scope, relevant owners, ordered work and acceptance checks.
-Add unresolved decisions, resource limits, delegation or landing details only when
-they matter. Tie durable open work to an existing backlog item, creating/updating
-one only within the user's scope. Architecture docs describe current ownership;
-plans describe intended work. Plan relevant docs/ADR updates with implementation.
+Keep one current plan per substantial task, normally under
+`scratch/plans/YYYY-MM-DD-topic.md`. Describe the outcome, scope, relevant owners,
+ordered work and acceptance checks. Include unresolved decisions, dependencies,
+resource limits and delivery details where they affect execution.
 
-For complex work, make shared contracts and stop points concrete. Delegate when
-independent research/review or parallel work adds value, not as a mandatory plan
-approval step. Refactors should define a finished replacement and checks for old
-paths; avoid planning compatibility shims unless requested.
+Choose sections that make the work clear. Link existing repository guidance and
+research evidence; focus the plan itself on task-specific decisions and commitments.
+For delegated work, define ownership, shared contracts and coordination points.
+Choose review and validation depth according to the change's risk.
 
-## Keep plans discoverable
+Connect durable open work to the backlog. Include architecture/doc updates among
+the deliverables when the task changes ownership or intended behavior. Refactor
+acceptance should describe the intended end state and how it will be verified.
 
-Use a small header on current plans:
+## Maintain status and navigation
+
+Use a small header:
 
 ```text
 Status: proposed | in_progress | deferred | complete | superseded | needs_review
@@ -53,22 +44,18 @@ Updated: YYYY-MM-DD
 Backlog: path, when applicable
 ```
 
-Keep `scratch/plans/README.md` as a small index of current/proposed/deferred work,
-with status and the next action. Preserve user authorization separately from status:
-approval of planning or a cleanup does not approve implementation or publication.
+Keep current and deferred plans in `scratch/plans/README.md`, with status and the
+next action. Update the same plan as decisions evolve. Preserve a prior version
+when an external reference or recorded evidence depends on that version.
 
-On completion or supersession, move the plan to `scratch/plans/archive/YYYY-MM/`,
-update the index and mutable links, and carry durable remaining work to the backlog.
-Keep previously tracked historical plans in `docs/backlog/history/plans/` so their
-relocation remains Git-visible rather than disappearing into ignored scratch.
-Archive uncertain historical plans as `needs_review`, never infer completion from
-age. Retain provenance-bound originals when relocation/link edits affect recorded
-hashes; do not rewrite frozen evidence or leave broken current navigation. Ordinary
-plan revisions do not need a new dated file or an archived snapshot.
+On completion or supersession, archive local plans under
+`scratch/plans/archive/YYYY-MM/` and tracked plans under
+`docs/backlog/history/plans/`. Record their status, update navigation and preserve
+evidence provenance. Use `needs_review` when historical completion is unverified.
+Carry remaining durable work into the backlog.
 
-## Finish the planning task
+## Finish
 
-Check that the plan captures agreed scope and can guide the next work. Scale review
-to risk; simple plans do not need independent reviewers or implementation test runs.
-Present the outcome and material open choices briefly. Keep planning uncommitted
-unless asked; do not infer authority to execute, commit, publish or merge from it.
+Check that the plan captures the agreed outcome, executable next steps, acceptance
+criteria and open decisions. Report the result and material choices briefly.
+Distinguish approval of a plan from authorization to execute or publish the work.
