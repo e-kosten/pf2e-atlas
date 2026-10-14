@@ -9,7 +9,9 @@ Last reviewed: 2026-06-02
 
 The base PF2e source checkout carries record-level `img` fields and bundled system icons under `static/`, but richer creature portrait and token art is commonly supplied by separate Foundry modules rather than the base PF2e compendium JSON. The Rust ingest path currently focuses on rules/content/search data and does not model optional media assets as first-class record presentation data.
 
-A future locally hosted Atlas web surface could benefit substantially from showing owned creature art alongside the existing rich search, graph, and record-detail functionality. Without an explicit optional art-ingest design, this work risks being conflated with HTML/content parsing or hard-coding assumptions about assets that are not actually present in the base PF2e repository.
+The local web app could use portraits and tokens alongside search and reference
+reading. Define the optional asset sources, availability and serving policy before
+adding media to record presentation.
 
 ## Desired Outcome
 
@@ -17,7 +19,7 @@ Design and eventually implement an optional local art enrichment path for record
 
 The work should answer:
 
-- how to ingest base record `img` paths from PF2e pack JSON and resolve `systems/pf2e/...` against the source checkout's `static/` tree
+- how to expose checked record `img` paths and resolve `systems/pf2e/...` against the source checkout's `static/` tree
 - how to represent Foundry core `icons/...` paths that are validated by PF2e but not shipped inside the PF2e GitHub checkout
 - how to read installed module art mappings, including current `compendiumArtMappings` and legacy PF2e `pf2e-art` mappings
 - how to associate art mappings with Atlas records through compendium identity and source document ids
@@ -27,7 +29,8 @@ The work should answer:
 ## Constraints
 
 - Treat rich PF2e art as optional local enrichment, not canonical normalized record content.
-- Do not put record portrait/token art into `RichDocument`; it belongs in record-level media or presentation metadata.
+- Represent portrait/token assets as explicit record-level media references with
+  source provenance and presentation policy.
 - Do not block HTML parsing, CLI presentation, FTS, embedding, or reference work on art ingestion.
 - Do not assume premium token-pack assets are present in the PF2e GitHub export.
 - Preserve a useful artifact when no optional art modules are installed.

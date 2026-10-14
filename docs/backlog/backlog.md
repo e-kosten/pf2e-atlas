@@ -14,25 +14,30 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
-- [Selective integration recovery](items/rust-integration-recovery.md)
-  Recover reviewed behavior in small branches from main; retain integration as
-  evidence and a preview. Status: planned.
-
-- [Rust CLI runtime migration research](rust-cli-runtime/README.md)
-  Working notes and checklist for the Rust runtime, CLI, artifact, search, graph, skill, and cutover work. Status: in_progress.
+- [Selective integration feature review](items/rust-integration-recovery.md)
+  Review useful earlier integration features against current source-backed
+  capabilities and product requirements. Status: planned.
 
 - [Rust CLI and skill capability follow-through](items/rust-cli-skill-capability-follow-through.md)
   Preserve useful product-surface ideas as CLI command, JSON contract, setup, discovery, graph, and skill-guidance improvements. Status: proposed.
 
 - [Source-backed search quality evaluation](items/rust-search-quality-tuning.md)
-  Evaluate source-backed lexical/semantic selection, explanatory witnesses,
-  ranking and bounded candidate windows with judged real-model runs. Status: proposed.
+  Evaluate lexical evidence, associated-content influence and semantic inputs
+  against source-backed discovery tasks before changing search defaults. Status: proposed.
 
 ## Soon
+
+- [Contextual filter option counts](items/web-contextual-option-counts.md)
+  Restore accurate categorical option counts using shared discovery contracts,
+  with useful count-free vocabulary in unsupported contexts. Status: proposed.
 
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
   downstream review. Status: planned.
+
+- [Shared UI consistency and saved-list presentation](items/shared-ui-consistency-and-saved-lists.md)
+  Review saved-list index/detail views and remaining product surfaces against one
+  shared UI language and reusable Ant-based component set. Status: proposed.
 
 - [Rust Ratatui workbench](items/rust-ratatui-workbench.md)
   Build the interactive terminal workbench over the Rust runtime for search, browse, detail reading, filter exploration, graph context, and future editorial workflows. Status: planned.
@@ -40,8 +45,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust CLI kind preview facts](items/rust-cli-kind-preview-facts.md)
   Add concise kind-specific scan facts to Atlas search preview output so users can reject or select candidates with fewer follow-up lookups. Status: proposed.
 
-- [Rust CLI typo tolerant discovery](items/rust-cli-typo-tolerant-discovery.md)
-  Track backend-independent typo suggestions, corpus-token dictionaries, and acronym expansion without weakening strict record resolution. Status: proposed.
+- [Query spelling and name suggestions](items/rust-cli-typo-tolerant-discovery.md)
+  Evaluate shared CLI/UI spelling suggestions and corpus vocabulary while
+  preserving strict name resolution and semantic discovery. Status: proposed.
 
 - [Rust web filter UX expansion](items/rust-web-filter-ux-expansion.md)
   Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: in_progress.
@@ -68,6 +74,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Later
 
+- [Reusable encounter party definitions](items/encounter-party-presets.md)
+  Define a party once and add its members to encounters without repeatedly
+  entering their details. Status: proposed.
+
 - [Source query catalog expansion](items/source-query-catalog-expansion.md)
   Add useful authored fields and collection scopes with shared catalog semantics
   and direct DTO evidence. Status: deferred.
@@ -80,7 +90,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Redesign retained derived-tag concepts against record kinds, explicit source axes, typed filters, and Rust artifact ownership. Status: planned.
 
 - [Rust CLI content output formats](items/rust-cli-content-output-formats.md)
-  Decide which optional non-markdown content formats the Rust CLI should expose for record JSON output. Status: deferred.
+  Evaluate unmet content-export needs against the current human, reference JSON
+  and checked-source surfaces. Status: deferred.
 
 - [Rust graph context deeper local graph](items/rust-graph-context-deeper-local-graph.md)
   Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command. Status: proposed.
@@ -125,3 +136,5 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Add scriptable import/export for saved lists and future durable local-state data without making artifact rebuilds responsible for user state. Status: proposed.
 
 See [Backlog Done / Superseded](history/done-and-superseded.md) for completed and retired items.
+
+The [runtime roadmap](rust-cli-runtime/README.md) groups cross-cutting follow-ups.

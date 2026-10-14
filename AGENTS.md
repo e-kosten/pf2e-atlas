@@ -55,6 +55,15 @@ Keep each documentation surface focused on its job:
 
 When writing or editing docs, prefer statements of current behavior and current ownership over repo-history framing unless the document is explicitly an ADR or backlog/history note.
 
+## Planning Documents
+
+Use a written plan for substantial work, with one current plan per task. Reuse it
+as the discussion evolves; routine fixes and next-step questions need no new file.
+Keep plans concise and their status explicit. Consult the local
+`scratch/plans/README.md` when present; keep it current and archive completed or
+superseded plans with references/provenance preserved. Use the task's appropriate
+checkout and base. See the repo-plan skill for the local lifecycle.
+
 ## Frontend UI Direction
 
 For `web/atlas-ui`, Ant Design is the selected component library for generic application UI. Prefer Ant components and component tokens for buttons, icon buttons, links, navigation controls, tables, forms, overlays, selectors, alerts, empty/loading states, tags, pagination, and selected/active/hover styling before adding custom controls or local CSS state styling. Custom Atlas components should be reserved for product-specific surfaces such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, and encounter-runtime panels. See `web/atlas-ui/docs/frontend-guidelines.md` and `web/atlas-ui/AGENTS.md` for concrete frontend editing rules.

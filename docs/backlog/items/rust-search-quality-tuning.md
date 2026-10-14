@@ -1,50 +1,62 @@
-# Source-backed search quality evaluation
+# Source-backed Search Quality Evaluation
 
 Status: proposed
-Priority: after the artifact cutover
+Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-13
 
-## Current baseline
+## Current Baseline
 
-ADR 0046 replaces the old weighted-fusion, weak-match demotion and overflow-only
-RichDocument policies. Precision FTS uses identity, verified aliases, typed
-vocabulary and named definitions. Semantic units independently cover selected root
-and owned prose. One maximum accepted unit score represents a root; hybrid RRF
-combines one root rank per lane. Eligibility is applied before ranking, and
-semantic candidate windows are bounded.
+Precision FTS covers identity, verified aliases, typed vocabulary and named
+owned definitions. Semantic selection covers selected root and owned explanatory
+passages. Search uses one accepted semantic contribution per root and fuses root
+ranks with lexical specificity tiers. Eligibility and bounded candidate selection
+follow [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md).
 
-The cutover requires a judged real-model sample and attributable witnesses.
-That acceptance check does not settle every future relevance tradeoff.
+Local full-corpus experiments exposed tradeoffs between descriptive discovery and
+useful owner capabilities. No experimental ranking policy has been selected for
+production. The [dated evaluation notes](../../research/source-backed-search-evaluation.md)
+preserve findings, sample sizes, evidence limits and local artifact references.
 
-## Follow-up
+## Next Evaluation
 
-Build the next evaluation artifact from the full PF2e corpus after the reference
-workspace UI lands. Have independent agents exercise realistic CLI searches and
-inspect attribution, ranking and latency; the curated 223-record preview cannot
-establish behavior across the corpus. In particular, assess roots returned because
-of copied embedded equipment or spells against records whose own prose matches.
-Keep the evaluation separate from the UI implementation and use its evidence to
-decide whether default embedded-document retrieval should change.
+Compare the distinct roles of primary identity, the root's own explanation,
+intrinsic local mechanics and associated content. Preserve useful exact embedded
+name discovery and genuine queries for an owner's capabilities while reducing
+noisy partial-label and associated-body influence where evidence supports it.
 
-Build a repeatable source-backed evaluation set with expected records and
-explanatory passages. Include creature lore, owned afflictions, spell mechanics,
-long documents, copied embedded spells, multilingual labels and noise-prone small
-sections. Measure recall, rank, winning-witness quality, duplicate-root pressure
-and latency separately.
+The proposed work should:
 
-Evaluate changes to lexical vocabulary, section selection, context, token
-budgets, overlap, FTS weights, RRF constants and candidate windows one at a time.
-Compare proposed changes against the current pinned model and artifact policies.
-Record intended differences and corpus costs rather than adding one-query
-reranking exceptions.
+- Compare partial embedded-label influence separately from primary-name behavior
+  and exact embedded-name specificity.
+- Test reduced associated semantic influence with one contribution per root,
+  using matched candidate budgets and explicit source attribution.
+- Evaluate self-description and intrinsic mechanics as separate evidence classes;
+  their usefulness depends on the query, not an implicit product intent setting.
+- Probe paragraph/context embedding inputs separately from ranking changes over
+  existing vectors. Define source coverage, reuse identity and inference cost
+  before generating inputs.
+- Include masked-spirit paraphrases, repeated-match observations and actual
+  associated-only owner positives. Keep exposed development cases distinct from
+  a fresh source-grounded holdout and cluster related scenarios.
 
-Alternative embedding models, inference upgrades, learned rerankers and new search
-backends require their own evidence and decision. Do not restore old user-facing
-fusion knobs or heuristics merely because they existed in the prior pipeline.
+Freeze candidate policies and evaluation rules before opening the holdout. Judge
+root relevance and witness support separately; use source evidence to resolve
+consequential disagreements. A small target-only embedding probe establishes
+input behavior, not full-corpus ranking quality. Preserve exact lookup and broad
+semantic discovery while evaluating changes.
 
-## References
+## Execution Boundaries
 
-- [Artifact contract](../../architecture/artifact-contract.md)
-- [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md)
-- [FTS tokenization exploration](./rust-fts-tokenization-stemming.md)
+Reuse the pinned artifact and model where input identity permits. Agree resource
+budgets and any full-corpus rebuild separately. New models, learned rerankers,
+search backends, product intent controls and narrative FTS expansion require their
+own evidence and design decision. Keep ordinary filters explicit user criteria.
+
+Maintained evaluation tooling, if needed, belongs in a reviewed developer surface.
+The current local plan is under scratch/plans, indexed by its local README;
+implementation and publication require authorization for that scope.
+
+Related: [tokenization](rust-fts-tokenization-stemming.md),
+[query spelling](rust-cli-typo-tolerant-discovery.md),
+[shared UI consistency](shared-ui-consistency-and-saved-lists.md).
