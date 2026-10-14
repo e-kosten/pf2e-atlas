@@ -22,7 +22,7 @@ The chosen v1 target is:
 - use a shared `RecordSurfaceView`-style app contract composed by `atlas-app-service`;
 - use rich list rows as the default creature search result presentation, with no search-row mutation controls or variant selector;
 - preserve a future table-compatible search mode with configurable columns backed by stable surface fact keys and filter/discovery fields;
-- use the structured encounter participant layout from `scratch/plans/2026-06-26-record-surface-live-implementation-plan.md` for selected encounter participants;
+- use the structured encounter participant layout from `scratch/plans/archive/2026-06/2026-06-26-record-surface-live-implementation-plan.md` for selected encounter participants;
 - render adjusted final values inline, highlight modified values, and expose base/final/modifier explanations through tooltip or popover details instead of inline `base ...` text;
 - hide participant notes by default behind a note-specific encounter affordance, and never show participant notes in search;
 - continue rendering the current static `RecordPresentationDocument` at the bottom of creature detail/encounter surfaces during v1 as a sanity check against information loss.
@@ -47,9 +47,9 @@ The implementation should:
 
 ## Related
 
-- [Record surface live implementation plan](../../../scratch/plans/2026-06-26-record-surface-live-implementation-plan.md)
-- [Record presentation composition plan](../../../scratch/plans/2026-06-26-record-presentation-composition-plan.md)
-- [Embedded mechanics artifact plan](../../../scratch/plans/2026-06-27-embedded-mechanics-artifact-plan.md)
-- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
+- Record surface live implementation plan (historical local plan: `scratch/plans/archive/2026-06/2026-06-26-record-surface-live-implementation-plan.md`)
+- Record presentation composition plan (historical local plan: `scratch/plans/archive/2026-06/2026-06-26-record-presentation-composition-plan.md`)
+- Embedded mechanics artifact plan (historical local plan: `scratch/plans/archive/2026-06/2026-06-27-embedded-mechanics-artifact-plan.md`)
+- Encounter mechanics activity model (historical local plan: `scratch/plans/archive/2026-06/2026-06-24-encounter-mechanics-activity-model.md`)
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
 - [Rust encounter elite and weak projection](./rust-encounter-elite-weak-projection.md)

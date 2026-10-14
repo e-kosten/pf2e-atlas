@@ -39,7 +39,7 @@ The implementation should:
 
 ## Related
 
-- Encounter runtime surfaces plan (historical untracked reference: `../../../scratch/plans/2026-06-25-encounter-runtime-surfaces-plan.md`)
+- Encounter runtime surfaces plan (historical untracked reference: `../../../scratch/plans/archive/2026-06/2026-06-25-encounter-runtime-surfaces-plan.md`)
 - [Rust encounter condition mechanics](rust-encounter-condition-mechanics.md)
 - [Rust encounter actor context effects](rust-encounter-actor-context-effects.md)
 - [Rust Foundry type mechanics parsers](../history/items/rust-foundry-type-mechanics-parsers.md)

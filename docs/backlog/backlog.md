@@ -30,6 +30,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Contextual filter option counts](items/web-contextual-option-counts.md)
+  Restore accurate categorical option counts using shared discovery contracts,
+  with useful count-free vocabulary in unsupported contexts. Status: proposed.
+
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
   downstream review. Status: planned.
