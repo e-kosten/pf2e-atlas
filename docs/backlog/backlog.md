@@ -25,8 +25,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Preserve useful product-surface ideas as CLI command, JSON contract, setup, discovery, graph, and skill-guidance improvements. Status: proposed.
 
 - [Source-backed search quality evaluation](items/rust-search-quality-tuning.md)
-  Evaluate source-backed lexical/semantic selection, explanatory witnesses,
-  ranking and bounded candidate windows with judged real-model runs. Status: proposed.
+  Evaluate lexical evidence, associated-content influence and semantic inputs
+  against source-backed discovery tasks before changing search defaults. Status: proposed.
 
 ## Soon
 
@@ -37,6 +37,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
   downstream review. Status: planned.
+
+- [Shared UI consistency and saved-list presentation](items/shared-ui-consistency-and-saved-lists.md)
+  Review saved-list index/detail views and remaining product surfaces against one
+  shared UI language and reusable Ant-based component set. Status: proposed.
 
 - [Rust Ratatui workbench](items/rust-ratatui-workbench.md)
   Build the interactive terminal workbench over the Rust runtime for search, browse, detail reading, filter exploration, graph context, and future editorial workflows. Status: planned.
