@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
 import { useRecordPreview } from "./useRecordPreview";
 import { detailFixture } from "../../test/fixtures";
@@ -116,4 +123,43 @@ it("returns focus to the original trigger after dismissing a narrow reference dr
   } finally {
     breakpoint.mockRestore();
   }
+});
+
+it("bounds preview history and restores exact selected copy, landing, source link and scroll before final opener dismissal", () => {
+  const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
+  const opener = document.createElement("button");
+  document.body.append(opener);
+  const first = {
+    ...detailFixture("actors:ghoul").selected,
+    owners: [{ collection: "items", identity: { SnapshotLocal: { index: 7 } } }],
+    field: "system.description.value",
+    source_fingerprint: "copy-a",
+  };
+  const host = document.createElement("section");
+  host.className = "record-preview-popover__body";
+  const source = document.createElement("a");
+  source.href = "/records/rules:next";
+  host.append(source);
+  document.body.append(host);
+  act(() => result.current.open(first.record_key, opener, first, first));
+  host.scrollTop = 314;
+  act(() => result.current.open("rules:next", source));
+  act(() => result.current.readingHistory.onBack());
+  expect(result.current.selection).toEqual(first);
+  expect(result.current.landing).toEqual(first);
+  expect(result.current.readingHistory.restore).toEqual({
+    scroll: 314,
+    focusHref: "/records/rules:next",
+  });
+  for (let index = 0; index < 30; index++)
+    act(() => result.current.open(`rules:${index}`, source));
+  for (let index = 0; index < 24; index++)
+    act(() => result.current.readingHistory.onBack());
+  expect(result.current.recordKey).toBe("rules:5");
+  expect(result.current.readingHistory.canGoBack).toBe(false);
+  act(() => result.current.close());
+  expect(opener).toHaveFocus();
+  expect(result.current.readingHistory.canGoBack).toBe(false);
+  host.remove();
+  opener.remove();
 });

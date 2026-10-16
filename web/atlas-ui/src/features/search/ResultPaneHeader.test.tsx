@@ -113,7 +113,6 @@ describe("search pane composition", () => {
     expect(screen.queryByText("No matching records.")).toBeNull();
     expect(screen.getByText("Invalid filter link")).toBeVisible();
   });
-
   it("keeps the Similar criterion and filters in one body, and clears only the criterion", () => {
     const setSearch = vi.fn();
     const state = workspace({
@@ -238,6 +237,10 @@ function workspace(
     reading: {
       request: null,
       inspect: vi.fn(),
+      select: vi.fn(),
+      canGoBack: false,
+      restoringHistory: false,
+      back: vi.fn(),
       detail: undefined,
       landing: undefined,
       error: null,
@@ -249,6 +252,8 @@ function workspace(
       saveList: vi.fn(),
       readReader: () => 0,
       saveReader: vi.fn(),
+      readReaderFocus: vi.fn(),
+      saveReaderFocus: vi.fn(),
     },
     filterEditor: undefined,
     filterDiscoveryContext: {

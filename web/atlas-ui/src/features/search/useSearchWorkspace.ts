@@ -137,7 +137,7 @@ export function useSearchWorkspace({
     enabled && !retrieval.recovering,
     retrieval.epoch,
   );
-  const inspectReading = reading.inspect;
+  const inspectReading = reading.select;
   const positions = useBrowsePositions();
   const liveRequest = useRef({ token: "", epoch: 0, retiring: false });
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
@@ -350,7 +350,7 @@ export function useSearchWorkspace({
     const searchQuery = searchStateQueryString(search, urlProfile);
     const url = `${searchPath(recordKey)}${searchQuery}`;
     history.replaceState({ ...history.state, atlasSearchPage: pageNumber }, "", url);
-    reading.inspect(recordKey ? { navigation: rootNavigation(recordKey) } : null);
+    reading.select(recordKey ? { navigation: rootNavigation(recordKey) } : null);
   }
 
   const errorMessage = messageFromError(resultsQuery.error);

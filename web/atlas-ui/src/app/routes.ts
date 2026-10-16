@@ -265,15 +265,22 @@ export function navigateToAtlasPath(path: string) {
 }
 
 export function shouldHandleAtlasRouteClick(
-  event: React.MouseEvent<HTMLElement>,
+  event: Pick<
+    React.MouseEvent<HTMLElement>,
+    "defaultPrevented" | "metaKey" | "altKey" | "ctrlKey" | "shiftKey"
+  > & { button?: number; currentTarget?: EventTarget | null },
 ): boolean {
+  const link =
+    event.currentTarget instanceof Element ? event.currentTarget.closest("a") : null;
   return (
-    event.button === 0 &&
+    (event.button === undefined || event.button === 0) &&
     !event.defaultPrevented &&
     !event.metaKey &&
     !event.altKey &&
     !event.ctrlKey &&
-    !event.shiftKey
+    !event.shiftKey &&
+    !link?.hasAttribute("download") &&
+    (!link?.getAttribute("target") || link.getAttribute("target") === "_self")
   );
 }
 

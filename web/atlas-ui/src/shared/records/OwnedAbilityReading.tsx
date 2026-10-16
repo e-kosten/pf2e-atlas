@@ -17,6 +17,9 @@ export type OwnedReadingContext = {
   generation: string;
   parent: RecordNavigationView;
   landing?: RecordNavigationView;
+  // The reading host can restore a history bookmark only after this target's
+  // actual content is mounted; the target remains part of the bounded request.
+  onLandingReady?: (target?: HTMLElement) => void;
   reloadParent?: () => void;
   reloadParentLabel?: string;
 };
@@ -72,6 +75,7 @@ function OwnedAbilityBatch({
   const sentinel = useRef<HTMLDivElement>(null);
   const landed = useRef(false);
   const landing = context.landing;
+  const onLandingReady = context.onLandingReady;
   const target = useMemo(() => (landing ? activityAddress(landing) : null), [landing]);
   const identity = JSON.stringify([
     context?.generation,
@@ -124,7 +128,7 @@ function OwnedAbilityBatch({
   const { hasNextPage, isError, fetchNextPage } = reading;
   useEffect(() => {
     landed.current = false;
-  }, [target, context?.generation]);
+  }, [target, context?.generation, onLandingReady]);
   useEffect(() => {
     if (!target || landed.current || !entries.length || !open) return;
     const element = Array.from(
@@ -135,10 +139,11 @@ function OwnedAbilityBatch({
     );
     if (element) {
       landed.current = true;
-      element.scrollIntoView?.({ block: "start" });
+      if (!onLandingReady) element.scrollIntoView?.({ block: "start" });
       element.focus({ preventScroll: true });
+      onLandingReady?.(element);
     }
-  }, [target, entries.length, open]);
+  }, [target, entries.length, open, onLandingReady]);
   useEffect(() => {
     if (!open || !hasNextPage || loading || isError) return;
     // Scroll events are captured from the real reading host. Layout/visibility

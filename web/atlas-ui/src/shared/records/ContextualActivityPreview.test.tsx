@@ -2,6 +2,7 @@ import {
   act,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
   within,
@@ -120,6 +121,8 @@ function Flow({
       {preview.recordKey && (
         <RecordPreviewPopover
           anchor={preview.anchor}
+          readingHistory={preview.readingHistory}
+          landing={preview.landing}
           detail={preview.detail}
           loading={preview.loading}
           error={preview.error}
@@ -228,7 +231,7 @@ it("renders a complete casting entry, its local spell roster, and one title thro
   expect(
     screen.getAllByRole("heading", { name: "Staff of Fire (Major)" }),
   ).toHaveLength(1);
-  expect(screen.getByRole("button", { name: /Local Fireball/ })).toBeVisible();
+  expect(screen.getByRole("link", { name: /Local Fireball/ })).toBeVisible();
   expect(screen.queryByRole("heading", { name: "Description" })).toBeNull();
   expect(screen.queryByText("Reference")).toBeNull();
   expect(api.getRecordDetail).not.toHaveBeenCalled();
@@ -490,3 +493,63 @@ it.each(["desktop", "narrow"])(
     expect(api.getRecordDetail).not.toHaveBeenCalled();
   },
 );
+
+it("restores participant-bound facts after visiting an immutable reference and rejects changed participant context without baseline fallback", async () => {
+  currentActivity = activityFixture("Adjusted Jaws");
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const presentation = {
+    ...detailFixture(currentActivity.navigation.record_key).presentation,
+    body: {
+      kind: "creature" as const,
+      value: { ...actorFixture(), activities: knownFact([currentActivity]) },
+    },
+  };
+  api.getRecordDetail.mockResolvedValue(
+    detailFixture("rules:linked", "Immutable linked record"),
+  );
+  const { result, rerender } = renderHook(
+    ({ identity }) =>
+      useRecordPreview({
+        encounterRef: "test-encounter",
+        identity,
+        generation: "generation-a",
+        parentRecordKey: currentActivity.navigation.record_key,
+        presentation,
+      }),
+    {
+      initialProps: { identity: "participant-a" },
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  act(() =>
+    result.current.open(
+      currentActivity.navigation.record_key,
+      undefined,
+      currentActivity.navigation,
+    ),
+  );
+  await waitFor(() =>
+    expect(result.current.detail?.presentation.identity.title).toBe("Adjusted Jaws"),
+  );
+  act(() => result.current.open("rules:linked"));
+  await waitFor(() =>
+    expect(result.current.detail?.presentation.identity.title).toBe(
+      "Immutable linked record",
+    ),
+  );
+  act(() => result.current.readingHistory.onBack());
+  await waitFor(() =>
+    expect(result.current.detail?.presentation.identity.title).toBe("Adjusted Jaws"),
+  );
+  expect(api.getRecordDetail.mock.calls.every(([key]) => key === "rules:linked")).toBe(
+    true,
+  );
+  rerender({ identity: "participant-b" });
+  expect(result.current.detail).toBeUndefined();
+  expect(result.current.error?.message).toContain("participant has changed");
+  expect(api.getRecordDetail.mock.calls.every(([key]) => key === "rules:linked")).toBe(
+    true,
+  );
+});

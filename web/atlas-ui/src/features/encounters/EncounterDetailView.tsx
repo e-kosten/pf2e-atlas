@@ -233,6 +233,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             participants={encounter.data?.participants ?? []}
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
             previewAnchor={recordPreview.anchor}
+            previewReadingHistory={recordPreview.readingHistory}
+            previewLanding={recordPreview.landing}
             previewDetail={recordPreview.detail}
             previewSelection={recordPreview.selection}
             previewLoading={recordPreview.loading}

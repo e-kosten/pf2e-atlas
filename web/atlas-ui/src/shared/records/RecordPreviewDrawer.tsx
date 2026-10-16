@@ -1,3 +1,4 @@
+import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { Drawer } from "antd";
 import { useRef } from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
@@ -20,13 +21,21 @@ export function RecordPreviewDrawer({
   open,
   fullPageHref,
   landing,
+  readingHistory,
   onOwnerReturn,
 }: {
   onAfterClose: () => void;
   open: boolean;
 } & RecordPreviewContentProps) {
   const actions = useRef<HTMLDivElement>(null);
-  const contentFocus = usePreviewContentFocus(open);
+  const readingRef = usePreviewReadingPosition(
+    detail,
+    readingHistory,
+    "drawer",
+    open,
+    landing,
+  );
+  const contentFocus = usePreviewContentFocus(open, readingRef.ref);
   return (
     <Drawer
       afterOpenChange={(open) => {
@@ -48,6 +57,7 @@ export function RecordPreviewDrawer({
       extra={
         <div ref={actions}>
           <RecordPreviewActions
+            readingHistory={readingHistory}
             onClose={onClose}
             onOpenFullPage={onOpenFullPage}
             fullPageHref={fullPageHref}
@@ -70,6 +80,7 @@ export function RecordPreviewDrawer({
           backLabel="Close preview"
           onReference={onReference}
           landing={landing}
+          onLandingReady={readingRef.onLandingReady}
           onOwnerReturn={onOwnerReturn}
         />
       </section>

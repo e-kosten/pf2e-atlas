@@ -533,10 +533,13 @@ describe("useSearchWorkspace", () => {
     });
 
     expect(result.current.search.query).toBe("fi");
+    expect(result.current.resultsLoading).toBe(true);
+    expect(result.current.resultPage).toBeUndefined();
     expect(window.location.pathname).toBe("/search");
     expect(window.location.search).toBe("?search_profile=bge-base&q=fi");
     await delay(150);
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
+    expect(result.current.resultsLoading).toBe(true);
 
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     const request = apiMocks.searchPage.mock.calls[0][0] as SearchResultsRequest;

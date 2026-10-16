@@ -1,3 +1,4 @@
+import { recordPath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import { Alert, Button, Form, Input, InputNumber, Popover, Select } from "antd";
 import type { GetRef } from "antd";
 import { MoreHorizontal, Trash2 } from "lucide-react";
@@ -329,9 +330,12 @@ function ConditionEditor({
           type="link"
           style={{ padding: 0, height: "auto", justifyContent: "start" }}
           className="encounter-condition-row__name"
-          onClick={(event) =>
-            onReference(condition.condition_key!, event.currentTarget)
-          }
+          href={recordPath(condition.condition_key)}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            onReference(condition.condition_key!, event.currentTarget);
+          }}
         >
           {condition.name}
         </Button>

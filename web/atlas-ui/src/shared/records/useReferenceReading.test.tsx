@@ -92,3 +92,28 @@ it("does not start an addressed child read after an abandoned parent finishes la
   expect(api).toHaveBeenCalledTimes(2);
   expect(result.current.detail?.record.record_key).toBe("spells:heal");
 });
+
+it("bounds local history and restores complete owner, field, passage, fingerprint and landing without changing selection", () => {
+  const exact = {
+    ...activityFixture("Jaws", "actors:ghoul").navigation,
+    field: "system.description.value",
+    source_fingerprint: "exact-snapshot",
+  };
+  const first = { navigation: exact, landing: exact };
+  const { result } = renderHook(() => useReferenceReading(first, false), { wrapper });
+  expect(result.current.restoringHistory).toBe(false);
+  act(() => result.current.inspect({ navigation: rootNavigation("spells:heal") }));
+  act(() => result.current.back());
+  expect(result.current.request).toEqual(first);
+  expect(result.current.restoringHistory).toBe(true);
+  expect(result.current.canGoBack).toBe(false);
+  for (let i = 0; i < 30; i++)
+    act(() => result.current.inspect({ navigation: rootNavigation(`rules:${i}`) }));
+  for (let i = 0; i < 24; i++) act(() => result.current.back());
+  expect(result.current.request?.navigation.record_key).toBe("rules:5");
+  expect(result.current.canGoBack).toBe(false);
+  act(() => result.current.select(first));
+  expect(result.current.request).toEqual(first);
+  expect(result.current.restoringHistory).toBe(false);
+  expect(result.current.canGoBack).toBe(false);
+});

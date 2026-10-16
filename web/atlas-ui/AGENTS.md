@@ -13,18 +13,22 @@ This package owns the React browser frontend for PF2e Atlas. Follow these rules 
 
 Before creating a feature-local interaction pattern, check `src/shared/ui`.
 
+- Use `PrimaryToolbar` for wrapping primary control rows. Inherit default Ant sizes; reserve small controls for dense inline/table actions. Keep search flexible and neighboring controls top-aligned when selected choices wrap.
 - Use `IndexTable` for clickable entity/index tables.
 - Use `EntityIndexPage` for `/things` index pages with a title, summary, actions, and table body.
 - Use `EditableCommitField` for inline fields that keep a local draft and commit on blur or Enter.
 - Use `SearchPickerModal` for modal record-search selection flows.
-- Use `PrimaryToolbar` for primary control rows; inherit the root Ant size and
-  reserve small controls for dense inline or table actions. Follow the sizing and
-  wrapping rules in `docs/frontend-guidelines.md`.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.
 - Keep lower-level helpers such as `useConfirmDangerAction` for non-button callbacks where a shared button is not the right shape.
 
 If a second surface needs a behavior, move it into `src/shared/ui` instead of copying the feature-local implementation. Feature modules should compose shared primitives with feature-specific requests, labels, mutations, and DTOs. Shared primitives should normally wrap or compose Ant components; do not create plain-button or plain-anchor replacements for generic Ant behavior unless there is a documented product-specific reason.
+
+For record browsing, links and nested previews, follow
+[In-place reference reading](docs/frontend-guidelines.md#in-place-reference-reading).
+Reuse the shared browse/reader and preview owners with exact backend navigation;
+keep feature selection and mutations separate. Do not invent feature-local
+Popover/Drawer or link-navigation policies.
 
 ## CSS Layout
 

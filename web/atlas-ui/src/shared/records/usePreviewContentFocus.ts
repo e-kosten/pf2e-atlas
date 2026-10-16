@@ -1,8 +1,12 @@
-import { useLayoutEffect, useRef, type FocusEvent } from "react";
+import { useLayoutEffect, useRef, type FocusEvent, type RefObject } from "react";
 
 /** Keep keyboard reading inside a preview when following replaces its focused content. */
-export function usePreviewContentFocus(open: boolean) {
-  const ref = useRef<HTMLElement>(null);
+export function usePreviewContentFocus(
+  open: boolean,
+  target?: RefObject<HTMLElement | null>,
+) {
+  const localRef = useRef<HTMLElement>(null);
+  const ref = target ?? localRef;
   const focused = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
     if (!open) {

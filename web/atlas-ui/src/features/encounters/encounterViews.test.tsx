@@ -35,6 +35,8 @@ import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
 import { EditEncounterForm } from "./EncounterModals";
+import { atlasRoutePath, currentAtlasRoute } from "../../app/routes";
+import { activityAddress } from "../../shared/records/ownedNavigation";
 
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),
@@ -150,6 +152,9 @@ describe("encounter views", () => {
     });
 
     expect(await screen.findByText("Ambush")).toBeInTheDocument();
+    const indexTable = screen.getByRole("table");
+    expect(indexTable).toHaveStyle({ tableLayout: "auto" });
+    expect(indexTable.querySelector("colgroup col")).toHaveStyle({ minWidth: "240px" });
     expect(screen.queryByText("Old Fight")).not.toBeInTheDocument();
 
     const encounterRow = screen.getByText("Ambush").closest("tr");
@@ -163,7 +168,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Archived" }));
     expect(await screen.findByText("Old Fight")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Ambush" }));
+    fireEvent.click(screen.getByRole("link", { name: "Edit Ambush" }));
     await waitFor(() =>
       expect(window.location.pathname).toBe("/encounters/ambush/edit"),
     );
@@ -560,10 +565,10 @@ describe("encounter views", () => {
 
     fireEvent.click(await screen.findByText("Source content"));
     const linkedRuleButton = (await screen.findByText("Linked Rule")).closest(
-      "[role=button]",
+      "a[href]",
     );
     if (!linkedRuleButton) {
-      throw new Error("Linked Rule button was not rendered");
+      throw new Error("Linked Rule native link was not rendered");
     }
     fireEvent.click(linkedRuleButton);
 
@@ -590,9 +595,9 @@ describe("encounter views", () => {
     fireEvent.click(await screen.findByText("Source content"));
     const linkedRuleButtonAfterReselect = (
       await screen.findByText("Linked Rule")
-    ).closest("[role=button]");
+    ).closest("a[href]");
     if (!linkedRuleButtonAfterReselect) {
-      throw new Error("Linked Rule button was not rendered after reselection");
+      throw new Error("Linked Rule native link was not rendered after reselection");
     }
     fireEvent.click(linkedRuleButtonAfterReselect);
     await waitFor(() =>
@@ -654,7 +659,7 @@ describe("encounter views", () => {
         </SearchProfileProvider>
       </QueryClientProvider>,
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Claw" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Claw" }));
     const preview = await screen.findByLabelText("Reference preview");
     await waitFor(() =>
       expect(
@@ -711,12 +716,60 @@ describe("encounter views", () => {
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
   });
 
+  it("keeps the encounter owner-return landing in native full-page links and modified activation", async () => {
+    const initial = encounterDetailFixture();
+    const actor = initial.participants[0].presentation!.body;
+    if (actor.kind !== "creature") throw new Error("expected creature fixture");
+    const claw = actor.value.activities.value![0];
+    const selected = recordDetailFixture("actors:goblin");
+    selected.selected = claw.navigation;
+    selected.presentation.identity = { ...selected.record, title: claw.title };
+    selected.presentation.body = { kind: "activity", value: claw };
+    const parent = recordDetailFixture("actors:goblin");
+    parent.presentation = initial.participants[0].presentation!;
+    apiMocks.getEncounterReference.mockImplementation(
+      (_encounter, _participant, request) =>
+        Promise.resolve(request.selection.owners.length ? selected : parent),
+    );
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("link", { name: "Claw" }));
+    const preview = await screen.findByLabelText("Reference preview");
+    fireEvent.click(
+      await within(preview).findByRole("link", {
+        name: `Return to ${selected.record.title}`,
+      }),
+    );
+    await waitFor(() =>
+      expect(apiMocks.getEncounterReference).toHaveBeenCalledTimes(2),
+    );
+    const full = screen.getByRole("link", { name: "Open reference full page" });
+    const expected = atlasRoutePath({
+      kind: "record",
+      recordKey: parent.selected.record_key,
+      selection: parent.selected,
+      landing: activityAddress(claw.navigation),
+    });
+    expect(full).toHaveAttribute("href", expected);
+    const before = window.location.href;
+    for (const modifiers of [{ metaKey: true }, { ctrlKey: true }, { button: 1 }])
+      expect(fireEvent.click(full, modifiers)).toBe(true);
+    expect(window.location.href).toBe(before);
+    fireEvent.click(full);
+    expect(currentAtlasRoute()).toMatchObject({
+      kind: "record",
+      recordKey: parent.selected.record_key,
+      landing: activityAddress(claw.navigation),
+    });
+  });
+
   it("opens condition reference previews from canonical condition rows", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Frightened" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Frightened" }));
 
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
