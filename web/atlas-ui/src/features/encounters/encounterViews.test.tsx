@@ -262,7 +262,7 @@ describe("encounter views", () => {
     );
   });
 
-  it("follows the canonical next turn after refresh without calculating order", async () => {
+  it("reveals the canonical next participant at the top of the reader after refresh", async () => {
     apiMocks.setEncounterTurn.mockImplementation(async () => {
       serverEncounter = {
         ...serverEncounter,
@@ -276,8 +276,16 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Next turn" })).toBeEnabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Next turn" }));
+    fireEvent.click(document.querySelector('[data-participant-key="participant_a"]')!);
+    const back = await screen.findByRole("button", { name: "Back to roster" });
+    const reader = document.querySelector<HTMLElement>(".encounter-record-pane")!;
+    reader.scrollTop = 883;
+    fireEvent.click(
+      within(back.parentElement!).getByRole("button", { name: "Next turn" }),
+    );
     await waitFor(() => expect(screen.getByLabelText("HP")).toHaveValue("24"));
+    expect(reader.scrollTop).toBe(0);
+    expect(within(reader).getByRole("heading", { name: "Kyra" })).toBeVisible();
     expect(rosterRow("Kyra")).toHaveClass("encounter-roster__row--selected");
   });
 
@@ -332,7 +340,11 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Next turn" })).toBeEnabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Next turn" }));
+    fireEvent.click(document.querySelector('[data-participant-key="participant_a"]')!);
+    const back = await screen.findByRole("button", { name: "Back to roster" });
+    fireEvent.click(
+      within(back.parentElement!).getByRole("button", { name: "Next turn" }),
+    );
     await screen.findByText("Saved, but the encounter could not refresh");
     expect(screen.getByLabelText("HP")).toHaveValue("10");
     fireEvent.click(screen.getByRole("button", { name: "Retry encounter refresh" }));
