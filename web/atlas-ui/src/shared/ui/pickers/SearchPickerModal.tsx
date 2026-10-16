@@ -15,7 +15,7 @@ import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
 import { assertSearchIdentity } from "../../search/searchIdentity";
-import type { SearchResultsRequest, SearchResultRow } from "../../../generated/atlas";
+import type { SearchResultsRequest } from "../../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
   buildFilterDiscoveryContext,
@@ -42,8 +42,6 @@ export function SearchPickerModal<FormValues>({
   onSelectedRecordKeyChange,
   open,
   okButtonProps,
-  selectedLabel,
-  selectedPrompt,
   selectedRecordKey,
   title,
 }: {
@@ -58,8 +56,6 @@ export function SearchPickerModal<FormValues>({
   onSelectedRecordKeyChange: (recordKey: string | null) => void;
   open: boolean;
   okButtonProps?: ModalProps["okButtonProps"];
-  selectedLabel: (row: SearchResultRow) => string;
-  selectedPrompt: string;
   selectedRecordKey: string | null;
   title: string;
 }) {
@@ -69,7 +65,6 @@ export function SearchPickerModal<FormValues>({
   const pageNumber = paging.profile === profile.id ? paging.number : 1;
   if (paging.profile !== profile.id) setPaging({ profile: profile.id, number: 1 });
   const setPageNumber = (number: number) => setPaging({ profile: profile.id, number });
-  const [candidate, setCandidate] = useState<SearchResultRow | null>(null);
   const queryClient = useQueryClient();
   const [retrieval, setRetrieval] = useState({
     generation: null as string | null,
@@ -162,15 +157,10 @@ export function SearchPickerModal<FormValues>({
   }
   const currentRows =
     recordResults.error || !profileReady ? [] : (recordResults.data?.rows ?? []);
-  const selectedRecord =
-    candidate?.record.record_key === selectedRecordKey
-      ? candidate
-      : currentRows.find((row) => row.record.record_key === selectedRecordKey);
 
   const reset = () => {
     setSearch(DEFAULT_SEARCH_STATE);
     setPageNumber(1);
-    setCandidate(null);
     reading.inspect(null);
     setRetrieval((current) => ({
       generation: null,
@@ -250,7 +240,6 @@ export function SearchPickerModal<FormValues>({
           selectedRecordKey={selectedRecordKey}
           onSelect={(row) => {
             if (!disabled) {
-              setCandidate(row);
               onSelectedRecordKeyChange(row.record.record_key);
             }
           }}
@@ -296,13 +285,6 @@ export function SearchPickerModal<FormValues>({
           layout="vertical"
           onFinish={onFinish}
         >
-          <Typography.Text
-            className="search-picker__selection"
-            role="status"
-            aria-live="polite"
-          >
-            {selectedRecord ? selectedLabel(selectedRecord) : selectedPrompt}
-          </Typography.Text>
           <div className="reference-picker__fields">{children}</div>
           <Space>
             <Button disabled={disabled} onClick={onCancel}>

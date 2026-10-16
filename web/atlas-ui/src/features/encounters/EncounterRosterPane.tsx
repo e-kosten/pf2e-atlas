@@ -275,8 +275,6 @@ export function EncounterRosterPane({
         onFinish={(values) => void addRecord(values)}
         onSelectedRecordKeyChange={setSelectedRecordKey}
         open={recordOpen}
-        selectedLabel={(row) => `Selected: ${row.record.title}`}
-        selectedPrompt="Select a creature or hazard."
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
       >

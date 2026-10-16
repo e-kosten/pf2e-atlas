@@ -104,8 +104,8 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     const row = dialog.locator(`[data-record-key="${sentinel}"]`);
     await activate(row, info);
     await expect(
-      dialog.getByRole("status").filter({ hasText: "Selected: Atlas Sentinel" }),
-    ).toBeVisible();
+      dialog.getByRole("button", { name: "Add", exact: true }),
+    ).toBeEnabled();
     const results = dialog.getByRole("button", { name: "Results", exact: true });
     if (await results.isVisible()) await activate(results, info);
     await dialog

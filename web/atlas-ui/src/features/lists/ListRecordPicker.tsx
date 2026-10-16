@@ -79,8 +79,6 @@ export function ListRecordPicker({
         add.reset();
         setReceipt(null);
       }}
-      selectedPrompt="Select a record."
-      selectedLabel={(row) => `Selected: ${row.record.title}`}
       emptyPrompt="Search or choose filters."
       emptyResults="No matching records."
       buildRequest={(query) =>
