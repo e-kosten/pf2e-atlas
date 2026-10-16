@@ -288,9 +288,12 @@ test("encounter references retain their owner, scroll and native destination", a
       .getByRole("alert")
       .filter({ hasText: "Saved, but the encounter could not refresh" });
     await expect(feedback).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Add PC", exact: true }),
-    ).toBeDisabled();
+    const settingsAction = page.getByRole("button", {
+      name: "Encounter settings",
+      exact: true,
+    });
+    await expect(settingsAction).toBeVisible();
+    await expect(settingsAction).toBeDisabled();
     expect(writes).toBe(1);
     await page.unroute(detailRead);
     await activate(page.getByRole("button", { name: "Retry encounter refresh" }), info);
@@ -390,7 +393,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     });
     await activate(settings.locator("label").filter({ hasText: /^Name$/ }), info);
     await expect(
-      settings.getByRole("textbox", { name: "Name", exact: true }),
+      settings.getByRole("textbox", { name: /^(?:\*\s*)?Name$/ }),
     ).toBeFocused();
     await activate(settings.getByRole("button", { name: "Cancel", exact: true }), info);
     await activate(
