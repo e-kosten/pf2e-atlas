@@ -240,6 +240,24 @@ export async function removeEncounterParticipant(
   );
 }
 
+export async function getEncounterTurnReview(
+  encounterRef: string,
+): Promise<import("../generated/atlas").EncounterTurnReviewView> {
+  return atlasFetchEncounter(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/turn-review`,
+  );
+}
+
+export async function advanceEncounterTurn(
+  encounterRef: string,
+  request: import("../generated/atlas").AdvanceEncounterTurnRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/advance`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
+
 export async function setEncounterTurn(
   request: SetEncounterTurnRequest,
 ): Promise<EncounterMutationView> {
@@ -416,12 +434,17 @@ async function atlasFetchEncounter<T>(
         .filter((field) => value[field] !== undefined)
         .map((field) => [field, toBigInt(value[field])]),
     );
+  const duration = (value: unknown) => {
+    if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition duration");
+    return { ...value, amount: toBigInt(value.amount) };
+  };
   const condition = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter condition");
     return {
       ...value,
       condition_id: toBigInt(value.condition_id),
-      ...optionalIntegers(value, ["value", "duration_rounds"]),
+      ...optionalIntegers(value, ["value"]),
+      ...(value.duration === undefined ? {} : { duration: duration(value.duration) }),
     };
   };
   const participant = (value: unknown) => {
@@ -446,8 +469,14 @@ async function atlasFetchEncounter<T>(
   if (Array.isArray(result.encounters))
     result.encounters = result.encounters.map(summary);
   if (result.encounter !== undefined) result.encounter = summary(result.encounter);
-  if (Array.isArray(result.participants))
+  if (Array.isArray(result.participants)) {
+    result.revision = toBigInt(result.revision);
     result.participants = result.participants.map(participant);
+  }
+  if (Array.isArray(result.reminders)) {
+    result.expected_revision = toBigInt(result.expected_revision);
+    result.reminders = result.reminders.map(condition);
+  }
   if (Array.isArray(result.conditions))
     result.conditions = result.conditions.map((value) => {
       if (!isRecord(value))

@@ -376,7 +376,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                     name: Some("Custom".into()),
                     value: Some(1),
                     source_participant_key: None,
-                    duration_rounds: None,
+                    duration: None,
                     note: None,
                 },
             )
@@ -397,12 +397,13 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                 &key,
                 &initial.participant_key,
                 UpdateEncounterParticipantConditionRequest {
+                    expected_encounter_revision: local.encounter.revision,
                     condition_id,
                     condition_ref: None,
                     name: "Changed".into(),
                     value: Some(2),
                     source_participant_key: None,
-                    duration_rounds: None,
+                    duration: None,
                     note: None,
                 },
             )
@@ -429,7 +430,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
         worker
             .set_encounter_turn(SetEncounterTurnRequest {
                 encounter_ref: key.clone(),
-                participant_key: None,
+                participant_key: initial.participant_key.clone(),
             })
             .unwrap(),
     );
@@ -619,7 +620,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
                 name: None,
                 value: Some(1),
                 source_participant_key: None,
-                duration_rounds: None,
+                duration: None,
                 note: None,
             },
         )
@@ -755,7 +756,7 @@ fn strike_status_penalties_preserve_strongest_and_suppressed_explanations_in_bot
                         name: None,
                         value: Some(value),
                         source_participant_key: None,
-                        duration_rounds: None,
+                        duration: None,
                         note: None,
                     },
                 )
@@ -1497,7 +1498,7 @@ fn conditions_stack_known_penalties_and_preserve_unapplied_context() {
                     name: None,
                     value: Some(value),
                     source_participant_key: None,
-                    duration_rounds: None,
+                    duration: None,
                     note: None,
                 },
             )
@@ -1589,7 +1590,7 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
                             source_participant_key: Some(
                                 participants[1 + i % 2].participant_key.clone(),
                             ),
-                            duration_rounds: None,
+                            duration: None,
                             note: None,
                         },
                     )

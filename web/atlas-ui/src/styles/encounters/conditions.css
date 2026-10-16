@@ -12,28 +12,10 @@
   justify-content: start;
 }
 
-.encounter-add-condition__row {
-  align-items: center;
+.encounter-duration-fields {
   display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(160px, 1fr) 76px auto auto;
-  min-width: min(420px, calc(100vw - 48px));
-}
-
-.encounter-condition-details {
-  display: grid;
-  gap: 8px;
-  min-width: min(320px, calc(100vw - 48px));
-}
-
-.encounter-condition-note-input {
-  resize: vertical;
-}
-
-.encounter-condition-details__actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 2px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
 }
 
 .encounter-condition-row {
@@ -93,4 +75,20 @@
 .encounter-conditions h3 {
   font-size: 16px;
   margin: 4px 0 0;
+}
+
+.encounter-turn-review {
+  display: grid;
+  gap: 16px;
+  margin-block: 16px;
+}
+
+.encounter-turn-reminder {
+  display: grid;
+  gap: 8px;
+}
+
+.encounter-turn-reminder h3,
+.encounter-turn-reminder p {
+  margin: 0;
 }

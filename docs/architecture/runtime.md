@@ -382,7 +382,15 @@ same durable receipt, independently of subsequent presentation refresh.
 Local-state initialization and migrations commit schema and metadata together.
 List metadata/tags, quantity additions and removal with replacement turn each
 have one write transaction. Next turn chooses from the same locked snapshot it
-updates, using pure app-service policy. Participant replacements require an
+updates, using pure app-service policy. A side-effect-free turn review returns the
+encounter revision; Continue checks it in the immediate transaction before applying
+old-END/new-START duration decrements and the new turn. Every relevant durable
+encounter mutation advances that revision. Duration rounds store one remaining
+amount and explicit participant/event anchor; zero retains the condition until
+explicit removal, unresolved anchors never tick, and nonround units are reminders.
+Manual Set turn, reorder and removal never tick. Only canonical Persistent Damage
+supplies its owner-END damage/recovery table reminder; no dice, HP, severity or
+expiry action is automatic. Participant replacements require an
 expected revision and fail with a typed conflict when stale. Condition IDs are
 not reused, and condition edits check participant ownership inside the write.
 Existing-encounter mutations return a durable canonical-key receipt rather than

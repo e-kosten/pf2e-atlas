@@ -31,6 +31,92 @@ pub struct EncounterConditionCatalogView {
     pub conditions: Vec<EncounterConditionDefinitionView>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionDurationUnit {
+    Rounds,
+    Minutes,
+    Hours,
+    Days,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionTurnEvent {
+    Start,
+    End,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ConditionTimingView {
+    pub participant_key: String,
+    pub event: ConditionTurnEvent,
+}
+
+/// For rounds, amount is the remaining count; zero awaits explicit removal.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ConditionDurationView {
+    pub amount: i64,
+    pub unit: ConditionDurationUnit,
+    pub timing: Option<ConditionTimingView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct EncounterTurnReviewView {
+    pub encounter_key: String,
+    pub expected_revision: i64,
+    pub current_participant_key: Option<String>,
+    pub next_participant_key: Option<String>,
+    pub reminders: Vec<EncounterTurnReminderView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EncounterTurnReminderView {
+    PersistentDamage {
+        participant_key: String,
+        participant_name: String,
+        condition_id: i64,
+        condition_name: String,
+        note: Option<String>,
+    },
+    DurationEnding {
+        participant_key: String,
+        participant_name: String,
+        condition_id: i64,
+        condition_name: String,
+        timing: ConditionTimingView,
+    },
+    DurationEnded {
+        participant_key: String,
+        participant_name: String,
+        condition_id: i64,
+        condition_name: String,
+    },
+    DurationReminder {
+        participant_key: String,
+        participant_name: String,
+        condition_id: i64,
+        condition_name: String,
+        duration: ConditionDurationView,
+    },
+    TimingUnavailable {
+        participant_key: String,
+        participant_name: String,
+        condition_id: i64,
+        condition_name: String,
+        duration: ConditionDurationView,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct AdvanceEncounterTurnRequest {
+    pub expected_revision: i64,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterConditionDefinitionView {
@@ -233,6 +319,7 @@ pub struct EncounterCreateView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterDetailView {
+    pub revision: i64,
     pub artifact_generation: Option<String>,
     pub encounter: EncounterSummaryView,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -330,7 +417,7 @@ pub struct EncounterParticipantConditionView {
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDurationView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub note: Option<String>,
@@ -450,6 +537,7 @@ pub struct ReorderEncounterParticipantRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
 pub struct AddEncounterParticipantConditionRequest {
     pub participant_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -466,7 +554,7 @@ pub struct AddEncounterParticipantConditionRequest {
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDurationView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub note: Option<String>,
@@ -474,7 +562,9 @@ pub struct AddEncounterParticipantConditionRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
 pub struct UpdateEncounterParticipantConditionRequest {
+    pub expected_encounter_revision: i64,
     pub condition_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -488,7 +578,7 @@ pub struct UpdateEncounterParticipantConditionRequest {
     pub source_participant_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDurationView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub note: Option<String>,
@@ -498,9 +588,7 @@ pub struct UpdateEncounterParticipantConditionRequest {
 #[serde(rename_all = "snake_case")]
 pub struct SetEncounterTurnRequest {
     pub encounter_ref: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub participant_key: Option<String>,
+    pub participant_key: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -515,6 +603,34 @@ pub struct DeleteEncounterView {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn condition_duration_rejects_fractional_missing_and_retired_inputs() {
+        let request = json!({"participant_key":"p","name":"Custom","duration":{"amount":2,"unit":"rounds","timing":{"participant_key":"p","event":"end"}}});
+        let parsed =
+            serde_json::from_value::<AddEncounterParticipantConditionRequest>(request.clone())
+                .unwrap();
+        assert_eq!(parsed.duration.unwrap().amount, 2);
+        for duration in [
+            json!({"unit":"rounds"}),
+            json!({"amount":1.5,"unit":"minutes"}),
+            json!({"amount":null,"unit":"hours"}),
+            json!({"amount":2,"unit":"seconds"}),
+            json!({"amount":2,"unit":"rounds","timing":{"participant_key":"p","event":"sometime"}}),
+        ] {
+            let mut bad = request.clone();
+            bad["duration"] = duration;
+            assert!(
+                serde_json::from_value::<AddEncounterParticipantConditionRequest>(bad).is_err()
+            );
+        }
+        assert!(
+            serde_json::from_value::<AddEncounterParticipantConditionRequest>(
+                json!({"participant_key":"p","name":"Custom","duration_rounds":2})
+            )
+            .is_err()
+        );
+    }
 
     #[test]
     fn hp_action_requires_revision_and_explicit_correction_input() {

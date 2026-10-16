@@ -225,16 +225,25 @@ test("encounter references retain their owner, scroll and native destination", a
     );
     await expect(host.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
     const outer = await page.evaluate(() => scrollY);
+    if (widePreview) {
+      // The activity-only preview has a short scroll range. Its reference is
+      // already visible, so scrollIntoView alone would leave its bookmark at 0.
+      await host.evaluate((node) => {
+        node.scrollTop = node.scrollHeight;
+      });
+    }
     await readThenBack(page, host, info);
     expect(await page.evaluate(() => scrollY)).toBe(outer);
     // A real captured scroll must not restart the same ability's initial landing.
     const position = await host.evaluate((node) => node.scrollTop);
-    await host.evaluate((node) => {
-      node.scrollTop -= 200;
-    });
+    const scrollDelta = widePreview ? Math.min(200, position) : 200;
+    expect(scrollDelta).toBeGreaterThan(0);
+    await host.evaluate((node, delta) => {
+      node.scrollTop -= delta;
+    }, scrollDelta);
     await expect
       .poll(() => host.evaluate((node) => node.scrollTop))
-      .toBeCloseTo(position - 200, 0);
+      .toBeCloseTo(position - scrollDelta, 0);
     const full = page.getByRole("link", {
       name: "Open reference full page",
       exact: true,
@@ -266,7 +275,9 @@ test("encounter references retain their owner, scroll and native destination", a
     await expect(
       page.getByRole("link", { name: "Signal Pulse", exact: true }),
     ).toBeFocused();
-    const hp = page.getByRole("textbox", { name: "HP", exact: true });
+    await activate(page.getByRole("button", { name: "Edit HP", exact: true }), info);
+    const hpDialog = page.getByRole("dialog", { name: "Edit HP", exact: true });
+    const hp = hpDialog.getByRole("textbox", { name: "HP", exact: true });
     await expect(hp).toHaveValue("60");
     let writes = 0;
     page.on("request", (request) => {
@@ -284,10 +295,10 @@ test("encounter references retain their owner, scroll and native destination", a
     await page.route(detailRead, (route) => route.abort("failed"));
     await hp.fill("55");
     await activate(
-      page.getByRole("button", { name: "Set", exact: true }).first(),
+      hpDialog.getByRole("button", { name: "Set current HP", exact: true }),
       info,
     );
-    const feedback = page
+    const feedback = hpDialog
       .getByRole("alert")
       .filter({ hasText: "Saved, but the encounter could not refresh" });
     await expect(feedback).toBeVisible();
@@ -299,9 +310,13 @@ test("encounter references retain their owner, scroll and native destination", a
     await expect(settingsAction).toBeDisabled();
     expect(writes).toBe(1);
     await page.unroute(detailRead);
-    await activate(page.getByRole("button", { name: "Retry encounter refresh" }), info);
+    await activate(
+      hpDialog.getByRole("button", { name: "Retry encounter refresh" }),
+      info,
+    );
     await expect(feedback).toBeHidden();
-    await expect(hp).toHaveValue("55");
+    await expect(hpDialog).toBeHidden();
+    await expect(page.getByLabel("HP summary", { exact: true })).toHaveText("55/60");
     expect(writes).toBe(1);
     await noPageOverflow(page);
   } finally {
@@ -360,7 +375,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       await row.focus();
       await page.keyboard.press("Enter");
     }
-    await expect(page.getByRole("textbox", { name: "HP", exact: true })).toBeVisible();
+    await expect(page.getByLabel("HP summary", { exact: true })).toBeVisible();
     const back = page.getByRole("button", { name: "Back to roster", exact: true });
     if (await back.isVisible()) {
       await expectParticipantWidth(page);
@@ -447,9 +462,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       ).current_hp,
     ).toBe(40);
     await activate(page.getByRole("button", { name: "Damage", exact: true }), info);
-    await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-      "34",
-    );
+    await expect(page.getByLabel("HP summary", { exact: true })).toHaveText("34/40");
     if (info.project.name === "desktop-chromium")
       await page.setViewportSize({ width: 320, height: 700 });
     if (await back.isVisible()) await expectParticipantWidth(page);

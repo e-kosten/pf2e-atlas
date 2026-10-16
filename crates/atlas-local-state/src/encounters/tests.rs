@@ -179,20 +179,29 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         name: "Frightened".to_string(),
         value: Some(1),
         source_participant_key: None,
-        duration_rounds: Some(2),
+        duration: Some(crate::ConditionDuration {
+            amount: 2,
+            unit: crate::ConditionDurationUnit::Rounds,
+            timing: None,
+        }),
         note: Some("From spell".to_string()),
     })?;
     assert_eq!(condition.name, "Frightened");
 
     let updated = encounters
         .update_condition(UpdateEncounterParticipantCondition {
+            expected_encounter_revision: encounters.get("conditions")?.unwrap().revision,
             participant_key: participant.participant_key.clone(),
             condition_id: condition.condition_id,
             condition_key: condition.condition_key,
             name: "Frightened".to_string(),
             value: Some(2),
             source_participant_key: None,
-            duration_rounds: Some(1),
+            duration: Some(crate::ConditionDuration {
+                amount: 1,
+                unit: crate::ConditionDurationUnit::Rounds,
+                timing: None,
+            }),
             note: Some("Raised".to_string()),
         })?
         .expect("condition should update");
@@ -218,7 +227,7 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         name: "Custom".to_string(),
         value: None,
         source_participant_key: None,
-        duration_rounds: None,
+        duration: None,
         note: None,
     })?;
     assert!(condition.condition_id > 0);
@@ -410,7 +419,7 @@ fn failed_replacement_turn_rolls_back_removal_conditions_and_order()
             name: "Custom".into(),
             value: None,
             source_participant_key: None,
-            duration_rounds: None,
+            duration: None,
             note: None,
         })?;
     let before = store.encounters().get_with_participants("test")?.unwrap();
@@ -467,7 +476,7 @@ fn deleted_condition_ids_are_not_reused_for_same_or_other_participants()
         name: "Custom".into(),
         value: Some(1),
         source_participant_key: None,
-        duration_rounds: None,
+        duration: None,
         note: None,
     };
     for target in [&rows[0].participant_key, &rows[1].participant_key] {
@@ -483,13 +492,14 @@ fn deleted_condition_ids_are_not_reused_for_same_or_other_participants()
             store
                 .encounters()
                 .update_condition(UpdateEncounterParticipantCondition {
+                    expected_encounter_revision: 0,
                     participant_key: rows[0].participant_key.clone(),
                     condition_id: old.condition_id,
                     condition_key: None,
                     name: "Stale".into(),
                     value: Some(9),
                     source_participant_key: None,
-                    duration_rounds: None,
+                    duration: None,
                     note: None,
                 })?
                 .is_none()
@@ -526,7 +536,7 @@ fn condition_edits_bind_expected_participant_even_for_explicitly_reused_ids()
             name: "Original".into(),
             value: Some(1),
             source_participant_key: None,
-            duration_rounds: None,
+            duration: None,
             note: None,
         })?;
     store
@@ -543,13 +553,14 @@ fn condition_edits_bind_expected_participant_even_for_explicitly_reused_ids()
         store
             .encounters()
             .update_condition(UpdateEncounterParticipantCondition {
+                expected_encounter_revision: 0,
                 participant_key: rows[0].participant_key.clone(),
                 condition_id: original.condition_id,
                 condition_key: None,
                 name: "Stale".into(),
                 value: Some(9),
                 source_participant_key: None,
-                duration_rounds: None,
+                duration: None,
                 note: None,
             })?
             .is_none()
@@ -710,4 +721,190 @@ fn temp_path(name: &str) -> PathBuf {
     ));
     let _ = fs::remove_file(&path);
     path
+}
+
+#[test]
+fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("reviewed-concurrent")?;
+    let p = store
+        .encounters()
+        .add_participant("test", creature("A", Some(20), 20))?;
+    let condition = store
+        .encounters()
+        .add_condition(AddEncounterParticipantCondition {
+            participant_key: p.participant_key.clone(),
+            condition_key: None,
+            name: "Timed".into(),
+            value: Some(1),
+            source_participant_key: None,
+            duration: Some(crate::ConditionDuration {
+                amount: 2,
+                unit: crate::ConditionDurationUnit::Rounds,
+                timing: Some(crate::ConditionTiming {
+                    participant_key: p.participant_key.clone(),
+                    event: crate::ConditionTurnEvent::End,
+                }),
+            }),
+            note: None,
+        })?;
+    let revision = store.encounters().get("test")?.unwrap().revision;
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
+    let handles = (0..4)
+        .map(|_| {
+            let store = store.clone();
+            let barrier = barrier.clone();
+            let key = p.participant_key.clone();
+            let id = condition.condition_id;
+            std::thread::spawn(move || {
+                barrier.wait();
+                store
+                    .encounters()
+                    .advance_reviewed_turn("test", revision, |_| crate::EncounterTurnUpdate {
+                        turn: EncounterTurnState {
+                            participant_key: Some(key),
+                            round_number: 2,
+                            mark_running: true,
+                        },
+                        durations: vec![(id, 1)],
+                    })
+            })
+        })
+        .collect::<Vec<_>>();
+    let results = handles
+        .into_iter()
+        .map(|h| h.join().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+    assert_eq!(
+        results
+            .iter()
+            .filter(|r| matches!(
+                r,
+                Err(crate::LocalStateError::StaleEncounterRevision { .. })
+            ))
+            .count(),
+        3
+    );
+    let saved = store.encounters().get_with_participants("test")?.unwrap();
+    assert_eq!(saved.encounter.round_number, 2);
+    assert_eq!(
+        saved.participants[0].conditions[0]
+            .duration
+            .as_ref()
+            .unwrap()
+            .amount,
+        1
+    );
+    assert_eq!(saved.encounter.revision, revision + 1);
+    assert!(matches!(
+        store
+            .encounters()
+            .advance_reviewed_turn("test", revision, |_| panic!("stale callback must not run")),
+        Err(crate::LocalStateError::StaleEncounterRevision { .. })
+    ));
+    Ok(())
+}
+
+#[test]
+fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("timing-rollback")?;
+    let p = store
+        .encounters()
+        .add_participant("test", creature("A", Some(20), 20))?;
+    let condition = store
+        .encounters()
+        .add_condition(AddEncounterParticipantCondition {
+            participant_key: p.participant_key.clone(),
+            condition_key: None,
+            name: "Timed".into(),
+            value: None,
+            source_participant_key: None,
+            duration: Some(crate::ConditionDuration {
+                amount: 1,
+                unit: crate::ConditionDurationUnit::Rounds,
+                timing: None,
+            }),
+            note: None,
+        })?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    store.connection()?.execute_batch("CREATE TRIGGER reject_turn BEFORE UPDATE ON encounters BEGIN SELECT RAISE(ABORT,'injected turn failure'); END;")?;
+    assert!(
+        store
+            .encounters()
+            .advance_reviewed_turn("test", before.encounter.revision, |_| {
+                crate::EncounterTurnUpdate {
+                    turn: EncounterTurnState {
+                        participant_key: Some(p.participant_key),
+                        round_number: 2,
+                        mark_running: true,
+                    },
+                    durations: vec![(condition.condition_id, 0)],
+                }
+            })
+            .is_err()
+    );
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        before
+    );
+    Ok(())
+}
+
+#[test]
+fn condition_update_checks_encounter_revision_inside_write_transaction()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("condition-encounter-cas")?;
+    let p = store
+        .encounters()
+        .add_participant("test", creature("A", Some(20), 20))?;
+    let c = store
+        .encounters()
+        .add_condition(AddEncounterParticipantCondition {
+            participant_key: p.participant_key.clone(),
+            condition_key: None,
+            name: "Timed".into(),
+            value: None,
+            source_participant_key: None,
+            duration: Some(crate::ConditionDuration {
+                amount: 3,
+                unit: crate::ConditionDurationUnit::Rounds,
+                timing: None,
+            }),
+            note: None,
+        })?;
+    let revision = store.encounters().get("test")?.unwrap().revision;
+    store
+        .encounters()
+        .advance_reviewed_turn("test", revision, |_| crate::EncounterTurnUpdate {
+            turn: EncounterTurnState {
+                participant_key: Some(p.participant_key.clone()),
+                round_number: 1,
+                mark_running: true,
+            },
+            durations: vec![(c.condition_id, 2)],
+        })?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let result = store
+        .encounters()
+        .update_condition(UpdateEncounterParticipantCondition {
+            expected_encounter_revision: revision,
+            participant_key: p.participant_key,
+            condition_id: c.condition_id,
+            condition_key: None,
+            name: c.name,
+            value: None,
+            source_participant_key: None,
+            duration: c.duration,
+            note: Some("old draft".into()),
+        });
+    assert!(matches!(
+        result,
+        Err(crate::LocalStateError::StaleEncounterRevision { .. })
+    ));
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        before
+    );
+    Ok(())
 }

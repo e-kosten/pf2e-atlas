@@ -15,14 +15,16 @@ mod search;
 pub use encounter::{
     ActionBudgetView, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
-    ApplyEncounterHpActionRequest, CreateEncounterRequest, DeleteEncounterView,
-    EncounterConditionApplicabilityView, EncounterConditionAutomationLevelView,
-    EncounterConditionCatalogView, EncounterConditionCategoryView,
-    EncounterConditionDefinitionView, EncounterCreateView, EncounterDetailView, EncounterHpAction,
-    EncounterIndexView, EncounterMutationView, EncounterParticipantConditionView,
-    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
-    EncounterParticipantVariantView, EncounterParticipantView, EncounterReferenceRequest,
-    EncounterStatusView, EncounterSummaryView, ReorderEncounterParticipantPlacementView,
+    AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest, ConditionDurationUnit,
+    ConditionDurationView, ConditionTimingView, ConditionTurnEvent, CreateEncounterRequest,
+    DeleteEncounterView, EncounterConditionApplicabilityView,
+    EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
+    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
+    EncounterDetailView, EncounterHpAction, EncounterIndexView, EncounterMutationView,
+    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterReferenceRequest, EncounterStatusView, EncounterSummaryView,
+    EncounterTurnReminderView, EncounterTurnReviewView, ReorderEncounterParticipantPlacementView,
     ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
     RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
     StatModifierTypeView, StatModifierView, UnappliedEffectView,
@@ -124,6 +126,8 @@ mod tests {
 
     fn export_bindings_to(path: &Path) {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
+        EncounterTurnReviewView::export_all_to(path).expect("turn review bindings");
+        AdvanceEncounterTurnRequest::export_all_to(path).expect("turn advance bindings");
         ApplyEncounterHpActionRequest::export_all_to(path).expect("HP action bindings");
         OwnedReadingRequest::export_all_to(path).expect("owned reading request bindings");
         OwnedReadingBatchView::export_all_to(path).expect("owned reading response bindings");
