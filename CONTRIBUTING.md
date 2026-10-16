@@ -86,7 +86,7 @@ PF2e Atlas is a Rust workspace:
 - `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL
 - `crates/atlas-foundry-model`: generated authored DTOs, field-retaining admission and checked snapshot codecs
 - `crates/atlas-ingest`: typed Foundry loading, preparation, attributed indexing inputs, embedding execution and artifact-build composition
-- `crates/atlas-embedding`: the pinned BGE model contract, tokenizer budgets, library inference and attributed passage input preparation
+- `crates/atlas-embedding`: two pinned search-profile contracts, shared BGE segmentation, native final budgets, FastEmbed inference and retained shared query sessions
 - `crates/atlas-record`: source-backed records, borrowed authored views, selected content preparation, query facts and reference policy
 - `crates/atlas-domain`: shared typed query, source address, lightweight summary and canonical record-key vocabulary
 - `crates/atlas-app-service`: saved-list and encounter workflows, local overlays and consumer presentation projections
@@ -535,3 +535,17 @@ It reports every rejection and value difference, and compares the pinned corpus
 baseline. Known failures still return nonzero, even when the baseline matches;
 this tooling does not decide production ingest rejection policy. See the package
 README and [maintained portfolio report](./docs/research/maintained-source-portfolio.md).
+
+Search-profile operations use the artifact manifest: fresh `atlas setup` prepares
+BGE Base; omitted flags on a later setup preserve the stored set. Explicit repeated
+`--search-profile` flags define that set. Search/web omission selects a sole stored
+profile, or Base when both are built. Pinned model files live under
+`hf-models/<model-id>/<revision>/`; setup repairs selected invalid files through
+verified temporary download and rename. Do not relocate this path policy into
+vector identity or add a legacy-layout reader.
+
+Use `--progress always --json >report.json 2>progress.log` when reviewing normal
+build progress. Check selected profile names, shared occurrences versus unique
+inference inputs, reused counts and bounded stage updates. Include an unchanged
+reuse-heavy tiny build and `--progress never`; JSON stdout must stay parseable.
+Rendering/control-plane corrections do not justify a full-corpus reembedding.

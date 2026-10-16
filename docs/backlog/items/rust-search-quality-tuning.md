@@ -13,6 +13,12 @@ passages. Search uses one accepted semantic contribution per root and fuses root
 ranks with lexical specificity tiers. Eligibility and bounded candidate selection
 follow [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md).
 
+The product's selectable baseline profiles (`bge-base` and `embeddinggemma`) use
+the shared storage/input/session contract in
+[ADR0050](../../architecture/decisions/0050-selectable-search-profiles.md). BGE Base
+is the operational default; this does not select a semantic quality winner or
+authorize a new ranking experiment. Further quality evaluation below remains open.
+
 Local full-corpus experiments exposed tradeoffs between descriptive discovery and
 useful owner capabilities. No experimental ranking policy has been selected for
 production. The [dated evaluation notes](../../research/source-backed-search-evaluation.md)

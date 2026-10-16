@@ -52,6 +52,7 @@ import {
 import { FilterValueInput } from "./FilterValueInput";
 import { SearchEntry } from "./SearchEntry";
 import { CommonChoicePicker } from "./CommonChoicePicker";
+import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
 import { isBuilderGroup, normalizeBuilderEdit } from "./builderEdits";
 
@@ -68,14 +69,17 @@ export function FilterControls({
   filterState: workspace,
   includeSearch = true,
   layout = "panel",
+  searchRowEnd,
   children,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
   layout?: "panel" | "toolbar";
+  searchRowEnd?: ReactNode;
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
+  const CriteriaHost = layout === "toolbar" ? PrimaryToolbar : "div";
   const [advanced, setAdvanced] = useState(false);
   const advancedTrigger = useRef<HTMLButtonElement>(null);
   const [draftRevision, setDraftRevision] = useState(0);
@@ -109,18 +113,21 @@ export function FilterControls({
         </Spin>
       )}
       {includeSearch && (
-        <SearchEntry
-          query={search.query}
-          onSearch={(query) =>
-            setSearch({
-              ...search,
-              query,
-              mode: query.trim() ? "text_search" : "browse",
-            })
-          }
-        />
+        <PrimaryToolbar className="filter-controls__search-row">
+          <SearchEntry
+            query={search.query}
+            onSearch={(query) =>
+              setSearch({
+                ...search,
+                query,
+                mode: query.trim() ? "text_search" : "browse",
+              })
+            }
+          />
+          {searchRowEnd}
+        </PrimaryToolbar>
       )}
-      <div className="filter-controls__criteria">
+      <CriteriaHost className="filter-controls__criteria">
         <div className="common-filters">
           {(editor?.common_field_ids ?? []).map((id) => {
             const field = fields.find((candidate) => candidate.definition.id === id);
@@ -187,7 +194,7 @@ export function FilterControls({
             </Tooltip>
           )}
         </div>
-      </div>
+      </CriteriaHost>
       <Drawer
         title="Advanced filters"
         placement="left"

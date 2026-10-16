@@ -7,6 +7,8 @@ use std::path::PathBuf;
     after_help = "Examples:\n  atlas similar 'Dirge of Doom' --kind spell\n  atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --json\nSimilarity uses the seed's stored root identity vector. Candidate coverage is bounded."
 )]
 pub(crate) struct SimilarOptions {
+    #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Search profile: bge-base or embeddinggemma")]
+    pub(crate) search_profile: Option<atlas_domain::SearchProfileId>,
     #[arg(help = "Foundry record key or strict name/verified alias")]
     pub(crate) record_ref: String,
     #[arg(long)]

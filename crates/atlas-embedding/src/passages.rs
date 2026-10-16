@@ -1,6 +1,6 @@
 use crate::{
     BODY_TOKEN_BUDGET, EmbeddingError, IDENTITY_TOKEN_BUDGET, OVERLAP_TOKEN_BUDGET,
-    TextEmbeddingTokenizer, embedding_reuse_key, hash_document_embedding_input,
+    TextEmbeddingTokenizer, hash_document_embedding_input,
 };
 use atlas_domain::{SourceByteRange, SourcePassageAddress};
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -189,7 +189,7 @@ fn prepared(
     Ok(PreparedEmbeddingInput {
         address,
         input_sha256: hash_document_embedding_input(&input),
-        reuse_key: embedding_reuse_key(&input),
+        reuse_key: tokenizer.spec().document_reuse_key(&input),
         input,
         token_count,
         body_token_count,

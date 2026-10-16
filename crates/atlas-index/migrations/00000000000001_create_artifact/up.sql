@@ -555,22 +555,21 @@ CREATE VIRTUAL TABLE lexical_fts USING fts5(
  tokenize='unicode61 remove_diacritics 2'
 );
 
-CREATE TABLE semantic_models(
- model_id INTEGER PRIMARY KEY, identity_json TEXT NOT NULL CHECK(json_valid(identity_json)),
- dimensions INTEGER NOT NULL CHECK(dimensions>0),
- unit_policy_version INTEGER NOT NULL
+CREATE TABLE search_profiles(
+ profile_id TEXT PRIMARY KEY, identity_json TEXT NOT NULL CHECK(json_valid(identity_json)),
+ dimensions INTEGER NOT NULL CHECK(dimensions=768)
 ) STRICT;
 
 CREATE TABLE semantic_units(
  unit_id INTEGER PRIMARY KEY, record_id INTEGER NOT NULL REFERENCES records,
- model_id INTEGER NOT NULL REFERENCES semantic_models,
+ profile_id TEXT NOT NULL REFERENCES search_profiles,
  owners_json TEXT NOT NULL CHECK(json_valid(owners_json)),
  unit_kind TEXT NOT NULL CHECK(unit_kind IN ('identity','passage')),
  field_path TEXT,
  section_json TEXT NOT NULL CHECK(json_valid(section_json)),
  chunk_ordinal INTEGER NOT NULL CHECK(chunk_ordinal>=0),
  input_token_count INTEGER NOT NULL CHECK(input_token_count>0), input_hash TEXT NOT NULL,
- UNIQUE(record_id,model_id,owners_json,field_path,section_json,chunk_ordinal),
+ UNIQUE(record_id,profile_id,owners_json,field_path,section_json,chunk_ordinal),
  CHECK((unit_kind='passage' AND field_path IS NOT NULL)
    OR (unit_kind='identity' AND field_path IS NULL))
 ) STRICT;
@@ -594,16 +593,16 @@ CREATE INDEX relationship_outgoing ON relationship_occurrences(record_id,origin,
 CREATE INDEX relationship_incoming ON relationship_occurrences(target_record_id,record_id)
  WHERE target_record_id IS NOT NULL;
 CREATE INDEX lexical_units_root ON lexical_units(record_id,unit_id);
-CREATE INDEX semantic_units_root ON semantic_units(record_id,model_id,unit_id);
+CREATE INDEX semantic_units_root ON semantic_units(record_id,profile_id,unit_id);
 CREATE INDEX semantic_units_input_hash ON semantic_units(input_hash,unit_id);
-CREATE UNIQUE INDEX semantic_identity_root ON semantic_units(record_id,model_id)
+CREATE UNIQUE INDEX semantic_identity_root ON semantic_units(record_id,profile_id)
  WHERE unit_kind='identity';
 CREATE INDEX developer_diagnostics_root ON developer_diagnostics(record_id,diagnostic_id);
 
--- Production registers sqlite-vec and creates one model-bound table with validated
+-- Production registers sqlite-vec and creates one shared table with validated
 -- dimension substitution, e.g. CREATE VIRTUAL TABLE semantic_vectors USING
--- vec0(unit_id INTEGER PRIMARY KEY, embedding FLOAT[384] distance_metric=cosine);
--- Exactly one model is active per initial artifact. Writer/final validation checks
+-- vec0(unit_id INTEGER PRIMARY KEY, embedding FLOAT[768] distance_metric=cosine);
+-- Each profile owns disjoint units. Writer/final validation checks
 -- unit-ID coverage, dimensions, finiteness and normalization. Eligibility constrains
 -- vector rowids before top-k; vectors repeat no filter metadata or content body.
 -- Composite row/collection/catalog invariants additionally require typed writer

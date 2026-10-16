@@ -4,6 +4,41 @@ The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant D
 
 The application shell owns navigation, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability needs no status control. Connection failures show an actionable error with Retry; search failures and generation recovery belong beside search results.
 
+AtlasApp owns one tab-local search-profile selection from the generated readiness
+catalog. An explicit `search_profile` URL parameter wins over the browser's launch
+preference, which wins over the server default. Retrieval waits for initial
+metadata; while it is pending, the same selection owner supplies the incoming URL
+literal to every workspace serializer so reader or criterion updates retain link
+authority. This literal does not enable retrieval. Unavailable explicit choices
+remain visible. Native Similar See-more links preserve the same pending literal
+for copying or opening another tab while their requests still wait for metadata.
+A compact Ant Select at the trailing end of the search input row changes the same
+selection inherited by search pickers and
+Similar previews, including their native See-more links. Browser preferences are
+optional and never switch another live tab. Missing query assets block text
+inference while stored-vector Similar and reference reading remain available.
+An artifact with one stored profile has no chooser or model-choice copy, including
+invalid incoming links. Those links retain their explicit error until the user
+chooses `Reset search link`, which removes the unsupported selection while keeping
+criteria and reading state. Stale unavailable browser preferences are optional
+defaults and resolve to the valid server or sole stored default on launch.
+Unbuilt catalog entries are never offered as choices in the comparison UI.
+`FilterControls` owns the input row and its trailing control slot; the row wraps
+when space requires it without covering the existing `Input.Search` control.
+The chosen model name stays visible with an accessible Search model label.
+Search without committed criteria shows “Search or choose filters.”; committed
+text, a Similar seed or a non-null predicate uses the shared executable-search
+policy. No-data requests show centered Ant loading feedback, completed empty
+requests show “No matching records.”, and local errors remain distinct. Pagination
+requires a returned nonempty page, including in search pickers.
+
+A profile switch resets retrieval paging to 1 in the same render and isolates
+request/cache/response identity. It preserves submitted criteria, unfinished
+controls, exact reference reading, scroll positions and explicit picker candidates
+and Add forms. It does not advance the artifact epoch or retire shared detail,
+graph, catalog, vocabulary, saved-list or encounter caches. Contextual discovery
+carries profile and known generation; ordinary contextual counts remain disabled.
+
 ## Boundaries
 
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.
@@ -20,6 +55,7 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `tables/IndexTable.tsx`: clickable, keyboard-activatable index tables.
 - `pages/EntityIndexPage.tsx`: common index page structure for title, summary, actions, and table content.
 - `forms/EditableCommitField.tsx`: inline draft fields that commit on blur or Enter and revert on Escape.
+- `PrimaryToolbar.tsx`: primary control rows with shared alignment, spacing and wrapping.
 - `pickers/SearchPickerModal.tsx`: modal record browsing and preview, with an explicit candidate and feature-owned Add form.
 - `actions/PaneAction.tsx`: pane-header icon buttons and links.
 - `actions/DangerActionButton.tsx`: destructive button plus confirmation modal.
@@ -32,6 +68,22 @@ fact formatting and family layouts in shared presentation owners, and reuse thos
 owners across features. Avoid both feature-local copies of the same design and
 trivial component proliferation that adds indirection without reuse or meaning.
 Check visual consistency across surfaces, density modes, themes and viewport sizes.
+
+### Primary toolbars
+
+Compose primary input, selector and action rows with `PrimaryToolbar`. Controls
+inherit the default size from the existing root Ant configuration; adjacent
+search inputs, model selectors, filter triggers and primary actions use that same
+size. Reserve explicit small controls for dense inline facts, table actions and
+secondary metadata. Keep dimensions in Ant tokens; do not compensate for size
+mismatches with local pixel heights or additional configuration providers.
+
+The shared owner aligns controls at the top, with consistent gaps and responsive
+wrapping. Feature composition supplies meaningful widths: let search shrink
+before a primary action wraps, and use a full search row on phone where needed.
+Selected filter choices may extend beneath their trigger without centering its
+neighbors against the taller group. Verify actual input, selector and button
+alignment together at wide, intermediate and phone widths in both themes.
 
 Shared Ant button and link primitives pass native event props and React refs to
 the underlying Ant control, preserving its DOM target for Tooltip and Popover

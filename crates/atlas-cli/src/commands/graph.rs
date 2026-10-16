@@ -8,6 +8,7 @@ pub(crate) mod args;
 use args::*;
 fn client(mode: CliPathMode, index: Option<PathBuf>) -> Result<AtlasAppService, String> {
     connect(ClientOptions {
+        search_profile: None,
         path_mode: mode.into(),
         index,
         embedding_cache: None,

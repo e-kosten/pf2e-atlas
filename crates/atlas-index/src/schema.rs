@@ -477,11 +477,10 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use crate::numeric::SourceNumberSql;
-    semantic_models (model_id) {
-        model_id -> BigInt,
+    search_profiles (profile_id) {
+        profile_id -> Text,
         identity_json -> Text,
         dimensions -> BigInt,
-        unit_policy_version -> BigInt,
     }
 }
 diesel::table! {
@@ -490,7 +489,7 @@ diesel::table! {
     semantic_units (unit_id) {
         unit_id -> BigInt,
         record_id -> BigInt,
-        model_id -> BigInt,
+        profile_id -> Text,
         owners_json -> Text,
         unit_kind -> Text,
         field_path -> Nullable<Text>,

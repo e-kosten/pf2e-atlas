@@ -2,6 +2,7 @@ use crate::{RecordScope, RetrievalMode};
 use atlas_domain::QueryPredicate;
 #[derive(Clone, Copy)]
 pub struct FilterDiscoveryContext<'a> {
+    pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub text: Option<&'a str>,
     pub mode: RetrievalMode,
     pub scope: RecordScope<'a>,
@@ -49,6 +50,7 @@ impl AtlasRetrievalService {
     ) -> Result<QueryFacetOutcome<(atlas_index::ValidatedQuery, QueryFacetContext)>, SearchError>
     {
         let query = self.predicate(context.filter)?;
+        self.resolve_search_profile(context.search_profile, false)?;
         // Index owns the only self-exclusion analysis. Perform it even without
         // text, and before ranking or loading a query embedder.
         let base = match atlas_index::facet_base_query(field, clause, &query)? {
@@ -57,6 +59,10 @@ impl AtlasRetrievalService {
                 return Ok(QueryFacetOutcome::Unavailable { reason });
             }
         };
+        let search_profile = self.resolve_search_profile(
+            context.search_profile,
+            context.mode.uses_vector() && context.text.is_some_and(|t| !t.trim().is_empty()),
+        )?;
         let Some(text) = context.text.filter(|s| !s.trim().is_empty()) else {
             return Ok(QueryFacetOutcome::Available {
                 value: (
@@ -70,22 +76,13 @@ impl AtlasRetrievalService {
             });
         };
         let vector = if context.mode.uses_vector() {
-            Some(
-                self.embedder
-                    .as_mut()
-                    .ok_or_else(|| {
-                        SearchError::vector_readiness_required(
-                            "semantic facet discovery requires query embeddings",
-                        )
-                    })?
-                    .embed_query(text)
-                    .map_err(SearchError::query_embedding)?,
-            )
+            Some(self.embed_query(&search_profile, text)?)
         } else {
             None
         };
         // Freeze the separate clause-removed universe before per-option pair policy.
         let (roots, _) = self.rank_candidates(crate::text::CandidateRequest {
+            search_profile: &search_profile,
             text,
             mode: context.mode,
             query: &base,

@@ -38,6 +38,29 @@ atlas setup
 
 `atlas setup` fetches or updates the PF2E source data, prepares semantic search support, builds (and repairs) local search data, and verifies that Atlas is ready to use.
 
+Search supports two baseline model profiles: `bge-base` (BGE Base) and
+`embeddinggemma` (EmbeddingGemma). Fresh setup uses BGE Base. Prepare either profile,
+or repeat the flag to keep both in one artifact:
+
+```bash
+atlas setup --search-profile bge-base --search-profile embeddinggemma
+atlas web --search-profile bge-base
+atlas search "forest guardian" --search-profile embeddinggemma
+atlas similar "Treat Wounds" --search-profile bge-base
+```
+
+An explicit profile must be stored in the artifact; text semantic search also
+requires its verified model cache. Similar uses stored vectors without loading
+model weights. Each request uses one profile. A single-profile setup remains
+available when storage or memory is limited. `atlas setup --no-embeddings` keeps
+lexical search and reference lookup available without models.
+
+Without a profile flag, search and web use the sole stored profile, or BGE Base
+when both are stored. Running setup again without profile flags preserves the
+stored set for source updates. Explicit setup flags choose the complete desired
+set. Setup repairs selected pinned assets in revision-specific cache directories;
+switching a built profile does not download assets or rebuild the artifact.
+
 The installer installs only the `atlas` CLI. Runtime data stays in user cache locations and is managed by `atlas setup`.
 
 Release binaries are provided for Linux x64, Linux ARM64, macOS Apple Silicon,
@@ -185,7 +208,10 @@ You can override locations for a single command:
 - `--index /path/to/pf2e-index.sqlite`
 - `--embedding-cache-path /path/to/hf-models`
 
-Setup rebuilds or repairs local search data when validation fails, the PF2E source data changes, or the selected embedding model changes.
+Setup rebuilds or repairs local search data when validation fails, source data
+changes, or requested profile coverage/contracts change. Compatible unchanged
+profile vectors can be reused independently. Changing a model or passage recipe
+does not invalidate unchanged shared authored-content preparation.
 
 ## Automation And JSON
 

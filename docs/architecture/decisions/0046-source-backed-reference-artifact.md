@@ -103,11 +103,13 @@ is recovered from source/prepared content; vector metadata does not retain a
 second prose corpus. A typed passage address binds section ordinal and UTF-8 byte
 range to source/preparation hashes, with no fabricated identity range.
 
-Only pinned BGE-small-en-v1.5 is supported initially. FastEmbed owns inference,
-CLS pooling, normalization and generic batching; text-splitter owns generic
+The two pinned baseline profiles and their shared artifact/input/session contract
+are specified in [ADR0050](./0050-selectable-search-profiles.md). FastEmbed owns
+inference, pooling, normalization and generic batching; text-splitter owns generic
 tokenizer-aware segmentation. Atlas owns selection, context, exact input/cache
-identity, source attribution and final model-budget checks. UTF-8 and the query
-instruction remain intact. No silent truncation or estimator fallback is allowed.
+identity, source attribution and final native model-budget checks. UTF-8 and the
+official query/document prefixes remain intact. No silent truncation or estimator
+fallback is allowed.
 Eligible roots constrain FTS and vector units before ranking, including explicit
 key scopes. Semantic roots take their maximum accepted unit score; hybrid fuses
 one rank per root per lane. Vector candidate windows remain explicitly bounded.

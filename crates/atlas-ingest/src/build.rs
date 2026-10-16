@@ -9,7 +9,7 @@ use atlas_embedding::{TextEmbedder, TextEmbeddingTokenizer, generate_prepared_em
 use atlas_index::{
     ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, IndexArtifactWriter, LEXICAL_SELECTION_VERSION,
     LOCALIZATION_POLICY_VERSION, RELATIONSHIP_POLICY_VERSION, SOURCE_LOOKUP_VERSION,
-    SOURCE_PROJECTION_VERSION, SourceArtifactBuildContext, SourceSemanticModelIdentity,
+    SOURCE_PROJECTION_VERSION, SourceArtifactBuildContext, SourceSearchProfileIdentity,
     SqliteIndexWriter,
 };
 use atlas_record::{
@@ -25,7 +25,7 @@ pub(crate) fn default_audience() -> ContentAudience {
         implicit_check_dc: ContentVisibilityRule::Gm,
     }
 }
-fn progress(phase: &'static str, message: &str) {
+fn progress(phase: &str, message: &str) {
     tracing::info!(target:"atlas_progress",phase,"{message}");
 }
 pub(crate) struct PreparedSourceBuild {
@@ -42,6 +42,7 @@ pub(crate) fn prepare_build(
         compute_source_fingerprint(&options.source_root, options.manifest_path.as_deref())?;
     let catalog = LocalizationCatalog::load(&options.source_root, &options.locale)?;
     let loaded = load_foundry_documents(&options.source_root, options.manifest_path.as_deref())?;
+    progress("enrich_source", "Normalizing and enriching loaded source");
     let source = enrich_loaded_source(
         loaded,
         SourceEnrichmentContext {
@@ -53,10 +54,22 @@ pub(crate) fn prepare_build(
     if source_report.addressed_documents == 0 {
         return Err(IngestError::NoRecordsLoaded);
     }
-    let semantic_model = options
-        .embedding
-        .as_ref()
-        .map(|_| SourceSemanticModelIdentity::current());
+    let mut search_profiles = options
+        .search_profiles
+        .iter()
+        .map(|config| {
+            SourceSearchProfileIdentity::from_spec(atlas_embedding::profile_for_model(config.model))
+        })
+        .collect::<Vec<_>>();
+    search_profiles.sort_by(|a, b| a.profile_id.cmp(&b.profile_id));
+    if search_profiles
+        .windows(2)
+        .any(|pair| pair[0].profile_id == pair[1].profile_id)
+    {
+        return Err(IngestError::DocumentEmbeddingFailed(
+            "duplicate search profile".into(),
+        ));
+    }
     let context = SourceArtifactBuildContext {
         used_trait_labels: crate::source::localization::used_trait_labels(&source, &catalog)?,
         format_version: ARTIFACT_FORMAT_VERSION,
@@ -79,16 +92,17 @@ pub(crate) fn prepare_build(
         lookup_version: SOURCE_LOOKUP_VERSION.into(),
         lexical_selection_version: LEXICAL_SELECTION_VERSION.into(),
         fts_tokenizer: "unicode61 remove_diacritics 2".into(),
-        semantic_model,
+        search_profiles,
     };
     progress("prepare_search", "Preparing attributable search passages");
     let tokenizer = options
-        .embedding
-        .as_ref()
-        .map(TextEmbeddingTokenizer::load)
+        .search_profiles
+        .first()
+        .map(|config| TextEmbeddingTokenizer::load_baseline(&config.cache_root))
         .transpose()
         .map_err(embedding_error)?;
     let prepared = index_build_input(source, context, tokenizer.as_ref())?;
+    tracing::info!(target:"atlas_progress",phase="prepare_search",records=prepared.index.records.len(),semantic_units=prepared.pending.len(),"Shared search preparation complete: {}/{} records, {} semantic units",prepared.index.records.len(),prepared.index.records.len(),prepared.pending.len());
     Ok(PreparedSourceBuild {
         prepared,
         source_report,
@@ -108,11 +122,33 @@ pub(crate) fn build_artifact(
     } = prepare_build(&options)?;
     let mut inferred_inputs = 0;
     let mut reused_inputs = 0;
-    if let Some(config) = &options.embedding {
-        progress("load_embeddings", "Loading verified local embedding model");
+    let mut profiles = Vec::new();
+    for config in &options.search_profiles {
+        let profile = atlas_embedding::profile_for_model(config.model);
+        progress(
+            &format!("{}:load_embeddings", profile.id),
+            &format!(
+                "{} [{}]: loading verified local model",
+                profile.label, profile.id
+            ),
+        );
         let mut embedder = TextEmbedder::load(config).map_err(embedding_error)?;
-        let inputs = prepared
+        let native = embedder.tokenizer();
+        let pending = prepared
             .pending
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(ordinal, p)| {
+                let result = crate::index_build_input::profile_pending(p, native)?;
+                if ordinal == 0 || (ordinal + 1) % 1000 == 0 || ordinal + 1 == prepared.pending.len() {
+                    tracing::info!(target:"atlas_progress",phase=%format!("{}:native_preparation", profile.id), current=(ordinal+1) as u64, total=prepared.pending.len() as u64,
+                        "{} [{}] native input preparation: {}/{} occurrences", profile.label, profile.id, ordinal+1, prepared.pending.len());
+                }
+                Ok::<_, IngestError>(result)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let inputs = pending
             .iter()
             .map(|pending| pending.input.clone())
             .collect::<Vec<_>>();
@@ -120,21 +156,20 @@ pub(crate) fn build_artifact(
         if options.reuse_embeddings && options.output_path.is_file() {
             match atlas_index::SqliteIndexReader::open_read_only(&options.output_path) {
                 Ok(reader) => {
-                    let model =
-                        prepared
-                            .index
-                            .context
-                            .semantic_model
-                            .as_ref()
-                            .ok_or_else(|| {
-                                IngestError::DocumentEmbeddingFailed(
-                                    "semantic model identity is unavailable".into(),
-                                )
-                            })?;
-                    let tokenizer =
-                        TextEmbeddingTokenizer::load(config).map_err(embedding_error)?;
+                    let profile = atlas_embedding::profile_for_model(config.model);
+                    let model = prepared
+                        .index
+                        .context
+                        .search_profile(&profile.profile_id())
+                        .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
+                    let tokenizer = TextEmbeddingTokenizer::load_baseline(&config.cache_root)
+                        .map_err(embedding_error)?;
                     reusable = crate::source_embedding_reuse::verified_reusable_vectors(
-                        &reader, &inputs, &tokenizer, model,
+                        &reader,
+                        &inputs,
+                        &tokenizer,
+                        embedder.tokenizer(),
+                        model,
                     )?;
                 }
                 Err(error) => {
@@ -142,7 +177,13 @@ pub(crate) fn build_artifact(
                 }
             }
         }
-        progress("embed_source", "Embedding complete source passages");
+        progress(
+            &format!("{}:embed_source", profile.id),
+            &format!(
+                "{} [{}]: checking exact prepared inputs and inferring unique inputs",
+                profile.label, profile.id
+            ),
+        );
         let generated = generate_prepared_embeddings(
             &mut embedder,
             &inputs,
@@ -150,9 +191,15 @@ pub(crate) fn build_artifact(
             options.embedding_batch_size,
         )
         .map_err(embedding_error)?;
-        inferred_inputs = generated.inferred_inputs;
-        reused_inputs = generated.reused_inputs;
-        for (pending, vector) in prepared.pending.into_iter().zip(generated.vectors) {
+        inferred_inputs += generated.inferred_inputs;
+        reused_inputs += generated.reused_inputs;
+        profiles.push(crate::ProfileBuildReport {
+            profile_id: atlas_embedding::profile_for_model(config.model).profile_id(),
+            semantic_units: pending.len(),
+            inferred_inputs: generated.inferred_inputs,
+            reused_inputs: generated.reused_inputs,
+        });
+        for (pending, vector) in pending.into_iter().zip(generated.vectors) {
             let mut unit = pending.unit;
             unit.vector = vector;
             prepared.index.semantic_units.push(unit);
@@ -178,6 +225,7 @@ pub(crate) fn build_artifact(
         .write(&prepared.index)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let report = BuildArtifactReport {
+        profiles,
         output_path: options.output_path,
         pack_count: prepared.index.packs.len(),
         record_count: prepared.index.records.len(),

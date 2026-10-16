@@ -61,6 +61,15 @@ body:has(.search-workspace) {
   overflow: auto;
   overscroll-behavior: contain;
 }
+.reference-results__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+  padding: var(--panel-padding);
+}
 .reference-reader__scroll > .detail-panel {
   border: 0;
   border-radius: 0;
@@ -140,10 +149,6 @@ body:has(.search-workspace) {
   width: min(280px, calc(100vw - 64px));
   overflow: auto;
 }
-.reference-loading {
-  display: block;
-  margin: 32px auto;
-}
 .filter-toolbar {
   display: flex;
   flex-direction: column;
@@ -153,16 +158,11 @@ body:has(.search-workspace) {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
-.filter-toolbar .reference-search-entry {
-  width: 100%;
-  max-width: 840px;
+.filter-toolbar .filter-controls__search-row {
+  max-width: 1024px;
 }
 .filter-toolbar .filter-controls__criteria {
   width: 100%;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px;
 }
 .filter-toolbar .common-filters {
   display: contents;

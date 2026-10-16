@@ -32,10 +32,96 @@ fn fixture(semantic: bool) -> (FixtureWorker, RetrievalExecutor) {
 
 fn request(criteria: SearchCriteria, number: u32) -> SearchResultsRequest {
     SearchResultsRequest {
+        search_profile: None,
         criteria,
         page: SearchPageRequest { number, size: 1 },
         expected_artifact_generation: None,
     }
+}
+
+#[test]
+fn selected_profile_is_request_local_and_stored_similar_and_lexical_need_no_model_assets() {
+    let executor = RetrievalExecutor::from_test_fixture_factory(2, 16, || {
+        Ok(open_input_fixture(atlas_search::test_support::input_with_both_profiles((0..3).map(|i|record("items","Item",json!({"_id":format!("{i:016}"),"name":format!("Record {i}"),"type":"effect"}))).collect()))?)
+    });
+    let worker = fixture_worker_with_executor(executor).worker;
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let mut similar = request(
+        SearchCriteria::SimilarRecords {
+            seed_record_key: "items:0000000000000000".into(),
+            filter: None,
+        },
+        1,
+    );
+    similar.search_profile = Some(atlas_domain::SearchProfileId::new("embeddinggemma"));
+    let gemma = worker.search_page(similar.clone(), &execution).unwrap();
+    assert_eq!(gemma.search_profile.as_str(), "embeddinggemma");
+    assert!(!gemma.rows.is_empty());
+    similar.search_profile = None;
+    let base = worker.search_page(similar.clone(), &execution).unwrap();
+    assert_eq!(base.search_profile.as_str(), "bge-base");
+    assert_eq!(base.artifact_generation, gemma.artifact_generation);
+    let mut lexical = request(
+        SearchCriteria::TextSearch {
+            query: "Record".into(),
+            filter: None,
+            mode: RetrievalModeView::Lexical,
+        },
+        1,
+    );
+    lexical.search_profile = Some(atlas_domain::SearchProfileId::new("embeddinggemma"));
+    assert_eq!(
+        worker
+            .search_page(lexical.clone(), &execution)
+            .unwrap()
+            .search_profile
+            .as_str(),
+        "embeddinggemma"
+    );
+    lexical.search_profile = Some(atlas_domain::SearchProfileId::new("missing"));
+    assert!(
+        worker
+            .search_page(lexical, &execution)
+            .unwrap_err()
+            .into_app_error()
+            .message
+            .contains("missing")
+    );
+    similar.search_profile = Some(atlas_domain::SearchProfileId::new("missing"));
+    assert!(
+        worker
+            .search_page(similar, &execution)
+            .unwrap_err()
+            .into_app_error()
+            .message
+            .contains("missing")
+    );
+}
+
+#[test]
+fn selected_contextual_facets_reject_stale_generation_before_query_inference() {
+    let (worker, _) = fixture(true);
+    let error = worker
+        .worker
+        .discover_filter_counts(
+            atlas_app_model::DiscoverFilterCountsRequest {
+                context: atlas_app_model::FilterDiscoveryContext::Filtered {
+                    search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
+                    expected_artifact_generation: Some("stale-generation".into()),
+                    filter: None,
+                    text: Some("query needing unavailable native session".into()),
+                    mode: RetrievalModeView::Semantic,
+                },
+                field_id: "record.kind".into(),
+                clause_id: None,
+            },
+            &crate::ReadExecutionContext::uncancellable(),
+        )
+        .unwrap_err();
+    assert_eq!(
+        error.into_app_error().code,
+        AppErrorCode::ArtifactGenerationChanged
+    );
 }
 
 fn levels_at_least_two() -> atlas_domain::QueryPredicate {
@@ -299,7 +385,7 @@ fn restarted_service_rejects_prior_pages_when_only_build_context_changes() {
                 );
                 built.context.source_revision = Some(revision.into());
                 for record in &mut built.records {
-                    record.preparation_context_hash = built.context.sha256()?;
+                    record.preparation_context_hash = built.context.preparation_sha256()?;
                 }
                 Ok(open_input_fixture(built)?)
             },

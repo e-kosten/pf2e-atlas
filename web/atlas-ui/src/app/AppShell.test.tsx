@@ -1,3 +1,4 @@
+import { readinessFixture } from "../test/fixtures";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { AppShell } from "./AppShell";
 
@@ -18,7 +19,7 @@ function renderShell(errorMessage: string | null = null) {
       onNavigateSearch={navigate.search}
       onNavigateEncounters={navigate.encounters}
       onNavigateLists={navigate.lists}
-      readiness={{ status: "ready", message: "Ready to search." }}
+      readiness={readinessFixture()}
       readinessError={errorMessage ? new Error(errorMessage) : null}
       checkingReadiness={false}
       onCheckReadiness={refresh}

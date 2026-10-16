@@ -12,6 +12,7 @@ use args::{AnalyzeOptions, AuditPathsOptions, LoadOptions};
 
 pub(crate) fn run_source_load(options: LoadOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
             source_root: options.source,
@@ -75,6 +76,7 @@ pub(crate) fn run_source_load(options: LoadOptions) -> Result<ExitCode, String> 
 
 pub(crate) fn run_source_analyze(options: AnalyzeOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
             source_root: options.source,
@@ -117,6 +119,7 @@ pub(crate) fn run_source_analyze(options: AnalyzeOptions) -> Result<ExitCode, St
 
 pub(crate) fn run_source_audit_paths(options: AuditPathsOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
             source_root: options.source,
