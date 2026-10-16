@@ -27,6 +27,7 @@ pub(super) fn fixture_worker_with_executor(executor: RetrievalExecutor) -> Fixtu
         worker: AtlasAppService::new(
             RetrievalBackend::Pooled(executor),
             AtlasRuntimeOptions {
+                default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
                 path_mode: AtlasPathMode::Global,
                 overrides: AtlasPathOverrides::default(),
             },

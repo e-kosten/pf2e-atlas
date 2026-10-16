@@ -2,6 +2,7 @@
 
 mod error;
 mod paths;
+mod profile_assets;
 mod retrieval;
 mod runtime;
 mod setup;
@@ -13,6 +14,7 @@ mod tests;
 
 pub use error::{RuntimeError, RuntimeErrorKind, RuntimePathTarget, RuntimePlatform};
 pub use paths::{AtlasPathMode, AtlasPathOverrides, ResolvedAtlasPaths, ResolvedPathMode};
+pub use retrieval::SearchProfileReadiness;
 pub use runtime::{AtlasRuntime, AtlasRuntimeOptions};
 pub use setup_model::{
     RuntimeSetupCleanOptions, RuntimeSetupCleanReport, RuntimeSetupOptions, RuntimeSetupReport,

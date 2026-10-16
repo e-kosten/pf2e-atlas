@@ -12,6 +12,9 @@ import {
 import type { FormInstance, ModalProps } from "antd";
 import { useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
+import { useSearchProfile } from "../../search/SearchProfileContext";
+import { SearchProfileNotice } from "../../search/SearchProfileNotice";
+import { assertSearchIdentity } from "../../search/searchIdentity";
 import type { SearchResultsRequest, SearchResultRow } from "../../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
@@ -60,8 +63,12 @@ export function SearchPickerModal<FormValues>({
   selectedRecordKey: string | null;
   title: string;
 }) {
+  const profile = useSearchProfile();
   const [search, setSearch] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
-  const [pageNumber, setPageNumber] = useState(1);
+  const [paging, setPaging] = useState({ profile: profile.id, number: 1 });
+  const pageNumber = paging.profile === profile.id ? paging.number : 1;
+  if (paging.profile !== profile.id) setPaging({ profile: profile.id, number: 1 });
+  const setPageNumber = (number: number) => setPaging({ profile: profile.id, number });
   const [candidate, setCandidate] = useState<SearchResultRow | null>(null);
   const queryClient = useQueryClient();
   const [retrieval, setRetrieval] = useState({
@@ -76,30 +83,35 @@ export function SearchPickerModal<FormValues>({
       : (base.criteria.filter ?? search.filter);
   const request: SearchResultsRequest = {
     ...base,
+    search_profile: profile.id ?? undefined,
     criteria: { ...base.criteria, filter },
     page: { number: pageNumber, size: search.pageSize },
   };
   const requestToken = JSON.stringify(request);
+  const profileReady =
+    profile.id !== null &&
+    (request.criteria.kind === "text_search" ? profile.usable : profile.storedVectors);
   const liveRequest = useRef({ token: "", epoch: 0, active: false });
   useLayoutEffect(() => {
     liveRequest.current = {
       token: requestToken,
       epoch: retrieval.epoch,
-      active: open && !retrieval.recovering,
+      active: open && profileReady && !retrieval.recovering,
     };
     return () => {
       liveRequest.current.active = false;
     };
-  }, [requestToken, retrieval.epoch, open, retrieval.recovering]);
+  }, [requestToken, retrieval.epoch, open, profileReady, retrieval.recovering]);
   const recordResults = useQuery({
     queryKey: ["search-picker", title, request, retrieval.epoch, retrieval.generation],
-    enabled: open && !retrieval.recovering && !search.filterError,
+    enabled: open && profileReady && !retrieval.recovering && !search.filterError,
     staleTime: 20_000,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         { ...request, expected_artifact_generation: retrieval.generation },
         signal,
       );
+      assertSearchIdentity(page, profile.id, retrieval.generation);
       if (
         retrieval.generation === null &&
         !signal.aborted &&
@@ -125,7 +137,11 @@ export function SearchPickerModal<FormValues>({
     open && !retrieval.recovering,
     retrieval.epoch,
   );
-  const context = buildFilterDiscoveryContext({ ...search, filter });
+  const context = buildFilterDiscoveryContext(
+    { ...search, filter },
+    profile.id ?? undefined,
+    retrieval.generation ?? undefined,
+  );
   const discovery = useFilterDiscovery({
     context,
     enabled: open && !retrieval.recovering,
@@ -144,7 +160,8 @@ export function SearchPickerModal<FormValues>({
       recovering: false,
     }));
   }
-  const currentRows = recordResults.error ? [] : (recordResults.data?.rows ?? []);
+  const currentRows =
+    recordResults.error || !profileReady ? [] : (recordResults.data?.rows ?? []);
   const selectedRecord =
     candidate?.record.record_key === selectedRecordKey
       ? candidate
@@ -203,6 +220,7 @@ export function SearchPickerModal<FormValues>({
             filterDiscoveryError: discovery.errorMessage,
           }}
         />
+        <SearchProfileNotice />
         {recordResults.error && (
           <Alert
             type="error"
@@ -244,13 +262,13 @@ export function SearchPickerModal<FormValues>({
                 : emptyPrompt
           }
           resultsHeader={
-            <Space wrap>
-              <Typography.Text>
-                {recordResults.data?.page
-                  ? `${recordResults.data.page.total.toLocaleString()} records`
-                  : "Results"}
-              </Typography.Text>
-              {recordResults.data && recordResults.data.page.total > 0n && (
+            recordResults.data && recordResults.data.page.total > 0n ? (
+              <Space wrap>
+                <Typography.Text>
+                  {recordResults.data?.page
+                    ? `${recordResults.data.page.total.toLocaleString()} records`
+                    : "Results"}
+                </Typography.Text>
                 <Pagination
                   simple
                   size="small"
@@ -266,8 +284,8 @@ export function SearchPickerModal<FormValues>({
                   showSizeChanger={false}
                   onChange={setPageNumber}
                 />
-              )}
-            </Space>
+              </Space>
+            ) : undefined
           }
         />
         <Form

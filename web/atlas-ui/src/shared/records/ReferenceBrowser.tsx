@@ -46,7 +46,7 @@ export function ReferenceBrowser({
       onResultsScroll={() => setOpenMatchKey(null)}
     >
       {loading && !rows.length ? (
-        <div className="reference-loading" role="status">
+        <div className="reference-loading" role="status" aria-label="Searching…">
           <Spin />
           <span>Searching…</span>
         </div>

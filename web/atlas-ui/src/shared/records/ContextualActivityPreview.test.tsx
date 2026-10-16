@@ -10,6 +10,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider, Grid } from "antd";
 import { StrictMode } from "react";
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import type {
   ActorActivityView,
   RecordDetailView,
@@ -154,16 +155,18 @@ function mount(activity = activityFixture(), reloadEncounter?: () => Promise<unk
   ) => (
     <StrictMode>
       <QueryClientProvider client={client}>
-        <ConfigProvider theme={{ token: { motion: false } }}>
-          <App>
-            <Flow
-              activity={value}
-              identity={identity}
-              generation={generation}
-              reloadEncounter={reloadEncounter}
-            />
-          </App>
-        </ConfigProvider>
+        <SearchProfileProvider>
+          <ConfigProvider theme={{ token: { motion: false } }}>
+            <App>
+              <Flow
+                activity={value}
+                identity={identity}
+                generation={generation}
+                reloadEncounter={reloadEncounter}
+              />
+            </App>
+          </ConfigProvider>
+        </SearchProfileProvider>
       </QueryClientProvider>
     </StrictMode>
   );

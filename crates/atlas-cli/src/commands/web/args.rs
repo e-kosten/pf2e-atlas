@@ -11,6 +11,8 @@ pub(crate) const DEFAULT_WEB_PORT: u16 = 4727;
     after_help = "Examples:\n  atlas web\n  atlas web --open\n  atlas web --port 4728 --path-mode repo"
 )]
 pub(crate) struct WebArgs {
+    #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Search profile: bge-base or embeddinggemma")]
+    pub(crate) search_profile: Option<atlas_domain::SearchProfileId>,
     #[arg(
         long,
         global = true,

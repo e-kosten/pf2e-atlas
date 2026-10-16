@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
+use atlas_domain::SearchProfileId;
 use clap::{ArgAction, Args, Subcommand};
 
 use atlas_cli_support::CliPathMode;
@@ -42,8 +42,8 @@ pub(crate) struct BuildIndexOptions {
         help = "Locale used to prepare display and search text; changing it requires rebuilding"
     )]
     pub(crate) locale: String,
-    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL, help = "Embedding model to use for semantic search rows")]
-    pub(crate) embedding_model: EmbeddingModelId,
+    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Stored search profile; repeat to build both (default: bge-base)")]
+    pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(long, help = "Override the embedding model cache root")]
     pub(crate) embedding_cache_path: Option<PathBuf>,
     #[arg(long, default_value_t = 32, help = "Embedding generation batch size")]

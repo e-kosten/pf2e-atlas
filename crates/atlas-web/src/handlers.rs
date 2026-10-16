@@ -19,7 +19,10 @@ use crate::service::{AtlasWebState, call_read_service, call_service};
 pub(crate) async fn readiness(
     State(state): State<AtlasWebState>,
 ) -> Result<impl IntoResponse, WebError> {
-    Ok(Json(state.service.readiness()))
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || Ok(service.readiness())).await?,
+    ))
 }
 
 pub(crate) async fn saved_lists(

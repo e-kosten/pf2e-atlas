@@ -1,4 +1,3 @@
-import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import {
   Alert,
   Button,
@@ -53,6 +52,7 @@ import {
 import { FilterValueInput } from "./FilterValueInput";
 import { SearchEntry } from "./SearchEntry";
 import { CommonChoicePicker } from "./CommonChoicePicker";
+import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
 import { isBuilderGroup, normalizeBuilderEdit } from "./builderEdits";
 
@@ -69,11 +69,13 @@ export function FilterControls({
   filterState: workspace,
   includeSearch = true,
   layout = "panel",
+  searchRowEnd,
   children,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
   layout?: "panel" | "toolbar" | "inline-toolbar";
+  searchRowEnd?: ReactNode;
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
@@ -204,15 +206,20 @@ export function FilterControls({
       {layout === "inline-toolbar" ? (
         <PrimaryToolbar className="filter-controls__criteria filter-controls__inline">
           {searchEntry}
+          {searchRowEnd}
           {criteria}
         </PrimaryToolbar>
       ) : (
         <>
-          {searchEntry}
+          {includeSearch && (
+            <PrimaryToolbar className="filter-controls__search-row">
+              {searchEntry}
+              {searchRowEnd}
+            </PrimaryToolbar>
+          )}
           <CriteriaHost className="filter-controls__criteria">{criteria}</CriteriaHost>
         </>
       )}
-
       <Drawer
         title="Advanced filters"
         placement="left"

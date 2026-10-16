@@ -2,11 +2,11 @@
 
 ## Status
 
-Partially superseded by [ADR 0046](./0046-source-backed-reference-artifact.md).
-
-BGE-small remains the default. The historical mean-pooling, weighted-child modes,
-mutable model revision and alternate-model compatibility below are replaced by
-the pinned CLS/L2 model and attributed max-per-root retrieval contract.
+Superseded by [ADR 0050](./0050-selectable-search-profiles.md) for model/default
+selection and [ADR 0046](./0046-source-backed-reference-artifact.md) for attributed
+retrieval. The historical evaluation and transition below are retained as context;
+the current catalog contains BGE Base and EmbeddingGemma baseline profiles, with
+BGE Base as the operational default.
 
 ## Context
 

@@ -145,10 +145,12 @@ body:has(:is(.search-workspace, .list-workspace)) {
 }
 .reference-loading {
   display: flex;
-  min-height: 180px;
+  min-height: 100%;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
   gap: 12px;
+  padding: var(--panel-padding);
   color: var(--muted);
 }
 .filter-toolbar {
@@ -160,9 +162,8 @@ body:has(:is(.search-workspace, .list-workspace)) {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
-.filter-toolbar .reference-search-entry {
-  width: 100%;
-  max-width: 840px;
+.filter-toolbar .filter-controls__search-row {
+  max-width: 1024px;
 }
 .filter-toolbar .common-filters {
   display: contents;

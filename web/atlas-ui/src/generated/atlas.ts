@@ -18,6 +18,8 @@ export type { AppError } from "../../../../crates/atlas-app-model/bindings/AppEr
 export type { AppErrorCode } from "../../../../crates/atlas-app-model/bindings/AppErrorCode";
 export type { AppReadinessStatus } from "../../../../crates/atlas-app-model/bindings/AppReadinessStatus";
 export type { AppReadinessView } from "../../../../crates/atlas-app-model/bindings/AppReadinessView";
+export type { SearchProfileId } from "../../../../crates/atlas-app-model/bindings/SearchProfileId";
+export type { SearchProfileReadinessView } from "../../../../crates/atlas-app-model/bindings/SearchProfileReadinessView";
 export type { AppRecoverableAction } from "../../../../crates/atlas-app-model/bindings/AppRecoverableAction";
 export type { BatchAddSavedListItemsRequest } from "../../../../crates/atlas-app-model/bindings/BatchAddSavedListItemsRequest";
 export type { BatchSavedListItemInput } from "../../../../crates/atlas-app-model/bindings/BatchSavedListItemInput";

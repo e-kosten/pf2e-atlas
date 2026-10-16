@@ -11,6 +11,7 @@ use args::{BuildIndexOptions, CheckIndexOptions, ValidateIndexOptions};
 
 pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
             source_root: options.source,
@@ -25,13 +26,19 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
         output_path: paths.index_path.clone(),
         manifest_path: options.manifest,
         locale: options.locale,
-        embedding: if options.no_embeddings {
-            None
+        search_profiles: if options.no_embeddings {
+            vec![]
         } else {
-            Some(EmbeddingRuntimeConfig::new(
-                options.embedding_model,
-                paths.embedding_cache_root.clone(),
-            ))
+            crate::cli::args::selected_search_profiles(options.search_profiles)
+                .into_iter()
+                .map(|id| {
+                    atlas_embedding::search_profile(&id)
+                        .map(|profile| {
+                            EmbeddingRuntimeConfig::new(profile.model, &paths.embedding_cache_root)
+                        })
+                        .map_err(|e| e.to_string())
+                })
+                .collect::<Result<Vec<_>, _>>()?
         },
         reuse_embeddings: !options.no_reuse_embeddings,
         embedding_batch_size: options.embedding_batch_size,
@@ -39,7 +46,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     .map_err(|e| e.to_string())?;
     if options.json {
         write_json_data(
-            serde_json::json!({"output_path":report.output_path,"record_count":report.record_count,"product_record_count":report.product_record_count,"pack_count":report.pack_count,"semantic_unit_count":report.semantic_unit_count,"inferred_inputs":report.inferred_inputs,"reused_inputs":report.reused_inputs,"context_shortened_sections":report.context_shortened_sections,"source_fingerprint":report.source_fingerprint,"build_duration_ms":report.build_duration_ms}),
+            serde_json::json!({"output_path":report.output_path,"record_count":report.record_count,"product_record_count":report.product_record_count,"pack_count":report.pack_count,"semantic_unit_count":report.semantic_unit_count,"search_profiles":report.profiles,"inferred_inputs":report.inferred_inputs,"reused_inputs":report.reused_inputs,"context_shortened_sections":report.context_shortened_sections,"source_fingerprint":report.source_fingerprint,"build_duration_ms":report.build_duration_ms}),
         )?;
     } else {
         println!(
@@ -56,6 +63,15 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             report.reused_inputs,
             report.context_shortened_sections
         );
+        for profile in &report.profiles {
+            println!(
+                "profile {}: units={} inferred={} reused={}",
+                profile.profile_id,
+                profile.semantic_units,
+                profile.inferred_inputs,
+                profile.reused_inputs
+            );
+        }
         println!("source fingerprint: {}", report.source_fingerprint);
         println!(
             "duration: {}",
@@ -96,6 +112,7 @@ pub(crate) fn run_index_validate(options: ValidateIndexOptions) -> Result<ExitCo
 }
 fn index_runtime(path_mode: AtlasPathMode, index: Option<PathBuf>) -> Result<AtlasRuntime, String> {
     AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode,
         overrides: AtlasPathOverrides {
             source_root: None,

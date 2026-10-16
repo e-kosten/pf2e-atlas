@@ -27,6 +27,16 @@ for (const width of [1440, 1100, 390]) {
       await expect(
         page.getByRole("searchbox", { name: "Search records" }),
       ).toBeVisible();
+      const inputBox = await page.locator(".reference-search-entry").boundingBox();
+      expect(inputBox).not.toBeNull();
+      const primaryControls = page.locator(
+        ".search-model-select, .filter-toolbar .common-choice-trigger, .filter-panel-actions button",
+      );
+      for (const control of await primaryControls.all()) {
+        const controlBox = await control.boundingBox();
+        expect(controlBox).not.toBeNull();
+        expect(Math.abs(controlBox!.height - inputBox!.height)).toBeLessThanOrEqual(1);
+      }
       const coverage = page.locator(".result-pane-header > span").first();
       await expect(coverage).toHaveText(similar ? /Top matches/ : /\d[\d,]* records/);
       if (similar)

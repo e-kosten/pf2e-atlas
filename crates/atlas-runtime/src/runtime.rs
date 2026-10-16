@@ -10,6 +10,8 @@ use crate::setup_model::{
 
 #[derive(Debug, Clone)]
 pub struct AtlasRuntimeOptions {
+    /// None selects the sole stored profile, or BGE Base when both are stored.
+    pub default_search_profile: Option<atlas_domain::SearchProfileId>,
     pub path_mode: AtlasPathMode,
     pub overrides: AtlasPathOverrides,
 }
@@ -17,6 +19,7 @@ pub struct AtlasRuntimeOptions {
 impl Default for AtlasRuntimeOptions {
     fn default() -> Self {
         Self {
+            default_search_profile: None,
             path_mode: AtlasPathMode::Global,
             overrides: AtlasPathOverrides::default(),
         }
@@ -25,17 +28,35 @@ impl Default for AtlasRuntimeOptions {
 
 pub struct AtlasRuntime {
     paths: ResolvedAtlasPaths,
+    pub(crate) default_profile: Option<atlas_domain::SearchProfileId>,
+    pub(crate) inference: atlas_embedding::SharedQueryInference,
+    pub(crate) profile_assets: crate::profile_assets::ProfileAssets,
 }
 
 impl AtlasRuntime {
     pub fn resolve(options: AtlasRuntimeOptions) -> Result<Self, RuntimeError> {
+        if let Some(id) = &options.default_search_profile {
+            atlas_embedding::search_profile(id).map_err(|error| {
+                RuntimeError::unsupported_search_profile(format!(
+                    "unsupported default search profile `{}`: {error}",
+                    id
+                ))
+            })?;
+        }
+        let paths = resolve_atlas_paths(options.path_mode, options.overrides)?;
         Ok(Self {
-            paths: resolve_atlas_paths(options.path_mode, options.overrides)?,
+            inference: atlas_embedding::SharedQueryInference::new(&paths.embedding_cache_root),
+            profile_assets: Default::default(),
+            default_profile: options.default_search_profile,
+            paths,
         })
     }
 
     pub fn paths(&self) -> &ResolvedAtlasPaths {
         &self.paths
+    }
+    pub fn requested_search_profile(&self) -> Option<&atlas_domain::SearchProfileId> {
+        self.default_profile.as_ref()
     }
 
     pub fn source_root(&self) -> &Path {

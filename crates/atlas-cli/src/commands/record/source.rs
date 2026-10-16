@@ -7,6 +7,7 @@ use std::process::ExitCode;
 
 pub(crate) fn run_record_source(options: RecordSourceOptions) -> Result<ExitCode, String> {
     let service = connect(ClientOptions {
+        search_profile: None,
         path_mode: options.path_mode.into(),
         index: options.index,
         embedding_cache: None,
