@@ -27,6 +27,15 @@ requests receive a typed conflict without changing state. Reordering advances
 revisions of affected participants. Conditions use non-reused IDs, and condition
 edits verify their participant owner inside the write transaction.
 
+HP operations carry raw input and explicit damage, healing or exact-correction
+intent rather than client-computed replacement HP. App-service evaluates the
+bounded integer addition/subtraction shortcut against the revision-checked current
+participant and reuses the same provenance/replacement policy. Local-state checks
+that revision again under the write transaction, so concurrent changes cannot
+commit calculations made from stale HP. Exact corrections preserve manual outliers;
+derived-maximum reset retains the existing provenance and deficit policy. No new
+storage schema or expression/rules engine is introduced.
+
 App-service owns turn eligibility and selection policy. Local-state supplies
 the locked encounter snapshot to a narrow pure callback and applies the chosen
 turn in the same transaction. Callbacks do no source retrieval or artifact I/O.

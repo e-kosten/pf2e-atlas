@@ -127,6 +127,10 @@ Keep local state separate from artifact generation. Unknown saved keys retain
 their snapshots. NPC variants/conditions are read-time participant overlays over
 authored baselines. New HP uses known integral effective maxima; saved HP,
 explicit overrides and edit intent survive rebuilds. Missing values stay unknown.
+Encounter Damage/Heal and exact HP correction inputs are explicit revision-checked
+actions interpreted by app-service; the browser sends raw integer formulas and
+does not calculate persisted HP. The bounded addition/subtraction shortcut is not
+a general expression or dice engine.
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
 Local-state owns complete atomic user actions and coherent aggregate reads.

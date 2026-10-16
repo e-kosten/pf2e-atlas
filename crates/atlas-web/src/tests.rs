@@ -1,8 +1,8 @@
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
-    AppReadinessStatus, AppReadinessView, CreateEncounterRequest, CreateSavedListRequest,
-    DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
+    AppReadinessStatus, AppReadinessView, ApplyEncounterHpActionRequest, CreateEncounterRequest,
+    CreateSavedListRequest, DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
     DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
@@ -746,6 +746,27 @@ async fn participant_revision_is_required_and_stale_edits_return_409() {
     assert_eq!(body, json!({"encounter_key":"ambush"}));
 }
 
+#[tokio::test]
+async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt() {
+    let path = "/api/encounters/ambush/participants/participant_a/hp";
+    let mut request = json!({"participant_key":"ignored_body_identity","action":{"kind":"damage","amount":"10+2"}});
+    let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+    request["expected_revision"] = json!(6);
+    let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "encounter_participant_conflict");
+    request["expected_revision"] = json!(7);
+    let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!({"encounter_key":"ambush"}));
+    request["action"] = json!({"kind":"damage","amount":12});
+    let (status, body) = route_json(Method::POST, path, Some(request)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+}
+
 async fn route_json(method: Method, path: &str, body: Option<Value>) -> (StatusCode, Value) {
     let app = test_router();
     let mut builder = Request::builder().method(method).uri(path);
@@ -1032,6 +1053,33 @@ impl AtlasWebService for MockService {
         }
         Ok(EncounterMutationView {
             encounter_key: encounter_ref.to_string(),
+        })
+    }
+
+    fn apply_encounter_hp_action(
+        &self,
+        encounter_ref: &str,
+        request: ApplyEncounterHpActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        if request.participant_key != "participant_a" {
+            return Err(AppServiceError::invalid_request(
+                "participant path override missing",
+            ));
+        }
+        if request.expected_revision != 7 {
+            return Err(AppServiceError::new(
+                AppErrorCode::EncounterParticipantConflict,
+                "participant changed",
+            ));
+        }
+        assert_eq!(
+            request.action,
+            atlas_app_model::EncounterHpAction::Damage {
+                amount: "10+2".into()
+            }
+        );
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
         })
     }
 

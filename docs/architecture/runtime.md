@@ -366,6 +366,19 @@ participant choices replace them, and saved HP/overrides/edit intent survive
 artifact rebuilds. No Foundry world execution or guessed aggregate mechanics is
 introduced. Local-state migrations preserve existing ambiguous values.
 
+Encounter HP actions carry participant identity, expected revision and one explicit
+operation: damage, heal, exact current/temporary/maximum correction, or derived
+maximum reset. App-service interprets raw integer addition/subtraction input against
+the checked current participant, then reuses provenance policy and the transactional
+replacement guard. Amounts must evaluate nonnegative; exact correction formulas
+retain their zero floor and never acquire a maximum clamp. Null explicitly clears
+current/maximum availability. Formula length, arithmetic and browser-safe final
+input bounds are checked; dice and general expressions are unsupported. Damage
+absorbs temporary HP first, floors current HP at zero and marks zero HP defeated;
+healing caps at a known maximum and does not clear defeated. Missing current HP
+rejects damage/healing rather than inventing a value. These actions return the
+same durable receipt, independently of subsequent presentation refresh.
+
 Local-state initialization and migrations commit schema and metadata together.
 List metadata/tags, quantity additions and removal with replacement turn each
 have one write transaction. Next turn chooses from the same locked snapshot it
