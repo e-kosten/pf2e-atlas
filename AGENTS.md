@@ -160,6 +160,15 @@ Compiler caches are disposable when their task ends; saved state, source/model a
 
 ## Pull Requests And Human Review
 
+For changes that affect user experience, including UI and CLI behavior or output,
+provide an early functional review checkpoint. Share a runnable preview or CLI
+commands with representative output as soon as the core flow works, then pause
+for user feedback before broad test rewrites, full validation or independent
+presentation review. Run the compilation and focused checks needed to make that
+checkpoint usable, and disclose unfinished behavior and validation gaps. Preserve
+existing tests; early review does not replace the required final tests, reviews
+and gates after the UX direction is confirmed.
+
 For implementation work, pushing the task branch and opening or updating a PR are part of the normal workflow unless the user requests local-only work. Confirm the intended PR base from the task context. Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and outstanding limitations. Keep related review fixes on the same PR as additional logical commits; do not rewrite published history without agreement.
 
 Provide a stable local build when the change is useful to inspect. Identify its branch, commit, URL or command, and any sample-data limitations; disclose uncommitted differences if present. Keep the reviewed build stable while developing further changes, using a separate checkout or built artifact when necessary. Explicitly identify when an updated build replaces it. UI work requires interaction and visual review alongside automated checks; use Astra sub-agents for presentation review, including actual browser inspection.
