@@ -6,7 +6,7 @@
   overflow: auto;
 }
 .common-filters,
-.filter-controls__criteria,
+.filter-controls__criteria:not(.primary-toolbar),
 .common-filter,
 .filter-panel-actions,
 .advanced-filters {

@@ -6,8 +6,7 @@
   background: var(--panel-subtle);
 }
 
-.index-row-link,
-.index-row-link--button {
+.index-row-link {
   display: grid;
   gap: 3px;
   width: 100%;
@@ -19,9 +18,7 @@
 }
 
 .index-row-link:hover .index-row-link__title,
-.index-row-link:focus-visible .index-row-link__title,
-.index-row-link--button:hover .index-row-link__title,
-.index-row-link--button:focus-visible .index-row-link__title {
+.index-row-link:focus-visible .index-row-link__title {
   text-decoration: underline;
   text-underline-offset: 2px;
 }

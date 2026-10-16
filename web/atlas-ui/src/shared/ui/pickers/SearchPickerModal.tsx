@@ -21,7 +21,7 @@ import {
 import { FilterControls } from "../../filters/FilterPanel";
 import { useFilterDiscovery } from "../../filters/useFilterDiscovery";
 import { ReferenceBrowser } from "../../records/ReferenceBrowser";
-import { rootNavigation, useReferenceReading } from "../../records/useReferenceReading";
+import { useReferenceReading } from "../../records/useReferenceReading";
 import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
@@ -149,12 +149,7 @@ export function SearchPickerModal<FormValues>({
     candidate?.record.record_key === selectedRecordKey
       ? candidate
       : currentRows.find((row) => row.record.record_key === selectedRecordKey);
-  const linked =
-    selectedRecord &&
-    reading.request &&
-    (reading.request.navigation.record_key !== selectedRecordKey ||
-      reading.request.navigation.owners.length ||
-      reading.request.match);
+
   const reset = () => {
     setSearch(DEFAULT_SEARCH_STATE);
     setPageNumber(1);
@@ -229,7 +224,9 @@ export function SearchPickerModal<FormValues>({
         )}
         <ReferenceBrowser
           rows={currentRows}
-          loading={recordResults.isFetching}
+          loading={
+            !recordResults.error && !search.filterError && recordResults.isFetching
+          }
           disabled={disabled}
           selectedRecordKey={selectedRecordKey}
           onSelect={(row) => {
@@ -240,9 +237,9 @@ export function SearchPickerModal<FormValues>({
           }}
           reading={reading}
           emptyMessage={
-            recordResults.error
-              ? "Search unavailable"
-              : search.query
+            recordResults.error || search.filterError
+              ? null
+              : recordResults.data
                 ? emptyResults
                 : emptyPrompt
           }
@@ -253,34 +250,24 @@ export function SearchPickerModal<FormValues>({
                   ? `${recordResults.data.page.total.toLocaleString()} records`
                   : "Results"}
               </Typography.Text>
-              <Pagination
-                simple
-                size="small"
-                current={pageNumber}
-                pageSize={search.pageSize}
-                total={Number(recordResults.data?.page?.total ?? 0)}
-                disabled={
-                  disabled ||
-                  recordResults.isFetching ||
-                  generationChanged ||
-                  retrieval.recovering
-                }
-                showSizeChanger={false}
-                onChange={setPageNumber}
-              />
+              {recordResults.data && recordResults.data.page.total > 0n && (
+                <Pagination
+                  simple
+                  size="small"
+                  current={pageNumber}
+                  pageSize={search.pageSize}
+                  total={Number(recordResults.data?.page?.total ?? 0)}
+                  disabled={
+                    disabled ||
+                    recordResults.isFetching ||
+                    generationChanged ||
+                    retrieval.recovering
+                  }
+                  showSizeChanger={false}
+                  onChange={setPageNumber}
+                />
+              )}
             </Space>
-          }
-          readerActions={
-            linked && (
-              <Button
-                size="small"
-                onClick={() =>
-                  reading.inspect({ navigation: rootNavigation(selectedRecordKey!) })
-                }
-              >
-                Return to selection
-              </Button>
-            )
           }
         />
         <Form

@@ -208,7 +208,7 @@ test("saved list creation and unknown manual participant HP use actual local-sta
 }) => {
   const suffix = Date.now().toString();
   await page.goto("/lists");
-  await page.getByRole("button", { name: "New List", exact: true }).click();
+  await page.getByRole("button", { name: "New list", exact: true }).click();
   const listDialog = page.getByRole("dialog");
   await listDialog.getByLabel("Name", { exact: true }).fill("Browser List " + suffix);
   await listDialog.getByRole("button", { name: "Create", exact: true }).click();

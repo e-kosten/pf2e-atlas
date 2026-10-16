@@ -1,3 +1,4 @@
+import { hasExecutableSearch } from "../../shared/filters/searchState";
 import { Alert, Button, Space, Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
@@ -6,6 +7,8 @@ import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
 export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
+  const hasCriteria = hasExecutableSearch(workspace.search);
+  const failed = Boolean(workspace.errorMessage || workspace.search.filterError);
   return (
     <main className="search-workspace">
       <FilterControls filterState={workspace} layout="toolbar">
@@ -53,8 +56,15 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         />
       )}
       <ReferenceBrowser
+        emptyMessage={
+          failed
+            ? null
+            : hasCriteria
+              ? "No matching records."
+              : "Search or choose filters."
+        }
         rows={workspace.resultPage?.rows ?? []}
-        loading={workspace.resultsLoading || workspace.resultsRefreshing}
+        loading={!failed && (workspace.resultsLoading || workspace.resultsRefreshing)}
         selectedRecordKey={workspace.selectedRecordKey}
         onSelect={(row) => workspace.selectRecord(row.record.record_key)}
         reading={workspace.reading}

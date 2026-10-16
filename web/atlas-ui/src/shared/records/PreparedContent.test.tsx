@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { PreparedContent } from "./PreparedContent";
+import { atlasRoutePath } from "../../app/routes";
 import { detailFixture } from "../../test/fixtures";
 import { ConfigProvider, theme } from "antd";
 describe("prepared source HTML", () => {
@@ -156,7 +157,15 @@ describe("prepared source HTML", () => {
       detail.relationships[0].target,
     );
     const reference = screen.getByText("Nested Rule");
-    expect(reference).toHaveAttribute("role", "button");
+    expect(reference).toHaveAttribute(
+      "href",
+      atlasRoutePath({
+        kind: "record",
+        recordKey: "rules:nested",
+        selection: detail.relationships[0].target!,
+      }),
+    );
+    expect(reference).not.toHaveAttribute("role", "button");
     expect(reference).toHaveAttribute("tabindex", "0");
     fireEvent.keyDown(reference, { key: "Enter" });
     fireEvent.keyDown(reference, { key: " " });
@@ -213,4 +222,59 @@ describe("prepared source HTML", () => {
     expect(screen.getByText("External source")).not.toHaveAttribute("role", "button");
     expect(screen.getByText("Blocked")).not.toHaveAttribute("href");
   });
+});
+
+it("retains exact native local addresses, modifiers and target intent through listener replacement and unavailable refresh", () => {
+  const detail = detailFixture("actors:parent", "Parent", "rules:linked");
+  const target = {
+    ...detail.relationships[0].target!,
+    owners: [{ collection: "items", identity: { SnapshotLocal: { index: 3 } } }],
+    field: "system.description.value",
+    source_fingerprint: "copy-a",
+  };
+  detail.relationships[0].target = target;
+  const callback = vi.fn();
+  const nextCallback = vi.fn();
+  const props = {
+    content: detail.presentation.content[0],
+    relationships: detail.relationships,
+    onReference: callback,
+  };
+  const { rerender } = render(<PreparedContent {...props} />);
+  const link = screen.getByRole("link", { name: "Nested Rule" });
+  expect(link).toHaveAttribute(
+    "href",
+    atlasRoutePath({ kind: "record", recordKey: target.record_key, selection: target }),
+  );
+  for (const modifiers of [
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { altKey: true },
+    { button: 1 },
+  ])
+    expect(fireEvent.click(link, modifiers)).toBe(true);
+  expect(fireEvent.keyDown(link, { key: "Enter", metaKey: true })).toBe(true);
+  expect(callback).not.toHaveBeenCalled();
+  link.setAttribute("target", "_blank");
+  expect(fireEvent.click(link)).toBe(true);
+  expect(callback).not.toHaveBeenCalled();
+  link.removeAttribute("target");
+  rerender(<PreparedContent {...props} onReference={nextCallback} />);
+  fireEvent.click(screen.getByRole("link", { name: "Nested Rule" }));
+  expect(nextCallback).toHaveBeenCalledOnce();
+  expect(callback).not.toHaveBeenCalled();
+  rerender(
+    <PreparedContent
+      {...props}
+      relationships={[{ ...detail.relationships[0], target: null }]}
+      onReference={nextCallback}
+    />,
+  );
+  const unavailable = screen.getByText("Nested Rule");
+  expect(unavailable).toHaveAttribute("aria-disabled", "true");
+  expect(unavailable).not.toHaveAttribute("href");
+  expect(unavailable).not.toHaveAttribute("tabindex");
+  fireEvent.click(unavailable);
+  expect(nextCallback).toHaveBeenCalledOnce();
 });

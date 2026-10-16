@@ -49,6 +49,8 @@ export function EncounterInspectorPane({
   retryPreviewLabel,
   previewRecordKey,
   previewAnchor,
+  previewReadingHistory,
+  previewLanding,
   previewSelection,
 }: {
   disabled: boolean;
@@ -81,6 +83,8 @@ export function EncounterInspectorPane({
   retryPreviewLabel?: string;
   previewRecordKey: string | null;
   previewAnchor: RecordPreviewAnchor | null;
+  previewReadingHistory?: import("../../shared/records/recordPreviewTypes").RecordPreviewContentProps["readingHistory"];
+  previewLanding?: import("../../generated/atlas").RecordNavigationView;
 }) {
   if (!participant) {
     return (
@@ -117,6 +121,8 @@ export function EncounterInspectorPane({
       {previewRecordKey && (
         <RecordPreviewPopover
           anchor={previewAnchor}
+          readingHistory={previewReadingHistory}
+          landing={previewLanding}
           detail={previewDetail}
           fullPageHref={atlasRoutePath({
             kind: "record",

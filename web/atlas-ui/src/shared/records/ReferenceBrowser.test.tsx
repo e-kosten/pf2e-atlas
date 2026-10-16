@@ -133,6 +133,8 @@ it.each([true, false])(
       saveList: vi.fn(),
       readReader: () => 0,
       saveReader: vi.fn(),
+      readReaderFocus: vi.fn(),
+      saveReaderFocus: vi.fn(),
     };
     renderBrowser(positions);
     fireEvent.click(screen.getByRole("link", { name: /Ghoul/ }));
@@ -148,5 +150,45 @@ it.each([true, false])(
       expect.stringContaining("actors:ghoul"),
       400,
     );
+  },
+);
+
+it.each([true, false])(
+  "restores prior reader scroll/focus and mobile result focus without changing the selected row (desktop=%s)",
+  async (desktop) => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: desktop });
+    getDetail.mockImplementation((key) =>
+      Promise.resolve(
+        detailFixture(
+          key,
+          key === "actors:ghoul" ? "Ghoul" : "Linked rule",
+          key === "actors:ghoul" ? "rules:linked" : undefined,
+        ),
+      ),
+    );
+    renderBrowser();
+    const summary = screen.getByRole("link", { name: /Ghoul/ });
+    const list = document.querySelector<HTMLElement>(".reference-results__scroll")!;
+    list.scrollTop = 230;
+    fireEvent.scroll(list);
+    fireEvent.keyDown(summary, { key: " " });
+    const nested = await screen.findByRole("link", { name: "Nested Rule" });
+    const reader = document.querySelector<HTMLElement>(".reference-reader__scroll")!;
+    reader.scrollTop = 425;
+    fireEvent.scroll(reader);
+    nested.focus();
+    fireEvent.click(nested);
+    await screen.findByRole("heading", { name: "Linked rule" });
+    expect(summary).toHaveAttribute("aria-current", "true");
+    expect(reader.scrollTop).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    const returned = await screen.findByRole("link", { name: "Nested Rule" });
+    await waitFor(() => expect(reader.scrollTop).toBe(425));
+    expect(returned).toHaveFocus();
+    if (!desktop) {
+      fireEvent.click(screen.getByRole("button", { name: "Results" }));
+      await waitFor(() => expect(summary).toHaveFocus());
+      expect(list.scrollTop).toBe(230);
+    }
   },
 );

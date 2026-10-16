@@ -23,9 +23,14 @@ export function useConfirmDangerAction() {
       cancelText: "Cancel",
       focusable: { autoFocusButton: "cancel" },
       onOk: async () => {
+        confirmation.update({ cancelButtonProps: { disabled: true }, keyboard: false });
         try {
           await onConfirm();
         } catch (error) {
+          confirmation.update({
+            cancelButtonProps: { disabled: false },
+            keyboard: true,
+          });
           void message.error(error instanceof Error ? error.message : "Action failed");
           throw error;
         }

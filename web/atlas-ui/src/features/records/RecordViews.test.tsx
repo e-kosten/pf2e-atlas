@@ -79,7 +79,7 @@ describe("record route views", () => {
     render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const trigger = await screen.findByRole("button", { name: "Linked Record" });
+    const trigger = await screen.findByRole("link", { name: "Linked Record" });
     fireEvent.click(trigger);
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "linked" })).toBeVisible(),
@@ -105,7 +105,7 @@ describe("record route views", () => {
     render(<ReaderHarness />, { wrapper: queryClientWrapper() });
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Linked Record" }));
+    fireEvent.click(screen.getByRole("link", { name: "Linked Record" }));
 
     await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:heal"));
     expect(currentAtlasRoute()).toMatchObject({
@@ -166,9 +166,7 @@ describe("record route views", () => {
 
     await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:heal"));
     expect(window.location.search).toBe("");
-    expect(
-      screen.getByText("Select a linked record to preview it."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Select a record")).toBeInTheDocument();
   });
 
   it("preserves owned field and passage identity through preview follow, close, promotion and history", async () => {
@@ -191,12 +189,18 @@ describe("record route views", () => {
     const primary = selected("actors:primary", 0);
     const first = selected("actors:first", 1);
     const second = selected("actors:second", 2);
-    apiMocks.getRecordDetail.mockImplementation((recordKey: string) => {
-      const result = recordDetailFixture(recordKey);
-      result.relationships[0].target =
-        recordKey === primary.record_key ? first : second;
-      return Promise.resolve(result);
-    });
+    apiMocks.getRecordDetail.mockImplementation(
+      (recordKey: string, selection?: RecordNavigationView) => {
+        const result = recordDetailFixture(recordKey);
+        result.relationships[0].target =
+          recordKey === primary.record_key ? first : second;
+        if (selection) {
+          const { record_key, owners, field, passage, source_fingerprint } = selection;
+          result.selected = { record_key, owners, field, passage, source_fingerprint };
+        }
+        return Promise.resolve(result);
+      },
+    );
     history.replaceState(
       null,
       "",
@@ -208,32 +212,32 @@ describe("record route views", () => {
       }),
     );
     render(<ReaderHarness />, { wrapper: queryClientWrapper() });
-    fireEvent.click(await screen.findByRole("button", { name: "Linked Record" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Linked Record" }));
     await screen.findByRole("heading", { name: "first" });
     expect(currentAtlasRoute()).toMatchObject({
       selection: primary,
       previewSelection: first,
     });
-    fireEvent.click(screen.getAllByRole("button", { name: "Linked Record" })[1]);
+    fireEvent.click(screen.getAllByRole("link", { name: "Linked Record" })[1]);
     await screen.findByRole("heading", { name: "second" });
-    const followedPath = window.location.pathname + window.location.search;
+    // Nested reading is local; the primary and initial companion URL stay stable.
     expect(currentAtlasRoute()).toMatchObject({
       selection: primary,
-      previewSelection: second,
+      previewSelection: first,
     });
-    fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
-    expect(currentAtlasRoute()).toMatchObject({
-      selection: primary,
-      previewRecordKey: null,
+    const exactFullPage = atlasRoutePath({
+      kind: "record",
+      recordKey: second.record_key,
+      selection: second,
     });
-    // The browser restores the complete saved URL for Back/Forward.
-    history.replaceState(null, "", followedPath);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(screen.getByRole("link", { name: "Open full page" })).toHaveAttribute(
+      "href",
+      exactFullPage,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await screen.findByRole("heading", { name: "first" });
+    fireEvent.click(screen.getAllByRole("link", { name: "Linked Record" })[1]);
     await screen.findByRole("heading", { name: "second" });
-    expect(currentAtlasRoute()).toMatchObject({
-      selection: primary,
-      previewSelection: second,
-    });
     fireEvent.click(screen.getByRole("link", { name: "Open preview as reader" }));
     expect(currentAtlasRoute()).toMatchObject({
       recordKey: second.record_key,

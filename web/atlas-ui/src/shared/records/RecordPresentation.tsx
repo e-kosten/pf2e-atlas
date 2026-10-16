@@ -413,13 +413,20 @@ export function RecordPresentation({
               <div key={index}>
                 <Button
                   type="link"
-                  onClick={(event) =>
+                  href={atlasRoutePath({
+                    kind: "record",
+                    recordKey: link.navigation.record_key,
+                    selection: link.navigation,
+                  })}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
                     onReference(
                       link.navigation.record_key,
                       event.currentTarget,
                       link.navigation,
-                    )
-                  }
+                    );
+                  }}
                 >
                   {link.title}
                 </Button>

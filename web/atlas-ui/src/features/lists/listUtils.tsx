@@ -8,11 +8,6 @@ export function listCountLabel(count: number): string {
   return count === 1 ? "1 saved list" : `${count.toLocaleString()} saved lists`;
 }
 
-export function formatDate(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
-
 export function slugify(value: string): string {
   return value
     .trim()
