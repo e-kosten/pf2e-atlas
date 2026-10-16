@@ -45,6 +45,14 @@ pub struct QueryCountsRequest {
     pub context: QueryFacetContext,
 }
 #[derive(Debug, Clone)]
+pub struct QueryValueCountsRequest {
+    pub field: String,
+    pub clause_id: Option<String>,
+    pub query: ValidatedQuery,
+    pub context: QueryFacetContext,
+    pub values: Vec<QueryLiteral>,
+}
+#[derive(Debug, Clone)]
 pub struct QueryVocabularyRequest {
     pub field: String,
     pub eligible_keys: Option<Vec<RecordKey>>,
@@ -457,6 +465,126 @@ fn selected(target: Option<&QueryPredicate>) -> Vec<QueryLiteral> {
         _ => Vec::new(),
     }
 }
+/// Validate every requested literal before optional discovery availability.
+pub fn validate_value_counts(field_id: &str, values: &[QueryLiteral]) -> Result<(), IndexError> {
+    validate_value_discovery(field_id, 0, 1, None)?;
+    if values.len() > atlas_domain::QueryLimits::default().literal_list {
+        return Err(error(
+            "discovery_limit",
+            "Too many values for contextual counts",
+            Some(field_id),
+        )
+        .into());
+    }
+    let d = field(field_id)?;
+    for value in values {
+        let candidate = candidate_clause(d, value)?;
+        let candidate = if let Some(scope) = &d.definition.scope {
+            QueryPredicate::new(QueryExpression::Exists {
+                collection: scope.clone(),
+                scope_id: "count-value".into(),
+                predicate: Box::new(candidate),
+            })
+        } else {
+            candidate
+        };
+        validate_query(&candidate)?;
+    }
+    Ok(())
+}
+pub(crate) fn field_value_counts(
+    connection: &Connection,
+    request: &QueryValueCountsRequest,
+) -> Result<QueryFacetOutcome<QueryValueOptions>, IndexError> {
+    validate_value_counts(&request.field, &request.values)?;
+    let d = field(&request.field)?;
+    let target = match request.clause_id.as_deref() {
+        Some(id) => match remove_clause(&request.query, id, d)? {
+            QueryFacetOutcome::Available {
+                value: (_, target, _),
+            } => Some(target),
+            QueryFacetOutcome::Unavailable { reason } => {
+                return Ok(QueryFacetOutcome::Unavailable { reason });
+            }
+        },
+        None => None,
+    };
+    let mut values = Vec::new();
+    for value in &request.values {
+        if !values.contains(value) {
+            values.push(value.clone());
+        }
+    }
+    let total_values = values.len() as u64;
+    Ok(QueryFacetOutcome::Available {
+        value: QueryValueOptions {
+            field: request.field.clone(),
+            options: count_options(
+                connection,
+                d,
+                &request.query,
+                request.clause_id.as_deref(),
+                &request.context,
+                values,
+                &selected(target.as_ref()),
+            )?,
+            total_values,
+            exhaustive: !request.context.bounded_candidates,
+            count_basis: "exact counterfactual displayed roots".into(),
+        },
+    })
+}
+fn count_options(
+    connection: &Connection,
+    d: &crate::query::catalog::Descriptor,
+    query: &ValidatedQuery,
+    clause_id: Option<&str>,
+    context: &QueryFacetContext,
+    values: Vec<QueryLiteral>,
+    selected: &[QueryLiteral],
+) -> Result<Vec<QueryValueOption>, IndexError> {
+    let mut options = Vec::new();
+    for value in values {
+        let candidate = candidate_clause(d, &value)?;
+        let p = if let Some(id) = clause_id {
+            replace_clause(query.predicate(), id, &candidate)
+        } else {
+            let candidate = if let Some(scope) = &d.definition.scope {
+                QueryPredicate::new(QueryExpression::Exists {
+                    collection: scope.clone(),
+                    scope_id: "discovery-option".to_owned(),
+                    predicate: Box::new(candidate),
+                })
+            } else {
+                candidate
+            };
+            QueryPredicate::new(QueryExpression::AllOf {
+                children: vec![query.predicate().clone(), candidate],
+            })
+        };
+        let accepted = validate_query(&p)?;
+        let mut compiled = compile_predicate(&accepted)?;
+        let keys = key_filter(context, &mut compiled.parameters);
+        let preference = if context.prefer_remaster {
+            "WHERE NOT EXISTS(SELECT 1 FROM remaster_pairs p JOIN matches replacement ON replacement.record_id=p.remaster_record_id WHERE p.legacy_record_id=m.record_id)"
+        } else {
+            ""
+        };
+        let sql = format!(
+            "WITH matches AS (SELECT r.record_id FROM records r WHERE ({}) AND ({keys})) SELECT COUNT(*) FROM matches m {preference}",
+            compiled.expression
+        );
+        let count = connection.query_row(&sql, params_from_iter(&compiled.parameters), |r| {
+            r.get::<_, u64>(0)
+        })?;
+        options.push(QueryValueOption {
+            selected: selected.contains(&value),
+            value,
+            distinct_roots: count,
+        });
+    }
+    Ok(options)
+}
 pub(crate) fn field_values(
     connection: &Connection,
     request: &QueryValuesRequest,
@@ -505,7 +633,6 @@ pub(crate) fn field_values(
         values.retain(|value|selected.contains(value) || matches!(value,QueryLiteral::String(s) if s.to_lowercase().contains(&text.to_lowercase())));
     }
     let total_values = values.len() as u64;
-    let mut options = Vec::new();
     let mut page = values
         .into_iter()
         .skip(request.offset)
@@ -518,45 +645,15 @@ pub(crate) fn field_values(
             page.push(value.clone());
         }
     }
-    for value in page {
-        let candidate = candidate_clause(d, &value)?;
-        let p = if let Some(id) = &request.clause_id {
-            replace_clause(request.query.predicate(), id, &candidate)
-        } else {
-            let candidate = if let Some(scope) = &d.definition.scope {
-                QueryPredicate::new(QueryExpression::Exists {
-                    collection: scope.clone(),
-                    scope_id: "discovery-option".to_owned(),
-                    predicate: Box::new(candidate),
-                })
-            } else {
-                candidate
-            };
-            QueryPredicate::new(QueryExpression::AllOf {
-                children: vec![request.query.predicate().clone(), candidate],
-            })
-        };
-        let accepted = validate_query(&p)?;
-        let mut compiled = compile_predicate(&accepted)?;
-        let keys = key_filter(&request.context, &mut compiled.parameters);
-        let preference = if request.context.prefer_remaster {
-            "WHERE NOT EXISTS(SELECT 1 FROM remaster_pairs p JOIN matches replacement ON replacement.record_id=p.remaster_record_id WHERE p.legacy_record_id=m.record_id)"
-        } else {
-            ""
-        };
-        let sql = format!(
-            "WITH matches AS (SELECT r.record_id FROM records r WHERE ({}) AND ({keys})) SELECT COUNT(*) FROM matches m {preference}",
-            compiled.expression
-        );
-        let count = connection.query_row(&sql, params_from_iter(&compiled.parameters), |r| {
-            r.get::<_, u64>(0)
-        })?;
-        options.push(QueryValueOption {
-            selected: selected.contains(&value),
-            value,
-            distinct_roots: count,
-        });
-    }
+    let options = count_options(
+        connection,
+        d,
+        &request.query,
+        request.clause_id.as_deref(),
+        &request.context,
+        page,
+        &selected,
+    )?;
     Ok(QueryFacetOutcome::Available {
         value: QueryValueOptions {
             field: request.field.clone(),

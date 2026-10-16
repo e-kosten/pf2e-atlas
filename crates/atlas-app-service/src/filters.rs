@@ -9,7 +9,9 @@ use atlas_domain::{
     RecordKey,
 };
 use atlas_search::{
-    DiscoverFilterCountsRequest as SearchCounts, DiscoverFilterValuesRequest as SearchValues,
+    DiscoverFilterCountsRequest as SearchCounts,
+    DiscoverFilterValueCountsRequest as SearchValueCounts,
+    DiscoverFilterValuesRequest as SearchValues,
     DiscoverFilterVocabularyRequest as SearchVocabulary, FilterDiscoveryContext as SearchContext,
     RecordScope, RetrievalMode,
 };
@@ -187,9 +189,10 @@ impl AtlasAppService {
             check_generation(retrieval, expected_generation.as_deref())?;
             let resolved = retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
             let generation = retrieval.artifact_generation()?;
-            let counts = retrieval.discover_filter_counts(SearchCounts {
+            let counts = retrieval.discover_filter_value_counts(SearchValueCounts {
                 field: &request.field_id,
                 clause_id: request.clause_id.as_deref(),
+                values: &request.values,
                 context: SearchContext {
                     search_profile: search_profile.as_ref(),
                     text: text.as_deref(),
@@ -351,6 +354,7 @@ mod tests {
                         },
                         field_id: "record.kind".into(),
                         clause_id: Some("invalid".into()),
+                        values: vec![],
                     },
                     &ReadExecutionContext::uncancellable(),
                 )

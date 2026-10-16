@@ -593,6 +593,170 @@ fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices(
 }
 
 #[test]
+fn explicit_value_counts_use_independent_counterfactual_root_sets_and_scopes() {
+    use crate::discovery::{QueryFacetContext, QueryValueCountsRequest, field_value_counts};
+    let db = database();
+    // Roots 1 and 2 form a verified edition pair; 3 is another spell, 4 an NPC,
+    // and 5 an excluded product family. An absent but valid rarity stays zero.
+    for (id, family, rarity) in [
+        (1, "spell", "rare"),
+        (2, "spell", "common"),
+        (3, "spell", "rare"),
+        (4, "npc", "rare"),
+        (5, "macro", "rare"),
+    ] {
+        root(&db, id, family, rarity);
+    }
+    row(
+        &db,
+        "remaster_pairs",
+        &[
+            ("legacy_record_id", 1.into()),
+            ("remaster_record_id", 2.into()),
+            ("evidence_json", text("{}")),
+        ],
+    );
+    let predicate: QueryPredicate = serde_json::from_value(json!({"kind":"all_of","children":[{"kind":"compare","field":"source.type","op":"eq","value":"spell"},{"kind":"in","clause_id":"rarity","field":"rarity","values":["common","rare"]}]})).unwrap();
+    let mut request = QueryValueCountsRequest {
+        field: "rarity".into(),
+        clause_id: Some("rarity".into()),
+        query: validate_query(&predicate).unwrap(),
+        context: QueryFacetContext {
+            prefer_remaster: true,
+            ..Default::default()
+        },
+        values: ["rare", "common", "unique", "rare"]
+            .map(|v| QueryLiteral::String(v.into()))
+            .to_vec(),
+    };
+    let counts = available(field_value_counts(&db, &request).unwrap());
+    // Replacing the multi-selection with rare restores legacy 1 because remaster
+    // 2 does not match rare. Count roots {1,3}; common has {2}; unique has {}.
+    let expected_roots = [vec![1, 3], vec![2], vec![]];
+    assert_eq!(
+        counts
+            .options
+            .iter()
+            .map(|o| o.distinct_roots)
+            .collect::<Vec<_>>(),
+        expected_roots.map(|roots| roots.len() as u64)
+    );
+    assert_eq!(counts.total_values, 3);
+    assert!(counts.options[0].selected && counts.options[1].selected);
+    request.context.eligible_keys = Some(vec![
+        "test:0000000000000003".parse().unwrap(),
+        "test:0000000000000004".parse().unwrap(),
+    ]);
+    assert_eq!(
+        available(field_value_counts(&db, &request).unwrap())
+            .options
+            .iter()
+            .map(|o| o.distinct_roots)
+            .collect::<Vec<_>>(),
+        vec![1, 0, 0]
+    );
+    request.context.eligible_keys = Some(vec![]);
+    assert!(
+        available(field_value_counts(&db, &request).unwrap())
+            .options
+            .iter()
+            .all(|o| o.distinct_roots == 0)
+    );
+    request.clause_id = None;
+    request.query = parse_where("true").unwrap();
+    request.context.eligible_keys = None;
+    assert_eq!(
+        available(field_value_counts(&db, &request).unwrap()).options[0].distinct_roots,
+        3
+    );
+}
+
+#[test]
+fn explicit_count_validation_precedes_optional_unavailability() {
+    use crate::discovery::{QueryFacetContext, QueryValueCountsRequest, field_value_counts};
+    let db = database();
+    let predicate: QueryPredicate=serde_json::from_value(json!({"kind":"not","predicate":{"kind":"compare","clause_id":"rarity","field":"rarity","op":"eq","value":"rare"}})).unwrap();
+    let mut request = QueryValueCountsRequest {
+        field: "rarity".into(),
+        clause_id: Some("rarity".into()),
+        query: validate_query(&predicate).unwrap(),
+        context: QueryFacetContext::default(),
+        values: vec![QueryLiteral::String("rare".into())],
+    };
+    assert!(matches!(
+        field_value_counts(&db, &request).unwrap(),
+        atlas_domain::QueryFacetOutcome::Unavailable { .. }
+    ));
+    request.values = vec![QueryLiteral::Boolean(true)];
+    assert!(field_value_counts(&db, &request).is_err());
+    request.values = vec![QueryLiteral::String("rare".into()); 129];
+    assert!(
+        matches!(field_value_counts(&db,&request),Err(crate::IndexError::Query(error)) if error.code=="discovery_limit")
+    );
+    request.values = vec![QueryLiteral::String("fire".into())];
+    request.field = "traits".into();
+    assert!(
+        matches!(field_value_counts(&db,&request),Err(crate::IndexError::Query(error)) if error.code=="facet_target_field")
+    );
+}
+
+#[test]
+fn explicit_value_counts_preserve_supported_boolean_siblings_and_same_field_conditions() {
+    use crate::discovery::{QueryFacetContext, QueryValueCountsRequest, field_value_counts};
+    let db = database();
+    for (id, family, rarity) in [
+        (1, "spell", "common"),
+        (2, "spell", "rare"),
+        (3, "npc", "rare"),
+        (4, "equipment", "unique"),
+        (5, "spell", "rare"),
+        (6, "macro", "rare"),
+    ] {
+        root(&db, id, family, rarity);
+    }
+    let predicate: QueryPredicate=serde_json::from_value(json!({"kind":"all_of","children":[{"kind":"in","clause_id":"target","field":"rarity","values":["common"]},{"kind":"any_of","children":[{"kind":"compare","field":"source.type","op":"eq","value":"spell"},{"kind":"compare","field":"source.type","op":"eq","value":"npc"}]},{"kind":"not","predicate":{"kind":"compare","field":"source.type","op":"eq","value":"npc"}}]})).unwrap();
+    let mut request = QueryValueCountsRequest {
+        field: "rarity".into(),
+        clause_id: Some("target".into()),
+        query: validate_query(&predicate).unwrap(),
+        context: QueryFacetContext::default(),
+        values: ["common", "rare", "unique"]
+            .map(|value| QueryLiteral::String(value.into()))
+            .to_vec(),
+    };
+    // The positive target is outside OR/NOT. Both siblings stay executable:
+    // OR admits spells/NPCs, NOT removes NPCs, so rare roots are exactly {2,5}.
+    let expected = [vec![1], vec![2, 5], vec![]];
+    assert_eq!(
+        available(field_value_counts(&db, &request).unwrap())
+            .options
+            .iter()
+            .map(|option| option.distinct_roots)
+            .collect::<Vec<_>>(),
+        expected.map(|roots| roots.len() as u64)
+    );
+    let predicate: QueryPredicate=serde_json::from_value(json!({"kind":"all_of","children":[{"kind":"in","clause_id":"target","field":"rarity","values":["common"]},{"kind":"in","clause_id":"same-field-sibling","field":"rarity","values":["common","rare"]}]})).unwrap();
+    request.query = validate_query(&predicate).unwrap();
+    // Replacing target must retain the other rarity condition. The otherwise
+    // eligible unique root4 is excluded; rare includes {2,3,5}, not macro6.
+    let expected = [vec![1], vec![2, 3, 5], vec![]];
+    assert_eq!(
+        available(field_value_counts(&db, &request).unwrap())
+            .options
+            .iter()
+            .map(|option| option.distinct_roots)
+            .collect::<Vec<_>>(),
+        expected.map(|roots| roots.len() as u64)
+    );
+    request.clause_id = None;
+    request.query = parse_where("true").unwrap();
+    request.values.clear();
+    let empty = available(field_value_counts(&db, &request).unwrap());
+    assert!(empty.options.is_empty());
+    assert_eq!(empty.total_values, 0);
+}
+
+#[test]
 fn child_facets_preserve_remaining_same_child_conditions_and_count_roots_once() {
     use crate::discovery::{QueryFacetContext, QueryValuesRequest, field_values};
     let db = database();
@@ -652,6 +816,31 @@ fn child_facets_preserve_remaining_same_child_conditions_and_count_roots_once() 
         limit: 100,
     };
     let options = available(field_values(&db, &request).unwrap());
+    let explicit = available(
+        crate::discovery::field_value_counts(
+            &db,
+            &crate::QueryValueCountsRequest {
+                field: request.field.clone(),
+                clause_id: request.clause_id.clone(),
+                query: request.query.clone(),
+                context: request.context.clone(),
+                values: ["arcane", "divine", "occult"]
+                    .map(|v| QueryLiteral::String(v.into()))
+                    .to_vec(),
+            },
+        )
+        .unwrap(),
+    );
+    // Arcane has only parent 2 despite two matching child rows. Parent 1's arcane
+    // child is below rank3; its rank5 divine child cannot witness arcane.
+    assert_eq!(
+        explicit
+            .options
+            .iter()
+            .map(|o| o.distinct_roots)
+            .collect::<Vec<_>>(),
+        [vec![2], vec![1], vec![]].map(|roots| roots.len() as u64)
+    );
     let numeric = available(
         crate::discovery::field_counts(
             &db,

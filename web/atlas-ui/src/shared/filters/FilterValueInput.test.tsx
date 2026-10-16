@@ -5,12 +5,16 @@ import { useState } from "react";
 import { FilterValueInput } from "./FilterValueInput";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 
-const api = vi.hoisted(() => ({ discoverFilterValues: vi.fn() }));
+const api = vi.hoisted(() => ({
+  discoverFilterValues: vi.fn(),
+  discoverFilterCounts: vi.fn(),
+}));
 vi.mock("../../api/atlasApi", () => api);
 function renderInput(
   closed = false,
   onChange = vi.fn(),
   initialValues = ["absent-selected"],
+  withCounts = false,
 ) {
   const definition = {
     ...fieldFixture("traits", "set", "Traits"),
@@ -29,6 +33,25 @@ function renderInput(
           onChange(next);
         }}
         scope={{ kind: "saved_list", list_ref: "research" }}
+        countContext={
+          withCounts
+            ? {
+                kind: "saved_list",
+                list_ref: "research",
+                filter: {
+                  kind: "set_match",
+                  clause_id: "traits",
+                  field: "traits",
+                  op: "includes_any",
+                  values: value,
+                },
+                text: null,
+                mode: "hybrid",
+              }
+            : undefined
+        }
+        clauseId="traits"
+        countLimit={128}
       />
     );
   }
@@ -45,6 +68,23 @@ function renderInput(
 describe("shared value control vocabulary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    api.discoverFilterCounts.mockResolvedValue({
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      counts: {
+        status: "available",
+        value: {
+          field: "traits",
+          options: [
+            { value: "fire", distinct_roots: 8n, selected: false },
+            { value: "cold", distinct_roots: 0n, selected: false },
+          ],
+          total_values: 2n,
+          exhaustive: true,
+          count_basis: "exact counterfactual displayed roots",
+        },
+      },
+    });
     api.discoverFilterValues.mockImplementation((request) =>
       Promise.resolve({
         kind: "vocabulary",
@@ -63,6 +103,43 @@ describe("shared value control vocabulary", () => {
     renderInput(true);
     expect(screen.getByRole("combobox", { name: "Traits" })).toBeInTheDocument();
     expect(api.discoverFilterValues).not.toHaveBeenCalled();
+  });
+  it("counts closed choices only when the advanced selector opens", async () => {
+    renderInput(true, vi.fn(), ["fire"], true);
+    expect(api.discoverFilterCounts).not.toHaveBeenCalled();
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+    await waitFor(() =>
+      expect(api.discoverFilterCounts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          field_id: "traits",
+          clause_id: "traits",
+          values: ["fire", "cold"],
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
+    expect(await screen.findByText("cold (0)")).toBeInTheDocument();
+    expect(api.discoverFilterValues).not.toHaveBeenCalled();
+  });
+  it("annotates advanced open vocabulary independently of paging and retained selections", async () => {
+    renderInput(false, vi.fn(), ["absent-selected"], true);
+    await waitFor(() => expect(api.discoverFilterValues).toHaveBeenCalled());
+    expect(api.discoverFilterCounts).not.toHaveBeenCalled();
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+    await waitFor(() =>
+      expect(api.discoverFilterCounts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: expect.objectContaining({
+            kind: "saved_list",
+            list_ref: "research",
+          }),
+          clause_id: "traits",
+          values: ["absent-selected", "fire"],
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
+    expect(await screen.findByText("fire (8)")).toBeInTheDocument();
   });
   it("keeps selected values while paging server suggestions in the saved-list scope", async () => {
     renderInput();

@@ -374,12 +374,12 @@ async fn record_and_filter_routes_use_real_router_wiring() {
         "/api/filters/counts",
         Some(json!({
             "context":{"kind":"filtered","filter":null,"text":null,"mode":"lexical"},
-            "field_id":"source.pack","clause_id":null
+            "field_id":"source.pack","clause_id":null,"values":["Actions"]
         })),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["counts"]["value"]["counting_scope"], "roots");
+    assert_eq!(body["counts"]["value"]["options"][0]["distinct_roots"], 1);
     let (status, body) = route_json(
         Method::POST,
         "/api/filters/validate",
@@ -839,7 +839,7 @@ impl AtlasWebService for MockService {
                 },
             });
         }
-        Ok(serde_json::from_value(json!({"search_profile":"bge-base","artifact_generation":"fixture-generation","counts":{"status":"available","value":{"field":"source.pack","counting_scope":"roots","states":[],"exhaustive":true,"count_basis":"distinct roots","minimum":null,"maximum":null}}})).expect("typed counts fixture"))
+        Ok(serde_json::from_value(json!({"search_profile":"bge-base","artifact_generation":"fixture-generation","counts":{"status":"available","value":{"field":"source.pack","options":[{"value":"Actions","distinct_roots":1,"selected":false}],"total_values":1,"exhaustive":true,"count_basis":"distinct roots"}}})).expect("typed counts fixture"))
     }
     fn validate_filter(
         &self,
@@ -1358,7 +1358,7 @@ async fn filter_discovery_transport_keeps_explicit_vocabulary_and_optional_unava
     assert_eq!(body["scope"]["list_ref"], "my-list");
     assert_eq!(body["values"]["selected_values"][0], "retained");
     assert!(body["values"].get("count_basis").is_none());
-    let (status,body)=route_json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid"},"field_id":"traits","clause_id":"negative-condition"}))).await;
+    let (status,body)=route_json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid"},"field_id":"traits","clause_id":"negative-condition","values":["fire"]}))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["counts"]["status"], "unavailable");
     let (status,_)=route_json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon","mode":"hybrid"}}))).await;

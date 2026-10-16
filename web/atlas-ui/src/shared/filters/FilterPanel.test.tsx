@@ -10,7 +10,6 @@ import type { FilterEditorView, QueryPredicate } from "../../generated/atlas";
 function renderControls(
   editor: FilterEditorView,
   predicate: QueryPredicate | null = null,
-  counts = {},
   filterError: string | null = null,
   presentation: Pick<
     ComponentProps<typeof FilterControls>,
@@ -35,7 +34,6 @@ function renderControls(
             onChange(next);
           },
           filterEditor: editor,
-          filterCountsByField: counts,
         }}
       />
     );
@@ -64,7 +62,7 @@ describe("shared common and maintained advanced filters", () => {
       field: "record.kind",
       values: ["creature"],
     };
-    const change = renderControls(editorFixture([field]), predicate, {}, null, {
+    const change = renderControls(editorFixture([field]), predicate, null, {
       layout: "inline-toolbar",
       includeSearch: true,
     });
@@ -227,7 +225,6 @@ describe("shared common and maintained advanced filters", () => {
     const onChange = renderControls(
       editorFixture([fieldFixture("record.kind")]),
       null,
-      {},
       "Invalid structured filter URL",
     );
     expect(screen.getByText("Invalid structured filter URL")).toBeVisible();
@@ -344,28 +341,20 @@ describe("shared common and maintained advanced filters", () => {
     expect(screen.getByRole("combobox", { name: "Filter field" })).toBeInTheDocument();
     expect(change).not.toHaveBeenCalled();
   });
-  it("labels optional unavailability locally without disabling valid negative filters", () => {
+  it("keeps negative filters editable without unavailable-count notices", () => {
     const kind = {
       ...fieldFixture("record.kind", "string", "Kind"),
       choices: ["creature"],
     };
-    renderControls(
-      editorFixture([kind]),
-      {
-        kind: "not",
-        predicate: {
-          kind: "in",
-          clause_id: "kind",
-          field: kind.path,
-          values: ["creature"],
-        },
+    renderControls(editorFixture([kind]), {
+      kind: "not",
+      predicate: {
+        kind: "in",
+        clause_id: "kind",
+        field: kind.path,
+        values: ["creature"],
       },
-      {
-        "record.kind:kind": {
-          counts: { status: "unavailable", reason: "negative_condition" },
-        },
-      },
-    );
+    });
     expect(
       screen.queryByText("Counts unavailable for this condition"),
     ).not.toBeInTheDocument();

@@ -843,6 +843,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
                 context: context.clone(),
                 field_id: "rarity".into(),
                 clause_id: Some("choice".into()),
+                values: vec![atlas_domain::QueryLiteral::String("rare".into())],
             },
             &crate::ReadExecutionContext::uncancellable(),
         )
@@ -881,12 +882,51 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
                 context,
                 field_id: "traits".into(),
                 clause_id: Some("choice".into()),
+                values: vec![atlas_domain::QueryLiteral::String("fire".into())],
             },
             &crate::ReadExecutionContext::uncancellable(),
         )
         .unwrap_err()
         .into_app_error();
     assert_eq!(invalid.code, AppErrorCode::FilterInvalid);
+}
+
+#[test]
+fn explicit_option_counts_defer_text_without_inference_and_validate_literals_first() {
+    let f = fixture_worker();
+    let context = FilterDiscoveryContext::Filtered {
+        search_profile: None,
+        expected_artifact_generation: None,
+        filter: None,
+        text: Some("unavailable query model".into()),
+        mode: RetrievalModeView::Hybrid,
+    };
+    let mut request = DiscoverFilterCountsRequest {
+        context,
+        field_id: "rarity".into(),
+        clause_id: None,
+        values: vec![atlas_domain::QueryLiteral::String("rare".into())],
+    };
+    let outcome = f
+        .worker
+        .discover_filter_counts(
+            request.clone(),
+            &crate::ReadExecutionContext::uncancellable(),
+        )
+        .unwrap();
+    assert!(matches!(
+        outcome.counts,
+        atlas_domain::QueryFacetOutcome::Unavailable {
+            reason: atlas_domain::FacetUnavailableReason::TextContext
+        }
+    ));
+    request.values = vec![atlas_domain::QueryLiteral::Boolean(true)];
+    let error = f
+        .worker
+        .discover_filter_counts(request, &crate::ReadExecutionContext::uncancellable())
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::FilterInvalid);
 }
 
 #[test]

@@ -98,6 +98,7 @@ describe("source-backed API transport", () => {
       },
       field_id: "traits",
       clause_id: "traits",
+      values: ["fire"],
     };
     respond({ counts: { status: "unavailable", reason: "negative_condition" } });
     expect(await discoverFilterCounts(request, controller.signal)).toEqual({
@@ -106,6 +107,32 @@ describe("source-backed API transport", () => {
     expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
     respond({ code: "query_error", message: "Invalid target" }, 400);
     await expect(discoverFilterCounts(request)).rejects.toThrow("Invalid target");
+  });
+  it("decodes per-option counts including known zero without field-state statistics", async () => {
+    respond({
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      counts: {
+        status: "available",
+        value: {
+          field: "traits",
+          options: [{ value: "fire", distinct_roots: 0, selected: false }],
+          total_values: 1,
+          exhaustive: true,
+          count_basis: "exact counterfactual displayed roots",
+        },
+      },
+    });
+    const result = await discoverFilterCounts({
+      context: { kind: "filtered", filter: null, text: null, mode: "hybrid" },
+      field_id: "traits",
+      clause_id: null,
+      values: ["fire"],
+    });
+    expect(result.counts).toMatchObject({
+      status: "available",
+      value: { options: [{ value: "fire", distinct_roots: 0n }], total_values: 1n },
+    });
   });
   const participantJson = {
     revision: 7,

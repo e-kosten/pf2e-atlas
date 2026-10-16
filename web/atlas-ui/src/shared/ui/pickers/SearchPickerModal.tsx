@@ -204,7 +204,11 @@ export function SearchPickerModal<FormValues>({
               }
             },
             filterEditor: discovery.filterEditor,
-            filterCountsByField: discovery.filterCountsByField,
+            filterCountsEnabled:
+              discovery.filterCountsEnabled &&
+              profileReady &&
+              request.criteria.kind !== "similar_records",
+            filterCountQueryKey: discovery.filterCountQueryKey,
             filterDiscoveryContext: discovery.filterDiscoveryContext,
             vocabularyScope: discovery.vocabularyScope,
             filterDiscoveryLoading: discovery.loading,

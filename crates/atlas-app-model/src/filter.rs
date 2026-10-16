@@ -1,8 +1,8 @@
 //! The editor sends the shared typed predicate; CEL is an independent CLI surface.
 use crate::RetrievalModeView;
 use atlas_domain::{
-    QueryError, QueryFacetOutcome, QueryFieldCounts, QueryFieldDefinition, QueryLimits,
-    QueryLiteral, QueryPredicate, QueryValueOptions, QueryVocabulary,
+    QueryError, QueryFacetOutcome, QueryFieldDefinition, QueryLimits, QueryLiteral, QueryPredicate,
+    QueryValueOptions, QueryVocabulary,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -70,6 +70,7 @@ pub struct DiscoverFilterCountsRequest {
     pub context: FilterDiscoveryContext,
     pub field_id: String,
     pub clause_id: Option<String>,
+    pub values: Vec<QueryLiteral>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterEditorView {
@@ -153,7 +154,7 @@ pub enum FilterValueListView {
 pub struct FilterCountsView {
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
-    pub counts: QueryFacetOutcome<QueryFieldCounts>,
+    pub counts: QueryFacetOutcome<QueryValueOptions>,
 }
 
 #[cfg(test)]

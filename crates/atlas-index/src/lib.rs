@@ -23,8 +23,8 @@ mod writer;
 
 pub use artifact_instance::ArtifactInstance;
 pub use discovery::{
-    QueryCountsRequest, QueryFacetContext, QueryValuesRequest, QueryVocabularyRequest,
-    facet_base_query, validate_value_discovery,
+    QueryCountsRequest, QueryFacetContext, QueryValueCountsRequest, QueryValuesRequest,
+    QueryVocabularyRequest, facet_base_query, validate_value_counts, validate_value_discovery,
 };
 pub use error::IndexError;
 pub use input::{

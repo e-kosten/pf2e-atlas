@@ -547,6 +547,12 @@ impl SqliteIndexReader {
     ) -> Result<atlas_domain::QueryFacetOutcome<atlas_domain::QueryValueOptions>, IndexError> {
         crate::discovery::field_values(self.native()?, request)
     }
+    pub fn field_value_counts(
+        &self,
+        request: &crate::QueryValueCountsRequest,
+    ) -> Result<atlas_domain::QueryFacetOutcome<atlas_domain::QueryValueOptions>, IndexError> {
+        crate::discovery::field_value_counts(self.native()?, request)
+    }
     pub fn field_vocabulary(
         &self,
         request: &crate::QueryVocabularyRequest,

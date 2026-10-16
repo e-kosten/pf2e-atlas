@@ -114,6 +114,7 @@ fn selected_contextual_facets_reject_stale_generation_before_query_inference() {
                 },
                 field_id: "record.kind".into(),
                 clause_id: None,
+                values: vec![],
             },
             &crate::ReadExecutionContext::uncancellable(),
         )

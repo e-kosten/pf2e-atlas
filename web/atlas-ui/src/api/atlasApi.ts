@@ -604,10 +604,10 @@ export async function discoverFilterCounts(
       ...result.counts,
       value: {
         ...result.counts.value,
-        states: result.counts.value.states.map((s) => ({
-          ...s,
-          occurrences: toBigInt(s.occurrences),
-          distinct_roots: toBigInt(s.distinct_roots),
+        total_values: toBigInt(result.counts.value.total_values),
+        options: result.counts.value.options.map((option) => ({
+          ...option,
+          distinct_roots: toBigInt(option.distinct_roots),
         })),
       },
     },

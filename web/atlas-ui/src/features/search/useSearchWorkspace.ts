@@ -61,10 +61,8 @@ export type SearchWorkspaceState = {
   setPageNumber: (page: number) => void;
   resultPage: SearchResultsPage | undefined;
   filterEditor: FilterEditorView | undefined;
-  filterCountsByField?: Record<
-    string,
-    import("../../generated/atlas").FilterCountsView | undefined
-  >;
+  filterCountsEnabled?: boolean;
+  filterCountQueryKey?: readonly unknown[];
   resultsLoading: boolean;
   resultsRefreshing: boolean;
   resultsPaused?: boolean;
@@ -307,17 +305,17 @@ export function useSearchWorkspace({
   const filterDiscoveryContext = useMemo(
     () =>
       buildFilterDiscoveryContext(
-        activeSearch,
+        search,
         searchProfile ?? undefined,
         retrieval.generation ?? undefined,
       ),
-    [activeSearch, searchProfile, retrieval.generation],
+    [search, searchProfile, retrieval.generation],
   );
 
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
     enabled: enabled && !retrieval.recovering,
-    queryKeyPrefix: ["filter-discovery", retrieval.epoch, activeSearchExecutionToken],
+    queryKeyPrefix: ["filter-discovery", retrieval.epoch],
     catalogIdentity: [retrieval.epoch],
   });
 
@@ -381,7 +379,11 @@ export function useSearchWorkspace({
     },
     resultPage: canRunResultSearch ? resultsQuery.data : undefined,
     filterEditor: filterDiscovery.filterEditor,
-    filterCountsByField: filterDiscovery.filterCountsByField,
+    filterCountsEnabled:
+      filterDiscovery.filterCountsEnabled &&
+      searchProfile !== null &&
+      searchProfileStored,
+    filterCountQueryKey: filterDiscovery.filterCountQueryKey,
     filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
     vocabularyScope: filterDiscovery.vocabularyScope,
     filterDiscoveryError: filterDiscovery.errorMessage,

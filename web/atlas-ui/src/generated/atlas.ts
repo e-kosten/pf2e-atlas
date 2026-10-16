@@ -91,7 +91,6 @@ export type { PreparedFieldBodyView } from "../../../../crates/atlas-app-model/b
 export type { QueryCompare } from "../../../../crates/atlas-app-model/bindings/QueryCompare";
 export type { QueryError } from "../../../../crates/atlas-app-model/bindings/QueryError";
 export type { QueryFacetOutcome } from "../../../../crates/atlas-app-model/bindings/QueryFacetOutcome";
-export type { QueryFieldCounts } from "../../../../crates/atlas-app-model/bindings/QueryFieldCounts";
 export type { QueryFieldDefinition } from "../../../../crates/atlas-app-model/bindings/QueryFieldDefinition";
 export type { QueryFieldState } from "../../../../crates/atlas-app-model/bindings/QueryFieldState";
 export type { QueryFieldType } from "../../../../crates/atlas-app-model/bindings/QueryFieldType";
@@ -99,7 +98,6 @@ export type { QueryLimits } from "../../../../crates/atlas-app-model/bindings/Qu
 export type { QueryLiteral } from "../../../../crates/atlas-app-model/bindings/QueryLiteral";
 export type { QueryPredicate } from "../../../../crates/atlas-app-model/bindings/QueryPredicate";
 export type { QuerySetMatch } from "../../../../crates/atlas-app-model/bindings/QuerySetMatch";
-export type { QueryStateCount } from "../../../../crates/atlas-app-model/bindings/QueryStateCount";
 export type { QueryValueDiscovery } from "../../../../crates/atlas-app-model/bindings/QueryValueDiscovery";
 export type { QueryValueOption } from "../../../../crates/atlas-app-model/bindings/QueryValueOption";
 export type { QueryValueOptions } from "../../../../crates/atlas-app-model/bindings/QueryValueOptions";

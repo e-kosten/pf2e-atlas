@@ -3,8 +3,13 @@ import { useEffect, useState } from "react";
 import type {
   FilterEditorFieldView,
   FilterVocabularyScope,
+  FilterDiscoveryContext,
 } from "../../generated/atlas";
-import { useFilterVocabulary, VOCABULARY_PAGE_SIZE } from "./useFilterDiscovery";
+import {
+  useFilterOptionCounts,
+  useFilterVocabulary,
+  VOCABULARY_PAGE_SIZE,
+} from "./useFilterDiscovery";
 
 export function FilterValueInput({
   field,
@@ -13,6 +18,11 @@ export function FilterValueInput({
   onChange,
   scope,
   label = field.label,
+  countContext,
+  countsEnabled = true,
+  countQueryKey,
+  clauseId = null,
+  countLimit = 0,
 }: {
   field: FilterEditorFieldView;
   operator: string;
@@ -20,8 +30,23 @@ export function FilterValueInput({
   onChange: (value: unknown) => void;
   scope: FilterVocabularyScope;
   label?: string;
+  countContext?: FilterDiscoveryContext;
+  countsEnabled?: boolean;
+  countQueryKey?: readonly unknown[];
+  clauseId?: string | null;
+  countLimit?: number;
 }) {
   const definition = field.definition;
+  const [open, setOpen] = useState(false);
+  const counts = useFilterOptionCounts(
+    countContext,
+    definition.id,
+    clauseId,
+    field.choices.map((choice) => choice.value),
+    open && countsEnabled,
+    countLimit,
+    countQueryKey,
+  );
   const operand = field.operators.find((entry) => entry.operator === operator)?.operand;
   if (operand === "state")
     return (
@@ -83,6 +108,15 @@ export function FilterValueInput({
           value: String(choice.value),
           label: choice.label,
         }))}
+        onOpenChange={setOpen}
+        optionRender={(option) => (
+          <span>
+            {option.label}
+            {counts.has(String(option.value))
+              ? ` (${new Intl.NumberFormat().format(counts.get(String(option.value))!)})`
+              : ""}
+          </span>
+        )}
         onChange={(next) => onChange(next ?? (multiple ? [] : ""))}
       />
     );
@@ -95,6 +129,11 @@ export function FilterValueInput({
         onChange={onChange}
         scope={scope}
         label={label}
+        countContext={countContext}
+        countsEnabled={countsEnabled}
+        countQueryKey={countQueryKey}
+        clauseId={clauseId}
+        countLimit={countLimit}
       />
     );
   return (
@@ -117,6 +156,11 @@ function OpenVocabularyInput({
   onChange,
   scope,
   label,
+  countContext,
+  countsEnabled,
+  countQueryKey,
+  clauseId,
+  countLimit,
 }: {
   field: FilterEditorFieldView;
   multiple: boolean;
@@ -124,6 +168,11 @@ function OpenVocabularyInput({
   onChange: (value: unknown) => void;
   scope: FilterVocabularyScope;
   label: string;
+  countContext?: FilterDiscoveryContext;
+  countsEnabled: boolean;
+  countQueryKey?: readonly unknown[];
+  clauseId: string | null;
+  countLimit: number;
 }) {
   const selected = Array.isArray(value)
     ? value.map(String)
@@ -133,6 +182,7 @@ function OpenVocabularyInput({
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setSearch(text);
@@ -158,6 +208,15 @@ function OpenVocabularyInput({
       ...(values?.options.map((option) => String(option.value)) ?? []),
     ]),
   ].map((option) => ({ value: option, label: option }));
+  const counts = useFilterOptionCounts(
+    countContext,
+    field.definition.id,
+    clauseId,
+    options.map((option) => option.value),
+    open && countsEnabled && !!values && !query.isPlaceholderData,
+    countLimit,
+    countQueryKey,
+  );
   const total = values?.total_values ?? 0n;
   const paging = (
     <div className="filter-vocabulary-footer">
@@ -166,9 +225,7 @@ function OpenVocabularyInput({
           ? "Available values in this list"
           : "Available values in this artifact"}
       </Typography.Text>
-      <Typography.Text type="secondary">
-        Includes legacy entries; values do not have match counts.
-      </Typography.Text>
+      <Typography.Text type="secondary">Includes legacy entries.</Typography.Text>
       <Space size="small">
         <Button
           size="small"
@@ -196,6 +253,15 @@ function OpenVocabularyInput({
           allowClear
           value={selected}
           options={options}
+          onOpenChange={setOpen}
+          optionRender={(option) => (
+            <span>
+              {option.label}
+              {counts.has(String(option.value))
+                ? ` (${new Intl.NumberFormat().format(counts.get(String(option.value))!)})`
+                : ""}
+            </span>
+          )}
           placeholder={"Search " + field.label.toLowerCase() + "…"}
           loading={query.isFetching}
           showSearch={{
@@ -217,7 +283,18 @@ function OpenVocabularyInput({
         <AutoComplete
           aria-label={label}
           value={String(value ?? "")}
-          options={options}
+          options={options.map((option) => ({
+            ...option,
+            label: (
+              <span>
+                {option.label}
+                {counts.has(option.value)
+                  ? ` (${new Intl.NumberFormat().format(counts.get(option.value)!)})`
+                  : ""}
+              </span>
+            ),
+          }))}
+          onOpenChange={setOpen}
           placeholder="Search available values…"
           showSearch={{ filterOption: false, onSearch: searchValues }}
           onChange={onChange}
