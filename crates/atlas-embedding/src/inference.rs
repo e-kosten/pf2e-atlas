@@ -1,14 +1,12 @@
 use crate::model_cache::read_verified_asset;
 use crate::{
-    EmbeddingError, EmbeddingModelSpec, EmbeddingRuntimeConfig, PreparedEmbeddingInput,
-    TextEmbeddingTokenizer, default_embedding_model_spec, embedding_reuse_key,
-    hash_document_embedding_input,
+    EmbeddingError, EmbeddingModelSpec, EmbeddingRuntimeConfig, PoolingStrategy,
+    PreparedEmbeddingInput, TextEmbeddingTokenizer, hash_document_embedding_input,
 };
 use fastembed::{
     InitOptionsUserDefined, OutputKey, Pooling, TextEmbedding, TokenizerFiles,
     UserDefinedEmbeddingModel,
 };
-use serde_json::Value;
 use std::{collections::BTreeMap, path::Path};
 
 pub struct TextEmbedder {
@@ -24,36 +22,16 @@ impl TextEmbedder {
         spec: EmbeddingModelSpec,
         directory: impl AsRef<Path>,
     ) -> Result<Self, EmbeddingError> {
-        if spec != default_embedding_model_spec() {
-            return Err(EmbeddingError::UnsupportedModelContract);
-        }
+        crate::catalog::validate_model_spec(spec)?;
         let directory = directory.as_ref();
-        let onnx_file = read_verified_asset(directory, "onnx/model.onnx")?;
-        let tokenizer_file = read_verified_asset(directory, "tokenizer.json")?;
-        let config_file = read_verified_asset(directory, "config.json")?;
-        let tokenizer_config_file = read_verified_asset(directory, "tokenizer_config.json")?;
-        let config: Value =
-            serde_json::from_slice(&tokenizer_config_file).map_err(|e| load_error(directory, e))?;
-        // Supplemental metadata is derived exclusively from verified tokenizer
-        // configuration, rather than downloaded or invented token declarations.
-        let mut special_tokens = serde_json::Map::new();
-        for key in [
-            "cls_token",
-            "mask_token",
-            "pad_token",
-            "sep_token",
-            "unk_token",
-        ] {
-            special_tokens.insert(
-                key.into(),
-                config
-                    .get(key)
-                    .ok_or_else(|| load_error(directory, format!("missing {key}")))?
-                    .clone(),
-            );
-        }
+        let onnx_file = read_verified_asset(spec, directory, "onnx/model.onnx")?;
+        let tokenizer_file = read_verified_asset(spec, directory, "tokenizer.json")?;
+        let config_file = read_verified_asset(spec, directory, "config.json")?;
+        let tokenizer_config_file = read_verified_asset(spec, directory, "tokenizer_config.json")?;
         let special_tokens_map_file =
-            serde_json::to_vec(&special_tokens).map_err(|e| load_error(directory, e))?;
+            read_verified_asset(spec, directory, "special_tokens_map.json")?;
+        let native_tokenizer = tokenizers::Tokenizer::from_bytes(&tokenizer_file)
+            .map_err(|e| load_error(directory, e))?;
         let mut model = UserDefinedEmbeddingModel::new(
             onnx_file,
             TokenizerFiles {
@@ -63,12 +41,31 @@ impl TextEmbedder {
                 tokenizer_config_file,
             },
         )
-        .with_pooling(Pooling::Cls);
-        model.output_key = Some(OutputKey::ByName("last_hidden_state"));
+        .with_pooling(match spec.pooling {
+            PoolingStrategy::Cls => Pooling::Cls,
+            // FastEmbed preserves a rank-2 export directly; it does not pool
+            // the projected sentence output over a token axis.
+            PoolingStrategy::ExportedSentenceEmbedding => Pooling::Mean,
+        });
+        model.output_key = Some(OutputKey::ByName(spec.output_name));
+        for &(path, _) in crate::model_cache::model_assets(spec)? {
+            if let Some(file_name) = path
+                .strip_prefix("onnx/")
+                .filter(|name| *name != "model.onnx")
+            {
+                model = model.with_external_initializer(
+                    file_name.into(),
+                    read_verified_asset(spec, directory, path)?,
+                );
+            }
+        }
         let mut library = TextEmbedding::try_new_from_user_defined(
             model,
             InitOptionsUserDefined::new()
-                .with_max_length(512)
+                .with_max_length(
+                    spec.max_input_tokens
+                        .ok_or(EmbeddingError::UnsupportedModelContract)?,
+                )
                 .with_intra_threads(4),
         )
         .map_err(|e| load_error(directory, e))?;
@@ -79,7 +76,7 @@ impl TextEmbedder {
             .tokenizer
             .with_truncation(None)
             .map_err(|e| EmbeddingError::TokenizationFailed(e.to_string()))?;
-        let tokenizer = TextEmbeddingTokenizer::from_tokenizer(spec, library.tokenizer.clone())?;
+        let tokenizer = TextEmbeddingTokenizer::from_tokenizer(spec, native_tokenizer)?;
         Ok(Self {
             spec,
             tokenizer,
@@ -93,15 +90,25 @@ impl TextEmbedder {
         &self.tokenizer
     }
     pub fn embed_query(&mut self, text: &str) -> Result<Vec<f32>, EmbeddingError> {
-        self.tokenizer.validate_query_input(text)?;
-        let prefixed = format!("{}{text}", self.spec.query_prefix);
-        let mut vectors = self.infer(&[prefixed.as_str()], 1)?;
+        let mut vectors = self.embed_queries(&[text])?;
         vectors
             .pop()
             .ok_or(EmbeddingError::UnexpectedEmbeddingOutputCount {
                 expected: 1,
                 actual: 0,
             })
+    }
+    /// Embed raw queries. The pinned query prefix is applied exactly once here.
+    pub fn embed_queries(&mut self, texts: &[&str]) -> Result<Vec<Vec<f32>>, EmbeddingError> {
+        for text in texts {
+            self.tokenizer.validate_query_input(text)?;
+        }
+        let inputs = texts
+            .iter()
+            .map(|text| self.spec.query_input(text))
+            .collect::<Vec<_>>();
+        let inputs = inputs.iter().map(String::as_str).collect::<Vec<_>>();
+        self.infer(&inputs, 16)
     }
     pub fn embed_document(&mut self, text: &str) -> Result<Vec<f32>, EmbeddingError> {
         let mut vectors = self.embed_documents(&[text])?;
@@ -112,11 +119,17 @@ impl TextEmbedder {
                 actual: 0,
             })
     }
+    /// Embed raw selected documents. Callers must not supply an official prefix.
     pub fn embed_documents(&mut self, texts: &[&str]) -> Result<Vec<Vec<f32>>, EmbeddingError> {
         for text in texts {
             self.tokenizer.validate_document_input(text)?;
         }
-        self.infer(texts, 16)
+        let inputs = texts
+            .iter()
+            .map(|text| self.spec.document_input(text))
+            .collect::<Vec<_>>();
+        let inputs = inputs.iter().map(String::as_str).collect::<Vec<_>>();
+        self.infer(&inputs, 16)
     }
     fn infer(
         &mut self,
@@ -125,6 +138,29 @@ impl TextEmbedder {
     ) -> Result<Vec<Vec<f32>>, EmbeddingError> {
         if texts.is_empty() {
             return Ok(Vec::new());
+        }
+        // FastEmbed configures padding and special-token declarations at load.
+        // Check its actual input IDs against the pinned native tokenizer rather
+        // than assuming this configuration preserves the research contract.
+        for text in texts {
+            let native = self
+                .tokenizer
+                .tokenizer()
+                .encode(*text, true)
+                .map_err(|e| EmbeddingError::TokenizationFailed(e.to_string()))?;
+            let configured = self
+                .library
+                .tokenizer
+                .encode(*text, true)
+                .map_err(|e| EmbeddingError::TokenizationFailed(e.to_string()))?;
+            if native.get_ids() != configured.get_ids()
+                || native.get_attention_mask() != configured.get_attention_mask()
+                || native.get_type_ids() != configured.get_type_ids()
+            {
+                return Err(EmbeddingError::TokenizationFailed(
+                    "native and inference tokenizer inputs differ".into(),
+                ));
+            }
         }
         let vectors = self
             .library
@@ -191,19 +227,51 @@ pub fn generate_prepared_embeddings(
         ));
     }
     let mut unique = BTreeMap::<String, &str>::new();
-    for input in inputs {
+    embedding_progress(
+        embedder.spec,
+        "native_validation",
+        0,
+        inputs.len(),
+        "occurrences",
+        None,
+        inputs.len(),
+    );
+    let mut last_reported = 0;
+    for (ordinal, input) in inputs.iter().enumerate() {
         if input.input_sha256 != hash_document_embedding_input(&input.input)
-            || input.reuse_key != embedding_reuse_key(&input.input)
+            || input.reuse_key != embedder.spec.document_reuse_key(&input.input)
             || input.token_count != embedder.tokenizer.validate_document_input(&input.input)?
         {
             return Err(EmbeddingError::PreparedInputMismatch);
         }
         unique.insert(input.reuse_key.clone(), &input.input);
+        if report_embedding_progress(ordinal + 1, inputs.len(), last_reported) {
+            embedding_progress(
+                embedder.spec,
+                "native_validation",
+                ordinal + 1,
+                inputs.len(),
+                "occurrences",
+                None,
+                inputs.len(),
+            );
+            last_reported = ordinal + 1;
+        }
     }
     let mut available = BTreeMap::new();
     let mut pending = Vec::new();
     let mut reused_inputs = 0;
-    for (key, text) in &unique {
+    last_reported = 0;
+    embedding_progress(
+        embedder.spec,
+        "reuse_selection",
+        0,
+        unique.len(),
+        "unique inputs",
+        Some(0),
+        inputs.len(),
+    );
+    for (ordinal, (key, text)) in unique.iter().enumerate() {
         if let Some(vector) = reusable.get(key) {
             validate_embedding_vector(vector, embedder.spec.dimensions)?;
             available.insert(key.clone(), vector.clone());
@@ -211,12 +279,48 @@ pub fn generate_prepared_embeddings(
         } else {
             pending.push((key.clone(), *text));
         }
+        if report_embedding_progress(ordinal + 1, unique.len(), last_reported) {
+            embedding_progress(
+                embedder.spec,
+                "reuse_selection",
+                ordinal + 1,
+                unique.len(),
+                "unique inputs",
+                Some(reused_inputs),
+                inputs.len(),
+            );
+            last_reported = ordinal + 1;
+        }
     }
     let inferred_inputs = pending.len();
+    embedding_progress(
+        embedder.spec,
+        "inference",
+        0,
+        inferred_inputs,
+        "unique inputs",
+        Some(reused_inputs),
+        inputs.len(),
+    );
+    let mut completed = 0;
+    last_reported = 0;
     for batch in pending.chunks(batch_size) {
         let texts = batch.iter().map(|(_, text)| *text).collect::<Vec<_>>();
-        for ((key, _), vector) in batch.iter().zip(embedder.infer(&texts, batch_size)?) {
+        for ((key, _), vector) in batch.iter().zip(embedder.embed_documents(&texts)?) {
             available.insert(key.clone(), vector);
+        }
+        completed += batch.len();
+        if report_embedding_progress(completed, inferred_inputs, last_reported) {
+            embedding_progress(
+                embedder.spec,
+                "inference",
+                completed,
+                inferred_inputs,
+                "unique inputs",
+                Some(reused_inputs),
+                inputs.len(),
+            );
+            last_reported = completed;
         }
     }
     let vectors = inputs
@@ -233,4 +337,32 @@ pub fn generate_prepared_embeddings(
         inferred_inputs,
         reused_inputs,
     })
+}
+
+fn report_embedding_progress(current: usize, total: usize, last_reported: usize) -> bool {
+    let interval = (total / 100).clamp(25, 500);
+    current == total || current.saturating_sub(last_reported) >= interval
+}
+fn embedding_progress(
+    spec: EmbeddingModelSpec,
+    stage: &str,
+    current: usize,
+    total: usize,
+    unit: &str,
+    reused: Option<usize>,
+    occurrences: usize,
+) {
+    let profile = crate::embedding_model_for_model_id(spec.model_id).map(crate::profile_for_model);
+    let label = profile.map_or(spec.model_id, |p| p.label);
+    let id = profile.map_or(spec.model_id, |p| p.id);
+    let phase = format!("{id}:{stage}");
+    let action = match stage {
+        "native_validation" => "Validating native inputs",
+        "reuse_selection" => "Checking reusable inputs",
+        "inference" => "Inferring vectors",
+        _ => stage,
+    };
+    let reused = reused.map_or_else(|| "unknown".to_owned(), |count| count.to_string());
+    tracing::info!(target: "atlas_progress", phase = %phase, current = current as u64, total = total as u64,
+        "{label} [{id}] {action}: {current}/{total} {unit}; {reused} reused unique inputs; {occurrences} occurrences");
 }

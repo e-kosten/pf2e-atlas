@@ -16,6 +16,8 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
       ? Number.MAX_SAFE_INTEGER
       : Number(pageCount);
 
+  if (!page || page.total === 0n) return null;
+
   return (
     <div className="result-pane-header">
       <span>

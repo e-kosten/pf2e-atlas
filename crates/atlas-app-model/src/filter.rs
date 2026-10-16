@@ -11,11 +11,19 @@ use ts_rs::TS;
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FilterDiscoveryContext {
     Filtered {
+        #[ts(optional)]
+        search_profile: Option<atlas_domain::SearchProfileId>,
+        #[ts(optional)]
+        expected_artifact_generation: Option<String>,
         filter: Option<QueryPredicate>,
         text: Option<String>,
         mode: RetrievalModeView,
     },
     SavedList {
+        #[ts(optional)]
+        search_profile: Option<atlas_domain::SearchProfileId>,
+        #[ts(optional)]
+        expected_artifact_generation: Option<String>,
         list_ref: String,
         filter: Option<QueryPredicate>,
         text: Option<String>,
@@ -133,6 +141,8 @@ pub struct FilterValidationResult {
 pub enum FilterValueListView {
     Contextual {
         outcome: QueryFacetOutcome<QueryValueOptions>,
+        search_profile: atlas_domain::SearchProfileId,
+        artifact_generation: String,
     },
     Vocabulary {
         scope: FilterVocabularyScope,
@@ -141,6 +151,8 @@ pub enum FilterValueListView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterCountsView {
+    pub search_profile: atlas_domain::SearchProfileId,
+    pub artifact_generation: String,
     pub counts: QueryFacetOutcome<QueryFieldCounts>,
 }
 
@@ -204,13 +216,15 @@ mod tests {
     #[test]
     fn optional_contextual_unavailability_has_no_fabricated_counts() {
         let response = FilterCountsView {
+            search_profile: atlas_domain::SearchProfileId::new("bge-base"),
+            artifact_generation: "fixture-generation".into(),
             counts: QueryFacetOutcome::Unavailable {
                 reason: atlas_domain::FacetUnavailableReason::NonConjunctiveContext,
             },
         };
         assert_eq!(
             serde_json::to_value(response).unwrap(),
-            json!({"counts":{"status":"unavailable","reason":"non_conjunctive_context"}})
+            json!({"search_profile":"bge-base","artifact_generation":"fixture-generation","counts":{"status":"unavailable","reason":"non_conjunctive_context"}})
         );
     }
 }

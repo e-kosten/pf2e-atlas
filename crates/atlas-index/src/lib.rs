@@ -8,6 +8,8 @@ mod foundation_tests;
 mod input;
 mod numeric;
 mod persistence;
+#[cfg(test)]
+mod profile_tests;
 mod projections;
 pub mod query;
 mod read_content;
@@ -32,7 +34,7 @@ pub use input::{
     SOURCE_LOOKUP_VERSION, SOURCE_PROJECTION_VERSION, SourceAliasInput, SourceArtifactBuildContext,
     SourceArtifactDiagnostic, SourceArtifactRecordInput, SourceLexicalUnitInput,
     SourceLexicalUnitKind, SourcePreparedContent, SourceRelationshipDetails,
-    SourceRemasterPairInput, SourceSemanticModelIdentity, SourceSemanticUnitInput,
+    SourceRemasterPairInput, SourceSearchProfileIdentity, SourceSemanticUnitInput,
     SourceStoredRelationship, SourceUnitLocation,
 };
 pub use query::{ValidatedQuery, parse_where, query_capabilities, validate_query};
@@ -47,7 +49,8 @@ pub use read_units::{
 #[cfg(any(test, feature = "test-support"))]
 pub use reader::SourceReadMetrics;
 pub use reader::{
-    SourceArtifactStatistics, SourceReadCapabilities, SourceSummaryBatch, SqliteIndexReader,
+    SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
+    SqliteIndexReader,
 };
 pub use validation::{ArtifactValidationReport, validate_artifact};
 pub use writer::{IndexArtifactWriter, SqliteIndexWriter};

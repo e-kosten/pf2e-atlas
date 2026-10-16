@@ -36,7 +36,9 @@ pub(crate) fn stored_content_outcome(
         .text
         .value()
         .ok_or_else(|| invalid("cache authored text unavailable"))?;
-    if hash != crate::codec::sha256(authored.as_bytes()) || context_hash != context.sha256()? {
+    if hash != crate::codec::sha256(authored.as_bytes())
+        || context_hash != context.preparation_sha256()?
+    {
         return Err(invalid("prepared cache input/context mismatch"));
     }
     let role = serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(2)?))?;
@@ -262,93 +264,97 @@ pub(crate) fn validate_selection(
     if !lexical.is_empty() {
         return Err(invalid("lexical evidence coverage is incomplete"));
     }
-    if context.semantic_model.is_none() {
-        return Ok(());
-    }
-    let mut identity=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units WHERE record_id=? AND unit_kind='identity'")?;
-    for row in identity.query_map([id], |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, Option<String>>(1)?,
-            r.get::<_, String>(2)?,
-            r.get::<_, usize>(3)?,
-        ))
-    })? {
-        let (owners, field, address, ordinal) = row?;
-        if selection.identity_required.is_empty()
-            || owners != "[]"
-            || field.is_some()
-            || ordinal != 0
-            || serde_json::from_str::<SourcePassageAddress>(&address)?
-                != (SourcePassageAddress::Identity {})
-        {
-            return Err(invalid("invalid semantic identity attribution"));
-        }
-    }
-    let mut covered = BTreeMap::<SectionKey, Vec<(usize, SourceByteRange)>>::new();
-    let mut s=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units WHERE record_id=? AND unit_kind='passage'")?;
-    let mut rows = s.query([id])?;
-    while let Some(row) = rows.next()? {
-        let mut address: SourcePassageAddress = serde_json::from_str(&row.get::<_, String>(2)?)?;
-        let (ordinal, range) = match &address {
-            SourcePassageAddress::HtmlSection {
-                section_ordinal,
-                chunk_bytes,
-                ..
-            }
-            | SourcePassageAddress::PlainSection {
-                section_ordinal,
-                chunk_bytes,
-                ..
-            } => (*section_ordinal, *chunk_bytes),
-            SourcePassageAddress::Identity {} => return Err(invalid("identity stored as passage")),
-        };
-        let key = (row.get::<_, String>(0)?, row.get::<_, String>(1)?, ordinal);
-        let (expected, text) = sections
-            .get(&key)
-            .ok_or_else(|| invalid("unselected semantic section"))?;
-        match &mut address {
-            SourcePassageAddress::HtmlSection { chunk_bytes, .. }
-            | SourcePassageAddress::PlainSection { chunk_bytes, .. } => {
-                *chunk_bytes = SourceByteRange {
-                    start: 0,
-                    end: text.len(),
-                }
-            }
-            SourcePassageAddress::Identity {} => return Err(invalid("identity stored as passage")),
-        };
-        if &address != expected {
-            return Err(invalid("semantic section source identity mismatch"));
-        }
-        range
-            .extract(text)
-            .map_err(|e| IndexError::Invalid(e.to_string()))?;
-        covered.entry(key).or_default().push((row.get(3)?, range));
-    }
-    for (key, (_, text)) in sections {
-        let mut chunks = covered
-            .remove(&key)
-            .ok_or_else(|| invalid("semantic section coverage is incomplete"))?;
-        chunks.sort_by_key(|v| v.0);
-        let mut end = 0;
-        for (index, (ordinal, range)) in chunks.iter().enumerate() {
-            if *ordinal != index
-                || range.start > end
-                || range.end <= range.start
-                || range.end <= end
+    for profile in &context.search_profiles {
+        let mut identity=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units WHERE record_id=? AND profile_id=? AND unit_kind='identity'")?;
+        for row in identity.query_map(rusqlite::params![id, profile.profile_id.as_str()], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, usize>(3)?,
+            ))
+        })? {
+            let (owners, field, address, ordinal) = row?;
+            if selection.identity_required.is_empty()
+                || owners != "[]"
+                || field.is_some()
+                || ordinal != 0
+                || serde_json::from_str::<SourcePassageAddress>(&address)?
+                    != (SourcePassageAddress::Identity {})
             {
-                return Err(invalid(
-                    "semantic chunk sequence is duplicated, empty or has gaps",
-                ));
+                return Err(invalid("invalid semantic identity attribution"));
             }
-            end = range.end;
         }
-        if end != text.len() {
-            return Err(invalid("semantic section tail is uncovered"));
+        let mut covered = BTreeMap::<SectionKey, Vec<(usize, SourceByteRange)>>::new();
+        let mut s=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units WHERE record_id=? AND profile_id=? AND unit_kind='passage'")?;
+        let mut rows = s.query(rusqlite::params![id, profile.profile_id.as_str()])?;
+        while let Some(row) = rows.next()? {
+            let mut address: SourcePassageAddress =
+                serde_json::from_str(&row.get::<_, String>(2)?)?;
+            let (ordinal, range) = match &address {
+                SourcePassageAddress::HtmlSection {
+                    section_ordinal,
+                    chunk_bytes,
+                    ..
+                }
+                | SourcePassageAddress::PlainSection {
+                    section_ordinal,
+                    chunk_bytes,
+                    ..
+                } => (*section_ordinal, *chunk_bytes),
+                SourcePassageAddress::Identity {} => {
+                    return Err(invalid("identity stored as passage"));
+                }
+            };
+            let key = (row.get::<_, String>(0)?, row.get::<_, String>(1)?, ordinal);
+            let (expected, text) = sections
+                .get(&key)
+                .ok_or_else(|| invalid("unselected semantic section"))?;
+            match &mut address {
+                SourcePassageAddress::HtmlSection { chunk_bytes, .. }
+                | SourcePassageAddress::PlainSection { chunk_bytes, .. } => {
+                    *chunk_bytes = SourceByteRange {
+                        start: 0,
+                        end: text.len(),
+                    }
+                }
+                SourcePassageAddress::Identity {} => {
+                    return Err(invalid("identity stored as passage"));
+                }
+            };
+            if &address != expected {
+                return Err(invalid("semantic section source identity mismatch"));
+            }
+            range
+                .extract(text)
+                .map_err(|e| IndexError::Invalid(e.to_string()))?;
+            covered.entry(key).or_default().push((row.get(3)?, range));
         }
-    }
-    if !covered.is_empty() {
-        return Err(invalid("unaccounted semantic sections"));
+        for (key, (_, text)) in sections.clone() {
+            let mut chunks = covered
+                .remove(&key)
+                .ok_or_else(|| invalid("semantic section coverage is incomplete"))?;
+            chunks.sort_by_key(|v| v.0);
+            let mut end = 0;
+            for (index, (ordinal, range)) in chunks.iter().enumerate() {
+                if *ordinal != index
+                    || range.start > end
+                    || range.end <= range.start
+                    || range.end <= end
+                {
+                    return Err(invalid(
+                        "semantic chunk sequence is duplicated, empty or has gaps",
+                    ));
+                }
+                end = range.end;
+            }
+            if end != text.len() {
+                return Err(invalid("semantic section tail is uncovered"));
+            }
+        }
+        if !covered.is_empty() {
+            return Err(invalid("unaccounted semantic sections"));
+        }
     }
     Ok(())
 }

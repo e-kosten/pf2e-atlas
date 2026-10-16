@@ -18,8 +18,8 @@ must not reconcile saved state across rebuilds.
 Product navigation using snapshot-local positions carries the source fingerprint;
 detail rejects missing or stale generation context for those explicit addresses.
 
-The supported contract is `pf2e-atlas-source-artifact/v2`, with format and SQLite
-`user_version` 2. `artifact_context` contains one typed, hashed build context.
+The supported contract is `pf2e-atlas-source-artifact/v3`, with format and SQLite
+`user_version` 3. `artifact_context` contains one typed, hashed build context.
 The checked snapshot codec has its own version owned by `atlas-foundry-model`.
 Unsupported artifacts require rebuilding. There is no migration, compatibility
 reader, normalized-record adapter or original-JSON fallback for old reference
@@ -44,7 +44,7 @@ SQL owned by index. Artifact-supplied data never supplies executable SQL.
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
-| Semantic search | `semantic_models`, `semantic_units`, `semantic_vectors`: exact model identity, attributed section/chunk addresses, input hashes and vectors. |
+| Semantic search | `search_profiles`, `semantic_units`, `semantic_vectors`: complete profile identity, profile-scoped attributed section/chunk addresses, raw input hashes and vectors. |
 
 There is no generic metric EAV store, persisted RichDocument, synthetic canonical
 affliction table, copied embedded Item authority or complete plain-text/model-input
@@ -165,13 +165,15 @@ root and owned prose plus one compact root identity unit. Embedded/prose afflict
 definitions remain attributed to their actual source; they do not become generated
 canonical records.
 
-Only the pinned `BAAI/bge-small-en-v1.5` model is supported. Its immutable revision,
-asset checksums, tokenizer, CLS pooling, L2 normalization, cosine distance and input
-policy are part of the context. FastEmbed owns inference; text-splitter owns generic
-segmentation. Atlas owns selection, attribution, context, exact reuse and final
-tokenizer-budget checks. Body target is 256 tokens, context 64, overlap at most 32,
-identity at most 480, and final assembled input at most 512 including special tokens.
-No silent truncation or token-estimator fallback is allowed.
+The canonical manifest supports `bge-base` and `embeddinggemma` with exact pinned
+assets, tokenizer/configuration, output/pooling, prefixes and baseline recipe.
+Each emits 768-dimensional L2-normalized vectors. FastEmbed owns inference;
+text-splitter owns generic segmentation. Atlas owns selection, attribution, context,
+exact reuse and final native guards. Both profiles use BGE baseline segmentation:
+body 256, context 64, overlap at most 32, identity at most 480, assembled baseline
+input at most 512 including special tokens. Only owned headers omit pack labels.
+The selected native final prefixed limit is 512 for BGE and 2048 for Gemma; Gemma
+does not expand passages. No silent truncation or token-estimator fallback is allowed.
 
 Passage metadata addresses a selected section and UTF-8 byte range, with source or
 prepared HTML/canonical-text hashes and selection version. Identity units have no
@@ -183,8 +185,11 @@ address and chunk ordinal before accepting a vector. Offline index validation
 checks source/cache addresses, coverage, hash syntax and vector integrity; it
 does not require model assets or claim tokenizer-backed input verification.
 Reuse never merges distinct source attributions. Vectors contain no duplicate filter metadata.
-An artifact has either complete semantic coverage or no semantic model. Lexical
-reads remain available without embeddings; full web readiness requires them.
+Each stored profile independently has complete semantic identity/section/vector
+coverage. An empty manifest is a lexical artifact. One shared vec0 table uses
+globally unique unit IDs; KNN eligibility includes profile and eligible roots
+inside the scan. Similar seeds and reuse remain selected-profile scoped.
+Lexical/reference reads and stored-vector Similar do not require query weights.
 
 Search collapses semantic units by maximum similarity per root. Hybrid uses one
 rank per root per lane with RRF60; sibling appearance does not penalize a passage.
@@ -195,7 +200,13 @@ Similar request and body-free seed summary; they do not extend the stored schema
 
 The full serialized `SourceArtifactBuildContext` SHA-256 identifies the immutable
 artifact generation for search pages, detail envelopes and Related availability. It covers
-locale, preparation policies and semantic model as well as source identity.
+locale, shared preparation policies and the complete sorted profile manifest as
+well as source identity. Shared HTML/content preparation hashes exclude the
+profile manifest, including its model and passage recipe. Raw input hashes identify
+unprefixed selected strings; profile execution/reuse keys bind final prefixed inputs,
+native tokenizer assets and the full shared BGE segmentation-tokenizer SHA-256.
+Each profile persists that segmentation digest separately from its native tokenizer
+digest, including Gemma-only manifests.
 Snapshot-local navigation continues to use the source fingerprint; these identities
 serve different purposes and are not interchangeable.
 

@@ -60,6 +60,69 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
 }
 
 #[test]
+fn profile_flags_support_both_builtins_and_reject_retired_or_conflicting_options() {
+    for command in [
+        &["index", "build"][..],
+        &["setup"][..],
+        &["search"][..],
+        &["similar"][..],
+        &["web"][..],
+    ] {
+        let text = help(command);
+        assert!(text.contains("--search-profile"));
+        assert!(!text.contains("--embedding-model"));
+    }
+    for args in [
+        vec!["setup", "--no-embeddings", "--search-profile", "bge-base"],
+        vec![
+            "index",
+            "build",
+            "--no-embeddings",
+            "--search-profile",
+            "embeddinggemma",
+        ],
+        vec!["search", "--search-profile", "bge-small"],
+        vec!["search", "--embedding-model", "bge-base-en-v1.5"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("panicked"));
+    }
+    // Check mode avoids setup writes or source fetching while parsing repeated flags.
+    let unused = std::env::temp_dir().join(format!("atlas-profile-args-{}", std::process::id()));
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--check",
+            "--offline",
+            "--search-profile",
+            "bge-base",
+            "--search-profile",
+            "embeddinggemma",
+            "--json",
+        ])
+        .arg("--source")
+        .arg(unused.join("source"))
+        .arg("--index")
+        .arg(unused.join("artifact.sqlite"))
+        .arg("--embedding-cache-path")
+        .arg(unused.join("models"))
+        .output()
+        .unwrap();
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        response["data"]["search_profiles"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[test]
 fn explicit_human_detail_conflicts_with_json_before_reading_an_artifact() {
     for detail in ["summary", "standard", "full"] {
         for options in [

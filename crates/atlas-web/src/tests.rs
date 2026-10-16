@@ -144,29 +144,32 @@ async fn call_service_maps_panic_to_internal_error() {
 
 #[tokio::test]
 async fn routes_return_service_busy_when_web_backpressure_is_full() {
-    let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
-        MockService::default(),
-        0,
-    ));
-    let response = app
-        .oneshot(
-            Request::get("/api/records/actions:testAction1")
-                .body(Body::empty())
-                .expect("request should build"),
-        )
-        .await
-        .expect("route should respond");
-    let (status, body) = response_json(response).await;
+    for path in ["/api/records/actions:testAction1", "/api/readiness"] {
+        let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
+            MockService::default(),
+            0,
+        ));
+        let response = app
+            .oneshot(
+                Request::get(path)
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
+        let (status, body) = response_json(response).await;
 
-    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(body["code"], "service_busy");
-    assert_eq!(body["retryable"], true);
-    assert!(
-        body["message"]
-            .as_str()
-            .expect("message should be string")
-            .contains("blocking service call limit is full")
-    );
+        assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{path}");
+        assert_eq!(body["code"], "service_busy", "{path}");
+        assert_eq!(body["retryable"], true, "{path}");
+        assert!(
+            body["message"]
+                .as_str()
+                .expect("message should be string")
+                .contains("blocking service call limit is full"),
+            "{path}",
+        );
+    }
 }
 
 #[tokio::test]
@@ -782,6 +785,9 @@ mod read_abandonment_tests;
 impl AtlasWebService for MockService {
     fn readiness(&self) -> AppReadinessView {
         AppReadinessView {
+            default_search_profile: atlas_domain::SearchProfileId::new("bge-base"),
+            artifact_generation: None,
+            search_profiles: vec![],
             status: AppReadinessStatus::Ready,
             message: "fixture ready".to_string(),
         }
@@ -817,7 +823,7 @@ impl AtlasWebService for MockService {
                 },
             });
         }
-        Ok(serde_json::from_value(json!({"kind":"contextual","outcome":{"status":"available","value":{"field":"source.pack","options":[{"value":"Actions","distinct_roots":3,"selected":false}],"total_values":1,"exhaustive":true,"count_basis":"distinct roots"}}})).expect("typed values fixture"))
+        Ok(serde_json::from_value(json!({"kind":"contextual","search_profile":"bge-base","artifact_generation":"fixture-generation","outcome":{"status":"available","value":{"field":"source.pack","options":[{"value":"Actions","distinct_roots":3,"selected":false}],"total_values":1,"exhaustive":true,"count_basis":"distinct roots"}}})).expect("typed values fixture"))
     }
     fn discover_filter_counts(
         &self,
@@ -826,12 +832,14 @@ impl AtlasWebService for MockService {
     ) -> Result<FilterCountsView, AppServiceError> {
         if request.clause_id.is_some() {
             return Ok(FilterCountsView {
+                search_profile: atlas_domain::SearchProfileId::new("bge-base"),
+                artifact_generation: "fixture-generation".into(),
                 counts: atlas_domain::QueryFacetOutcome::Unavailable {
                     reason: atlas_domain::FacetUnavailableReason::NonConjunctiveContext,
                 },
             });
         }
-        Ok(serde_json::from_value(json!({"counts":{"status":"available","value":{"field":"source.pack","counting_scope":"roots","states":[],"exhaustive":true,"count_basis":"distinct roots","minimum":null,"maximum":null}}})).expect("typed counts fixture"))
+        Ok(serde_json::from_value(json!({"search_profile":"bge-base","artifact_generation":"fixture-generation","counts":{"status":"available","value":{"field":"source.pack","counting_scope":"roots","states":[],"exhaustive":true,"count_basis":"distinct roots","minimum":null,"maximum":null}}})).expect("typed counts fixture"))
     }
     fn validate_filter(
         &self,
@@ -1323,6 +1331,7 @@ fn record_summary() -> RecordSummaryView {
 
 fn search_results_page(page_number: u32) -> SearchResultsPage {
     SearchResultsPage {
+        search_profile: atlas_domain::SearchProfileId::new("bge-base"),
         artifact_generation: "current-generation".into(),
         coverage: None,
         mode: SearchModeSummary::ListRecords,

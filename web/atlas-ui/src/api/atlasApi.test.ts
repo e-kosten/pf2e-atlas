@@ -480,6 +480,7 @@ describe("source-backed API transport", () => {
   it("sends typed predicates and distinguishes retrieval mode", async () => {
     const controller = new AbortController();
     respond({
+      search_profile: "embeddinggemma",
       artifact_generation: "generation-a",
       mode: { kind: "text_search", query: "ghoul", mode: "lexical" },
       page: {
@@ -494,6 +495,7 @@ describe("source-backed API transport", () => {
       coverage: null,
     });
     const request = {
+      search_profile: "embeddinggemma",
       expected_artifact_generation: "generation-a",
       criteria: {
         kind: "text_search" as const,
@@ -509,6 +511,7 @@ describe("source-backed API transport", () => {
       page: { number: 1, size: 25 },
     };
     const result = await searchPage(request, controller.signal);
+    expect(result.search_profile).toBe("embeddinggemma");
     expect(result.artifact_generation).toBe("generation-a");
     expect(result.page.total).toBe(0n);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
@@ -523,6 +526,8 @@ describe("source-backed API transport", () => {
   it("normalizes only actual integer discovery counts", async () => {
     respond({
       kind: "contextual",
+      search_profile: "embeddinggemma",
+      artifact_generation: "generation-a",
       outcome: {
         status: "available",
         value: {
@@ -536,7 +541,14 @@ describe("source-backed API transport", () => {
     });
     const result = await discoverFilterValues({
       kind: "contextual",
-      context: { kind: "filtered", filter: null, text: null, mode: "lexical" },
+      context: {
+        kind: "filtered",
+        search_profile: "embeddinggemma",
+        expected_artifact_generation: "generation-a",
+        filter: null,
+        text: null,
+        mode: "lexical",
+      },
       field_id: "common.traits",
       clause_id: null,
       text: null,
@@ -544,6 +556,10 @@ describe("source-backed API transport", () => {
       limit: 100,
     });
     expect(result.kind).toBe("contextual");
+    expect(result).toMatchObject({
+      search_profile: "embeddinggemma",
+      artifact_generation: "generation-a",
+    });
     if (result.kind !== "contextual" || result.outcome.status !== "available")
       throw new Error("Wrong discovery outcome");
     expect(result.outcome.value.options[0].distinct_roots).toBe(4n);

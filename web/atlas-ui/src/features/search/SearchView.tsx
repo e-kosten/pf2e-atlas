@@ -4,11 +4,31 @@ import { FilterControls } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
+import { SearchModelSelect } from "./SearchModelSelect";
+import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
+import { useSearchProfile } from "../../shared/search/SearchProfileContext";
+import { hasExecutableSearch } from "../../shared/filters/searchState";
 
 export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
+  const profile = useSearchProfile();
+  const hasCriteria = hasExecutableSearch(workspace.search);
+  const failed = Boolean(
+    workspace.errorMessage || workspace.search.filterError || profile.error,
+  );
+  const loading =
+    !failed &&
+    (workspace.resultsLoading ||
+      workspace.resultsRefreshing ||
+      (hasCriteria && profile.loading));
+  const page = workspace.resultPage?.page;
+  const showHeader = page && page.total > 0n;
   return (
     <main className="search-workspace">
-      <FilterControls filterState={workspace} layout="toolbar">
+      <FilterControls
+        filterState={workspace}
+        layout="toolbar"
+        searchRowEnd={<SearchModelSelect />}
+      >
         {workspace.search.similarSeed && (
           <Space>
             <Typography.Text>
@@ -32,6 +52,7 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
           </Space>
         )}
       </FilterControls>
+      <SearchProfileNotice />
       {workspace.errorMessage && (
         <Alert
           type="error"
@@ -54,12 +75,21 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
       )}
       <ReferenceBrowser
         rows={workspace.resultPage?.rows ?? []}
-        loading={workspace.resultsLoading || workspace.resultsRefreshing}
+        loading={loading}
+        emptyMessage={
+          failed
+            ? null
+            : hasCriteria
+              ? "No matching records."
+              : "Search or choose filters."
+        }
         selectedRecordKey={workspace.selectedRecordKey}
         onSelect={(row) => workspace.selectRecord(row.record.record_key)}
         reading={workspace.reading}
         positions={workspace.positions}
-        resultsHeader={<ResultPaneHeader workspace={workspace} />}
+        resultsHeader={
+          showHeader ? <ResultPaneHeader workspace={workspace} /> : undefined
+        }
         readerActions={
           workspace.reading.detail && (
             <AddToListButton recordKey={workspace.reading.detail.record.record_key} />

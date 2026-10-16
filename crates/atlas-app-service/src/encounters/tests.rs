@@ -8,6 +8,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
             crate::service::CommandRetrievalMode::NoEmbeddings,
         ),
         atlas_runtime::AtlasRuntimeOptions {
+            default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
             path_mode: atlas_runtime::AtlasPathMode::Global,
             overrides: atlas_runtime::AtlasPathOverrides {
                 index_path: Some(
@@ -322,6 +323,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
             crate::service::CommandRetrievalMode::NoEmbeddings,
         ),
         atlas_runtime::AtlasRuntimeOptions {
+            default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
             path_mode: atlas_runtime::AtlasPathMode::Global,
             overrides: atlas_runtime::AtlasPathOverrides {
                 index_path: Some(

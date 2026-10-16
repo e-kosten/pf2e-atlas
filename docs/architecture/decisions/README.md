@@ -4,7 +4,6 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
-- [`0018-rust-default-embedding-model.md`](./0018-rust-default-embedding-model.md): BGE small default; historical pooling/chunk modes are superseded by ADR0046.
 - [`0019-rust-cli-search-record-surface.md`](./0019-rust-cli-search-record-surface.md): the CLI separates record identification from result-set search.
 - [`0021-rust-runtime-index-and-retrieval-boundaries.md`](./0021-rust-runtime-index-and-retrieval-boundaries.md): runtime/index/search ownership; historical capability interfaces are superseded by ADR0046.
 - [`0022-rust-artifact-policy-ownership.md`](./0022-rust-artifact-policy-ownership.md): index shape/vector ownership; metric authority and graph defaults are superseded by ADR0046.
@@ -35,6 +34,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0047-semantic-record-presentation.md`](./0047-semantic-record-presentation.md): transient family facts, one composed encounter presentation, exact selected navigation and shared browser family components with independent CLI layout.
 - [`0048-atomic-mutable-workflows.md`](./0048-atomic-mutable-workflows.md): local-state transaction boundaries, revision-checked participant replacements and durable mutation receipts independent of reference hydration.
 - [`0049-search-lifetimes-and-pages.md`](./0049-search-lifetimes-and-pages.md): coherent worker/command artifact lifetimes, stateless generation-checked pages, deliberate browser recovery, cooperative read abandonment and typed query-input errors.
+- [`0050-selectable-search-profiles.md`](./0050-selectable-search-profiles.md): two pinned baseline profiles, one shared artifact, profile-scoped KNN/reuse and shared retained inference sessions.
 
 ## Historical ADRs
 
@@ -43,5 +43,6 @@ status and successor links to understand which parts remain applicable; current
 editing guidance is in the architecture docs and the active decisions above.
 
 - [`0020-rust-content-documents.md`](./0020-rust-content-documents.md): historical RichDocument authority, superseded by ADR0046.
+- [`0018-rust-default-embedding-model.md`](./0018-rust-default-embedding-model.md): historical model/default comparison, superseded by ADR0050 and ADR0046.
 - [`0024-rust-search-retrieval-and-fusion-controls.md`](./0024-rust-search-retrieval-and-fusion-controls.md): historical ranking/control policy, superseded by ADR0046.
 - [`0031-app-service-record-surfaces.md`](./0031-app-service-record-surfaces.md): historical generic section/profile transport, superseded by ADR0047; app-service composition ownership is retained.

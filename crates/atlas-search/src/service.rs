@@ -1,31 +1,14 @@
 use crate::SearchError;
-use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder};
+use atlas_domain::SearchProfileId;
+use atlas_embedding::SharedQueryInference;
 use atlas_index::SqliteIndexReader;
-use std::path::{Path, PathBuf};
+
 pub struct AtlasRetrievalService {
     pub(crate) index: SqliteIndexReader,
-    pub(crate) embedder: Option<TextEmbedder>,
+    pub(crate) inference: Option<SharedQueryInference>,
+    default_profile: SearchProfileId,
     #[cfg(test)]
     pub(crate) text_query_embedding_invocations: usize,
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SearchEmbeddingConfig {
-    model: EmbeddingModelId,
-    cache_root: PathBuf,
-}
-impl SearchEmbeddingConfig {
-    pub fn new(model: EmbeddingModelId, cache_root: impl Into<PathBuf>) -> Self {
-        Self {
-            model,
-            cache_root: cache_root.into(),
-        }
-    }
-    pub fn model(&self) -> EmbeddingModelId {
-        self.model
-    }
-    pub fn cache_root(&self) -> &Path {
-        &self.cache_root
-    }
 }
 impl AtlasRetrievalService {
     pub fn source_fingerprint(&self) -> &str {
@@ -40,42 +23,88 @@ impl AtlasRetrievalService {
     }
     pub fn from_prepared_index(
         index: SqliteIndexReader,
-        config: &SearchEmbeddingConfig,
+        default_profile: SearchProfileId,
+        inference: SharedQueryInference,
     ) -> Result<Self, SearchError> {
-        if index.context().semantic_model.is_none() {
-            return Err(SearchError::vector_readiness_required(
-                "artifact has no embeddings; rebuild with embeddings",
-            ));
-        }
-        if index.context().semantic_model.as_ref()
-            != Some(&atlas_index::SourceSemanticModelIdentity::current())
-        {
-            return Err(SearchError::artifact_contract_violation(
-                "artifact query model identity differs from the pinned inference contract",
-            ));
-        }
-        if let Some(reason) = index.capabilities().vector_unavailable_reason {
-            return Err(SearchError::vector_readiness_required(reason));
-        }
-        let embedder = TextEmbedder::load(&EmbeddingRuntimeConfig::new(
-            config.model,
-            config.cache_root(),
-        ))
-        .map_err(|e| SearchError::embedding(e.to_string()))?;
-        Ok(Self {
+        index.context().search_profile(&default_profile)?;
+        index
+            .capabilities()
+            .vector_unavailable_reason
+            .map_or(Ok(()), |reason| {
+                Err(SearchError::vector_readiness_required(reason))
+            })?;
+        let service = Self {
             index,
-            embedder: Some(embedder),
+            inference: Some(inference),
+            default_profile,
             #[cfg(test)]
             text_query_embedding_invocations: 0,
-        })
+        };
+        service.require_current_query_profile(&service.default_profile)?;
+        service
+            .inference
+            .as_ref()
+            .ok_or_else(|| {
+                SearchError::vector_readiness_required("query inference owner unavailable")
+            })?
+            .preload(&service.default_profile)
+            .map_err(SearchError::query_embedding)?;
+        Ok(service)
     }
-    pub fn from_prepared_index_without_embeddings(index: SqliteIndexReader) -> Self {
+    pub fn from_prepared_index_without_embeddings(
+        index: SqliteIndexReader,
+        default_profile: SearchProfileId,
+    ) -> Self {
         Self {
             index,
-            embedder: None,
+            inference: None,
+            default_profile,
             #[cfg(test)]
             text_query_embedding_invocations: 0,
         }
+    }
+    pub fn default_search_profile(&self) -> &SearchProfileId {
+        &self.default_profile
+    }
+    pub fn resolve_search_profile(
+        &self,
+        requested: Option<&SearchProfileId>,
+        required: bool,
+    ) -> Result<SearchProfileId, SearchError> {
+        let id = requested.unwrap_or(&self.default_profile);
+        if requested.is_some() || required {
+            self.index
+                .context()
+                .search_profile(id)
+                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
+        }
+        Ok(id.clone())
+    }
+    pub(crate) fn embed_query(
+        &self,
+        id: &SearchProfileId,
+        text: &str,
+    ) -> Result<Vec<f32>, SearchError> {
+        self.require_current_query_profile(id)?;
+        self.inference
+            .as_ref()
+            .ok_or_else(|| {
+                SearchError::vector_readiness_required(
+                    "query embeddings are unavailable in this runtime mode",
+                )
+            })?
+            .embed_query(id, text)
+            .map_err(SearchError::query_embedding)
+    }
+    fn require_current_query_profile(&self, id: &SearchProfileId) -> Result<(), SearchError> {
+        let stored = self.index.context().search_profile(id)?;
+        let spec = atlas_embedding::search_profile(id).map_err(SearchError::query_embedding)?;
+        if stored != &atlas_index::SourceSearchProfileIdentity::from_spec(spec) {
+            return Err(SearchError::vector_readiness_required(format!(
+                "stored profile `{id}` differs from the current query model/input contract; rebuild with --search-profile {id}"
+            )));
+        }
+        Ok(())
     }
     /// Complete immutable artifact preparation identity, separate from source-local addresses.
     pub fn artifact_generation(&self) -> Result<String, crate::SearchError> {

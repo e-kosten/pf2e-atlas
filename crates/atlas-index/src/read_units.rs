@@ -46,7 +46,7 @@ pub struct SourceRemasterPair {
 }
 #[derive(Debug, Clone)]
 pub struct SourceIdentityVector {
-    pub model: crate::SourceSemanticModelIdentity,
+    pub model: crate::SourceSearchProfileIdentity,
     pub vector: Vec<f32>,
 }
 
@@ -225,25 +225,28 @@ impl SqliteIndexReader {
     }
     pub fn vector_candidates(
         &self,
+        profile: &atlas_domain::SearchProfileId,
         vector: &[f32],
         query: &ValidatedQuery,
         keys: Option<&[RecordKey]>,
         limit: usize,
     ) -> Result<Vec<SourceVectorHit>, IndexError> {
-        self.vector_candidates_inner(vector, query, keys, None, limit)
+        self.vector_candidates_inner(profile, vector, query, keys, None, limit)
     }
     pub fn vector_candidates_excluding(
         &self,
+        profile: &atlas_domain::SearchProfileId,
         vector: &[f32],
         query: &ValidatedQuery,
         keys: Option<&[RecordKey]>,
         exclude: &RecordKey,
         limit: usize,
     ) -> Result<Vec<SourceVectorHit>, IndexError> {
-        self.vector_candidates_inner(vector, query, keys, Some(exclude), limit)
+        self.vector_candidates_inner(profile, vector, query, keys, Some(exclude), limit)
     }
     fn vector_candidates_inner(
         &self,
+        profile: &atlas_domain::SearchProfileId,
         vector: &[f32],
         query: &ValidatedQuery,
         keys: Option<&[RecordKey]>,
@@ -255,11 +258,7 @@ impl SqliteIndexReader {
                 "sqlite-vec candidate window must be 1..=4096".into(),
             ));
         }
-        let model = self
-            .context()
-            .semantic_model
-            .as_ref()
-            .ok_or_else(|| IndexError::Unavailable("artifact has no semantic model".into()))?;
+        let model = self.context().search_profile(profile)?;
         crate::validation::check_vector(vector, model.dimensions)?;
         self.require_vectors()?;
         let (mut eligible, mut params) = eligible_sql(query, keys)?;
@@ -268,12 +267,14 @@ impl SqliteIndexReader {
             params.push(Value::Text(exclude.to_string()));
         }
         let mut all = params;
+        let profile_param = all.len() + 1;
+        all.push(Value::Text(profile.to_string()));
         let vector_param = all.len() + 1;
         all.push(Value::Blob(vector_bytes(vector)));
         let limit_param = all.len() + 1;
         all.push(Value::Integer(limit as i64));
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,su.owners_json,su.field_path,su.section_json,knn.distance FROM (SELECT unit_id,distance FROM semantic_vectors WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.record_id IN (SELECT record_id FROM eligible))) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
+            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,su.owners_json,su.field_path,su.section_json,knn.distance FROM (SELECT unit_id,distance FROM semantic_vectors WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible))) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
         );
         let c = self.native()?;
         self.count_statement();
@@ -289,15 +290,14 @@ impl SqliteIndexReader {
     }
     pub fn seed_identity_vector(
         &self,
+        profile: &atlas_domain::SearchProfileId,
         key: &RecordKey,
     ) -> Result<Option<SourceIdentityVector>, IndexError> {
-        let Some(model) = self.context().semantic_model.as_ref() else {
-            return Ok(None);
-        };
+        let model = self.context().search_profile(profile)?;
         self.require_vectors()?;
         let c = self.native()?;
         self.count_statement();
-        let bytes:Option<Vec<u8>>=c.query_row("SELECT sv.embedding FROM semantic_vectors sv JOIN semantic_units su ON su.unit_id=sv.unit_id JOIN records r ON r.record_id=su.record_id WHERE r.key=? AND r.document_kind<>'Macro' AND su.unit_kind='identity'",[key.to_string()],|r|r.get(0)).optional()?;
+        let bytes:Option<Vec<u8>>=c.query_row("SELECT sv.embedding FROM semantic_vectors sv JOIN semantic_units su ON su.unit_id=sv.unit_id JOIN records r ON r.record_id=su.record_id WHERE r.key=? AND su.profile_id=? AND r.document_kind<>'Macro' AND su.unit_kind='identity'",rusqlite::params![key.to_string(),profile.as_str()],|r|r.get(0)).optional()?;
         bytes
             .map(|b| {
                 let vector = decode_vector(&b)?;
@@ -462,7 +462,7 @@ impl SqliteIndexReader {
     pub fn read_reuse_candidates(
         &self,
         hashes: &[String],
-        model: &crate::SourceSemanticModelIdentity,
+        model: &crate::SourceSearchProfileIdentity,
         after_unit_id: i64,
         limit: usize,
     ) -> Result<Vec<SourceReuseCandidate>, IndexError> {
@@ -471,18 +471,28 @@ impl SqliteIndexReader {
                 "vector reuse batch exceeds 1024 hashes".into(),
             ));
         }
-        if hashes.is_empty() || self.context().semantic_model.as_ref() != Some(model) {
+        if hashes.is_empty()
+            || self
+                .context()
+                .search_profiles
+                .iter()
+                .find(|p| p.profile_id == model.profile_id)
+                != Some(model)
+        {
             return Ok(vec![]);
         }
         self.require_vectors()?;
         let c = self.native()?;
         let sql = format!(
-            "SELECT su.unit_id,r.key,su.owners_json,su.field_path,su.section_json,su.chunk_ordinal,su.input_token_count,su.input_hash,sv.embedding FROM semantic_units su JOIN semantic_vectors sv USING(unit_id) JOIN records r USING(record_id) WHERE su.unit_id>? AND su.input_hash IN ({}) ORDER BY su.unit_id LIMIT ?",
+            "SELECT su.unit_id,r.key,su.owners_json,su.field_path,su.section_json,su.chunk_ordinal,su.input_token_count,su.input_hash,sv.embedding FROM semantic_units su JOIN semantic_vectors sv USING(unit_id) JOIN records r USING(record_id) WHERE su.profile_id=? AND su.unit_id>? AND su.input_hash IN ({}) ORDER BY su.unit_id LIMIT ?",
             vec!["?"; hashes.len()].join(",")
         );
         self.count_statement();
         let mut s = c.prepare(&sql)?;
-        let mut parameters = vec![Value::Integer(after_unit_id)];
+        let mut parameters = vec![
+            Value::Text(model.profile_id.to_string()),
+            Value::Integer(after_unit_id),
+        ];
         parameters.extend(hashes.iter().cloned().map(Value::Text));
         parameters.push(Value::Integer(limit as i64));
         let mut output = vec![];

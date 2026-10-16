@@ -38,13 +38,16 @@ pub fn open_input_fixture(
             .map_err(|e| crate::SearchError::query_failed(e.to_string()))?,
     };
     SqliteIndexWriter::new(artifact.path()).write(&input)?;
-    let reader = if input.context.semantic_model.is_some() {
+    let reader = if !input.context.search_profiles.is_empty() {
         SqliteIndexReader::open_read_only_with_vectors(artifact.path())?
     } else {
         SqliteIndexReader::open_read_only(artifact.path())?
     };
     Ok((
-        crate::AtlasRetrievalService::from_prepared_index_without_embeddings(reader),
+        crate::AtlasRetrievalService::from_prepared_index_without_embeddings(
+            reader,
+            atlas_domain::SearchProfileId::new("bge-base"),
+        ),
         artifact,
     ))
 }
@@ -89,7 +92,13 @@ pub fn context(semantic: bool) -> SourceArtifactBuildContext {
         lexical_selection_version: LEXICAL_SELECTION_VERSION.into(),
         fts_tokenizer: "unicode61 remove_diacritics 2".into(),
         used_trait_labels: BTreeMap::new(),
-        semantic_model: semantic.then(SourceSemanticModelIdentity::current),
+        search_profiles: if semantic {
+            vec![SourceSearchProfileIdentity::from_spec(
+                atlas_embedding::SEARCH_PROFILES[0],
+            )]
+        } else {
+            vec![]
+        },
     }
 }
 pub fn record(pack: &str, kind: &str, value: Value) -> SourceArtifactRecordInput {
@@ -126,7 +135,7 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
     }
     let mut context = context(semantic);
     context.source_file_count = records.len();
-    let ctxhash = context.sha256().unwrap();
+    let ctxhash = context.preparation_sha256().unwrap();
     let packs = records
         .iter()
         .map(|r| {
@@ -191,10 +200,11 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
                 },
             });
         }
-        let mut vector = vec![0.0; 384];
-        vector[index % 384] = 1.0;
+        let mut vector = vec![0.0; 768];
+        vector[index % 768] = 1.0;
         if semantic && !selection.identity_required.is_empty() {
             semantic_units.push(SourceSemanticUnitInput {
+                profile_id: atlas_domain::SearchProfileId::new("bge-base"),
                 record: r.record.key().clone(),
                 owners: vec![],
                 field: None,
@@ -250,6 +260,7 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
                 }
                 if semantic {
                     semantic_units.push(SourceSemanticUnitInput {
+                        profile_id: atlas_domain::SearchProfileId::new("bge-base"),
                         record: r.record.key().clone(),
                         owners: field.locator.owners.clone(),
                         field: Some(field.locator.field.clone()),
@@ -272,4 +283,17 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
         aliases: vec![],
         remaster_pairs: vec![],
     }
+}
+
+/// Structural same-dimension fixtures for profile isolation and model-free app tests.
+pub fn input_with_both_profiles(records: Vec<SourceArtifactRecordInput>) -> IndexBuildInput {
+    let mut input = input(records, true);
+    let gemma = SourceSearchProfileIdentity::from_spec(atlas_embedding::SEARCH_PROFILES[1]);
+    let mut units = input.semantic_units.clone();
+    for unit in &mut units {
+        unit.profile_id = gemma.profile_id.clone();
+    }
+    input.context.search_profiles.push(gemma);
+    input.semantic_units.extend(units);
+    input
 }

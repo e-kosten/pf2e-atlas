@@ -8,7 +8,7 @@ PF2e source. Product reads work without the original source clone. Run
 `atlas --help` and subcommand help when the installed version's surface is unclear.
 
 Check readiness with `atlas setup --check --json`. Use `atlas setup` to prepare
-source, the pinned BGE embedding model and artifact, or `atlas setup
+source, the default pinned BGE Base profile and artifact, or `atlas setup
 --no-embeddings` for lexical search and reference lookup. `atlas index check
 --json` checks readiness; `atlas index validate --json` deeply checks the artifact.
 Use `--no-embeddings` with either index command for a lexical artifact. Older
@@ -16,6 +16,19 @@ artifacts require rebuilding, with no compatibility reader. Indexing locale is
 English by default; `atlas setup --locale fr` or `atlas index build --locale fr`
 prepares that source locale with English fallback. Changing search locale requires
 rebuilding. Setup preserves an existing locale unless explicitly overridden.
+
+The built-in profile IDs are `bge-base` and `embeddinggemma`. Repeat
+`atlas setup --search-profile bge-base --search-profile embeddinggemma` to build
+both profiles into one artifact. `atlas index build` accepts the same repeated
+flag. `atlas web --search-profile ID` chooses the server default;
+`atlas search --search-profile ID` and `atlas similar --search-profile ID` select
+one request. Omitted launch selection uses the sole stored profile, or BGE Base
+when both are stored. Setup without profile flags preserves an existing stored
+set; fresh setup uses BGE Base. Explicit unavailable selections
+fail; never infer a fallback or mix model scores. Similar uses stored vectors and
+does not require model weights. Search responses report the resolved profile and
+complete artifact generation. These operational choices do not establish a
+quality winner between models.
 
 Prefer JSON output: commands emit `{ "status": "ok", "data": ... }` or an error
 envelope. A nonzero exit means the requested action did not complete successfully.

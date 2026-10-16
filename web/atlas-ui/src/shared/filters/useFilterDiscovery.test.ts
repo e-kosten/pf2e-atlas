@@ -5,7 +5,7 @@ import {
 } from "./useFilterDiscovery";
 import type { FilterDiscoveryContext, QueryPredicate } from "../../generated/atlas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 
@@ -14,7 +14,10 @@ const api = vi.hoisted(() => ({
   discoverFilterCounts: vi.fn(),
   discoverFilterValues: vi.fn(),
 }));
-vi.mock("../../api/atlasApi", () => api);
+vi.mock("../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../api/atlasApi")>()),
+  ...api,
+}));
 function wrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return function QueryWrapper({ children }: { children: ReactNode }) {
@@ -246,4 +249,93 @@ describe("typed optional discovery and explicit scoped vocabulary", () => {
       expect.any(AbortSignal),
     );
   });
+  it("isolates contextual counts by profile and generation without reloading the static catalog", async () => {
+    api.discoverFilterEditor.mockResolvedValue(
+      editorFixture([fieldFixture("traits", "set")]),
+    );
+    let finishOld!: (value: unknown) => void;
+    api.discoverFilterCounts
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+      )
+      .mockResolvedValue({
+        search_profile: "embeddinggemma",
+        artifact_generation: "generation-a",
+        counts: { status: "unavailable", reason: "negative_condition" },
+      });
+    const { result, rerender } = renderHook(
+      ({ profile }) =>
+        useFilterDiscovery({
+          context: {
+            kind: "filtered",
+            search_profile: profile,
+            expected_artifact_generation: "generation-a",
+            text: "dragon",
+            mode: "hybrid",
+            filter: { kind: "in", field: "traits", values: ["fire"] },
+          },
+          queryKeyPrefix: ["contextual"],
+          countsEnabled: true,
+        }),
+      { initialProps: { profile: "bge-base" }, wrapper: wrapper() },
+    );
+    await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(1));
+    rerender({ profile: "embeddinggemma" });
+    await waitFor(() =>
+      expect(Object.values(result.current.filterCountsByField)[0]?.search_profile).toBe(
+        "embeddinggemma",
+      ),
+    );
+    await act(async () =>
+      finishOld({
+        search_profile: "bge-base",
+        artifact_generation: "generation-a",
+        counts: { status: "unavailable", reason: "non_conjunctive_context" },
+      }),
+    );
+    expect(Object.values(result.current.filterCountsByField)[0]?.search_profile).toBe(
+      "embeddinggemma",
+    );
+    expect(api.discoverFilterCounts.mock.calls[1][0].context).toMatchObject({
+      search_profile: "embeddinggemma",
+      expected_artifact_generation: "generation-a",
+    });
+    expect(api.discoverFilterEditor).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    ["bge-base", "generation-a", "does not match this request"],
+    ["embeddinggemma", "generation-old", "collection changed"],
+  ])(
+    "rejects contextual response identity %s/%s",
+    async (profile, generation, error) => {
+      api.discoverFilterEditor.mockResolvedValue(
+        editorFixture([fieldFixture("traits", "set")]),
+      );
+      api.discoverFilterCounts.mockResolvedValue({
+        search_profile: profile,
+        artifact_generation: generation,
+        counts: { status: "unavailable", reason: "negative_condition" },
+      });
+      const { result } = renderHook(
+        () =>
+          useFilterDiscovery({
+            context: {
+              kind: "filtered",
+              search_profile: "embeddinggemma",
+              expected_artifact_generation: "generation-a",
+              text: "dragon",
+              mode: "hybrid",
+              filter: { kind: "in", field: "traits", values: ["fire"] },
+            },
+            queryKeyPrefix: ["identity"],
+            countsEnabled: true,
+          }),
+        { wrapper: wrapper() },
+      );
+      await waitFor(() => expect(result.current.errorMessage).toContain(error));
+      expect(Object.values(result.current.filterCountsByField)[0]).toBeUndefined();
+    },
+  );
 });

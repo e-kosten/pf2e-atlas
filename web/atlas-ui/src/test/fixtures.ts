@@ -1,4 +1,5 @@
 import type {
+  AppReadinessView,
   RecordDetailView,
   RecordSummaryView,
   FilterEditorView,
@@ -11,6 +12,30 @@ import type {
   NumberFactView,
   SpellPresentationView,
 } from "../generated/atlas";
+export function readinessFixture(): AppReadinessView {
+  return {
+    default_search_profile: "bge-base",
+    artifact_generation: "generation-a",
+    status: "ready",
+    message: "Ready",
+    search_profiles: [
+      {
+        id: "bge-base",
+        label: "BGE Base",
+        stored_vectors: true,
+        assets_ready: true,
+        usable: true,
+      },
+      {
+        id: "embeddinggemma",
+        label: "EmbeddingGemma",
+        stored_vectors: true,
+        assets_ready: true,
+        usable: true,
+      },
+    ],
+  };
+}
 export const knownFact = <T>(value: T): FactView<T> => ({ state: "value", value });
 export const unavailableFact = <T>(
   state: FactView<T>["state"] = "missing",
@@ -278,6 +303,8 @@ export function valuesFixture(
 ): FilterValueListView {
   return {
     kind: "contextual",
+    search_profile: "bge-base",
+    artifact_generation: "generation-a",
     outcome: {
       status: "available",
       value: {

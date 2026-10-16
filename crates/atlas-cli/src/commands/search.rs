@@ -36,6 +36,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     };
     let mode: RetrievalModeView = o.retrieval.into();
     let s = connect(ClientOptions {
+        search_profile: o.search_profile.clone(),
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: o.embedding_cache_path,
@@ -47,7 +48,11 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     })
     .map_err(|e| e.message)?;
     if let Some(query) = o.query {
-        let Some(result) = app_result(s.search_text(query, filter, page, mode), o.json)? else {
+        let Some(result) = app_result(
+            s.search_text(query, filter, page, mode, o.search_profile.clone()),
+            o.json,
+        )?
+        else {
             return Ok(ExitCode::from(3));
         };
         if o.json {
@@ -78,16 +83,28 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
             }
         }
     } else {
-        let Some(result) = app_result(s.list_records(filter, page), o.json)? else {
+        let Some(result) = app_result(
+            s.search_page(
+                atlas_app_model::SearchResultsRequest {
+                    search_profile: o.search_profile,
+                    criteria: atlas_app_model::SearchCriteria::ListRecords { filter },
+                    page,
+                    expected_artifact_generation: None,
+                },
+                &atlas_app_service::ReadExecutionContext::uncancellable(),
+            ),
+            o.json,
+        )?
+        else {
             return Ok(ExitCode::from(3));
         };
         if o.json {
             write_json_data(
-                serde_json::json!({"pagination":result.page,"results":result.records}),
+                serde_json::json!({"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"results":result.rows.iter().map(|row|&row.record).collect::<Vec<_>>()}),
             )?;
         } else {
-            for r in result.records {
-                print_summary(&r);
+            for row in result.rows {
+                print_summary(&row.record);
             }
         }
     }

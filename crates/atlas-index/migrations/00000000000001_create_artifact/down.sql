@@ -3,7 +3,7 @@ PRAGMA foreign_keys=OFF;
 DROP TABLE IF EXISTS semantic_vectors;
 DROP TABLE IF EXISTS lexical_fts;
 DROP TABLE IF EXISTS semantic_units;
-DROP TABLE IF EXISTS semantic_models;
+DROP TABLE IF EXISTS search_profiles;
 DROP TABLE IF EXISTS lexical_units;
 DROP TABLE IF EXISTS query_field_catalog;
 DROP TABLE IF EXISTS remaster_pairs;

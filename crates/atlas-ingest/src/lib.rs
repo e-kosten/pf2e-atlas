@@ -17,7 +17,7 @@ pub use audit::{
     SourcePathAuditOptions, SourcePathAuditPathReport, SourcePathAuditReport,
     SourcePathAuditSample, SourcePathAuditValueType, audit_source_paths,
 };
-pub use build_model::{BuildArtifactOptions, BuildArtifactReport};
+pub use build_model::{BuildArtifactOptions, BuildArtifactReport, ProfileBuildReport};
 pub use error::IngestError;
 pub use report::{SourceAnalysisReport, analyze_foundry_source};
 pub use source_enrichment::{

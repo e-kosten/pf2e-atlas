@@ -22,7 +22,8 @@ expose SQLite or filesystem operations to app-service. The identity retains the
 existing same-file library guarantees; it is not a stronger filesystem identity
 or hostile-filesystem contract.
 
-Web retains two independent bounded retrieval workers. Every startup report must
+Web retains two independent bounded SQL retrieval workers sharing retained native
+profile sessions under [ADR0050](./0050-selectable-search-profiles.md). Every startup report must
 match both physical instance and complete context before a sender becomes usable.
 Any startup failure closes the queue and joins all started workers before
 returning. Later publication does not change a running service's readers; restart
