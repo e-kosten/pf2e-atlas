@@ -77,8 +77,12 @@ export function RecordPreviewPopover({
     readingHistory,
     "popover",
     !narrow && !closingDrawer,
+    landing,
   );
-  const contentFocus = usePreviewContentFocus(!narrow && !closingDrawer, readingRef);
+  const contentFocus = usePreviewContentFocus(
+    !narrow && !closingDrawer,
+    readingRef.ref,
+  );
   const popover = useRef<import("antd").TooltipRef>(null);
   const [bounds, setBounds] = useState<DOMRect>();
   useLayoutEffect(() => {
@@ -169,6 +173,7 @@ export function RecordPreviewPopover({
             backLabel="Close preview"
             onReference={onReference}
             landing={landing}
+            onLandingReady={readingRef.onLandingReady}
             onOwnerReturn={returnToOwner}
           />
         </section>

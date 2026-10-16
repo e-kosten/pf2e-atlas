@@ -53,7 +53,11 @@ export function useReferenceReading(
 ) {
   const [session, dispatch] = useReducer(
     (
-      state: { request: ReadingRequest | null; history: ReadingRequest[] },
+      state: {
+        request: ReadingRequest | null;
+        history: ReadingRequest[];
+        restoringHistory: boolean;
+      },
       action:
         | { kind: "select" | "inspect"; request: ReadingRequest | null }
         | { kind: "back" },
@@ -63,11 +67,13 @@ export function useReferenceReading(
           ? {
               request: state.history[state.history.length - 1]!,
               history: state.history.slice(0, -1),
+              restoringHistory: true,
             }
           : state;
       const same = JSON.stringify(state.request) === JSON.stringify(action.request);
       return {
         request: action.request,
+        restoringHistory: false,
         history:
           action.kind === "select" || !action.request
             ? []
@@ -78,7 +84,7 @@ export function useReferenceReading(
                 ),
       };
     },
-    { request: initial, history: [] },
+    { request: initial, history: [], restoringHistory: false },
   );
   const request = session.request;
   const inspect = useCallback(
@@ -121,6 +127,7 @@ export function useReferenceReading(
   });
   return {
     request,
+    restoringHistory: session.restoringHistory,
     inspect,
     select,
     canGoBack: session.history.length > 0,

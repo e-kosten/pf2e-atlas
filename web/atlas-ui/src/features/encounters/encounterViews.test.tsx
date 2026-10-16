@@ -35,6 +35,8 @@ import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
 import { EditEncounterForm } from "./EncounterModals";
+import { atlasRoutePath, currentAtlasRoute } from "../../app/routes";
+import { activityAddress } from "../../shared/records/ownedNavigation";
 
 const apiMocks = vi.hoisted(() => ({
   addEncounterManualParticipant: vi.fn(),
@@ -712,6 +714,54 @@ describe("encounter views", () => {
     expect(apiMocks.getEncounterReference).toHaveBeenCalledTimes(2);
     expect(apiMocks.getOwnedReading).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
+  });
+
+  it("keeps the encounter owner-return landing in native full-page links and modified activation", async () => {
+    const initial = encounterDetailFixture();
+    const actor = initial.participants[0].presentation!.body;
+    if (actor.kind !== "creature") throw new Error("expected creature fixture");
+    const claw = actor.value.activities.value![0];
+    const selected = recordDetailFixture("actors:goblin");
+    selected.selected = claw.navigation;
+    selected.presentation.identity = { ...selected.record, title: claw.title };
+    selected.presentation.body = { kind: "activity", value: claw };
+    const parent = recordDetailFixture("actors:goblin");
+    parent.presentation = initial.participants[0].presentation!;
+    apiMocks.getEncounterReference.mockImplementation(
+      (_encounter, _participant, request) =>
+        Promise.resolve(request.selection.owners.length ? selected : parent),
+    );
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("link", { name: "Claw" }));
+    const preview = await screen.findByLabelText("Reference preview");
+    fireEvent.click(
+      await within(preview).findByRole("link", {
+        name: `Return to ${selected.record.title}`,
+      }),
+    );
+    await waitFor(() =>
+      expect(apiMocks.getEncounterReference).toHaveBeenCalledTimes(2),
+    );
+    const full = screen.getByRole("link", { name: "Open reference full page" });
+    const expected = atlasRoutePath({
+      kind: "record",
+      recordKey: parent.selected.record_key,
+      selection: parent.selected,
+      landing: activityAddress(claw.navigation),
+    });
+    expect(full).toHaveAttribute("href", expected);
+    const before = window.location.href;
+    for (const modifiers of [{ metaKey: true }, { ctrlKey: true }, { button: 1 }])
+      expect(fireEvent.click(full, modifiers)).toBe(true);
+    expect(window.location.href).toBe(before);
+    fireEvent.click(full);
+    expect(currentAtlasRoute()).toMatchObject({
+      kind: "record",
+      recordKey: parent.selected.record_key,
+      landing: activityAddress(claw.navigation),
+    });
   });
 
   it("opens condition reference previews from canonical condition rows", async () => {

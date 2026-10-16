@@ -28,8 +28,14 @@ export function RecordPreviewDrawer({
   open: boolean;
 } & RecordPreviewContentProps) {
   const actions = useRef<HTMLDivElement>(null);
-  const readingRef = usePreviewReadingPosition(detail, readingHistory, "drawer", open);
-  const contentFocus = usePreviewContentFocus(open, readingRef);
+  const readingRef = usePreviewReadingPosition(
+    detail,
+    readingHistory,
+    "drawer",
+    open,
+    landing,
+  );
+  const contentFocus = usePreviewContentFocus(open, readingRef.ref);
   return (
     <Drawer
       afterOpenChange={(open) => {
@@ -74,6 +80,7 @@ export function RecordPreviewDrawer({
           backLabel="Close preview"
           onReference={onReference}
           landing={landing}
+          onLandingReady={readingRef.onLandingReady}
           onOwnerReturn={onOwnerReturn}
         />
       </section>

@@ -36,6 +36,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     scroll: 0,
     focusHref: undefined as string | undefined,
   });
+  const [restoringHistory, setRestoringHistory] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
   const session = useRef(0);
   const [reloadState, setReloadState] = useState<
@@ -126,6 +127,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     setRequestedContext(undefined);
     setLanding(undefined);
     setHistory([]);
+    setRestoringHistory(false);
   }, []);
 
   const open = useCallback(
@@ -168,6 +170,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       setSelection(navigation);
       setLanding(nextLanding);
       setRestore({ scroll: 0, focusHref: undefined });
+      setRestoringHistory(false);
       const contextual =
         encounterContext?.parentRecordKey === nextRecordKey && navigation;
       setRequestedContext(
@@ -240,6 +243,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     landing,
     readingHistory: {
       address: JSON.stringify([recordKey, selection, landing]),
+      restoringHistory,
       restore,
       canGoBack: history.length > 0,
       onBack: () => {
@@ -253,6 +257,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         setLanding(prior.landing);
         setRequestedContext(prior.context);
         setRestore({ scroll: prior.scroll, focusHref: prior.focusHref });
+        setRestoringHistory(true);
       },
     },
   };

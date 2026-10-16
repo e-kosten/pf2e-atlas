@@ -16,6 +16,7 @@ it.each(["popover", "drawer"] as const)(
     const scroll = host === "drawer" ? outer : content;
     const previous: NonNullable<RecordPreviewContentProps["readingHistory"]> = {
       address: "exact-owner-field-fingerprint",
+      restoringHistory: true,
       canGoBack: false,
       onBack: vi.fn(),
       restore: { scroll: 480, focusHref: "/records/rules:nested" },
@@ -30,7 +31,7 @@ it.each(["popover", "drawer"] as const)(
         },
       },
     );
-    result.current.current = content;
+    result.current.ref.current = content;
     rerender({ detail: detailFixture("rules:prior"), history: previous });
     expect(scroll.scrollTop).toBe(480);
     expect(link).toHaveFocus();
