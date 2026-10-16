@@ -38,6 +38,21 @@ jobs:
           npm --prefix web/atlas-ui run build
       - name: Rust verification
         run: scripts/verify.sh
+      # Reuse this job's Cargo target and frontend installation for real-app
+      # browser acceptance; no second Rust build tree, source clone or models.
+      - name: Install device browsers
+        run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
+      - name: Responsive browser acceptance
+        id: browser-tests
+        timeout-minutes: 10
+        run: npm --prefix web/atlas-ui run test:devices
+      - name: Browser failure evidence
+        if: failure() && steps.browser-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: responsive-browser-failure
+          path: scratch/responsive-validation/browser/
+          retention-days: 3
 
   windows-artifact:
     name: Windows artifact publication

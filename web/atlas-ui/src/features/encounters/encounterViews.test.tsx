@@ -989,7 +989,7 @@ describe("encounter views", () => {
 
     const goblinOption = await within(dialog).findByText("Goblin Warrior");
     fireEvent.click(goblinOption.closest("a")!);
-    await screen.findByText("Selected: Goblin Warrior");
+    expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "2" },
     });
