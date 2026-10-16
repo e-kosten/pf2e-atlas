@@ -27,8 +27,14 @@ Remaining design and implementation work should answer:
 - how numeric condition values are interpreted;
 - which actor stats are adjusted and which remain annotation-only;
 - how unsupported or situational effects are displayed without implying automation;
-- whether duration decrementing stays manual or becomes opt-in automation;
 - how broad the modeled-condition catalog should become before unsupported conditions get first-class annotation-only definitions.
+
+The approved [encounter workflow revision](rust-web-encounter-runner-polish.md)
+owns round-duration countdowns, explicit expiry confirmation and actionable
+persistent-damage reminders. Non-round durations remain reminders. Configurable
+automatic dice/recovery and additional condition-specific turn changes need their
+own rules and interaction design; duration countdown does not imply automatic
+condition-value reduction.
 
 Condition automation uses a backend-owned modeled-condition catalog for the first supported set. New UI-created modeled condition rows carry canonical `conditionitems` refs, and mechanical automation should require a canonical modeled `condition_key`. Rows without a modeled key remain durable annotations. A future freeform/custom-effect path can build on the existing local-state fields, but fuzzy condition names should remain annotation-only.
 
