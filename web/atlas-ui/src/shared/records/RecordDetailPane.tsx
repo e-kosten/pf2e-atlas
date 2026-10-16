@@ -27,6 +27,7 @@ export function RecordDetailPane({
   compact = false,
   showRelated = true,
   landing,
+  onLandingReady,
   onOwnerReturn,
 }: {
   detail: RecordDetailView | undefined;
@@ -44,6 +45,7 @@ export function RecordDetailPane({
   compact?: boolean;
   showRelated?: boolean;
   landing?: import("../../generated/atlas").RecordNavigationView;
+  onLandingReady?: (target?: HTMLElement) => void;
   onOwnerReturn?: (
     parent: string,
     landing: import("../../generated/atlas").RecordNavigationView,
@@ -136,6 +138,7 @@ export function RecordDetailPane({
                 source_fingerprint: null,
               },
               landing: readingLanding,
+              onLandingReady,
               reloadParent: onReload,
               reloadParentLabel: reloadLabel,
             }}

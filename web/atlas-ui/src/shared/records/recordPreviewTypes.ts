@@ -6,6 +6,7 @@ export type RecordPreviewAnchor = HTMLElement;
 export type RecordPreviewContentProps = {
   readingHistory?: {
     address: string;
+    restoringHistory: boolean;
     canGoBack: boolean;
     onBack: () => void;
     restore: { scroll: number; focusHref?: string };

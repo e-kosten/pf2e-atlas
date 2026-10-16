@@ -1,6 +1,6 @@
 import { Button, Space, Typography } from "antd";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import {
   ATLAS_ROUTE_CHANGE_EVENT,
   atlasRoutePath,
@@ -12,6 +12,7 @@ import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { activityAnchor } from "./ownedNavigation";
 import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
+import { landReadingTarget } from "./landReadingTarget";
 
 export function ReferenceReader({
   reading,
@@ -34,42 +35,113 @@ export function ReferenceReader({
   const contentFocus = usePreviewContentFocus(active, readerRef);
   const backRef = useRef<HTMLButtonElement>(null);
   const address = JSON.stringify(reading.request);
-  const previousAddress = useRef(address);
-  const restoredAddress = useRef<string | null>(null);
+  const activeRef = useRef(active);
+  const readyLanding = useRef<ReferenceReading["request"] | undefined>(undefined);
   useLayoutEffect(() => {
-    const snapshot = () => {
-      if (active && readerRef.current)
-        saved.saveReader(previousAddress.current, readerRef.current.scrollTop);
-    };
+    activeRef.current = active;
+  }, [active]);
+  const previousVisit = useRef<
+    | {
+        request: ReferenceReading["request"];
+        restoringHistory: boolean;
+      }
+    | undefined
+  >(undefined);
+  const restoredRequest = useRef<ReferenceReading["request"] | undefined>(undefined);
+  const pendingPosition = useRef<
+    | {
+        request: ReferenceReading["request"];
+        historical: boolean;
+        scroll: number;
+        focusHref: string | undefined;
+      }
+    | undefined
+  >(undefined);
+  const rememberPosition = useCallback(
+    (anchor?: HTMLElement) => {
+      // A loading DOM can clamp its scroll position before a landed historical
+      // document is ready. Preserve the captured bookmark through that interval.
+      if (!active || pendingPosition.current?.historical) return;
+      const scroll = readerRef.current?.scrollTop ?? 0;
+      saved.saveReader(address, scroll);
+      if (pendingPosition.current) pendingPosition.current.scroll = scroll;
+      if (anchor) {
+        const href = anchor.closest("a")?.getAttribute("href");
+        saved.saveReaderFocus(address, href);
+        if (pendingPosition.current && href) pendingPosition.current.focusHref = href;
+      }
+    },
+    [active, address, saved],
+  );
+  useLayoutEffect(() => {
+    const snapshot = () => rememberPosition();
     window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
     window.addEventListener("popstate", snapshot);
     return () => {
       window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
       window.removeEventListener("popstate", snapshot);
     };
-  }, [saved, active, readerRef]);
+  }, [rememberPosition]);
   useLayoutEffect(() => {
-    if (previousAddress.current !== address && readerRef.current) {
-      // The prior position was captured before navigation, while its DOM still existed.
-      readerRef.current.scrollTop = saved.readReader(address);
-      previousAddress.current = address;
-      restoredAddress.current = null;
-    }
-  }, [address, saved, readerRef]);
-  useEffect(() => {
-    const container = readerRef.current;
-    if (!reading.detail || !container || !active || restoredAddress.current === address)
+    if (
+      previousVisit.current?.request === reading.request &&
+      previousVisit.current.restoringHistory === reading.restoringHistory
+    )
       return;
-    if (!reading.landing) {
-      container.scrollTop = saved.readReader(address);
-      const href = saved.readReaderFocus(address);
-      if (href)
-        Array.from(container.querySelectorAll<HTMLAnchorElement>("a[href]"))
-          .find((link) => link.getAttribute("href") === href)
-          ?.focus({ preventScroll: true });
-    }
-    restoredAddress.current = address;
-  }, [address, reading.detail, reading.landing, saved, active, readerRef]);
+    previousVisit.current = {
+      request: reading.request,
+      restoringHistory: reading.restoringHistory,
+    };
+    // Capture before the renderer's landing effects or queued native scroll
+    // events can replace this address's saved position.
+    pendingPosition.current = {
+      request: reading.request,
+      historical: reading.restoringHistory,
+      scroll: saved.readReader(address),
+      focusHref: saved.readReaderFocus(address),
+    };
+    restoredRequest.current = undefined;
+    readyLanding.current = undefined;
+    if (readerRef.current) readerRef.current.scrollTop = pendingPosition.current.scroll;
+  }, [reading.request, reading.restoringHistory, address, saved]);
+  const restorePosition = useCallback(() => {
+    const position = pendingPosition.current;
+    const container = readerRef.current;
+    if (!activeRef.current || !container || position?.request !== reading.request)
+      return;
+    container.scrollTop = position.scroll;
+    if (position.focusHref)
+      Array.from(container.querySelectorAll<HTMLAnchorElement>("a[href]"))
+        .find((link) => link.getAttribute("href") === position.focusHref)
+        ?.focus({ preventScroll: true });
+    // Retain the bookmark for repeated renderer effects in StrictMode. Normal
+    // user scrolls can update it again once the historical content is ready.
+    position.historical = false;
+    restoredRequest.current = reading.request;
+  }, [reading.request]);
+  const onLandingReady = useCallback(
+    (target?: HTMLElement) => {
+      if (previousVisit.current?.request !== reading.request) return;
+      readyLanding.current = reading.request;
+      if (reading.restoringHistory) restorePosition();
+      else {
+        if (activeRef.current && target && readerRef.current)
+          landReadingTarget(target, readerRef.current);
+        restoredRequest.current = reading.request;
+      }
+    },
+    [reading.request, reading.restoringHistory, restorePosition],
+  );
+  useEffect(() => {
+    if (
+      reading.detail &&
+      (!reading.landing || readyLanding.current === reading.request) &&
+      restoredRequest.current !== reading.request
+    )
+      restorePosition();
+    // Landed documents restore from onLandingReady, after an immediate activity
+    // or asynchronously fetched owned ability has rendered the exact target.
+  }, [active, reading.detail, reading.landing, reading.request, restorePosition]);
   const hasResults = onResults !== undefined;
   const hasRequest = reading.request !== null;
   useEffect(() => {
@@ -146,7 +218,7 @@ export function ReferenceReader({
           {reading.canGoBack && (
             <Button
               onClick={() => {
-                saved.saveReader(address, readerRef.current?.scrollTop ?? 0);
+                rememberPosition();
                 reading.back();
               }}
               icon={<ArrowLeft size={14} />}
@@ -162,7 +234,7 @@ export function ReferenceReader({
               reading.request.landing) && (
               <Button
                 onClick={() => {
-                  saved.saveReader(address, readerRef.current?.scrollTop ?? 0);
+                  rememberPosition();
                   reading.select({ navigation: rootNavigation(selectedRecordKey) });
                 }}
               >
@@ -189,9 +261,7 @@ export function ReferenceReader({
       <section
         className="reference-reader__scroll"
         {...contentFocus}
-        onScroll={(event) => {
-          if (active) saved.saveReader(address, event.currentTarget.scrollTop);
-        }}
+        onScroll={() => rememberPosition()}
       >
         <RecordDetailPane
           detail={detail}
@@ -199,14 +269,13 @@ export function ReferenceReader({
           error={reading.error}
           onRetry={reading.retry}
           landing={reading.landing}
+          onLandingReady={onLandingReady}
           onReference={(recordKey, anchor, selection) => {
-            saved.saveReader(address, readerRef.current?.scrollTop ?? 0);
-            saved.saveReaderFocus(address, anchor?.closest("a")?.getAttribute("href"));
+            rememberPosition(anchor);
             reading.inspect({ navigation: selection ?? rootNavigation(recordKey) });
           }}
           onOwnerReturn={(recordKey, landing, anchor) => {
-            saved.saveReader(address, readerRef.current?.scrollTop ?? 0);
-            saved.saveReaderFocus(address, anchor.closest("a")?.getAttribute("href"));
+            rememberPosition(anchor);
             reading.inspect({ navigation: rootNavigation(recordKey), landing });
           }}
         />

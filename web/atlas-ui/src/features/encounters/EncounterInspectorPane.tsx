@@ -128,6 +128,7 @@ export function EncounterInspectorPane({
             kind: "record",
             recordKey: previewRecordKey,
             selection: previewSelection,
+            landing: previewLanding,
           })}
           loading={previewLoading}
           error={previewError}

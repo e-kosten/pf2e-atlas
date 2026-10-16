@@ -101,9 +101,11 @@ it("bounds local history and restores complete owner, field, passage, fingerprin
   };
   const first = { navigation: exact, landing: exact };
   const { result } = renderHook(() => useReferenceReading(first, false), { wrapper });
+  expect(result.current.restoringHistory).toBe(false);
   act(() => result.current.inspect({ navigation: rootNavigation("spells:heal") }));
   act(() => result.current.back());
   expect(result.current.request).toEqual(first);
+  expect(result.current.restoringHistory).toBe(true);
   expect(result.current.canGoBack).toBe(false);
   for (let i = 0; i < 30; i++)
     act(() => result.current.inspect({ navigation: rootNavigation(`rules:${i}`) }));
@@ -112,5 +114,6 @@ it("bounds local history and restores complete owner, field, passage, fingerprin
   expect(result.current.canGoBack).toBe(false);
   act(() => result.current.select(first));
   expect(result.current.request).toEqual(first);
+  expect(result.current.restoringHistory).toBe(false);
   expect(result.current.canGoBack).toBe(false);
 });

@@ -239,6 +239,7 @@ function workspace(
       inspect: vi.fn(),
       select: vi.fn(),
       canGoBack: false,
+      restoringHistory: false,
       back: vi.fn(),
       detail: undefined,
       landing: undefined,
