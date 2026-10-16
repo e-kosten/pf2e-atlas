@@ -41,7 +41,8 @@ export function EncounterConditionValue({
       help={error}
     >
       <InputNumber
-        className="encounter-condition-number"
+        mode="spinner"
+        style={{ width: 144 }}
         aria-label={`${name} value`}
         disabled={disabled}
         step={1}

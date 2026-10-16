@@ -191,7 +191,12 @@ export function EncounterConditionEditor({
         )}
         {hasValue && (
           <Form.Item name="value" label="Value" rules={[integerRule(true)]}>
-            <InputNumber aria-label="Condition value" step={1} />
+            <InputNumber
+              mode="spinner"
+              style={{ width: 144 }}
+              aria-label="Condition value"
+              step={1}
+            />
           </Form.Item>
         )}
         <Collapse

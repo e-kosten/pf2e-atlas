@@ -1819,9 +1819,12 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Condition" }));
     await selectOption(conditionCombobox("Add condition"), "Sickened");
     expect(await screen.findByLabelText("Condition value")).toHaveValue("1");
-    fireEvent.change(screen.getByLabelText("Condition value"), {
-      target: { value: "2" },
-    });
+    const plus = within(
+      screen.getByRole("dialog", { name: "Add condition" }),
+    ).getByRole("button", { name: "Increase Value" });
+    fireEvent.mouseDown(plus);
+    fireEvent.mouseUp(plus);
+    expect(screen.getByLabelText("Condition value")).toHaveValue("2");
     fireEvent.click(screen.getByRole("button", { name: "Optional details" }));
     fireEvent.change(await screen.findByLabelText("Duration amount"), {
       target: { value: "3" },
