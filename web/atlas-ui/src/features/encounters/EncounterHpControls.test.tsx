@@ -24,15 +24,15 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
     note_hint: "",
     conditions: [],
   };
-  const onUpdate = vi.fn().mockResolvedValue(undefined);
+  const onAction = vi.fn().mockResolvedValue(true);
   const { rerender } = render(
-    <EncounterHpControls current={current} onUpdate={onUpdate} />,
+    <EncounterHpControls current={current} onAction={onAction} />,
   );
   fireEvent.change(screen.getByRole("textbox", { name: "HP" }), {
     target: { value: "13" },
   });
   fireEvent.click(screen.getAllByRole("button", { name: "Set" })[0]);
-  expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ current_hp: 13n }));
+  expect(onAction).toHaveBeenCalledWith({ kind: "set_current", input: "13" });
   await waitFor(() =>
     expect(screen.getByRole("textbox", { name: "HP" })).toHaveValue("20"),
   );
@@ -45,7 +45,7 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
         participant_variant: "elite",
         variant_origin: "explicit",
       }}
-      onUpdate={onUpdate}
+      onAction={onAction}
     />,
   );
   expect(screen.getByRole("textbox", { name: "HP" })).toHaveValue("23");

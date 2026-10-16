@@ -20,3 +20,40 @@
     min-width: 0;
   }
 }
+
+.encounter-mobile-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+}
+
+@media (max-width: 767px) {
+  .encounter-detail-view {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .encounter-detail-view .workspace-grid {
+    display: block;
+  }
+
+  .encounter-detail-view .workspace-pane--results,
+  .encounter-detail-view--participant .workspace-pane--filter,
+  .encounter-detail-view .pane-resizer {
+    display: none;
+  }
+
+  .encounter-detail-view--participant .workspace-pane--results {
+    display: flex;
+  }
+
+  .encounter-detail-view .pane-header {
+    display: none;
+  }
+
+  .encounter-detail-view .encounter-pane {
+    padding: 12px;
+  }
+}

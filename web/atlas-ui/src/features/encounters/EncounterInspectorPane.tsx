@@ -1,10 +1,10 @@
 import { Alert, Button, Collapse, Form, Input, Select, Modal } from "antd";
-import { Pencil } from "lucide-react";
 import { useState } from "react";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
   EncounterParticipantVariantView,
+  EncounterHpAction,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
   UpdateEncounterParticipantConditionRequest,
@@ -37,6 +37,7 @@ export function EncounterInspectorPane({
   onRemoveCondition,
   onUpdateCondition,
   onUpdate,
+  onHpAction,
   participant,
   participants,
   conditionDefinitions,
@@ -70,6 +71,10 @@ export function EncounterInspectorPane({
     condition: UpdateEncounterParticipantConditionRequest,
   ) => Promise<unknown>;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
+  onHpAction: (
+    participant: EncounterParticipantView,
+    action: EncounterHpAction,
+  ) => Promise<boolean>;
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
@@ -92,7 +97,11 @@ export function EncounterInspectorPane({
     );
   }
   return (
-    <section className="encounter-pane encounter-record-pane">
+    <section
+      className="encounter-pane encounter-record-pane"
+      tabIndex={-1}
+      aria-label="Participant"
+    >
       {
         <EncounterParticipantSurface
           key={`participant-${participant.participant_key}`}
@@ -106,6 +115,7 @@ export function EncounterInspectorPane({
           onReference={onReference}
           onRemoveCondition={onRemoveCondition}
           onUpdate={onUpdate}
+          onHpAction={onHpAction}
           onUpdateCondition={onUpdateCondition}
           participant={participant}
           participants={participants}
@@ -156,6 +166,7 @@ function EncounterParticipantSurface({
   onReference,
   onRemoveCondition,
   onUpdate,
+  onHpAction,
   onUpdateCondition,
   participant,
   participants,
@@ -172,6 +183,10 @@ function EncounterParticipantSurface({
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<unknown>;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
+  onHpAction: (
+    participant: EncounterParticipantView,
+    action: EncounterHpAction,
+  ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
@@ -179,7 +194,6 @@ function EncounterParticipantSurface({
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
 }) {
-  const [noteOpen, setNoteOpen] = useState(false);
   const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
     onUpdate(participantUpdate(participant, changes));
   const presentation = participant.presentation;
@@ -195,13 +209,6 @@ function EncounterParticipantSurface({
           <h2>{participant.display_name}</h2>
         )}
         <div className="encounter-reference__header-actions">
-          <Button
-            aria-label="Participant note"
-            icon={<Pencil size={14} aria-hidden="true" />}
-            onClick={() => setNoteOpen((open) => !open)}
-            size="small"
-            type={noteOpen ? "primary" : "default"}
-          />
           <ParticipantVariantControl
             disabled={disabled}
             participant={participant}
@@ -216,7 +223,7 @@ function EncounterParticipantSurface({
         <EncounterHpControls
           disabled={disabled}
           current={participant}
-          onUpdate={updateParticipant}
+          onAction={(action) => onHpAction(participant, action)}
         />
         {conditionError && (
           <Alert
@@ -245,14 +252,21 @@ function EncounterParticipantSurface({
         items={[
           {
             key: "participant-details",
-            label: "Edit details",
+            label: "Participant settings",
             styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
             children: (
-              <ParticipantEditStrip
-                disabled={disabled}
-                participant={participant}
-                onUpdate={updateParticipant}
-              />
+              <>
+                <ParticipantEditStrip
+                  disabled={disabled}
+                  participant={participant}
+                  onUpdate={updateParticipant}
+                />
+                <ParticipantNoteEditor
+                  disabled={disabled}
+                  participant={participant}
+                  onUpdate={updateParticipant}
+                />
+              </>
             ),
           },
         ]}
@@ -263,13 +277,6 @@ function EncounterParticipantSurface({
           onReference={onReference}
           encounter
           hideIdentity
-        />
-      )}
-      {noteOpen && (
-        <ParticipantNoteEditor
-          disabled={disabled}
-          participant={participant}
-          onUpdate={updateParticipant}
         />
       )}
     </section>
@@ -290,10 +297,10 @@ function ParticipantVariantControl({
   }
   return (
     <div className="encounter-variant-control">
-      <span>Variant</span>
+      <span>Adjustment</span>
       <Select
         disabled={disabled}
-        aria-label="Variant"
+        aria-label="Adjustment"
         className="encounter-variant-select"
         onChange={(value: EncounterParticipantVariantView) =>
           void onUpdate({ participant_variant: value }).catch(() => {})
@@ -380,6 +387,7 @@ function ParticipantNoteEditor({
   const value = draft ?? participant.note ?? "";
   return (
     <Input.TextArea
+      placeholder="Participant notes…"
       disabled={disabled}
       aria-label="Participant note text"
       value={value}
@@ -406,13 +414,14 @@ function ParticipantSourceContent({
   const detail = useRecordDetail(open ? recordKey : null);
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Source content</Button>
+      <Button onClick={() => setOpen(true)}>Read source record</Button>
       <Modal
         open={open}
         onCancel={() => setOpen(false)}
         footer={null}
-        title="Authored source content"
+        title="Source record"
       >
+        <p>Authored reference; encounter changes are not applied.</p>
         <RecordDetailPane
           detail={detail.data}
           loading={detail.isLoading || detail.isFetching}

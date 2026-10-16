@@ -1,6 +1,6 @@
-import { Alert, Button, Form, Input, InputNumber, Modal, Tag } from "antd";
-import { GripVertical, Play, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Alert, Button, Dropdown, Form, Input, InputNumber, Modal, Tag } from "antd";
+import { MoreHorizontal, Play } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
   AddEncounterManualParticipantRequest,
   AddEncounterRecordParticipantRequest,
@@ -8,14 +8,10 @@ import type {
   SearchResultsRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
-import {
-  clampCurrentHp,
-  optionalBigIntInput,
-  optionalHpFormulaInput,
-  participantUpdate,
-} from "./participantEdits";
+import { optionalBigIntInput, participantUpdate } from "./participantEdits";
 
 type AddRecordForm = {
   quantity?: number;
@@ -35,6 +31,7 @@ export function EncounterRosterPane({
   onAddManual,
   disabled,
   error,
+  recovery,
   onAdvanceTurn,
   onRemove,
   onReorder,
@@ -47,10 +44,11 @@ export function EncounterRosterPane({
 }: {
   currentTurnParticipantKey: string | null;
   loading: boolean;
-  onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<unknown>;
-  onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<unknown>;
+  onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<boolean>;
+  onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<boolean>;
   disabled: boolean;
   error?: string;
+  recovery?: React.ReactNode;
   onAdvanceTurn: () => void;
   onRemove: (participant: EncounterParticipantView) => void;
   onReorder: (
@@ -65,18 +63,34 @@ export function EncounterRosterPane({
   selectedParticipantKey: string | null;
   slug: string;
 }) {
+  const formId = useId();
+  const [added, setAdded] = useState("");
+  const [candidateName, setCandidateName] = useState("");
+  const [committedAdd, setCommittedAdd] = useState<string | null>(null);
+  const [committedPc, setCommittedPc] = useState(false);
+  const pendingFormReset = useRef({ record: false, pc: false });
   const [recordOpen, setRecordOpen] = useState(false);
   const [pcOpen, setPcOpen] = useState(false);
-  const [draggingParticipantKey, setDraggingParticipantKey] = useState<string | null>(
-    null,
-  );
   const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(null);
   const [recordForm] = Form.useForm<AddRecordForm>();
   const [pcForm] = Form.useForm<AddPcForm>();
+  useEffect(() => {
+    if (disabled) return;
+    if (pendingFormReset.current.record) {
+      recordForm.resetFields();
+      pendingFormReset.current.record = false;
+    }
+    if (pendingFormReset.current.pc) {
+      pcForm.resetFields();
+      pendingFormReset.current.pc = false;
+    }
+  }, [disabled, committedAdd, committedPc, recordForm, pcForm]);
   const addRecord = async (values: AddRecordForm) => {
     if (disabled) return;
+    setCommittedAdd(null);
+    setAdded("");
     try {
-      await onAddRecord({
+      const saved = await onAddRecord({
         encounter_ref: slug,
         record_ref: selectedRecordKey ?? "",
         quantity: values.quantity ?? 1,
@@ -84,9 +98,13 @@ export function EncounterRosterPane({
           ? {}
           : { initiative: BigInt(values.initiative) }),
       });
-      setRecordOpen(false);
-      recordForm.resetFields();
-      setSelectedRecordKey(null);
+      if (saved) {
+        setAdded(`Added ${values.quantity ?? 1} × ${candidateName}.`);
+        recordForm.resetFields();
+      } else {
+        pendingFormReset.current.record = true;
+        setCommittedAdd(`Added ${values.quantity ?? 1} × ${candidateName}.`);
+      }
     } catch {
       /* The owner displays the failure; retain the form and selection. */
     }
@@ -94,7 +112,7 @@ export function EncounterRosterPane({
   const addPc = async (values: AddPcForm) => {
     if (disabled) return;
     try {
-      await onAddManual({
+      const saved = await onAddManual({
         encounter_ref: slug,
         display_name: values.name,
         ...(values.maxHp === undefined ? {} : { max_hp: BigInt(values.maxHp) }),
@@ -102,8 +120,13 @@ export function EncounterRosterPane({
           ? {}
           : { initiative: BigInt(values.initiative) }),
       });
-      setPcOpen(false);
-      pcForm.resetFields();
+      if (saved) {
+        setPcOpen(false);
+        pcForm.resetFields();
+      } else {
+        pendingFormReset.current.pc = true;
+        setCommittedPc(true);
+      }
     } catch {
       /* The owner displays the failure; retain this draft. */
     }
@@ -114,135 +137,132 @@ export function EncounterRosterPane({
   const unsetInitiativeParticipants = participants.filter(
     (participant) => participant.initiative === undefined,
   );
-  const renderParticipant = (participant: EncounterParticipantView) => (
-    <div
-      className={rosterRowClass(
-        participant,
-        participant.participant_key === currentTurnParticipantKey,
-        participant.participant_key === selectedParticipantKey,
-      )}
-      key={participant.participant_key}
-      draggable={!disabled}
-      onDragOver={(event) => event.preventDefault()}
-      onDragStart={() => {
-        if (!disabled) setDraggingParticipantKey(participant.participant_key);
-      }}
-      onDragEnd={() => setDraggingParticipantKey(null)}
-      onDrop={(event) => {
-        event.preventDefault();
-        if (
-          disabled ||
-          !draggingParticipantKey ||
-          draggingParticipantKey === participant.participant_key
-        ) {
-          return;
-        }
-        const bounds = event.currentTarget.getBoundingClientRect();
-        const placement =
-          event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
-        onReorder(draggingParticipantKey, participant.participant_key, placement);
-        setDraggingParticipantKey(null);
-      }}
-      onClick={() => onSelect(participant.participant_key)}
-      onKeyDown={(event) => {
-        if (isInteractiveEventTarget(event.target)) {
-          return;
-        }
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect(participant.participant_key);
-        }
-      }}
-      role="button"
-      tabIndex={0}
-    >
-      <span className="encounter-roster__drag-handle" aria-hidden="true">
-        <GripVertical size={16} />
-      </span>
-      <div className="encounter-roster__initiative">
-        <span>Initiative</span>
+  const renderParticipant = (participant: EncounterParticipantView) => {
+    const index = participants.findIndex(
+      (p) => p.participant_key === participant.participant_key,
+    );
+    const move = (offset: number) => {
+      const target = participants[index + offset];
+      if (target)
+        onReorder(
+          participant.participant_key,
+          target.participant_key,
+          offset < 0 ? "before" : "after",
+        );
+    };
+    return (
+      <div
+        className={rosterRowClass(
+          participant,
+          participant.participant_key === currentTurnParticipantKey,
+          participant.participant_key === selectedParticipantKey,
+        )}
+        key={participant.participant_key}
+      >
         <EditableCommitField
           disabled={disabled}
           ariaLabel={`${participant.display_name} initiative`}
           className="encounter-roster__initiative-input"
           inputMode="numeric"
-          onCommit={(value) => commitRosterInitiative(participant, value, onUpdate)}
           size="small"
-          stopPropagation
+          onCommit={(value) => commitRosterInitiative(participant, value, onUpdate)}
           value={inputNumberValue(participant.initiative)}
         />
-      </div>
-      <span className="encounter-roster__main">
-        <span className="encounter-roster__name">{participant.display_name}</span>
-        {participant.participant_key === currentTurnParticipantKey && (
-          <Tag color="processing">Current turn</Tag>
-        )}
-        <small>{participant.note_hint ?? participant.side}</small>
-      </span>
-      <div className="encounter-roster__hp">
-        <span>HP</span>
-        <EditableCommitField
-          disabled={disabled}
-          ariaLabel={`${participant.display_name} current HP`}
-          className="encounter-roster__hp-input"
-          inputMode="numeric"
-          onCommit={(value) => commitRosterHp(participant, value, onUpdate)}
-          placeholder={participant.max_hp === undefined ? "" : "HP"}
-          size="small"
-          stopPropagation
-          value={inputNumberValue(participant.current_hp)}
-        />
-      </div>
-      <span className="encounter-roster__row-actions">
         <Button
+          type="text"
+          className="encounter-roster__select"
+          data-participant-key={participant.participant_key}
+          aria-pressed={participant.participant_key === selectedParticipantKey}
+          onClick={() => onSelect(participant.participant_key)}
+        >
+          <span className="encounter-roster__name">{participant.display_name}</span>
+          {participant.participant_key === currentTurnParticipantKey && (
+            <Tag color="processing">Current turn</Tag>
+          )}
+          {participant.defeated && (
+            <span className="encounter-roster__state">Defeated</span>
+          )}
+        </Button>
+        <span
+          className="encounter-roster__hp"
+          aria-label={`${participant.display_name} HP`}
+        >
+          {inputNumberValue(participant.current_hp) || "—"}/
+          {inputNumberValue(participant.max_hp) || "—"}
+          {participant.temporary_hp > 0n && (
+            <small>+{participant.temporary_hp.toString()} temp</small>
+          )}
+        </span>
+        <Dropdown
+          trigger={["click"]}
           disabled={disabled}
-          aria-label={`Set turn to ${participant.display_name}`}
-          size="small"
-          onClick={(event) => {
-            event.stopPropagation();
-            onSetTurn(participant);
+          menu={{
+            items: [
+              { key: "turn", label: "Set turn", onClick: () => onSetTurn(participant) },
+              {
+                key: "up",
+                label: `Move before ${participants[index - 1]?.display_name ?? "previous participant"}${participants[index - 1]?.initiative === undefined ? " (unset initiative)" : ` (initiative ${participants[index - 1].initiative})`}`,
+                disabled: index === 0,
+                onClick: () => move(-1),
+              },
+              {
+                key: "down",
+                label: `Move after ${participants[index + 1]?.display_name ?? "next participant"}${participants[index + 1]?.initiative === undefined ? " (unset initiative)" : ` (initiative ${participants[index + 1].initiative})`}`,
+                disabled: index === participants.length - 1,
+                onClick: () => move(1),
+              },
+              { type: "divider" },
+              {
+                key: "remove",
+                label: "Remove",
+                danger: true,
+                onClick: () => onRemove(participant),
+              },
+            ],
           }}
         >
-          Turn
-        </Button>
-        <Button
-          disabled={disabled}
-          danger
-          aria-label={`Remove ${participant.display_name}`}
-          icon={<Trash2 size={12} aria-hidden="true" />}
-          size="small"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove(participant);
-          }}
-        />
-      </span>
-    </div>
-  );
+          <Button
+            size="small"
+            type="text"
+            aria-label={`Actions for ${participant.display_name}`}
+            icon={<MoreHorizontal size={16} aria-hidden="true" />}
+          />
+        </Dropdown>
+      </div>
+    );
+  };
 
   return (
     <section className="encounter-pane encounter-roster">
       <header className="encounter-pane__header">
-        <div>
-          <h2>Initiative</h2>
-        </div>
-        <div className="encounter-actions">
+        <PrimaryToolbar className="encounter-actions">
           <Button
             disabled={disabled}
             icon={<Play size={14} />}
-            size="small"
             type="primary"
             onClick={onAdvanceTurn}
           >
-            {currentTurnParticipantKey ? "Next" : "Play"}
+            {currentTurnParticipantKey ? "Next turn" : "Start turn"}
           </Button>
-          <Button disabled={disabled} size="small" onClick={() => setRecordOpen(true)}>
+          <Button
+            disabled={disabled}
+            onClick={() => {
+              setAdded("");
+              setRecordOpen(true);
+            }}
+          >
             Add Creature
           </Button>
-          <Button disabled={disabled} size="small" onClick={() => setPcOpen(true)}>
+          <Button
+            disabled={disabled}
+            onClick={() => {
+              setCommittedPc(false);
+              setPcOpen(true);
+            }}
+          >
             Add PC
           </Button>
-        </div>
+        </PrimaryToolbar>
       </header>
       {loading ? (
         <div className="detail-empty">Loading encounter...</div>
@@ -250,6 +270,12 @@ export function EncounterRosterPane({
         <div className="detail-empty">Add a creature, hazard, or PC.</div>
       ) : (
         <div className="encounter-roster__list">
+          <div className="encounter-roster__columns" aria-hidden="true">
+            <span>Init</span>
+            <span>Participant</span>
+            <span>HP</span>
+            <span />
+          </div>
           {setInitiativeParticipants.length > 0 && (
             <div className="encounter-roster__group">
               <span className="encounter-roster__group-label">Initiative set</span>
@@ -277,7 +303,17 @@ export function EncounterRosterPane({
         open={recordOpen}
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
+        dismissLabel="Done"
+        onSelectedRecordNameChange={setCandidateName}
+        status={
+          added || (!disabled && committedAdd) ? (
+            <span role="status" className="encounter-add-receipt">
+              {committedAdd ?? added}
+            </span>
+          ) : undefined
+        }
       >
+        {recovery}
         {error && (
           <Alert
             type="error"
@@ -285,7 +321,7 @@ export function EncounterRosterPane({
             description={error}
           />
         )}
-        <Form.Item name="quantity" label="Quantity">
+        <Form.Item name="quantity" label="Quantity" initialValue={1}>
           <InputNumber aria-label="Quantity" min={1} max={50} />
         </Form.Item>
         <Form.Item name="initiative" label="Initiative">
@@ -299,16 +335,18 @@ export function EncounterRosterPane({
         closable={!disabled}
         keyboard={!disabled}
         mask={{ closable: !disabled }}
-        open={pcOpen}
+        open={pcOpen && !(committedPc && !disabled)}
         onCancel={() => setPcOpen(false)}
         onOk={() => pcForm.submit()}
       >
         <Form
+          name={formId}
           disabled={disabled}
           form={pcForm}
           layout="vertical"
           onFinish={(v) => void addPc(v)}
         >
+          {recovery}
           {error && (
             <Alert
               type="error"
@@ -367,32 +405,8 @@ function commitRosterInitiative(
   }
   return onUpdate(participantUpdate(participant, { initiative }));
 }
-function commitRosterHp(
-  participant: EncounterParticipantView,
-  value: string,
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>,
-) {
-  const hp = optionalHpFormulaInput(value);
-  if (hp === null) {
-    return;
-  }
-  const clampedHp =
-    hp === undefined ? undefined : BigInt(clampCurrentHp(participant, Number(hp)));
-  return onUpdate(
-    participantUpdate(participant, {
-      current_hp: clampedHp,
-      defeated: clampedHp === BigInt(0) ? true : participant.defeated,
-    }),
-  );
-}
 function inputNumberValue(value: bigint | undefined): string {
   return value === undefined ? "" : value.toString();
-}
-function isInteractiveEventTarget(target: EventTarget): boolean {
-  return (
-    target instanceof HTMLElement &&
-    Boolean(target.closest("button,input,textarea,select,a"))
-  );
 }
 function rosterRowClass(
   participant: EncounterParticipantView,

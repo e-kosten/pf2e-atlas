@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Form, Input, Modal, Select } from "antd";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createEncounter } from "../../api/atlasApi";
 import type {
   EncounterStatusView,
@@ -28,6 +28,7 @@ export function CreateEncounterModal({
   onCancel: () => void;
   onCreated: (slug: string) => void;
 }) {
+  const formId = useId();
   const [form] = Form.useForm<CreateEncounterForm>();
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -51,6 +52,7 @@ export function CreateEncounterModal({
       onOk={() => form.submit()}
     >
       <Form
+        name={formId}
         disabled={mutation.isPending}
         form={form}
         layout="vertical"
@@ -100,7 +102,7 @@ export function EditEncounterModal({
 }) {
   return (
     <Modal
-      title="Edit encounter"
+      title="Encounter settings"
       open={open}
       destroyOnHidden
       onCancel={onCancel}
@@ -148,6 +150,7 @@ export function EditEncounterForm({
   pending?: boolean;
   error?: string;
 }) {
+  const formId = useId();
   const [form] = Form.useForm<EditEncounterFormValues>();
   const initializedKey = useRef<string | null>(null);
   useEffect(() => {
@@ -175,6 +178,7 @@ export function EditEncounterForm({
   }, [encounter, encounterNote, form]);
   return (
     <Form
+      name={formId}
       disabled={disabled}
       form={form}
       layout="vertical"

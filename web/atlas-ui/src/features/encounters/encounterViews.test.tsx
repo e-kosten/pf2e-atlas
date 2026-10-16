@@ -39,6 +39,7 @@ import { atlasRoutePath, currentAtlasRoute } from "../../app/routes";
 import { activityAddress } from "../../shared/records/ownedNavigation";
 
 const apiMocks = vi.hoisted(() => ({
+  applyEncounterHpAction: vi.fn(),
   addEncounterManualParticipant: vi.fn(),
   addEncounterParticipantCondition: vi.fn(),
   addEncounterRecordParticipant: vi.fn(),
@@ -62,6 +63,7 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
+  applyEncounterHpAction: apiMocks.applyEncounterHpAction,
   addEncounterManualParticipant: apiMocks.addEncounterManualParticipant,
   addEncounterParticipantCondition: apiMocks.addEncounterParticipantCondition,
   addEncounterRecordParticipant: apiMocks.addEncounterRecordParticipant,
@@ -108,6 +110,7 @@ describe("encounter views", () => {
       encounter_key: encounterIndexFixture().encounters[0].encounter_key,
     };
     for (const mutation of [
+      apiMocks.applyEncounterHpAction,
       apiMocks.setEncounterTurn,
       apiMocks.updateEncounter,
       apiMocks.updateEncounterParticipant,
@@ -202,7 +205,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
+    const kyraRow = (await screen.findByText("Kyra")).closest("button");
     if (!kyraRow) {
       throw new Error("Kyra roster row was not rendered");
     }
@@ -210,7 +213,8 @@ describe("encounter views", () => {
     await screen.findByText("PC");
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Set turn to Kyra" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Kyra" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Set turn" }));
     await waitFor(() =>
       expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
         encounter_ref: "encounter_ambush",
@@ -228,9 +232,9 @@ describe("encounter views", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Next" })).not.toBeDisabled(),
+      expect(screen.getByRole("button", { name: "Next turn" })).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next turn" }));
     await waitFor(() =>
       expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
         encounter_ref: "encounter_ambush",
@@ -248,14 +252,134 @@ describe("encounter views", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Play" })).not.toBeDisabled(),
+      expect(screen.getByRole("button", { name: "Start turn" })).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start turn" }));
     await waitFor(() =>
       expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
         encounter_ref: "encounter_ambush",
       }),
     );
+  });
+
+  it("follows the canonical next turn after refresh without calculating order", async () => {
+    apiMocks.setEncounterTurn.mockImplementation(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        current_turn_participant_key: "participant_b",
+      };
+      return { encounter_key: "encounter_ambush" };
+    });
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Next turn" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next turn" }));
+    await waitFor(() => expect(screen.getByLabelText("HP")).toHaveValue("24"));
+    expect(rosterRow("Kyra")).toHaveClass("encounter-roster__row--selected");
+  });
+
+  it("returns to the original roster position after scrolling the participant and advancing turn", async () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const scrollY = vi.spyOn(window, "scrollY", "get").mockReturnValue(160);
+    try {
+      apiMocks.setEncounterTurn.mockImplementation(async () => {
+        serverEncounter = {
+          ...serverEncounter,
+          current_turn_participant_key: "participant_b",
+        };
+        return { encounter_key: "encounter_ambush" };
+      });
+      const { container } = render(
+        <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
+        { wrapper: queryClientWrapper() },
+      );
+      await screen.findByLabelText("HP");
+      const roster = container.querySelector<HTMLElement>(".encounter-roster")!;
+      roster.scrollTop = 85;
+      fireEvent.click(roster.querySelector('[data-participant-key="participant_a"]')!);
+      const back = await screen.findByRole("button", { name: "Back to roster" });
+      scrollY.mockReturnValue(940);
+      roster.scrollTop = 0;
+      container.querySelector<HTMLElement>(".encounter-record-pane")!.scrollTop = 600;
+      fireEvent.click(
+        within(back.parentElement!).getByRole("button", { name: "Next turn" }),
+      );
+      await waitFor(() => expect(screen.getByLabelText("HP")).toHaveValue("24"));
+      fireEvent.click(back);
+      expect(scrollTo).toHaveBeenLastCalledWith({ top: 160 });
+      expect(roster.scrollTop).toBe(85);
+      expect(
+        roster.querySelector('[data-participant-key="participant_b"]'),
+      ).toHaveFocus();
+    } finally {
+      scrollY.mockRestore();
+      scrollTo.mockRestore();
+    }
+  });
+
+  it("follows the server current participant when a committed Next turn refresh is retried", async () => {
+    const initial = encounterDetailFixture();
+    apiMocks.getEncounter
+      .mockResolvedValueOnce(initial)
+      .mockRejectedValueOnce(new Error("Artifact unavailable"))
+      .mockResolvedValue({ ...initial, current_turn_participant_key: "participant_b" });
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Next turn" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next turn" }));
+    await screen.findByText("Saved, but the encounter could not refresh");
+    expect(screen.getByLabelText("HP")).toHaveValue("10");
+    fireEvent.click(screen.getByRole("button", { name: "Retry encounter refresh" }));
+    await waitFor(() => expect(screen.getByLabelText("HP")).toHaveValue("24"));
+    expect(rosterRow("Kyra")).toHaveClass("encounter-roster__row--selected");
+    expect(apiMocks.setEncounterTurn).toHaveBeenCalledOnce();
+    expect(apiMocks.getEncounter).toHaveBeenCalledTimes(3);
+  });
+
+  it("offers non-drag movement using the existing participant reorder contract", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Actions for Kyra" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Move before/ }));
+    await waitFor(() =>
+      expect(apiMocks.reorderEncounterParticipant).toHaveBeenCalledWith(
+        "encounter_ambush",
+        {
+          participant_key: "participant_b",
+          target_participant_key: "participant_a",
+          placement: "before",
+        },
+      ),
+    );
+  });
+
+  it("uses distinct form identities after Add PC cancellation and encounter settings", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add PC" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add PC" }));
+    const add = await screen.findByRole("dialog", { name: "Add PC" });
+    const previousId = within(add).getByLabelText("Name").id;
+    fireEvent.click(within(add).getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Encounter settings" }));
+    const edit = await screen.findByRole("dialog", { name: "Encounter settings" });
+    const input = within(edit).getByLabelText("Name");
+    expect(input.id).not.toBe(previousId);
+    const label = within(edit).getByText("Name", {
+      selector: "label",
+    }) as HTMLLabelElement;
+    expect(label.control).toBe(input);
+    expect(document.querySelectorAll(`[id="${input.id}"]`)).toHaveLength(1);
   });
 
   it("selects the roster by keyboard and commits initiative without setting turn", async () => {
@@ -264,8 +388,9 @@ describe("encounter views", () => {
     });
     await screen.findByText("Kyra");
     const kyra = rosterRow("Kyra");
-    kyra.focus();
-    fireEvent.keyDown(kyra, { key: "Enter" });
+    const select = kyra.querySelector(".encounter-roster__select") as HTMLElement;
+    select.focus();
+    fireEvent.click(select);
     expect(await screen.findByLabelText("HP")).toHaveValue("24");
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
     const initiative = within(kyra).getByLabelText("Kyra initiative");
@@ -286,7 +411,7 @@ describe("encounter views", () => {
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
   });
 
-  it("marks the current roster row and omits max HP from roster text", async () => {
+  it("marks the current roster row and shows current and maximum HP", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -295,8 +420,7 @@ describe("encounter views", () => {
     const goblinRow = rosterRow("Goblin");
     expect(goblinRow).toHaveClass("encounter-roster__row--current");
     expect(within(goblinRow).getByText("Current turn")).toBeInTheDocument();
-    expect(within(goblinRow).getByLabelText("Goblin current HP")).toHaveValue("10");
-    expect(within(goblinRow).queryByText("/ 12")).not.toBeInTheDocument();
+    expect(within(goblinRow).getByLabelText("Goblin HP")).toHaveTextContent("10/12");
   });
 
   it("renders runtime action budget and speed projections", async () => {
@@ -343,7 +467,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click((await screen.findByText("Kyra")).closest('[role="button"]')!);
+    fireEvent.click((await screen.findByText("Kyra")).closest("button")!);
 
     await screen.findByText("Actions");
     const runtimeSection = screen
@@ -363,7 +487,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
+    const kyraRow = (await screen.findByText("Kyra")).closest("button");
     if (!kyraRow) {
       throw new Error("Kyra roster row was not rendered");
     }
@@ -375,11 +499,11 @@ describe("encounter views", () => {
     fireEvent.keyDown(hpInput, { key: "Enter" });
 
     await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
         expect.objectContaining({
           participant_key: "participant_b",
-          current_hp: 20n,
+          action: { kind: "set_current", input: "20" },
         }),
       ),
     );
@@ -400,7 +524,7 @@ describe("encounter views", () => {
       screen.queryByText("Derived maximum; current HP edited"),
     ).not.toBeInTheDocument();
 
-    const details = screen.getByRole("button", { name: "Edit details" });
+    const details = screen.getByRole("button", { name: "Participant settings" });
     expect(details).toHaveAttribute("aria-expanded", "false");
     expect(
       hp.compareDocumentPosition(screen.getByText("Strikes")) &
@@ -433,37 +557,33 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    const hpDetails = await screen.findByRole("button", { name: "HP details" });
+    const hpDetails = await screen.findByRole("button", { name: "HP settings" });
     hpDetails.focus();
     fireEvent.keyDown(hpDetails, { key: "Enter", keyCode: 13 });
     const maximum = await screen.findByLabelText("Maximum HP");
     fireEvent.change(maximum, { target: { value: "30" } });
     fireEvent.click(screen.getByRole("button", { name: "Override maximum" }));
     await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          max_hp: 30n,
-          max_hp_edit: true,
-          hp_edit: false,
-          variant_edit: false,
+          action: { kind: "set_maximum", input: "30" },
         }),
       ),
     );
     fireEvent.click(screen.getByRole("button", { name: "Use authored maximum" }));
     await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          use_derived_max: true,
-          max_hp_edit: false,
+          action: { kind: "use_derived_maximum" },
         }),
       ),
     );
 
-    await selectOption(conditionCombobox("Variant"), "Elite");
+    await selectOption(conditionCombobox("Adjustment"), "Elite");
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
         "encounter_ambush",
@@ -489,14 +609,11 @@ describe("encounter views", () => {
     fireEvent.change(hp, { target: { value: "8" } });
     fireEvent.keyDown(hp, { key: "Enter" });
     await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
         expect.objectContaining({
           participant_key: "participant_a",
-          current_hp: 8n,
-          hp_edit: true,
-          max_hp_edit: false,
-          variant_edit: false,
+          action: { kind: "set_current", input: "8" },
         }),
       ),
     );
@@ -507,14 +624,14 @@ describe("encounter views", () => {
         hp_origin: "derived_edited",
       }),
     );
-    apiMocks.updateEncounterParticipant.mockClear();
+    apiMocks.applyEncounterHpAction.mockClear();
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     expect(await screen.findByLabelText("HP")).toHaveValue("8");
-    expect(apiMocks.updateEncounterParticipant).not.toHaveBeenCalled();
-    expect(within(rosterRow("Goblin")).getByLabelText("Goblin current HP")).toHaveValue(
-      "8",
+    expect(apiMocks.applyEncounterHpAction).not.toHaveBeenCalled();
+    expect(within(rosterRow("Goblin")).getByLabelText("Goblin HP")).toHaveTextContent(
+      "8/12",
     );
   });
 
@@ -522,16 +639,16 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    fireEvent.click(await screen.findByRole("button", { name: "HP details" }));
+    fireEvent.click(await screen.findByRole("button", { name: "HP settings" }));
     fireEvent.change(await screen.findByLabelText("Maximum HP"), {
       target: { value: "999" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Edit details" }));
-    fireEvent.click(rosterRow("Kyra"));
+    fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+    fireEvent.click(rosterRow("Kyra").querySelector(".encounter-roster__select")!);
     expect(await screen.findByLabelText("HP")).toHaveValue("24");
     expect(screen.queryByLabelText("Participant name")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Maximum HP")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "HP details" }));
+    fireEvent.click(screen.getByRole("button", { name: "HP settings" }));
     expect(await screen.findByLabelText("Maximum HP")).toHaveValue("24");
     expect(apiMocks.updateEncounterParticipant).not.toHaveBeenCalled();
   });
@@ -542,10 +659,12 @@ describe("encounter views", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Edit encounter" })).not.toBeDisabled(),
+      expect(
+        screen.getByRole("button", { name: "Encounter settings" }),
+      ).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Edit encounter" }));
-    const dialog = await screen.findByRole("dialog", { name: "Edit encounter" });
+    fireEvent.click(screen.getByRole("button", { name: "Encounter settings" }));
+    const dialog = await screen.findByRole("dialog", { name: "Encounter settings" });
     fireEvent.click(within(dialog).getByText("Complete"));
 
     await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalled());
@@ -563,7 +682,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByText("Source content"));
+    fireEvent.click(await screen.findByText("Read source record"));
     const linkedRuleButton = (await screen.findByText("Linked Rule")).closest(
       "a[href]",
     );
@@ -581,7 +700,7 @@ describe("encounter views", () => {
     );
     expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
 
-    const kyraRow = (await screen.findByText("Kyra")).closest('[role="button"]');
+    const kyraRow = (await screen.findByText("Kyra")).closest("button");
     if (!kyraRow) {
       throw new Error("Kyra roster row was not rendered");
     }
@@ -592,7 +711,7 @@ describe("encounter views", () => {
 
     fireEvent.click(await screen.findByText("Goblin"));
 
-    fireEvent.click(await screen.findByText("Source content"));
+    fireEvent.click(await screen.findByText("Read source record"));
     const linkedRuleButtonAfterReselect = (
       await screen.findByText("Linked Rule")
     ).closest("a[href]");
@@ -840,125 +959,52 @@ describe("encounter views", () => {
     ).toHaveClass("encounter-hp-meter__current--critical");
   });
 
-  it("applies HP formulas and consumes temporary HP before current HP", async () => {
+  it("passes formulas and explicit amount operations to Rust without Enter mutations", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-
-    const hpInput = await screen.findByLabelText("HP");
-    expect(hpInput).toHaveValue("10");
-    fireEvent.change(hpInput, { target: { value: "50 - 7" } });
-    fireEvent.keyDown(hpInput, { key: "Enter" });
-
+    const hp = await screen.findByLabelText("HP");
+    fireEvent.change(hp, { target: { value: "50 - 7" } });
+    fireEvent.keyDown(hp, { key: "Enter" });
     await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
-        "encounter_ambush",
-        expect.objectContaining({
-          participant_key: "participant_a",
-          current_hp: 12n,
-        }),
-      ),
-    );
-
-    const tempHpInput = screen.getByLabelText("Temp HP");
-    expect(tempHpInput).toHaveValue("5");
-    fireEvent.change(tempHpInput, { target: { value: "4 + 2" } });
-    fireEvent.keyDown(tempHpInput, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
-        "encounter_ambush",
-        expect.objectContaining({
-          participant_key: "participant_a",
-          temporary_hp: 6n,
-          current_hp: 12n,
-        }),
-      ),
-    );
-
-    fireEvent.change(screen.getByLabelText("HP change"), { target: { value: "8" } });
-    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
-
-    await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
-        "encounter_ambush",
-        expect.objectContaining({
-          participant_key: "participant_a",
-          temporary_hp: 0n,
-          current_hp: 10n,
-        }),
-      ),
-    );
-
-    const hpChangeInput = screen.getByLabelText("HP change");
-    fireEvent.change(hpChangeInput, { target: { value: "-3" } });
-    fireEvent.keyDown(hpChangeInput, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
-        "encounter_ambush",
-        expect.objectContaining({
-          participant_key: "participant_a",
-          temporary_hp: 0n,
-          current_hp: 7n,
-        }),
-      ),
-    );
-
-    fireEvent.change(hpChangeInput, { target: { value: "10" } });
-    fireEvent.keyDown(hpChangeInput, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
-        "encounter_ambush",
-        expect.objectContaining({
-          participant_key: "participant_a",
-          current_hp: 12n,
-        }),
-      ),
-    );
-  });
-
-  it("consumes temporary HP before current HP in participant controls", async () => {
-    setEncounterDetail(
-      encounterDetailFixture("participant_a", {
-        presentation: participantPresentationFixture(),
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith("encounter_ambush", {
+        participant_key: "participant_a",
+        expected_revision: 0n,
+        action: { kind: "set_current", input: "50 - 7" },
       }),
     );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
-
-    const hpChangeInput = await screen.findByLabelText("HP change");
-    fireEvent.change(hpChangeInput, { target: { value: "8" } });
-    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
-
+    await waitFor(() => expect(hp).not.toBeDisabled());
+    const temp = screen.getByLabelText("Temp HP");
+    fireEvent.change(temp, { target: { value: "4 + 2" } });
+    fireEvent.keyDown(temp, { key: "Enter" });
     await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
-        expect.objectContaining({
-          participant_key: "participant_a",
-          temporary_hp: 0n,
-          current_hp: 7n,
-        }),
+        expect.objectContaining({ action: { kind: "set_temporary", input: "4 + 2" } }),
       ),
     );
-
-    fireEvent.change(hpChangeInput, { target: { value: "3" } });
+    await waitFor(() => expect(temp).not.toBeDisabled());
+    const amount = screen.getByLabelText("HP change");
+    fireEvent.change(amount, { target: { value: "8 + 2" } });
+    fireEvent.keyDown(amount, { key: "Enter" });
+    expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
+    await waitFor(() =>
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
+        "encounter_ambush",
+        expect.objectContaining({ action: { kind: "damage", amount: "8 + 2" } }),
+      ),
+    );
+    await waitFor(() => expect(amount).not.toBeDisabled());
+    fireEvent.change(amount, { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Heal" }));
     await waitFor(() =>
-      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
-        expect.objectContaining({
-          participant_key: "participant_a",
-          current_hp: 10n,
-          temporary_hp: 0n,
-          hp_edit: true,
-          variant_edit: false,
-          max_hp_edit: false,
-        }),
+        expect.objectContaining({ action: { kind: "heal", amount: "3" } }),
       ),
     );
+    expect(apiMocks.updateEncounterParticipant).not.toHaveBeenCalled();
   });
 
   it("searches before adding a record-backed participant", async () => {
@@ -1006,6 +1052,97 @@ describe("encounter views", () => {
         initiative: 18n,
       }),
     );
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("Quantity")).toHaveValue("1"),
+    );
+    expect(within(dialog).getByLabelText("Initiative")).toHaveValue("");
+    expect(search).toHaveValue("goblin");
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "Added 2 × Goblin Warrior.",
+    );
+    expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
+    fireEvent.change(within(dialog).getByLabelText("Quantity"), {
+      target: { value: "3" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+    await waitFor(() =>
+      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenLastCalledWith({
+        encounter_ref: "encounter_ambush",
+        record_ref: "actors:goblin",
+        quantity: 3,
+      }),
+    );
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Done" })).toBeEnabled(),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(dialog).not.toBeVisible());
+  }, 10_000);
+
+  it("resets Add once after committed refresh recovery and preserves the next draft across unrelated mutations", async () => {
+    apiMocks.getEncounter
+      .mockResolvedValueOnce(encounterDetailFixture())
+      .mockRejectedValueOnce(new Error("Artifact unavailable"))
+      .mockImplementation(() => Promise.resolve(serverEncounter));
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add Creature" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add Creature" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Add creature or hazard",
+    });
+    const search = within(dialog).getByRole("searchbox", { name: "Search records" });
+    fireEvent.change(search, { target: { value: "goblin" } });
+    fireEvent.keyDown(search, { key: "Enter", keyCode: 13 });
+    fireEvent.click((await within(dialog).findByText("Goblin Warrior")).closest("a")!);
+    fireEvent.change(within(dialog).getByLabelText("Quantity"), {
+      target: { value: "2" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
+      target: { value: "18" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+    await within(dialog).findByText("Saved, but the encounter could not refresh");
+    expect(within(dialog).getByLabelText("Quantity")).toHaveValue("2");
+    expect(within(dialog).getByLabelText("Initiative")).toHaveValue("18");
+    expect(within(dialog).getByRole("button", { name: /Add$/ })).toBeDisabled();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Retry encounter refresh" }),
+    );
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("Quantity")).toHaveValue("1"),
+    );
+    expect(within(dialog).getByLabelText("Initiative")).toHaveValue("");
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "Added 2 × Goblin Warrior.",
+    );
+    expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledOnce();
+    fireEvent.change(within(dialog).getByLabelText("Quantity"), {
+      target: { value: "4" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
+      target: { value: "9" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(dialog).not.toBeVisible());
+    const initiative = screen.getByLabelText("Kyra initiative");
+    fireEvent.change(initiative, { target: { value: "17" } });
+    fireEvent.keyDown(initiative, { key: "Enter" });
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledOnce(),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add Creature" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add Creature" }));
+    await waitFor(() => expect(dialog).toBeVisible());
+    expect(within(dialog).getByLabelText("Quantity")).toHaveValue("4");
+    expect(within(dialog).getByLabelText("Initiative")).toHaveValue("9");
+    expect(apiMocks.getEncounter).toHaveBeenCalledTimes(4);
+    expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledOnce();
   }, 10_000);
 
   it("adds conditions with compact fields and details", async () => {
@@ -1115,7 +1252,7 @@ describe("encounter views", () => {
   }, 10_000);
   it("keeps server HP truthful, disables duplicate edits, and retains failed HP input", async () => {
     const pending = deferred<{ encounter_key: string }>();
-    apiMocks.updateEncounterParticipant.mockReturnValue(pending.promise);
+    apiMocks.applyEncounterHpAction.mockReturnValue(pending.promise);
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -1125,15 +1262,15 @@ describe("encounter views", () => {
     await waitFor(() => expect(hp).toBeDisabled());
     expect(screen.getByText("10/12 +5")).toBeInTheDocument();
     expect(screen.getByLabelText("Goblin initiative")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
-    expect(rosterRow("Goblin")).toHaveAttribute("draggable", "false");
+    expect(screen.getByRole("button", { name: "Next turn" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Actions for Goblin" })).toBeDisabled();
     fireEvent.keyDown(hp, { key: "Enter" });
     fireEvent.drop(rosterRow("Kyra"));
     await act(async () => pending.reject(new Error("Write unavailable")));
     expect(await screen.findByText("Write unavailable")).toBeInTheDocument();
     expect(hp).toHaveValue("3");
     expect(screen.getByText("10/12 +5")).toBeInTheDocument();
-    expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledOnce();
+    expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
     expect(apiMocks.reorderEncounterParticipant).not.toHaveBeenCalled();
   });
 
@@ -1145,7 +1282,7 @@ describe("encounter views", () => {
     apiMocks.getEncounter
       .mockResolvedValueOnce(encounterDetailFixture())
       .mockImplementation(() => Promise.resolve(serverEncounter));
-    apiMocks.updateEncounterParticipant.mockRejectedValue(
+    apiMocks.applyEncounterHpAction.mockRejectedValue(
       new AtlasApiError(409, "Stale", {
         code: "encounter_participant_conflict",
         message: "Stale",
@@ -1161,7 +1298,7 @@ describe("encounter views", () => {
     expect(await screen.findByText(/Participant changed. Review/)).toBeInTheDocument();
     expect(hp).toHaveValue("3");
     expect(screen.getByText("9/12 +5")).toBeInTheDocument();
-    expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledOnce();
+    expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
     expect(apiMocks.getEncounter).toHaveBeenCalledTimes(2);
   });
 
@@ -1186,7 +1323,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry encounter refresh" }));
     await waitFor(() => expect(hp).not.toBeDisabled());
     expect(hp).toHaveValue("3");
-    expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledOnce();
+    expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
   });
 
   it("keeps delayed and rejected Save open with its draft", async () => {
@@ -1196,10 +1333,10 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
-      expect(screen.getByLabelText("Edit encounter")).not.toBeDisabled(),
+      expect(screen.getByLabelText("Encounter settings")).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByLabelText("Edit encounter"));
-    const dialog = await screen.findByRole("dialog", { name: "Edit encounter" });
+    fireEvent.click(screen.getByLabelText("Encounter settings"));
+    const dialog = await screen.findByRole("dialog", { name: "Encounter settings" });
     const name = within(dialog).getByLabelText("Name");
     fireEvent.change(name, { target: { value: "Unsaved ambush" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -1213,7 +1350,7 @@ describe("encounter views", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Edit encounter" }),
+        screen.queryByRole("dialog", { name: "Encounter settings" }),
       ).not.toBeInTheDocument(),
     );
   });
@@ -1222,10 +1359,10 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const edit = screen.getByRole("button", { name: "Edit encounter" });
+    const edit = screen.getByRole("button", { name: "Encounter settings" });
     await waitFor(() => expect(edit).not.toBeDisabled());
     fireEvent.click(edit);
-    const dialog = await screen.findByRole("dialog", { name: "Edit encounter" });
+    const dialog = await screen.findByRole("dialog", { name: "Encounter settings" });
     const name = within(dialog).getByLabelText("Name");
     const savedName = encounterIndexFixture().encounters[0].name;
     await waitFor(() => expect(name).toHaveValue(savedName));
@@ -1233,11 +1370,11 @@ describe("encounter views", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Edit encounter" }),
+        screen.queryByRole("dialog", { name: "Encounter settings" }),
       ).not.toBeInTheDocument(),
     );
     fireEvent.click(edit);
-    const reopened = await screen.findByRole("dialog", { name: "Edit encounter" });
+    const reopened = await screen.findByRole("dialog", { name: "Encounter settings" });
     await waitFor(() =>
       expect(within(reopened).getByLabelText("Name")).toHaveValue(savedName),
     );
@@ -1298,7 +1435,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     expect(await screen.findByText("Encounter could not load")).toBeInTheDocument();
-    expect(screen.getByLabelText("Edit encounter")).toBeDisabled();
+    expect(screen.getByLabelText("Encounter settings")).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Retry encounter" }));
     expect(await screen.findByText("Conditions could not load")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Condition" })).toBeDisabled();
@@ -1310,7 +1447,7 @@ describe("encounter views", () => {
 
   it("does not carry an old route's pending failure into a different encounter", async () => {
     const pending = deferred<{ encounter_key: string }>();
-    apiMocks.updateEncounterParticipant.mockReturnValue(pending.promise);
+    apiMocks.applyEncounterHpAction.mockReturnValue(pending.promise);
     const { rerender } = render(
       <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
       { wrapper: queryClientWrapper() },
@@ -1520,7 +1657,7 @@ function lastFieldByAriaLabel(label: string): HTMLInputElement | HTMLTextAreaEle
 function rosterRow(displayName: string): HTMLElement {
   const row = screen
     .getAllByText(displayName)
-    .map((element) => element.closest('[role="button"]'))
+    .map((element) => element.closest(".encounter-roster__row"))
     .find((element): element is HTMLElement => element instanceof HTMLElement);
   if (!row) {
     throw new Error(`${displayName} roster row was not rendered`);

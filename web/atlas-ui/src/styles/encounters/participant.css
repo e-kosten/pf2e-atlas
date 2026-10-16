@@ -185,16 +185,6 @@
   margin-top: 8px;
 }
 
-@container encounter-inspector (min-width: 600px) {
-  .encounter-hp-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr);
-  }
-
-  .encounter-hp-control--wide {
-    grid-column: auto;
-  }
-}
-
 @container encounter-inspector (min-width: 840px) {
   .encounter-reference__controls {
     grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
@@ -207,4 +197,26 @@
   .encounter-hp-control--wide {
     grid-column: 1 / -1;
   }
+}
+
+.encounter-reference__header {
+  display: grid;
+  gap: 8px;
+}
+
+.encounter-reference__header-actions {
+  justify-content: flex-start;
+}
+
+.encounter-hp-control--wide {
+  grid-column: 1 / -1;
+}
+
+.encounter-hp-control--wide .encounter-hp-control__row {
+  grid-template-columns: minmax(80px, 1fr) auto;
+}
+
+.encounter-record-pane:focus-visible {
+  outline: 2px solid var(--active-border);
+  outline-offset: -2px;
 }

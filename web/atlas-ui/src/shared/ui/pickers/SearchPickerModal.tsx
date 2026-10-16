@@ -10,7 +10,7 @@ import {
   Typography,
 } from "antd";
 import type { FormInstance, ModalProps } from "antd";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
@@ -40,10 +40,13 @@ export function SearchPickerModal<FormValues>({
   onCancel,
   onFinish,
   onSelectedRecordKeyChange,
+  onSelectedRecordNameChange,
   open,
   okButtonProps,
   selectedRecordKey,
   title,
+  dismissLabel = "Cancel",
+  status,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
@@ -54,11 +57,15 @@ export function SearchPickerModal<FormValues>({
   onCancel: () => void;
   onFinish: (values: FormValues) => void;
   onSelectedRecordKeyChange: (recordKey: string | null) => void;
+  onSelectedRecordNameChange?: (name: string) => void;
   open: boolean;
   okButtonProps?: ModalProps["okButtonProps"];
   selectedRecordKey: string | null;
   title: string;
+  dismissLabel?: string;
+  status?: React.ReactNode;
 }) {
+  const formId = useId();
   const profile = useSearchProfile();
   const [search, setSearch] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
   const [paging, setPaging] = useState({ profile: profile.id, number: 1 });
@@ -245,6 +252,7 @@ export function SearchPickerModal<FormValues>({
           onSelect={(row) => {
             if (!disabled) {
               onSelectedRecordKeyChange(row.record.record_key);
+              onSelectedRecordNameChange?.(row.record.title);
             }
           }}
           reading={reading}
@@ -283,6 +291,7 @@ export function SearchPickerModal<FormValues>({
           }
         />
         <Form
+          name={formId}
           className="reference-picker__footer"
           disabled={disabled}
           form={form}
@@ -290,9 +299,10 @@ export function SearchPickerModal<FormValues>({
           onFinish={onFinish}
         >
           <div className="reference-picker__fields">{children}</div>
+          {status}
           <Space>
             <Button disabled={disabled} onClick={onCancel}>
-              Cancel
+              {dismissLabel}
             </Button>
             <Button
               {...okButtonProps}
