@@ -31,6 +31,16 @@ For retained worktrees, record the path, purpose, owner, and removal condition. 
 
 Provide a stable local build when a change is useful to inspect. State its branch, commit, URL or run command, and any sample-data limitations. Disclose uncommitted differences if present. Preserve that build while developing further changes, using a separate checkout or built artifact when necessary, and explicitly identify when an updated build replaces it.
 
+Human UI previews use the existing full-corpus artifact and verified model cache,
+with all stored search profiles usable. Reuse a compatible running backend and
+its preview-local saved state when only frontend code changes; otherwise start
+the candidate backend against the same read-only artifact/cache with separate
+mutable preview state. Verify readiness and a real query with each profile before
+handoff. Keep build provenance and restart instructions in the local preview
+handoff. The small model-free browser fixture is for automated acceptance and
+targeted fault checks; do not offer it as the product preview or rebuild/copy the
+corpus for each UI branch.
+
 UI changes require interaction and visual review alongside automated checks. Agents use Astra sub-agents for presentation review, including actual browser inspection. Local validation, hosted CI, and human acceptance are separate outcomes; a passing gate does not establish visual acceptance.
 
 ## Working Plans

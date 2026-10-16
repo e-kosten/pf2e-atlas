@@ -55,6 +55,11 @@ Keep Astra visual/interaction review separate from automated checks. Test actual
 taps in touch contexts and distinguish viewport resizing, emulation and physical
 device evidence. Report unavailable device/zoom/software-keyboard checks explicitly.
 
+Human product previews use the existing full-corpus artifact and verified query
+models, with every stored profile usable. Reuse a compatible running backend for
+frontend-only changes. Reserve the model-free fixture for automated acceptance
+and targeted fault checks; follow CONTRIBUTING.md for preview/state ownership.
+
 Contextual feedback uses the root Ant `App` inside `ConfigProvider`. Destructive
 button and callback flows use `useConfirmDangerAction`; prepared source dialogs
 use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
