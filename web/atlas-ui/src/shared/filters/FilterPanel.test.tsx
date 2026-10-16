@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilterControls } from "./FilterPanel";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
@@ -12,6 +12,10 @@ function renderControls(
   predicate: QueryPredicate | null = null,
   counts = {},
   filterError: string | null = null,
+  presentation: Pick<
+    ComponentProps<typeof FilterControls>,
+    "layout" | "includeSearch"
+  > = {},
 ) {
   const onChange = vi.fn();
   function Harness() {
@@ -23,6 +27,7 @@ function renderControls(
     return (
       <FilterControls
         includeSearch={false}
+        {...presentation}
         filterState={{
           search,
           setSearch: (next) => {
@@ -49,6 +54,40 @@ function renderControls(
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
+  it("composes inline search and the same common/advanced controls once while preserving the predicate on submit", () => {
+    const field = {
+      ...fieldFixture("record.kind", "string", "Kind"),
+      choices: ["creature"],
+    };
+    const predicate = {
+      kind: "in" as const,
+      field: "record.kind",
+      values: ["creature"],
+    };
+    const change = renderControls(editorFixture([field]), predicate, {}, null, {
+      layout: "inline-toolbar",
+      includeSearch: true,
+    });
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const row = input.closest(".primary-toolbar")!;
+    expect(row).toHaveClass("filter-controls__inline");
+    expect(row).toContainElement(
+      screen.getByRole("button", { name: "Edit Kind filter" }),
+    );
+    expect(row).toContainElement(
+      screen.getByRole("button", { name: "Advanced filters" }),
+    );
+    expect(screen.getAllByRole("searchbox", { name: "Search records" })).toHaveLength(
+      1,
+    );
+    fireEvent.change(input, { target: { value: "masked spirit" } });
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13, code: "Enter" });
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: "masked spirit", filter: predicate }),
+    );
+  });
+
   it("keeps individual exclusion reversible after successful edits", () => {
     const kind = {
       ...fieldFixture("record.kind", "string", "Kind"),

@@ -5,7 +5,15 @@ import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
 import type { EncounterSummaryView } from "../../generated/atlas";
-import { encounterPath, navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
+import {
+  encounterPath,
+  atlasRoutePath,
+  shouldHandleAtlasRouteClick,
+  navigateToAtlasRoute,
+  type AtlasRoute,
+} from "../../app/routes";
+import { formatDate } from "../../shared/ui/formatDate";
+import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
@@ -64,7 +72,11 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           }}
         />
       }
-      summary={`${visible.length} active encounters`}
+      summary={
+        encounters.data
+          ? `${visible.length} ${showArchived ? "encounters" : "active encounters"}`
+          : undefined
+      }
       title="Encounters"
     >
       {encounters.error && (
@@ -96,9 +108,18 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           (encounter) => deleteMutation.mutateAsync(encounter),
           deleteMutation.isPending,
         )}
+        scroll={{ x: 800 }}
         dataSource={visible}
         loading={encounters.isLoading || encounters.isFetching}
-        locale={{ emptyText: "No encounters" }}
+        locale={{
+          emptyText: encounters.isLoading
+            ? "Loading encounters…"
+            : encounters.error && !encounters.data
+              ? "Encounters unavailable"
+              : !showArchived && encounters.data?.encounters.length
+                ? "No active encounters. Show archived encounters to see more."
+                : "No encounters. Create an encounter to get started.",
+        }}
         onActivateRow={(encounter) =>
           navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug })
         }
@@ -116,6 +137,8 @@ function encounterColumns(
   return [
     {
       title: "Name",
+      minWidth: 240,
+      width: 280,
       dataIndex: "name",
       render: (_value, encounter) => (
         <a href={encounterPath(encounter.slug)}>{encounter.name}</a>
@@ -129,18 +152,20 @@ function encounterColumns(
       render: (round: bigint) => round.toLocaleString(),
     },
     { title: "Participants", dataIndex: "participant_count", width: 120 },
-    { title: "Updated", dataIndex: "updated_at", width: 220 },
+    { title: "Updated", dataIndex: "updated_at", width: 180, render: formatDate },
     {
       title: "",
       width: 112,
       render: (_value, encounter) => (
         <span className="encounter-row-actions">
-          <Button
-            aria-label={`Edit ${encounter.name}`}
+          <PaneIconLink
+            href={atlasRoutePath({ kind: "encounterEdit", slug: encounter.slug })}
+            label={`Edit ${encounter.name}`}
             icon={<Edit2 size={14} />}
-            size="small"
             onClick={(event) => {
               stopIndexRowAction(event);
+              if (!shouldHandleAtlasRouteClick(event)) return;
+              event.preventDefault();
               onEdit(encounter);
             }}
           />

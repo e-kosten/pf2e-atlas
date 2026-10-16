@@ -20,7 +20,6 @@ type WorkspaceLayoutProps = {
   detail?: React.ReactNode;
   detailHeaderActions?: React.ReactNode;
   labels?: Partial<Record<PaneKey, string>>;
-  sizing?: "results-focus" | "detail-focus";
   widthSpecs?: Partial<PaneState>;
   selectedRecordKey: string | null;
 };
@@ -40,7 +39,6 @@ export function WorkspaceLayout({
   detail,
   detailHeaderActions,
   labels = {},
-  sizing = "results-focus",
   selectedRecordKey,
   widthSpecs = {},
 }: WorkspaceLayoutProps) {
@@ -95,7 +93,7 @@ export function WorkspaceLayout({
           {
             kind: "pane" as const,
             key: "filter",
-            column: paneColumn("filter", effectiveCollapsed, widths, sizing),
+            column: paneColumn("filter", effectiveCollapsed, widths),
             content: (
               <WorkspacePane
                 pane="filter"
@@ -120,7 +118,7 @@ export function WorkspaceLayout({
             kind: "pane" as const,
             key: "results",
             column: hasDetail
-              ? paneColumn("results", effectiveCollapsed, widths, sizing)
+              ? paneColumn("results", effectiveCollapsed, widths)
               : twoPaneResultsColumn(effectiveCollapsed),
             content: (
               <WorkspacePane
@@ -142,13 +140,13 @@ export function WorkspaceLayout({
               key: "results-detail",
               disabled: effectiveCollapsed.results && effectiveCollapsed.detail,
               label: `Resize ${paneLabels.results.toLowerCase()}`,
-              resizePane: sizing === "detail-focus" ? "results" : "detail",
-              deltaMultiplier: sizing === "detail-focus" ? 1 : -1,
+              resizePane: "detail",
+              deltaMultiplier: -1,
             },
             {
               kind: "pane" as const,
               key: "detail",
-              column: paneColumn("detail", effectiveCollapsed, widths, sizing),
+              column: paneColumn("detail", effectiveCollapsed, widths),
               content: (
                 <WorkspacePane
                   pane="detail"
@@ -173,15 +171,11 @@ function paneColumn(
   pane: PaneKey,
   collapsed: Record<PaneKey, boolean>,
   widths: Record<string, number>,
-  sizing: "results-focus" | "detail-focus",
 ): string {
   if (collapsed[pane]) {
     return `${COLLAPSED_WIDTH}px`;
   }
-  if (sizing === "results-focus" && pane === "results") {
-    return "minmax(0, 1fr)";
-  }
-  if (sizing === "detail-focus" && pane === "detail") {
+  if (pane === "results") {
     return "minmax(0, 1fr)";
   }
   if (pane === "detail" && collapsed.results) {

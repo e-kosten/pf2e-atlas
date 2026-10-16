@@ -74,12 +74,11 @@ export function FilterControls({
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
-  layout?: "panel" | "toolbar";
+  layout?: "panel" | "toolbar" | "inline-toolbar";
   searchRowEnd?: ReactNode;
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
-  const CriteriaHost = layout === "toolbar" ? PrimaryToolbar : "div";
   const [advanced, setAdvanced] = useState(false);
   const advancedTrigger = useRef<HTMLButtonElement>(null);
   const [draftRevision, setDraftRevision] = useState(0);
@@ -98,103 +97,129 @@ export function FilterControls({
         workspace={workspace}
       />
     ) : null;
+  const commonLayout = layout === "panel" ? "panel" : "toolbar";
+  const CriteriaHost = commonLayout === "toolbar" ? PrimaryToolbar : "div";
   const inlineError =
     prepared.error && (search.filterError || !prepared.query) ? (
       <Typography.Text type="danger" role="status">
         {prepared.error}
       </Typography.Text>
     ) : null;
+  const searchEntry = includeSearch && (
+    <SearchEntry
+      query={search.query}
+      onSearch={(query) =>
+        setSearch({
+          ...search,
+          query,
+          mode: query.trim() ? "text_search" : "browse",
+        })
+      }
+    />
+  );
+  const criteria = (
+    <>
+      <div className="common-filters">
+        {(editor?.common_field_ids ?? []).map((id) => {
+          const field = fields.find((candidate) => candidate.definition.id === id);
+          return field ? (
+            <CommonFilter
+              key={id + ":" + draftRevision}
+              field={field}
+              layout={commonLayout}
+              condition={
+                prepared.query
+                  ? commonDraftCondition(prepared.query, field.definition)
+                  : { status: "empty", clause: null }
+              }
+              range={
+                prepared.query
+                  ? commonDraftRange(prepared.query, field.definition)
+                  : null
+              }
+              onChange={(replacement) => {
+                if (prepared.query)
+                  prepared.changeCommon(
+                    replaceCommonDraft(prepared.query, field.definition, replacement),
+                    field.definition,
+                  );
+              }}
+              onRangeChange={(range) => {
+                if (prepared.query)
+                  prepared.changeCommon(
+                    replaceCommonRangeDraft(prepared.query, field.definition, range),
+                    field.definition,
+                  );
+              }}
+              workspace={workspace}
+              onAdvanced={() => setAdvanced(true)}
+            />
+          ) : null;
+        })}
+      </div>
+      <div className="filter-panel-actions">
+        <Button
+          ref={advancedTrigger}
+          icon={<FilterOutlined aria-hidden="true" />}
+          onClick={() => setAdvanced(!advanced)}
+          aria-expanded={advanced}
+        >
+          Advanced filters
+        </Button>
+        {(search.filter ||
+          search.filterError ||
+          prepared.error ||
+          (prepared.query?.rules.length ?? 0) > 0) && (
+          <Tooltip title="Clear filters">
+            <Button
+              type="text"
+              icon={<ClearOutlined aria-hidden="true" />}
+              aria-label="Clear filters"
+              onClick={() => {
+                prepared.clear();
+                setDraftRevision((revision) => revision + 1);
+                setSearch(clearAllFilters(search));
+                advancedTrigger.current?.focus();
+              }}
+            />
+          </Tooltip>
+        )}
+      </div>
+    </>
+  );
   return (
-    <aside className={layout === "toolbar" ? "filter-toolbar" : "filter-panel"}>
+    <aside
+      className={
+        layout === "panel"
+          ? "filter-panel"
+          : layout === "inline-toolbar"
+            ? "filter-toolbar filter-toolbar--inline"
+            : "filter-toolbar"
+      }
+    >
       {children}
       {!editor && workspace.filterDiscoveryLoading && (
         <Spin description="Loading filters…">
           <div className="filter-loading-placeholder" />
         </Spin>
       )}
-      {includeSearch && (
-        <PrimaryToolbar className="filter-controls__search-row">
-          <SearchEntry
-            query={search.query}
-            onSearch={(query) =>
-              setSearch({
-                ...search,
-                query,
-                mode: query.trim() ? "text_search" : "browse",
-              })
-            }
-          />
+      {layout === "inline-toolbar" ? (
+        <PrimaryToolbar className="filter-controls__criteria filter-controls__inline">
+          {searchEntry}
           {searchRowEnd}
+          {criteria}
         </PrimaryToolbar>
-      )}
-      <CriteriaHost className="filter-controls__criteria">
-        <div className="common-filters">
-          {(editor?.common_field_ids ?? []).map((id) => {
-            const field = fields.find((candidate) => candidate.definition.id === id);
-            return field ? (
-              <CommonFilter
-                key={id + ":" + draftRevision}
-                field={field}
-                layout={layout}
-                condition={
-                  prepared.query
-                    ? commonDraftCondition(prepared.query, field.definition)
-                    : { status: "empty", clause: null }
-                }
-                range={
-                  prepared.query
-                    ? commonDraftRange(prepared.query, field.definition)
-                    : null
-                }
-                onChange={(replacement) => {
-                  if (prepared.query)
-                    prepared.changeCommon(
-                      replaceCommonDraft(prepared.query, field.definition, replacement),
-                      field.definition,
-                    );
-                }}
-                onRangeChange={(range) => {
-                  if (prepared.query)
-                    prepared.changeCommon(
-                      replaceCommonRangeDraft(prepared.query, field.definition, range),
-                      field.definition,
-                    );
-                }}
-                workspace={workspace}
-                onAdvanced={() => setAdvanced(true)}
-              />
-            ) : null;
-          })}
-        </div>
-        <div className="filter-panel-actions">
-          <Button
-            ref={advancedTrigger}
-            icon={<FilterOutlined aria-hidden="true" />}
-            onClick={() => setAdvanced(!advanced)}
-            aria-expanded={advanced}
-          >
-            Advanced filters
-          </Button>
-          {(search.filter ||
-            search.filterError ||
-            prepared.error ||
-            (prepared.query?.rules.length ?? 0) > 0) && (
-            <Tooltip title="Clear filters">
-              <Button
-                type="text"
-                icon={<ClearOutlined aria-hidden="true" />}
-                aria-label="Clear filters"
-                onClick={() => {
-                  prepared.clear();
-                  setDraftRevision((revision) => revision + 1);
-                  setSearch(clearAllFilters(search));
-                  advancedTrigger.current?.focus();
-                }}
-              />
-            </Tooltip>
+      ) : (
+        <>
+          {includeSearch && (
+            <PrimaryToolbar className="filter-controls__search-row">
+              {searchEntry}
+              {searchRowEnd}
+            </PrimaryToolbar>
           )}
-        </div>
-      </CriteriaHost>
+          <CriteriaHost className="filter-controls__criteria">{criteria}</CriteriaHost>
+        </>
+      )}
       <Drawer
         title="Advanced filters"
         placement="left"

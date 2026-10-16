@@ -74,8 +74,6 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         />
       )}
       <ReferenceBrowser
-        rows={workspace.resultPage?.rows ?? []}
-        loading={loading}
         emptyMessage={
           failed
             ? null
@@ -83,6 +81,8 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
               ? "No matching records."
               : "Search or choose filters."
         }
+        rows={workspace.resultPage?.rows ?? []}
+        loading={loading}
         selectedRecordKey={workspace.selectedRecordKey}
         onSelect={(row) => workspace.selectRecord(row.record.record_key)}
         reading={workspace.reading}

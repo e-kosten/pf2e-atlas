@@ -20,7 +20,7 @@ import {
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { OwnedAbilityReading, type OwnedReadingContext } from "./OwnedAbilityReading";
 import { ActionCost } from "./ActionCost";
-import { activityAddress, activityAnchor } from "./ownedNavigation";
+import { activityAnchor } from "./ownedNavigation";
 import {
   atlasRoutePath,
   navigateToAtlasRoute,
@@ -536,13 +536,16 @@ export function ActorActivity({
         <Button
           type="link"
           style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
-          onClick={(event) =>
+          href={atlasRoutePath(route)}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
             onReference(
               activity.navigation.record_key,
               event.currentTarget,
               activity.navigation,
-            )
-          }
+            );
+          }}
         >
           {activity.title}
         </Button>
@@ -629,13 +632,18 @@ export function ActorActivities({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const target = reading?.landing;
+  const onLandingReady = reading?.onLandingReady;
   const targetActivity = target
     ? actor.activities.value?.find(
         (activity) => activityAnchor(activity.navigation) === activityAnchor(target),
       )
     : undefined;
   useEffect(() => {
-    if (!target || !targetActivity || targetActivity.kind === "ability") return;
+    if (!target || targetActivity?.kind === "ability") return;
+    if (!targetActivity) {
+      onLandingReady?.();
+      return;
+    }
     const element = Array.from(
       container.current?.querySelectorAll<HTMLElement>(
         "[data-atlas-activity-anchor]",
@@ -644,19 +652,19 @@ export function ActorActivities({
       (candidate) => candidate.dataset.atlasActivityAnchor === activityAnchor(target),
     );
     if (element) {
-      element.scrollIntoView?.({ block: "start" });
+      if (!onLandingReady) element.scrollIntoView?.({ block: "start" });
       (element.querySelector<HTMLElement>("button,a[href]") ?? element).focus({
         preventScroll: true,
       });
+      onLandingReady?.(element);
     }
-  }, [target, targetActivity]);
+  }, [target, targetActivity, onLandingReady]);
   const abilityReading = reading
     ? {
         ...reading,
-        landing:
-          targetActivity?.kind === "ability"
-            ? activityAddress(targetActivity.navigation)
-            : undefined,
+        // Keep this visit's target stable through preview positioning renders.
+        // OwnedAbilityReading normalizes it for its bounded target request.
+        landing: targetActivity?.kind === "ability" ? target : undefined,
       }
     : undefined;
   const groups: Array<[ActorActivityView["kind"][], string]> = [
@@ -830,13 +838,20 @@ function CastingSpells({
                 whiteSpace: "normal",
                 textAlign: "left",
               }}
-              onClick={(event) =>
+              href={atlasRoutePath({
+                kind: "record",
+                recordKey: spell.navigation.record_key,
+                selection: spell.navigation,
+              })}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
                 onReference(
                   spell.navigation.record_key,
                   event.currentTarget,
                   spell.navigation,
-                )
-              }
+                );
+              }}
             >
               {spell.title}
             </Button>

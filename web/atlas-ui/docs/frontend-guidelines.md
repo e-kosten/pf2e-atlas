@@ -52,6 +52,7 @@ carries profile and known generation; ordinary contextual counts remain disabled
 
 Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. Shared primitives should normally compose Ant components instead of recreating generic control behavior with plain elements and local CSS. Current shared primitives include:
 
+- `PrimaryToolbar.tsx`: top-aligned wrapping primary control rows that inherit the root Ant sizes.
 - `tables/IndexTable.tsx`: clickable, keyboard-activatable index tables.
 - `pages/EntityIndexPage.tsx`: common index page structure for title, summary, actions, and table content.
 - `forms/EditableCommitField.tsx`: inline draft fields that commit on blur or Enter and revert on Escape.
@@ -69,6 +70,28 @@ owners across features. Avoid both feature-local copies of the same design and
 trivial component proliferation that adds indirection without reuse or meaning.
 Check visual consistency across surfaces, density modes, themes and viewport sizes.
 
+Search and saved-list browsing compose `shared/records/BrowseReader` with their
+own rows, requests and actions. `RecordBrowseSummary` owns shared record identity
+and activation; `ReferenceReader` owns the reader controls and reading position,
+including the explicit Reader companion pane. Keep match explanations in search
+and membership/order/unresolved snapshots in lists. Do not fabricate search DTOs
+to reuse a layout or copy the browsing interaction into another feature.
+
+List identity, metadata and scoped filters belong above the items and reader,
+rather than in a permanent third pane. Use a labelled Saved lists parent link,
+not a duplicate title switcher. Keep the description summary and tags in one
+readable metadata column; only long descriptions need Read more. Index tags use
+one compact line and detail tags use up to two, followed by the actual hidden
+count when needed. Full tags remain available in the native popup. The index owns
+list-name and local include/exclude tag filters and preserves its position on return. Reuse
+`ChoicePicker` for the interaction without manufacturing backend filter metadata.
+On narrow screens, show results or the reader and preserve the initiating row's focus and position on return.
+Collection indexes reuse `EntityIndexPage` and `IndexTable`, with common insets,
+wrapping toolbars, navigation actions and date formatting. Keep table overflow
+inside its container and record names readable. Loading, an empty collection,
+filtered emptiness and a failed read are distinct states; preserve existing data
+on failed refresh and provide local Retry.
+
 ### Primary toolbars
 
 Compose primary input, selector and action rows with `PrimaryToolbar`. Controls
@@ -84,6 +107,9 @@ before a primary action wraps, and use a full search row on phone where needed.
 Selected filter choices may extend beneath their trigger without centering its
 neighbors against the taller group. Verify actual input, selector and button
 alignment together at wide, intermediate and phone widths in both themes.
+
+Index pages use the shared page toolbar slot below the heading; feature styles
+own their responsive search/action priorities.
 
 Shared Ant button and link primitives pass native event props and React refs to
 the underlying Ant control, preserving its DOM target for Tooltip and Popover
@@ -114,6 +140,12 @@ When styling Ant components, prefer `ConfigProvider` component tokens such as `T
 - Keep feature-specific styles in the feature stylesheet.
 - Do not create nested cards or duplicate pane/index/table styles in feature modules.
 - Prefer stable layout dimensions for repeated controls so dynamic labels, icons, loading states, and validation text do not shift the page.
+
+Give authored prose one left-aligned readable column, including its headings,
+lists and horizontal rules. Apply it through shared record presentation so panes
+and previews agree. Identity headers and mechanics can use their available width;
+wide authored tables retain deliberate local overflow rather than widening the
+page. Compact density changes spacing, not the available record information.
 
 ## Validation
 
@@ -208,7 +240,13 @@ when navigating out and Back. Keep page in browser history state, not a new URL
 query dialect. The search owner remains mounted and ignores non-search routes;
 scroll state is independent of query caches and mutable encounter drafts. Fixed
 viewport search composition and clipped non-scroll hosts keep native landing
-scrolling inside the reader. Lists and encounter runtime retain their layouts.
+scrolling inside the reader. Saved lists share this browsing interaction;
+encounter runtime retains its combat-focused composition.
+
+Saved-list Add records uses the same `SearchPickerModal` as encounters. Keep
+search, preview and the explicit candidate open through additions; the list owner
+commits membership and reports the API receipt, including Already present. Scope
+pending writes and invalidation to the submitted list identity.
 
 The encounter chooser shares browsing/reading without copying search state or
 mutation rules. Following references changes the reader, not the Add candidate.
@@ -241,35 +279,59 @@ Closed choices use catalog labels without values requests. The adapter does not
 parse CEL, infer fields from records, or decide contextual capability in React.
 Reject unsafe integer input before creating numeric literals.
 
-Reference previews use native Ant Popover positioning on desktop and the shared
-Ant Drawer below the Ant `xl` breakpoint (1200px), including tablet layouts.
-Both hosts use RecordDetailPane and its shared family renderer. Encounter preview
-detail is composed by Rust from current participant state, with separate cache
-identity including the participant presentation and exact selected navigation.
-Do not substitute baseline detail or implement a second activity-only reader.
-Compact changes density, not information. The document title appears once; generic
-Reference labels remain accessible without becoming visible overlay headings.
-An Original record link uses only a resolved structured CompendiumProvenance
-relationship; full-page links still open the exact local embedded copy.
-Source content in an encounter loads only on an
-explicit request. HP mutations carry explicit edit intent; unknown current HP
-disables arithmetic and remains unknown until explicitly set.
+### In-place reference reading
 
-Use matched React 19 runtime and type packages with Ant Design 6. Preserve the
-root StrictMode and native overlay keyboard handling. Shared preview tests run
-under StrictMode and verify that Escape closes a nested source dialog first,
-returns focus to its marker, then closes the preview. Drawer dismissal keeps the
-drawer mounted through its native close lifecycle and returns focus to the
-original trigger after `afterOpenChange(false)`; the shared preview hook owns
-that trigger, including across responsive overlay changes. The parent unmounts
-the drawer after that callback; do not also destroy it during the native opening
-or closing animation, which can skip the close callback.
+Use the current reader for references in search, saved-list browsing, record
+selection and the explicit Reader view. Following a reference changes reading
+position, not the selected result, Add candidate, list membership or encounter
+participant. Local Back restores the previous exact document and reading
+position. Return to selection restores the feature-selected record. Keep this
+history bounded and local to the reading session, separate from browser history.
 
-Following a reference within an open preview can replace its focused content.
-If that element disappears and focus falls to the page body, the shared preview
-must move focus to a surviving in-preview reading target. Preserve connected
-focus, user-selected focus elsewhere and nested-dialog focus; do not refocus the
-header on every content update. Native initial focus and dismissal still apply.
+Where no reader is present, use the shared reference preview: native Ant Popover
+at `xl` and above, shared Ant Drawer below `xl` (1200px), including tablets.
+Both hosts use `RecordDetailPane` and the same family renderer. Long records
+scroll inside their host; do not switch hosts after loading based on record
+length or family. Inline owned abilities follow their existing reading policy;
+arbitrary linked documents do not become inline expansions. The title appears
+once; generic Reference labels remain accessible without visible overlay headings.
+
+Top-level entity links, permalinks and Open full page actions navigate normally
+in the same tab. Resolved in-place document links carry the exact native href and
+intercept only unmodified activation; preserve modified and middle clicks.
+Within a reading context, document references follow one policy. Tooltips are
+for short noninteractive hints, not documents; small fact explanations can use
+accessible Popovers without becoming document-reading sessions.
+
+Preserve complete backend navigation, including embedded owners, field/passage,
+fingerprint and landing. Full-page links open the exact selected copy. Original
+record is a separate action offered only for a resolved structured
+`CompendiumProvenance` relationship. Encounter preview detail remains composed
+by Rust from participant state, with separate presentation/address cache identity;
+never substitute baseline detail or add a second activity-only renderer.
+Unavailable references remain visible inert labels, without guessed destinations.
+
+Follow nested references in the same reader or preview rather than stacking
+document overlays. Back restores the prior exact address and scroll position;
+final Close restores the original opener. Reading does not commit a mutation,
+change an Add candidate or discard drafts. Keep feature forms and their
+pending/error lifecycle in their feature owner.
+
+Use matched React 19 runtime and type packages with Ant Design 6. Preserve root
+StrictMode and native Ant focus/Escape handling. Escape closes the innermost
+source-information dialog first, returning focus to its marker; the next Escape
+closes the preview. Keep a closing Drawer mounted through
+`afterOpenChange(false)`, then restore the original trigger. Do not destroy it
+during native animation or skip that callback.
+
+When reference navigation removes focused content, move focus to a surviving
+reading target without stealing connected, intentional or nested-dialog focus.
+Use the actual reader/preview scroll container, contain overlay scrolling and
+retain reading/results positions. Narrow Results returns focus to its initiating
+row. Reuse the shared reader/preview owners and native link activation guard;
+do not create feature-local overlay or navigation policies.
+
+### Record presentation
 
 Use the semantic family union rather than a generic section/value/profile layout
 interpreter. Availability belongs to the backend facts; known zero, false and
@@ -413,6 +475,14 @@ Ant internals through documented `classNames`, `styles` and component tokens;
 Atlas-owned classes describe product layout rather than internal Ant DOM.
 
 ## Mutable workflows
+
+Source content in an encounter loads only on explicit request. HP mutations
+carry explicit edit intent; unknown current HP disables arithmetic and remains
+unknown until explicitly set.
+
+Whole-list deletion and saved-member removal use the shared contextual danger
+confirmation and await their action. Keep membership/order semantics in the list
+owner; do not reconstruct undo from a partial display snapshot.
 
 Encounter detail and edit routes use `useEncounterMutations` as their route-local
 command owner. Keep controls pending through the write and canonical-key refresh;

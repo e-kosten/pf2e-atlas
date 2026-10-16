@@ -149,7 +149,9 @@ export function AtlasApp() {
               {route.kind === "encounter" && <EncounterDetailView route={route} />}
               {route.kind === "encounterEdit" && <EncounterEditView route={route} />}
               {route.kind === "lists" && <ListIndexView route={route} />}
-              {route.kind === "list" && <ListDetailView route={route} />}
+              {route.kind === "list" && (
+                <ListDetailView key={route.slug} route={route} />
+              )}
               {route.kind === "listEdit" && <ListEditView route={route} />}
               {route.kind === "record" && (
                 <RecordView key={atlasRoutePath(route)} route={route} />
