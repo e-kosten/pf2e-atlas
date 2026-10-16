@@ -1,7 +1,14 @@
 # Responsive UI validation
 
-Status: in_progress
+Status: done
 Last reviewed: 2026-10-16
+
+Delivered through [PR59](https://github.com/e-kosten/pf2e-atlas/pull/59): responsive
+guidance, a model-free real-app browser matrix in CI, the short-landscape picker
+repair and caption cleanup. Local gates, independent/Astra review and hosted CI
+passed before merge. Human previews use the full-corpus dual-model artifact.
+Physical-device/software-keyboard and actual browser text-zoom acceptance remain
+unverified; the documented emulation/proxy boundaries still apply.
 
 Establish repeatable device expectations and browser acceptance after the shared
 UI work in PR58. Preserve the current Ant/shared-component ownership and product
@@ -24,5 +31,5 @@ software-keyboard and browser-enlargement coverage separately; emulation does
 not establish those outcomes. Broad accessibility remediation or new mobile
 interaction designs need their own evidence and agreed scope.
 
-See [frontend guidance](../../../web/atlas-ui/docs/frontend-guidelines.md#responsive-design-and-acceptance)
-and [contributor validation](../../../CONTRIBUTING.md#validation-at-commits-and-review).
+See [frontend guidance](../../../../web/atlas-ui/docs/frontend-guidelines.md#responsive-design-and-acceptance)
+and [contributor validation](../../../../CONTRIBUTING.md#validation-at-commits-and-review).

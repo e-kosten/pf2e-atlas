@@ -14,9 +14,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
-- [Responsive UI validation](items/responsive-ui-validation.md)
-  Make responsive UX principles and real-app Chromium/WebKit phone/tablet/desktop
-  browser checks repeatable, with CI and explicit visual/device evidence. Status: in_progress.
+- [Contextual filter option counts](items/web-contextual-option-counts.md)
+  Restore accurate categorical option counts using shared discovery contracts,
+  with useful count-free vocabulary in unsupported contexts. Status: in_progress.
 
 - [Selective integration feature review](items/rust-integration-recovery.md)
   Review useful earlier integration features against current source-backed
@@ -30,10 +30,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   against source-backed discovery tasks before changing search defaults. Status: proposed.
 
 ## Soon
-
-- [Contextual filter option counts](items/web-contextual-option-counts.md)
-  Restore accurate categorical option counts using shared discovery contracts,
-  with useful count-free vocabulary in unsupported contexts. Status: proposed.
 
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
