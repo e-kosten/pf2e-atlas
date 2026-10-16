@@ -10,6 +10,7 @@ use args::SimilarOptions;
 pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
     let (filter, _) = build_filter(&o.filter_options).map_err(|e| e.message)?;
     let s = connect(ClientOptions {
+        search_profile: o.search_profile.clone(),
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,
@@ -24,6 +25,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
                 number: 1,
                 size: o.limit,
             },
+            o.search_profile,
         ),
         o.json,
     )?

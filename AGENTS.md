@@ -12,7 +12,7 @@ PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 - `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL.
 - `crates/atlas-foundry-model`: generated authored DTOs, ordered source primitives, strict parsing/admission, pure document dispatch and typed snapshot codec.
 - `crates/atlas-ingest`: typed Foundry loading, content/reference preparation, attributed indexing inputs, embedding execution and artifact-build composition.
-- `crates/atlas-embedding`: the pinned BGE model contract, library inference, tokenizer budgets and attributed passage inputs.
+- `crates/atlas-embedding`: the two pinned search-profile contracts, shared baseline segmentation, native budgets, retained query sessions and FastEmbed inference.
 - `crates/atlas-record`: source-backed records, borrowed authored views, selected content, typed query facts and reference policy.
 - `crates/atlas-domain`: shared typed query, source address, lightweight summary and canonical record-key vocabulary.
 - `crates/atlas-app-service`: product workflows, local overlays and consumer presentation projections.

@@ -16,3 +16,8 @@ thiserror.workspace = true
 tokenizers.workspace = true
 tracing.workspace = true
 ureq.workspace = true
+tempfile = "3"
+
+# sha2 0.10 gates ARM hardware dispatch behind asm; its MSVC assembler is unsupported.
+[target.'cfg(all(target_arch = "aarch64", not(target_env = "msvc")))'.dependencies]
+sha2 = { workspace = true, features = ["asm"] }

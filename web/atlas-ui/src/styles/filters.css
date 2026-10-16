@@ -6,7 +6,7 @@
   overflow: auto;
 }
 .common-filters,
-.filter-controls__criteria,
+.filter-controls__criteria:not(.primary-toolbar),
 .common-filter,
 .filter-panel-actions,
 .advanced-filters {
@@ -188,4 +188,14 @@
     grid-column: 1 / 3;
     width: 100%;
   }
+}
+.filter-controls__search-row > .reference-search-entry {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.search-model-select {
+  flex: 0 0 auto;
+  min-width: 10rem;
+  max-width: 100%;
 }

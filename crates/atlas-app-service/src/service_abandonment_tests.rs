@@ -36,6 +36,7 @@ fn abandoned_public_read_never_opens_lazy_command_reader() {
     let error = service
         .search_page(
             SearchResultsRequest {
+                search_profile: None,
                 criteria: SearchCriteria::ListRecords { filter: None },
                 page: SearchPageRequest {
                     number: 1,
@@ -95,6 +96,8 @@ fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
     let execution = ReadExecutionContext::tracked();
     execution.abandon();
     let context = FilterDiscoveryContext::SavedList {
+        search_profile: None,
+        expected_artifact_generation: None,
         list_ref: "absent-list".into(),
         filter: None,
         text: None,
@@ -166,7 +169,7 @@ fn command_branch_checks_abandonment_after_retained_reader_lock() {
         with_command_reader(
             CommandRetrievalMode::NoEmbeddings,
             &waiting_retained,
-            missing_artifact_options(),
+            &AtlasRuntime::resolve(missing_artifact_options()).unwrap(),
             &waiting_execution,
             |_| {
                 callback_called.store(true, Ordering::Release);

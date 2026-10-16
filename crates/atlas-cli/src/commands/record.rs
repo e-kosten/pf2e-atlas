@@ -15,6 +15,7 @@ use args::{RecordGetOptions, RecordResolveOptions, TerminalDetail};
 use terminal::render_html;
 pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
     let s = connect(ClientOptions {
+        search_profile: None,
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,
@@ -78,6 +79,7 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
 pub(crate) fn run_record_resolve(o: RecordResolveOptions) -> Result<ExitCode, String> {
     let (filter, _) = build_filter(&o.filter_options).map_err(|e| e.message)?;
     let s = connect(ClientOptions {
+        search_profile: None,
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,

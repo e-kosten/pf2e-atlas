@@ -17,6 +17,9 @@ Before creating a feature-local interaction pattern, check `src/shared/ui`.
 - Use `EntityIndexPage` for `/things` index pages with a title, summary, actions, and table body.
 - Use `EditableCommitField` for inline fields that keep a local draft and commit on blur or Enter.
 - Use `SearchPickerModal` for modal record-search selection flows.
+- Use `PrimaryToolbar` for primary control rows; inherit the root Ant size and
+  reserve small controls for dense inline or table actions. Follow the sizing and
+  wrapping rules in `docs/frontend-guidelines.md`.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.
 - Keep lower-level helpers such as `useConfirmDangerAction` for non-button callbacks where a shared button is not the right shape.

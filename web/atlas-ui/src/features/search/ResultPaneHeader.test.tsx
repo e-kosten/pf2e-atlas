@@ -1,12 +1,119 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { summaryFixture } from "../../test/fixtures";
 import type { SearchResultsPage } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { SearchView } from "./SearchView";
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 
 describe("search pane composition", () => {
+  it("keeps the visible chosen model beside the search input with an accessible label", () => {
+    render(
+      <SearchProfileProvider>
+        <SearchView workspace={workspace()} />
+      </SearchProfileProvider>,
+    );
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const row = input.closest(".filter-controls__search-row");
+    expect(row).toContainElement(
+      screen.getByRole("combobox", { name: "Search model" }),
+    );
+    expect(within(row as HTMLElement).getByText("BGE Base")).toBeVisible();
+    expect(screen.queryByText("Search model")).toBeNull();
+  });
+
+  it("distinguishes idle drafts, pending search, completed empty and local error without a zero pager", () => {
+    const state = workspace({ resultPage: undefined });
+    const content = (next: SearchWorkspaceState) => (
+      <SearchProfileProvider>
+        <SearchView workspace={next} />
+      </SearchProfileProvider>
+    );
+    const { rerender } = render(content(state));
+    expect(screen.getByText("Search or choose filters.")).toBeVisible();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search records" }), {
+      target: { value: "unsubmitted" },
+    });
+    expect(screen.getByText("Search or choose filters.")).toBeVisible();
+    expect(state.setSearch).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
+
+    const searching = {
+      ...state,
+      search: { ...state.search, query: "heal" },
+      resultsLoading: true,
+    };
+    rerender(content(searching));
+    expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible();
+    expect(screen.queryByText("No matching records.")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
+
+    const empty = {
+      ...searchResultsPage(),
+      page: {
+        ...searchResultsPage().page,
+        number: 1,
+        total: 0n,
+        count: 0,
+        has_more: false,
+        next_page: null,
+      },
+    };
+    rerender(content({ ...searching, resultsLoading: false, resultPage: empty }));
+    expect(screen.getByText("No matching records.")).toBeVisible();
+    expect(screen.queryByRole("status", { name: "Searching…" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Records per page" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
+
+    rerender(
+      content({
+        ...searching,
+        resultsLoading: true,
+        errorMessage: "Search connection lost",
+      }),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Search connection lost");
+    expect(screen.queryByText("No matching records.")).toBeNull();
+    expect(screen.queryByRole("status", { name: "Searching…" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(state.refresh).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { ...DEFAULT_SEARCH_STATE, similarSeed: "items:seed" },
+    {
+      ...DEFAULT_SEARCH_STATE,
+      filter: { kind: "boolean_constant" as const, value: false },
+    },
+  ])("treats committed Similar or filter-only criteria as a search", (search) => {
+    render(
+      <SearchProfileProvider>
+        <SearchView
+          workspace={workspace({ search, resultPage: undefined, resultsLoading: true })}
+        />
+      </SearchProfileProvider>,
+    );
+    expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible();
+    expect(screen.queryByText("Search or choose filters.")).toBeNull();
+  });
+
+  it("keeps an invalid committed criterion distinct from idle guidance", () => {
+    render(
+      <SearchProfileProvider>
+        <SearchView
+          workspace={workspace({
+            resultPage: undefined,
+            search: { ...DEFAULT_SEARCH_STATE, filterError: "Invalid filter link" },
+          })}
+        />
+      </SearchProfileProvider>,
+    );
+    expect(screen.queryByText("Search or choose filters.")).toBeNull();
+    expect(screen.queryByText("No matching records.")).toBeNull();
+    expect(screen.getByText("Invalid filter link")).toBeVisible();
+  });
+
   it("keeps the Similar criterion and filters in one body, and clears only the criterion", () => {
     const setSearch = vi.fn();
     const state = workspace({
@@ -44,6 +151,17 @@ describe("search pane composition", () => {
 });
 
 describe("ResultPaneHeader", () => {
+  it.each([
+    undefined,
+    {
+      ...searchResultsPage(),
+      page: { ...searchResultsPage().page, number: 1, total: 0n, count: 0 },
+    },
+  ])("does not render pagination without a nonempty result page", (resultPage) => {
+    render(<ResultPaneHeader workspace={workspace({ resultPage })} />);
+    expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
+  });
   it("labels bounded similarity as Top matches without an exhaustive record total", () => {
     render(
       <ResultPaneHeader
@@ -153,6 +271,7 @@ function workspace(
 
 function searchResultsPage(): SearchResultsPage {
   return {
+    search_profile: "bge-base",
     artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "", mode: "hybrid" },
     page: {

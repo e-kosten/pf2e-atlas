@@ -23,6 +23,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
                 || args.run.no_embeddings
                 || args.run.offline
                 || args.run.force_rebuild
+                || !args.run.search_profiles.is_empty()
             {
                 return invalid_setup_input(
                     json,
@@ -47,6 +48,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
 
 fn setup_runtime(options: SetupPathOptions) -> Result<AtlasRuntime, String> {
     AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
             source_root: options.source,
@@ -71,7 +73,7 @@ fn run_setup_install(
         check: options.check,
         offline: options.offline,
         force_rebuild: options.force_rebuild,
-        embedding_model_id: options.embedding_model,
+        search_profiles: options.search_profiles,
         embedding_batch_size: options.embedding_batch_size,
         locale: options.locale,
     };
@@ -173,7 +175,7 @@ struct SetupData {
     actions: Vec<SetupActionData>,
     readiness: SetupReadinessData,
     paths: SetupPathsData,
-    embedding: SetupEmbeddingData,
+    search_profiles: Vec<SetupEmbeddingData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     build: Option<SetupBuildData>,
 }
@@ -219,6 +221,8 @@ struct SetupPathsData {
 
 #[derive(Debug, Serialize)]
 struct SetupEmbeddingData {
+    profile_id: atlas_domain::SearchProfileId,
+    stored: bool,
     model: String,
     model_path: String,
     cache_root: String,
@@ -229,6 +233,7 @@ struct SetupEmbeddingData {
 
 #[derive(Debug, Serialize)]
 struct SetupBuildData {
+    profiles: Vec<atlas_ingest::ProfileBuildReport>,
     source_fingerprint: String,
     record_count: usize,
     product_record_count: usize,
@@ -269,7 +274,12 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
     );
     println!(
         "embedding model: {} {}",
-        report.embedding.model,
+        report
+            .search_profiles
+            .iter()
+            .map(|p| p.profile_id.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
         readiness_label(&report.readiness.embedding_model.status)
     );
     println!("index: {}", report.paths.index);
@@ -362,14 +372,21 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
             embedding_cache: report.paths.embedding_cache.clone(),
             index: report.paths.index.clone(),
         },
-        embedding: SetupEmbeddingData {
-            model: report.embedding.model.clone(),
-            model_path: report.embedding.model_path.clone(),
-            cache_root: report.embedding.cache_root.clone(),
-            ready: report.embedding.ready,
-            missing_files: report.embedding.missing_files.clone(),
-        },
+        search_profiles: report
+            .search_profiles
+            .iter()
+            .map(|profile| SetupEmbeddingData {
+                profile_id: profile.profile_id.clone(),
+                stored: profile.stored,
+                model: profile.model.clone(),
+                model_path: profile.model_path.clone(),
+                cache_root: profile.cache_root.clone(),
+                ready: profile.ready,
+                missing_files: profile.missing_files.clone(),
+            })
+            .collect(),
         build: report.build.as_ref().map(|build| SetupBuildData {
+            profiles: build.profiles.clone(),
             source_fingerprint: build.source_fingerprint.clone(),
             record_count: build.record_count,
             product_record_count: build.product_record_count,

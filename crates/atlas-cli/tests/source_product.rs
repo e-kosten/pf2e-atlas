@@ -577,3 +577,178 @@ fn unsupported_cel_and_legacy_artifacts_fail_with_rebuild_guidance() {
             || String::from_utf8_lossy(&o.stdout).contains("rebuild")
     );
 }
+
+#[test]
+#[ignore = "requires pinned local Base/Gemma assets; bounded normal CLI setup/search/progress"]
+fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_progress() {
+    use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig};
+    let cache = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .map(|p| p.join(".cache/hf-models"))
+        .find(|p| {
+            EmbeddingRuntimeConfig::new(EmbeddingModelId::EmbeddingGemma300M, p)
+                .model_dir()
+                .join("onnx/model.onnx_data")
+                .is_file()
+        })
+        .unwrap();
+    let f = Fixture::new();
+    let isolated_root = f.root.join("gemma-only-cache");
+    let gemma = EmbeddingRuntimeConfig::new(EmbeddingModelId::EmbeddingGemma300M, &isolated_root);
+    let original = EmbeddingRuntimeConfig::new(EmbeddingModelId::EmbeddingGemma300M, &cache);
+    for file in atlas_embedding::required_embedding_model_cache_files(&gemma) {
+        fs::create_dir_all(file.local_path.parent().unwrap()).unwrap();
+        fs::hard_link(original.model_dir().join(file.source_path), file.local_path).unwrap();
+    }
+    let baseline = atlas_embedding::baseline_tokenizer_cache_file(&isolated_root);
+    fs::create_dir_all(baseline.local_path.parent().unwrap()).unwrap();
+    fs::copy(
+        atlas_embedding::baseline_tokenizer_cache_file(&cache).local_path,
+        baseline.local_path,
+    )
+    .unwrap();
+    assert!(
+        !EmbeddingRuntimeConfig::new(EmbeddingModelId::BgeBaseEnV15, &isolated_root)
+            .model_dir()
+            .join("onnx/model.onnx")
+            .exists()
+    );
+    let setup = |model_cache: &std::path::Path, profiles: &[&str], mode: &str| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        command
+            .args(["--progress", mode, "setup", "--offline", "--json"])
+            .arg("--source")
+            .arg(&f.root)
+            .arg("--index")
+            .arg(&f.index)
+            .arg("--embedding-cache-path")
+            .arg(model_cache);
+        for profile in profiles {
+            command.args(["--search-profile", profile]);
+        }
+        let output = command.output().unwrap();
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(json["status"], "ok");
+        (
+            json["data"].clone(),
+            String::from_utf8(output.stderr).unwrap(),
+        )
+    };
+    let (first, progress) = setup(&isolated_root, &["embeddinggemma"], "always");
+    assert_eq!(first["search_profiles"].as_array().unwrap().len(), 1);
+    assert_eq!(first["search_profiles"][0]["profile_id"], "embeddinggemma");
+    assert!(first["build"]["inferred_inputs"].as_u64().unwrap() > 0);
+    eprintln!("Gemma-only normal setup: {}", first["build"]["profiles"]);
+    assert!(progress.contains("EmbeddingGemma [embeddinggemma]"));
+    assert!(progress.contains("unique inputs") && progress.contains("occurrences"));
+    assert!(
+        progress.lines().count() < 100,
+        "tiny build progress must be bounded"
+    );
+    let cache_text = isolated_root.to_str().unwrap();
+    let result = f.data(&[
+        "search",
+        "Defined Fever",
+        "--retrieval",
+        "vector",
+        "--embedding-cache-path",
+        cache_text,
+        "--json",
+    ]);
+    assert_eq!(result["search_profile"], "embeddinggemma");
+    eprintln!("Gemma-only omitted search selection resolved embeddinggemma");
+    let missing = f.command(
+        &[
+            "search",
+            "Defined Fever",
+            "--retrieval",
+            "vector",
+            "--search-profile",
+            "bge-base",
+            "--embedding-cache-path",
+            cache_text,
+            "--json",
+        ],
+        false,
+    );
+    assert!(
+        !missing.status.success(),
+        "explicit absent profile cannot fall back"
+    );
+    assert!(String::from_utf8_lossy(&missing.stdout).contains("bge-base"));
+    let (preserved, _) = setup(&isolated_root, &[], "always");
+    assert_eq!(
+        preserved["search_profiles"][0]["profile_id"],
+        "embeddinggemma"
+    );
+    assert!(preserved["build"].is_null());
+    let silent = f.command(
+        &["--progress", "never", "index", "validate", "--json"],
+        false,
+    );
+    assert!(silent.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&silent.stdout).unwrap()["status"],
+        "ok"
+    );
+    let silent = String::from_utf8(silent.stderr).unwrap();
+    assert!(
+        !silent.contains("INFO"),
+        "disabled progress must stay off stderr"
+    );
+    let (both, progress) = setup(&cache, &["bge-base", "embeddinggemma"], "always");
+    assert_eq!(both["search_profiles"].as_array().unwrap().len(), 2);
+    let reused = both["build"]["profiles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["profile_id"] == "embeddinggemma")
+        .unwrap();
+    assert_eq!(reused["inferred_inputs"], 0);
+    assert!(reused["reused_inputs"].as_u64().unwrap() > 0);
+    assert!(progress.contains("0/0") && progress.contains("reused unique inputs"));
+    eprintln!(
+        "Both-profile setup with Gemma zero-inference reuse: {}",
+        both["build"]["profiles"]
+    );
+    let source = f.root.join("packs/actions/heal.json");
+    let before = fs::read_to_string(&source).unwrap();
+    fs::write(
+        source,
+        before.replace(
+            "unique explanatory prose phrase",
+            "changed source prose with additional mechanics",
+        ),
+    )
+    .unwrap();
+    let (updated, _) = setup(&cache, &[], "always");
+    assert_eq!(updated["search_profiles"].as_array().unwrap().len(), 2);
+    assert_eq!(updated["build"]["profiles"].as_array().unwrap().len(), 2);
+    assert!(
+        updated["build"]["profiles"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|p| p["inferred_inputs"].as_u64().unwrap() > 0)
+    );
+    eprintln!(
+        "Omitted-profile source update preserved both: {}",
+        updated["build"]["profiles"]
+    );
+    let implicit = f.data(&[
+        "search",
+        "additional mechanics",
+        "--retrieval",
+        "vector",
+        "--embedding-cache-path",
+        cache.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(implicit["search_profile"], "bge-base");
+}

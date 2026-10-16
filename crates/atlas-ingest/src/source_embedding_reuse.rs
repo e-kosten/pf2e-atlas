@@ -2,15 +2,19 @@
 use crate::{IngestError, index_build_input::semantic_units};
 use atlas_domain::RecordKey;
 use atlas_embedding::{PreparedEmbeddingInput, TextEmbeddingTokenizer};
-use atlas_index::{SourceSemanticModelIdentity, SourceSemanticUnitInput, SqliteIndexReader};
+use atlas_index::{SourceSearchProfileIdentity, SourceSemanticUnitInput, SqliteIndexReader};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) fn verified_reusable_vectors(
     reader: &SqliteIndexReader,
     inputs: &[PreparedEmbeddingInput],
     tokenizer: &TextEmbeddingTokenizer,
-    model: &SourceSemanticModelIdentity,
+    native_tokenizer: &TextEmbeddingTokenizer,
+    model: &SourceSearchProfileIdentity,
 ) -> Result<BTreeMap<String, Vec<f32>>, IngestError> {
+    let label = atlas_embedding::search_profile(&model.profile_id)
+        .map_err(|error| IngestError::DocumentEmbeddingFailed(error.to_string()))?
+        .label;
     let hashes = inputs
         .iter()
         .map(|i| i.input_sha256.clone())
@@ -19,6 +23,10 @@ pub(crate) fn verified_reusable_vectors(
         .collect::<Vec<_>>();
     let mut checked_roots = BTreeMap::<RecordKey, Vec<SourceSemanticUnitInput>>::new();
     let mut by_hash = BTreeMap::new();
+    let mut checked_hashes = 0;
+    let total_hashes = hashes.len();
+    tracing::info!(target:"atlas_progress", phase=%format!("{}:reuse", model.profile_id), current=0u64,total=total_hashes as u64,
+        "{} [{}] reuse: verifying 0/{} unique raw-input hashes", label,model.profile_id,total_hashes);
     for hashes in hashes.chunks(1024) {
         let mut cursor = 0;
         loop {
@@ -44,7 +52,13 @@ pub(crate) fn verified_reusable_vectors(
                     semantic_units(&selection, tokenizer, &mut regenerated, &mut 0)?;
                     checked_roots.insert(
                         selection.root,
-                        regenerated.into_iter().map(|p| p.unit).collect(),
+                        regenerated
+                            .into_iter()
+                            .map(|p| {
+                                crate::index_build_input::profile_pending(p, native_tokenizer)
+                                    .map(|p| p.unit)
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
                     );
                 }
             }
@@ -79,6 +93,9 @@ pub(crate) fn verified_reusable_vectors(
                 }
             }
         }
+        checked_hashes += hashes.len();
+        tracing::info!(target:"atlas_progress", phase=%format!("{}:reuse", model.profile_id), current=checked_hashes as u64,total=total_hashes as u64,
+            "{} [{}] reuse: verified {}/{} unique raw-input hashes; {} reusable vectors",label,model.profile_id,checked_hashes,total_hashes,by_hash.len());
     }
     Ok(inputs
         .iter()

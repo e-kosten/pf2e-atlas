@@ -24,6 +24,7 @@ impl RetrievalMode {
     }
 }
 pub struct TextSearchRequest<'a> {
+    pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub query: &'a str,
     pub mode: RetrievalMode,
     pub filter: Option<&'a QueryPredicate>,
@@ -34,6 +35,7 @@ pub struct TextSearchRequest<'a> {
 impl<'a> TextSearchRequest<'a> {
     pub fn new(query: &'a str, page: SearchPage) -> Self {
         Self {
+            search_profile: None,
             query,
             mode: RetrievalMode::Hybrid,
             filter: None,
@@ -75,6 +77,8 @@ pub struct SearchCoverage {
 }
 #[derive(Debug, Clone)]
 pub struct TextSearchResult {
+    pub search_profile: atlas_domain::SearchProfileId,
+    pub artifact_generation: String,
     pub records: Vec<TextSearchRecord>,
     pub page: SearchPageInfo,
     pub coverage: SearchCoverage,
@@ -96,6 +100,7 @@ pub(crate) struct RankedRoot {
     pub witnesses: Vec<SearchWitness>,
 }
 pub(crate) struct CandidateRequest<'a> {
+    pub search_profile: &'a atlas_domain::SearchProfileId,
     pub text: &'a str,
     pub mode: RetrievalMode,
     pub query: &'a ValidatedQuery,
@@ -174,27 +179,20 @@ impl AtlasRetrievalService {
                 "text search requires nonempty text; use list_records for browse",
             ));
         }
+        let search_profile =
+            self.resolve_search_profile(request.search_profile, request.mode.uses_vector())?;
         let predicate = self.predicate(request.filter)?;
         let vector = if request.mode.uses_vector() {
             #[cfg(test)]
-            if self.embedder.is_some() {
+            if self.inference.is_some() {
                 self.text_query_embedding_invocations += 1;
             }
-            Some(
-                self.embedder
-                    .as_mut()
-                    .ok_or_else(|| {
-                        SearchError::vector_readiness_required(
-                            "query embeddings are unavailable in this runtime mode",
-                        )
-                    })?
-                    .embed_query(request.query)
-                    .map_err(SearchError::query_embedding)?,
-            )
+            Some(self.embed_query(&search_profile, request.query)?)
         } else {
             None
         };
         let (roots, window) = self.rank_candidates(CandidateRequest {
+            search_profile: &search_profile,
             text: request.query,
             mode: request.mode,
             query: &predicate,
@@ -204,7 +202,13 @@ impl AtlasRetrievalService {
             vector: vector.as_deref(),
             exclude: None,
         })?;
-        self.finish_results(roots, request.page, request.mode.uses_vector(), window)
+        self.finish_results(
+            &search_profile,
+            roots,
+            request.page,
+            request.mode.uses_vector(),
+            window,
+        )
     }
     pub(crate) fn suppress_pairs(
         &self,
@@ -221,6 +225,7 @@ impl AtlasRetrievalService {
     }
     pub(crate) fn vector_window(
         &self,
+        search_profile: &atlas_domain::SearchProfileId,
         vector: &[f32],
         query: &ValidatedQuery,
         scope: RecordScope<'_>,
@@ -229,11 +234,17 @@ impl AtlasRetrievalService {
     ) -> Result<(Vec<RankedRoot>, usize), SearchError> {
         for window in SEMANTIC_WINDOWS {
             let hits = if let Some(seed) = exclude {
-                self.index
-                    .vector_candidates_excluding(vector, query, scope.keys(), seed, window)?
+                self.index.vector_candidates_excluding(
+                    search_profile,
+                    vector,
+                    query,
+                    scope.keys(),
+                    seed,
+                    window,
+                )?
             } else {
                 self.index
-                    .vector_candidates(vector, query, scope.keys(), window)?
+                    .vector_candidates(search_profile, vector, query, scope.keys(), window)?
             };
             let roots = semantic_roots(hits);
             let displayed = self.suppress_pairs(roots.clone(), prefer)?;
@@ -250,6 +261,7 @@ impl AtlasRetrievalService {
         request: CandidateRequest<'_>,
     ) -> Result<(Vec<RankedRoot>, Option<usize>), SearchError> {
         let CandidateRequest {
+            search_profile,
             text,
             mode,
             query,
@@ -316,7 +328,8 @@ impl AtlasRetrievalService {
                     "semantic retrieval requires a compatible vector",
                 )
             })?;
-            let (semantic, k) = self.vector_window(vector, query, scope, prefer, exclude)?;
+            let (semantic, k) =
+                self.vector_window(search_profile, vector, query, scope, prefer, exclude)?;
             window = Some(k);
             for (i, semantic) in semantic.into_iter().enumerate() {
                 let rank = i + 1;
@@ -352,6 +365,7 @@ impl AtlasRetrievalService {
     }
     pub(crate) fn finish_results(
         &self,
+        search_profile: &atlas_domain::SearchProfileId,
         roots: Vec<RankedRoot>,
         page: SearchPage,
         bounded: bool,
@@ -472,6 +486,8 @@ impl AtlasRetrievalService {
         }
         let info = SearchPageInfo::from_page(page, records.len(), total as u64)?;
         Ok(TextSearchResult {
+            search_profile: search_profile.clone(),
+            artifact_generation: self.artifact_generation()?,
             records,
             page: info,
             coverage: SearchCoverage {

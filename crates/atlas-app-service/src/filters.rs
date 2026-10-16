@@ -60,6 +60,7 @@ impl AtlasAppService {
                     field: &request.field,
                     clause_id: request.clause_id.as_deref(),
                     context: SearchContext {
+                        search_profile: None,
                         text: None,
                         mode: RetrievalMode::Fts,
                         scope: RecordScope::All,
@@ -84,6 +85,7 @@ impl AtlasAppService {
                     field: &request.field,
                     clause_id: request.clause_id.as_deref(),
                     context: SearchContext {
+                        search_profile: None,
                         text: None,
                         mode: RetrievalMode::Fts,
                         scope: RecordScope::All,
@@ -110,12 +112,18 @@ impl AtlasAppService {
                 offset,
                 limit,
             } => {
-                let (keys, filter, text, mode) = context_parts(self, context)?;
+                let (keys, filter, text, mode, search_profile, expected_generation) =
+                    context_parts(self, context)?;
                 self.with_retrieval(execution, move |retrieval| {
+                    check_generation(retrieval, expected_generation.as_deref())?;
+                    let resolved =
+                        retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
+                    let generation = retrieval.artifact_generation()?;
                     let outcome = retrieval.discover_filter_values(SearchValues {
                         field: &field_id,
                         clause_id: clause_id.as_deref(),
                         context: SearchContext {
+                            search_profile: search_profile.as_ref(),
                             text: text.as_deref(),
                             mode,
                             scope: scope(&keys),
@@ -127,7 +135,11 @@ impl AtlasAppService {
                         limit,
                     })?;
                     projection_execution.check()?;
-                    Ok(FilterValueListView::Contextual { outcome })
+                    Ok(FilterValueListView::Contextual {
+                        outcome,
+                        search_profile: resolved,
+                        artifact_generation: generation,
+                    })
                 })
             }
             DiscoverFilterValuesRequest::Vocabulary {
@@ -168,13 +180,18 @@ impl AtlasAppService {
         execution: &ReadExecutionContext,
     ) -> AppServiceResult<FilterCountsView> {
         execution.check()?;
-        let (keys, filter, text, mode) = context_parts(self, request.context)?;
+        let (keys, filter, text, mode, search_profile, expected_generation) =
+            context_parts(self, request.context)?;
         let projection_execution = execution.clone();
         self.with_retrieval(execution, move |retrieval| {
+            check_generation(retrieval, expected_generation.as_deref())?;
+            let resolved = retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
+            let generation = retrieval.artifact_generation()?;
             let counts = retrieval.discover_filter_counts(SearchCounts {
                 field: &request.field_id,
                 clause_id: request.clause_id.as_deref(),
                 context: SearchContext {
+                    search_profile: search_profile.as_ref(),
                     text: text.as_deref(),
                     mode,
                     scope: scope(&keys),
@@ -183,7 +200,11 @@ impl AtlasAppService {
                 },
             })?;
             projection_execution.check()?;
-            Ok(FilterCountsView { counts })
+            Ok(FilterCountsView {
+                counts,
+                search_profile: resolved,
+                artifact_generation: generation,
+            })
         })
     }
 }
@@ -192,25 +213,42 @@ type ContextParts = (
     Option<QueryPredicate>,
     Option<String>,
     RetrievalMode,
+    Option<atlas_domain::SearchProfileId>,
+    Option<String>,
 );
 fn context_parts(
     service: &AtlasAppService,
     context: FilterDiscoveryContext,
 ) -> AppServiceResult<ContextParts> {
     match context {
-        FilterDiscoveryContext::Filtered { filter, text, mode } => {
-            Ok((None, filter, text, crate::retrieval::retrieval_mode(mode)))
-        }
+        FilterDiscoveryContext::Filtered {
+            filter,
+            text,
+            mode,
+            search_profile,
+            expected_artifact_generation,
+        } => Ok((
+            None,
+            filter,
+            text,
+            crate::retrieval::retrieval_mode(mode),
+            search_profile,
+            expected_artifact_generation,
+        )),
         FilterDiscoveryContext::SavedList {
             list_ref,
             filter,
             text,
             mode,
+            search_profile,
+            expected_artifact_generation,
         } => Ok((
             Some(service.saved_list_record_keys(&list_ref)?),
             filter,
             text,
             crate::retrieval::retrieval_mode(mode),
+            search_profile,
+            expected_artifact_generation,
         )),
     }
 }
@@ -229,6 +267,23 @@ fn required_facet<T>(outcome: QueryFacetOutcome<T>) -> AppServiceResult<T> {
             )))
         }
     }
+}
+
+fn check_generation(
+    retrieval: &atlas_search::AtlasRetrievalService,
+    expected: Option<&str>,
+) -> AppServiceResult<()> {
+    let actual = retrieval.artifact_generation()?;
+    if let Some(expected) = expected
+        && expected != actual
+    {
+        return Err(crate::AppServiceError::artifact_generation_changed(
+            expected,
+            &actual,
+            atlas_app_model::AppRecoverableAction::RefreshResults,
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -268,6 +323,7 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
+                        search_profile: None,
                         criteria: SearchCriteria::ListRecords {
                             filter: Some(predicate.clone()),
                         },
@@ -287,6 +343,8 @@ mod tests {
                 .discover_filter_counts(
                     DiscoverFilterCountsRequest {
                         context: FilterDiscoveryContext::Filtered {
+                            search_profile: None,
+                            expected_artifact_generation: None,
                             filter: Some(predicate),
                             text: None,
                             mode: RetrievalModeView::Lexical,

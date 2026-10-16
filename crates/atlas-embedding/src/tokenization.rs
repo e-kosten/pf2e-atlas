@@ -1,7 +1,5 @@
 use crate::model_cache::read_verified_asset;
-use crate::{
-    EmbeddingError, EmbeddingModelSpec, EmbeddingRuntimeConfig, default_embedding_model_spec,
-};
+use crate::{EmbeddingError, EmbeddingModelSpec, EmbeddingRuntimeConfig};
 use std::path::Path;
 use tokenizers::Tokenizer;
 
@@ -11,6 +9,12 @@ pub struct TextEmbeddingTokenizer {
     tokenizer: Tokenizer,
 }
 impl TextEmbeddingTokenizer {
+    pub fn load_baseline(cache_root: impl AsRef<Path>) -> Result<Self, EmbeddingError> {
+        Self::load(&EmbeddingRuntimeConfig::new(
+            crate::EmbeddingModelId::BgeBaseEnV15,
+            cache_root.as_ref(),
+        ))
+    }
     pub fn load(config: &EmbeddingRuntimeConfig) -> Result<Self, EmbeddingError> {
         Self::load_from_model_dir(config.model_spec(), config.model_dir())
     }
@@ -18,11 +22,9 @@ impl TextEmbeddingTokenizer {
         spec: EmbeddingModelSpec,
         model_dir: impl AsRef<Path>,
     ) -> Result<Self, EmbeddingError> {
-        if spec != default_embedding_model_spec() {
-            return Err(EmbeddingError::UnsupportedModelContract);
-        }
+        crate::catalog::validate_model_spec(spec)?;
         let path = model_dir.as_ref().join("tokenizer.json");
-        let bytes = read_verified_asset(model_dir.as_ref(), "tokenizer.json")?;
+        let bytes = read_verified_asset(spec, model_dir.as_ref(), "tokenizer.json")?;
         let tokenizer =
             Tokenizer::from_bytes(bytes).map_err(|e| EmbeddingError::TokenizerLoadFailed {
                 path: path.display().to_string(),
@@ -50,16 +52,16 @@ impl TextEmbeddingTokenizer {
             .map_err(|e| EmbeddingError::TokenizationFailed(e.to_string()))
     }
     pub fn validate_document_input(&self, text: &str) -> Result<usize, EmbeddingError> {
-        self.validate_input(text, self.spec.document_prefix)
+        self.validate_input(text, &self.spec.document_input(text))
     }
     pub fn validate_query_input(&self, text: &str) -> Result<usize, EmbeddingError> {
-        self.validate_input(text, self.spec.query_prefix)
+        self.validate_input(text, &self.spec.query_input(text))
     }
-    fn validate_input(&self, text: &str, prefix: &str) -> Result<usize, EmbeddingError> {
+    fn validate_input(&self, text: &str, rendered: &str) -> Result<usize, EmbeddingError> {
         if text.trim().is_empty() || self.count_tokens(text, false)? == 0 {
             return Err(EmbeddingError::EmptyInput);
         }
-        let actual = self.count_tokens(&format!("{prefix}{text}"), true)?;
+        let actual = self.count_tokens(rendered, true)?;
         let max = self.spec.max_input_tokens.unwrap_or(512);
         if actual > max {
             return Err(EmbeddingError::TokenBudgetExceeded { actual, max });

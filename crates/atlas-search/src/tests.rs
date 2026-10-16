@@ -14,12 +14,59 @@ fn service(input: IndexBuildInput) -> (test_support::FixtureArtifact, AtlasRetri
     let (service, artifact) = test_support::open_input_fixture(input).unwrap();
     (artifact, service)
 }
+
+#[test]
+fn explicit_request_overrides_service_default_and_single_profile_does_not_choose_a_fallback() {
+    let input = test_support::input_with_both_profiles(vec![
+        effect("aaaaaaaaaaaaaaaa", "One", 1, ""),
+        effect("bbbbbbbbbbbbbbbb", "Two", 2, ""),
+    ]);
+    let (artifact, _) = service(input);
+    let index = SqliteIndexReader::open_read_only(artifact.path()).unwrap();
+    let mut retrieval = AtlasRetrievalService::from_prepared_index_without_embeddings(
+        index,
+        atlas_domain::SearchProfileId::new("embeddinggemma"),
+    );
+    let mut request = TextSearchRequest::new("One", SearchPage::default());
+    request.mode = RetrievalMode::Fts;
+    assert_eq!(
+        retrieval
+            .search_text(request)
+            .unwrap()
+            .search_profile
+            .as_str(),
+        "embeddinggemma"
+    );
+    let base = atlas_domain::SearchProfileId::new("bge-base");
+    let mut request = TextSearchRequest::new("One", SearchPage::default());
+    request.mode = RetrievalMode::Fts;
+    request.search_profile = Some(&base);
+    assert_eq!(retrieval.search_text(request).unwrap().search_profile, base);
+    let mut gemma_only =
+        test_support::input_with_both_profiles(vec![effect("aaaaaaaaaaaaaaaa", "One", 1, "")]);
+    gemma_only.context.search_profiles.remove(0);
+    gemma_only
+        .semantic_units
+        .retain(|unit| unit.profile_id.as_str() == "embeddinggemma");
+    let (artifact, _) = service(gemma_only);
+    let index = SqliteIndexReader::open_read_only(artifact.path()).unwrap();
+    let error = AtlasRetrievalService::from_prepared_index(
+        index,
+        base,
+        atlas_embedding::SharedQueryInference::new("/missing/cache"),
+    )
+    .err()
+    .unwrap();
+    assert!(error.to_string().contains("bge-base"));
+    assert!(error.to_string().contains("not stored"));
+}
 fn key(id: &str) -> RecordKey {
     RecordKey::parse(&format!("items:{id}")).unwrap()
 }
 fn search(service: &mut AtlasRetrievalService, text: &str) -> TextSearchResult {
     service
         .search_text(TextSearchRequest {
+            search_profile: None,
             query: text,
             mode: RetrievalMode::Fts,
             filter: None,
@@ -121,6 +168,7 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
     assert!(
         service
             .similar_records(SimilarRecordRequest {
+                search_profile: None,
                 record_key: &macro_key,
                 filter: None,
                 scope: RecordScope::All,
@@ -212,6 +260,7 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     let filter = service.parse_where("item.level == 1").unwrap();
     let filtered = service
         .search_text(TextSearchRequest {
+            search_profile: None,
             query: "flame",
             mode: RetrievalMode::Fts,
             filter: Some(filter.predicate()),
@@ -224,6 +273,7 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     assert_eq!(filtered.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
     let page2 = service
         .search_text(TextSearchRequest {
+            search_profile: None,
             query: "flame",
             mode: RetrievalMode::Fts,
             filter: None,
@@ -331,7 +381,7 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
     // Root B identity is orthogonal; its passage is closest to root A's seed.
     for unit in &mut fixture.semantic_units {
         if unit.record == key("bbbbbbbbbbbbbbbb") && unit.field.is_some() {
-            unit.vector = vec![0.0; 384];
+            unit.vector = vec![0.0; 768];
             unit.vector[0] = 1.0;
         }
     }
@@ -339,6 +389,7 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
     let seed = key("aaaaaaaaaaaaaaaa");
     let result = service
         .similar_records(SimilarRecordRequest {
+            search_profile: None,
             record_key: &seed,
             filter: None,
             scope: RecordScope::All,
@@ -358,6 +409,7 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
     let keys = [key("cccccccccccccccc")];
     let scoped = service
         .similar_records(SimilarRecordRequest {
+            search_profile: None,
             record_key: &seed,
             filter: None,
             scope: RecordScope::Keys(&keys),
@@ -565,6 +617,7 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
             field: "item.level",
             clause_id: Some("level-choice"),
             context: FilterDiscoveryContext {
+                search_profile: None,
                 text: Some("flame"),
                 mode: RetrievalMode::Fts,
                 scope: RecordScope::All,
@@ -638,13 +691,17 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
     assert_eq!(service.index.read_metrics().source_body_decodes, 0);
     let vector = service
         .index
-        .seed_identity_vector(&browse.records[0].key)
+        .seed_identity_vector(
+            &atlas_domain::SearchProfileId::new("bge-base"),
+            &browse.records[0].key,
+        )
         .unwrap()
         .unwrap();
     let query = service.predicate(None).unwrap();
     service.index.reset_read_metrics();
     let (roots, window) = service
         .rank_candidates(crate::text::CandidateRequest {
+            search_profile: &atlas_domain::SearchProfileId::new("bge-base"),
             text: "",
             mode: RetrievalMode::Vector,
             query: &query,
@@ -656,7 +713,13 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
         })
         .unwrap();
     let results = service
-        .finish_results(roots, SearchPage::default(), true, window)
+        .finish_results(
+            &atlas_domain::SearchProfileId::new("bge-base"),
+            roots,
+            SearchPage::default(),
+            true,
+            window,
+        )
         .unwrap();
     assert_eq!(results.records.len(), 1);
     assert!(results.records[0].matches.len() <= 3);
@@ -691,7 +754,10 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../scratch/ingest-validation/full-lexical.sqlite");
     let reader = SqliteIndexReader::open_read_only(path).unwrap();
-    let mut service = AtlasRetrievalService::from_prepared_index_without_embeddings(reader);
+    let mut service = AtlasRetrievalService::from_prepared_index_without_embeddings(
+        reader,
+        atlas_domain::SearchProfileId::new("bge-base"),
+    );
     for (pack, text, key, field) in [
         (
             "pathfinder-bestiary",
@@ -712,6 +778,7 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
         service.index.reset_read_metrics();
         let result = service
             .search_text(TextSearchRequest {
+                search_profile: None,
                 query: text,
                 mode: RetrievalMode::Fts,
                 filter: Some(filter.predicate()),
@@ -830,13 +897,14 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
     let actor_key = RecordKey::parse("actors:bbbbbbbbbbbbbbbb").unwrap();
     for unit in &mut fixture.semantic_units {
         if unit.record == actor_key {
-            unit.vector = vec![0.0; 384];
+            unit.vector = vec![0.0; 768];
             unit.vector[0] = 1.0;
         }
     }
     let (_dir, service) = service(fixture);
     let result = service
         .similar_records(SimilarRecordRequest {
+            search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
             filter: None,
             scope: RecordScope::All,
@@ -859,6 +927,7 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
     );
     let page2 = service
         .similar_records(SimilarRecordRequest {
+            search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
             filter: None,
             scope: RecordScope::All,
@@ -883,6 +952,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
     ));
     let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"not","predicate":{"clause_id":"target","kind":"compare","field":"rarity","op":"eq","value":"common"}})).unwrap();
     let context = FilterDiscoveryContext {
+        search_profile: None,
         text: Some("flame"),
         mode: RetrievalMode::Hybrid,
         scope: RecordScope::All,
@@ -1052,6 +1122,7 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
     let filtered = service.parse_where("item.level >= 2").unwrap();
     let result = service
         .similar_records(SimilarRecordRequest {
+            search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
             filter: Some(filtered.predicate()),
             scope: RecordScope::All,
@@ -1066,6 +1137,7 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
     ));
     let result = service
         .similar_records(SimilarRecordRequest {
+            search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
             filter: None,
             scope: RecordScope::All,

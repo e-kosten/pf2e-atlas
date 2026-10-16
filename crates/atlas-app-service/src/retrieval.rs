@@ -31,10 +31,12 @@ impl AtlasAppService {
         filter: Option<QueryPredicate>,
         page: atlas_app_model::SearchPageRequest,
         mode: atlas_app_model::RetrievalModeView,
+        search_profile: Option<atlas_domain::SearchProfileId>,
     ) -> AppServiceResult<atlas_app_model::SearchResultsView> {
         let page = SearchPage::new(page.number, page.size)?;
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             let result = r.search_text(TextSearchRequest {
+                search_profile: search_profile.as_ref(),
                 query: &query,
                 mode: retrieval_mode(mode),
                 filter: filter.as_ref(),
@@ -50,6 +52,7 @@ impl AtlasAppService {
         record_ref: String,
         filter: Option<QueryPredicate>,
         page: atlas_app_model::SearchPageRequest,
+        search_profile: Option<atlas_domain::SearchProfileId>,
     ) -> AppServiceResult<Option<atlas_app_model::SimilarRecordsView>> {
         let page = SearchPage::new(page.number, page.size)?;
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
@@ -72,6 +75,7 @@ impl AtlasAppService {
                 }
             };
             Ok(r.similar_records(SimilarRecordRequest {
+                search_profile: search_profile.as_ref(),
                 record_key: &key,
                 filter: filter.as_ref(),
                 scope: atlas_search::RecordScope::All,

@@ -45,7 +45,7 @@ export function ReferenceBrowser({
   reading: ReferenceReading;
   resultsHeader?: ReactNode;
   readerActions?: ReactNode;
-  emptyMessage?: string;
+  emptyMessage?: string | null;
   positions?: BrowsePositions;
   disabled?: boolean;
 }) {
@@ -153,7 +153,9 @@ export function ReferenceBrowser({
   }
   const results = (
     <section className="reference-results" aria-label="Search results">
-      <div className="reference-results__header">{resultsHeader}</div>
+      {resultsHeader && (
+        <div className="reference-results__header">{resultsHeader}</div>
+      )}
       <div
         className="reference-results__scroll"
         ref={listRef}
@@ -164,8 +166,15 @@ export function ReferenceBrowser({
         }}
       >
         {loading && !rows.length ? (
-          <Spin className="reference-loading" />
-        ) : !rows.length ? (
+          <div
+            className="reference-results__state"
+            role="status"
+            aria-label="Searching…"
+          >
+            <Spin />
+            <Typography.Text>Searching…</Typography.Text>
+          </div>
+        ) : !rows.length && emptyMessage !== null ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyMessage} />
         ) : null}
         {rows.map((row) => (

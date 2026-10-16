@@ -28,12 +28,14 @@ export function buildSearchRequest(
   state: SearchFormState,
   number: number,
   expected_artifact_generation: string | null = null,
+  search_profile?: string,
 ): SearchResultsRequest {
   if (state.filterError) throw new Error(state.filterError);
   if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
   if (state.similarSeed)
     return {
+      search_profile,
       page,
       expected_artifact_generation,
       criteria: {
@@ -43,6 +45,7 @@ export function buildSearchRequest(
       },
     };
   return {
+    search_profile,
     page,
     expected_artifact_generation,
     criteria: state.query.trim()
@@ -63,8 +66,12 @@ export function hasExecutableSearch(state: SearchFormState): boolean {
 }
 export function buildFilterDiscoveryContext(
   state: SearchFormState,
+  search_profile?: string,
+  expected_artifact_generation?: string,
 ): FilterDiscoveryContext {
   return {
+    search_profile,
+    expected_artifact_generation,
     kind: "filtered",
     filter: state.filter,
     text: state.query.trim() || null,
@@ -80,9 +87,13 @@ export function buildSavedListFilterDiscoveryContext(
 export function encodeSearchState(state: SearchFormState): string {
   return encodeURIComponent(JSON.stringify(state));
 }
-export function encodeSearchExecutionState(state: SearchFormState): string {
+export function encodeSearchExecutionState(
+  state: SearchFormState,
+  search_profile?: string | null,
+): string {
   return encodeURIComponent(
     JSON.stringify({
+      search_profile,
       query: state.query,
       similarSeed: state.similarSeed,
       mode: state.mode,
@@ -92,8 +103,12 @@ export function encodeSearchExecutionState(state: SearchFormState): string {
     }),
   );
 }
-export function searchStateQueryString(state: SearchFormState): string {
+export function searchStateQueryString(
+  state: SearchFormState,
+  search_profile?: string | null,
+): string {
   const params = new URLSearchParams();
+  if (search_profile != null) params.set("search_profile", search_profile);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
   if (state.filter) params.set("filter", encodeFilterUrl(state.filter));

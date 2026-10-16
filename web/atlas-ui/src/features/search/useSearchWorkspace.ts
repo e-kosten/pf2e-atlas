@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
+import { assertSearchIdentity } from "../../shared/search/searchIdentity";
 import type { FilterEditorView, SearchResultsPage } from "../../generated/atlas";
 import {
   buildFilterDiscoveryContext,
@@ -79,17 +80,45 @@ export type SearchWorkspaceState = {
 
 type UseAtlasWorkspaceOptions = {
   enabled?: boolean;
+  searchProfile: string | null;
+  pendingUrlProfile?: string | null;
+  searchProfileStored?: boolean;
+  searchProfileUsable?: boolean;
+  includeSearchProfileInUrl?: boolean;
 };
 
 export function useSearchWorkspace({
   enabled = true,
-}: UseAtlasWorkspaceOptions = {}): SearchWorkspaceState {
+  searchProfile,
+  pendingUrlProfile = null,
+  searchProfileStored = true,
+  searchProfileUsable = true,
+  includeSearchProfileInUrl = true,
+}: UseAtlasWorkspaceOptions): SearchWorkspaceState {
+  // Unresolved metadata is distinct from deliberate single-profile URL omission.
+  // This literal comes from the existing selection owner and never enables reads.
+  const urlProfile =
+    searchProfile === null
+      ? pendingUrlProfile
+      : includeSearchProfileInUrl
+        ? searchProfile
+        : null;
   const [interaction, dispatch] = useReducer(
     workspaceInteractionReducer,
     undefined,
     initialWorkspaceInteractionState,
   );
-  const { search, selectedRecordKey, pageNumber, activeSearch } = interaction;
+  const { search, selectedRecordKey, activeSearch } = interaction;
+  const [pagingProfile, setPagingProfile] = useState(searchProfile);
+  const profileChanged = pagingProfile !== searchProfile;
+  // Adjust the execution page in this render, before any new-profile query can run.
+  // This leaves the reader's artifact epoch and all draft owners untouched.
+  if (profileChanged) {
+    setPagingProfile(searchProfile);
+    if (pagingProfile !== null) dispatch({ type: "resultPage.changed", pageNumber: 1 });
+  }
+  const pageNumber =
+    profileChanged && pagingProfile !== null ? 1 : interaction.pageNumber;
   const queryClient = useQueryClient();
   const [retrieval, setRetrieval] = useState({
     epoch: 0,
@@ -113,14 +142,18 @@ export function useSearchWorkspace({
   const liveRequest = useRef({ token: "", epoch: 0, retiring: false });
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const searchExecutionToken = useMemo(
-    () => encodeSearchExecutionState(search),
-    [search],
+    () => encodeSearchExecutionState(search, searchProfile),
+    [search, searchProfile],
   );
   const activeSearchExecutionToken = useMemo(
-    () => encodeSearchExecutionState(activeSearch),
-    [activeSearch],
+    () => encodeSearchExecutionState(activeSearch, searchProfile),
+    [activeSearch, searchProfile],
   );
-  const canRunResultSearch = enabled && hasExecutableSearch(activeSearch);
+  const canRunResultSearch =
+    enabled &&
+    searchProfile !== null &&
+    (activeSearch.query.trim() ? searchProfileUsable : searchProfileStored) &&
+    hasExecutableSearch(activeSearch);
   useLayoutEffect(() => {
     liveRequest.current = {
       token: activeSearchExecutionToken,
@@ -177,6 +210,7 @@ export function useSearchWorkspace({
     enabled: canRunResultSearch && !retrieval.recovering,
     staleTime: 20_000,
     placeholderData: (previous, previousQuery) =>
+      previous?.search_profile === searchProfile &&
       previousQuery?.queryKey[2] === retrieval.epoch &&
       previousQuery.queryKey[3] === retrieval.generation
         ? previous
@@ -188,9 +222,15 @@ export function useSearchWorkspace({
         liveRequest.current.epoch === retrieval.epoch &&
         liveRequest.current.token === activeSearchExecutionToken;
       const page = await searchPage(
-        buildSearchRequest(activeSearch, pageNumber, retrieval.generation),
+        buildSearchRequest(
+          activeSearch,
+          pageNumber,
+          retrieval.generation,
+          searchProfile ?? undefined,
+        ),
         signal,
       );
+      assertSearchIdentity(page, searchProfile, retrieval.generation);
       if (retrieval.generation === null && isCurrent()) {
         // Adopt the returned generation without issuing the same search again.
         queryClient.setQueryData(
@@ -231,7 +271,8 @@ export function useSearchWorkspace({
   useEffect(() => {
     if (!enabled || !reading.detail || currentAtlasRoute().kind !== "search") return;
     const url = new URL(
-      searchPath(reading.detail.record.record_key) + searchStateQueryString(search),
+      searchPath(reading.detail.record.record_key) +
+        searchStateQueryString(search, urlProfile),
       window.location.origin,
     );
     const selected = reading.detail.selected;
@@ -249,11 +290,28 @@ export function useSearchWorkspace({
       "",
       url.pathname + url.search,
     );
-  }, [enabled, reading.detail, reading.landing, search, pageNumber]);
+  }, [enabled, reading.detail, reading.landing, search, urlProfile, pageNumber]);
+
+  useEffect(() => {
+    if (!enabled || urlProfile === null || currentAtlasRoute().kind !== "search")
+      return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("search_profile", urlProfile);
+    history.replaceState(
+      { ...history.state, atlasSearchPage: pageNumber },
+      "",
+      url.pathname + url.search,
+    );
+  }, [enabled, urlProfile, pageNumber]);
 
   const filterDiscoveryContext = useMemo(
-    () => buildFilterDiscoveryContext(activeSearch),
-    [activeSearch],
+    () =>
+      buildFilterDiscoveryContext(
+        activeSearch,
+        searchProfile ?? undefined,
+        retrieval.generation ?? undefined,
+      ),
+    [activeSearch, searchProfile, retrieval.generation],
   );
 
   const filterDiscovery = useFilterDiscovery({
@@ -282,14 +340,14 @@ export function useSearchWorkspace({
     )
       rememberKindPreference(next.filter, kind.definition);
     dispatch({ type: "search.changed", search: next });
-    const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next)}`;
+    const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next, urlProfile)}`;
     if (search.similarSeed !== next.similarSeed) history.pushState(null, "", url);
     else history.replaceState({ ...history.state, atlasSearchPage: 1 }, "", url);
   }
 
   function selectRecord(recordKey: string | null) {
     dispatch({ type: "record.selected", recordKey });
-    const searchQuery = searchStateQueryString(search);
+    const searchQuery = searchStateQueryString(search, urlProfile);
     const url = `${searchPath(recordKey)}${searchQuery}`;
     history.replaceState({ ...history.state, atlasSearchPage: pageNumber }, "", url);
     reading.inspect(recordKey ? { navigation: rootNavigation(recordKey) } : null);
@@ -327,7 +385,12 @@ export function useSearchWorkspace({
     filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
     vocabularyScope: filterDiscovery.vocabularyScope,
     filterDiscoveryError: filterDiscovery.errorMessage,
-    resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
+    resultsLoading:
+      enabled &&
+      searchProfile !== null &&
+      (search.query.trim() ? searchProfileUsable : searchProfileStored) &&
+      hasExecutableSearch(search) &&
+      (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing,
     resultsPaused,
     resultsRecovering: retrieval.recovering,
