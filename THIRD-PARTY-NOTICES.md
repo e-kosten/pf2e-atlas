@@ -278,6 +278,7 @@ It is intended as release hygiene and is not legal advice.
 - serde_urlencoded 0.7.1: MIT/Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - servo_arc 0.4.3: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - sha2 0.10.9: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
+- sha2-asm 0.6.4: MIT (registry+https://github.com/rust-lang/crates.io-index)
 - sharded-slab 0.1.7: MIT (registry+https://github.com/rust-lang/crates.io-index)
 - shlex 1.3.0: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - signal-hook 0.3.18: Apache-2.0/MIT (registry+https://github.com/rust-lang/crates.io-index)
