@@ -1,10 +1,11 @@
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, CreateEncounterRequest,
-    CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterSavedListRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
-    SearchResultsRequest, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, ApplyEncounterHpActionRequest,
+    CreateEncounterRequest, CreateSavedListRequest, DiscoverFilterEditorRequest,
+    DiscoverFilterValuesRequest, FilterSavedListRequest, RemoveSavedListItemRequest,
+    ReorderEncounterParticipantRequest, SearchResultsRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
 use atlas_domain::QueryPredicate;
@@ -237,6 +238,22 @@ pub(crate) async fn reorder_encounter_participant(
     Ok(Json(
         call_service(state, move || {
             service.reorder_encounter_participant(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn apply_encounter_hp_action(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<ApplyEncounterHpActionRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    request.participant_key = participant_key;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.apply_encounter_hp_action(&encounter_ref, request)
         })
         .await?,
     ))

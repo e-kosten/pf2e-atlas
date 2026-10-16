@@ -54,6 +54,10 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             post(crate::handlers::encounter_reference),
         )
         .route(
+            "/api/encounters/{encounter_ref}/participants/{participant_key}/hp",
+            post(crate::handlers::apply_encounter_hp_action),
+        )
+        .route(
             "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions",
             post(add_encounter_participant_condition),
         )

@@ -408,6 +408,38 @@ pub enum ReorderEncounterParticipantPlacementView {
     After,
 }
 
+/// A deliberate HP operation, interpreted against the checked current participant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum EncounterHpAction {
+    Damage {
+        amount: String,
+    },
+    Heal {
+        amount: String,
+    },
+    SetCurrent {
+        #[serde(deserialize_with = "Option::deserialize")]
+        input: Option<String>,
+    },
+    SetMaximum {
+        #[serde(deserialize_with = "Option::deserialize")]
+        input: Option<String>,
+    },
+    SetTemporary {
+        input: String,
+    },
+    UseDerivedMaximum,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ApplyEncounterHpActionRequest {
+    pub participant_key: String,
+    pub expected_revision: i64,
+    pub action: EncounterHpAction,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ReorderEncounterParticipantRequest {
@@ -483,6 +515,37 @@ pub struct DeleteEncounterView {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn hp_action_requires_revision_and_explicit_correction_input() {
+        assert!(
+            serde_json::from_value::<ApplyEncounterHpActionRequest>(
+                json!({"participant_key":"one","action":{"kind":"damage","amount":"1+2"}})
+            )
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<EncounterHpAction>(json!({"kind":"set_current"})).is_err()
+        );
+        assert!(
+            serde_json::from_value::<EncounterHpAction>(json!({"kind":"set_maximum"})).is_err()
+        );
+        assert_eq!(
+            serde_json::from_value::<EncounterHpAction>(json!({"kind":"set_current","input":null}))
+                .unwrap(),
+            EncounterHpAction::SetCurrent { input: None }
+        );
+        assert!(
+            serde_json::from_value::<EncounterHpAction>(json!({"kind":"damage","amount":12}))
+                .is_err()
+        );
+        assert!(
+            serde_json::from_value::<EncounterHpAction>(
+                json!({"kind":"heal","amount":"2","defeated":false})
+            )
+            .is_err()
+        );
+    }
 
     #[test]
     fn participant_edit_revision_is_required_and_round_trips_as_a_json_integer() {
