@@ -28,6 +28,7 @@ export function ChoicePicker({
   children,
   emptyMessage = "No matching values",
   labelForValue = (value) => value,
+  counts,
 }: {
   label: string;
   id: string;
@@ -44,6 +45,7 @@ export function ChoicePicker({
   children?: ReactNode;
   emptyMessage?: ReactNode;
   labelForValue?: (value: string) => string;
+  counts?: ReadonlyMap<string, bigint>;
 }) {
   const { token } = theme.useToken();
   const [sessionValues, setSessionValues] = useState<string[]>([]);
@@ -151,6 +153,14 @@ export function ChoicePicker({
                 ) : null}
               </span>
               <span className="common-choice-label">{option.label}</span>
+              {counts?.has(option.value) && (
+                <Typography.Text
+                  type="secondary"
+                  aria-label={`${counts.get(option.value)} matching records`}
+                >
+                  {new Intl.NumberFormat().format(counts.get(option.value)!)}
+                </Typography.Text>
+              )}
             </Button>
           );
         })}

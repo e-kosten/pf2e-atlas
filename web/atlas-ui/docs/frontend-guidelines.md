@@ -37,7 +37,7 @@ request/cache/response identity. It preserves submitted criteria, unfinished
 controls, exact reference reading, scroll positions and explicit picker candidates
 and Add forms. It does not advance the artifact epoch or retire shared detail,
 graph, catalog, vocabulary, saved-list or encounter caches. Contextual discovery
-carries profile and known generation; ordinary contextual counts remain disabled.
+carries profile and known generation; option counts load only for active pickers.
 
 ## Boundaries
 
@@ -329,15 +329,24 @@ At narrow group widths, keep operation and Remove together with a full-width
 value beneath; use the group's available width so nested rules also fit.
 Do not offer another collection scope inside an existing Exists condition.
 
-Contextual option counts are deferred; ordinary filter editing does not request
-them or display unavailable-count notices. The backend count contract remains
-available for the planned restoration. Open values
+Contextual option counts are optional annotations for the active categorical
+picker's displayed page and retained selections, bounded by catalog limits.
+They count distinct eligible parent records for each replacement value, preserving
+other conditions, same-child witnesses and edition preference. A multi-selection's
+count is for one replacement literal, rather than the union with current selections.
+Count requests retain profile/generation identity and cancellation; an incomplete
+draft, text search or Similar mode keeps count-free choices. Unsupported target
+contexts and count errors leave annotations absent without warnings or disabled
+choices. Missing counts never become zero. Catalog loading does not request counts.
+Open values
 use explicit count-free vocabulary requests with artifact or saved-list scope,
 server search and bounded paging; selected literals remain visible separately
 from suggestion pages. Common pickers show concise totals as values, never result
 counts, with an optional plain saved-list scope label. Advanced value controls
 retain their scoped vocabulary explanation, including legacy entries.
-Closed choices use catalog labels without values requests. The adapter does not
+Closed choices use catalog labels without values requests. Optional counts never
+change vocabulary order, retained selections, paging or suggestion totals.
+The adapter does not
 parse CEL, infer fields from records, or decide contextual capability in React.
 Reject unsafe integer input before creating numeric literals.
 

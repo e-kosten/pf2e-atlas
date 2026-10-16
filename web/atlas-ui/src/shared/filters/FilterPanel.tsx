@@ -88,13 +88,20 @@ export function FilterControls({
     [editor],
   );
   const prepared = useFilterEditor(search, fields, setSearch);
+  const countWorkspace = {
+    ...workspace,
+    filterCountsEnabled:
+      workspace.filterCountsEnabled !== false &&
+      !prepared.error &&
+      search.mode !== "similar_records",
+  };
   const advancedEditor =
     editor && prepared.query ? (
       <StructuredBuilder
         editor={editor}
         query={prepared.query}
         onChange={prepared.change}
-        workspace={workspace}
+        workspace={countWorkspace}
       />
     ) : null;
   const commonLayout = layout === "panel" ? "panel" : "toolbar";
@@ -151,7 +158,7 @@ export function FilterControls({
                     field.definition,
                   );
               }}
-              workspace={workspace}
+              workspace={countWorkspace}
               onAdvanced={() => setAdvanced(true)}
             />
           ) : null;
@@ -328,6 +335,10 @@ function CommonFilter({
           field={field}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+          countContext={workspace.filterDiscoveryContext}
+          countsEnabled={workspace.filterCountsEnabled !== false}
+          countQueryKey={workspace.filterCountQueryKey}
+          countLimit={workspace.filterEditor?.limits.literal_list ?? 0}
           onChange={update}
         />
       )}
@@ -648,6 +659,11 @@ function BuilderValueEditor(props: ValueEditorProps) {
           value={props.value}
           onChange={props.handleOnChange}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+          countContext={workspace.filterDiscoveryContext}
+          countsEnabled={workspace.filterCountsEnabled !== false}
+          countQueryKey={workspace.filterCountQueryKey}
+          countLimit={workspace.filterEditor?.limits.literal_list ?? 0}
+          clauseId={String(props.rule.id)}
         />
       </Form.Item>
     </div>

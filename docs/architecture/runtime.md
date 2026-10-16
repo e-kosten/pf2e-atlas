@@ -207,6 +207,13 @@ keys; search forwards scope without embedding; index enumerates known applicable
 product values before edition preference. Empty membership remains empty, and
 retained selections do not inflate suggestion totals. Contextual counts retain
 their exact same-child/counterfactual/remaster and bounded-candidate semantics.
+The app counts operation accepts a bounded explicit literal page, independently
+of vocabulary enumeration. It uses the same index-owned counterfactual compiler
+and counts distinct displayed roots for each replacement literal. Text context
+returns optional unavailability before inference, after field/literal/target
+validation. Raw CLI field counts retain availability states and numeric extrema.
+Shared browser pickers request optional counts only while open, retaining their
+independent vocabulary when counts are unavailable or fail.
 
 Index owns useful human labels alongside executable filter definitions.
 App-service adds collection-context prefixes, groups, choice and operator labels

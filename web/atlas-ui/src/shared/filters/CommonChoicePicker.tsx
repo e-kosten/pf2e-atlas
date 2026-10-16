@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type {
   FilterEditorFieldView,
   FilterVocabularyScope,
+  FilterDiscoveryContext,
   QueryPredicate,
 } from "../../generated/atlas";
 import { sentenceCase } from "../ui/labels";
@@ -13,7 +14,12 @@ import {
   choiceValueState,
   conditionValues,
 } from "./filterControls";
-import { useFilterVocabulary, VOCABULARY_PAGE_SIZE } from "./useFilterDiscovery";
+import {
+  findClauseIds,
+  useFilterOptionCounts,
+  useFilterVocabulary,
+  VOCABULARY_PAGE_SIZE,
+} from "./useFilterDiscovery";
 
 /** Backend-owned categorical fields adapt vocabulary and clauses to the shared picker. */
 export function CommonChoicePicker({
@@ -21,11 +27,19 @@ export function CommonChoicePicker({
   clause,
   scope,
   onChange,
+  countContext,
+  countsEnabled = true,
+  countQueryKey,
+  countLimit = 0,
 }: {
   field: FilterEditorFieldView;
   clause: QueryPredicate | null;
   scope: FilterVocabularyScope;
   onChange: (next: QueryPredicate | null) => void;
+  countContext?: FilterDiscoveryContext;
+  countsEnabled?: boolean;
+  countQueryKey?: readonly unknown[];
+  countLimit?: number;
 }) {
   const selected = choiceClauses(clause).flatMap(conditionValues);
   const [open, setOpen] = useState(false);
@@ -54,12 +68,42 @@ export function CommonChoicePicker({
         value: String(option.value),
         label: sentenceCase(String(option.value)),
       }));
+  const ids = findClauseIds(
+    countContext?.filter ?? null,
+    field.definition.path,
+    field.definition.scope,
+  );
+  const counts = useFilterOptionCounts(
+    countContext,
+    field.definition.id,
+    ids[0] ?? null,
+    [
+      ...new Set([
+        ...selected,
+        ...choices
+          .filter(
+            (choice) =>
+              !closedChoices ||
+              choice.label.toLowerCase().includes(text.trim().toLowerCase()),
+          )
+          .map((choice) => choice.value),
+      ]),
+    ],
+    open &&
+      countsEnabled &&
+      ids.length <= 1 &&
+      (closedChoices || !!query.data) &&
+      !query.isPlaceholderData,
+    countLimit,
+    countQueryKey,
+  );
   return (
     <ChoicePicker
       labelForValue={sentenceCase}
       id={field.definition.id}
       label={field.label}
       choices={choices}
+      counts={counts}
       selected={selected}
       stateOf={(value) => choiceValueState(clause, value)}
       onChange={(value, state) =>

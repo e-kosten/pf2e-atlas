@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { assertSearchIdentity } from "../search/searchIdentity";
 import {
   discoverFilterCounts,
@@ -39,14 +39,12 @@ export function findClauseIds(
 export function useFilterDiscovery({
   context,
   enabled = true,
-  countsEnabled = false,
   queryKeyPrefix,
   catalogIdentity = [],
   vocabularyScope = { kind: "artifact" },
 }: {
   context: FilterDiscoveryContext;
   enabled?: boolean;
-  countsEnabled?: boolean;
   queryKeyPrefix: readonly unknown[];
   catalogIdentity?: readonly unknown[];
   vocabularyScope?: FilterVocabularyScope;
@@ -57,50 +55,63 @@ export function useFilterDiscovery({
     staleTime: Infinity,
     queryFn: ({ signal }) => discoverFilterEditor({ selected_field_ids: [] }, signal),
   });
-  const definitions = (editor.data?.groups ?? []).flatMap((group) =>
-    group.fields.map((field) => field.definition),
-  );
-  const requests = (countsEnabled ? definitions : []).flatMap((field) =>
-    findClauseIds(context.filter, field.path, field.scope).map((clauseId) => ({
-      fieldId: field.id,
-      clauseId,
-    })),
-  );
-  const counts = useQueries({
-    queries: requests.map(({ fieldId, clauseId }) => ({
-      queryKey: [...queryKeyPrefix, "counts", context, fieldId, clauseId],
-      enabled: enabled && !editor.isPlaceholderData,
-      queryFn: async ({ signal }: { signal: AbortSignal }) => {
-        const response = await discoverFilterCounts(
-          { context, field_id: fieldId, clause_id: clauseId },
-          signal,
-        );
-        assertSearchIdentity(
-          response,
-          context.search_profile,
-          context.expected_artifact_generation,
-        );
-        return response;
-      },
-    })),
-  });
   return {
     filterEditor: editor.data,
-    filterCountsByField: Object.fromEntries(
-      requests.map(({ fieldId, clauseId }, index) => [
-        clauseId ? `${fieldId}:${clauseId}` : fieldId,
-        counts[index]?.data,
-      ]),
-    ),
+    filterCountsEnabled: enabled,
+    filterCountQueryKey: queryKeyPrefix,
     filterDiscoveryContext: context,
     vocabularyScope,
-    loading:
-      editor.isLoading || editor.isFetching || counts.some((query) => query.isFetching),
-    errorMessage:
-      editor.error?.message ??
-      counts.find((query) => query.error)?.error?.message ??
-      null,
+    loading: editor.isLoading || editor.isFetching,
+    errorMessage: editor.error?.message ?? null,
   };
+}
+
+/** Optional counts never own vocabulary or control whether a value is selectable. */
+export function useFilterOptionCounts(
+  context: FilterDiscoveryContext | undefined,
+  fieldId: string,
+  clauseId: string | null,
+  values: QueryLiteral[],
+  enabled: boolean,
+  literalLimit: number,
+  queryKeyPrefix: readonly unknown[] = [],
+) {
+  const literals = [...new Set(values)].slice(0, literalLimit);
+  const query = useQuery({
+    queryKey: [
+      ...(queryKeyPrefix.length ? queryKeyPrefix : ["filter-discovery"]),
+      "option-counts",
+      context,
+      fieldId,
+      clauseId,
+      literals,
+      enabled,
+    ],
+    enabled: enabled && !!context && !context.text?.trim() && literals.length > 0,
+    retry: false,
+    queryFn: async ({ signal }) => {
+      if (!context) throw new Error("Missing filter count context");
+      const response = await discoverFilterCounts(
+        { context, field_id: fieldId, clause_id: clauseId, values: literals },
+        signal,
+      );
+      assertSearchIdentity(
+        response,
+        context.search_profile,
+        context.expected_artifact_generation,
+      );
+      return response;
+    },
+  });
+  const counts = query.data?.counts;
+  return counts?.status === "available" && !query.error && enabled
+    ? new Map(
+        counts.value.options.map((option) => [
+          String(option.value),
+          option.distinct_roots,
+        ]),
+      )
+    : new Map<string, bigint>();
 }
 
 export const VOCABULARY_PAGE_SIZE = 40;
