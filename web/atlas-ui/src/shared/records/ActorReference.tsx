@@ -446,37 +446,36 @@ export function ActorSecondaryFacts({
       ].some((fact) => hasReadingFact(fact as FactView<unknown>)))
   )
     return null;
+  if (hazard)
+    return (
+      <Collapse
+        size="small"
+        ghost
+        items={[
+          {
+            key: "runtime",
+            label: "Runtime details",
+            children: <ActorRuntime actor={actor} detailsOnly />,
+          },
+        ]}
+      />
+    );
   return (
-    <Collapse
-      size="small"
-      ghost
-      items={[
-        {
-          key: "more-facts",
-          label: hazard ? "Runtime details" : "More creature facts",
-          children: (
-            <div className="actor-reference__secondary">
-              {!hazard && (
-                <>
-                  <FactLine
-                    label="Perception details"
-                    fact={actor.perception_details}
-                  />
-                  <FactLine
-                    label="Languages"
-                    fact={actor.languages}
-                    format={(value) => value.join(", ")}
-                  />
-                  <FactLine label="Communication" fact={actor.language_details} />
-                  <ActorSkills actor={actor} />
-                </>
-              )}
-              <ActorRuntime actor={actor} detailsOnly />
-            </div>
-          ),
-        },
-      ]}
-    />
+    <section className="actor-reference__secondary">
+      {!hazard && (
+        <>
+          <FactLine label="Perception details" fact={actor.perception_details} />
+          <FactLine
+            label="Languages"
+            fact={actor.languages}
+            format={(value) => value.join(", ")}
+          />
+          <FactLine label="Communication" fact={actor.language_details} />
+          <ActorSkills actor={actor} />
+        </>
+      )}
+      <ActorRuntime actor={actor} detailsOnly />
+    </section>
   );
 }
 

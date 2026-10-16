@@ -197,6 +197,10 @@ test("encounter references retain their owner, scroll and native destination", a
       ).ok(),
     ).toBeTruthy();
     await page.goto(`/encounters/${encounter.slug}`);
+    if ((page.viewportSize()?.width ?? 1440) < 768) {
+      await activate(page.locator("[data-participant-key]").first(), info);
+      await expect(page.getByRole("button", { name: "Back to roster" })).toBeVisible();
+    }
     await activate(page.getByRole("link", { name: "Signal Pulse", exact: true }), info);
     const content = page.getByLabel(
       info.project.name === "desktop-chromium"
@@ -264,8 +268,9 @@ test("encounter references retain their owner, scroll and native destination", a
     let writes = 0;
     page.on("request", (request) => {
       if (
-        request.method() === "PATCH" &&
-        new URL(request.url()).pathname.startsWith(`${path}/participants/`)
+        request.method() === "POST" &&
+        new URL(request.url()).pathname.startsWith(`${path}/participants/`) &&
+        new URL(request.url()).pathname.endsWith("/hp")
       )
         writes++;
     });
@@ -292,6 +297,154 @@ test("encounter references retain their owner, scroll and native destination", a
     await expect(feedback).toBeHidden();
     await expect(hp).toHaveValue("55");
     expect(writes).toBe(1);
+    await noPageOverflow(page);
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
+
+test("encounter roster, repeated Add, settings focus and HP intents survive narrow layouts", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Workflow ${info.project.name} ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/record`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            record_ref: sentinel,
+            quantity: 8,
+            initiative: 12,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    for (const [index, name] of [
+      "Mira",
+      "Tamsin the Lantern Keeper",
+      "Corin",
+      "Vel",
+    ].entries()) {
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: {
+              encounter_ref: encounter.encounter_key,
+              display_name: name,
+              max_hp: 40,
+              initiative: 20 - index,
+            },
+          })
+        ).ok(),
+      ).toBeTruthy();
+    }
+    await page.goto(`/encounters/${encounter.slug}`);
+    const row = page
+      .locator("[data-participant-key]")
+      .filter({ hasText: "Tamsin the Lantern Keeper" });
+    await row.scrollIntoViewIfNeeded();
+    if (info.project.use.hasTouch) await row.tap();
+    else {
+      await row.focus();
+      await page.keyboard.press("Enter");
+    }
+    await expect(page.getByRole("textbox", { name: "HP", exact: true })).toBeVisible();
+    const back = page.getByRole("button", { name: "Back to roster", exact: true });
+    if (await back.isVisible()) {
+      await activate(back, info);
+      await expect(row).toBeFocused();
+      await expect(row).toBeInViewport();
+    }
+    await activate(
+      page.getByRole("button", {
+        name: "Actions for Tamsin the Lantern Keeper",
+        exact: true,
+      }),
+      info,
+    );
+    await activate(page.getByRole("menuitem", { name: /Move before/ }), info);
+    await expect(
+      page.getByRole("button", { name: "Add PC", exact: true }),
+    ).toBeEnabled();
+    await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
+    await activate(
+      page
+        .getByRole("dialog", { name: "Add PC", exact: true })
+        .getByRole("button", { name: "Cancel", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      info,
+    );
+    const settings = page.getByRole("dialog", {
+      name: "Encounter settings",
+      exact: true,
+    });
+    await activate(settings.locator("label").filter({ hasText: /^Name$/ }), info);
+    await expect(
+      settings.getByRole("textbox", { name: "Name", exact: true }),
+    ).toBeFocused();
+    await activate(settings.getByRole("button", { name: "Cancel", exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "Add Creature", exact: true }),
+      info,
+    );
+    const picker = page.getByRole("dialog", {
+      name: "Add creature or hazard",
+      exact: true,
+    });
+    await activate(picker.locator(`[data-record-key="${sentinel}"]`).first(), info);
+    await picker.getByLabel("Quantity", { exact: true }).fill("2");
+    await picker.getByLabel("Initiative", { exact: true }).fill("7");
+    await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
+    await expect(picker.getByRole("status")).toContainText("Added 2 × Atlas Sentinel");
+    await expect(picker.getByLabel("Quantity", { exact: true })).toHaveValue("1");
+    await expect(picker.getByLabel("Initiative", { exact: true })).toHaveValue("");
+    await expect(
+      picker.getByRole("button", { name: "Add", exact: true }),
+    ).toBeEnabled();
+    await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
+    await expect(picker.getByRole("status")).toContainText("Added 1 × Atlas Sentinel");
+    await activate(picker.getByRole("button", { name: "Done", exact: true }), info);
+    await activate(page.getByRole("button", { name: "Start turn", exact: true }), info);
+    await expect
+      .poll(
+        async () =>
+          (await (await page.request.get(path)).json()).current_turn_participant_key,
+      )
+      .toBeTruthy();
+    const view = await (await page.request.get(path)).json();
+    await expect(
+      page.locator(".encounter-record-pane").getByRole("heading", {
+        name: view.participants.find(
+          (p: { participant_key: string }) =>
+            p.participant_key === view.current_turn_participant_key,
+        ).display_name,
+        exact: true,
+      }),
+    ).toBeVisible();
+    const amount = page.getByRole("textbox", { name: "HP change", exact: true });
+    await amount.fill("4 + 2");
+    await amount.press("Enter");
+    expect(
+      (await (await page.request.get(path)).json()).participants.find(
+        (p: { participant_key: string }) =>
+          p.participant_key === view.current_turn_participant_key,
+      ).current_hp,
+    ).toBe(40);
+    await activate(page.getByRole("button", { name: "Damage", exact: true }), info);
+    await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
+      "34",
+    );
+    if (info.project.name === "desktop-chromium")
+      await page.setViewportSize({ width: 320, height: 700 });
     await noPageOverflow(page);
   } finally {
     expect((await page.request.delete(path)).ok()).toBeTruthy();

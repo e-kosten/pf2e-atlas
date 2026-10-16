@@ -314,7 +314,12 @@ The encounter chooser shares browsing/reading without copying search state or
 mutation rules. Following references changes the reader, not the Add candidate.
 Provide Return to selection, preserve quantity/initiative through retrieval and
 Add failures, and disable competing actions during Add. Only the encounter owner
-commits the explicit candidate. Reset the chooser after successful close.
+commits the explicit candidate. Successful encounter additions keep the chooser
+open with Done, retain the candidate for another addition and reset quantity and
+initiative only after canonical refresh. Report the completed addition without
+adding selection captions or empty-selection prompt rows. Reset the chooser after
+close; a committed-write refresh failure retains the submitted draft until Retry
+loads current state. Consume that recovery once rather than resetting later edits.
 
 The web product uses hybrid text retrieval and filter-only browsing. Retrieval
 options are not browser criteria or URL overrides; CLI modes remain independent.
@@ -494,9 +499,10 @@ a fresh request without seeding immutable reference caches.
 Participant/generation changes, disappearance and unresolved sources remain
 explicit without baseline-detail fallback. Keep the native full reference link,
 ready-lifecycle initial focus, nested source-modal Escape and original trigger
-focus recovery. Keep secondary
-encounter facts below usable actions in a local disclosure rather than placing
-all reference facts before the combat actions. Selected casting entries show their checked parent and
+focus recovery. Later encounter facts use visible Languages and compact Ability
+modifiers before Skills, with the shared family availability/empty-value policy.
+Keep these useful reference facts after combat actions without an opaque
+catch-all disclosure. Selected casting entries show their checked parent and
 associated customized spells; base and authored cast ranks do not imply executed
 rank or form changes. A hazard's backend defense-block fact controls its primary
 AC/HP/hardness display; keep independent zero saves and unavailable facts intact.
@@ -548,8 +554,20 @@ Atlas-owned classes describe product layout rather than internal Ant DOM.
 ## Mutable workflows
 
 Source content in an encounter loads only on explicit request. HP mutations
-carry explicit edit intent; unknown current HP disables arithmetic and remains
-unknown until explicitly set.
+carry an explicit action, raw integer/addition/subtraction input and the read
+participant revision. Rust interprets formulas, damage/healing and correction
+intent. Damage and Heal use separate buttons with nonnegative evaluated amounts;
+Enter in Amount does not mutate. Unknown current HP disables amount operations
+and remains unknown until explicitly set. Display-only HP meter ratios stay local.
+
+The roster presents initiative, participant and HP in compact labelled columns,
+with distinct selected, current-turn and defeated states. Accessible movement
+actions disclose the target initiative. Phone layouts drill into a selected
+participant and restore roster focus/scroll on Back. Advancing the turn follows
+the canonical server-selected participant in the reader; ordinary selection does
+not change the turn. Use distinct Encounter settings, Participant settings and HP
+settings, with Adjustment aligned below identity. Mounted Ant forms need distinct
+names so their visible labels focus the correct inputs.
 
 Whole-list deletion and saved-member removal use the shared contextual danger
 confirmation and await their action. Keep membership/order semantics in the list

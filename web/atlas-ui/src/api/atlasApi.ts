@@ -194,6 +194,16 @@ export async function addEncounterManualParticipant(
   );
 }
 
+export async function applyEncounterHpAction(
+  encounterRef: string,
+  request: import("../generated/atlas").ApplyEncounterHpActionRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/hp`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
 export async function updateEncounterParticipant(
   encounterRef: string,
   request: UpdateEncounterParticipantRequest,

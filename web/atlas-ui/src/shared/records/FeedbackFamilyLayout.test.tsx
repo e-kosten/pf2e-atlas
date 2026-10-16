@@ -33,15 +33,15 @@ it("keeps encounter essentials before strikes and secondary facts available with
   );
   expect(screen.getByText("AC")).toBeVisible();
   expect(screen.getByText("25 feet")).toBeVisible();
-  expect(screen.queryByText("Stealth")).toBeNull();
-  expect(screen.queryByText("Necril")).toBeNull();
-  const more = screen.getByRole("button", { name: "More creature facts" });
+  expect(screen.getByText("Stealth")).toBeVisible();
+  expect(screen.getByText("Necril")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "More creature facts" })).toBeNull();
   expect(
-    screen.getByRole("link", { name: "Jaws" }).compareDocumentPosition(more) &
+    screen
+      .getByRole("link", { name: "Jaws" })
+      .compareDocumentPosition(screen.getByText("Necril")) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
-  fireEvent.click(more);
-  await waitFor(() => expect(screen.getByText("Stealth")).toBeVisible());
   expect(screen.getByText("Stealth").parentElement).toHaveTextContent("+0");
   expect(screen.getByText("Necril")).toBeVisible();
   expect(screen.getAllByText("AC")).toHaveLength(1);

@@ -1,4 +1,5 @@
 import {
+  applyEncounterHpAction,
   getReadiness,
   getRecordDetail,
   getRelatedRecords,
@@ -28,11 +29,7 @@ import type {
   EncounterMutationView,
   UpdateEncounterParticipantRequest,
 } from "../generated/atlas";
-import {
-  damageChanges,
-  healChanges,
-  participantUpdate,
-} from "../features/encounters/participantEdits";
+import { participantUpdate } from "../features/encounters/participantEdits";
 import { detailFixture } from "../test/fixtures";
 const fetchMock = vi.fn();
 beforeEach(() => {
@@ -155,7 +152,7 @@ describe("source-backed API transport", () => {
     status: "active",
     note_hint: null,
   };
-  it("normalizes actual HTTP encounter integers before Damage and Heal", async () => {
+  it("normalizes actual HTTP encounter integers for display and revision-bound edits", async () => {
     respond({ encounter: { round_number: 1 }, participants: [participantJson] });
     const detail = await getEncounter("test");
     const participant = detail.participants[0];
@@ -170,8 +167,6 @@ describe("source-backed API transport", () => {
       temporary_hp: 0n,
       conditions: [{ condition_id: 9n, value: 1n, duration_rounds: 4n }],
     });
-    expect(damageChanges(participant, 1).current_hp).toBe(19n);
-    expect(healChanges(participant, 1).current_hp).toBe(21n);
     respond({ encounter_key: "encounter-test" });
     expect(
       await updateEncounterParticipant(
@@ -319,6 +314,26 @@ describe("source-backed API transport", () => {
       expect(fetchMock).toHaveBeenCalledWith(path, expect.objectContaining({ method }));
     },
   );
+  it("sends HP intent and formula text unchanged with the participant revision", async () => {
+    respond({ encounter_key: "encounter-test" });
+    await expect(
+      applyEncounterHpAction("test", {
+        participant_key: "ghoul",
+        expected_revision: 7n,
+        action: { kind: "damage", amount: " 10 - 3 " },
+      }),
+    ).resolves.toEqual({ encounter_key: "encounter-test" });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/encounters/test/participants/ghoul/hp",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      participant_key: "ghoul",
+      expected_revision: 7,
+      action: { kind: "damage", amount: " 10 - 3 " },
+    });
+  });
   it("preserves typed stale-participant conflicts without retrying", async () => {
     const conflict = {
       code: "encounter_participant_conflict",
@@ -349,8 +364,6 @@ describe("source-backed API transport", () => {
     respond({ encounter: { round_number: 1 }, participants: [unknown] });
     const participant = (await getEncounter("test")).participants[0];
     expect(participant.current_hp).toBeUndefined();
-    expect(damageChanges(participant, 1)).toEqual({});
-    expect(healChanges(participant, 1)).toEqual({});
     for (const invalid of [
       Number.MAX_SAFE_INTEGER + 1,
       Number.MIN_SAFE_INTEGER - 1,

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import {
+  applyEncounterHpAction,
   addEncounterManualParticipant,
   addEncounterParticipantCondition,
   addEncounterRecordParticipant,
@@ -16,6 +17,8 @@ import {
   updateEncounterParticipantCondition,
 } from "../../api/atlasApi";
 import type {
+  ApplyEncounterHpActionRequest,
+  EncounterDetailView,
   AddEncounterManualParticipantRequest,
   AddEncounterParticipantConditionRequest,
   AddEncounterRecordParticipantRequest,
@@ -26,6 +29,7 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
+  | { kind: "hp"; request: ApplyEncounterHpActionRequest }
   | { kind: "metadata"; request: UpdateEncounterRequest }
   | { kind: "participant"; request: UpdateEncounterParticipantRequest }
   | { kind: "add-record"; request: AddEncounterRecordParticipantRequest }
@@ -57,6 +61,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   const [refreshOrigin, setRefreshOrigin] = useState<"saved" | "conflict">("saved");
   const [refreshing, setRefreshing] = useState(false);
   const refreshKey = useRef<string | undefined>(undefined);
+  const refreshedView = useRef<EncounterDetailView | undefined>(undefined);
   const currentRef = encounterKey ?? encounterRef;
   const refresh = async (key = refreshKey.current ?? currentRef) => {
     await queryClient.invalidateQueries({ queryKey: ["encounters"] });
@@ -75,13 +80,16 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     });
     queryClient.setQueryData(["encounter", encounterRef], view);
     setRefreshError(null);
+    return view;
   };
   const attemptRefresh = async (encounterKey?: string) => {
     try {
-      await refresh(encounterKey);
+      refreshedView.current = await refresh(encounterKey);
       refreshSucceeded.current = true;
+      return refreshedView.current;
     } catch (error) {
       refreshSucceeded.current = false;
+      refreshedView.current = undefined;
       setRefreshError(
         error instanceof Error ? error : new Error("Encounter refresh failed"),
       );
@@ -91,6 +99,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     retry: false,
     mutationFn: (command: EncounterMutationCommand) => {
       switch (command.kind) {
+        case "hp":
+          return applyEncounterHpAction(currentRef, command.request);
         case "metadata":
           return updateEncounter(command.request);
         case "participant":
@@ -167,7 +177,12 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     inFlight.current = true;
     try {
       const receipt = await mutation.mutateAsync(command);
-      return { receipt, refreshed: refreshSucceeded.current, active: active.current };
+      return {
+        receipt,
+        refreshed: refreshSucceeded.current,
+        active: active.current,
+        view: refreshedView.current,
+      };
     } finally {
       inFlight.current = false;
     }
@@ -177,7 +192,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     inFlight.current = true;
     setRefreshing(true);
     try {
-      await attemptRefresh();
+      return await attemptRefresh();
     } finally {
       inFlight.current = false;
       setRefreshing(false);

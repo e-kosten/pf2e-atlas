@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button } from "antd";
+import { Alert, Button, Grid } from "antd";
 import { Edit2 } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
 import type { EncounterSummaryView } from "../../generated/atlas";
 import { useEncounterMutations } from "./useEncounterMutations";
@@ -28,6 +28,28 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
 }
 function EncounterDetail({ route }: EncounterDetailViewProps) {
   const confirmDangerAction = useConfirmDangerAction();
+  const screens = Grid.useBreakpoint();
+  const narrow = screens.md === false;
+  const [participantOpen, setParticipantOpen] = useState(false);
+  const host = useRef<HTMLDivElement>(null);
+  const rosterPosition = useRef({ page: 0, pane: 0 });
+  const focusDestination = useRef<"participant" | "roster" | null>(null);
+  const followAfterRefresh = useRef(false);
+  useLayoutEffect(() => {
+    const destination = focusDestination.current;
+    if (!destination) return;
+    focusDestination.current = null;
+    if (destination === "participant") {
+      host.current?.querySelector<HTMLElement>(".encounter-record-pane")?.focus();
+    } else {
+      const pane = host.current?.querySelector<HTMLElement>(".encounter-roster");
+      if (pane) pane.scrollTop = rosterPosition.current.pane;
+      window.scrollTo({ top: rosterPosition.current.page });
+      host.current
+        ?.querySelector<HTMLElement>("[data-participant-key][aria-pressed=true]")
+        ?.focus({ preventScroll: true });
+    }
+  }, [participantOpen, narrow]);
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
@@ -66,6 +88,37 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     presentation: selected?.presentation,
     reloadEncounter: () => encounter.refetch({ throwOnError: true }),
   });
+  const revealParticipant = (key: string) => {
+    setSelectedParticipantKey(key);
+    recordPreview.close();
+    setParticipantOpen(true);
+    if (narrow) {
+      if (!participantOpen) {
+        rosterPosition.current = {
+          page: window.scrollY,
+          pane: host.current?.querySelector(".encounter-roster")?.scrollTop ?? 0,
+        };
+      }
+      focusDestination.current = "participant";
+      if (participantOpen)
+        host.current?.querySelector<HTMLElement>(".encounter-record-pane")?.focus();
+    }
+  };
+  const followTurn = (view: typeof encounter.data) => {
+    if (view?.current_turn_participant_key) {
+      revealParticipant(view.current_turn_participant_key);
+      followAfterRefresh.current = false;
+    }
+  };
+  const advanceTurn = async () => {
+    followAfterRefresh.current = true;
+    try {
+      const result = await mutations.run({ kind: "turn" });
+      if (result.active && result.refreshed) followTurn(result.view);
+    } catch {
+      followAfterRefresh.current = false;
+    }
+  };
   const encounterSummary = encounter.data?.encounter ?? null;
   const updateEncounterStatus = async (status: EncounterSummaryView["status"]) => {
     if (!encounterSummary) {
@@ -85,8 +138,32 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     setEditEncounterOpen(false);
   };
 
+  const recovery = mutations.refreshError ? (
+    <Alert
+      type="error"
+      title={mutations.refreshMessage}
+      description={mutations.refreshError.message}
+      action={
+        <Button
+          loading={mutations.pending}
+          disabled={mutations.pending}
+          onClick={() =>
+            void mutations.retryRefresh().then((view) => {
+              if (followAfterRefresh.current) followTurn(view);
+            })
+          }
+        >
+          Retry encounter refresh
+        </Button>
+      }
+    />
+  ) : null;
+
   return (
-    <div className="encounter-detail-view">
+    <div
+      ref={host}
+      className={`encounter-detail-view${participantOpen ? " encounter-detail-view--participant" : ""}`}
+    >
       <div>
         <section className="encounter-detail-header">
           <div>
@@ -100,12 +177,12 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             </p>
           </div>
           <Button
-            aria-label="Edit encounter"
+            aria-label="Encounter settings"
             disabled={disabled}
             icon={<Edit2 size={14} />}
             onClick={() => setEditEncounterOpen(true)}
           >
-            Edit
+            Encounter settings
           </Button>
         </section>
         {encounter.error && !mutations.refreshError && (
@@ -123,21 +200,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             }
           />
         )}
-        {mutations.refreshError && (
-          <Alert
-            type="error"
-            title={mutations.refreshMessage}
-            description={mutations.refreshError.message}
-            action={
-              <Button
-                loading={mutations.pending}
-                onClick={() => void mutations.retryRefresh()}
-              >
-                Retry encounter refresh
-              </Button>
-            }
-          />
-        )}
+        {recovery}
         {mutations.error && (
           <Alert
             type="error"
@@ -146,18 +209,41 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           />
         )}
       </div>
+      {narrow && participantOpen && (
+        <div className="encounter-mobile-navigation">
+          <Button
+            onClick={() => {
+              focusDestination.current = "roster";
+              setParticipantOpen(false);
+              recordPreview.close();
+            }}
+          >
+            Back to roster
+          </Button>
+          <Button disabled={disabled} onClick={() => void advanceTurn()}>
+            Next turn
+          </Button>
+        </div>
+      )}
       <WorkspaceLayout
         filter={
           <EncounterRosterPane
+            recovery={recovery}
             disabled={disabled}
             error={mutations.errorMessage}
             currentTurnParticipantKey={
               encounter.data?.current_turn_participant_key ?? null
             }
             loading={encounter.isLoading}
-            onAddRecord={(request) => mutations.run({ kind: "add-record", request })}
-            onAddManual={(request) => mutations.run({ kind: "add-manual", request })}
-            onAdvanceTurn={() => void mutations.run({ kind: "turn" }).catch(() => {})}
+            onAddRecord={async (request) => {
+              const result = await mutations.run({ kind: "add-record", request });
+              return result.active && result.refreshed;
+            }}
+            onAddManual={async (request) => {
+              const result = await mutations.run({ kind: "add-manual", request });
+              return result.active && result.refreshed;
+            }}
+            onAdvanceTurn={() => void advanceTurn()}
             onRemove={(participant) =>
               confirmDangerAction({
                 title: `Remove ${participant.display_name}?`,
@@ -170,10 +256,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   }),
               })
             }
-            onSelect={(participantKey) => {
-              setSelectedParticipantKey(participantKey);
-              recordPreview.close();
-            }}
+            onSelect={revealParticipant}
             onReorder={(participantKey, targetParticipantKey, placement) =>
               void mutations
                 .run({
@@ -199,6 +282,17 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
         }
         results={
           <EncounterInspectorPane
+            onHpAction={async (participant, action) => {
+              const result = await mutations.run({
+                kind: "hp",
+                request: {
+                  participant_key: participant.participant_key,
+                  expected_revision: participant.revision,
+                  action,
+                },
+              });
+              return result.active && result.refreshed;
+            }}
             disabled={disabled}
             conditionsDisabled={
               conditionDefinitions.isPending || !!conditionDefinitions.error
