@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   activate,
   landedSearch,
@@ -357,6 +357,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     await expect(page.getByRole("textbox", { name: "HP", exact: true })).toBeVisible();
     const back = page.getByRole("button", { name: "Back to roster", exact: true });
     if (await back.isVisible()) {
+      await expectParticipantWidth(page);
       await activate(back, info);
       await expect(row).toBeFocused();
       await expect(row).toBeInViewport();
@@ -445,8 +446,27 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     );
     if (info.project.name === "desktop-chromium")
       await page.setViewportSize({ width: 320, height: 700 });
+    if (await back.isVisible()) await expectParticipantWidth(page);
     await noPageOverflow(page);
   } finally {
     expect((await page.request.delete(path)).ok()).toBeTruthy();
   }
 });
+
+async function expectParticipantWidth(page: Page) {
+  // Visibility and document overflow do not catch a contained flex item
+  // collapsing to its padding while its parent remains full width.
+  await expect
+    .poll(async () => {
+      const reader = await page.locator(".encounter-record-pane").boundingBox();
+      const parent = await page.locator(".workspace-pane--results").boundingBox();
+      if (!reader || !parent || parent.width === 0) return 0;
+      return reader.width / parent.width;
+    })
+    .toBeGreaterThan(0.95);
+  const reader = (await page.locator(".encounter-record-pane").boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(reader.width).toBeGreaterThan(viewport.width * 0.8);
+  expect(reader.x).toBeGreaterThanOrEqual(0);
+  expect(reader.x + reader.width).toBeLessThanOrEqual(viewport.width + 1);
+}

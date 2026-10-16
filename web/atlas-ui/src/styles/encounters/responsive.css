@@ -46,7 +46,7 @@
   }
 
   .encounter-detail-view--participant .workspace-pane--results {
-    display: flex;
+    display: block;
   }
 
   .encounter-detail-view .pane-header {

@@ -107,6 +107,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   const followTurn = (view: typeof encounter.data) => {
     if (view?.current_turn_participant_key) {
       revealParticipant(view.current_turn_participant_key);
+      const reader = host.current?.querySelector<HTMLElement>(".encounter-record-pane");
+      if (reader) reader.scrollTop = 0;
       followAfterRefresh.current = false;
     }
   };
