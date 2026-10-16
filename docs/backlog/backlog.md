@@ -14,6 +14,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Responsive UI validation](items/responsive-ui-validation.md)
+  Make responsive UX principles and real-app Chromium/WebKit phone/tablet/desktop
+  browser checks repeatable, with CI and explicit visual/device evidence. Status: in_progress.
+
 - [Selective integration feature review](items/rust-integration-recovery.md)
   Review useful earlier integration features against current source-backed
   capabilities and product requirements. Status: planned.
@@ -34,10 +38,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
   downstream review. Status: planned.
-
-- [Shared UI consistency and saved-list presentation](items/shared-ui-consistency-and-saved-lists.md)
-  Review saved-list index/detail views and remaining product surfaces against one
-  shared UI language and reusable Ant-based component set. Status: proposed.
 
 - [Rust Ratatui workbench](items/rust-ratatui-workbench.md)
   Build the interactive terminal workbench over the Rust runtime for search, browse, detail reading, filter exploration, graph context, and future editorial workflows. Status: planned.

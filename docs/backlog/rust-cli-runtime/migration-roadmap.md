@@ -21,8 +21,8 @@ and current status, and the architecture docs for ownership.
 
 - [CLI and skill follow-through](../items/rust-cli-skill-capability-follow-through.md):
   address observed command, output and agent-guidance friction.
-- [Shared UI consistency](../items/shared-ui-consistency-and-saved-lists.md): use a
-  coherent component and interaction language across browser surfaces.
+- [Responsive browser acceptance](../items/responsive-ui-validation.md): maintain
+  device coverage for the shared browser components and interactions.
 - [Encounter usability](../items/rust-web-encounter-runner-polish.md): prioritize
   construction, combat actions and readable participant information.
 

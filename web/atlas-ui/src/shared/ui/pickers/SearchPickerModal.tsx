@@ -183,6 +183,7 @@ export function SearchPickerModal<FormValues>({
     <ConfigProvider componentDisabled={disabled}>
       <Modal
         className="reference-picker"
+        classNames={{ body: "reference-picker__body" }}
         width="min(1400px, calc(100vw - 32px))"
         styles={{
           body: {

@@ -146,4 +146,4 @@ establish a second retrieval implementation.
 - [Artifact contract](../architecture/artifact-contract.md)
 - [ADR 0046](../architecture/decisions/0046-source-backed-reference-artifact.md)
 - [FTS tokenization exploration](../backlog/items/rust-fts-tokenization-stemming.md)
-- [Saved-list and app-wide UI consistency](../backlog/items/shared-ui-consistency-and-saved-lists.md)
+- [Completed saved-list and app-wide UI consistency](../backlog/history/items/shared-ui-consistency-and-saved-lists.md)

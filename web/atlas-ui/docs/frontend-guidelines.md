@@ -56,7 +56,6 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `tables/IndexTable.tsx`: clickable, keyboard-activatable index tables.
 - `pages/EntityIndexPage.tsx`: common index page structure for title, summary, actions, and table content.
 - `forms/EditableCommitField.tsx`: inline draft fields that commit on blur or Enter and revert on Escape.
-- `PrimaryToolbar.tsx`: primary control rows with shared alignment, spacing and wrapping.
 - `pickers/SearchPickerModal.tsx`: modal record browsing and preview, with an explicit candidate and feature-owned Add form.
 - `actions/PaneAction.tsx`: pane-header icon buttons and links.
 - `actions/DangerActionButton.tsx`: destructive button plus confirmation modal.
@@ -147,6 +146,59 @@ and previews agree. Identity headers and mechanics can use their available width
 wide authored tables retain deliberate local overflow rather than widening the
 page. Compact density changes spacing, not the available record information.
 
+## Responsive design and acceptance
+
+Preserve the user's task as available space changes. Width, height, orientation
+and text size may change composition; selected references, criteria, unfinished
+fields, Add candidates and pending mutations retain their identity. Use the shared
+browse/reader, picker and preview owners and Ant breakpoints. Choose layout from
+available space rather than device names or feature-local mobile implementations.
+
+- Keep prose, headings, traits and controls readable through wrapping and reflow.
+  Wide authored tables may scroll locally. Clipping is acceptable only with a
+  working way to reach the complete content; hiding page overflow is not proof.
+- Check short height as well as narrow width. Primary actions, validation,
+  pagination and dismissal remain reachable through ordinary scrolling and
+  activation. A visible heading or a nonzero pane height is insufficient.
+- Use the same controls for touch and keyboard. Essential actions cannot require
+  hover, dragging or precise pointer placement. Preserve visible focus, native
+  links and adequate target size/spacing using the shared Ant controls; follow
+  [WCAG target-size guidance](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html).
+- Keep scrolling in the intended container. Exact activity landing, nested Back,
+  overlay dismissal and Results restore the appropriate position and focus.
+  Repositioning, breakpoint changes and reduced motion must not restart landing,
+  strand focus or lose a pending/draft state. After reflow, check the same content
+  anchor rather than demanding an unchanged absolute pixel position.
+- Preserve browser zoom. Review 200% text enlargement and reflow at 320 CSS pixels
+  without losing content or function, allowing genuinely two-dimensional tables.
+  See [resize text](https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html)
+  and [reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html).
+
+The maintained `playwright.devices.config.ts` suite samples these contexts:
+
+| Context                             | Appearance/input             | Coverage                                                                                                        |
+| ----------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Desktop Chromium                    | Light, mouse/keyboard        | Core journeys, native tab order, 320px reflow, open-reader breakpoint transitions and unavailable query assets. |
+| Phone Chromium, Pixel 7 descriptor  | Dark, touch                  | Filter drawer, reader/Results, list editing/Add and encounter reference/recovery.                               |
+| Phone WebKit, iPhone 13 descriptor  | Light, touch, reduced motion | The same core journeys with compact height and native drawer lifecycle.                                         |
+| Tablet WebKit, iPad Mini descriptor | Dark, touch                  | Core journeys plus fresh result selection and retained Add drafts after resizing an open picker to 844×390.     |
+
+These are representative test contexts, not product breakpoints or certification
+of physical devices. Device descriptors come from the pinned Playwright version.
+Resize tests prove layout behavior; touch projects must actually tap controls.
+Viewport reflow and CSS enlargement proxies do not prove actual browser text
+zoom, software-keyboard avoidance, safe-area insets or mobile browser chrome.
+
+For presentation changes, Astra reviews the affected journeys in actual browser
+screenshots and interactions across wide/intermediate/phone layouts, both themes
+and the relevant input methods. Review hierarchy, density, readability, action
+reachability and recovery, alongside automated geometry assertions. Report the
+exact candidate, browsers, viewports and interactions exercised. Actual-device
+checks, when available, cover typing with the software keyboard, rotation with
+an open draft/overlay, browser chrome changes and enlargement; record device/OS/
+browser and mark unavailable checks NOT RUN. Browser emulation, visual review,
+hosted CI and human acceptance are distinct evidence.
+
 ## Validation
 
 Use the package gate for frontend changes:
@@ -156,6 +208,16 @@ npm --prefix web/atlas-ui run verify
 ```
 
 For refactors, run focused tests for touched surfaces first, then the full verify.
+
+Run `npm --prefix web/atlas-ui run test:devices` for shared layout, navigation,
+overlay, form or responsive changes. This starts the real Rust app over a small
+checked-source fixture with isolated mutable state; it needs no source clone or
+model download. Stored fixture vectors are structural data, not search-quality
+evidence. Filter browsing is real; text-inference unavailability stays explicit.
+Do not fake readiness/DTOs or introduce a production fallback to pass tests.
+Selected network aborts may test recovery while retaining real durable writes.
+The existing corpus-backed `test:e2e` suite remains separate. See CONTRIBUTING
+for browser installation, CI execution, evidence and resource ownership.
 
 ## Source-backed records and filters
 
