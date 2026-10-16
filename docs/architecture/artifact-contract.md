@@ -123,11 +123,12 @@ neighbors and similar seeds. RollTables are normal product records.
 
 The DTO retains authored markup. `atlas-record::source_content` owns interpretation
 and sanitization; ingest supplies localization, audience and reference resolution
-context. Prepared caches bind to the exact authored field hash and complete build
-context hash. Controls refer to markers local to that field. The browser renders
-sanitized HTML with those narrow facts; html2text formats terminal output at read
-time. Neither renderer executes Foundry scripts or reconstructs a general document
-AST. Terminal formatting is not FTS text.
+context. Prepared caches bind to the exact authored field hash and preparation
+context hash, which excludes the embedding profile manifest. Controls refer to
+markers local to that field. The browser renders sanitized HTML with those narrow
+facts; html2text formats terminal output at read time. Neither renderer executes
+Foundry scripts or reconstructs a general document AST. Terminal formatting is not
+FTS text.
 
 Preparation emits fixed action glyphs as allowlisted semantic HTML attributes
 with readable text, retaining nested enrichments rather than flattening them.
