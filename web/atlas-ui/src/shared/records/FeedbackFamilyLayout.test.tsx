@@ -37,7 +37,7 @@ it("keeps encounter essentials before strikes and secondary facts available with
   expect(screen.queryByText("Necril")).toBeNull();
   const more = screen.getByRole("button", { name: "More creature facts" });
   expect(
-    screen.getByRole("button", { name: "Jaws" }).compareDocumentPosition(more) &
+    screen.getByRole("link", { name: "Jaws" }).compareDocumentPosition(more) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   fireEvent.click(more);
@@ -183,7 +183,7 @@ it("renders selected casting membership with parent context, ranks and exact cus
   expect(screen.getByText("Cast rank 5")).toBeVisible();
   expect(screen.queryByText("raw-casting-id")).toBeNull();
   expect(screen.queryByText("No structured damage")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Local Dimension Door" }));
+  fireEvent.click(screen.getByRole("link", { name: "Local Dimension Door" }));
   expect(onReference).toHaveBeenCalledWith(
     spell.navigation.record_key,
     expect.any(HTMLElement),

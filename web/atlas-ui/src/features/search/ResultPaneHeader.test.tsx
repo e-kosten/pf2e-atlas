@@ -7,6 +7,46 @@ import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { SearchView } from "./SearchView";
 
 describe("search pane composition", () => {
+  it("distinguishes idle, loading, completed-empty and failed searches without premature pagination", () => {
+    const { rerender, container } = render(
+      <SearchView workspace={workspace({ resultPage: undefined })} />,
+    );
+    expect(screen.getByText("Search or choose filters.")).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Records per page" })).toBeNull();
+    const search = { ...DEFAULT_SEARCH_STATE, query: "masked spirit" };
+    rerender(
+      <SearchView
+        workspace={workspace({ search, resultPage: undefined, resultsLoading: true })}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Searching…");
+    expect(container.querySelector(".reference-loading")).toBeInTheDocument();
+    expect(screen.queryByText("No matching records.")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
+    const empty = {
+      ...searchResultsPage(),
+      rows: [],
+      page: { ...searchResultsPage().page, total: 0n, count: 0, has_more: false },
+    };
+    rerender(<SearchView workspace={workspace({ search, resultPage: empty })} />);
+    expect(screen.getByText("No matching records.")).toBeVisible();
+    expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
+    rerender(
+      <SearchView
+        workspace={workspace({
+          search,
+          resultPage: undefined,
+          errorMessage: "Search failed",
+        })}
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Search failed");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible();
+    expect(screen.queryByText("No matching records.")).toBeNull();
+    expect(screen.queryByText("Search or choose filters.")).toBeNull();
+  });
+
   it("keeps the Similar criterion and filters in one body, and clears only the criterion", () => {
     const setSearch = vi.fn();
     const state = workspace({
@@ -120,6 +160,9 @@ function workspace(
     reading: {
       request: null,
       inspect: vi.fn(),
+      select: vi.fn(),
+      canGoBack: false,
+      back: vi.fn(),
       detail: undefined,
       landing: undefined,
       error: null,
@@ -131,6 +174,8 @@ function workspace(
       saveList: vi.fn(),
       readReader: () => 0,
       saveReader: vi.fn(),
+      readReaderFocus: vi.fn(),
+      saveReaderFocus: vi.fn(),
     },
     filterEditor: undefined,
     filterDiscoveryContext: {

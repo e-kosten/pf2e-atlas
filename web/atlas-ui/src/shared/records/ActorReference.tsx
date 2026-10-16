@@ -536,13 +536,16 @@ export function ActorActivity({
         <Button
           type="link"
           style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
-          onClick={(event) =>
+          href={atlasRoutePath(route)}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
             onReference(
               activity.navigation.record_key,
               event.currentTarget,
               activity.navigation,
-            )
-          }
+            );
+          }}
         >
           {activity.title}
         </Button>
@@ -830,13 +833,20 @@ function CastingSpells({
                 whiteSpace: "normal",
                 textAlign: "left",
               }}
-              onClick={(event) =>
+              href={atlasRoutePath({
+                kind: "record",
+                recordKey: spell.navigation.record_key,
+                selection: spell.navigation,
+              })}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
                 onReference(
                   spell.navigation.record_key,
                   event.currentTarget,
                   spell.navigation,
-                )
-              }
+                );
+              }}
             >
               {spell.title}
             </Button>

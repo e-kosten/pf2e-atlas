@@ -212,6 +212,18 @@ navigation always retains local ownership and customization; matching names are
 not provenance evidence. Overlay controls do not repeat the document title or
 display a generic Reference heading; native accessible labels remain available.
 
+Search and saved-list browsing share the browser's results/reader composition and
+record-summary activation while retaining feature-owned queries, match evidence,
+membership and ordering. The same reference reader serves the explicit Reader
+companion. Following document links changes local reading position, independently
+of selection or mutation drafts. A bounded session history restores exact
+navigation and scroll; browser history remains ordinary route navigation.
+Where no reader is present, shared previews use a desktop Popover and a Drawer
+below xl, with one renderer and one nested reading session. Native exact hrefs
+retain deliberate full-page and modified-click navigation. These browser rules
+live in the frontend guidelines; they do not introduce stored content, a generic
+navigation framework or new backend presentation semantics.
+
 This replaces the section/value/profile decision and migration fallback in
 ADR0031, while retaining its app-service composition boundary. Old transport,
 renderers, profiles, and fixtures are removed together; no compatibility shim

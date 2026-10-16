@@ -1,5 +1,11 @@
 import { ExternalLink, X } from "lucide-react";
 import type React from "react";
+import { useEffect } from "react";
+import {
+  useReferenceReading,
+  rootNavigation,
+} from "../../shared/records/useReferenceReading";
+import { ReferenceReader } from "../../shared/records/ReferenceReader";
 import { Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
@@ -68,6 +74,8 @@ export function RecordView({ route }: RecordViewProps) {
       {preview.recordKey && (
         <RecordPreviewPopover
           anchor={preview.anchor}
+          readingHistory={preview.readingHistory}
+          landing={preview.landing}
           detail={preview.detail}
           loading={preview.loading}
           error={preview.error}
@@ -90,11 +98,38 @@ export function RecordView({ route }: RecordViewProps) {
 
 export function ReaderView({ route }: ReaderViewProps) {
   const detail = useRecordDetail(route.recordKey, route.selection);
-  const preview = useRecordDetail(route.previewRecordKey, route.previewSelection);
+  const reading = useReferenceReading(
+    route.previewRecordKey
+      ? {
+          navigation: route.previewSelection ?? rootNavigation(route.previewRecordKey),
+          landing: route.landing,
+        }
+      : null,
+  );
+  const selectReading = reading.select;
+  useEffect(() => {
+    selectReading(
+      route.previewRecordKey
+        ? {
+            navigation:
+              route.previewSelection ?? rootNavigation(route.previewRecordKey),
+            landing: route.landing,
+          }
+        : null,
+    );
+  }, [
+    route.recordKey,
+    route.previewRecordKey,
+    route.previewSelection,
+    route.landing,
+    selectReading,
+  ]);
+  const navigation = reading.detail?.selected ?? reading.request?.navigation;
   return (
     <RecordViewLayout
       primary={
         <RecordPane
+          title="Reader"
           actions={
             <>
               <AddToListButton recordKey={route.recordKey} />
@@ -110,14 +145,11 @@ export function ReaderView({ route }: ReaderViewProps) {
               </RouteLink>
             </>
           }
-          title="Reader"
         >
           <RecordDetailPane
             detail={detail.data}
             error={detail.error}
-            onRetry={() => {
-              void detail.refetch();
-            }}
+            onRetry={() => void detail.refetch()}
             loading={detail.isLoading || detail.isFetching}
             onOwnerReturn={(parent, landing) =>
               navigateToAtlasRoute({
@@ -128,83 +160,50 @@ export function ReaderView({ route }: ReaderViewProps) {
               })
             }
             onReference={(previewRecordKey, _anchor, previewSelection) =>
-              navigateToAtlasRoute({
-                kind: "reader",
-                recordKey: route.recordKey,
-                previewRecordKey,
-                selection: route.selection,
-                landing: route.landing,
-                previewSelection,
-              })
+              navigateToAtlasRoute({ ...route, previewRecordKey, previewSelection })
             }
           />
         </RecordPane>
       }
       auxiliary={
-        <RecordPane
-          actions={
-            route.previewRecordKey && (
+        <ReferenceReader
+          reading={reading}
+          readerActions={
+            navigation && (
               <>
-                <AddToListButton recordKey={route.previewRecordKey} />
+                <AddToListButton recordKey={navigation.record_key} />
                 <RouteIconLink
                   label="Open preview as reader"
                   route={{
                     kind: "reader",
-                    recordKey: route.previewRecordKey,
+                    recordKey: navigation.record_key,
+                    selection:
+                      navigation.owners.length ||
+                      navigation.field ||
+                      navigation.passage ||
+                      navigation.source_fingerprint
+                        ? navigation
+                        : undefined,
                     previewRecordKey: null,
-                    selection: route.previewSelection,
-                    landing: route.landing,
+                    landing: reading.landing,
                   }}
                 />
                 <PaneIconButton
                   icon={<X size={16} />}
                   label="Close preview"
-                  onClick={() =>
+                  onClick={() => {
+                    reading.select(null);
                     navigateToAtlasRoute({
-                      kind: "reader",
-                      recordKey: route.recordKey,
+                      ...route,
                       previewRecordKey: null,
-                      selection: route.selection,
-                      landing: route.landing,
-                    })
-                  }
+                      previewSelection: undefined,
+                    });
+                  }}
                 />
               </>
             )
           }
-          title="Preview"
-        >
-          <RecordDetailPane
-            detail={route.previewRecordKey ? preview.data : undefined}
-            compact
-            emptyMessage="Select a linked record to preview it."
-            error={preview.error}
-            onRetry={() => {
-              void preview.refetch();
-            }}
-            loading={
-              route.previewRecordKey ? preview.isLoading || preview.isFetching : false
-            }
-            onOwnerReturn={(parent, landing) =>
-              navigateToAtlasRoute({
-                ...route,
-                previewRecordKey: parent,
-                previewSelection: undefined,
-                landing,
-              })
-            }
-            onReference={(previewRecordKey, _anchor, previewSelection) =>
-              navigateToAtlasRoute({
-                kind: "reader",
-                recordKey: route.recordKey,
-                previewRecordKey,
-                selection: route.selection,
-                landing: route.landing,
-                previewSelection,
-              })
-            }
-          />
-        </RecordPane>
+        />
       }
     />
   );

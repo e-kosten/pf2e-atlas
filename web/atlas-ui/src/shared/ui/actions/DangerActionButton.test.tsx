@@ -51,9 +51,13 @@ describe("contextual danger confirmations", () => {
       fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
       await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
       expect(dialog).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+      fireEvent.keyDown(dialog, { key: "Escape", keyCode: 27 });
+      expect(dialog).toBeInTheDocument();
       await act(async () => reject(new Error("Delete unavailable")));
       expect(await screen.findByText("Delete unavailable")).toBeInTheDocument();
       expect(dialog).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancel" })).not.toBeDisabled();
       fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(confirm).toHaveBeenCalledTimes(2);

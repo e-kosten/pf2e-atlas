@@ -15,8 +15,12 @@
   min-width: 0;
   max-width: 100%;
 }
-.record-reference__content .prepared-content :is(p, ul, ol, blockquote, dl) {
+.prepared-content,
+.prose {
+  width: 100%;
   max-width: 78ch;
+  justify-self: start;
+  margin-inline: 0;
 }
 .prepared-content :is(p, ul, ol, blockquote, dl) {
   margin-block: 0 12px;

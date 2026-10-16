@@ -16,6 +16,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
       ? Number.MAX_SAFE_INTEGER
       : Number(pageCount);
 
+  if (!page || page.total === 0n) return null;
   return (
     <div className="result-pane-header">
       <span>
@@ -25,7 +26,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
             ? similar
               ? "Top matches"
               : `${page.total.toLocaleString()} ${workspace.resultPage?.coverage?.exhaustive === false ? "candidate records" : "records"}`
-            : "No results yet"}
+            : "Results"}
       </span>
       {!similar && workspace.resultPage?.coverage?.exhaustive === false && (
         <Tooltip title={workspace.resultPage.coverage.count_basis}>

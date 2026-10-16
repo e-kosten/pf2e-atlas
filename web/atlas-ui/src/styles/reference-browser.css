@@ -4,20 +4,20 @@
   height: 100%;
   min-height: 0;
 }
-.atlas-app:has(.search-workspace) {
+.atlas-app:has(:is(.search-workspace, .list-workspace)) {
   position: fixed;
   inset: 0;
   height: 100dvh;
   overflow: clip;
 }
-.atlas-app:has(.search-workspace) .atlas-app__content {
+.atlas-app:has(:is(.search-workspace, .list-workspace)) .atlas-app__content {
   overflow: clip;
 }
 .search-workspace {
   overflow: clip;
 }
-html:has(.search-workspace),
-body:has(.search-workspace) {
+html:has(:is(.search-workspace, .list-workspace)),
+body:has(:is(.search-workspace, .list-workspace)) {
   overflow: clip;
 }
 .reference-browser {
@@ -74,6 +74,8 @@ body:has(.search-workspace) {
   position: relative;
   border-bottom: 1px solid var(--line);
   padding-bottom: 4px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 135px;
 }
 .reference-result__summary {
   display: flex;
@@ -102,6 +104,7 @@ body:has(.search-workspace) {
 }
 .reference-result__title strong {
   font-size: 16px;
+  overflow-wrap: anywhere;
 }
 .reference-result__title > span {
   color: var(--muted);
@@ -141,8 +144,12 @@ body:has(.search-workspace) {
   overflow: auto;
 }
 .reference-loading {
-  display: block;
-  margin: 32px auto;
+  display: flex;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted);
 }
 .filter-toolbar {
   display: flex;
@@ -156,13 +163,6 @@ body:has(.search-workspace) {
 .filter-toolbar .reference-search-entry {
   width: 100%;
   max-width: 840px;
-}
-.filter-toolbar .filter-controls__criteria {
-  width: 100%;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px;
 }
 .filter-toolbar .common-filters {
   display: contents;
@@ -200,11 +200,11 @@ body:has(.search-workspace) {
     > .filter-toolbar {
     display: none;
   }
-  .atlas-app:has(.search-workspace) {
+  .atlas-app:has(:is(.search-workspace, .list-workspace)) {
     height: 100dvh;
     overflow: clip;
   }
-  .atlas-app:has(.search-workspace) .atlas-app__content {
+  .atlas-app:has(:is(.search-workspace, .list-workspace)) .atlas-app__content {
     overflow: clip;
   }
   .reference-browser > div {
@@ -218,5 +218,19 @@ body:has(.search-workspace) {
   }
   .filter-toolbar .filter-controls__criteria {
     gap: 6px;
+  }
+}
+
+.filter-toolbar--inline .reference-search-entry {
+  flex: 1 1 200px;
+  width: auto;
+  min-width: min(200px, 100%);
+  max-width: none;
+}
+@media (max-width: 575px) {
+  .filter-toolbar--inline .reference-search-entry {
+    flex-basis: 100%;
+    width: 100%;
+    min-width: 0;
   }
 }

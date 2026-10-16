@@ -6,10 +6,12 @@ import type {
   RecordRelationshipView,
   RecordNavigationView,
 } from "../../generated/atlas";
+import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 export type RecordReferenceHandler = (
   recordKey: string,
   anchor?: HTMLElement,
   navigation?: RecordNavigationView,
+  landing?: RecordNavigationView,
 ) => void;
 export function PreparedContent({
   content,
@@ -40,7 +42,8 @@ export function PreparedContent({
       "[data-atlas-reference],[data-atlas-interaction]",
     );
     const listeners: Array<() => void> = [];
-    markers?.forEach((marker) => {
+    markers?.forEach((originalMarker) => {
+      let marker = originalMarker;
       const ref = marker.getAttribute("data-atlas-reference");
       const fact =
         ref === null
@@ -70,9 +73,34 @@ export function PreparedContent({
       }
       if (!fact?.target && (!control || control.kind === "command")) {
         marker.removeAttribute("href");
+        marker.removeAttribute("role");
+        marker.removeAttribute("tabindex");
+        if (ref !== null) {
+          marker.setAttribute("aria-disabled", "true");
+          marker.setAttribute("title", "Reference unavailable");
+        }
         return;
       }
-      marker.setAttribute("role", "button");
+      if (fact?.target) {
+        marker.removeAttribute("aria-disabled");
+        if (marker.tagName !== "A") {
+          const link = document.createElement("a");
+          for (const attribute of marker.attributes)
+            link.setAttribute(attribute.name, attribute.value);
+          link.append(...marker.childNodes);
+          marker.replaceWith(link);
+          marker = link;
+        }
+        marker.setAttribute(
+          "href",
+          atlasRoutePath({
+            kind: "record",
+            recordKey: fact.target.record_key,
+            selection: fact.target,
+          }),
+        );
+        marker.removeAttribute("role");
+      } else marker.setAttribute("role", "button");
       marker.tabIndex = 0;
       const ownsEvent = (e: Event) => {
         const target = e.target as Element;
@@ -80,7 +108,7 @@ export function PreparedContent({
         return (
           target.closest("[data-atlas-reference],[data-atlas-interaction]") ===
             marker &&
-          (!link || link === marker)
+          (!link || link === marker || !marker.contains(link))
         );
       };
       const activate = (e: Event) => {
@@ -89,6 +117,8 @@ export function PreparedContent({
           "[data-atlas-reference],[data-atlas-interaction]",
         );
         if (!marker || !container.current?.contains(marker)) return;
+        if (fact?.target && e instanceof MouseEvent && !shouldHandleAtlasRouteClick(e))
+          return;
         e.preventDefault();
         const reference = marker.getAttribute("data-atlas-reference");
         if (reference !== null) {
@@ -127,7 +157,7 @@ export function PreparedContent({
       };
       const keyboard = (e: KeyboardEvent) => {
         if (!ownsEvent(e)) return;
-        if (e.key === "Enter" || e.key === " ") {
+        if ((e.key === "Enter" || e.key === " ") && shouldHandleAtlasRouteClick(e)) {
           e.preventDefault();
           marker.click();
         }

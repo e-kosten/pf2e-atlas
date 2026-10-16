@@ -22,6 +22,20 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   const [recordKey, setRecordKey] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<RecordPreviewAnchor | null>(null);
   const [selection, setSelection] = useState<RecordNavigationView>();
+  const [landing, setLanding] = useState<RecordNavigationView>();
+  type PriorDocument = {
+    recordKey: string;
+    selection?: RecordNavigationView;
+    landing?: RecordNavigationView;
+    context?: { identity: string; generation: string | null };
+    scroll: number;
+    focusHref?: string;
+  };
+  const [history, setHistory] = useState<PriorDocument[]>([]);
+  const [restore, setRestore] = useState({
+    scroll: 0,
+    focusHref: undefined as string | undefined,
+  });
   const opener = useRef<HTMLElement | null>(null);
   const session = useRef(0);
   const [reloadState, setReloadState] = useState<
@@ -110,6 +124,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     setAnchor(null);
     setSelection(undefined);
     setRequestedContext(undefined);
+    setLanding(undefined);
+    setHistory([]);
   }, []);
 
   const open = useCallback(
@@ -117,7 +133,31 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       nextRecordKey: string,
       anchor?: HTMLElement,
       navigation?: RecordNavigationView,
+      nextLanding?: RecordNavigationView,
     ) => {
+      if (
+        recordKey &&
+        (recordKey !== nextRecordKey ||
+          JSON.stringify(selection) !== JSON.stringify(navigation) ||
+          JSON.stringify(landing) !== JSON.stringify(nextLanding))
+      ) {
+        const scrollHost = anchor?.closest<HTMLElement>(
+          ".record-preview-popover__body,.record-preview-drawer__body",
+        );
+        setHistory((prior) =>
+          [
+            ...prior,
+            {
+              recordKey,
+              selection,
+              landing,
+              context: requestedContext,
+              scroll: scrollHost?.scrollTop ?? 0,
+              focusHref: anchor?.closest("a")?.getAttribute("href") ?? undefined,
+            },
+          ].slice(-24),
+        );
+      }
       opener.current ??=
         anchor ??
         (document.activeElement instanceof HTMLElement ? document.activeElement : null);
@@ -126,6 +166,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       setRecordKey(nextRecordKey);
       setAnchor((current) => current ?? anchor ?? null);
       setSelection(navigation);
+      setLanding(nextLanding);
+      setRestore({ scroll: 0, focusHref: undefined });
       const contextual =
         encounterContext?.parentRecordKey === nextRecordKey && navigation;
       setRequestedContext(
@@ -137,7 +179,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           : undefined,
       );
     },
-    [encounterContext],
+    [encounterContext, recordKey, selection, landing, requestedContext],
   );
 
   return {
@@ -195,5 +237,23 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     open,
     recordKey,
     selection,
+    landing,
+    readingHistory: {
+      address: JSON.stringify([recordKey, selection, landing]),
+      restore,
+      canGoBack: history.length > 0,
+      onBack: () => {
+        const prior = history[history.length - 1];
+        if (!prior) return;
+        session.current += 1;
+        setReloadState(null);
+        setHistory(history.slice(0, -1));
+        setRecordKey(prior.recordKey);
+        setSelection(prior.selection);
+        setLanding(prior.landing);
+        setRequestedContext(prior.context);
+        setRestore({ scroll: prior.scroll, focusHref: prior.focusHref });
+      },
+    },
   };
 }

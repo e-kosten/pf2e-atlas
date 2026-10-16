@@ -150,13 +150,13 @@ describe("semantic family presentation", () => {
       <RecordPresentation presentation={presentation} onReference={vi.fn()} />,
     );
     expect(screen.getAllByText("Disease")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: "Ghoul Fever" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ghoul Fever" })).toBeNull();
     const parent = actorPresentation();
     if (parent.body.kind !== "creature") throw new Error("fixture family");
     parent.body.value.activities = knownFact([activity]);
     rerender(<RecordPresentation presentation={parent} onReference={vi.fn()} />);
     expect(screen.getAllByText("Disease")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Ghoul Fever" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Ghoul Fever" })).toBeVisible();
   });
 
   it("groups owned spells by their exact casting entry and retains authored DC and attack", () => {
@@ -190,7 +190,7 @@ describe("semantic family presentation", () => {
     expect(group.querySelector(".actor-casting__spells")).toHaveTextContent(
       "Customized Fireball",
     );
-    fireEvent.click(within(group).getByRole("button", { name: "Customized Fireball" }));
+    fireEvent.click(within(group).getByRole("link", { name: "Customized Fireball" }));
     expect(callback).toHaveBeenCalledWith(
       "actors:ghoul",
       expect.any(HTMLElement),
@@ -456,7 +456,7 @@ describe("semantic family presentation", () => {
       />,
     );
     expect(screen.getByText("1d100")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Result 1–10" }));
+    fireEvent.click(screen.getByRole("link", { name: "Result 1–10" }));
     expect(callback).toHaveBeenCalledWith(
       "tables:wonder",
       expect.any(HTMLElement),

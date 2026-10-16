@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useReducer } from "react";
 import { getRecordDetail } from "../../api/atlasApi";
 import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 import { activityAnchor } from "./ownedNavigation";
@@ -51,7 +51,44 @@ export function useReferenceReading(
   enabled = true,
   epoch = 0,
 ) {
-  const [request, inspect] = useState(initial);
+  const [session, dispatch] = useReducer(
+    (
+      state: { request: ReadingRequest | null; history: ReadingRequest[] },
+      action:
+        | { kind: "select" | "inspect"; request: ReadingRequest | null }
+        | { kind: "back" },
+    ) => {
+      if (action.kind === "back")
+        return state.history.length
+          ? {
+              request: state.history[state.history.length - 1]!,
+              history: state.history.slice(0, -1),
+            }
+          : state;
+      const same = JSON.stringify(state.request) === JSON.stringify(action.request);
+      return {
+        request: action.request,
+        history:
+          action.kind === "select" || !action.request
+            ? []
+            : same
+              ? state.history
+              : [...state.history, ...(state.request ? [state.request] : [])].slice(
+                  -24,
+                ),
+      };
+    },
+    { request: initial, history: [] },
+  );
+  const request = session.request;
+  const inspect = useCallback(
+    (request: ReadingRequest | null) => dispatch({ kind: "inspect", request }),
+    [],
+  );
+  const select = useCallback(
+    (request: ReadingRequest | null) => dispatch({ kind: "select", request }),
+    [],
+  );
   const query = useQuery({
     queryKey: ["record-detail", request, epoch],
     enabled: enabled && request !== null,
@@ -85,6 +122,9 @@ export function useReferenceReading(
   return {
     request,
     inspect,
+    select,
+    canGoBack: session.history.length > 0,
+    back: () => dispatch({ kind: "back" }),
     detail: query.data?.detail,
     landing: query.data?.landing,
     loading: query.isFetching,

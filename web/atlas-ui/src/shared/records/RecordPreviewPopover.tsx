@@ -1,3 +1,4 @@
+import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { Grid, Popover } from "antd";
 import { useLayoutEffect, useRef, useState } from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
@@ -25,12 +26,10 @@ export function RecordPreviewPopover({
   onOpenFullPage,
   onReference,
   fullPageHref,
+  readingHistory,
+  landing,
 }: RecordPreviewPopoverProps) {
   const screens = Grid.useBreakpoint();
-  const [ownerLanding, setOwnerLanding] =
-    useState<import("../../generated/atlas").RecordNavigationView>();
-  const landing =
-    ownerLanding?.record_key === detail?.record.record_key ? ownerLanding : undefined;
   const href =
     fullPageHref ??
     (detail
@@ -56,20 +55,30 @@ export function RecordPreviewPopover({
     target: import("../../generated/atlas").RecordNavigationView,
     trigger: HTMLElement,
   ) => {
-    setOwnerLanding(target);
-    onReference(parent, trigger, {
-      record_key: parent,
-      owners: [],
-      field: null,
-      passage: null,
-      source_fingerprint: null,
-    });
+    onReference(
+      parent,
+      trigger,
+      {
+        record_key: parent,
+        owners: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+      target,
+    );
   };
   const narrow = Boolean(
     !screens.xl && (screens.xs || screens.sm || screens.md || screens.lg),
   );
   const [closingDrawer, setClosingDrawer] = useState(false);
-  const contentFocus = usePreviewContentFocus(!narrow && !closingDrawer);
+  const readingRef = usePreviewReadingPosition(
+    detail,
+    readingHistory,
+    "popover",
+    !narrow && !closingDrawer,
+  );
+  const contentFocus = usePreviewContentFocus(!narrow && !closingDrawer, readingRef);
   const popover = useRef<import("antd").TooltipRef>(null);
   const [bounds, setBounds] = useState<DOMRect>();
   useLayoutEffect(() => {
@@ -90,6 +99,7 @@ export function RecordPreviewPopover({
   if (narrow || closingDrawer) {
     return (
       <RecordPreviewDrawer
+        readingHistory={readingHistory}
         detail={detail}
         loading={loading}
         error={error}
@@ -132,6 +142,7 @@ export function RecordPreviewPopover({
       title={
         <div className="record-preview-popover__header">
           <RecordPreviewActions
+            readingHistory={readingHistory}
             onClose={onClose}
             onOpenFullPage={openFullPage}
             fullPageHref={href}

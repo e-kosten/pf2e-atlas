@@ -149,6 +149,9 @@ describe("encounter views", () => {
     });
 
     expect(await screen.findByText("Ambush")).toBeInTheDocument();
+    const indexTable = screen.getByRole("table");
+    expect(indexTable).toHaveStyle({ tableLayout: "auto" });
+    expect(indexTable.querySelector("colgroup col")).toHaveStyle({ minWidth: "240px" });
     expect(screen.queryByText("Old Fight")).not.toBeInTheDocument();
 
     const encounterRow = screen.getByText("Ambush").closest("tr");
@@ -162,7 +165,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Archived" }));
     expect(await screen.findByText("Old Fight")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit Ambush" }));
+    fireEvent.click(screen.getByRole("link", { name: "Edit Ambush" }));
     await waitFor(() =>
       expect(window.location.pathname).toBe("/encounters/ambush/edit"),
     );
@@ -559,10 +562,10 @@ describe("encounter views", () => {
 
     fireEvent.click(await screen.findByText("Source content"));
     const linkedRuleButton = (await screen.findByText("Linked Rule")).closest(
-      "[role=button]",
+      "a[href]",
     );
     if (!linkedRuleButton) {
-      throw new Error("Linked Rule button was not rendered");
+      throw new Error("Linked Rule native link was not rendered");
     }
     fireEvent.click(linkedRuleButton);
 
@@ -589,9 +592,9 @@ describe("encounter views", () => {
     fireEvent.click(await screen.findByText("Source content"));
     const linkedRuleButtonAfterReselect = (
       await screen.findByText("Linked Rule")
-    ).closest("[role=button]");
+    ).closest("a[href]");
     if (!linkedRuleButtonAfterReselect) {
-      throw new Error("Linked Rule button was not rendered after reselection");
+      throw new Error("Linked Rule native link was not rendered after reselection");
     }
     fireEvent.click(linkedRuleButtonAfterReselect);
     await waitFor(() =>
@@ -651,7 +654,7 @@ describe("encounter views", () => {
         </ConfigProvider>
       </QueryClientProvider>,
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Claw" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Claw" }));
     const preview = await screen.findByLabelText("Reference preview");
     await waitFor(() =>
       expect(
@@ -713,7 +716,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Frightened" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Frightened" }));
 
     await waitFor(() =>
       expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(

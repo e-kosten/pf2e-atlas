@@ -48,6 +48,7 @@ export function NumberFact({
   if (!adjustment) return <>{text}</>;
   return (
     <Popover
+      trigger="click"
       title="Effective value"
       content={
         <div className="record-number-explanation">

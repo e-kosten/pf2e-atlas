@@ -1,10 +1,10 @@
-import { Button, Table, Typography } from "antd";
+import { Table, Typography } from "antd";
 import type { TableProps } from "antd";
 import type { Key, MouseEvent, ReactNode } from "react";
 
 type IndexTableProps<Row extends object> = Omit<
   TableProps<Row>,
-  "onRow" | "pagination" | "rowKey" | "size"
+  "onRow" | "pagination" | "rowKey" | "size" | "tableLayout"
 > & {
   onActivateRow: (row: Row) => void;
   rowKey: (row: Row) => Key;
@@ -18,6 +18,7 @@ export function IndexTable<Row extends object>({
   return (
     <Table<Row>
       {...props}
+      tableLayout="auto"
       pagination={false}
       onRow={(row) => ({
         className: "index-row",
@@ -89,30 +90,5 @@ export function RowTitleLink({
       <span className="index-row-link__title">{title}</span>
       {subtitle ? <small>{subtitle}</small> : null}
     </Typography.Link>
-  );
-}
-
-export function RowTitleButton({
-  disabled = false,
-  onClick,
-  subtitle,
-  title,
-}: {
-  disabled?: boolean;
-  onClick: (event: MouseEvent<HTMLElement>) => void;
-  subtitle?: ReactNode;
-  title: ReactNode;
-}) {
-  return (
-    <Button
-      style={{ display: "grid", height: "auto", padding: 0 }}
-      className="index-row-link index-row-link--button"
-      disabled={disabled}
-      onClick={onClick}
-      type="link"
-    >
-      <span className="index-row-link__title">{title}</span>
-      {subtitle ? <small>{subtitle}</small> : null}
-    </Button>
   );
 }
