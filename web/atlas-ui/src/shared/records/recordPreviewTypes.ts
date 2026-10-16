@@ -4,6 +4,7 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 export type RecordPreviewAnchor = HTMLElement;
 
 export type RecordPreviewContentProps = {
+  visibleOwnerRecordKey?: string;
   readingHistory?: {
     address: string;
     restoringHistory: boolean;

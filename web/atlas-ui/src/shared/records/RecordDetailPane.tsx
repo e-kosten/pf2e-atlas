@@ -29,8 +29,10 @@ export function RecordDetailPane({
   landing,
   onLandingReady,
   onOwnerReturn,
+  visibleOwnerRecordKey,
 }: {
   detail: RecordDetailView | undefined;
+  visibleOwnerRecordKey?: string;
   emptyMessage?: string;
   error?: RecordDetailPaneError;
   loading: boolean;
@@ -123,6 +125,7 @@ export function RecordDetailPane({
       {detail ? (
         <>
           <RecordPresentation
+            visibleOwnerRecordKey={visibleOwnerRecordKey}
             presentation={detail.presentation}
             root={detail.record}
             selection={detail.selected}

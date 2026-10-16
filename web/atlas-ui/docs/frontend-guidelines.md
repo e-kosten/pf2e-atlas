@@ -592,3 +592,17 @@ Preserve touched same-entity metadata during background refresh, and reset draft
 on entity or editing-session change. Key route owners by identity and prevent old
 Save completions from navigating a newer editor. Keep source-backed facts and
 gameplay derivation in Rust; the browser submits explicit edit intent and revision.
+
+### Encounter reading context
+
+Encounter composition permits collapsing the roster only; its participant reader
+stays available and fills the remaining pane. Shared `WorkspaceLayout` accepts
+explicit collapsible pane identities without changing other browsing defaults.
+An anchored preview host may identify an already visible owner record. The shared
+wide popover suppresses that matching owner-return caption; the narrow drawer
+retains it because it covers the parent. Actual reading-history Back and Original
+record provenance remain independent, and direct record pages keep owner context.
+Creature Lore rows use the authored title and signed modifier once. Actor spell
+lists display known authored casting rank, preserving an unavailable casting
+rank explicitly; base rank and authored heightening remain in the opened detail.
+The browser does not calculate selected-rank spell effects.

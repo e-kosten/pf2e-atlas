@@ -15,6 +15,47 @@ import { RecordPreviewPopover } from "./RecordPreviewPopover";
 describe("RecordPreviewPopover", () => {
   afterEach(() => vi.restoreAllMocks());
   it.each(["desktop", "narrow"])(
+    "%s keeps genuine Back while respecting visible-owner context",
+    async (viewport) => {
+      vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
+        xl: viewport === "desktop",
+        xs: viewport === "narrow",
+      });
+      const detail = detailFixture("actors:mage", "Mage");
+      detail.selected.owners = [{ collection: "items", identity: { Stable: "fear" } }];
+      detail.presentation.identity = { ...detail.record, title: "Fear" };
+      const onBack = vi.fn();
+      render(
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <RecordPreviewPopover
+            visibleOwnerRecordKey="actors:mage"
+            anchor={document.createElement("button")}
+            detail={detail}
+            loading={false}
+            onClose={vi.fn()}
+            onOpenFullPage={vi.fn()}
+            onReference={vi.fn()}
+            readingHistory={{
+              address: "fear",
+              restoringHistory: false,
+              canGoBack: true,
+              onBack,
+              restore: { scroll: 0 },
+            }}
+          />
+        </ConfigProvider>,
+      );
+      if (viewport === "desktop")
+        expect(screen.queryByRole("link", { name: "Return to Mage" })).toBeNull();
+      else
+        expect(
+          await screen.findByRole("link", { name: "Return to Mage" }),
+        ).toBeVisible();
+      fireEvent.click(await screen.findByRole("button", { name: "Back" }));
+      expect(onBack).toHaveBeenCalledOnce();
+    },
+  );
+  it.each(["desktop", "narrow"])(
     "%s preview hands removed content focus to its surviving container and preserves other focus",
     async (viewport) => {
       vi.spyOn(Grid, "useBreakpoint").mockReturnValue({

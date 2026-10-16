@@ -15,6 +15,7 @@ type RecordPreviewPopoverProps = RecordPreviewContentProps & {
 };
 export function RecordPreviewPopover({
   anchor,
+  visibleOwnerRecordKey,
   detail,
   loading,
   error,
@@ -162,6 +163,7 @@ export function RecordPreviewPopover({
         >
           <RecordDetailPane
             compact
+            visibleOwnerRecordKey={visibleOwnerRecordKey}
             detail={detail}
             loading={loading}
             error={error}

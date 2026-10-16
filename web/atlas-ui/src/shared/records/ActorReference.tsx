@@ -549,6 +549,12 @@ export function ActorActivity({
           {activity.title}
         </Button>
       )}
+      {activity.lore_modifier.state !== "not_applicable" && (
+        <span className="actor-activity__modifier">
+          {" "}
+          <NumberFact fact={activity.lore_modifier} signed />
+        </span>
+      )}
       {!hideCost && !inline && <ActionCost fact={activity.action_cost} />}
       {activity.usage && !isEmptyFactValue(activity.usage) && (
         <Tag>{activity.usage}</Tag>
@@ -573,11 +579,7 @@ export function ActorActivity({
           <NumberFact fact={activity.difficulty_class} />
         </FactRow>
       )}
-      {activity.lore_modifier.state !== "not_applicable" && (
-        <FactRow label="Lore">
-          <NumberFact fact={activity.lore_modifier} signed />
-        </FactRow>
-      )}
+
       {activity.kind === "spell" &&
         activity.casting_entry === null &&
         activity.association.state !== "not_applicable" && (
@@ -854,11 +856,11 @@ function CastingSpells({
             >
               {spell.title}
             </Button>
-            <span className="muted">Base rank {factText(spell.base_rank)}</span>
-            {spell.authored_cast_rank.state !== "missing" &&
-              spell.authored_cast_rank.state !== "not_applicable" && (
-                <span>Cast rank {factText(spell.authored_cast_rank)}</span>
-              )}
+            {spell.authored_cast_rank.state === "value" ? (
+              <span>Cast rank {factText(spell.authored_cast_rank)}</span>
+            ) : (
+              <span className="muted">Casting rank unavailable</span>
+            )}
             {spell.casting_entry === null && (
               <span className="muted">Casting entry unavailable</span>
             )}
