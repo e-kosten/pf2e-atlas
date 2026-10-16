@@ -714,7 +714,7 @@ fn rebuilt_snapshot_rejects_navigation_to_a_reordered_unstable_child() {
                 false,
             );
             data.context.source_fingerprint = fingerprint.to_string().repeat(64);
-            let hash = data.context.sha256()?;
+            let hash = data.context.preparation_sha256()?;
             for record in &mut data.records {
                 record.preparation_context_hash = hash.clone();
             }
@@ -830,6 +830,8 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
     let f = fixture_worker();
     let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"not","predicate":{"clause_id":"choice","kind":"compare","field":"rarity","op":"eq","value":"rare"}})).unwrap();
     let context = FilterDiscoveryContext::Filtered {
+        search_profile: None,
+        expected_artifact_generation: None,
         filter: Some(predicate),
         text: Some("does not require an embedding".into()),
         mode: RetrievalModeView::Hybrid,
@@ -868,7 +870,8 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
     assert!(matches!(
         values,
         FilterValueListView::Contextual {
-            outcome: atlas_domain::QueryFacetOutcome::Unavailable { .. }
+            outcome: atlas_domain::QueryFacetOutcome::Unavailable { .. },
+            ..
         }
     ));
     let invalid = f

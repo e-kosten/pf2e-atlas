@@ -12,16 +12,63 @@ fn progress(phase: &str, message: &str) {
 }
 pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
-    options: RuntimeSetupOptions,
+    mut options: RuntimeSetupOptions,
 ) -> RuntimeSetupReport {
+    let old = SqliteIndexReader::open_read_only(&paths.index_path);
+    if options.search_profiles.is_empty() && options.target.requires_embeddings() {
+        options.search_profiles = old
+            .as_ref()
+            .ok()
+            .map(|reader| {
+                reader
+                    .context()
+                    .search_profiles
+                    .iter()
+                    .map(|p| p.profile_id.clone())
+                    .collect()
+            })
+            .filter(|profiles: &Vec<_>| !profiles.is_empty())
+            .unwrap_or_else(|| {
+                vec![atlas_domain::SearchProfileId::new(
+                    atlas_embedding::DEFAULT_SEARCH_PROFILE,
+                )]
+            });
+    }
     let mut checks = Vec::new();
     let mut actions = Vec::new();
     let mut source_ready = paths.source_root.is_dir();
-    let config =
-        EmbeddingRuntimeConfig::new(options.embedding_model_id, &paths.embedding_cache_root);
-    let mut model_ready = atlas_embedding::validate_embedding_model_cache(&config).is_ok();
-    if !source_ready
-        || (!options.check && !options.offline && paths.source_root.join(".git").exists())
+    let mut configurations = Vec::new();
+    let mut profile_error = None;
+    let mut seen = std::collections::BTreeSet::new();
+    for id in &options.search_profiles {
+        match atlas_embedding::search_profile(id) {
+            Ok(profile) if seen.insert(id.clone()) => configurations.push(
+                EmbeddingRuntimeConfig::new(profile.model, &paths.embedding_cache_root),
+            ),
+            _ => profile_error = Some(format!("unsupported or duplicate search profile: {id}")),
+        }
+    }
+    configurations.sort_by_key(|c| atlas_embedding::profile_for_model(c.model).profile_id());
+    if options.target.requires_embeddings() && configurations.is_empty() {
+        profile_error = Some("full setup requires at least one search profile".into());
+    }
+    if let Some(reason) = &profile_error {
+        actions.push(SetupAction::with_reason(
+            SetupActionKind::PrepareEmbeddingModel,
+            SetupActionStatus::Failed,
+            reason,
+        ));
+    }
+    let mut model_ready = options.target.requires_embeddings()
+        && profile_error.is_none()
+        && configurations
+            .iter()
+            .all(|c| atlas_embedding::validate_embedding_model_cache(c).is_ok())
+        && atlas_embedding::TextEmbeddingTokenizer::load_baseline(&paths.embedding_cache_root)
+            .is_ok();
+    if profile_error.is_none()
+        && (!source_ready
+            || (!options.check && !options.offline && paths.source_root.join(".git").exists()))
     {
         if options.check || options.offline {
             actions.push(SetupAction::with_reason(
@@ -54,7 +101,7 @@ pub(crate) fn ensure_setup(
             }
         }
     }
-    if options.target.requires_embeddings() && !model_ready {
+    if options.target.requires_embeddings() && !model_ready && profile_error.is_none() {
         if options.check || options.offline {
             actions.push(SetupAction::with_reason(
                 SetupActionKind::PrepareEmbeddingModel,
@@ -70,7 +117,13 @@ pub(crate) fn ensure_setup(
                 "prepare_embedding_model",
                 "Preparing pinned embedding assets",
             );
-            match prepare_embedding_model_cache(&config) {
+            match (|| {
+                atlas_embedding::prepare_baseline_tokenizer_cache(&paths.embedding_cache_root)?;
+                for config in &configurations {
+                    prepare_embedding_model_cache(config)?;
+                }
+                Ok::<_, atlas_embedding::EmbeddingError>(())
+            })() {
                 Ok(_) => {
                     model_ready = true;
                     actions.push(SetupAction::new(
@@ -86,7 +139,6 @@ pub(crate) fn ensure_setup(
             }
         }
     }
-    let old = SqliteIndexReader::open_read_only(&paths.index_path);
     let locale = options
         .locale
         .clone()
@@ -121,11 +173,21 @@ pub(crate) fn ensure_setup(
         )),
     }
     let old_semantic = if options.target.requires_embeddings() {
-        SqliteIndexReader::open_read_only_with_vectors(&paths.index_path).is_ok()
+        SqliteIndexReader::open_read_only_with_vectors(&paths.index_path).is_ok_and(|index| {
+            index.context().search_profiles.len() == options.search_profiles.len()
+                && options.search_profiles.iter().all(|id| {
+                    atlas_embedding::search_profile(id).is_ok_and(|spec| {
+                        index.context().search_profile(id).is_ok_and(|stored| {
+                            stored == &atlas_index::SourceSearchProfileIdentity::from_spec(spec)
+                        })
+                    })
+                })
+        })
     } else {
         true
     };
     let needs_build = options.force_rebuild
+        || profile_error.is_some()
         || old.is_err()
         || !old_semantic
         || freshness.as_ref().is_ok_and(|f| !*f)
@@ -142,7 +204,10 @@ pub(crate) fn ensure_setup(
                 SetupActionStatus::Planned,
                 "artifact requires rebuild",
             ));
-        } else if !source_ready || (options.target.requires_embeddings() && !model_ready) {
+        } else if profile_error.is_some()
+            || !source_ready
+            || (options.target.requires_embeddings() && !model_ready)
+        {
             actions.push(SetupAction::with_reason(
                 SetupActionKind::BuildIndex,
                 SetupActionStatus::Blocked,
@@ -155,10 +220,11 @@ pub(crate) fn ensure_setup(
                 output_path: paths.index_path.clone(),
                 manifest_path: None,
                 locale,
-                embedding: options
-                    .target
-                    .requires_embeddings()
-                    .then_some(config.clone()),
+                search_profiles: if options.target.requires_embeddings() {
+                    configurations.clone()
+                } else {
+                    vec![]
+                },
                 reuse_embeddings: true,
                 embedding_batch_size: options.embedding_batch_size,
             });
@@ -191,7 +257,12 @@ pub(crate) fn ensure_setup(
     let records_ready = current.is_ok() && !build_failed && (!needs_build || build.is_some());
     let semantic_ready = records_ready
         && model_ready
-        && SqliteIndexReader::open_read_only_with_vectors(&paths.index_path).is_ok();
+        && SqliteIndexReader::open_read_only_with_vectors(&paths.index_path).is_ok_and(|index| {
+            options
+                .search_profiles
+                .iter()
+                .all(|id| index.context().search_profile(id).is_ok())
+        });
     checks.push(match &current{Ok(_)=>SetupAction::with_reason(SetupActionKind::ValidateIndex,SetupActionStatus::Done,"cheap executable schema/catalog check; full snapshot validation is a separate operation"),Err(e)=>SetupAction::with_reason(SetupActionKind::ValidateIndex,SetupActionStatus::Blocked,e.to_string())});
     let readiness = |ready: bool, required: bool, reason: &str| {
         if ready {
@@ -237,23 +308,38 @@ pub(crate) fn ensure_setup(
             embedding_cache: paths.embedding_cache_root.display().to_string(),
             index: paths.index_path.display().to_string(),
         },
-        embedding: SetupEmbeddingReport {
-            model: options.embedding_model_id.to_string(),
-            model_path: config.model_dir().display().to_string(),
-            cache_root: paths.embedding_cache_root.display().to_string(),
-            ready: model_ready,
-            missing_files: required_embedding_model_cache_files(&config)
-                .iter()
-                .filter(|f| !f.local_path.is_file())
-                .map(|f| f.local_path.display().to_string())
-                .collect(),
-        },
+        search_profiles: configurations
+            .iter()
+            .map(|config| {
+                let profile = atlas_embedding::profile_for_model(config.model);
+                SetupEmbeddingReport {
+                    profile_id: profile.profile_id(),
+                    stored: current.as_ref().is_ok_and(|index| {
+                        index
+                            .context()
+                            .search_profile(&profile.profile_id())
+                            .is_ok()
+                    }),
+                    model: config.model_spec().model_id.into(),
+                    model_path: config.model_dir().display().to_string(),
+                    cache_root: paths.embedding_cache_root.display().to_string(),
+                    ready: options.target.requires_embeddings()
+                        && atlas_embedding::validate_embedding_model_cache(config).is_ok(),
+                    missing_files: required_embedding_model_cache_files(config)
+                        .iter()
+                        .filter(|file| !file.local_path.is_file())
+                        .map(|file| file.local_path.display().to_string())
+                        .collect(),
+                }
+            })
+            .collect(),
         build,
     }
 }
 impl From<BuildArtifactReport> for SetupBuildReport {
     fn from(r: BuildArtifactReport) -> Self {
         Self {
+            profiles: r.profiles,
             pack_count: r.pack_count,
             record_count: r.record_count,
             product_record_count: r.product_record_count,

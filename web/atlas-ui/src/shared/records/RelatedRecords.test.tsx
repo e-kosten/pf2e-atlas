@@ -1,10 +1,19 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import type {
   GraphContextView,
   RecordNavigationView,
   RecordRelationshipView,
+  SearchResultsPage,
 } from "../../generated/atlas";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { AtlasApiError } from "../../api/atlasApi";
@@ -84,7 +93,9 @@ function renderRelated(detail = detailFixture("actors:seed", "Viewed creature"))
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <QueryClientProvider client={queryClient}>
-        <RelatedRecords detail={detail} onReference={onReference} />
+        <SearchProfileProvider>
+          <RelatedRecords detail={detail} onReference={onReference} />
+        </SearchProfileProvider>
       </QueryClientProvider>
     </ConfigProvider>,
   );
@@ -111,7 +122,8 @@ describe("shared related disclosure", () => {
     vi.clearAllMocks();
     api.getRelatedRecords.mockResolvedValue(relatedFixture());
     api.searchPage.mockResolvedValue({
-      artifact_generation: "generation-a",
+      search_profile: "bge-base",
+      artifact_generation: "test-generation",
       mode: { kind: "similar_records", seed: summaryFixture("actors:seed") },
       rows: [],
       page: {
@@ -247,6 +259,7 @@ describe("shared related disclosure", () => {
     expect(await screen.findByText("No similar records found.")).toBeVisible();
     expect(api.searchPage).toHaveBeenCalledWith(
       {
+        search_profile: "bge-base",
         criteria: {
           kind: "similar_records",
           seed_record_key: "actors:seed",
@@ -266,6 +279,71 @@ describe("shared related disclosure", () => {
     expect(fireEvent.click(link, { metaKey: true })).toBe(true);
     expect(screen.queryByText("About these suggestions")).toBeNull();
     expect(screen.queryByText(/internal-count-basis/)).toBeNull();
+  });
+  it("switches only Similar evidence and deep links, retaining graph discovery and native navigation", async () => {
+    const detail = detailFixture("actors:seed", "Viewed creature");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let finishOld!: (value: SearchResultsPage) => void;
+    let finishNew!: (value: SearchResultsPage) => void;
+    api.searchPage
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishOld = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishNew = resolve;
+        }),
+      );
+    const content = (id: string) => (
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider client={client}>
+          <SearchProfileProvider id={id} usable={false}>
+            <RelatedRecords detail={detail} onReference={vi.fn()} />
+          </SearchProfileProvider>
+        </QueryClientProvider>
+      </ConfigProvider>
+    );
+    const view = render(content("bge-base"));
+    openRelated();
+    fireEvent.click(await screen.findByRole("button", { name: "Similar records" }));
+    await waitFor(() => expect(api.searchPage).toHaveBeenCalledTimes(1));
+    view.rerender(content("embeddinggemma"));
+    await waitFor(() => expect(api.searchPage).toHaveBeenCalledTimes(2));
+    expect(api.searchPage.mock.calls[1][0]).toMatchObject({
+      search_profile: "embeddinggemma",
+      expected_artifact_generation: detail.artifact_generation,
+    });
+    const page = (profile: string, title: string): SearchResultsPage => ({
+      search_profile: profile,
+      artifact_generation: detail.artifact_generation,
+      mode: { kind: "similar_records", seed: detail.record },
+      coverage: null,
+      page: {
+        number: 1,
+        size: 5,
+        count: 1,
+        total: 1n,
+        next_page: null,
+        has_more: false,
+      },
+      rows: [{ record: summaryFixture("actors:" + profile, title), matches: [] }],
+    });
+    await act(async () => finishNew(page("embeddinggemma", "Current suggestion")));
+    await act(async () => finishOld(page("bge-base", "Old suggestion")));
+    expect(
+      await screen.findByRole("link", { name: "Current suggestion" }),
+    ).toBeVisible();
+    expect(screen.queryByText("Old suggestion")).toBeNull();
+    expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
+    const link = screen.getByRole("link", { name: "See more similar records" });
+    const params = new URL(link.getAttribute("href")!, window.location.origin)
+      .searchParams;
+    expect(params.get("search_profile")).toBe("embeddinggemma");
+    expect(params.get("similar")).toBe(detail.record.record_key);
+    expect(fireEvent.click(link, { metaKey: true })).toBe(true);
+    client.clear();
   });
   it("comparison uses shared family panes without recursive related queries", async () => {
     api.getRelatedRecords.mockResolvedValue({

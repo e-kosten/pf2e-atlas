@@ -8,6 +8,7 @@ pub(crate) mod args;
 use args::{FiltersFieldsOptions, FiltersValuesOptions};
 pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, String> {
     let s = connect(ClientOptions {
+        search_profile: None,
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,
@@ -63,6 +64,7 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
 pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, String> {
     let (filter, _) = build_filter(&o.filter_options).map_err(|e| e.message)?;
     let s = connect(ClientOptions {
+        search_profile: None,
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,

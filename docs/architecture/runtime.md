@@ -68,20 +68,26 @@ The record itself remains a key and DTO. Content outcomes and resolved relations
 occurrences are separate derived outputs. Original bytes/provenance, admission
 failures and detailed reports remain ingest/developer concerns.
 
-`BuildArtifactOptions` composes source paths, locale, optional embedding config,
-batching/reuse and output paths. The build produces index-owned inputs: checked
+`BuildArtifactOptions` composes source paths, locale, selected profile configurations,
+batching/reuse and output paths. An empty profile collection builds lexical content.
+The build prepares shared source content once, then checks native inputs and runs
+inference/reuse sequentially per selected profile. It produces index-owned inputs: checked
 records, named typed projections, selected content, verified identity evidence and
 attributed lexical/semantic units. The index writer owns physical encoding and
 publication. Failures preserve the previous artifact.
 
 The aggregate source fingerprint hashes the ordered actual relevant inputs,
 including manifest/pack definitions and excluded records. A Git revision alone
-does not capture exported checkouts or local edits. Preparation identity also
-includes locale/catalogs, audience, content/relationship/selection policies and
-exact model assets. Reuse requires compatible complete identities, not matching
-record keys alone. Before accepting cached vectors, ingest reconstructs the old
-selected inputs with the pinned tokenizer and verifies their stored hash, token
-count and source attribution. Index remains independent of tokenizer/model assets.
+does not capture exported checkouts or local edits. Shared content preparation
+identity includes locale/catalogs, audience and content/relationship/selection
+policies; it excludes profile model assets and passage recipes. Each profile's
+execution/reuse identity binds its complete selected model/native-tokenizer assets,
+the full shared BGE segmentation-tokenizer digest and its passage recipe. The full
+artifact generation binds shared preparation plus the complete profile manifest.
+Before accepting cached vectors, ingest reconstructs old selected inputs using the
+shared BGE tokenizer, checks them with the selected native tokenizer and verifies
+exact identity, raw hash, token count and source attribution. Index validates the
+persisted contract without loading tokenizer/model assets.
 
 The content interpreter produces sanitized HTML and narrow marker/control facts
 using the shared HTML parser and sanitizer.
@@ -96,8 +102,10 @@ labels and meaningful structural definition labels. It does not dump descriptive
 prose into FTS. Semantic selection independently covers selected explanatory
 root/owned passages plus compact root identity. text-splitter segments passages;
 the actual tokenizer checks every final input with complete body/tail coverage.
-FastEmbed executes the pinned BGE-small model using CLS/L2. Exact tokenizer
-budgets and the pinned model contract govern every accepted input.
+FastEmbed executes pinned BGE Base CLS/L2 and EmbeddingGemma's exported projected
+sentence output with L2 normalization. Both profiles share baseline BGE segmentation;
+the selected native tokenizer checks every officially prefixed final input.
+[ADR0050](./decisions/0050-selectable-search-profiles.md) pins these boundaries.
 
 ## Runtime paths and setup
 
@@ -112,6 +120,11 @@ full mode does. A missing or unsupported artifact produces an actionable rebuild
 result. An existing indexing locale is preserved unless explicitly overridden;
 a fresh artifact defaults to English. The embedding crate owns checksum/cache
 readiness through `validate_embedding_model_cache`, with no model load required.
+Omitted setup profile flags preserve the readable current-format stored set
+before asset checks; fresh setup selects BGE Base. Explicit flags define the whole
+desired set. Cache packages use model-ID/revision directories and selected
+missing/checksum-mismatched files are repaired through verified temporary download
+and rename. Old revisions remain untouched; no old-layout bridge is provided.
 
 Explicit setup freshness may compare the source fingerprint. Ordinary lookup,
 search, lists and encounters do not scan the source checkout. Cheap index checks
@@ -122,16 +135,38 @@ vector workflows remain deliberate modes rather than implicit web fallbacks.
 ## Retrieval and application workflows
 
 Short-lived CLI workflows lazily open one retrieval service and retain it across
-all reference operations until the command ends. Semantic mode loads one query
-embedder; lexical and stored-vector commands remain model-free. Source-free
+all reference operations until the command ends. Semantic mode warms the selected
+default query profile; any other requested profile loads lazily into the shared
+retained inference owner. Lexical and stored-vector commands remain model-free. Source-free
 local-state operations require no artifact open.
 
 The long-running web service retains two independent retrieval workers. Startup
-compares the index-owned physical instance and complete preparation identity of
+compares the index-owned physical instance and complete artifact generation of
 every opened reader; publication during construction fails clearly when workers
 opened different instances. Failed startup closes the queue and joins started
 workers before returning. A running service retains its artifact until restart,
 preserving bounded parallel reads while later artifacts are published.
+
+Runtime composes one shared inference owner across those readers. Its default
+profile warms at startup; other selected profiles load once and remain retained.
+One global native mutex serializes model loading/inference, with four inference
+threads and the existing bounded worker queue. It releases before SQL ranking.
+Stored-vector Similar and lexical/reference operations do not require query assets.
+Profile readiness reports stored vectors, verified assets and query usability
+separately for stored profiles only, without constructing a native session for
+metadata checks. App-service readiness retains the same runtime as query workers.
+Required-file metadata witnesses retain verified availability until the package
+changes; normal repair is observed on a later check. Native loading still verifies
+actual bytes, and an already-loaded session remains usable after disk changes.
+The inference owner publishes its finite loaded-profile snapshot after successful
+session insertion, so metadata does not wait behind the native inference lane.
+Omitted launch selection remains optional until runtime resolves the manifest:
+sole profile selects itself, both select BGE Base. Explicit missing choices error.
+
+Build owners emit existing `atlas_progress` events with profile IDs/names, stages,
+completed/total work and separate occurrence/unique/reuse counts. CLI-support owns
+TTY in-place and bounded nonTTY stderr rendering, elapsed/rate and supported ETA;
+unknown work stays unknown. JSON stdout and disabled progress remain clean.
 
 Search pages, contextual filter counts, and both contextual and count-free value
 discovery receive an explicit, non-serialized `ReadExecutionContext`. Unrelated callers
@@ -150,8 +185,8 @@ that every browser abort drops its server handler. Durable mutations, transactio
 receipts and their reference reads use the normal uncancellable path under
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).
 
-`AtlasRetrievalService` is a concrete service over index plus optional query
-embedder. Narrow inherent methods own strict name/key lookup, browse, text search,
+`AtlasRetrievalService` is a concrete service over index, an explicit default
+profile and an optional shared query-inference owner. Narrow inherent methods own strict name/key lookup, browse, text search,
 similar, graph, remaster links, Suggested variants and catalog discovery. The
 service uses the concrete index reader defined by the artifact contract.
 
@@ -307,7 +342,8 @@ There is no name-based pairing or substitution of catalog data into local copies
 
 Web startup uses
 full pooled retrieval; short-lived CLI workflows may choose explicit model-free
-or stored-vector modes. The bounded executor prevents one global serialized lane.
+or stored-vector modes. The bounded executor preserves parallel SQL retrieval;
+the shared native inference owner serializes only model loading and inference.
 Web routes are transport glue. App-model generates intentional browser DTOs;
 the browser neither receives whole Foundry bodies nor reimplements gameplay rules.
 
@@ -354,5 +390,5 @@ recreating a metric store.
 
 Macro-inspired UI actions, source-local asset ingestion, independent runtime display
 locale, broader label selection, representative root embeddings/reranking and new
-embedding models require separate bounded design/evidence. Their retained source
+embedding models beyond the two pinned baseline profiles require separate bounded design/evidence. Their retained source
 data does not imply runtime execution support. See the active backlog and ADR0046.

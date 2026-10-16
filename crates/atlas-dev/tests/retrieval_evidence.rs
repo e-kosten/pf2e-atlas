@@ -3,8 +3,7 @@ use atlas_domain::RecordKey;
 use atlas_index::SqliteIndexReader;
 use atlas_ingest::{BuildArtifactOptions, build_artifact, load_foundry_documents};
 use atlas_search::{
-    AtlasRetrievalService, RecordScope, RetrievalMode, SearchEmbeddingConfig, SearchPage,
-    TextSearchRequest,
+    AtlasRetrievalService, RecordScope, RetrievalMode, SearchPage, TextSearchRequest,
 };
 use serde_json::{Value, json};
 use std::{
@@ -89,9 +88,10 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
         output_path: output.clone(),
         manifest_path: None,
         locale: "en".into(),
-        embedding: Some(atlas_embedding::EmbeddingRuntimeConfig::default_model(
+        search_profiles: vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+            atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
             &cache,
-        )),
+        )],
         reuse_embeddings: true,
         embedding_batch_size: 32,
     })
@@ -103,7 +103,8 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
     let statistics = reader.statistics().unwrap();
     let mut service = AtlasRetrievalService::from_prepared_index(
         reader,
-        &SearchEmbeddingConfig::new(atlas_embedding::DEFAULT_EMBEDDING_MODEL, &cache),
+        atlas_domain::SearchProfileId::new("bge-base"),
+        atlas_embedding::SharedQueryInference::new(&cache),
     )
     .unwrap();
     let queries: Value = serde_json::from_slice(
@@ -148,6 +149,7 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
             let started = Instant::now();
             let result = service
                 .search_text(TextSearchRequest {
+                    search_profile: None,
                     query: q["text"].as_str().unwrap(),
                     mode,
                     filter: filter.as_ref().map(|f| f.predicate()),

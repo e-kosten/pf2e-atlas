@@ -1,7 +1,8 @@
+import { SearchProfileProvider } from "../../../test/SearchProfileProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Form, Input } from "antd";
+import { ConfigProvider, Form, Input } from "antd";
 import { useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   AtlasApiError,
   searchPage,
@@ -20,8 +21,9 @@ vi.mock("../../../api/atlasApi", async (original) => ({
   discoverFilterCounts: vi.fn(),
 }));
 const search = vi.mocked(searchPage);
-function result(title = "Ghoul", generation = "generation-a") {
+function result(title = "Ghoul", generation = "generation-a", profile = "bge-base") {
   return {
+    search_profile: profile,
     artifact_generation: generation,
     mode: { kind: "list_records" as const },
     coverage: null,
@@ -78,19 +80,28 @@ function Picker({
 }
 function renderPicker() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const view = render(
-    <QueryClientProvider client={client}>
-      <Picker />
-    </QueryClientProvider>,
+  let profile = "bge-base";
+  let disabled = false;
+  const content = () => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <QueryClientProvider client={client}>
+        <SearchProfileProvider id={profile}>
+          <Picker disabled={disabled} />
+        </SearchProfileProvider>
+      </QueryClientProvider>
+    </ConfigProvider>
   );
+  const view = render(content());
   return {
     client,
-    setDisabled: (disabled: boolean) =>
-      view.rerender(
-        <QueryClientProvider client={client}>
-          <Picker disabled={disabled} />
-        </QueryClientProvider>,
-      ),
+    setDisabled: (next: boolean) => {
+      disabled = next;
+      view.rerender(content());
+    },
+    setProfile: (next: string) => {
+      profile = next;
+      view.rerender(content());
+    },
   };
 }
 async function submit(query: string) {
@@ -113,9 +124,32 @@ beforeEach(() => {
     common_field_ids: [],
   });
   vi.mocked(discoverFilterCounts).mockResolvedValue({
+    search_profile: "bge-base",
+    artifact_generation: "generation-a",
     counts: { status: "unavailable", reason: "non_conjunctive_context" },
   });
 });
+it("shows loading without pagination, then completed empty for a queryless picker", async () => {
+  let finish!: (value: ReturnType<typeof result>) => void;
+  search.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  renderPicker();
+  await waitFor(() =>
+    expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible(),
+  );
+  expect(screen.queryByTitle("Next Page")).toBeNull();
+  expect(screen.queryByText("No matching records")).toBeNull();
+  await act(async () =>
+    finish({ ...result(), rows: [], page: { ...result().page, count: 0, total: 0n } }),
+  );
+  expect(await screen.findByText("No matching records")).toBeVisible();
+  expect(screen.queryByText("Search for a record")).toBeNull();
+  expect(screen.queryByTitle("Next Page")).toBeNull();
+});
+
 it("previews before explicit Add and retains the named candidate when a later query has no results", async () => {
   renderPicker();
   const link = await screen.findByRole("link", { name: /Ghoul/ });
@@ -132,6 +166,50 @@ it("previews before explicit Add and retains the named candidate when a later qu
   await waitFor(() => expect(screen.queryByRole("link", { name: /Ghoul/ })).toBeNull());
   expect(screen.getByText("Selected Ghoul")).toHaveTextContent("Selected Ghoul");
   expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+});
+
+it("inherits a profile switch on page one while retaining the explicit candidate, reader and Add draft", async () => {
+  const page = result();
+  page.page = { ...page.page, total: 100n, has_more: true };
+  let finishOld!: (value: ReturnType<typeof result>) => void;
+  let finishNew!: (value: ReturnType<typeof result>) => void;
+  search
+    .mockResolvedValueOnce(page)
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishOld = resolve;
+      }),
+    )
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishNew = resolve;
+      }),
+    );
+  const { setProfile } = renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
+  fireEvent.change(screen.getByLabelText("Note"), {
+    target: { value: "Keep encounter draft" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Results" }));
+  fireEvent.click(screen.getByTitle("Next Page"));
+  await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
+  setProfile("embeddinggemma");
+  await waitFor(() => expect(search).toHaveBeenCalledTimes(3));
+  expect(search.mock.calls[2][0]).toMatchObject({
+    search_profile: "embeddinggemma",
+    page: { number: 1 },
+  });
+  expect(screen.queryByRole("link", { name: /Ghoul/ })).toBeNull();
+  expect(screen.getByText("Selected Ghoul")).toHaveTextContent("Selected Ghoul");
+  expect(screen.getByLabelText("Note")).toHaveValue("Keep encounter draft");
+  await act(async () =>
+    finishNew(result("New creature", "generation-a", "embeddinggemma")),
+  );
+  await act(async () => finishOld(result("Late creature")));
+  expect(await screen.findByRole("link", { name: /New creature/ })).toBeVisible();
+  expect(screen.queryByRole("link", { name: /Late creature/ })).toBeNull();
+  expect(screen.getByText("Selected Ghoul")).toHaveTextContent("Selected Ghoul");
+  expect(getRecordDetail).toHaveBeenCalledTimes(1);
 });
 it("blocks selection and form actions while Add is pending, preserving the draft", async () => {
   const view = renderPicker();

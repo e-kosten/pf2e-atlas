@@ -180,10 +180,23 @@ impl CliProgressState {
         };
         let current = fields.current.unwrap_or(0);
         if render == ProgressRenderMode::Plain {
-            eprintln!(
-                "{} INFO {message}",
-                log_elapsed_prefix(self.started_at.elapsed())
+            self.ensure_progress_bar(
+                fields.phase.clone(),
+                total,
+                setup_timing,
+                ProgressDrawTarget::hidden(),
             );
+            let elapsed = self
+                .progress_bar
+                .as_ref()
+                .map(ProgressBar::elapsed)
+                .unwrap_or_default();
+            eprintln!(
+                "{} INFO {message} | {current}/{total} | {}",
+                log_elapsed_prefix(self.started_at.elapsed()),
+                work_timing(current, total, elapsed),
+            );
+            self.update_progress_bar(current, total, message, setup_timing);
             return;
         }
 
@@ -386,9 +399,9 @@ fn spinner_style(setup_timing: bool) -> ProgressStyle {
 
 fn progress_template(setup_timing: bool) -> &'static str {
     if setup_timing {
-        "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg}"
+        "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg} {work_timing}"
     } else {
-        "[{bar:40.cyan/blue}] {pos}/{len} {msg}"
+        "[{bar:40.cyan/blue}] {pos}/{len} {msg} {work_timing}"
     }
 }
 
@@ -415,6 +428,35 @@ fn progress_style_with_phase_elapsed(
                 let _ = write!(writer, "{}", compact_elapsed(state.elapsed()));
             },
         )
+        .with_key(
+            "work_timing",
+            |state: &ProgressState, writer: &mut dyn fmt::Write| {
+                let _ = write!(
+                    writer,
+                    "{}",
+                    work_timing(state.pos(), state.len().unwrap_or(0), state.elapsed())
+                );
+            },
+        )
+}
+
+fn work_timing(current: u64, total: u64, elapsed: Duration) -> String {
+    let seconds = elapsed.as_secs_f64();
+    let rate = if current > 0 && seconds > 0.0 {
+        Some(current as f64 / seconds)
+    } else {
+        None
+    };
+    let (rate, eta) = match rate {
+        Some(rate) if total > 0 && rate.is_finite() => (
+            format!("{rate:.2}/s"),
+            Duration::try_from_secs_f64(total.saturating_sub(current) as f64 / rate)
+                .map(compact_elapsed)
+                .unwrap_or_else(|_| "unknown".into()),
+        ),
+        _ => ("unknown".into(), "unknown".into()),
+    };
+    format!("elapsed {} rate {rate} ETA {eta}", compact_elapsed(elapsed))
 }
 
 fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {
@@ -647,7 +689,7 @@ mod tests {
     fn setup_timing_templates_put_elapsed_prefix_first() {
         assert_eq!(
             progress_template(true),
-            "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg}"
+            "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg} {work_timing}"
         );
         assert_eq!(
             spinner_template(true),
@@ -754,5 +796,22 @@ mod tests {
             "rendered state spinner should use total elapsed and per-phase elapsed: {rendered:?}"
         );
         assert!(rendered.contains("State spinner"));
+    }
+    #[test]
+    fn progress_timing_estimates_only_known_completed_work() {
+        assert_eq!(
+            super::work_timing(20, 100, Duration::from_secs(10)),
+            "elapsed 00:10 rate 2.00/s ETA 00:40"
+        );
+        assert_eq!(
+            super::work_timing(100, 100, Duration::from_secs(50)),
+            "elapsed 00:50 rate 2.00/s ETA 00:00"
+        );
+        assert!(
+            super::work_timing(0, 100, Duration::from_secs(10))
+                .contains("rate unknown ETA unknown")
+        );
+        assert!(super::work_timing(0, 0, Duration::ZERO).contains("rate unknown ETA unknown"));
+        assert!(super::work_timing(1, u64::MAX, Duration::MAX).contains("ETA unknown"));
     }
 }

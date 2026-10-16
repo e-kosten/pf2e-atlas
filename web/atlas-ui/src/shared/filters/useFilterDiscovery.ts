@@ -1,4 +1,5 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { assertSearchIdentity } from "../search/searchIdentity";
 import {
   discoverFilterCounts,
   discoverFilterEditor,
@@ -67,13 +68,20 @@ export function useFilterDiscovery({
   );
   const counts = useQueries({
     queries: requests.map(({ fieldId, clauseId }) => ({
-      queryKey: [...queryKeyPrefix, "counts", fieldId, clauseId],
+      queryKey: [...queryKeyPrefix, "counts", context, fieldId, clauseId],
       enabled: enabled && !editor.isPlaceholderData,
-      queryFn: ({ signal }: { signal: AbortSignal }) =>
-        discoverFilterCounts(
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const response = await discoverFilterCounts(
           { context, field_id: fieldId, clause_id: clauseId },
           signal,
-        ),
+        );
+        assertSearchIdentity(
+          response,
+          context.search_profile,
+          context.expected_artifact_generation,
+        );
+        return response;
+      },
     })),
   });
   return {

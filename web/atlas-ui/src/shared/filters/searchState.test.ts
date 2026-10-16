@@ -121,3 +121,43 @@ it("round trips a root similar criterion and filters without adding a kind filte
   expect(hasExecutableSearch(invalid)).toBe(false);
   expect(() => buildSearchRequest(invalid, 1)).toThrow();
 });
+
+it("carries the selected profile through text and Similar deep links and contextual generation", () => {
+  const state = {
+    ...DEFAULT_SEARCH_STATE,
+    query: "dragon",
+    mode: "text_search" as const,
+    pageSize: 50,
+  };
+  const params = new URLSearchParams(searchStateQueryString(state, "embeddinggemma"));
+  expect(params.get("search_profile")).toBe("embeddinggemma");
+  expect(decodeSearchStateFromParams(params)).toMatchObject(state);
+  expect(buildSearchRequest(state, 2, "generation-a", "embeddinggemma")).toMatchObject({
+    search_profile: "embeddinggemma",
+    expected_artifact_generation: "generation-a",
+    page: { number: 2, size: 50 },
+  });
+  expect(
+    buildFilterDiscoveryContext(state, "embeddinggemma", "generation-a"),
+  ).toMatchObject({
+    search_profile: "embeddinggemma",
+    expected_artifact_generation: "generation-a",
+    text: "dragon",
+  });
+  const similar = { ...state, query: "", similarSeed: "actors:seed" };
+  const similarParams = new URLSearchParams(
+    searchStateQueryString(similar, "embeddinggemma"),
+  );
+  expect(similarParams.get("search_profile")).toBe("embeddinggemma");
+  expect(
+    buildSearchRequest(
+      decodeSearchStateFromParams(similarParams),
+      1,
+      "generation-a",
+      similarParams.get("search_profile")!,
+    ),
+  ).toMatchObject({
+    search_profile: "embeddinggemma",
+    criteria: { kind: "similar_records", seed_record_key: "actors:seed" },
+  });
+});

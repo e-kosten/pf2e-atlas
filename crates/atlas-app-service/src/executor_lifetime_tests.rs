@@ -12,7 +12,7 @@ fn artifact(name: &str, locale: &str) -> (AtlasRetrievalService, FixtureArtifact
         false,
     );
     input.context.indexing_locale = locale.into();
-    let hash = input.context.sha256().unwrap();
+    let hash = input.context.preparation_sha256().unwrap();
     for record in &mut input.records {
         record.preparation_context_hash = hash.clone();
     }

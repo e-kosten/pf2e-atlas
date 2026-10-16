@@ -27,6 +27,8 @@ impl AtlasAppService {
                     AppRecoverableAction::RefreshResults,
                 ));
             }
+            let search_profile =
+                retrieval.resolve_search_profile(request.search_profile.as_ref(), false)?;
             let (mode, rows, page, coverage) = match request.criteria {
                 SearchCriteria::SimilarRecords {
                     seed_record_key,
@@ -37,6 +39,7 @@ impl AtlasAppService {
                     })?;
                     let result = retrieval
                         .similar_records(atlas_search::SimilarRecordRequest {
+                            search_profile: request.search_profile.as_ref(),
                             record_key: &key,
                             filter: filter.as_ref(),
                             scope: RecordScope::All,
@@ -86,6 +89,7 @@ impl AtlasAppService {
                 } => {
                     // Stateless paging deliberately reruns query inference and ranking.
                     let result = retrieval.search_text(TextSearchRequest {
+                        search_profile: request.search_profile.as_ref(),
                         query: &query,
                         mode: retrieval_mode(mode),
                         filter: filter.as_ref(),
@@ -104,6 +108,7 @@ impl AtlasAppService {
                 }
             };
             Ok(SearchResultsPage {
+                search_profile,
                 artifact_generation,
                 mode,
                 page,
