@@ -32,6 +32,7 @@ import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
 import { ListIndexView } from "./ListIndexView";
 import { savedListTagOptions } from "./listUtils";
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 
 const apiMocks = vi.hoisted(() => ({
   searchPage: vi.fn(),
@@ -82,6 +83,7 @@ describe("list views", () => {
       Promise.resolve(valuesFixture(request.field_id)),
     );
     apiMocks.searchPage.mockResolvedValue({
+      search_profile: "bge-base",
       artifact_generation: "generation-a",
       mode: { kind: "list_records" },
       coverage: null,
@@ -1056,7 +1058,9 @@ function queryClientWrapper() {
     return (
       <QueryClientProvider client={queryClient}>
         <ConfigProvider theme={{ token: { motion: false } }}>
-          <App>{children}</App>
+          <SearchProfileProvider>
+            <App>{children}</App>
+          </SearchProfileProvider>
         </ConfigProvider>
       </QueryClientProvider>
     );

@@ -78,5 +78,5 @@ pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow])
     }
 }
 pub(crate) fn search_json(result: &atlas_app_model::SearchResultsView) -> serde_json::Value {
-    serde_json::json!({"pagination":result.page,"coverage":result.coverage,"results":result.rows})
+    serde_json::json!({"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"coverage":result.coverage,"results":result.rows})
 }

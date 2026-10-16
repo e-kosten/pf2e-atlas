@@ -92,7 +92,9 @@ export function BrowseReader({
           rememberOpener(event.target);
       }}
     >
-      <div className="reference-results__header">{resultsHeader}</div>
+      {resultsHeader && (
+        <div className="reference-results__header">{resultsHeader}</div>
+      )}
       <div
         className="reference-results__scroll"
         ref={listRef}

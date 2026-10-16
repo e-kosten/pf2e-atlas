@@ -1,6 +1,6 @@
 //! Complete temporary artifact builds, validated before atomic publication.
 use crate::{
-    IndexBuildInput, IndexError, SourceArtifactBuildContext, SourceSemanticModelIdentity,
+    IndexBuildInput, IndexError, SourceArtifactBuildContext, SourceSearchProfileIdentity,
     codec::{checked_hash, gzip, sha256},
     input::*,
     persistence::{ProjectionRow, execute, writable},
@@ -45,7 +45,7 @@ impl IndexArtifactWriter for SqliteIndexWriter {
         input: &IndexBuildInput,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
         validate_input(input)?;
-        if input.context.semantic_model.is_some() {
+        if !input.context.search_profiles.is_empty() {
             atlas_sqlite_vec::register_sqlite_vec_auto_extension()
                 .map_err(|e| IndexError::Operation(e.to_string()))?;
         }
@@ -67,8 +67,10 @@ impl IndexArtifactWriter for SqliteIndexWriter {
             Ok(())
         })?;
         drop(c);
+        tracing::info!(target:"atlas_progress",phase="artifact_validation","Validating completed temporary artifact; remaining duration unknown");
         let report = crate::validation::validate_artifact(temporary.path())?;
         temporary.as_file().sync_all()?;
+        tracing::info!(target:"atlas_progress",phase="artifact_publication",current=0u64,total=1u64,"Atomically publishing validated artifact");
         temporary
             .persist(&self.path)
             .map_err(|e| IndexError::Operation(format!("cannot atomically publish artifact (it may be in use); prior artifact preserved: {e}")))?;
@@ -76,18 +78,22 @@ impl IndexArtifactWriter for SqliteIndexWriter {
         {
             std::fs::File::open(parent)?.sync_all()?;
         }
+        tracing::info!(target:"atlas_progress",phase="artifact_publication",current=1u64,total=1u64,"Validated artifact published");
         Ok(report)
     }
 }
-impl SourceSemanticModelIdentity {
-    pub fn current() -> Self {
-        let s = atlas_embedding::default_embedding_model_spec();
+impl SourceSearchProfileIdentity {
+    pub fn from_spec(profile: atlas_embedding::SearchProfileSpec) -> Self {
+        let s = profile.model_spec();
         Self {
+            profile_id: profile.profile_id(),
             provider: s.provider_family.into(),
             model_id: s.model_id.into(),
             revision: s.model_revision.into(),
             model_sha256: s.model_sha256.into(),
             tokenizer_sha256: s.tokenizer_sha256.into(),
+            segmentation_tokenizer_sha256: atlas_embedding::BASELINE_SEGMENTATION_TOKENIZER_SHA256
+                .into(),
             dimensions: s.dimensions,
             pooling: s.pooling.as_str().into(),
             normalization: s.normalization.as_str().into(),
@@ -96,6 +102,16 @@ impl SourceSemanticModelIdentity {
             document_prefix: s.document_prefix.into(),
             token_limit: s.max_input_tokens.unwrap_or(512),
             unit_policy_version: atlas_embedding::EMBEDDING_UNIT_POLICY_VERSION.into(),
+            tokenizer_id: s.tokenizer_id.into(),
+            output_name: s.output_name.into(),
+            dtype: s.dtype.as_str().into(),
+            execution_policy: atlas_embedding::EMBEDDING_INFERENCE_POLICY_VERSION.into(),
+            input_recipe: atlas_embedding::BASELINE_INPUT_RECIPE.into(),
+            assets: s
+                .required_assets
+                .iter()
+                .map(|(path, hash)| (path.to_string(), hash.to_string()))
+                .collect(),
         }
     }
 }
@@ -148,23 +164,83 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
             "build context policy or locale is empty".into(),
         ));
     }
-    if let Some(model) = &c.semantic_model
-        && model != &SourceSemanticModelIdentity::current()
-    {
-        return Err(IndexError::Unsupported(
-            "semantic model or unit policy identity".into(),
-        ));
+    for profile in c.canonical_profiles()? {
+        let spec = atlas_embedding::search_profile(&profile.profile_id)
+            .map_err(|e| IndexError::Unsupported(e.to_string()))?;
+        if profile.model_id != spec.model_spec().model_id
+            || profile.dimensions != 768
+            || profile.token_limit == 0
+            || profile.token_limit > 32768
+            || profile.assets.is_empty()
+            || profile
+                .assets
+                .iter()
+                .any(|(path, hash)| path.is_empty() || !checked_hash(hash))
+            || !checked_hash(&profile.model_sha256)
+            || !checked_hash(&profile.tokenizer_sha256)
+            || !checked_hash(&profile.segmentation_tokenizer_sha256)
+            || [
+                &profile.provider,
+                &profile.revision,
+                &profile.pooling,
+                &profile.normalization,
+                &profile.distance_metric,
+                &profile.unit_policy_version,
+                &profile.tokenizer_id,
+                &profile.output_name,
+                &profile.dtype,
+                &profile.execution_policy,
+                &profile.input_recipe,
+            ]
+            .iter()
+            .any(|s| s.is_empty())
+        {
+            return Err(IndexError::Unsupported(
+                "invalid stored search profile execution or recipe identity".into(),
+            ));
+        }
+        let expected_assets = spec
+            .model_spec()
+            .required_assets
+            .iter()
+            .map(|(path, _)| *path)
+            .collect::<std::collections::BTreeSet<_>>();
+        if profile
+            .assets
+            .keys()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>()
+            != expected_assets
+            || profile.assets.get("onnx/model.onnx") != Some(&profile.model_sha256)
+            || profile.assets.get("tokenizer.json") != Some(&profile.tokenizer_sha256)
+            || profile.dtype != "f32"
+            || profile.normalization != "l2"
+            || profile.distance_metric != "cosine"
+        {
+            return Err(IndexError::Invalid(
+                "incomplete or inconsistent stored profile asset/vector contract".into(),
+            ));
+        }
     }
     Ok(())
 }
 fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
     validate_context(&input.context)?;
+    for profile in &input.context.search_profiles {
+        let spec = atlas_embedding::search_profile(&profile.profile_id)
+            .map_err(|e| IndexError::Unsupported(e.to_string()))?;
+        if profile != &SourceSearchProfileIdentity::from_spec(spec) {
+            return Err(IndexError::Unsupported(
+                "writer requires the exact current search profile execution and recipe".into(),
+            ));
+        }
+    }
     if input.context.source_file_count < input.records.len() {
         return Err(IndexError::Invalid(
             "source input count is smaller than admitted root count".into(),
         ));
     }
-    if input.context.semantic_model.is_none() && !input.semantic_units.is_empty() {
+    if input.context.search_profiles.is_empty() && !input.semantic_units.is_empty() {
         return Err(IndexError::Invalid(
             "semantic units supplied without a model".into(),
         ));
@@ -177,7 +253,7 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
             ));
         }
     }
-    let context_hash = input.context.sha256()?;
+    let context_hash = input.context.preparation_sha256()?;
     let mut keys = std::collections::BTreeSet::new();
     for r in &input.records {
         if !keys.insert(r.record.key()) {
@@ -216,7 +292,9 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
     Ok(())
 }
 fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Result<(), IndexError> {
-    let json = serde_json::to_string(&input.context)?;
+    let mut canonical = input.context.clone();
+    canonical.search_profiles = input.context.canonical_profiles()?;
+    let json = serde_json::to_string(&canonical)?;
     execute(
         c,
         "INSERT INTO artifact_context(singleton,format_version,context_hash,context_json) VALUES(1,?,?,?)",
@@ -249,7 +327,7 @@ fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Resu
         .map(|p| (p.pack_id.as_str(), p.label.as_str()))
         .collect::<BTreeMap<_, _>>();
     let mut ids = ProjectionIds::default();
-    for source in &input.records {
+    for (ordinal, source) in input.records.iter().enumerate() {
         let id = id_for(&root_ids, source.record.key())?;
         let label = pack_labels
             .get(source.record.key().pack().as_str())
@@ -266,8 +344,11 @@ fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Resu
                 crate::schema::record_bodies::snapshot.eq(bytes),
             ))
             .execute(c)?;
+        if (ordinal + 1).is_multiple_of(500) || ordinal + 1 == input.records.len() {
+            tracing::info!(target:"atlas_progress",phase="artifact_snapshots",current=(ordinal+1) as u64,total=input.records.len() as u64,"Writing shared record snapshots");
+        }
     }
-    for source in &input.records {
+    for (record_ordinal, source) in input.records.iter().enumerate() {
         let id = id_for(&root_ids, source.record.key())?;
         write_content(c, source, id, &root_ids, input.context.audience)?;
         for (ordinal, relationship) in source.relationships.iter().enumerate() {
@@ -307,6 +388,9 @@ fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Resu
         }
         for diagnostic in crate::projections::projection_diagnostics(&source.record) {
             write_diagnostic(c, id, &diagnostic)?;
+        }
+        if (record_ordinal + 1).is_multiple_of(500) || record_ordinal + 1 == input.records.len() {
+            tracing::info!(target:"atlas_progress",phase="artifact_content",current=(record_ordinal+1) as u64,total=input.records.len() as u64,"Writing shared content and relationships");
         }
     }
     for alias in &input.aliases {
@@ -377,20 +461,40 @@ fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Resu
         r.text("definition_terms", &unit.definition_terms);
         r.insert(c)?;
     }
-    if let Some(model) = &input.context.semantic_model {
-        let mut r = ProjectionRow::new("semantic_models");
-        r.id("model_id", 1);
-        r.text("identity_json", serde_json::to_string(model)?);
-        r.id("dimensions", model.dimensions as i64);
-        r.id("unit_policy_version", 1);
-        r.insert(c)?;
-        c.batch_execute(&format!("CREATE VIRTUAL TABLE semantic_vectors USING vec0(unit_id INTEGER PRIMARY KEY,embedding FLOAT[{}] distance_metric=cosine);",model.dimensions))?;
+    if !input.context.search_profiles.is_empty() {
+        for model in input.context.canonical_profiles()? {
+            let mut r = ProjectionRow::new("search_profiles");
+            r.text("profile_id", model.profile_id.as_str());
+            r.text("identity_json", serde_json::to_string(&model)?);
+            r.id("dimensions", model.dimensions as i64);
+            r.insert(c)?;
+        }
+        c.batch_execute("CREATE VIRTUAL TABLE semantic_vectors USING vec0(unit_id INTEGER PRIMARY KEY,embedding FLOAT[768] distance_metric=cosine);")?;
+        let mut profile_totals = input
+            .context
+            .search_profiles
+            .iter()
+            .map(|p| {
+                (
+                    p.profile_id.clone(),
+                    (
+                        0usize,
+                        input
+                            .semantic_units
+                            .iter()
+                            .filter(|unit| unit.profile_id == p.profile_id)
+                            .count(),
+                    ),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
         for (i, unit) in input.semantic_units.iter().enumerate() {
+            let model = input.context.search_profile(&unit.profile_id)?;
             crate::validation::check_vector(&unit.vector, model.dimensions)?;
             let mut r = ProjectionRow::new("semantic_units");
             r.id("unit_id", (i + 1) as i64);
             r.id("record_id", product_id(input, &root_ids, &unit.record)?);
-            r.id("model_id", 1);
+            r.text("profile_id", unit.profile_id.as_str());
             r.text("owners_json", serde_json::to_string(&unit.owners)?);
             r.push(
                 "field_path",
@@ -423,6 +527,16 @@ fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Resu
                     Value::Blob(crate::read_units::vector_bytes(&unit.vector)),
                 ],
             )?;
+            let (current, total) = profile_totals.get_mut(&unit.profile_id).ok_or_else(|| {
+                IndexError::Invalid("vector profile has no publication total".into())
+            })?;
+            *current += 1;
+            if current.is_multiple_of(1000) || current == total {
+                let label = atlas_embedding::search_profile(&unit.profile_id)
+                    .map(|profile| profile.label)
+                    .unwrap_or(unit.profile_id.as_str());
+                tracing::info!(target:"atlas_progress",phase=%format!("{}:artifact_vectors",unit.profile_id),current=*current as u64,total=*total as u64,"{} [{}]: writing semantic vector occurrences",label,unit.profile_id);
+            }
         }
     }
     Ok(())

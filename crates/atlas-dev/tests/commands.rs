@@ -39,7 +39,7 @@ impl Fixture {
             output_path: index.clone(),
             manifest_path: None,
             locale: "en".into(),
-            embedding: None,
+            search_profiles: vec![],
             reuse_embeddings: false,
             embedding_batch_size: 16,
         })

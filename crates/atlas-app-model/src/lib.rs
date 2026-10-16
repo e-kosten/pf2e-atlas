@@ -70,7 +70,7 @@ pub use presentation::{
     SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
     TableResultPresentationView,
 };
-pub use readiness::{AppReadinessStatus, AppReadinessView};
+pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
     RecordBadgeView, RecordDetailRequest, RecordDetailView, RecordNavigationView,
     RecordRefResolutionView, RecordRelationshipView, RecordResolutionAmbiguousView,

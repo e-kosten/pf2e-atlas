@@ -1,6 +1,7 @@
 use crate::{RecordScope, SearchPage, TextSearchResult};
 use atlas_domain::{QueryPredicate, RecordKey};
 pub struct SimilarRecordRequest<'a> {
+    pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub record_key: &'a RecordKey,
     pub filter: Option<&'a QueryPredicate>,
     pub scope: RecordScope<'a>,
@@ -16,12 +17,14 @@ impl crate::AtlasRetrievalService {
         &self,
         request: SimilarRecordRequest<'_>,
     ) -> Result<Option<SimilarRecordResult>, crate::SearchError> {
+        self.resolve_search_profile(request.search_profile, request.search_profile.is_some())?;
         let Some(seed) = self.index.read_summary(request.record_key)? else {
             return Ok(None);
         };
+        let search_profile = self.resolve_search_profile(request.search_profile, true)?;
         let vector = self
             .index
-            .seed_identity_vector(request.record_key)?
+            .seed_identity_vector(&search_profile, request.record_key)?
             .ok_or_else(|| {
                 crate::SearchError::vector_readiness_required(
                     "seed has no stored root identity vector; rebuild with embeddings",
@@ -29,6 +32,7 @@ impl crate::AtlasRetrievalService {
             })?;
         let predicate = self.predicate(request.filter)?;
         let (roots, window) = self.rank_candidates(crate::text::CandidateRequest {
+            search_profile: &search_profile,
             text: "",
             mode: crate::RetrievalMode::Vector,
             query: &predicate,
@@ -38,7 +42,7 @@ impl crate::AtlasRetrievalService {
             vector: Some(&vector.vector),
             exclude: Some(request.record_key),
         })?;
-        let results = self.finish_results(roots, request.page, true, window)?;
+        let results = self.finish_results(&search_profile, roots, request.page, true, window)?;
         Ok(Some(SimilarRecordResult { seed, results }))
     }
 }

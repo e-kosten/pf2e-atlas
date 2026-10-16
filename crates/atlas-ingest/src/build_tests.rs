@@ -39,7 +39,7 @@ impl Fixture {
             output_path: self.0.join("artifact.sqlite"),
             manifest_path: None,
             locale: "en".into(),
-            embedding: None,
+            search_profiles: vec![],
             reuse_embeddings: true,
             embedding_batch_size: 16,
         }
@@ -129,15 +129,22 @@ fn actual_tokenizer_prepares_identity_for_unavailable_authored_names() {
         .find_map(|ancestor| {
             let cache = ancestor.join(".cache/hf-models");
             cache
-                .join("BAAI/bge-small-en-v1.5/onnx/model.onnx")
+                .join(format!(
+                    "BAAI/bge-base-en-v1.5/{}/onnx/model.onnx",
+                    atlas_embedding::embedding_model_spec(
+                        atlas_embedding::EmbeddingModelId::BgeBaseEnV15
+                    )
+                    .model_revision
+                ))
                 .is_file()
                 .then_some(cache)
         })
         .unwrap();
     let mut options = fixture.options();
-    options.embedding = Some(atlas_embedding::EmbeddingRuntimeConfig::default_model(
+    options.search_profiles = vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+        atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
         cache,
-    ));
+    )];
     for name in [
         None,
         Some(serde_json::Value::Null),
@@ -229,7 +236,7 @@ fn lexical_build_preserves_partial_records_and_keeps_macros_developer_only() {
     );
     assert_eq!(
         database
-            .query_row("SELECT count(*) FROM semantic_models", [], |r| r
+            .query_row("SELECT count(*) FROM search_profiles", [], |r| r
                 .get::<_, usize>(0))
             .unwrap(),
         0
@@ -337,7 +344,7 @@ fn actual_complete_source_build_has_typed_projection_content_and_navigation_cove
         output_path: evidence.join("full-lexical.sqlite"),
         manifest_path: None,
         locale: "en".into(),
-        embedding: None,
+        search_profiles: vec![],
         reuse_embeddings: false,
         embedding_batch_size: 16,
     })
@@ -424,15 +431,22 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
         .find_map(|ancestor| {
             let cache = ancestor.join(".cache/hf-models");
             cache
-                .join("BAAI/bge-small-en-v1.5/onnx/model.onnx")
+                .join(format!(
+                    "BAAI/bge-base-en-v1.5/{}/onnx/model.onnx",
+                    atlas_embedding::embedding_model_spec(
+                        atlas_embedding::EmbeddingModelId::BgeBaseEnV15
+                    )
+                    .model_revision
+                ))
                 .is_file()
                 .then_some(cache)
         })
         .unwrap();
     let mut options = fixture.options();
-    options.embedding = Some(atlas_embedding::EmbeddingRuntimeConfig::default_model(
+    options.search_profiles = vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+        atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
         cache,
-    ));
+    )];
     let first = build_artifact(options.clone()).unwrap();
     assert!(first.inferred_inputs > 0);
     assert_eq!(first.reused_inputs, 0);
@@ -450,6 +464,142 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     assert_eq!(changed.semantic_unit_count, first.semantic_unit_count);
     atlas_index::validate_artifact(&changed.output_path).unwrap();
 }
+
+#[test]
+#[ignore = "requires verified local BGE Base/Gemma assets; bounded tiny source only"]
+fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically() {
+    use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig};
+    let cache = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .map(|p| p.join(".cache/hf-models"))
+        .find(|p| {
+            p.join(format!(
+                "onnx-community/embeddinggemma-300m-ONNX/{}/onnx/model.onnx_data",
+                atlas_embedding::embedding_model_spec(
+                    atlas_embedding::EmbeddingModelId::EmbeddingGemma300M
+                )
+                .model_revision
+            ))
+            .is_file()
+        })
+        .unwrap();
+    let fixture = Fixture::new();
+    let mut options = fixture.options();
+    options.search_profiles = vec![EmbeddingRuntimeConfig::new(
+        EmbeddingModelId::BgeBaseEnV15,
+        &cache,
+    )];
+    let base = build_artifact(options.clone()).unwrap();
+    assert_eq!(base.profiles.len(), 1);
+    let first = atlas_index::SqliteIndexReader::open_read_only(&options.output_path).unwrap();
+    let prep = first.context().preparation_sha256().unwrap();
+    let generation = first.context().sha256().unwrap();
+    drop(first);
+    options.search_profiles.push(EmbeddingRuntimeConfig::new(
+        EmbeddingModelId::EmbeddingGemma300M,
+        &cache,
+    ));
+    let both = build_artifact(options.clone()).unwrap();
+    assert_eq!(both.profiles[0].inferred_inputs, 0);
+    assert!(both.profiles[0].reused_inputs > 0);
+    assert!(both.profiles[1].inferred_inputs > 0);
+    assert_eq!(both.semantic_unit_count, base.semantic_unit_count * 2);
+    let reader = atlas_index::SqliteIndexReader::open_read_only(&options.output_path).unwrap();
+    assert_eq!(reader.context().preparation_sha256().unwrap(), prep);
+    assert_ne!(reader.context().sha256().unwrap(), generation);
+    assert_eq!(reader.statistics().unwrap().prepared_fields, 1);
+    drop(reader);
+    let before = fs::read(&options.output_path).unwrap();
+    options.search_profiles[1].cache_root = fixture.0.join("missing-gemma-cache");
+    assert!(build_artifact(options.clone()).is_err());
+    assert_eq!(fs::read(&options.output_path).unwrap(), before);
+    // Gemma-only needs the small shared BGE tokenizer dependency, not BGE weights.
+    let gemma_target = gemma_only_cache(&cache, &fixture.0);
+    options.search_profiles = vec![gemma_target];
+    let gemma = build_artifact(options).unwrap();
+    assert_eq!(gemma.profiles.len(), 1);
+    assert_eq!(gemma.profiles[0].profile_id.as_str(), "embeddinggemma");
+    assert_eq!(gemma.inferred_inputs, 0);
+    assert!(gemma.reused_inputs > 0);
+    assert_eq!(gemma.semantic_unit_count, base.semantic_unit_count);
+    atlas_index::validate_artifact(&gemma.output_path).unwrap();
+    eprintln!(
+        "tiny native builds: Base-only -> both (Base reused) -> missing Gemma failure preserves bytes -> Gemma-only without BGE weights (Gemma reused)"
+    );
+}
+
+fn gemma_only_cache(cache: &Path, fixture_root: &Path) -> atlas_embedding::EmbeddingRuntimeConfig {
+    use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig};
+    let isolated = fixture_root.join("gemma-only-cache");
+    let base_token = atlas_embedding::baseline_tokenizer_cache_file(&isolated);
+    fs::create_dir_all(base_token.local_path.parent().unwrap()).unwrap();
+    fs::copy(
+        atlas_embedding::baseline_tokenizer_cache_file(cache).local_path,
+        &base_token.local_path,
+    )
+    .unwrap();
+    let gemma_source = EmbeddingRuntimeConfig::new(EmbeddingModelId::EmbeddingGemma300M, cache);
+    let gemma_target = EmbeddingRuntimeConfig::new(EmbeddingModelId::EmbeddingGemma300M, &isolated);
+    for file in atlas_embedding::required_embedding_model_cache_files(&gemma_target) {
+        fs::create_dir_all(file.local_path.parent().unwrap()).unwrap();
+        fs::hard_link(
+            gemma_source.model_dir().join(file.source_path),
+            &file.local_path,
+        )
+        .unwrap();
+    }
+    assert!(
+        !isolated
+            .join(format!(
+                "BAAI/bge-base-en-v1.5/{}/onnx/model.onnx",
+                atlas_embedding::embedding_model_spec(
+                    atlas_embedding::EmbeddingModelId::BgeBaseEnV15
+                )
+                .model_revision
+            ))
+            .exists()
+    );
+    gemma_target
+}
+
+#[test]
+#[ignore = "requires verified local Gemma assets; bounded fresh tiny source only"]
+fn actual_gemma_only_fresh_build_needs_baseline_tokenizer_but_no_base_weights() {
+    let cache = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .map(|p| p.join(".cache/hf-models"))
+        .find(|p| {
+            p.join(format!(
+                "onnx-community/embeddinggemma-300m-ONNX/{}/onnx/model.onnx_data",
+                atlas_embedding::embedding_model_spec(
+                    atlas_embedding::EmbeddingModelId::EmbeddingGemma300M
+                )
+                .model_revision
+            ))
+            .is_file()
+        })
+        .unwrap();
+    let fixture = Fixture::new();
+    let mut options = fixture.options();
+    options.search_profiles = vec![gemma_only_cache(&cache, &fixture.0)];
+    options.reuse_embeddings = false;
+    let report = build_artifact(options).unwrap();
+    assert_eq!(report.profiles.len(), 1);
+    assert_eq!(report.profiles[0].profile_id.as_str(), "embeddinggemma");
+    assert!(report.inferred_inputs > 0);
+    assert_eq!(report.reused_inputs, 0);
+    let reader = atlas_index::SqliteIndexReader::open_read_only(&report.output_path).unwrap();
+    assert_eq!(reader.context().search_profiles.len(), 1);
+    assert_eq!(
+        reader.context().search_profiles[0].profile_id.as_str(),
+        "embeddinggemma"
+    );
+    atlas_index::validate_artifact(&report.output_path).unwrap();
+    eprintln!(
+        "fresh Gemma-only without BGE weights: inferred={}, reused={}, semantic_units={}",
+        report.inferred_inputs, report.reused_inputs, report.semantic_unit_count
+    );
+}
 #[test]
 #[ignore = "requires verified local BGE assets; run explicitly"]
 fn actual_model_reuse_rejects_forged_input_associations_and_token_counts() {
@@ -459,15 +609,22 @@ fn actual_model_reuse_rejects_forged_input_associations_and_token_counts() {
         .find_map(|ancestor| {
             let cache = ancestor.join(".cache/hf-models");
             cache
-                .join("BAAI/bge-small-en-v1.5/onnx/model.onnx")
+                .join(format!(
+                    "BAAI/bge-base-en-v1.5/{}/onnx/model.onnx",
+                    atlas_embedding::embedding_model_spec(
+                        atlas_embedding::EmbeddingModelId::BgeBaseEnV15
+                    )
+                    .model_revision
+                ))
                 .is_file()
                 .then_some(cache)
         })
         .unwrap();
     let mut options = fixture.options();
-    options.embedding = Some(atlas_embedding::EmbeddingRuntimeConfig::default_model(
+    options.search_profiles = vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+        atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
         cache,
-    ));
+    )];
     build_artifact(options.clone()).unwrap();
     let source = fixture.0.join("packs/items/useful.json");
     let original = fs::read_to_string(&source).unwrap();
@@ -620,7 +777,13 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         .find_map(|ancestor| {
             let cache = ancestor.join(".cache/hf-models");
             cache
-                .join("BAAI/bge-small-en-v1.5/onnx/model.onnx")
+                .join(format!(
+                    "BAAI/bge-base-en-v1.5/{}/onnx/model.onnx",
+                    atlas_embedding::embedding_model_spec(
+                        atlas_embedding::EmbeddingModelId::BgeBaseEnV15
+                    )
+                    .model_revision
+                ))
                 .is_file()
                 .then_some(cache)
         })
@@ -630,9 +793,10 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         output_path: PathBuf::from("unused-preparation-only"),
         manifest_path: None,
         locale: "en".into(),
-        embedding: Some(atlas_embedding::EmbeddingRuntimeConfig::default_model(
+        search_profiles: vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+            atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
             cache,
-        )),
+        )],
         reuse_embeddings: false,
         embedding_batch_size: 16,
     };

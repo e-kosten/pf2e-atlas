@@ -43,12 +43,14 @@ pub struct SourceReadMetrics {
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SourceReadCapabilities {
+    pub search_profiles: Vec<atlas_domain::SearchProfileId>,
     pub lexical: bool,
     pub semantic: bool,
     pub vector_unavailable_reason: Option<String>,
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SourceArtifactStatistics {
+    pub search_profiles: Vec<SourceProfileStatistics>,
     pub records: usize,
     pub product_records: usize,
     pub packs: usize,
@@ -59,6 +61,12 @@ pub struct SourceArtifactStatistics {
     pub snapshot_bytes: u64,
     pub prepared_html_bytes: u64,
     pub artifact_bytes: u64,
+}
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SourceProfileStatistics {
+    pub profile_id: atlas_domain::SearchProfileId,
+    pub semantic_units: usize,
+    pub dimensions: usize,
 }
 #[derive(Debug, Clone)]
 pub struct SourceSummaryBatch {
@@ -137,7 +145,7 @@ impl SqliteIndexReader {
         atlas_sqlite_vec::register_sqlite_vec_auto_extension()
             .map_err(|e| IndexError::Unavailable(e.to_string()))?;
         let reader = Self::open_read_only(path)?;
-        if reader.context.semantic_model.is_none() {
+        if reader.context.search_profiles.is_empty() {
             return Err(IndexError::Unavailable(
                 "artifact has no semantic vectors; rebuild with embeddings".into(),
             ));
@@ -155,12 +163,18 @@ impl SqliteIndexReader {
         &self.instance
     }
     pub fn capabilities(&self) -> SourceReadCapabilities {
-        let reason = if self.context.semantic_model.is_none() {
+        let reason = if self.context.search_profiles.is_empty() {
             Some("artifact has no semantic vectors".into())
         } else {
             self.vector_error.clone()
         };
         SourceReadCapabilities {
+            search_profiles: self
+                .context
+                .search_profiles
+                .iter()
+                .map(|p| p.profile_id.clone())
+                .collect(),
             lexical: true,
             semantic: reason.is_none(),
             vector_unavailable_reason: reason,
@@ -176,7 +190,20 @@ impl SqliteIndexReader {
     pub fn statistics(&self) -> Result<SourceArtifactStatistics, IndexError> {
         let c = self.native()?;
         self.count_statement();
-        let mut stats=c.query_row("SELECT (SELECT count(*) FROM records),(SELECT count(*) FROM records WHERE document_kind<>'Macro'),(SELECT count(*) FROM packs),(SELECT count(*) FROM prepared_content),(SELECT count(*) FROM relationship_occurrences),(SELECT count(*) FROM lexical_units),(SELECT count(*) FROM semantic_units),(SELECT coalesce(sum(length(snapshot)),0) FROM record_bodies),(SELECT coalesce(sum(length(html_gzip)),0) FROM prepared_content)",[],|r|Ok(SourceArtifactStatistics{records:r.get(0)?,product_records:r.get(1)?,packs:r.get(2)?,prepared_fields:r.get(3)?,relationships:r.get(4)?,lexical_units:r.get(5)?,semantic_units:r.get(6)?,snapshot_bytes:r.get(7)?,prepared_html_bytes:r.get(8)?,artifact_bytes:0}))?;
+        let mut stats=c.query_row("SELECT (SELECT count(*) FROM records),(SELECT count(*) FROM records WHERE document_kind<>'Macro'),(SELECT count(*) FROM packs),(SELECT count(*) FROM prepared_content),(SELECT count(*) FROM relationship_occurrences),(SELECT count(*) FROM lexical_units),(SELECT count(*) FROM semantic_units),(SELECT coalesce(sum(length(snapshot)),0) FROM record_bodies),(SELECT coalesce(sum(length(html_gzip)),0) FROM prepared_content)",[],|r|Ok(SourceArtifactStatistics{search_profiles:vec![],records:r.get(0)?,product_records:r.get(1)?,packs:r.get(2)?,prepared_fields:r.get(3)?,relationships:r.get(4)?,lexical_units:r.get(5)?,semantic_units:r.get(6)?,snapshot_bytes:r.get(7)?,prepared_html_bytes:r.get(8)?,artifact_bytes:0}))?;
+        for profile in &self.context.search_profiles {
+            self.count_statement();
+            let count: usize = c.query_row(
+                "SELECT count(*) FROM semantic_units WHERE profile_id=?",
+                [profile.profile_id.as_str()],
+                |row| row.get(0),
+            )?;
+            stats.search_profiles.push(SourceProfileStatistics {
+                profile_id: profile.profile_id.clone(),
+                semantic_units: count,
+                dimensions: profile.dimensions,
+            });
+        }
         self.count_statement();
         let pages: u64 = c.query_row("PRAGMA page_count", [], |r| r.get(0))?;
         self.count_statement();

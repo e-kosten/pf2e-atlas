@@ -1,6 +1,9 @@
 import { Alert, Button, Collapse, Modal, Select, Spin, Tabs, Typography } from "antd";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchProfile } from "../search/SearchProfileContext";
+import { SearchProfileNotice } from "../search/SearchProfileNotice";
+import { assertSearchIdentity } from "../search/searchIdentity";
 import DOMPurify from "dompurify";
 import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
 import {
@@ -394,31 +397,41 @@ function SimilarPreview({
   reloadLabel: string;
 }) {
   const seed = detail.record.record_key;
+  const profile = useSearchProfile();
   const similar = useQuery({
-    queryKey: ["similar-preview", seed, detail.artifact_generation],
+    queryKey: ["similar-preview", seed, detail.artifact_generation, profile.id],
+    enabled: profile.id !== null && profile.storedVectors,
     staleTime: Infinity,
-    queryFn: ({ signal }) =>
-      searchPage(
+    queryFn: async ({ signal }) => {
+      const page = await searchPage(
         {
+          search_profile: profile.id ?? undefined,
           criteria: { kind: "similar_records", seed_record_key: seed, filter: null },
           page: { number: 1, size: 5 },
           expected_artifact_generation: detail.artifact_generation,
         },
         signal,
-      ),
+      );
+      assertSearchIdentity(page, profile.id, detail.artifact_generation);
+      return page;
+    },
   });
   const reloadRecord = isArtifactGenerationChanged(similar.error);
   const route = {
     kind: "search",
     selectedRecordKey: null,
-    query: searchStateQueryString({
-      ...DEFAULT_SEARCH_STATE,
-      mode: "similar_records",
-      similarSeed: seed,
-    }),
+    query: searchStateQueryString(
+      {
+        ...DEFAULT_SEARCH_STATE,
+        mode: "similar_records",
+        similarSeed: seed,
+      },
+      profile.id ?? profile.pendingUrlProfile,
+    ),
   } as const;
   return (
     <>
+      {!profile.storedVectors && <SearchProfileNotice />}
       {similar.isFetching && (
         <div role="status">
           <Spin size="small" /> Loading similar records…

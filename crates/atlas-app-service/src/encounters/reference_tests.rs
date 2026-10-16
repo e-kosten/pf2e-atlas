@@ -264,7 +264,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
                     false,
                 );
                 built.context.source_revision = Some(revision.into());
-                let generation = built.context.sha256()?;
+                let generation = built.context.preparation_sha256()?;
                 for record in &mut built.records {
                     record.preparation_context_hash = generation.clone();
                 }

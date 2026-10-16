@@ -29,7 +29,7 @@ fn artifact(name: &str, semantic: bool, locale: &str) -> FixtureArtifact {
         semantic,
     );
     input.context.indexing_locale = locale.into();
-    let hash = input.context.sha256().unwrap();
+    let hash = input.context.preparation_sha256().unwrap();
     for record in &mut input.records {
         record.preparation_context_hash = hash.clone();
     }
@@ -88,8 +88,16 @@ fn source_free_commands_keep_every_lazy_mode_unopened() {
         AppServiceRetrievalMode::OnDemandEmbeddings,
     ] {
         let mut service = command(&artifact, mode);
-        service.runtime_options.overrides.index_path =
-            Some(artifact.path().with_file_name("absent-artifact.sqlite"));
+        service.runtime = Arc::new(
+            AtlasRuntime::resolve(AtlasRuntimeOptions {
+                overrides: AtlasPathOverrides {
+                    index_path: Some(artifact.path().with_file_name("absent-artifact.sqlite")),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .unwrap(),
+        );
         assert!(retained_instance(&service).is_none());
         let encounter = service
             .create_encounter(CreateEncounterRequest {
@@ -149,7 +157,13 @@ fn explicit_command_modes_preserve_model_requirements() {
     let instance = retained_instance(&model_free).unwrap();
     assert_eq!(
         model_free
-            .search_text("Original".into(), None, page, RetrievalModeView::Lexical)
+            .search_text(
+                "Original".into(),
+                None,
+                page,
+                RetrievalModeView::Lexical,
+                None
+            )
             .unwrap()
             .rows
             .len(),
@@ -158,7 +172,13 @@ fn explicit_command_modes_preserve_model_requirements() {
     assert_eq!(retained_instance(&model_free).unwrap(), instance);
     assert_eq!(
         model_free
-            .search_text("Original".into(), None, page, RetrievalModeView::Semantic)
+            .search_text(
+                "Original".into(),
+                None,
+                page,
+                RetrievalModeView::Semantic,
+                None
+            )
             .unwrap_err()
             .into_app_error()
             .code,
@@ -183,7 +203,7 @@ fn explicit_command_modes_preserve_model_requirements() {
     );
     assert!(
         stored
-            .similar_records(ACTOR.into(), None, page)
+            .similar_records(ACTOR.into(), None, page, None)
             .unwrap()
             .is_some()
     );
@@ -258,4 +278,59 @@ fn command_clones_keep_root_owned_reading_and_stable_children_on_one_artifact() 
     assert_eq!(fresh.record.title, "Replacement");
     assert_ne!(fresh.artifact_generation, root.artifact_generation);
     assert_ne!(retained_instance(&independent).unwrap(), instance);
+}
+
+#[test]
+fn sole_gemma_manifest_resolves_omitted_requests_and_readiness_without_model_assets() {
+    let mut input = atlas_search::test_support::input_with_both_profiles(
+        (0..2)
+            .map(|i| {
+                record(
+                    "items",
+                    "Item",
+                    json!({"_id":format!("{i:016}"),"name":format!("Record {i}"),"type":"effect"}),
+                )
+            })
+            .collect(),
+    );
+    input
+        .context
+        .search_profiles
+        .retain(|p| p.profile_id.as_str() == "embeddinggemma");
+    input
+        .semantic_units
+        .retain(|p| p.profile_id.as_str() == "embeddinggemma");
+    let (reader, artifact) = open_input_fixture(input).unwrap();
+    drop(reader);
+    let service = command(&artifact, AppServiceRetrievalMode::OnDemandStoredVectors);
+    let readiness = service.readiness();
+    assert_eq!(readiness.status, atlas_app_model::AppReadinessStatus::Ready);
+    assert_eq!(readiness.default_search_profile.as_str(), "embeddinggemma");
+    assert_eq!(readiness.search_profiles.len(), 1);
+    assert_eq!(readiness.search_profiles[0].id.as_str(), "embeddinggemma");
+    assert!(readiness.search_profiles[0].stored_vectors);
+    assert!(!readiness.search_profiles[0].assets_ready);
+    let page = service
+        .search_page(
+            atlas_app_model::SearchResultsRequest {
+                search_profile: None,
+                criteria: atlas_app_model::SearchCriteria::SimilarRecords {
+                    seed_record_key: "items:0000000000000000".into(),
+                    filter: None,
+                },
+                page: SearchPageRequest {
+                    number: 1,
+                    size: 10,
+                },
+                expected_artifact_generation: readiness.artifact_generation.clone(),
+            },
+            &ReadExecutionContext::uncancellable(),
+        )
+        .unwrap();
+    assert_eq!(page.search_profile.as_str(), "embeddinggemma");
+    assert!(!page.rows.is_empty());
+    assert_eq!(
+        Some(page.artifact_generation),
+        readiness.artifact_generation
+    );
 }

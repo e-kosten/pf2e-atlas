@@ -1,5 +1,5 @@
 //! Immutable build inputs. Source admission and filesystem discovery remain ingest-owned.
-use atlas_domain::{RecordKey, SourcePassageAddress};
+use atlas_domain::{RecordKey, SearchProfileId, SourcePassageAddress};
 use atlas_record::source_content::{
     ContentAudience, ContentInteraction, ContentReferenceResolution, ContentVisibilityRule,
     OwnedContentLocator, SourceContentLocator,
@@ -9,9 +9,9 @@ use atlas_record::source_record::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const ARTIFACT_FORMAT_VERSION: u32 = 2;
-pub const ARTIFACT_CONTRACT_VERSION: &str = "pf2e-atlas-source-artifact/v2";
-pub const ARTIFACT_SCHEMA_VERSION: &str = "2";
+pub const ARTIFACT_FORMAT_VERSION: u32 = 3;
+pub const ARTIFACT_CONTRACT_VERSION: &str = "pf2e-atlas-source-artifact/v3";
+pub const ARTIFACT_SCHEMA_VERSION: &str = "3";
 pub const EXPECTED_SOURCE_KIND: &str = "foundry-pf2e";
 pub const SOURCE_PROJECTION_VERSION: &str = "authored-query/v1";
 pub const SOURCE_LOOKUP_VERSION: &str = "nfc-lowercase-whitespace/v1";
@@ -30,12 +30,14 @@ pub struct IndexBuildPack {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct SourceSemanticModelIdentity {
+pub struct SourceSearchProfileIdentity {
+    pub profile_id: SearchProfileId,
     pub provider: String,
     pub model_id: String,
     pub revision: String,
     pub model_sha256: String,
     pub tokenizer_sha256: String,
+    pub segmentation_tokenizer_sha256: String,
     pub dimensions: usize,
     pub pooling: String,
     pub normalization: String,
@@ -44,6 +46,12 @@ pub struct SourceSemanticModelIdentity {
     pub document_prefix: String,
     pub token_limit: usize,
     pub unit_policy_version: String,
+    pub tokenizer_id: String,
+    pub output_name: String,
+    pub dtype: String,
+    pub execution_policy: String,
+    pub input_recipe: String,
+    pub assets: std::collections::BTreeMap<String, String>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -69,7 +77,7 @@ pub struct SourceArtifactBuildContext {
     pub lookup_version: String,
     pub lexical_selection_version: String,
     pub fts_tokenizer: String,
-    pub semantic_model: Option<SourceSemanticModelIdentity>,
+    pub search_profiles: Vec<SourceSearchProfileIdentity>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -138,6 +146,7 @@ pub struct SourceLexicalUnitInput {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceSemanticUnitInput {
+    pub profile_id: SearchProfileId,
     pub record: RecordKey,
     pub owners: Vec<OwnedContentLocator>,
     pub field: Option<String>,
@@ -192,8 +201,40 @@ pub struct SourceRelationshipDetails {
 }
 
 impl SourceArtifactBuildContext {
+    pub fn canonical_profiles(
+        &self,
+    ) -> Result<Vec<SourceSearchProfileIdentity>, crate::IndexError> {
+        let mut profiles = self.search_profiles.clone();
+        profiles.sort_by(|a, b| a.profile_id.cmp(&b.profile_id));
+        if profiles
+            .windows(2)
+            .any(|pair| pair[0].profile_id == pair[1].profile_id)
+        {
+            return Err(crate::IndexError::Invalid(
+                "duplicate search profile identity".into(),
+            ));
+        }
+        Ok(profiles)
+    }
     pub fn sha256(&self) -> Result<String, crate::IndexError> {
-        Ok(crate::codec::sha256(&serde_json::to_vec(self)?))
+        let mut canonical = self.clone();
+        canonical.search_profiles = self.canonical_profiles()?;
+        Ok(crate::codec::sha256(&serde_json::to_vec(&canonical)?))
+    }
+    /// Shared authored content preparation is independent of model/input recipe.
+    pub fn preparation_sha256(&self) -> Result<String, crate::IndexError> {
+        let mut shared = serde_json::to_value(self)?;
+        shared
+            .as_object_mut()
+            .ok_or_else(|| crate::IndexError::Invalid("build context object".into()))?
+            .remove("search_profiles");
+        Ok(crate::codec::sha256(&serde_json::to_vec(&shared)?))
+    }
+    pub fn search_profile(
+        &self,
+        id: &SearchProfileId,
+    ) -> Result<&SourceSearchProfileIdentity, crate::IndexError> {
+        self.search_profiles.iter().find(|profile|&profile.profile_id == id).ok_or_else(||crate::IndexError::Unavailable(format!("search profile `{id}` is not stored in this artifact; rebuild with --search-profile {id}")))
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

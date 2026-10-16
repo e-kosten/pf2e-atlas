@@ -3,7 +3,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use atlas_app_model::AppErrorCode;
-use atlas_runtime::{AtlasRuntime, AtlasRuntimeOptions};
+use atlas_runtime::AtlasRuntime;
+#[cfg(test)]
+use atlas_runtime::AtlasRuntimeOptions;
 use atlas_search::{ArtifactInstance, AtlasRetrievalService};
 
 use crate::ReadExecutionContext;
@@ -25,22 +27,12 @@ pub(super) struct RetrievalExecutor {
 }
 
 impl RetrievalExecutor {
-    pub(super) fn start(options: AtlasRuntimeOptions) -> AppServiceResult<Self> {
-        Self::start_with_config(
-            options,
+    pub(super) fn start(runtime: Arc<AtlasRuntime>) -> AppServiceResult<Self> {
+        Self::start_with_factory(
             DEFAULT_RETRIEVAL_WORKERS,
             DEFAULT_RETRIEVAL_QUEUE_CAPACITY,
+            move |_| Ok(runtime.open_retrieval_service()?),
         )
-    }
-
-    fn start_with_config(
-        options: AtlasRuntimeOptions,
-        worker_count: usize,
-        queue_capacity: usize,
-    ) -> AppServiceResult<Self> {
-        Self::start_with_factory(worker_count, queue_capacity, move |_| {
-            open_retrieval_service(options.clone())
-        })
     }
 
     fn start_with_factory(
@@ -262,25 +254,12 @@ fn close_started_workers(
     error
 }
 
-pub(super) fn open_retrieval_service(
-    options: AtlasRuntimeOptions,
-) -> AppServiceResult<AtlasRetrievalService> {
-    let runtime = AtlasRuntime::resolve(options)?;
-    Ok(runtime.open_retrieval_service()?)
-}
-
+#[cfg(test)]
 pub(super) fn open_retrieval_service_no_embeddings(
     options: AtlasRuntimeOptions,
 ) -> AppServiceResult<AtlasRetrievalService> {
     let runtime = AtlasRuntime::resolve(options)?;
     Ok(runtime.open_retrieval_service_no_embeddings()?)
-}
-
-pub(super) fn open_retrieval_service_for_stored_vectors(
-    options: AtlasRuntimeOptions,
-) -> AppServiceResult<AtlasRetrievalService> {
-    let runtime = AtlasRuntime::resolve(options)?;
-    Ok(runtime.open_retrieval_service_for_stored_vectors()?)
 }
 
 fn retrieval_worker(

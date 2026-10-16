@@ -2,26 +2,34 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use atlas_domain::{QueryPredicate, RecordKey, SourcePassageAddress};
-use atlas_embedding::{TextEmbedder, default_embedding_model_spec, hash_document_embedding_input};
+use atlas_embedding::{
+    EmbeddingModelId, EmbeddingRuntimeConfig, TextEmbedder, hash_document_embedding_input,
+};
 use atlas_record::source_record::select_record_search;
 use serde_json::json;
 
 use crate::test_support::{audience, input, open_input_fixture, record};
 use crate::{RecordScope, RetrievalMode, SearchPage, SimilarRecordRequest, TextSearchRequest};
 
-fn local_model_dir() -> PathBuf {
+fn local_model_config() -> EmbeddingRuntimeConfig {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
-        .map(|parent| parent.join(".cache/hf-models/BAAI/bge-small-en-v1.5"))
-        .find(|path| path.join("onnx/model.onnx").is_file())
+        .map(|parent| {
+            EmbeddingRuntimeConfig::new(
+                EmbeddingModelId::BgeBaseEnV15,
+                parent.join(".cache/hf-models"),
+            )
+        })
+        .find(|config| config.model_dir().join("onnx/model.onnx").is_file())
         .expect("this ignored native test requires the verified local BGE asset cache")
 }
 
 #[test]
 #[ignore = "requires the pinned local BGE model and native runtime; run explicitly"]
 fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() {
-    let model_dir = local_model_dir();
-    let mut model = TextEmbedder::load_from_model_dir(default_embedding_model_spec(), &model_dir)
+    let config = local_model_config();
+    let model_dir = config.model_dir();
+    let mut model = TextEmbedder::load_from_model_dir(config.model_spec(), &model_dir)
         .expect("pinned assets must validate before native inference");
     let mut fixture = input(
         (0..4)
@@ -64,7 +72,9 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
         unit.vector = model.embed_document(&text).unwrap();
     }
     let (mut service, _artifact) = open_input_fixture(fixture).unwrap();
-    service.embedder = Some(model);
+    service.inference = Some(atlas_embedding::SharedQueryInference::new(
+        &config.cache_root,
+    ));
     let filter: QueryPredicate = serde_json::from_value(json!({
         "kind":"compare", "field":"item.level", "op":"gte", "value":1
     }))
@@ -84,6 +94,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
         for number in [1, 2] {
             let result = service
                 .search_text(TextSearchRequest {
+                    search_profile: None,
                     query: "Ghoul",
                     mode,
                     filter: Some(&filter),
@@ -118,6 +129,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
 
     let lexical = service
         .search_text(TextSearchRequest {
+            search_profile: None,
             query: "Ghoul",
             mode: RetrievalMode::Fts,
             filter: Some(&filter),
@@ -140,6 +152,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
     let seed = &eligible[0];
     let similar = service
         .similar_records(SimilarRecordRequest {
+            search_profile: None,
             record_key: seed,
             filter: Some(&filter),
             scope: RecordScope::All,

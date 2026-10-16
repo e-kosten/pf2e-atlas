@@ -130,6 +130,8 @@ pub(crate) fn search_results_view(
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> atlas_app_model::SearchResultsView {
     atlas_app_model::SearchResultsView {
+        search_profile: result.search_profile,
+        artifact_generation: result.artifact_generation,
         rows: result
             .records
             .into_iter()

@@ -3,5 +3,6 @@ import type { FilterVocabularyScope } from "./FilterVocabularyScope";
 import type { QueryFacetOutcome } from "./QueryFacetOutcome";
 import type { QueryValueOptions } from "./QueryValueOptions";
 import type { QueryVocabulary } from "./QueryVocabulary";
+import type { SearchProfileId } from "./SearchProfileId";
 
-export type FilterValueListView = { "kind": "contextual", outcome: QueryFacetOutcome<QueryValueOptions>, } | { "kind": "vocabulary", scope: FilterVocabularyScope, values: QueryVocabulary, };
+export type FilterValueListView = { "kind": "contextual", outcome: QueryFacetOutcome<QueryValueOptions>, search_profile: SearchProfileId, artifact_generation: string, } | { "kind": "vocabulary", scope: FilterVocabularyScope, values: QueryVocabulary, };

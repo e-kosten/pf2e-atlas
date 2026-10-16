@@ -1,3 +1,4 @@
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   detailFixture,
   summaryFixture,
@@ -647,11 +648,13 @@ describe("encounter views", () => {
     testQueryClients.add(client);
     render(
       <QueryClientProvider client={client}>
-        <ConfigProvider theme={{ token: { motion: false } }}>
-          <App>
-            <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />
-          </App>
-        </ConfigProvider>
+        <SearchProfileProvider>
+          <ConfigProvider theme={{ token: { motion: false } }}>
+            <App>
+              <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />
+            </App>
+          </ConfigProvider>
+        </SearchProfileProvider>
       </QueryClientProvider>,
     );
     fireEvent.click(await screen.findByRole("link", { name: "Claw" }));
@@ -1196,9 +1199,11 @@ describe("encounter views", () => {
     testQueryClients.add(client);
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>
-        <ConfigProvider theme={{ token: { motion: false } }}>
-          <App component={false}>{children}</App>
-        </ConfigProvider>
+        <SearchProfileProvider>
+          <ConfigProvider theme={{ token: { motion: false } }}>
+            <App component={false}>{children}</App>
+          </ConfigProvider>
+        </SearchProfileProvider>
       </QueryClientProvider>
     );
     const { rerender } = render(
@@ -1483,12 +1488,14 @@ function queryClientWrapper() {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <ConfigProvider
-          theme={{ token: { motion: false } }}
-          select={{ classNames: { popup: { listItem: "atlas-select-option" } } }}
-        >
-          <App component={false}>{children}</App>
-        </ConfigProvider>
+        <SearchProfileProvider>
+          <ConfigProvider
+            theme={{ token: { motion: false } }}
+            select={{ classNames: { popup: { listItem: "atlas-select-option" } } }}
+          >
+            <App component={false}>{children}</App>
+          </ConfigProvider>
+        </SearchProfileProvider>
       </QueryClientProvider>
     );
   };
@@ -1668,6 +1675,7 @@ function participantFixture(
 
 function searchResultsFixture(): SearchResultsPage {
   return {
+    search_profile: "bge-base",
     artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "goblin", mode: "hybrid" },
     page: {

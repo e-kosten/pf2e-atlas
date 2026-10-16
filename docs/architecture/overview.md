@@ -15,7 +15,7 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | `atlas-foundry-model` | Generated authored Foundry DTOs, admission/field retention and versioned checked snapshots. No ingest/runtime/SQLite dependency. |
 | `atlas-record` | Minimal source-backed record, checked embedded addressing, consumer-required borrowed source views, content interpretation/selection and attributed relationship policies. Storage and presentation neutral. |
 | `atlas-domain` | Shared keys, predicates, query catalog/discovery vocabulary, summary facts and passage addresses. No SQLite or source parser ownership. |
-| `atlas-embedding` | One pinned BGE model, tokenizer/input budgets, library inference/segmentation, exact vector reuse identity and query/document embeddings. |
+| `atlas-embedding` | Two pinned baseline search profiles, shared segmentation/native input budgets, FastEmbed inference, retained shared query sessions and exact vector reuse identity. |
 | `atlas-ingest` | Source filesystem loading/provenance, admission reporting, explicit content/reference context, index inputs and build-time embedding execution. |
 | `atlas-index` | Executable SQLite schema, checked artifact publication/validation, row readers, query catalog/bindings/discovery, parameterized filter SQL and vector queries. |
 | `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, attributable witnesses, graph, verified edition preference and Suggested variants. |

@@ -14,6 +14,7 @@ use atlas_record::source_record::{
     SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, select_record_search,
 };
 
+#[derive(Clone)]
 pub(crate) struct PendingSemanticUnit {
     pub(crate) input: PreparedEmbeddingInput,
     pub(crate) unit: SourceSemanticUnitInput,
@@ -31,7 +32,7 @@ pub(crate) fn index_build_input(
     let source_root = source.metadata.source_root.clone();
     let mut selections = Vec::new();
     let context_hash = context
-        .sha256()
+        .preparation_sha256()
         .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
     let mut output = PreparedBuildInput {
         index: IndexBuildInput {
@@ -96,7 +97,8 @@ pub(crate) fn index_build_input(
     }
     crate::source_aliases::extract_source_aliases(&mut output.index, &source_root)?;
     if let Some(tokenizer) = tokenizer {
-        for mut selection in selections {
+        let total = selections.len();
+        for (ordinal, mut selection) in selections.into_iter().enumerate() {
             selection.identity_optional.extend(
                 output
                     .index
@@ -111,6 +113,9 @@ pub(crate) fn index_build_input(
                 &mut output.pending,
                 &mut output.context_shortened,
             )?;
+            if (ordinal + 1) % 1000 == 0 || ordinal + 1 == total {
+                tracing::info!(target:"atlas_progress",phase="prepare_search",current=(ordinal+1) as u64,total=total as u64,semantic_units=output.pending.len(),record=%selection.root,"Preparing attributable search passages: {}/{} records, {} semantic units",ordinal+1,total,output.pending.len());
+            }
         }
     }
     Ok(output)
@@ -242,13 +247,22 @@ pub(crate) fn semantic_units(
                 .find(|identity| identity.owners == field.locator.owners)
                 .map(|identity| identity.name.as_str())
                 .unwrap_or("");
-            let context = format!(
-                "{}\n{}\n{}\n{}",
-                selection.identity_required,
-                selection.pack_label,
-                owner_name,
-                section.heading_chain.join(" / ")
-            );
+            let context = if field.locator.owners.is_empty() {
+                format!(
+                    "{}\n{}\n{}\n{}",
+                    selection.identity_required,
+                    selection.pack_label,
+                    owner_name,
+                    section.heading_chain.join(" / ")
+                )
+            } else {
+                format!(
+                    "{}\n{}\n{}",
+                    selection.identity_required,
+                    owner_name,
+                    section.heading_chain.join(" / ")
+                )
+            };
             let passage = if let Some(html_hash) = &field.prepared_html_sha256 {
                 PassageSection::Html {
                     text: &section.text,
@@ -295,6 +309,7 @@ fn push_pending(
     input: PreparedEmbeddingInput,
 ) {
     let unit = SourceSemanticUnitInput {
+        profile_id: atlas_domain::SearchProfileId::new("bge-base"),
         record: selection.root.clone(),
         owners,
         field,
@@ -305,6 +320,21 @@ fn push_pending(
         vector: vec![],
     };
     output.push(PendingSemanticUnit { input, unit });
+}
+/// Shared segmentation has finished; apply only the selected native final guard/identity.
+pub(crate) fn profile_pending(
+    mut pending: PendingSemanticUnit,
+    tokenizer: &TextEmbeddingTokenizer,
+) -> Result<PendingSemanticUnit, IngestError> {
+    let model = atlas_embedding::embedding_model_for_model_id(tokenizer.spec().model_id)
+        .ok_or_else(|| IngestError::DocumentEmbeddingFailed("unsupported profile model".into()))?;
+    pending.input.token_count = tokenizer
+        .validate_document_input(&pending.input.input)
+        .map_err(embedding_error)?;
+    pending.input.reuse_key = tokenizer.spec().document_reuse_key(&pending.input.input);
+    pending.unit.profile_id = atlas_embedding::profile_for_model(model).profile_id();
+    pending.unit.input_token_count = pending.input.token_count;
+    Ok(pending)
 }
 fn embedding_error(error: atlas_embedding::EmbeddingError) -> IngestError {
     IngestError::DocumentEmbeddingFailed(error.to_string())

@@ -104,7 +104,13 @@ fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
         lookup_version: SOURCE_LOOKUP_VERSION.into(),
         lexical_selection_version: LEXICAL_SELECTION_VERSION.into(),
         fts_tokenizer: "unicode61 remove_diacritics 2".into(),
-        semantic_model: semantic.then(SourceSemanticModelIdentity::current),
+        search_profiles: if semantic {
+            vec![SourceSearchProfileIdentity::from_spec(
+                atlas_embedding::SEARCH_PROFILES[0],
+            )]
+        } else {
+            vec![]
+        },
     }
 }
 fn record(pack: &str, kind: &str, v: Value) -> SourceArtifactRecordInput {
@@ -129,7 +135,7 @@ fn record(pack: &str, kind: &str, v: Value) -> SourceArtifactRecordInput {
         diagnostics: vec![],
     }
 }
-fn fixture(semantic: bool) -> IndexBuildInput {
+pub(super) fn fixture(semantic: bool) -> IndexBuildInput {
     let records = vec![
         record(
             "actors",
@@ -180,7 +186,7 @@ fn fixture(semantic: bool) -> IndexBuildInput {
         lexical_units: vec![],
         semantic_units: vec![],
     };
-    let hash = input.context.sha256().unwrap();
+    let hash = input.context.preparation_sha256().unwrap();
     for (i, r) in input.records.iter_mut().enumerate() {
         r.preparation_context_hash = hash.clone();
         if i == 3 {
@@ -199,9 +205,10 @@ fn fixture(semantic: bool) -> IndexBuildInput {
             definition_terms: String::new(),
         });
         if semantic {
-            let mut vector = vec![0.0; 384];
+            let mut vector = vec![0.0; 768];
             vector[i] = 1.0;
             input.semantic_units.push(SourceSemanticUnitInput {
+                profile_id: atlas_domain::SearchProfileId::new("bge-base"),
                 record: r.record.key().clone(),
                 owners: vec![],
                 field: None,
@@ -251,6 +258,7 @@ fn fixture(semantic: bool) -> IndexBuildInput {
                 }
                 if semantic {
                     input.semantic_units.push(SourceSemanticUnitInput {
+                        profile_id: atlas_domain::SearchProfileId::new("bge-base"),
                         record: r.record.key().clone(),
                         owners: field.locator.owners.clone(),
                         field: Some(field.locator.field.clone()),
@@ -321,7 +329,7 @@ fn synchronize_fixture_terms(input: &mut IndexBuildInput) {
         }
     }
 }
-fn build(input: &IndexBuildInput) -> (tempfile::TempDir, std::path::PathBuf) {
+pub(super) fn build(input: &IndexBuildInput) -> (tempfile::TempDir, std::path::PathBuf) {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("artifact.sqlite");
     SqliteIndexWriter::new(&path).write(input).unwrap();
@@ -412,7 +420,13 @@ fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
     let reader = SqliteIndexReader::open_read_only_with_vectors(path).unwrap();
     let query = parse_where("record.kind == 'spell'").unwrap();
     let hits = reader
-        .vector_candidates(&input.semantic_units[0].vector, &query, None, 1)
+        .vector_candidates(
+            &atlas_domain::SearchProfileId::new("bge-base"),
+            &input.semantic_units[0].vector,
+            &query,
+            None,
+            1,
+        )
         .unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].location.record, *input.records[2].record.key());
@@ -424,6 +438,7 @@ fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     let scoped = reader
         .vector_candidates(
+            &atlas_domain::SearchProfileId::new("bge-base"),
             &input.semantic_units[0].vector,
             &all,
             Some(std::slice::from_ref(input.records[1].record.key())),
@@ -433,13 +448,19 @@ fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
     assert_eq!(scoped[0].location.record, *input.records[1].record.key());
     assert!(
         reader
-            .vector_candidates(&input.semantic_units[0].vector, &all, None, 4097)
+            .vector_candidates(
+                &atlas_domain::SearchProfileId::new("bge-base"),
+                &input.semantic_units[0].vector,
+                &all,
+                None,
+                4097
+            )
             .is_err()
     );
     let reused = reader
         .read_reuse_candidates(
             &[input.semantic_units[0].input_hash.clone()],
-            &SourceSemanticModelIdentity::current(),
+            &SourceSearchProfileIdentity::from_spec(atlas_embedding::SEARCH_PROFILES[0]),
             0,
             1024,
         )
@@ -494,7 +515,12 @@ fn reuse_candidates_keep_attribution_and_source_reconstruction_is_batched() {
     let mut candidates = vec![];
     loop {
         let page = reader
-            .read_reuse_candidates(&hashes, &SourceSemanticModelIdentity::current(), cursor, 1)
+            .read_reuse_candidates(
+                &hashes,
+                &SourceSearchProfileIdentity::from_spec(atlas_embedding::SEARCH_PROFILES[0]),
+                cursor,
+                1,
+            )
             .unwrap();
         if page.is_empty() {
             break;
@@ -513,7 +539,12 @@ fn reuse_candidates_keep_attribution_and_source_reconstruction_is_batched() {
     }
     assert!(
         reader
-            .read_reuse_candidates(&hashes, &SourceSemanticModelIdentity::current(), 0, 0)
+            .read_reuse_candidates(
+                &hashes,
+                &SourceSearchProfileIdentity::from_spec(atlas_embedding::SEARCH_PROFILES[0]),
+                0,
+                0
+            )
             .is_err()
     );
     let keys = input
@@ -555,7 +586,7 @@ fn reuse_reconstruction_rejects_missing_reference_sidecar() {
         "Item",
         json!({"_id":"bbbbbbbbbbbbbbbb","name":"Dragon Staff","type":"weapon","system":{"level":{"value":0},"traits":{"value":[],"rarity":"common"},"description":{"value":"<p>See @UUID[Compendium.pf2e.items.Item.cccccccccccccccc]{Dragon Spell}.</p>"}}}),
     );
-    staff.preparation_context_hash = input.context.sha256().unwrap();
+    staff.preparation_context_hash = input.context.preparation_sha256().unwrap();
     let key = staff.record.key().clone();
     input.records[1] = staff;
     input.lexical_units.retain(|u| u.field.is_none());
@@ -632,7 +663,7 @@ fn numeric_domain_keeps_integer_precision_and_rejects_unrepresentable_unsigned()
         "Actor",
         json!({"_id":"aaaaaaaaaaaaaaaa","name":"Huge Level","type":"npc","system":{"details":{"level":{"value":9_007_199_254_740_993i64}}}}),
     );
-    input.records[0].preparation_context_hash = input.context.sha256().unwrap();
+    input.records[0].preparation_context_hash = input.context.preparation_sha256().unwrap();
     input.lexical_units[0].identity_terms = "Huge Level".into();
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
@@ -649,12 +680,12 @@ fn numeric_domain_keeps_integer_precision_and_rejects_unrepresentable_unsigned()
         Some(9_007_199_254_740_993)
     );
     for vector in [
-        vec![f32::NAN; 384],
-        vec![f32::INFINITY; 384],
-        vec![0.0; 384],
+        vec![f32::NAN; 768],
+        vec![f32::INFINITY; 768],
+        vec![0.0; 768],
         vec![1.0; 2],
     ] {
-        assert!(crate::validation::check_vector(&vector, 384).is_err());
+        assert!(crate::validation::check_vector(&vector, 768).is_err());
     }
 }
 #[cfg(unix)]
@@ -670,7 +701,8 @@ fn live_reader_remains_on_one_artifact_when_atomic_publish_replaces_path() {
         "Actor",
         json!({"_id":"aaaaaaaaaaaaaaaa","name":"Replacement","type":"npc"}),
     );
-    replacement.records[0].preparation_context_hash = replacement.context.sha256().unwrap();
+    replacement.records[0].preparation_context_hash =
+        replacement.context.preparation_sha256().unwrap();
     replacement.lexical_units[0].identity_terms = "Replacement".into();
     synchronize_fixture_terms(&mut replacement);
     SqliteIndexWriter::new(&path).write(&replacement).unwrap();
@@ -787,7 +819,7 @@ fn reference_markers_and_sidecars_are_one_to_one_at_publication_and_selected_rea
         "Actor",
         json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Dragon Guard","system":{"details":{"publicNotes":"<p>@UUID[Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb]{Staff} @UUID[Compendium.pf2e.macros.Macro.dddddddddddddddd]{Tool} <a href='javascript:alert(1)'>Blocked</a> <a href='https://example.com'>External</a> @UUID[unresolved]</p>"}}}),
     );
-    input.records[0].preparation_context_hash = input.context.sha256().unwrap();
+    input.records[0].preparation_context_hash = input.context.preparation_sha256().unwrap();
     let mut resolver = SourceReferenceIndex::default();
     for r in &input.records {
         resolver.insert_source(r.record.key(), r.record.source());
@@ -943,7 +975,7 @@ fn world_table_result_cannot_resolve_into_the_compendium_namespace() {
         declared_path: "packs/tables".into(),
     });
     input.context.source_file_count = input.records.len();
-    let hash = input.context.sha256().unwrap();
+    let hash = input.context.preparation_sha256().unwrap();
     let mut resolver = SourceReferenceIndex::default();
     for record in &mut input.records {
         record.preparation_context_hash = hash.clone();
@@ -992,7 +1024,7 @@ fn offline_reference_reconstruction_does_not_promote_excluded_name_edges() {
         "Actor",
         json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Dragon Guard","_stats":{"compendiumSource":"Compendium.pf2e.actors.Actor.Dragon Guard"}}),
     );
-    input.records[0].preparation_context_hash = input.context.sha256().unwrap();
+    input.records[0].preparation_context_hash = input.context.preparation_sha256().unwrap();
     let mut resolver = SourceReferenceIndex::default();
     for record in &input.records {
         resolver.insert_source(record.record.key(), record.record.source());
@@ -1030,8 +1062,8 @@ fn missing_vectors_and_wrong_model_identity_cannot_be_published() {
             .is_err()
     );
     let mut input = fixture(true);
-    input.context.semantic_model.as_mut().unwrap().revision = "other".into();
-    let hash = input.context.sha256().unwrap();
+    input.context.search_profiles.first_mut().unwrap().revision = "other".into();
+    let hash = input.context.preparation_sha256().unwrap();
     for r in &mut input.records {
         r.preparation_context_hash = hash.clone();
     }
@@ -1119,6 +1151,7 @@ fn source_exclusion_is_inside_knn_and_lexical_labels_keep_source_kind() {
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     let hits = reader
         .vector_candidates_excluding(
+            &atlas_domain::SearchProfileId::new("bge-base"),
             &input.semantic_units[0].vector,
             &all,
             None,
@@ -1206,7 +1239,7 @@ fn migration_rollback_and_diesel_columns_match_canonical_ddl() {
     table!(remaster_pairs);
     table!(query_field_catalog);
     table!(lexical_units);
-    table!(semantic_models);
+    table!(search_profiles);
     table!(semantic_units);
     c.execute_batch(include_str!(
         "../migrations/00000000000001_create_artifact/down.sql"
@@ -1252,7 +1285,7 @@ fn relationships_keep_source_owner_and_validate_owned_targets() {
         "Actor",
         json!({"_id":"aaaaaaaaaaaaaaaa","name":"Dragon Guard","type":"npc","items":[{"_id":"eeeeeeeeeeeeeeee","name":"Owned Fire","type":"feat","flags":{"pf2e":{"itemGrants":{"ice":{"id":"ffffffffffffffff","onDelete":"detach"}}}},"system":{"description":{"value":"<p>@UUID[Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb]</p>"}}},{"_id":"ffffffffffffffff","name":"Owned Ice","type":"feat","flags":{"pf2e":{"grantedBy":{"id":"eeeeeeeeeeeeeeee"}}}}]}),
     );
-    input.records[0].preparation_context_hash = input.context.sha256().unwrap();
+    input.records[0].preparation_context_hash = input.context.preparation_sha256().unwrap();
     let mut references = SourceReferenceIndex::default();
     for r in &input.records {
         references.insert_source(r.record.key(), r.record.source());
@@ -1356,7 +1389,7 @@ fn failure_outcomes_and_projection_diagnostics_remain_developer_only() {
         "Item",
         json!({"_id":"cccccccccccccccc","name":"Dragon Spell","type":"spell","system":{"area":{"value":"30","type":"burst"}}}),
     );
-    input.records[2].preparation_context_hash = input.context.sha256().unwrap();
+    input.records[2].preparation_context_hash = input.context.preparation_sha256().unwrap();
     let original = std::mem::take(&mut input.records[1].content);
     for outcome in original {
         let locator = outcome.locator().clone();
@@ -1448,7 +1481,7 @@ fn lexical_terms_and_used_trait_labels_are_checked_against_source_policy() {
         .context
         .used_trait_labels
         .insert("fire".into(), "Flame Trait".into());
-    let hash = input.context.sha256().unwrap();
+    let hash = input.context.preparation_sha256().unwrap();
     for r in &mut input.records {
         r.preparation_context_hash = hash.clone();
     }
