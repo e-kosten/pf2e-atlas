@@ -606,3 +606,25 @@ Creature Lore rows use the authored title and signed modifier once. Actor spell
 lists display known authored casting rank, preserving an unavailable casting
 rank explicitly; base rank and authored heightening remain in the opened detail.
 The browser does not calculate selected-rank spell effects.
+
+Participant settings uses one labeled Save/Cancel form and the complete guarded
+participant update. Edit HP selects one correction at a time; each submit is one
+Rust HP action. The amount control submits raw formula text only from its explicit
+Damage or Heal button. Source opens immutable authored data through the shared
+record renderer, separately from adjusted encounter reading.
+
+Condition Add and Edit share one form with inline optional details. Numeric
+controls validate whole, nonnegative values before conversion; clearing an
+optional duration removes it, while clearing a required condition value is an
+error. Full condition drafts retain their opening encounter revision. After a
+conflict, explicit Reload condition replaces the draft with canonical remaining
+duration and a fresh revision. Do not silently refresh a retained draft's guard.
+
+Next turn reads the Rust turn review and opens a review only for its reminders.
+The browser never ticks durations, chooses timing anchors, infers persistent
+condition identity, rolls damage/recovery, or removes an expired condition.
+Immediate review actions target the reminder's participant and exact condition,
+show a saved receipt, and refresh both encounter and review before Continue.
+Cancel leaves already saved actions intact. Removing the last reminder does not
+advance; Continue uses the current review revision in the atomic advance command.
+Read-only Retry never repeats an action or advances a turn.

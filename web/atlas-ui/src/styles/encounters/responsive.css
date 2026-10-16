@@ -11,16 +11,6 @@
   }
 }
 
-@media (max-width: 900px) {
-  .encounter-add-condition__row {
-    grid-template-columns: 1fr;
-  }
-
-  .encounter-add-condition__row {
-    min-width: 0;
-  }
-}
-
 .encounter-mobile-navigation {
   display: flex;
   justify-content: space-between;

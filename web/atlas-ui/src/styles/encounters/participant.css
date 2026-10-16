@@ -4,18 +4,13 @@
   gap: 12px;
 }
 
-.encounter-participant-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
-  gap: 10px;
-  align-items: end;
-}
-
 .encounter-reference {
   min-width: 0;
 }
 
 .encounter-reference__header {
+  display: flex;
+  gap: 8px;
   align-items: flex-start;
   flex-wrap: wrap;
 }
@@ -42,6 +37,8 @@
 }
 
 .encounter-reference__header-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
   align-items: center;
   display: flex;
   gap: 10px;
@@ -81,7 +78,7 @@
   margin: 0;
 }
 
-.encounter-hp-panel__header span {
+.encounter-hp-panel__header > span {
   color: var(--text);
   font-size: 18px;
   font-weight: 600;
@@ -127,21 +124,10 @@
   opacity: 0.75;
 }
 
-.encounter-hp-grid {
-  align-items: start;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
 .encounter-hp-control {
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-
-.encounter-hp-control--wide {
-  grid-column: 1 / -1;
 }
 
 .encounter-hp-control__label {
@@ -157,10 +143,6 @@
   min-width: 0;
 }
 
-.encounter-hp-control--wide .encounter-hp-control__row {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
 .encounter-hp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -171,41 +153,18 @@
   min-width: 48px;
 }
 
-.encounter-hp-details {
-  display: grid;
-  gap: 8px;
-}
-
-.encounter-hp-details p {
-  color: var(--muted);
-  margin: 0;
-}
-
-.encounter-hp-details .encounter-hp-actions {
-  margin-top: 8px;
-}
-
 @container encounter-inspector (min-width: 840px) {
   .encounter-reference__controls {
     grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
   }
-
-  .encounter-hp-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .encounter-hp-control--wide {
-    grid-column: 1 / -1;
-  }
 }
 
-.encounter-reference__header {
-  display: grid;
-  gap: 8px;
-}
-
-.encounter-reference__header-actions {
-  justify-content: flex-start;
+.encounter-reference__adjustment {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .encounter-hp-control--wide {

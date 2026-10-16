@@ -29,13 +29,15 @@ vi.mock("../../api/atlasApi", async (original) => ({
 }));
 
 it.each([
-  ["popover", "strike"],
-  ["drawer", "strike"],
-  ["popover", "ability"],
-  ["drawer", "ability"],
+  ["popover", "strike", "landed"],
+  ["drawer", "strike", "landed"],
+  ["popover", "ability", "landed"],
+  ["drawer", "ability", "landed"],
+  ["popover", "ability", "selected"],
+  ["drawer", "ability", "selected"],
 ] as const)(
-  "restores %s history after the landed %s mounts, retaining initial landing and final opener",
-  async (host, kind) => {
+  "restores %s history after the %s mounts in %s reading, retaining position and final opener",
+  async (host, kind, reading) => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
       xl: host === "popover",
       xs: host === "drawer",
@@ -51,6 +53,14 @@ it.each([
       value: { ...actorFixture(), activities: knownFact([activity]) },
     };
     const content = detailFixture("actors:ghoul", "Ghoul", "rules:linked");
+    if (reading === "selected") {
+      parent.selected = activity.navigation;
+      parent.relationships = content.relationships;
+      parent.presentation = {
+        ...detailFixture("actors:ghoul", "Jaws", "rules:linked").presentation,
+        body: { kind: "activity", value: activity },
+      };
+    }
     const batch: OwnedReadingBatchView = {
       artifact_generation: parent.artifact_generation,
       parent: parent.selected,
@@ -89,7 +99,7 @@ it.each([
                 parent.record.record_key,
                 event.currentTarget,
                 parent.selected,
-                activity.navigation,
+                reading === "landed" ? activity.navigation : undefined,
               )
             }
           >
@@ -134,7 +144,9 @@ it.each([
       const scroll = document.querySelector<HTMLElement>(selector)!;
       geometry = readingScrollGeometry(scroll);
       const nested = await screen.findByRole("link", { name: "Nested Rule" });
-      await waitFor(() => expect(scroll.scrollTop).toBe(100));
+      await waitFor(() =>
+        expect(scroll.scrollTop).toBe(reading === "landed" ? 100 : 0),
+      );
       expect(document.documentElement.scrollTop).toBe(0);
       scroll.scrollTop = 425;
       // Preview positioning reacts to captured scroll events. Its rerender must
@@ -145,7 +157,7 @@ it.each([
       fireEvent.click(nested);
       await screen.findByRole("heading", { name: "Linked rule" });
       let finish: (() => void) | undefined;
-      if (kind === "ability") {
+      if (kind === "ability" && reading === "landed") {
         client.removeQueries({ queryKey: ["owned-reading"] });
         getAbilities.mockImplementationOnce(
           () =>
@@ -155,7 +167,7 @@ it.each([
         );
       }
       fireEvent.click(screen.getByRole("button", { name: "Back" }));
-      if (kind === "ability") {
+      if (kind === "ability" && reading === "landed") {
         await waitFor(() => expect(finish).toBeDefined());
         scroll.scrollTop = 0;
         expect(screen.queryByRole("link", { name: "Nested Rule" })).toBeNull();
@@ -180,7 +192,9 @@ it.each([
       geometry = readingScrollGeometry(document.querySelector<HTMLElement>(selector)!);
       await screen.findByRole("link", { name: "Nested Rule" });
       await waitFor(() =>
-        expect(document.querySelector<HTMLElement>(selector)!.scrollTop).toBe(100),
+        expect(document.querySelector<HTMLElement>(selector)!.scrollTop).toBe(
+          reading === "landed" ? 100 : 0,
+        ),
       );
     } finally {
       geometry?.restore();

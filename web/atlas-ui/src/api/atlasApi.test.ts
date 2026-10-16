@@ -1,5 +1,7 @@
 import {
   applyEncounterHpAction,
+  getEncounterTurnReview,
+  advanceEncounterTurn,
   getReadiness,
   getRecordDetail,
   getRelatedRecords,
@@ -48,6 +50,42 @@ function respond(value: unknown, status = 200) {
   );
 }
 describe("source-backed API transport", () => {
+  it("reads turn reviews without mutation and sends the exact advance revision", async () => {
+    respond({
+      encounter_key: "ambush",
+      expected_revision: 12,
+      current_participant_key: "a",
+      next_participant_key: "b",
+      reminders: [
+        {
+          kind: "duration_reminder",
+          participant_key: "a",
+          participant_name: "Goblin",
+          condition_id: 7,
+          condition_name: "Frightened",
+          duration: { amount: 0, unit: "minutes", timing: null },
+        },
+      ],
+    });
+    const review = await getEncounterTurnReview("ambush");
+    expect(review.expected_revision).toBe(12n);
+    expect(review.reminders[0]).toMatchObject({
+      condition_id: 7n,
+      duration: { amount: 0n, unit: "minutes", timing: null },
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/encounters/ambush/turn-review");
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
+    respond({ encounter_key: "ambush" });
+    await advanceEncounterTurn("ambush", {
+      expected_revision: review.expected_revision,
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/encounters/ambush/advance");
+    expect(fetchMock.mock.calls[1][1].method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      expected_revision: 12,
+    });
+  });
+
   it("normalizes tagged vocabulary totals without fabricating option counts", async () => {
     const controller = new AbortController();
     respond({
@@ -140,7 +178,17 @@ describe("source-backed API transport", () => {
     current_hp: 20,
     max_hp: 30,
     initiative: -1,
-    conditions: [{ condition_id: 9, value: 1, duration_rounds: 4 }],
+    conditions: [
+      {
+        condition_id: 9,
+        value: 1,
+        duration: {
+          amount: 4,
+          unit: "rounds",
+          timing: { participant_key: "ghoul", event: "end" },
+        },
+      },
+    ],
     display_name: "Ghoul",
     side: "enemy",
     participant_variant: "normal",
@@ -153,7 +201,11 @@ describe("source-backed API transport", () => {
     note_hint: null,
   };
   it("normalizes actual HTTP encounter integers for display and revision-bound edits", async () => {
-    respond({ encounter: { round_number: 1 }, participants: [participantJson] });
+    respond({
+      revision: 8,
+      encounter: { round_number: 1 },
+      participants: [participantJson],
+    });
     const detail = await getEncounter("test");
     const participant = detail.participants[0];
     expect(detail.encounter.round_number).toBe(1n);
@@ -165,7 +217,17 @@ describe("source-backed API transport", () => {
       current_hp: 20n,
       max_hp: 30n,
       temporary_hp: 0n,
-      conditions: [{ condition_id: 9n, value: 1n, duration_rounds: 4n }],
+      conditions: [
+        {
+          condition_id: 9n,
+          value: 1n,
+          duration: {
+            amount: 4n,
+            unit: "rounds",
+            timing: { participant_key: "ghoul", event: "end" },
+          },
+        },
+      ],
     });
     respond({ encounter_key: "encounter-test" });
     expect(
@@ -184,6 +246,7 @@ describe("source-backed API transport", () => {
     "rejects missing or malformed participant revision %s",
     async (revision) => {
       respond({
+        revision: 8,
         encounter: { round_number: 1 },
         participants: [{ ...participantJson, revision }],
       });
@@ -192,6 +255,7 @@ describe("source-backed API transport", () => {
   );
   it("normalizes the largest safe revision without rounding", async () => {
     respond({
+      revision: 8,
       encounter: { round_number: 1 },
       participants: [{ ...participantJson, revision: Number.MAX_SAFE_INTEGER }],
     });
@@ -276,7 +340,7 @@ describe("source-backed API transport", () => {
       name: "turn",
       path: "/api/encounters/test/turn",
       method: "POST",
-      call: () => setEncounterTurn({ encounter_ref: "test" }),
+      call: () => setEncounterTurn({ encounter_ref: "test", participant_key: "ghoul" }),
     },
     {
       name: "condition addition",
@@ -294,6 +358,7 @@ describe("source-backed API transport", () => {
       method: "PATCH",
       call: () =>
         updateEncounterParticipantCondition("test", "ghoul", {
+          expected_encounter_revision: 8n,
           condition_id: 9n,
           name: "Condition",
         }),
@@ -361,7 +426,7 @@ describe("source-backed API transport", () => {
   });
   it("preserves unavailable HP and rejects already-rounded integer responses", async () => {
     const unknown = { ...participantJson, current_hp: undefined, max_hp: undefined };
-    respond({ encounter: { round_number: 1 }, participants: [unknown] });
+    respond({ revision: 8, encounter: { round_number: 1 }, participants: [unknown] });
     const participant = (await getEncounter("test")).participants[0];
     expect(participant.current_hp).toBeUndefined();
     for (const invalid of [
@@ -370,6 +435,7 @@ describe("source-backed API transport", () => {
       0.5,
     ]) {
       respond({
+        revision: 8,
         encounter: { round_number: 1 },
         participants: [{ ...participantJson, current_hp: invalid }],
       });

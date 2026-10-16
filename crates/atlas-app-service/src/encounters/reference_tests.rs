@@ -133,7 +133,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
                 name: None,
                 value: Some(1),
                 source_participant_key: None,
-                duration_rounds: None,
+                duration: None,
                 note: None,
             },
         )

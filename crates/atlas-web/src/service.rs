@@ -2,16 +2,17 @@ use std::sync::Arc;
 
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
-    AppReadinessView, ApplyEncounterHpActionRequest, CreateEncounterRequest,
-    CreateSavedListRequest, DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, EncounterConditionCatalogView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterMutationView, FilterEditorView,
-    FilterSavedListRequest, FilterValueListView, RecordDetailView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantRequest, SavedListCreateView, SavedListDetailView,
-    SavedListIndexView, SavedListItemMutationView, SavedListUpdateView, SearchResultsPage,
-    SearchResultsRequest, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AdvanceEncounterTurnRequest,
+    AppError, AppErrorCode, AppReadinessView, ApplyEncounterHpActionRequest,
+    CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView, DeleteSavedListView,
+    DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, EncounterConditionCatalogView,
+    EncounterCreateView, EncounterDetailView, EncounterIndexView, EncounterMutationView,
+    EncounterTurnReviewView, FilterEditorView, FilterSavedListRequest, FilterValueListView,
+    RecordDetailView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
+    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
+    SavedListUpdateView, SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
@@ -155,6 +156,16 @@ pub(crate) trait AtlasWebService: Send + Sync {
         &self,
         encounter_ref: &str,
         participant_key: &str,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
+    fn encounter_turn_review(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<EncounterTurnReviewView, AppServiceError>;
+    fn advance_encounter_turn(
+        &self,
+        encounter_ref: &str,
+        request: AdvanceEncounterTurnRequest,
     ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn set_encounter_turn(
@@ -365,6 +376,20 @@ impl AtlasWebService for AtlasAppService {
         participant_key: &str,
     ) -> Result<EncounterMutationView, AppServiceError> {
         self.remove_encounter_participant(encounter_ref, participant_key)
+    }
+
+    fn encounter_turn_review(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<EncounterTurnReviewView, AppServiceError> {
+        self.encounter_turn_review(encounter_ref)
+    }
+    fn advance_encounter_turn(
+        &self,
+        encounter_ref: &str,
+        request: AdvanceEncounterTurnRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.advance_encounter_turn(encounter_ref, request)
     }
 
     fn set_encounter_turn(

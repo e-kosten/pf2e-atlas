@@ -1,18 +1,18 @@
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
-    AppReadinessStatus, AppReadinessView, ApplyEncounterHpActionRequest, CreateEncounterRequest,
-    CreateSavedListRequest, DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
+    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AdvanceEncounterTurnRequest,
+    AppError, AppErrorCode, AppReadinessStatus, AppReadinessView, ApplyEncounterHpActionRequest,
+    CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView, DeleteSavedListView,
+    DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
     EncounterDetailView, EncounterIndexView, EncounterMutationView,
     EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterStatusView, EncounterSummaryView, FilterEditorView, FilterSavedListRequest,
-    FilterValueListView, RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantRequest, SavedListCreateView, SavedListDetailView,
-    SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
+    EncounterStatusView, EncounterSummaryView, EncounterTurnReviewView, FilterEditorView,
+    FilterSavedListRequest, FilterValueListView, RecordDetailView, RecordSummaryView,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
     SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
     SearchModeSummary, SearchPageView, SearchResultsPage, SearchResultsRequest,
     SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
@@ -628,7 +628,7 @@ async fn encounter_routes_use_real_router_wiring() {
             "participant_key": "ignored",
             "name": "Frightened",
             "value": 1,
-            "duration_rounds": 2
+            "duration": {"amount":2,"unit":"rounds","timing":{"participant_key":"pc_1","event":"end"}}
         })),
     )
     .await;
@@ -640,9 +640,10 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/participant_a/conditions/7",
         Some(json!({
             "condition_id": 999,
+            "expected_encounter_revision":7,
             "name": "Frightened",
             "value": 2,
-            "duration_rounds": 1
+            "duration": {"amount":1,"unit":"rounds","timing":{"participant_key":"pc_1","event":"end"}}
         })),
     )
     .await;
@@ -654,6 +655,7 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/wrong_participant/conditions/7",
         Some(json!({
             "condition_id": 999,
+            "expected_encounter_revision":7,
             "name": "Frightened",
             "value": 3
         })),
@@ -744,6 +746,48 @@ async fn participant_revision_is_required_and_stale_edits_return_409() {
     let (status, body) = route_json(Method::PATCH, path, Some(request)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, json!({"encounter_key":"ambush"}));
+}
+
+#[tokio::test]
+async fn turn_review_and_advance_use_explicit_revision_path_and_typed_failures() {
+    let (status, body) = route_json(Method::GET, "/api/encounters/ambush/turn-review", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["expected_revision"], 7);
+    assert_eq!(body["next_participant_key"], "pc_1");
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/advance",
+        Some(json!({"expected_revision":7})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!({"encounter_key":"ambush"}));
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/advance",
+        Some(json!({"expected_revision":6})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "encounter_turn_conflict");
+    for body in [
+        json!({}),
+        json!({"expected_revision":null}),
+        json!({"expected_revision":1.5}),
+        json!({"expected_revision":7,"encounter_ref":"spoof"}),
+    ] {
+        let (status, body) =
+            route_json(Method::POST, "/api/encounters/ambush/advance", Some(body)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["code"], "invalid_request");
+    }
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/turn",
+        Some(json!({"encounter_ref":"ignored"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
@@ -1103,6 +1147,34 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn encounter_turn_review(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<EncounterTurnReviewView, AppServiceError> {
+        Ok(EncounterTurnReviewView {
+            encounter_key: encounter_ref.into(),
+            expected_revision: 7,
+            current_participant_key: None,
+            next_participant_key: Some("pc_1".into()),
+            reminders: vec![],
+        })
+    }
+    fn advance_encounter_turn(
+        &self,
+        encounter_ref: &str,
+        request: AdvanceEncounterTurnRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        if request.expected_revision != 7 {
+            return Err(AppServiceError::new(
+                AppErrorCode::EncounterTurnConflict,
+                "encounter changed",
+            ));
+        }
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+
     fn set_encounter_turn(
         &self,
         request: SetEncounterTurnRequest,
@@ -1290,6 +1362,7 @@ fn encounter_detail(
     include_condition: bool,
 ) -> EncounterDetailView {
     EncounterDetailView {
+        revision: 7,
         artifact_generation: Some("test-generation".into()),
         encounter: encounter_summary(encounter_ref, "Ambush"),
         note: Some("Fixture notes".to_string()),
@@ -1335,7 +1408,11 @@ fn encounter_participant(
                 name: "Frightened".to_string(),
                 value: Some(1),
                 source_participant_key: None,
-                duration_rounds: Some(2),
+                duration: Some(atlas_app_model::ConditionDurationView {
+                    amount: 2,
+                    unit: atlas_app_model::ConditionDurationUnit::Rounds,
+                    timing: None,
+                }),
                 note: None,
                 created_at: "2026-01-01T00:00:00Z".to_string(),
                 updated_at: "2026-01-01T00:00:00Z".to_string(),

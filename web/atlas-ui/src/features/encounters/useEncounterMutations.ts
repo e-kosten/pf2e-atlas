@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import {
   applyEncounterHpAction,
+  advanceEncounterTurn,
   addEncounterManualParticipant,
   addEncounterParticipantCondition,
   addEncounterRecordParticipant,
@@ -36,7 +37,8 @@ export type EncounterMutationCommand =
   | { kind: "add-manual"; request: AddEncounterManualParticipantRequest }
   | { kind: "reorder"; request: ReorderEncounterParticipantRequest }
   | { kind: "remove"; participantKey: string }
-  | { kind: "turn"; participantKey?: string }
+  | { kind: "turn"; participantKey: string }
+  | { kind: "advance"; expectedRevision: bigint }
   | { kind: "add-condition"; request: AddEncounterParticipantConditionRequest }
   | {
       kind: "update-condition";
@@ -119,6 +121,10 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           return reorderEncounterParticipant(currentRef, command.request);
         case "remove":
           return removeEncounterParticipant(currentRef, command.participantKey);
+        case "advance":
+          return advanceEncounterTurn(currentRef, {
+            expected_revision: command.expectedRevision,
+          });
         case "turn":
           return setEncounterTurn({
             encounter_ref: currentRef,
@@ -163,7 +169,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     onError: async (error) => {
       if (
         error instanceof AtlasApiError &&
-        error.appError?.code === "encounter_participant_conflict"
+        (error.appError?.code === "encounter_participant_conflict" ||
+          error.appError?.code === "encounter_turn_conflict")
       ) {
         setRefreshOrigin("conflict");
         await attemptRefresh();
@@ -200,13 +207,14 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   };
   const conflict =
     mutation.error instanceof AtlasApiError &&
-    mutation.error.appError?.code === "encounter_participant_conflict";
+    (mutation.error.appError?.code === "encounter_participant_conflict" ||
+      mutation.error.appError?.code === "encounter_turn_conflict");
   return {
     run,
     pending: mutation.isPending || refreshing,
     error: mutation.error,
     errorMessage: conflict
-      ? "Participant changed. Review the refreshed values before retrying your edit."
+      ? "Encounter changed. Review the refreshed values before retrying your edit."
       : mutation.error?.message,
     refreshError,
     refreshMessage:

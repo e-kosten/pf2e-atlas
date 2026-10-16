@@ -1,11 +1,11 @@
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, ApplyEncounterHpActionRequest,
-    CreateEncounterRequest, CreateSavedListRequest, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, FilterSavedListRequest, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantRequest, SearchResultsRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest, UpdateSavedListRequest,
+    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AdvanceEncounterTurnRequest,
+    ApplyEncounterHpActionRequest, CreateEncounterRequest, CreateSavedListRequest,
+    DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterSavedListRequest,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SearchResultsRequest,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
 use atlas_domain::QueryPredicate;
@@ -267,6 +267,31 @@ pub(crate) async fn remove_encounter_participant(
     Ok(Json(
         call_service(state, move || {
             service.remove_encounter_participant(&encounter_ref, &participant_key)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn encounter_turn_review(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.encounter_turn_review(&encounter_ref)).await?,
+    ))
+}
+
+pub(crate) async fn advance_encounter_turn(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<AdvanceEncounterTurnRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.advance_encounter_turn(&encounter_ref, request)
         })
         .await?,
     ))

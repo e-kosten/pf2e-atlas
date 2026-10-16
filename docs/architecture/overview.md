@@ -136,7 +136,10 @@ Do not implement a Foundry world/rule/macro execution engine through presentatio
 Local-state owns complete atomic user actions and coherent aggregate reads.
 Participant replacements require the revision the caller read; stale writes
 receive a conflict without changing state. App-service owns pure turn selection
-over the local-state transaction snapshot. Existing-encounter mutations return
+over the local-state transaction snapshot. Turn review returns a durable encounter
+revision; Continue checks it and decrements explicitly anchored round durations
+with the turn in one transaction. Zero duration retains the condition for explicit
+removal, and nonround durations remain table reminders. Existing-encounter mutations return
 a canonical identity receipt without postcommit reference hydration; explicit
 reads independently refresh presentation. See
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).

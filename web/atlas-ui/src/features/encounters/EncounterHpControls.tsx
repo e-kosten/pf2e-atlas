@@ -1,55 +1,30 @@
-import { Button, Collapse, Form, Input } from "antd";
-import { useState } from "react";
+import { Button, Modal } from "antd";
+import { useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
   EncounterHpAction,
 } from "../../generated/atlas";
 import { asNumber, displayNumber } from "./participantEdits";
-
-const hpOriginLabels: Record<string, string> = {
-  derived_pristine: "Derived maximum and current HP",
-  derived_edited: "Derived maximum; current HP edited",
-  explicit: "HP set manually",
-  unknown: "HP unavailable",
-};
-const adjustmentOriginLabels: Record<string, string> = {
-  default_unadjusted: "Unadjusted by default",
-  inherited_known: "Adjustment from source",
-  inherited_unknown: "Source adjustment unavailable",
-  explicit: "Adjustment selected",
-};
+import { EncounterHpAmount } from "./EncounterHpAmount";
+import { EncounterHpEditor } from "./EncounterHpEditor";
 
 export function EncounterHpControls({
   current,
   disabled = false,
+  pending = false,
+  error,
+  recovery,
   onAction,
 }: {
   current: EncounterParticipantView;
   disabled?: boolean;
+  pending?: boolean;
+  error?: string;
+  recovery?: ReactNode;
   onAction: (action: EncounterHpAction) => Promise<boolean>;
 }) {
-  const [hpDraft, setHpDraft] = useState<{
-    participantKey: string;
-    value: string;
-  } | null>(null);
-  const [tempHpDraft, setTempHpDraft] = useState<{
-    participantKey: string;
-    value: string;
-  } | null>(null);
-  const [amountDraft, setAmountDraft] = useState<{
-    participantKey: string;
-    value: string;
-  } | null>(null);
-  const hpInput =
-    hpDraft?.participantKey === current.participant_key
-      ? hpDraft.value
-      : (current.current_hp?.toString() ?? "");
-  const tempHpInput =
-    tempHpDraft?.participantKey === current.participant_key
-      ? tempHpDraft.value
-      : (current.temporary_hp?.toString() ?? "");
-  const amount =
-    amountDraft?.participantKey === current.participant_key ? amountDraft.value : "";
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [committed, setCommitted] = useState(false);
   const hpKnown = current.current_hp !== undefined;
   const maxKnown = current.max_hp !== undefined;
   const currentHp = asNumber(current.current_hp);
@@ -74,36 +49,21 @@ export function EncounterHpControls({
         ? "encounter-hp-meter__current--bloodied"
         : "";
 
-  const applyHpInput = () => {
-    if (disabled) return;
-    void onAction({ kind: "set_current", input: hpInput.trim() ? hpInput : null })
-      .then((saved) => {
-        if (saved) setHpDraft(null);
-      })
-      .catch(() => {});
-  };
-  const applyTempHpInput = () => {
-    if (disabled) return;
-    void onAction({ kind: "set_temporary", input: tempHpInput })
-      .then((saved) => {
-        if (saved) setTempHpDraft(null);
-      })
-      .catch(() => {});
-  };
-  const applyAmount = (kind: "damage" | "heal") => {
-    if (disabled || !hpKnown || !amount.trim()) return;
-    void onAction({ kind, amount })
-      .then((saved) => {
-        if (saved) setAmountDraft(null);
-      })
-      .catch(() => {});
-  };
-
   return (
     <div className="encounter-hp-panel">
       <div className="encounter-hp-panel__header">
         <h3>HP</h3>
-        <span>{hpSummary}</span>
+        <span aria-label="HP summary">{hpSummary}</span>
+        <Button
+          size="small"
+          disabled={disabled}
+          onClick={() => {
+            setCommitted(false);
+            setEditorOpen(true);
+          }}
+        >
+          Edit HP
+        </Button>
       </div>
       {hpKnown && maxKnown && (
         <div className="encounter-hp-meter" aria-label={`HP remaining: ${hpSummary}`}>
@@ -130,130 +90,35 @@ export function EncounterHpControls({
           )}
         </div>
       )}
-      <div className="encounter-hp-grid">
-        <div className="encounter-hp-control encounter-hp-control--wide">
-          <span className="encounter-hp-control__label">Amount (zero or greater)</span>
-          <div className="encounter-hp-control__row">
-            <Form.Item style={{ marginBottom: 0 }} layout="vertical">
-              <Input
-                style={{ width: "100%" }}
-                aria-label="HP change"
-                disabled={disabled || !hpKnown}
-                value={amount}
-                onChange={(event) =>
-                  setAmountDraft({
-                    participantKey: current.participant_key,
-                    value: event.target.value,
-                  })
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                  }
-                }}
-              />
-            </Form.Item>
-            <div className="encounter-hp-actions">
-              <Button
-                disabled={disabled || !hpKnown || !amount.trim()}
-                onClick={() => applyAmount("damage")}
-              >
-                Damage
-              </Button>
-              <Button
-                disabled={disabled || !hpKnown || !amount.trim()}
-                onClick={() => applyAmount("heal")}
-              >
-                Heal
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="encounter-hp-control">
-          <span className="encounter-hp-control__label">HP</span>
-          <div className="encounter-hp-control__row">
-            <Form.Item style={{ marginBottom: 0 }} layout="vertical">
-              <Input
-                disabled={disabled}
-                aria-label="HP"
-                value={hpInput}
-                onChange={(event) =>
-                  setHpDraft({
-                    participantKey: current.participant_key,
-                    value: event.target.value,
-                  })
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    applyHpInput();
-                  }
-                }}
-              />
-            </Form.Item>
-            <div className="encounter-hp-actions">
-              <Button disabled={disabled} onClick={applyHpInput}>
-                Set
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="encounter-hp-control">
-          <span className="encounter-hp-control__label">Temp HP</span>
-          <div className="encounter-hp-control__row">
-            <Form.Item style={{ marginBottom: 0 }} layout="vertical">
-              <Input
-                disabled={disabled}
-                aria-label="Temp HP"
-                value={tempHpInput}
-                onChange={(event) =>
-                  setTempHpDraft({
-                    participantKey: current.participant_key,
-                    value: event.target.value,
-                  })
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    applyTempHpInput();
-                  }
-                }}
-              />
-            </Form.Item>
-            <div className="encounter-hp-actions">
-              <Button disabled={disabled} onClick={applyTempHpInput}>
-                Set
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <Collapse
+      <EncounterHpAmount
         key={current.participant_key}
-        ghost
-        size="small"
-        items={[
-          {
-            key: "hp-details",
-            label: "HP settings",
-            styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
-            children: (
-              <div className="encounter-hp-details">
-                <p>
-                  {hpOriginLabels[current.hp_origin] ?? "HP origin unavailable"};{" "}
-                  {adjustmentOriginLabels[current.variant_origin] ??
-                    "Adjustment origin unavailable"}
-                </p>
-                <CapacityControl
-                  disabled={disabled}
-                  current={current}
-                  onAction={onAction}
-                />
-              </div>
-            ),
-          },
-        ]}
+        disabled={disabled || !hpKnown}
+        onAction={onAction}
       />
+      <Modal
+        title="Edit HP"
+        open={editorOpen && !(committed && !disabled)}
+        destroyOnHidden
+        footer={null}
+        onCancel={() => setEditorOpen(false)}
+        closable={!pending}
+        keyboard={!pending}
+        mask={{ closable: !pending }}
+      >
+        <EncounterHpEditor
+          current={current}
+          disabled={disabled}
+          pending={pending}
+          error={error}
+          recovery={recovery}
+          onAction={onAction}
+          onCancel={() => setEditorOpen(false)}
+          onCommitted={(refreshed) => {
+            if (refreshed) setEditorOpen(false);
+            else setCommitted(true);
+          }}
+        />
+      </Modal>
     </div>
   );
 }
@@ -263,55 +128,4 @@ function hpLabel(participant: EncounterParticipantView): string {
   const max = displayNumber(participant.max_hp);
   const temporaryHp = asNumber(participant.temporary_hp);
   return `${current}/${max}${temporaryHp > 0 ? ` +${temporaryHp}` : ""}`;
-}
-
-function CapacityControl({
-  current,
-  disabled = false,
-  onAction,
-}: {
-  current: EncounterParticipantView;
-  disabled?: boolean;
-  onAction: (action: EncounterHpAction) => Promise<boolean>;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const value = draft ?? current.max_hp?.toString() ?? "";
-  return (
-    <Form.Item style={{ marginBottom: 0 }} label="Maximum HP" layout="vertical">
-      <Input
-        disabled={disabled}
-        aria-label="Maximum HP"
-        value={value}
-        onChange={(e) => setDraft(e.target.value)}
-      />
-      <div className="encounter-hp-actions">
-        <Button
-          disabled={disabled}
-          onClick={() => {
-            if (!disabled)
-              void onAction({ kind: "set_maximum", input: value.trim() ? value : null })
-                .then((saved) => {
-                  if (saved) setDraft(null);
-                })
-                .catch(() => {});
-          }}
-        >
-          Override maximum
-        </Button>
-        <Button
-          disabled={disabled}
-          onClick={() => {
-            if (!disabled)
-              void onAction({ kind: "use_derived_maximum" })
-                .then((saved) => {
-                  if (saved) setDraft(null);
-                })
-                .catch(() => {});
-          }}
-        >
-          Use authored maximum
-        </Button>
-      </div>
-    </Form.Item>
-  );
 }
