@@ -47,10 +47,6 @@
   white-space: normal;
 }
 
-.encounter-condition-number {
-  width: 72px;
-}
-
 .encounter-condition-chip,
 .encounter-condition-meta {
   border: 1px solid var(--line);

@@ -41,3 +41,46 @@ it("keeps a rejected direct edit available for correction", async () => {
   await waitFor(() => expect(onCommit).toHaveBeenCalledExactlyOnceWith(3n));
   expect(input).toHaveValue("3");
 });
+
+it("commits native plus and minus steps once and disables them during pending recovery", async () => {
+  const onCommit = vi.fn().mockResolvedValue(true);
+  const { rerender } = render(
+    <EncounterConditionValue
+      name="Frightened"
+      value={1n}
+      disabled={false}
+      onCommit={onCommit}
+    />,
+  );
+  const plus = screen.getByRole("button", { name: "Increase Value" });
+  fireEvent.mouseDown(plus);
+  fireEvent.mouseUp(plus);
+  await waitFor(() => expect(onCommit).toHaveBeenCalledExactlyOnceWith(2n));
+  rerender(
+    <EncounterConditionValue
+      name="Frightened"
+      value={2n}
+      disabled={false}
+      onCommit={onCommit}
+    />,
+  );
+  const minus = screen.getByRole("button", { name: "Decrease Value" });
+  fireEvent.mouseDown(minus);
+  fireEvent.mouseUp(minus);
+  await waitFor(() => expect(onCommit).toHaveBeenNthCalledWith(2, 1n));
+  rerender(
+    <EncounterConditionValue
+      name="Frightened"
+      value={1n}
+      disabled
+      onCommit={onCommit}
+    />,
+  );
+  expect(
+    screen.queryByRole("button", { name: "Increase Value" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Decrease Value" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("spinbutton", { name: "Frightened value" })).toBeDisabled();
+});
