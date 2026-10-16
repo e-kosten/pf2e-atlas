@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-13
+Last reviewed: 2026-10-16
 
 ## Problem
 
@@ -15,7 +15,8 @@ participant names, while defenses and abilities require substantial scrolling.
 
 - Make roster names, initiative, current-turn state and HP easy to scan.
 - Put current HP, damage/heal and conditions before occasional editing controls.
-- Keep participant edits and HP overrides/provenance in compact disclosures.
+- Put occasional participant editing and exact HP corrections beside their
+  relevant headings, using focused forms and explicit mutation actions.
 - Use shared family presentation for defenses, movement and actions, with useful
   pane-responsive grouping and inline owned ability content.
 - Keep source prose available without displacing immediate combat information.
@@ -81,6 +82,25 @@ contracts as well as presentation work, rather than a cosmetic button addition.
 Discuss the proposed end-to-end interaction with the user before UI changes.
 Use the existing shared Ant controls and family renderers, and have Astra review
 real visual output and interactions before presenting an implementation for review.
+
+## Approved revision in progress
+
+- Use a number/unit duration picker. Round durations count down automatically at
+  a known turn boundary; use reliable source/rule timing where available and
+  require explicit user selection otherwise. Non-round durations stay reminders.
+- Flag elapsed round durations and require confirmation before condition removal.
+  Keep duration and condition severity distinct.
+- Show an actionable end-of-turn review when reminders exist, including persistent
+  damage and its recovery check. Users roll at the table and explicitly apply
+  damage or clear the relevant condition; Continue advances the turn separately.
+- Keep only the left roster collapsible. Integrate participant/source/HP actions
+  with their headings, simplify condition editing and redundant preview ancestry,
+  and use compact Lore and casting-rank captions through shared presentation.
+
+Correct-rank spell mechanics are a required separate follow-up in
+[spell rank preview](rust-spell-rank-preview.md). Configurable automatic rolls or
+recovery adjudication are future [product actions](foundry-inspired-product-actions.md),
+not part of the reminder workflow.
 
 ## Known Accessibility Follow-up
 

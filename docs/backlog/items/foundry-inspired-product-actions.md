@@ -40,6 +40,10 @@ encounters. Start with those workflows rather than broad Macro execution.
 - Agree where results appear, whether any history persists, and which operations
   change encounter state. Initiative and general roll results should not silently
   spend resources or apply damage/conditions. These remain design decisions.
+- Evaluate optional, explicitly configured persistent-damage and recovery
+  automation after the reminder workflow. The approved encounter design prompts
+  for table rolls and offers deliberate HP/condition actions; it does not roll,
+  apply damage or decide recovery automatically.
 
 Coordinate the interaction with [encounter usability](rust-web-encounter-runner-polish.md).
 Discuss the design with the user before implementation and retain Rust ownership
