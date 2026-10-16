@@ -65,4 +65,4 @@ implementation and publication require authorization for that scope.
 
 Related: [tokenization](rust-fts-tokenization-stemming.md),
 [query spelling](rust-cli-typo-tolerant-discovery.md),
-[shared UI consistency](shared-ui-consistency-and-saved-lists.md).
+[completed shared UI consistency](../history/items/shared-ui-consistency-and-saved-lists.md).

@@ -859,7 +859,6 @@ describe("list views", () => {
     expect(input).toHaveValue("Unsubmitted search");
     await act(async () => reject(new Error("Add rejected")));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Add rejected");
-    expect(within(dialog).getByText("Selected: Test Action 1")).toBeVisible();
     expect(add).toBeEnabled();
     fireEvent.click(add);
     expect(await within(dialog).findByText("Added to list.")).toBeVisible();

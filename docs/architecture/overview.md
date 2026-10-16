@@ -157,6 +157,16 @@ need a clear responsibility or actual reuse need, rather than creating local
 copies of the same layout. [ADR0047](./decisions/0047-semantic-record-presentation.md)
 defines the transient presentation boundary.
 
+Responsive browser acceptance uses the developer-only `atlas-web`
+`browser_fixture` example. It builds a small checked artifact with existing
+retrieval test support, then serves the production router and app-service in
+stored-vector mode with isolated local state. Structural fixture vectors do not
+establish model inference or ranking quality; query assets remain unavailable.
+Fixture-only dependencies and composition stay in the example/dev-dependency
+boundary. Browser tests use normal APIs rather than test-only product endpoints
+or fabricated readiness. Frontend guidance defines the device matrix and the
+separate automated, Astra visual and actual-device evidence requirements.
+
 Architectural replacements land with every call site and matching docs updated.
 Generated reference artifacts rebuild directly: no legacy adapter, bridge or
 mixed old/new authority. Local-state migration is a separate durable-data concern.

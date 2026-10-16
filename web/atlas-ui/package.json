@@ -15,7 +15,8 @@
     "typecheck": "tsc -b --noEmit",
     "verify": "npm run format:check && npm run lint && npm run check:styles && npm run typecheck && npm run test && npm run build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:devices": "npm run build && playwright test --config playwright.devices.config.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",

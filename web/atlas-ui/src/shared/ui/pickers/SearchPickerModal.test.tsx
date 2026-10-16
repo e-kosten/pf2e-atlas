@@ -21,6 +21,7 @@ vi.mock("../../../api/atlasApi", async (original) => ({
   discoverFilterCounts: vi.fn(),
 }));
 const search = vi.mocked(searchPage);
+const addSelected = vi.fn();
 function result(title = "Ghoul", generation = "generation-a", profile = "bge-base") {
   return {
     search_profile: profile,
@@ -64,12 +65,10 @@ function Picker({
       })}
       emptyPrompt="Search for a record"
       emptyResults="No matching records"
-      selectedPrompt="Choose a record"
-      selectedLabel={(row) => `Selected ${row.record.title}`}
       selectedRecordKey={selected}
       onSelectedRecordKeyChange={setSelected}
       onCancel={vi.fn()}
-      onFinish={vi.fn()}
+      onFinish={() => addSelected(selected)}
       okButtonProps={{ disabled: !selected }}
     >
       <Form.Item name="note" label="Note">
@@ -111,6 +110,12 @@ async function submit(query: string) {
   fireEvent.change(input, { target: { value: query } });
   fireEvent.keyDown(input, { key: "Enter", code: "Enter", keyCode: 13 });
 }
+async function expectRetainedCandidate() {
+  const calls = addSelected.mock.calls.length;
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(addSelected).toHaveBeenCalledTimes(calls + 1));
+  expect(addSelected).toHaveBeenLastCalledWith("actors:ghoul");
+}
 beforeEach(() => {
   vi.clearAllMocks();
   search.mockReset();
@@ -150,7 +155,7 @@ it("shows loading without pagination, then completed empty for a queryless picke
   expect(screen.queryByTitle("Next Page")).toBeNull();
 });
 
-it("previews before explicit Add and retains the named candidate when a later query has no results", async () => {
+it("previews before explicit Add and retains the candidate when a later query has no results", async () => {
   renderPicker();
   const link = await screen.findByRole("link", { name: /Ghoul/ });
   expect(getRecordDetail).not.toHaveBeenCalled();
@@ -164,7 +169,7 @@ it("previews before explicit Add and retains the named candidate when a later qu
   });
   await submit("dragon");
   await waitFor(() => expect(screen.queryByRole("link", { name: /Ghoul/ })).toBeNull());
-  expect(screen.getByText("Selected Ghoul")).toHaveTextContent("Selected Ghoul");
+  await expectRetainedCandidate();
   expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
 });
 
@@ -200,7 +205,7 @@ it("inherits a profile switch on page one while retaining the explicit candidate
     page: { number: 1 },
   });
   expect(screen.queryByRole("link", { name: /Ghoul/ })).toBeNull();
-  expect(screen.getByText("Selected Ghoul")).toHaveTextContent("Selected Ghoul");
+  await expectRetainedCandidate();
   expect(screen.getByLabelText("Note")).toHaveValue("Keep encounter draft");
   await act(async () =>
     finishNew(result("New creature", "generation-a", "embeddinggemma")),
@@ -208,7 +213,7 @@ it("inherits a profile switch on page one while retaining the explicit candidate
   await act(async () => finishOld(result("Late creature")));
   expect(await screen.findByRole("link", { name: /New creature/ })).toBeVisible();
   expect(screen.queryByRole("link", { name: /Late creature/ })).toBeNull();
-  expect(screen.getByText("Selected Ghoul")).toHaveTextContent("Selected Ghoul");
+  await expectRetainedCandidate();
   expect(getRecordDetail).toHaveBeenCalledTimes(1);
 });
 it("blocks selection and form actions while Add is pending, preserving the draft", async () => {
@@ -221,10 +226,10 @@ it("blocks selection and form actions while Add is pending, preserving the draft
   expect(screen.getByRole("searchbox")).toBeDisabled();
   expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-  expect(screen.getByText("Selected Ghoul")).toHaveTextContent("Selected Ghoul");
   view.setDisabled(false);
   expect(screen.getByLabelText("Note")).toHaveValue("Keep this note");
   expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+  await expectRetainedCandidate();
 });
 it("distinguishes failed retrieval from empty results and retries the same request", async () => {
   search
@@ -269,7 +274,7 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
     criteria: { query: "dragon", mode: "hybrid" },
   });
   expect(screen.getByLabelText("Note")).toHaveValue("Unsaved encounter note");
-  expect(screen.getByText("Selected Ghoul")).toHaveTextContent("Selected Ghoul");
+  await expectRetainedCandidate();
   expect(client.getQueryData(["encounter", "draft-owner"])).toEqual({
     name: "Encounter",
   });

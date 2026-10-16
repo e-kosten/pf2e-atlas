@@ -31,6 +31,16 @@ For retained worktrees, record the path, purpose, owner, and removal condition. 
 
 Provide a stable local build when a change is useful to inspect. State its branch, commit, URL or run command, and any sample-data limitations. Disclose uncommitted differences if present. Preserve that build while developing further changes, using a separate checkout or built artifact when necessary, and explicitly identify when an updated build replaces it.
 
+Human UI previews use the existing full-corpus artifact and verified model cache,
+with all stored search profiles usable. Reuse a compatible running backend and
+its preview-local saved state when only frontend code changes; otherwise start
+the candidate backend against the same read-only artifact/cache with separate
+mutable preview state. Verify readiness and a real query with each profile before
+handoff. Keep build provenance and restart instructions in the local preview
+handoff. The small model-free browser fixture is for automated acceptance and
+targeted fault checks; do not offer it as the product preview or rebuild/copy the
+corpus for each UI branch.
+
 UI changes require interaction and visual review alongside automated checks. Agents use Astra sub-agents for presentation review, including actual browser inspection. Local validation, hosted CI, and human acceptance are separate outcomes; a passing gate does not establish visual acceptance.
 
 ## Working Plans
@@ -393,6 +403,38 @@ For web UI changes, run the frontend gate:
 just web-ui-verify
 # or: npm --prefix web/atlas-ui run verify
 ```
+
+Shared browser layout, navigation, overlays and forms also use the maintained
+device acceptance suite:
+
+```bash
+npm --prefix web/atlas-ui exec -- playwright install chromium webkit
+npm --prefix web/atlas-ui run test:devices
+```
+
+The command builds the frontend and launches `atlas-web`'s developer-only
+`browser_fixture` example on 127.0.0.1:8796. The first run compiles Rust using the
+normal checkout-local target; later runs reuse it. Port 8796 must be free: the
+suite never adopts an unrelated running server. It creates a small checked-source
+SQLite artifact and separate mutable state under `scratch/responsive-validation/runs`.
+Graceful SIGINT removes the default temporary run directory. A forced kill may
+leave a run directory for inspection; remove only that inactive run after retaining
+needed evidence. No Foundry clone or embedding models are downloaded.
+
+The fixture uses real index, retrieval, app-service and web owners. Structural
+stored vectors enable browsing/Similar without claiming inference or ranking
+quality; query-asset unavailability remains truthful. The bounded Chromium/WebKit
+phone/tablet/desktop matrix exercises real touch and keyboard flows. It is separate
+from `npm --prefix web/atlas-ui run test:e2e`, whose broader scenarios require a
+caller-supplied real corpus server.
+
+CI runs device acceptance after verification in the existing Rust job, reusing
+its compiler output and frontend installation. Failure traces, screenshots and
+the HTML report are retained as a short-lived workflow artifact. Local results
+are under `scratch/responsive-validation/browser`. The frontend `verify` command
+alone does not execute browsers. Follow the frontend guidelines for Astra visual
+review and actual-device checks; passing emulation does not certify a physical
+phone's software keyboard, browser chrome or text-enlargement behavior.
 
 For the same path-sensitive validation used by hooks (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
 
