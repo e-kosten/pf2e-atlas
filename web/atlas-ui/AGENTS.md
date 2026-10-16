@@ -48,6 +48,13 @@ npm --prefix web/atlas-ui run verify
 
 For narrow refactors, also run focused tests for the touched surface before the full verify.
 
+Follow [responsive acceptance](docs/frontend-guidelines.md#responsive-design-and-acceptance)
+for layout, navigation, overlays and forms. Run `npm --prefix web/atlas-ui run
+test:devices` when those shared behaviors change; it uses a small real-app fixture.
+Keep Astra visual/interaction review separate from automated checks. Test actual
+taps in touch contexts and distinguish viewport resizing, emulation and physical
+device evidence. Report unavailable device/zoom/software-keyboard checks explicitly.
+
 Contextual feedback uses the root Ant `App` inside `ConfigProvider`. Destructive
 button and callback flows use `useConfirmDangerAction`; prepared source dialogs
 use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style

@@ -25,7 +25,7 @@ A future table view with useful configurable columns remains a presentation
 option to evaluate against actual scan/comparison workflows. Agree its required
 facts and summary-read cost before extending the search response.
 
-Coordinate specific work through [shared UI consistency](shared-ui-consistency-and-saved-lists.md),
+Coordinate specific work through [responsive acceptance](responsive-ui-validation.md),
 [record reading](rust-web-record-detail-polish.md),
 [encounters](rust-web-encounter-runner-polish.md) and
 [spell previews](rust-spell-rank-preview.md). These tasks refine the shared model;

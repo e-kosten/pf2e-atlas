@@ -394,6 +394,38 @@ just web-ui-verify
 # or: npm --prefix web/atlas-ui run verify
 ```
 
+Shared browser layout, navigation, overlays and forms also use the maintained
+device acceptance suite:
+
+```bash
+npm --prefix web/atlas-ui exec -- playwright install chromium webkit
+npm --prefix web/atlas-ui run test:devices
+```
+
+The command builds the frontend and launches `atlas-web`'s developer-only
+`browser_fixture` example on 127.0.0.1:8796. The first run compiles Rust using the
+normal checkout-local target; later runs reuse it. Port 8796 must be free: the
+suite never adopts an unrelated running server. It creates a small checked-source
+SQLite artifact and separate mutable state under `scratch/responsive-validation/runs`.
+Graceful SIGINT removes the default temporary run directory. A forced kill may
+leave a run directory for inspection; remove only that inactive run after retaining
+needed evidence. No Foundry clone or embedding models are downloaded.
+
+The fixture uses real index, retrieval, app-service and web owners. Structural
+stored vectors enable browsing/Similar without claiming inference or ranking
+quality; query-asset unavailability remains truthful. The bounded Chromium/WebKit
+phone/tablet/desktop matrix exercises real touch and keyboard flows. It is separate
+from `npm --prefix web/atlas-ui run test:e2e`, whose broader scenarios require a
+caller-supplied real corpus server.
+
+CI runs device acceptance after verification in the existing Rust job, reusing
+its compiler output and frontend installation. Failure traces, screenshots and
+the HTML report are retained as a short-lived workflow artifact. Local results
+are under `scratch/responsive-validation/browser`. The frontend `verify` command
+alone does not execute browsers. Follow the frontend guidelines for Astra visual
+review and actual-device checks; passing emulation does not certify a physical
+phone's software keyboard, browser chrome or text-enlargement behavior.
+
 For the same path-sensitive validation used by hooks (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
 
 ```bash

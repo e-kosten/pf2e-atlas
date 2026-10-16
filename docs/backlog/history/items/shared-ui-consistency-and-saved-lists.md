@@ -1,7 +1,14 @@
 # Shared UI consistency and saved-list presentation
 
-Status: proposed
-Last reviewed: 2026-10-13
+Status: done
+Last reviewed: 2026-10-16
+
+Delivered through [PR58](https://github.com/e-kosten/pf2e-atlas/pull/58): shared
+list/search browsing, consistent indexes/toolbars, readable content widths,
+list editing/Add and in-place reference reading. User visual approval,
+independent review, Astra browser review and hosted CI preceded merge.
+Repeatable device/browser acceptance continues in
+[responsive UI validation](../../items/responsive-ui-validation.md).
 
 ## Problem
 
@@ -48,7 +55,7 @@ Check wide and narrow screens and the shared full-page/preview presentations.
 
 ## References
 
-- [Architecture overview](../../architecture/overview.md)
-- [Frontend guidelines](../../../web/atlas-ui/docs/frontend-guidelines.md)
-- [Web filter UX](rust-web-filter-ux-expansion.md)
-- [Record detail polish](rust-web-record-detail-polish.md)
+- [Architecture overview](../../../architecture/overview.md)
+- [Frontend guidelines](../../../../web/atlas-ui/docs/frontend-guidelines.md)
+- [Web filter UX](../../items/rust-web-filter-ux-expansion.md)
+- [Record detail polish](../../items/rust-web-record-detail-polish.md)

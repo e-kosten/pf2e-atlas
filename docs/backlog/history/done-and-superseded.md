@@ -6,6 +6,10 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Shared UI consistency and saved-list presentation](./items/shared-ui-consistency-and-saved-lists.md)
+  Shared browsing/readers, consistent toolbars/indexes, readable content and list
+  editing/Add landed in PR58. Device acceptance is a separate follow-up. Status: done.
+
 - [Search lifetimes and stateless pages](./items/search-lifetimes-and-pages.md)
   Coherent web/command artifact readers, generation-checked stateless pages,
   deliberate browser recovery, cooperative read abandonment and typed semantic
