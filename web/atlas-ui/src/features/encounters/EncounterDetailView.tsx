@@ -342,6 +342,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             previewRecordKey={recordPreview.recordKey}
           />
         }
+        collapsiblePanes={["filter"]}
         labels={{ filter: "Roster", results: "Participant" }}
         selectedRecordKey={selected?.record_key ?? selected?.participant_key ?? null}
         widthSpecs={ENCOUNTER_WIDTH_SPECS}

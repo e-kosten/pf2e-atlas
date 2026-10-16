@@ -179,7 +179,7 @@ it("renders selected casting membership with parent context, ranks and exact cus
   expect(
     screen.getByRole("heading", { name: "Spells for Fabled Harrowkin" }),
   ).toBeVisible();
-  expect(screen.getByText("Base rank 4")).toBeVisible();
+  expect(screen.queryByText("Base rank 4")).toBeNull();
   expect(screen.getByText("Cast rank 5")).toBeVisible();
   expect(screen.queryByText("raw-casting-id")).toBeNull();
   expect(screen.queryByText("No structured damage")).toBeNull();
@@ -371,3 +371,65 @@ it.each([false, true])(
     expect(screen.queryByRole("button", { name: "Runtime details" })).toBeNull();
   },
 );
+
+it.each([
+  [1, numberFact(1), "Cast rank 1"],
+  [1, numberFact(3), "Cast rank 3"],
+  [0, numberFact(0), "Cast rank 0"],
+  [1, { state: "missing", value: null, adjustment: null }, "Casting rank unavailable"],
+  [1, { state: "invalid", value: null, adjustment: null }, "Casting rank unavailable"],
+] as const)(
+  "shows casting facts without substituting base rank %s",
+  (base, cast, caption) => {
+    const entry = {
+      ...activityFixture("Innate spells"),
+      kind: "casting_entry" as const,
+    };
+    const spell = {
+      ...activityFixture("Fear"),
+      kind: "spell" as const,
+      base_rank: numberFact(base),
+      authored_cast_rank: cast,
+      casting_entry: entry.navigation,
+    };
+    entry.casting_context = {
+      parent: entry.navigation,
+      parent_title: "Mage",
+      spells: knownFact([spell]),
+    };
+    const detail = detailFixture("actors:mage", "Innate spells");
+    detail.presentation.body = { kind: "activity", value: entry };
+    render(
+      <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
+    );
+    expect(screen.getByText(caption)).toBeVisible();
+    expect(screen.queryByText(/^Base rank/)).toBeNull();
+    expect(screen.getByRole("link", { name: "Fear" })).toHaveAttribute("href");
+  },
+);
+
+it("renders an authored Lore title and signed modifier once with exact navigation", () => {
+  const lore = {
+    ...activityFixture("Dragon Lore"),
+    kind: "lore" as const,
+    lore_modifier: numberFact(10),
+  };
+  const actor = actorFixture();
+  actor.activities = knownFact([lore]);
+  const detail = detailFixture("actors:mage", "Mage");
+  detail.presentation.body = { kind: "creature", value: actor };
+  const onReference = vi.fn();
+  render(
+    <RecordPresentation presentation={detail.presentation} onReference={onReference} />,
+  );
+  expect(screen.getAllByText("Lore")).toHaveLength(1);
+  expect(screen.getAllByText("Dragon Lore")).toHaveLength(1);
+  const link = screen.getByRole("link", { name: "Dragon Lore" });
+  expect(link.parentElement).toHaveTextContent("Dragon Lore +10");
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith(
+    lore.navigation.record_key,
+    expect.any(HTMLElement),
+    lore.navigation,
+  );
+});

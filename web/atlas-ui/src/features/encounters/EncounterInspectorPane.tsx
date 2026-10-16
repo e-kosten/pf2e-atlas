@@ -130,6 +130,7 @@ export function EncounterInspectorPane({
       )}
       {previewRecordKey && (
         <RecordPreviewPopover
+          visibleOwnerRecordKey={participant.record_key}
           anchor={previewAnchor}
           readingHistory={previewReadingHistory}
           landing={previewLanding}

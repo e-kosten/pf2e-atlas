@@ -73,6 +73,11 @@ export function RecordView({ route }: RecordViewProps) {
       />
       {preview.recordKey && (
         <RecordPreviewPopover
+          visibleOwnerRecordKey={
+            detail.data?.selected.owners.length === 0
+              ? detail.data.record.record_key
+              : undefined
+          }
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
           landing={preview.landing}

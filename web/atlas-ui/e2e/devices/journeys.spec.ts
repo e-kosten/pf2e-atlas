@@ -211,10 +211,13 @@ test("encounter references retain their owner, scroll and native destination", a
     await expect(
       content.getByRole("heading", { name: /^Signal Pulse\b/ }),
     ).toBeVisible();
-    await activate(
-      content.getByRole("link", { name: "Return to Atlas Sentinel", exact: true }),
-      info,
-    );
+    const ownerReturn = content.getByRole("link", {
+      name: "Return to Atlas Sentinel",
+      exact: true,
+    });
+    const widePreview = info.project.name === "desktop-chromium";
+    if (widePreview) await expect(ownerReturn).toHaveCount(0);
+    else await activate(ownerReturn, info);
     const host = page.locator(
       info.project.name === "desktop-chromium"
         ? ".record-preview-popover__body"
@@ -238,7 +241,7 @@ test("encounter references retain their owner, scroll and native destination", a
     });
     expect(
       new URL((await full.getAttribute("href"))!, page.url()).searchParams.get(
-        "landing",
+        widePreview ? "selection" : "landing",
       ),
     ).toBe(JSON.stringify(landing));
     await expect(full).toBeInViewport();
@@ -249,9 +252,9 @@ test("encounter references retain their owner, scroll and native destination", a
       await full.click({ button: "middle" });
       const other = await opened;
       await expect(other).toHaveURL(/\/records\/browser-actors:/);
-      expect(new URL(other.url()).searchParams.get("landing")).toBe(
-        JSON.stringify(landing),
-      );
+      expect(
+        new URL(other.url()).searchParams.get(widePreview ? "selection" : "landing"),
+      ).toBe(JSON.stringify(landing));
       await expect(page).toHaveURL(new RegExp(`/encounters/${encounter.slug}$`));
       await other.close();
     }

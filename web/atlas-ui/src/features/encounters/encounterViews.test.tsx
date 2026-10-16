@@ -8,7 +8,7 @@ import {
   unavailableFact,
   activityFixture,
 } from "../../test/fixtures";
-import { App, ConfigProvider } from "antd";
+import { App, ConfigProvider, Grid } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { retireImmutableReferenceQueries } from "../../shared/queries/immutableReferenceQueries";
 import {
@@ -146,6 +146,7 @@ describe("encounter views", () => {
       await disposeEncounterTest();
     } finally {
       vi.useRealTimers();
+      vi.restoreAllMocks();
     }
   });
 
@@ -847,7 +848,8 @@ describe("encounter views", () => {
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
   });
 
-  it("keeps the encounter owner-return landing in native full-page links and modified activation", async () => {
+  it("keeps the narrow encounter owner-return landing in native full-page links and modified activation", async () => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xs: true, md: false, xl: false });
     const initial = encounterDetailFixture();
     const actor = initial.participants[0].presentation!.body;
     if (actor.kind !== "creature") throw new Error("expected creature fixture");
@@ -866,7 +868,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("link", { name: "Claw" }));
-    const preview = await screen.findByLabelText("Reference preview");
+    const preview = await screen.findByLabelText("Reference content");
     fireEvent.click(
       await within(preview).findByRole("link", {
         name: `Return to ${selected.record.title}`,
