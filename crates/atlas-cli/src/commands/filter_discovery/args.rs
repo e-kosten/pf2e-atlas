@@ -11,12 +11,19 @@ pub(crate) struct FiltersArgs {
 pub(crate) enum FiltersCommand {
     #[command(about = "Discover supported CEL paths, operators, applicability and units")]
     Fields(Box<FiltersFieldsOptions>),
-    #[command(about = "Discover closed choices, open value samples and availability counts")]
+    #[command(about = "Discover contextual values, record counts and source availability")]
     Values(Box<FiltersValuesOptions>),
 }
 #[derive(Debug, Args)]
 pub(crate) struct FiltersFieldsOptions {
-    #[arg(long, help = "Show the complete descriptor for this field ID")]
+    #[arg(long, conflicts_with_all = ["field", "text"], help = "Browse a product group; run filters fields to list groups")]
+    pub(crate) group: Option<String>,
+    #[arg(long, conflicts_with_all = ["field", "group"], help = "List all field descriptors")]
+    pub(crate) all: bool,
+    #[arg(
+        long,
+        help = "Inspect a field; human collection output also lists its entry fields"
+    )]
     pub(crate) field: Option<String>,
     #[arg(
         long,
@@ -32,14 +39,17 @@ pub(crate) struct FiltersFieldsOptions {
 }
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas filters values --field traits --kind spell\n  atlas filters values --field actor.hp.maximum --kind creature --json"
+    after_help = "Values retain all supplied filters; they do not replace a condition on the requested field.\nClosed fields include allowed choices with zero matches; open fields enumerate observed values.\nUse filters fields --field ID for the declared choices and CEL examples.\n\nExamples:\n  atlas filters values --field traits --kind spell\n  atlas filters values --field actor.languages --kind creature --text common\n  atlas filters values --field 'actor.speeds[].type' --kind creature\n  atlas filters values --field actor.hp.maximum --kind creature --json"
 )]
 pub(crate) struct FiltersValuesOptions {
     #[arg(long)]
     pub(crate) field: String,
     #[command(flatten)]
     pub(crate) filter_options: FilterOptions,
-    #[arg(long, help = "Filter sampled values by text")]
+    #[arg(
+        long,
+        help = "Find categorical values by text; does not search record content"
+    )]
     pub(crate) text: Option<String>,
     #[arg(long, default_value_t = 0)]
     pub(crate) offset: usize,

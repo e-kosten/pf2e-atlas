@@ -130,11 +130,51 @@ atlas similar "Dirge of Doom" --kind spell
 atlas graph links actionspf2e:1kGNdIIhuglAjIp9
 ```
 
-`filters fields` shows a compact field index. `--field` shows a complete
-descriptor, and `--text` finds labels, IDs, scopes and source families. JSON keeps
-complete descriptors, narrowed only when requested. `filters values` reports
+`filters fields` lists the same product groups used by the UI. Use `--group movement`
+to browse Movement and senses, `--field actor.speeds` to inspect a collection,
+or `--text speed` to search across groups. `--all` lists the full flat catalog.
+JSON defaults to the shared grouped editor metadata; `--group` narrows those
+groups. `--field`, `--text` and `--all` return catalog descriptors.
+`filters values` reports
 numeric ranges or collection availability for those field types; categorical
 fields provide paged values alongside availability counts.
+
+`filters fields --field ID` describes allowed choices. `filters values --field ID`
+counts records under the supplied filters: closed fields retain zero-match
+choices, while open fields enumerate observed values. Its `--text` searches values,
+not record descriptions. Use `--offset` and `--limit` to page.
+
+Value counts count each parent record once per value and respect remaster
+preference. Source-availability statistics are before remaster suppression;
+collection occurrences count entries and can exceed the number of records.
+Unsupported discovery contexts return an error, not zero counts.
+
+CEL expresses collection constraints directly:
+
+```bash
+# Creatures that speak Common
+atlas search --kind creature --where '"common" in actor.languages'
+# Flying speed of at least 30 feet
+atlas search --kind creature --where 'actor.speeds.exists(s, s.type == "fly" && s.value >= 30)'
+# Fire resistance of at least 10
+atlas search --kind creature --where 'actor.resistances.exists(r, r.type == "fire" && r.value >= 10)'
+# At least one embedded fire spell of rank 3 or higher
+atlas search --kind creature --where 'actor.items.exists(i, i.source.type == "spell" && "fire" in i.traits && i.spell.rank >= 3)'
+```
+
+Conditions inside one `exists(...)` must match the **same entry**. Separate
+`exists(...)` expressions can match different entries—for example, flight on one
+movement entry and a high speed on another. Scoped discovery IDs such as
+`actor.speeds[].type` identify catalog fields; use `s.type` inside CEL's `exists`.
+Inspect `filters fields --field actor.speeds` to list the collection's entry fields,
+then `filters fields --field 'actor.speeds[].type'` for that field's choices and
+examples. `actor.speeds[]` alone is not a field ID. JSON `--field` output remains
+the exact requested descriptor; use `--text actor.speeds --json` to discover the
+collection and its member descriptors together.
+CLI value discovery retains the entire supplied filter rather than replacing an
+edited condition as a UI picker does. Its scoped value counts can match a different
+entry from an existing collection condition; use `search --where` to test the
+complete same-entry query.
 
 ## Agent Skill
 

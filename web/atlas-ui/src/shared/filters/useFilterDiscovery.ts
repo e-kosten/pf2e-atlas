@@ -7,8 +7,8 @@ import {
 } from "../../api/atlasApi";
 import type {
   FilterDiscoveryContext,
+  FilterCountsView,
   FilterEditorView,
-  FilterValueListView,
   FilterVocabularyScope,
   QueryLiteral,
   QueryPredicate,
@@ -50,10 +50,20 @@ export function useFilterDiscovery({
   vocabularyScope?: FilterVocabularyScope;
 }) {
   const editor = useQuery<FilterEditorView>({
-    queryKey: ["filter-discovery", "editor", ...catalogIdentity],
+    queryKey: ["filter-discovery", "editor", ...catalogIdentity, context.filter],
     enabled,
     staleTime: Infinity,
-    queryFn: ({ signal }) => discoverFilterEditor({ selected_field_ids: [] }, signal),
+    meta: { catalogIdentity },
+    placeholderData: (previous, previousQuery) =>
+      JSON.stringify(previousQuery?.meta?.catalogIdentity) ===
+      JSON.stringify(catalogIdentity)
+        ? previous
+        : undefined,
+    queryFn: ({ signal }) =>
+      discoverFilterEditor(
+        { selected_field_ids: [], filter: context.filter ?? undefined },
+        signal,
+      ),
   });
   return {
     filterEditor: editor.data,
@@ -61,12 +71,28 @@ export function useFilterDiscovery({
     filterCountQueryKey: queryKeyPrefix,
     filterDiscoveryContext: context,
     vocabularyScope,
-    loading: editor.isLoading || editor.isFetching,
+    loading: editor.isLoading,
     errorMessage: editor.error?.message ?? null,
   };
 }
 
 /** Optional counts never own vocabulary or control whether a value is selectable. */
+export function existingClauseId(
+  context: FilterDiscoveryContext | undefined,
+  clauseId: string | null,
+): string | null {
+  if (!clauseId) return null;
+  const visit = (predicate: QueryPredicate | null): boolean => {
+    if (!predicate) return false;
+    if (predicate.clause_id === clauseId) return true;
+    if (predicate.kind === "all_of" || predicate.kind === "any_of")
+      return predicate.children.some(visit);
+    if (predicate.kind === "exists" || predicate.kind === "not")
+      return visit(predicate.predicate);
+    return false;
+  };
+  return visit(context?.filter ?? null) ? clauseId : null;
+}
 export function useFilterOptionCounts(
   context: FilterDiscoveryContext | undefined,
   fieldId: string,
@@ -77,7 +103,8 @@ export function useFilterOptionCounts(
   queryKeyPrefix: readonly unknown[] = [],
 ) {
   const literals = [...new Set(values)].slice(0, literalLimit);
-  const query = useQuery({
+  const addressedClause = existingClauseId(context, clauseId);
+  const query = useQuery<FilterCountsView>({
     queryKey: [
       ...(queryKeyPrefix.length ? queryKeyPrefix : ["filter-discovery"]),
       "option-counts",
@@ -87,12 +114,27 @@ export function useFilterOptionCounts(
       literals,
       enabled,
     ],
-    enabled: enabled && !!context && !context.text?.trim() && literals.length > 0,
+    enabled:
+      enabled &&
+      !!context &&
+      !context.text?.trim() &&
+      literals.length > 0 &&
+      (!fieldId.includes("[]") || !!addressedClause),
+    meta: {
+      fieldId,
+      discoveryIdentity: context && discoveryIdentity({ context, clauseId: null }),
+    },
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.meta?.fieldId === fieldId &&
+      JSON.stringify(previousQuery.meta.discoveryIdentity) ===
+        JSON.stringify(context && discoveryIdentity({ context, clauseId: null }))
+        ? previous
+        : undefined,
     retry: false,
     queryFn: async ({ signal }) => {
       if (!context) throw new Error("Missing filter count context");
       const response = await discoverFilterCounts(
-        { context, field_id: fieldId, clause_id: clauseId, values: literals },
+        { context, field_id: fieldId, clause_id: addressedClause, values: literals },
         signal,
       );
       assertSearchIdentity(
@@ -114,7 +156,24 @@ export function useFilterOptionCounts(
     : new Map<string, bigint>();
 }
 
+function discoveryIdentity(value?: {
+  context: FilterDiscoveryContext;
+  clauseId: string | null;
+}) {
+  if (!value) return null;
+  const { filter: _filter, ...identity } = value.context;
+  void _filter;
+  return identity;
+}
+
 export const VOCABULARY_PAGE_SIZE = 40;
+type OptionPage = {
+  values: Pick<
+    import("../../generated/atlas").QueryVocabulary,
+    "field" | "options" | "selected_values" | "total_values"
+  >;
+  contextual: boolean;
+};
 export function useFilterVocabulary(
   scope: FilterVocabularyScope,
   fieldId: string,
@@ -122,18 +181,65 @@ export function useFilterVocabulary(
   offset: number,
   selectedValues: QueryLiteral[],
   enabled = true,
+  applicable?: { context: FilterDiscoveryContext; clauseId: string | null },
 ) {
-  return useQuery<Extract<FilterValueListView, { kind: "vocabulary" }>>({
-    queryKey: ["filter-vocabulary", scope, fieldId, text, offset, selectedValues],
+  return useQuery<OptionPage>({
+    queryKey: [
+      "filter-vocabulary",
+      scope,
+      fieldId,
+      text,
+      offset,
+      selectedValues,
+      applicable,
+    ],
     enabled,
     // A selection edit must not temporarily remove or reorder the menu's rows.
     // Never carry suggestions across a different scope, field or page/search.
     placeholderData: (previous, previousQuery) =>
       JSON.stringify(previousQuery?.queryKey.slice(0, 5)) ===
-      JSON.stringify(["filter-vocabulary", scope, fieldId, text, offset])
+        JSON.stringify(["filter-vocabulary", scope, fieldId, text, offset]) &&
+      JSON.stringify(
+        discoveryIdentity(previousQuery?.queryKey[6] as typeof applicable),
+      ) === JSON.stringify(discoveryIdentity(applicable))
         ? previous
         : undefined,
     queryFn: async ({ signal }) => {
+      const addressedClause = existingClauseId(
+        applicable?.context,
+        applicable?.clauseId ?? null,
+      );
+      if (
+        applicable &&
+        !applicable.context.text?.trim() &&
+        (!fieldId.includes("[]") || addressedClause)
+      ) {
+        const result = await discoverFilterValues(
+          {
+            kind: "contextual",
+            context: applicable.context,
+            field_id: fieldId,
+            clause_id: addressedClause,
+            text: text.trim() || null,
+            offset,
+            limit: VOCABULARY_PAGE_SIZE,
+            only_matching: true,
+          },
+          signal,
+        );
+        if (result.kind !== "contextual")
+          throw new Error("Unexpected vocabulary response");
+        assertSearchIdentity(
+          result,
+          applicable.context.search_profile,
+          applicable.context.expected_artifact_generation,
+        );
+        if (result.outcome.status === "available")
+          return {
+            contextual: true,
+            values: { ...result.outcome.value, selected_values: selectedValues },
+          };
+      }
       const result = await discoverFilterValues(
         {
           kind: "vocabulary",
@@ -148,7 +254,7 @@ export function useFilterVocabulary(
       );
       if (result.kind !== "vocabulary")
         throw new Error("Unexpected contextual response to vocabulary request");
-      return result;
+      return { values: result.values, contextual: false };
     },
   });
 }

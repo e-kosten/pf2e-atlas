@@ -300,3 +300,50 @@ it("refreshes active saved-list option counts through the existing membership in
   await waitFor(() => expect(result.current.get("fire")).toBe(7n));
   expect(api.discoverFilterCounts).toHaveBeenCalledTimes(2);
 });
+
+it("keeps displayed counts during a filter refresh and replaces them in place", async () => {
+  const { result, rerender } = renderHook(
+    ({ activeContext }) =>
+      useFilterOptionCounts(activeContext, "traits", null, ["fire"], true, 128),
+    { wrapper: wrapper(), initialProps: { activeContext: context } },
+  );
+  await waitFor(() => expect(result.current.get("fire")).toBe(3n));
+  let finish!: (value: unknown) => void;
+  api.discoverFilterCounts.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  rerender({
+    activeContext: {
+      ...context,
+      filter: { kind: "in", field: "record.kind", values: ["spell"] },
+    },
+  });
+  await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(2));
+  expect(result.current.get("fire")).toBe(3n);
+  await act(async () => finish(response("bge-base", "generation-a", 7n)));
+  await waitFor(() => expect(result.current.get("fire")).toBe(7n));
+});
+
+it.each(["artifact_generation_changed", "internal_error"])(
+  "preserves contextual %s errors instead of silently using unfiltered vocabulary",
+  async (message) => {
+    api.discoverFilterValues.mockRejectedValue(new Error(message));
+    const { result } = renderHook(
+      () =>
+        useFilterVocabulary({ kind: "artifact" }, "traits", "", 0, [], true, {
+          context,
+          clauseId: null,
+        }),
+      { wrapper: wrapper() },
+    );
+    await waitFor(() => expect(result.current.error?.message).toBe(message));
+    expect(api.discoverFilterValues).toHaveBeenCalledTimes(1);
+    expect(api.discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "contextual" }),
+      expect.any(AbortSignal),
+    );
+  },
+);

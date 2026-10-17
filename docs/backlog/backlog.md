@@ -31,6 +31,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Product filter paths and semantics](items/product-filter-shape.md)
+  Revisit source-oriented CEL paths and cross-kind semantics after shared
+  product-oriented CLI/UI discovery is established. Status: proposed.
+
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
   downstream review. Status: planned.

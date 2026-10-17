@@ -243,9 +243,8 @@ them to neutral. Reset that transient history when the menu closes.
 Do not represent exclusion as checkbox indeterminate or a boolean aria-pressed.
 They recognize simple conditions through positive conjunctions and exact numeric
 range groups. Advanced displays the complete expression. Individual conditions
-have an Exclude control stored in the builder's rule metadata. Negation of a
-conjunction or disjunction uses the
-builder group's native exclusion flag, retaining the group and negation identities;
+combine polarity with the operator, stored in the builder's rule metadata. Group
+match controls combine combinator and exclusion while retaining group identities;
 complex expressions
 remain editable through the full builder. Structural true/false conditions have
 explicit editor controls and lower to boolean constants, never synthetic backend
@@ -255,8 +254,14 @@ Successful edits retain the builder tree rather than reconstructing it from the
 executable predicate. External changed criteria reset drafts; preview navigation
 and local URL updates preserve them. Operator input shapes come from app-service
 metadata; apply value transitions atomically before rendering a different input.
-Editor catalog loading is independent of criteria validity so invalid URL fields
-and choices remain repairable.
+Editor metadata remains available for invalid criteria. Valid committed filters
+can narrow addable fields using backend applicability for positive conjunctions;
+OR and negated draft groups retain the complete catalog so users can broaden the
+query. Existing conditions remain editable. Keep displayed options/counts during refresh within the same artifact,
+profile and membership scope, replacing them in place when responses arrive.
+Do not retain counts after an actual unavailable/error response. The drawer is the
+root expression surface; reserve group framing for nested expressions and put
+Add condition/group after the group's entries.
 
 Browser-local remembered Kind is only a default for a fresh bare search visit.
 An incoming search URL is authoritative, and clearing Kind clears the preference.
@@ -343,14 +348,13 @@ Count requests retain profile/generation identity and cancellation; an incomplet
 draft, text search or Similar mode keeps count-free choices. Unsupported target
 contexts and count errors leave annotations absent without warnings or disabled
 choices. Missing counts never become zero. Catalog loading does not request counts.
-Open values
-use explicit count-free vocabulary requests with artifact or saved-list scope,
-server search and bounded paging; selected literals remain visible separately
-from suggestion pages. Common pickers show concise totals as values, never result
-counts, with an optional plain saved-list scope label. Advanced value controls
-retain their scoped vocabulary explanation, including legacy entries.
-Closed choices use catalog labels without values requests. Optional counts never
-change vocabulary order, retained selections, paging or suggestion totals.
+Long choice sets use paged contextual vocabulary when supported, with a Show
+unavailable option for the full vocabulary. Unsupported contexts use count-free
+vocabulary; transport and artifact-identity failures remain errors. Short choice
+sets retain declared choices and dim known-zero positive options. Exclusion must
+still allow zero-positive-match values. Selected values remain available across
+paging and refresh. Small closed selectors use catalog labels locally; long
+closed selectors use the same paging path as open vocabulary.
 The adapter does not
 parse CEL, infer fields from records, or decide contextual capability in React.
 Reject unsafe integer input before creating numeric literals.

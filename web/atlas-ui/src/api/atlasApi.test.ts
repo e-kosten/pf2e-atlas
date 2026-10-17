@@ -709,6 +709,7 @@ describe("source-backed API transport", () => {
     });
     const result = await discoverFilterValues({
       kind: "contextual",
+      only_matching: false,
       context: {
         kind: "filtered",
         search_profile: "embeddinggemma",

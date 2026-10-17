@@ -659,7 +659,7 @@ describe("useSearchWorkspace", () => {
     );
   });
 
-  it("reuses the static editor catalog when search criteria change", async () => {
+  it("refreshes applicability while retaining the editor when filter criteria change", async () => {
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
@@ -689,9 +689,9 @@ describe("useSearchWorkspace", () => {
 
     await waitFor(() => expect(result.current.search.filter).not.toBeNull());
     expect(result.current.filterEditor).toEqual(filterEditor());
-    expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(1);
-    expect(apiMocks.discoverFilterEditor).toHaveBeenCalledWith(
-      { selected_field_ids: [] },
+    expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2);
+    expect(apiMocks.discoverFilterEditor).toHaveBeenLastCalledWith(
+      { selected_field_ids: [], filter: result.current.search.filter },
       expect.any(AbortSignal),
     );
   });

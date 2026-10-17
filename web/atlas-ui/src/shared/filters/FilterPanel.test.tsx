@@ -52,6 +52,14 @@ function renderControls(
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
+  it("does not announce pending changes for an empty filter draft", () => {
+    renderControls(
+      editorFixture([fieldFixture("actor.hp.maximum", "number", "Maximum HP")]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+    expect(screen.queryByText("Changes pending")).not.toBeInTheDocument();
+  });
   it("composes inline search and the same common/advanced controls once while preserving the predicate on submit", () => {
     const field = {
       ...fieldFixture("record.kind", "string", "Kind"),
@@ -96,15 +104,14 @@ describe("shared common and maintained advanced filters", () => {
       predicate: { kind: "in", field: kind.path, values: ["companion"] },
     });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    const exclude = screen.getByRole("checkbox", { name: "Exclude" });
-    expect(exclude).toBeChecked();
-    fireEvent.click(exclude);
-    expect(exclude).not.toBeChecked();
+    const operator = screen.getByRole("combobox", { name: "Condition for Kind" });
+    fireEvent.mouseDown(operator);
+    fireEvent.click(screen.getAllByText("in", { exact: true }).slice(-1)[0]);
     expect(change).toHaveBeenLastCalledWith(
       expect.objectContaining({ filter: expect.objectContaining({ kind: "in" }) }),
     );
-    fireEvent.click(screen.getByRole("checkbox", { name: "Exclude" }));
-    expect(screen.getByRole("checkbox", { name: "Exclude" })).toBeChecked();
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Condition for Kind" }));
+    fireEvent.click(screen.getAllByText("is none of", { exact: true }).slice(-1)[0]);
     expect(change).toHaveBeenLastCalledWith(
       expect.objectContaining({ filter: expect.objectContaining({ kind: "not" }) }),
     );
@@ -336,7 +343,7 @@ describe("shared common and maintained advanced filters", () => {
     const change = renderControls(editorFixture([kind]), predicate);
     fireEvent.click(screen.getByRole("button", { name: "Kind: Advanced" }));
     expect(
-      screen.getByRole("checkbox", { name: "Exclude this group" }),
+      screen.getByRole("combobox", { name: "Match conditions" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filter field" })).toBeInTheDocument();
     expect(change).not.toHaveBeenCalled();
@@ -615,7 +622,12 @@ describe("per-value states and the complete query", () => {
       name: "Filter field",
     })[1];
     fireEvent.mouseDown(field);
-    fireEvent.click(screen.getAllByRole("option", { name: "Kind" }).slice(-1)[0]);
+    fireEvent.click(screen.getAllByText("Kind", { exact: true }).slice(-1)[0]);
+    await waitFor(() =>
+      expect(within(advanced).getAllByRole("combobox", { name: "Kind" })).toHaveLength(
+        2,
+      ),
+    );
     const value = within(advanced).getAllByRole("combobox", { name: "Kind" })[1];
     fireEvent.mouseDown(value);
     fireEvent.click(screen.getAllByText("creature", { exact: true }).slice(-1)[0]);
@@ -635,7 +647,9 @@ describe("per-value states and the complete query", () => {
       }),
     );
     expect(screen.queryByText("Defined in advanced filters")).toBeNull();
-    fireEvent.click(within(advanced).getAllByRole("button", { name: "Remove" })[1]);
+    fireEvent.click(
+      within(advanced).getAllByRole("button", { name: "Remove condition" })[1],
+    );
     expect(
       within(advanced).getAllByRole("combobox", { name: "Filter field" }),
     ).toHaveLength(1);
@@ -692,4 +706,32 @@ describe("per-value states and the complete query", () => {
       }),
     );
   });
+});
+
+describe("field applicability while editing Boolean groups", () => {
+  it.each(["Match any", "Match none", "Not all match"])(
+    "keeps fields available when %s can broaden the current result",
+    (match) => {
+      const editor = editorFixture([
+        { ...fieldFixture("record.kind", "string", "Kind"), choices: ["creature"] },
+        fieldFixture("hazard.hardness", "number", "Hardness"),
+      ]);
+      editor.groups[0].fields[1].applicable = false;
+      renderControls(editor, {
+        kind: "in",
+        field: "record.kind",
+        values: ["creature"],
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match conditions" }));
+      fireEvent.click(screen.getAllByText(match, { exact: true }).slice(-1)[0]);
+      fireEvent.mouseDown(
+        screen.getAllByRole("combobox", { name: "Filter field" }).slice(-1)[0],
+      );
+      expect(screen.getAllByText("Hardness", { exact: true }).length).toBeGreaterThan(
+        0,
+      );
+    },
+  );
 });

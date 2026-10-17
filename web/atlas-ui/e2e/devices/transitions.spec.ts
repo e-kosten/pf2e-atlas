@@ -78,3 +78,24 @@ test("missing query assets leave a repairable text search and usable filter brow
   await page.keyboard.press("Escape");
   await expect(page.locator("[data-record-key]").first()).toBeVisible();
 });
+test("short landscape filter popovers keep their footer reachable by pointer", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/search");
+  await page.getByRole("button", { name: "Edit Traits filter", exact: true }).click();
+  const menu = page.getByRole("dialog", { name: "Traits choices", exact: true });
+  const footer = menu.getByRole("checkbox", { name: "Show unavailable" });
+  await expect(footer).toBeVisible();
+  await expect
+    .poll(async () => {
+      const box = await menu.boundingBox();
+      return !!box && box.y >= 0 && box.y + box.height <= 390;
+    })
+    .toBe(true);
+  // Click at the current coordinates, without Playwright scrolling it into view.
+  const box = await footer.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await expect(footer).toBeChecked();
+});

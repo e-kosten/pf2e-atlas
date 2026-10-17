@@ -33,6 +33,9 @@ pub enum FilterDiscoveryContext {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct DiscoverFilterEditorRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub filter: Option<QueryPredicate>,
     #[serde(default)]
     pub selected_field_ids: Vec<String>,
 }
@@ -40,6 +43,8 @@ pub struct DiscoverFilterEditorRequest {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum DiscoverFilterValuesRequest {
     Contextual {
+        #[serde(default)]
+        only_matching: bool,
         context: FilterDiscoveryContext,
         field_id: String,
         clause_id: Option<String>,
@@ -93,7 +98,25 @@ pub struct FilterEditorFieldView {
     pub label: String,
     pub help: Option<String>,
     pub choices: Vec<FilterChoiceView>,
+    // Short lists retain zero-match choices; searchable lists narrow before paging.
+    pub short_choices: bool,
+    pub applicable: bool,
+    pub unit_fields: Vec<FilterUnitFieldView>,
     pub operators: Vec<FilterOperatorView>,
+    // Compact editor for collections whose entries have a category and optional amount.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub collection_control: Option<FilterCollectionControlView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct FilterUnitFieldView {
+    pub field_id: String,
+    pub unit: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct FilterCollectionControlView {
+    pub category_field_id: String,
+    pub amount_field_id: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterChoiceView {

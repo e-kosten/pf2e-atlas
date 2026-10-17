@@ -34,10 +34,10 @@ pub use encounter::{
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
     DiscoverFilterCountsRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    FilterChoiceView, FilterControlView, FilterCountsView, FilterDiscoveryContext,
-    FilterEditorFieldView, FilterEditorGroupView, FilterEditorView, FilterFieldPlacement,
-    FilterOperandView, FilterOperatorView, FilterValidationResult, FilterValueListView,
-    FilterVocabularyScope,
+    FilterChoiceView, FilterCollectionControlView, FilterControlView, FilterCountsView,
+    FilterDiscoveryContext, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
+    FilterFieldPlacement, FilterOperandView, FilterOperatorView, FilterUnitFieldView,
+    FilterValidationResult, FilterValueListView, FilterVocabularyScope,
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,

@@ -29,6 +29,7 @@ pub struct QueryFacetContext {
 }
 #[derive(Debug, Clone)]
 pub struct QueryValuesRequest {
+    pub only_matching: bool,
     pub field: String,
     pub clause_id: Option<String>,
     pub query: ValidatedQuery,
@@ -371,6 +372,16 @@ fn remove_clause(
             Some(&expected.definition.id),
         )
     })?;
+    if expected.definition.scope.is_none() {
+        return match root_field_context(query.predicate(), &expected.definition.path) {
+            Some(base) => Ok(QueryFacetOutcome::Available {
+                value: (validate_query(&base)?, target, None),
+            }),
+            None => Ok(QueryFacetOutcome::Unavailable {
+                reason: FacetUnavailableReason::NonConjunctiveContext,
+            }),
+        };
+    }
     if let Some(reason) = removal.unavailable {
         return Ok(QueryFacetOutcome::Unavailable { reason });
     }
@@ -391,6 +402,44 @@ pub fn facet_base_query(
         None => Ok(QueryFacetOutcome::Available {
             value: query.clone(),
         }),
+    }
+}
+// Remove a root field's complete selection only through conjunctions. A NOT
+// around one field leaf is a negative selection; compound NOT/OR is not a facet.
+fn root_field_context(p: &QueryPredicate, field: &str) -> Option<QueryPredicate> {
+    fn is_field(p: &QueryPredicate, expected: &str) -> bool {
+        matches!(&p.expression,
+            QueryExpression::Compare { field, .. } | QueryExpression::In { field, .. }
+            | QueryExpression::SetMatch { field, .. } | QueryExpression::StateMatch { field, .. }
+            if field == expected)
+    }
+    fn contains(p: &QueryPredicate, field: &str) -> bool {
+        if is_field(p, field) {
+            return true;
+        }
+        match &p.expression {
+            QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
+                children.iter().any(|child| contains(child, field))
+            }
+            QueryExpression::Not { predicate } => contains(predicate, field),
+            _ => false, // Exists belongs to a different scope.
+        }
+    }
+    if is_field(p, field) {
+        return Some(QueryPredicate::boolean(true));
+    }
+    match &p.expression {
+        QueryExpression::AllOf { children } => Some(QueryPredicate::new(QueryExpression::AllOf {
+            children: children
+                .iter()
+                .map(|child| root_field_context(child, field))
+                .collect::<Option<Vec<_>>>()?,
+        })),
+        QueryExpression::Not { predicate } if is_field(predicate, field) => {
+            Some(QueryPredicate::boolean(true))
+        }
+        QueryExpression::Not { .. } | QueryExpression::AnyOf { .. } if contains(p, field) => None,
+        _ => Some(p.clone()),
     }
 }
 fn replace_clause(p: &QueryPredicate, id: &str, replacement: &QueryPredicate) -> QueryPredicate {
@@ -543,10 +592,23 @@ fn count_options(
     values: Vec<QueryLiteral>,
     selected: &[QueryLiteral],
 ) -> Result<Vec<QueryValueOption>, IndexError> {
+    let root_base = if clause_id.is_some() && d.definition.scope.is_none() {
+        Some(
+            root_field_context(query.predicate(), &d.definition.path).ok_or_else(|| {
+                IndexError::Invalid("option counts require a validated facet context".into())
+            })?,
+        )
+    } else {
+        None
+    };
     let mut options = Vec::new();
     for value in values {
         let candidate = candidate_clause(d, &value)?;
-        let p = if let Some(id) = clause_id {
+        let p = if let Some(base) = &root_base {
+            QueryPredicate::new(QueryExpression::AllOf {
+                children: vec![base.clone(), candidate],
+            })
+        } else if let Some(id) = clause_id {
             replace_clause(query.predicate(), id, &candidate)
         } else {
             let candidate = if let Some(scope) = &d.definition.scope {
@@ -614,20 +676,23 @@ pub(crate) fn field_values(
         .definition
         .choices
         .iter()
+        .filter(|_| !request.only_matching)
         .cloned()
         .map(QueryLiteral::String)
-        .chain(if d.definition.field_type == QueryFieldType::Boolean {
-            vec![QueryLiteral::Boolean(false), QueryLiteral::Boolean(true)]
-        } else {
-            vec![]
-        })
+        .chain(
+            if d.definition.field_type == QueryFieldType::Boolean && !request.only_matching {
+                vec![QueryLiteral::Boolean(false), QueryLiteral::Boolean(true)]
+            } else {
+                vec![]
+            },
+        )
         .chain(selected(target.as_ref()))
     {
         if !values.contains(&value) {
             values.push(value);
         }
     }
-    values.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+    super::value_order::sort_values(&d.definition.path, &mut values);
     let selected = selected(target.as_ref());
     if let Some(text) = &request.text {
         values.retain(|value|selected.contains(value) || matches!(value,QueryLiteral::String(s) if s.to_lowercase().contains(&text.to_lowercase())));
@@ -778,7 +843,7 @@ pub(crate) fn field_vocabulary(
             QueryLiteral::Number(_) => false,
         });
     }
-    values.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+    super::value_order::sort_values(&d.definition.path, &mut values);
     let total_values = values.len() as u64;
     let options = values
         .into_iter()
