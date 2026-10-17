@@ -1,4 +1,4 @@
-use atlas_app_model::{AppError, AppErrorCode};
+use atlas_app_model::{AppError, AppErrorCode, AppRecoverableAction};
 use atlas_local_state::LocalStateError;
 use atlas_search::{SearchError, SearchErrorKind};
 use thiserror::Error;
@@ -25,6 +25,24 @@ impl AppServiceError {
     pub fn service_busy(message: impl Into<String>) -> Self {
         let mut error = AppError::new(AppErrorCode::ServiceBusy, message);
         error.retryable = Some(true);
+        Self { error }
+    }
+
+    pub(super) fn artifact_generation_changed(
+        expected: &str,
+        actual: &str,
+        recovery: AppRecoverableAction,
+    ) -> Self {
+        let mut error = AppError::new(
+            AppErrorCode::ArtifactGenerationChanged,
+            "reference data changed; refresh before continuing",
+        )
+        .with_details(serde_json::json!({
+            "expected_artifact_generation": expected,
+            "actual_artifact_generation": actual,
+        }));
+        error.retryable = Some(false);
+        error.recoverable_action = Some(recovery);
         Self { error }
     }
 
@@ -58,6 +76,10 @@ impl From<LocalStateError> for AppServiceError {
             LocalStateError::EncounterNotFound(_) => AppErrorCode::EncounterNotFound,
             LocalStateError::EncounterAlreadyExists(_) => AppErrorCode::EncounterAlreadyExists,
             LocalStateError::ParticipantNotFound(_) => AppErrorCode::EncounterParticipantNotFound,
+            LocalStateError::StaleParticipantRevision { .. } => {
+                AppErrorCode::EncounterParticipantConflict
+            }
+            LocalStateError::StaleEncounterRevision { .. } => AppErrorCode::EncounterTurnConflict,
             LocalStateError::UnsupportedMetadata { .. }
             | LocalStateError::IncompatibleSchema(_)
             | LocalStateError::ListKeyAllocationFailed
@@ -68,7 +90,32 @@ impl From<LocalStateError> for AppServiceError {
             | LocalStateError::Timestamp(_)
             | LocalStateError::NonUtf8Path(_) => AppErrorCode::InternalError,
         };
-        Self::new(code, error.to_string())
+        let mut app_error = AppError::new(code, error.to_string());
+        if let LocalStateError::StaleParticipantRevision {
+            participant_key,
+            expected_revision,
+            actual_revision,
+        } = &error
+        {
+            app_error.details = Some(serde_json::json!({
+                "participant_key": participant_key,
+                "expected_revision": expected_revision,
+                "actual_revision": actual_revision,
+            }));
+            app_error.retryable = Some(false);
+        }
+        if let LocalStateError::StaleEncounterRevision {
+            encounter_key,
+            expected_revision,
+            actual_revision,
+        } = &error
+        {
+            app_error.details = Some(
+                serde_json::json!({"encounter_key":encounter_key,"expected_revision":expected_revision,"actual_revision":actual_revision}),
+            );
+            app_error.retryable = Some(false);
+        }
+        Self { error: app_error }
     }
 }
 
@@ -87,22 +134,8 @@ impl From<SearchError> for AppServiceError {
     }
 }
 
-impl From<atlas_search::FilterDiscoveryError> for AppServiceError {
-    fn from(error: atlas_search::FilterDiscoveryError) -> Self {
-        let code = match error {
-            atlas_search::FilterDiscoveryError::InvalidField(_) => AppErrorCode::FilterFieldInvalid,
-            atlas_search::FilterDiscoveryError::InvalidOption(_) => {
-                AppErrorCode::FilterOptionInvalid
-            }
-            atlas_search::FilterDiscoveryError::FieldNotApplicable(_) => {
-                AppErrorCode::FilterFieldNotApplicable
-            }
-            atlas_search::FilterDiscoveryError::AmbiguousMetric(_) => {
-                AppErrorCode::FilterMetricAmbiguous
-            }
-            atlas_search::FilterDiscoveryError::InvalidFilter(_) => AppErrorCode::FilterInvalid,
-            atlas_search::FilterDiscoveryError::QueryFailed(_) => AppErrorCode::InternalError,
-        };
-        Self::new(code, error.to_string())
+impl From<atlas_domain::QueryError> for AppServiceError {
+    fn from(error: atlas_domain::QueryError) -> Self {
+        Self::new(AppErrorCode::FilterInvalid, error.to_string())
     }
 }

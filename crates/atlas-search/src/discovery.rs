@@ -1,267 +1,207 @@
-use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, FilterValueSort, SearchFilterNode};
-use atlas_index::{
-    DiscoveryError as IndexDiscoveryError, FilterValueRequest as IndexFilterValueRequest,
-};
-use serde_json::Value;
-use thiserror::Error;
-
-use crate::{AtlasRetrievalService, RecordScope};
-
-pub trait FilterDiscoveryRetrieval {
-    fn discover_filter_fields(
-        &self,
-        request: DiscoverFilterFieldsRequest<'_>,
-    ) -> Result<FilterFieldDiscovery, FilterDiscoveryError>;
-
-    fn discover_filter_values(
-        &self,
-        request: DiscoverFilterValuesRequest<'_>,
-    ) -> Result<FilterValueDiscovery, FilterDiscoveryError>;
-}
-
-#[derive(Debug, Clone)]
-pub struct DiscoverFilterFieldsRequest<'a> {
-    pub filter: Option<&'a SearchFilterNode>,
+use crate::{RecordScope, RetrievalMode};
+use atlas_domain::QueryPredicate;
+#[derive(Clone, Copy)]
+pub struct FilterDiscoveryContext<'a> {
+    pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
+    pub text: Option<&'a str>,
+    pub mode: RetrievalMode,
     pub scope: RecordScope<'a>,
-    pub filter_json: Option<Value>,
+    pub prefer_remaster: bool,
+    pub filter: Option<&'a QueryPredicate>,
 }
-
-#[derive(Debug, Clone)]
 pub struct DiscoverFilterValuesRequest<'a> {
-    pub field: String,
-    pub filter: Option<&'a SearchFilterNode>,
+    pub only_matching: bool,
+    pub field: &'a str,
+    pub clause_id: Option<&'a str>,
+    pub context: FilterDiscoveryContext<'a>,
+    pub text: Option<&'a str>,
+    pub offset: usize,
+    pub limit: usize,
+}
+pub struct DiscoverFilterCountsRequest<'a> {
+    pub field: &'a str,
+    pub clause_id: Option<&'a str>,
+    pub context: FilterDiscoveryContext<'a>,
+}
+pub struct DiscoverFilterValueCountsRequest<'a> {
+    pub field: &'a str,
+    pub clause_id: Option<&'a str>,
+    pub context: FilterDiscoveryContext<'a>,
+    pub values: &'a [atlas_domain::QueryLiteral],
+}
+use crate::{AtlasRetrievalService, SearchError};
+use atlas_domain::{
+    QueryCapability, QueryFacetOutcome, QueryFieldCounts, QueryLiteral, QueryValueOptions,
+    QueryVocabulary,
+};
+use atlas_index::{
+    QueryCountsRequest, QueryFacetContext, QueryValuesRequest, QueryVocabularyRequest,
+};
+pub struct DiscoverFilterVocabularyRequest<'a> {
+    pub field: &'a str,
     pub scope: RecordScope<'a>,
-    pub filter_json: Option<Value>,
-    pub sort: Option<FilterValueSort>,
-    pub sample_limit: Option<usize>,
-    pub metric_selector: Option<MetricDiscoverySelector>,
-    pub metric_domain: Option<String>,
+    pub text: Option<&'a str>,
+    pub offset: usize,
+    pub limit: usize,
+    pub selected_values: &'a [QueryLiteral],
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MetricDiscoverySelector {
-    ExactKey(String),
-    Prefix(String),
-    Label(String),
-    Query(String),
-}
-
-#[derive(Debug, Error)]
-pub enum FilterDiscoveryError {
-    #[error("{0}")]
-    InvalidField(String),
-    #[error("{0}")]
-    InvalidOption(String),
-    #[error("{0}")]
-    FieldNotApplicable(String),
-    #[error("{0}")]
-    AmbiguousMetric(String),
-    #[error("filter failed: {0}")]
-    InvalidFilter(String),
-    #[error("index query failed: {0}")]
-    QueryFailed(String),
-}
-
-impl From<IndexDiscoveryError> for FilterDiscoveryError {
-    fn from(error: IndexDiscoveryError) -> Self {
-        match error {
-            IndexDiscoveryError::InvalidField(message) => Self::InvalidField(message),
-            IndexDiscoveryError::InvalidOption(message) => Self::InvalidOption(message),
-            IndexDiscoveryError::FieldNotApplicable(message) => Self::FieldNotApplicable(message),
-            IndexDiscoveryError::AmbiguousMetric(message) => Self::AmbiguousMetric(message),
-            IndexDiscoveryError::Filter(error) => Self::InvalidFilter(error.to_string()),
-            IndexDiscoveryError::QueryFailed(message) => Self::QueryFailed(message),
+impl AtlasRetrievalService {
+    pub fn discover_filter_value_counts(
+        &mut self,
+        request: DiscoverFilterValueCountsRequest<'_>,
+    ) -> Result<QueryFacetOutcome<QueryValueOptions>, SearchError> {
+        atlas_index::validate_value_counts(request.field, request.values)?;
+        let query = self.predicate(request.context.filter)?;
+        self.resolve_search_profile(request.context.search_profile, false)?;
+        if let QueryFacetOutcome::Unavailable { reason } =
+            atlas_index::facet_base_query(request.field, request.clause_id, &query)?
+        {
+            return Ok(QueryFacetOutcome::Unavailable { reason });
         }
+        if request
+            .context
+            .text
+            .is_some_and(|text| !text.trim().is_empty())
+        {
+            return Ok(QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::TextContext,
+            });
+        }
+        Ok(self
+            .index
+            .field_value_counts(&atlas_index::QueryValueCountsRequest {
+                field: request.field.into(),
+                clause_id: request.clause_id.map(str::to_owned),
+                query,
+                context: QueryFacetContext {
+                    eligible_keys: request.context.scope.keys().map(<[_]>::to_vec),
+                    bounded_candidates: false,
+                    prefer_remaster: request.context.prefer_remaster,
+                },
+                values: request.values.to_vec(),
+            })?)
     }
-}
-
-impl FilterDiscoveryRetrieval for AtlasRetrievalService {
-    fn discover_filter_fields(
-        &self,
-        request: DiscoverFilterFieldsRequest<'_>,
-    ) -> Result<FilterFieldDiscovery, FilterDiscoveryError> {
-        self.index
-            .list_filter_fields(request.filter, request.scope.keys(), request.filter_json)
-            .map_err(FilterDiscoveryError::from)
+    pub fn discover_filter_fields(&self) -> Result<QueryCapability, SearchError> {
+        Ok(atlas_index::query_capabilities()?)
     }
-
-    fn discover_filter_values(
-        &self,
-        request: DiscoverFilterValuesRequest<'_>,
-    ) -> Result<FilterValueDiscovery, FilterDiscoveryError> {
-        let filter = request.filter;
-        let record_keys = request.scope.keys();
-        let index_request = index_filter_value_request(request)?;
-        self.index
-            .list_filter_values(filter, record_keys, index_request)
-            .map_err(FilterDiscoveryError::from)
-    }
-}
-
-fn index_filter_value_request(
-    request: DiscoverFilterValuesRequest<'_>,
-) -> Result<IndexFilterValueRequest, FilterDiscoveryError> {
-    if request.metric_selector.is_some() && request.field != "metric" {
-        return Err(FilterDiscoveryError::InvalidOption(
-            "metric discovery options apply only to field `metric`".to_string(),
-        ));
-    }
-    if request.metric_domain.is_some() && request.field != "metric" {
-        return Err(FilterDiscoveryError::InvalidOption(
-            "metric domain applies only to field `metric`".to_string(),
-        ));
-    }
-    let mut index_request = IndexFilterValueRequest {
-        field: request.field,
-        filter_json: request.filter_json,
-        sort: request.sort,
-        sample_limit: request.sample_limit,
-        metric: None,
-        metric_prefix: None,
-        metric_label: None,
-        metric_query: None,
-        metric_domain: request.metric_domain,
-    };
-    match request.metric_selector {
-        Some(MetricDiscoverySelector::ExactKey(metric)) => index_request.metric = Some(metric),
-        Some(MetricDiscoverySelector::Prefix(prefix)) => index_request.metric_prefix = Some(prefix),
-        Some(MetricDiscoverySelector::Label(label)) => index_request.metric_label = Some(label),
-        Some(MetricDiscoverySelector::Query(query)) => index_request.metric_query = Some(query),
-        None => {}
-    }
-    Ok(index_request)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use atlas_index::FilterCompileError;
-
-    #[test]
-    fn metric_selector_applies_only_to_metric_field() {
-        let error = index_filter_value_request(DiscoverFilterValuesRequest {
-            field: "traits".to_string(),
-            filter: None,
-            scope: RecordScope::All,
-            filter_json: None,
-            sort: None,
-            sample_limit: None,
-            metric_selector: Some(MetricDiscoverySelector::Query("armor".to_string())),
-            metric_domain: None,
-        })
-        .expect_err("metric selector should be rejected for non-metric fields");
-
-        assert!(matches!(error, FilterDiscoveryError::InvalidOption(_)));
-        assert_eq!(
-            error.to_string(),
-            "metric discovery options apply only to field `metric`"
-        );
-    }
-
-    #[test]
-    fn metric_domain_applies_only_to_metric_field() {
-        let error = index_filter_value_request(DiscoverFilterValuesRequest {
-            field: "traits".to_string(),
-            filter: None,
-            scope: RecordScope::All,
-            filter_json: None,
-            sort: None,
-            sample_limit: None,
-            metric_selector: None,
-            metric_domain: Some("actor".to_string()),
-        })
-        .expect_err("metric domain should be rejected for non-metric fields");
-
-        assert!(matches!(error, FilterDiscoveryError::InvalidOption(_)));
-        assert_eq!(
-            error.to_string(),
-            "metric domain applies only to field `metric`"
-        );
-    }
-
-    #[test]
-    fn metric_selector_lowers_to_index_request() {
-        let request = index_filter_value_request(DiscoverFilterValuesRequest {
-            field: "metric".to_string(),
-            filter: None,
-            scope: RecordScope::All,
-            filter_json: None,
-            sort: None,
-            sample_limit: None,
-            metric_selector: Some(MetricDiscoverySelector::Prefix("save.".to_string())),
-            metric_domain: Some("actor".to_string()),
-        })
-        .expect("metric selector should lower");
-
-        assert_eq!(request.metric, None);
-        assert_eq!(request.metric_prefix.as_deref(), Some("save."));
-        assert_eq!(request.metric_label, None);
-        assert_eq!(request.metric_query, None);
-        assert_eq!(request.metric_domain.as_deref(), Some("actor"));
-    }
-
-    #[test]
-    fn discovery_errors_map_to_product_error_variants() {
-        let cases = [
-            (
-                IndexDiscoveryError::InvalidField("field".to_string()),
-                "InvalidField",
-                "field",
-            ),
-            (
-                IndexDiscoveryError::InvalidOption("option".to_string()),
-                "InvalidOption",
-                "option",
-            ),
-            (
-                IndexDiscoveryError::FieldNotApplicable("scope".to_string()),
-                "FieldNotApplicable",
-                "scope",
-            ),
-            (
-                IndexDiscoveryError::AmbiguousMetric("metric".to_string()),
-                "AmbiguousMetric",
-                "metric",
-            ),
-            (
-                IndexDiscoveryError::Filter(FilterCompileError::InvalidValue(
-                    "bad filter".to_string(),
-                )),
-                "InvalidFilter",
-                "filter failed: filter query returned invalid value: bad filter",
-            ),
-            (
-                IndexDiscoveryError::QueryFailed("database".to_string()),
-                "QueryFailed",
-                "index query failed: database",
-            ),
-        ];
-
-        for (index_error, variant, message) in cases {
-            let error = FilterDiscoveryError::from(index_error);
-            match (variant, &error) {
-                ("InvalidField", FilterDiscoveryError::InvalidField(value)) => {
-                    assert_eq!(value, message);
-                }
-                ("InvalidOption", FilterDiscoveryError::InvalidOption(value)) => {
-                    assert_eq!(value, message);
-                }
-                ("FieldNotApplicable", FilterDiscoveryError::FieldNotApplicable(value)) => {
-                    assert_eq!(value, message);
-                }
-                ("AmbiguousMetric", FilterDiscoveryError::AmbiguousMetric(value)) => {
-                    assert_eq!(value, message);
-                }
-                ("InvalidFilter", FilterDiscoveryError::InvalidFilter(value)) => {
-                    assert_eq!(error.to_string(), message);
-                    assert_eq!(value, "filter query returned invalid value: bad filter");
-                }
-                ("QueryFailed", FilterDiscoveryError::QueryFailed(value)) => {
-                    assert_eq!(error.to_string(), message);
-                    assert_eq!(value, "database");
-                }
-                _ => panic!("unexpected error mapping for {variant}: {error:?}"),
+    fn discovery_context(
+        &mut self,
+        field: &str,
+        clause: Option<&str>,
+        context: FilterDiscoveryContext<'_>,
+    ) -> Result<QueryFacetOutcome<(atlas_index::ValidatedQuery, QueryFacetContext)>, SearchError>
+    {
+        let query = self.predicate(context.filter)?;
+        self.resolve_search_profile(context.search_profile, false)?;
+        // Index owns the only self-exclusion analysis. Perform it even without
+        // text, and before ranking or loading a query embedder.
+        let base = match atlas_index::facet_base_query(field, clause, &query)? {
+            QueryFacetOutcome::Available { value } => value,
+            QueryFacetOutcome::Unavailable { reason } => {
+                return Ok(QueryFacetOutcome::Unavailable { reason });
             }
-        }
+        };
+        let search_profile = self.resolve_search_profile(
+            context.search_profile,
+            context.mode.uses_vector() && context.text.is_some_and(|t| !t.trim().is_empty()),
+        )?;
+        let Some(text) = context.text.filter(|s| !s.trim().is_empty()) else {
+            return Ok(QueryFacetOutcome::Available {
+                value: (
+                    query,
+                    QueryFacetContext {
+                        eligible_keys: context.scope.keys().map(<[_]>::to_vec),
+                        bounded_candidates: false,
+                        prefer_remaster: context.prefer_remaster,
+                    },
+                ),
+            });
+        };
+        let vector = if context.mode.uses_vector() {
+            Some(self.embed_query(&search_profile, text)?)
+        } else {
+            None
+        };
+        // Freeze the separate clause-removed universe before per-option pair policy.
+        let (roots, _) = self.rank_candidates(crate::text::CandidateRequest {
+            search_profile: &search_profile,
+            text,
+            mode: context.mode,
+            query: &base,
+            scope: context.scope,
+            prefer: context.prefer_remaster,
+            suppress: false,
+            vector: vector.as_deref(),
+            exclude: None,
+        })?;
+        Ok(QueryFacetOutcome::Available {
+            value: (
+                query,
+                QueryFacetContext {
+                    eligible_keys: Some(roots.into_iter().map(|r| r.key).collect()),
+                    bounded_candidates: context.mode.uses_vector(),
+                    prefer_remaster: context.prefer_remaster,
+                },
+            ),
+        })
+    }
+    pub fn discover_filter_values(
+        &mut self,
+        request: DiscoverFilterValuesRequest<'_>,
+    ) -> Result<QueryFacetOutcome<QueryValueOptions>, SearchError> {
+        atlas_index::validate_value_discovery(
+            request.field,
+            request.offset,
+            request.limit,
+            request.text,
+        )?;
+        let (query, context) =
+            match self.discovery_context(request.field, request.clause_id, request.context)? {
+                QueryFacetOutcome::Available { value } => value,
+                QueryFacetOutcome::Unavailable { reason } => {
+                    return Ok(QueryFacetOutcome::Unavailable { reason });
+                }
+            };
+        Ok(self.index.field_values(&QueryValuesRequest {
+            only_matching: request.only_matching,
+            field: request.field.to_owned(),
+            clause_id: request.clause_id.map(str::to_owned),
+            query,
+            context,
+            text: request.text.map(str::to_owned),
+            offset: request.offset,
+            limit: request.limit,
+        })?)
+    }
+    pub fn discover_filter_counts(
+        &mut self,
+        request: DiscoverFilterCountsRequest<'_>,
+    ) -> Result<QueryFacetOutcome<QueryFieldCounts>, SearchError> {
+        let (query, context) =
+            match self.discovery_context(request.field, request.clause_id, request.context)? {
+                QueryFacetOutcome::Available { value } => value,
+                QueryFacetOutcome::Unavailable { reason } => {
+                    return Ok(QueryFacetOutcome::Unavailable { reason });
+                }
+            };
+        Ok(self.index.field_counts(&QueryCountsRequest {
+            field: request.field.to_owned(),
+            clause_id: request.clause_id.map(str::to_owned),
+            query,
+            context,
+        })?)
+    }
+    pub fn discover_filter_vocabulary(
+        &self,
+        request: DiscoverFilterVocabularyRequest<'_>,
+    ) -> Result<QueryVocabulary, SearchError> {
+        Ok(self.index.field_vocabulary(&QueryVocabularyRequest {
+            field: request.field.to_owned(),
+            eligible_keys: request.scope.keys().map(<[_]>::to_vec),
+            text: request.text.map(str::to_owned),
+            offset: request.offset,
+            limit: request.limit,
+            selected_values: request.selected_values.to_vec(),
+        })?)
     }
 }

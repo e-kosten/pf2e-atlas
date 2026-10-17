@@ -1,13 +1,15 @@
 # Rust Web Filter UX Expansion
 
-Status: proposed
+Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-06-07
+Last reviewed: 2026-10-13
 
 ## Problem
 
-The initial Atlas web filter surface supports standard filters, optional discovered filters, and dynamic counts, but the product experience still needs a deliberate pass over filter grouping, field priority, labels, and progressive disclosure.
+The source-backed filter surface uses a maintained Ant query builder and the
+backend catalog. A later UX pass can improve field priority, grouping, labels
+and progressive disclosure without replacing its predicate semantics.
 
 PF2e records expose many useful facets. Showing too many at once overwhelms the search workflow, while hiding important detail filters makes the web UI less useful than product-search style references such as Archives of Nethys or catalog search experiences.
 
@@ -23,13 +25,27 @@ The pass should decide:
 - which labels should differ from internal app or artifact names;
 - how selected optional filters remain visible and removable;
 - how counts and disabled/unavailable options behave as filters compose;
-- how the basic filter surface remains compatible with a future complex filter-tree editor.
+- how common simple queries remain easy within the structured group editor.
+
+## Current Baseline
+
+Search, saved-list filtering and encounter selection reuse the backend catalog,
+canonical predicate and shared browser controls. Common Kind, Level/rank, Rarity
+and Traits controls coexist with a maintained advanced query builder. Categorical
+choices use per-value include/exclude state; vocabulary search is bounded and
+selected values remain available. URL state and local drafts have distinct owners.
+
+Current behavior is documented in
+[frontend guidelines](../../../web/atlas-ui/docs/frontend-guidelines.md).
+Further UX work should improve priority, labels, grouping and discoverability
+through those owners. [Option counts](web-contextual-option-counts.md) are a
+separate follow-up; current count-free vocabulary stays useful for valid filters.
 
 ## Constraints
 
 - Use app-service/filter-discovery contracts rather than duplicating discovery semantics in frontend code.
 - Keep source-only concepts out of user-facing labels unless they are meaningful to users.
-- Preserve the V1 basic-filter model; do not implement the full canonical filter-tree editor as part of this item.
+- Reuse the maintained structured query builder and shared typed predicates; do not add a second filter-state model or CEL/editor translator.
 - Avoid making all discovered filters visible by default.
 
 ## Related

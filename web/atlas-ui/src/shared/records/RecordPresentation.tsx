@@ -1,253 +1,487 @@
+import { sentenceCase } from "../ui/labels";
+import { Button, Collapse, Tag } from "antd";
 import type {
-  PresentationBlock,
-  PresentationContent,
-  PresentationContentBlock,
-  PresentationFact,
-  PresentationInline,
-  PresentationRelationship,
-  RecordDetailView,
+  PreparedContentFieldView,
+  RecordNavigationView,
+  RecordPresentationView,
+  RecordRelationshipView,
+  RecordSummaryView,
+  ActionCostView,
+  FactView,
+  PhysicalPriceView,
 } from "../../generated/atlas";
-import type React from "react";
+import {
+  ActorActivities,
+  ActorActivity,
+  ActorFacts,
+  ActorSecondaryFacts,
+} from "./ActorReference";
+import {
+  FactLine,
+  FactRow,
+  NumberFact,
+  factText,
+  hasReadingFact,
+  isEmptyFactValue,
+} from "./presentationFacts";
+import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
+import { SpellReference } from "./SpellReference";
+import { ActionCost } from "./ActionCost";
+import type { OwnedReadingContext } from "./OwnedAbilityReading";
+import { activityAddress } from "./ownedNavigation";
+import {
+  ownerReturnPath,
+  atlasRoutePath,
+  navigateToAtlasPath,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
+import { ChevronLeft } from "lucide-react";
 
-type RecordPresentationProps = {
-  detail: RecordDetailView | undefined;
-  emptyMessage?: string;
-  loading: boolean;
-  loadingMessage?: string;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+const contentRoleLabels: Record<string, string> = {
+  name: "Name",
+  description: "Description",
+  notes: "Notes",
+  routine: "Routine",
+  disable: "Disable",
+  reset: "Reset",
+  stealth: "Detection details",
+  biography: "Biography",
+  caption: "Caption",
+  tableresult: "Table result",
 };
 
-export function RecordPresentation({
-  detail,
-  emptyMessage = "Select a result to inspect it.",
-  loading,
-  loadingMessage = "Loading record...",
+export function ContentFields({
+  fields,
+  relationships = [],
   onReference,
-}: RecordPresentationProps) {
-  if (loading) {
-    return <div className="detail-empty">{loadingMessage}</div>;
-  }
-  if (!detail) {
-    return <div className="detail-empty">{emptyMessage}</div>;
-  }
-
-  return (
-    <article className="record-detail">
-      <header className="record-detail__header">
-        <div>
-          <p className="eyebrow">{detail.kind}</p>
-          <h2>{detail.title}</h2>
-          <p className="record-key">{detail.record_key}</p>
-        </div>
-        <div className="badge-row">
-          {detail.presentation.badges.map((badge) => (
-            <span className="atlas-badge" key={`${badge.kind}-${badge.value}`}>
-              {badge.value}
-            </span>
-          ))}
-        </div>
-      </header>
-
-      {detail.presentation.identity.length > 0 && (
-        <FactGrid facts={detail.presentation.identity} />
-      )}
-
-      {detail.presentation.sections.map((section) => (
-        <section className="record-section" key={section.kind}>
-          <h3>{section.title}</h3>
-          {section.blocks.map((block, index) => (
-            <PresentationBlockView
-              block={block}
-              key={`${section.kind}-${index}`}
-              onReference={onReference}
-            />
-          ))}
-        </section>
-      ))}
-    </article>
-  );
-}
-
-function PresentationBlockView({
-  block,
-  onReference,
+  inlineAbility = false,
 }: {
-  block: PresentationBlock;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  fields: PreparedContentFieldView[];
+  relationships?: RecordRelationshipView[];
+  onReference: RecordReferenceHandler;
+  inlineAbility?: boolean;
 }) {
-  switch (block.kind) {
-    case "fact_list":
-      return <FactGrid facts={block.content} />;
-    case "prose":
-      return <p className="prose">{block.content.text}</p>;
-    case "relationships":
-      return (
-        <div className="relationship-list">
-          {block.content.map((relationship) => (
-            <RelationshipView
-              key={`${relationship.kind}-${relationship.label}-${relationship.record_key ?? ""}`}
-              relationship={relationship}
-              onReference={onReference}
-            />
-          ))}
-        </div>
-      );
-    case "content":
-      return (
-        <PresentationContentView content={block.content} onReference={onReference} />
-      );
-  }
-}
-
-export function PresentationContentView({
-  content,
-  onReference,
-}: {
-  content: PresentationContent;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
-}) {
+  const visibleFields = fields.filter(contentFieldVisible);
   return (
     <>
-      {content.blocks.map((block, index) => (
-        <ContentBlockView block={block} key={index} onReference={onReference} />
+      {visibleFields.map((field) => (
+        <section
+          className="record-reference__content"
+          key={JSON.stringify(field.locator)}
+        >
+          {inlineAbility ? (
+            field.role !== "description" && (
+              <h5>{contentRoleLabels[field.role] ?? field.role}</h5>
+            )
+          ) : (
+            <h3>{contentRoleLabels[field.role] ?? field.role}</h3>
+          )}
+          <PreparedContent
+            content={field}
+            relationships={relationships}
+            onReference={onReference}
+          />
+        </section>
       ))}
     </>
   );
 }
 
-function ContentBlockView({
-  block,
-  onReference,
-}: {
-  block: PresentationContentBlock;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
-}) {
-  switch (block.kind) {
-    case "heading": {
-      const Heading = `h${Math.min(Math.max(block.level + 2, 3), 5)}` as
-        | "h3"
-        | "h4"
-        | "h5";
-      return <Heading>{block.text}</Heading>;
-    }
-    case "paragraph":
-      return <p>{renderSpans(block.spans, onReference)}</p>;
-    case "list": {
-      const List = block.ordered ? "ol" : "ul";
-      return (
-        <List>
-          {block.items.map((item, index) => (
-            <li key={index}>
-              {item.blocks.map((child, childIndex) => (
-                <ContentBlockView
-                  block={child}
-                  key={childIndex}
-                  onReference={onReference}
-                />
-              ))}
-            </li>
-          ))}
-        </List>
-      );
-    }
-    case "table":
-      return (
-        <table className="presentation-table">
-          {block.caption && <caption>{block.caption}</caption>}
-          <tbody>
-            {block.rows.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {row.cells.map((cell, cellIndex) => (
-                  <td key={cellIndex}>
-                    <PresentationContentView content={cell} onReference={onReference} />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      );
-    case "rule":
-      return <hr />;
-  }
+export function contentFieldVisible(field: PreparedContentFieldView) {
+  if (field.body.kind === "unavailable" && field.body.state === "not_applicable")
+    return false;
+  if (field.body.kind === "plain") return field.body.text.trim().length > 0;
+  if (field.body.kind === "html")
+    return field.body.html.trim().length > 0 || field.body.controls.length > 0;
+  return true;
 }
 
-function FactGrid({ facts }: { facts: PresentationFact[] }) {
+export function RecordIdentity({
+  identity,
+  classification,
+  actionCost,
+  root,
+  selection,
+  onOwnerReturn,
+  visibleOwnerRecordKey,
+  originalRecord,
+  onReference,
+  hideTitle = false,
+  showOwnerReturn = true,
+}: {
+  identity: RecordSummaryView;
+  hideTitle?: boolean;
+  showOwnerReturn?: boolean;
+  classification: string;
+  actionCost?: FactView<ActionCostView>;
+  root?: RecordSummaryView;
+  selection?: RecordNavigationView;
+  originalRecord?: RecordNavigationView;
+  onReference?: RecordReferenceHandler;
+  visibleOwnerRecordKey?: string;
+  onOwnerReturn?: (
+    parent: string,
+    landing: RecordNavigationView,
+    anchor: HTMLElement,
+  ) => void;
+}) {
   return (
-    <dl className="fact-grid">
-      {facts.map((fact) => (
-        <div key={`${fact.key}-${fact.value}`}>
-          <dt>{fact.label}</dt>
-          <dd>{fact.value}</dd>
-        </div>
-      ))}
-    </dl>
+    <header className="record-reference__header">
+      {showOwnerReturn &&
+      root &&
+      root.record_key !== visibleOwnerRecordKey &&
+      selection?.owners.length ? (
+        <Button
+          type="link"
+          size="small"
+          className="record-reference__owner"
+          icon={<ChevronLeft size={14} aria-hidden="true" />}
+          aria-label={`Return to ${root.title}`}
+          href={ownerReturnPath(root.record_key, activityAddress(selection))}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            if (onOwnerReturn)
+              onOwnerReturn(
+                root.record_key,
+                activityAddress(selection),
+                event.currentTarget,
+              );
+            else
+              navigateToAtlasPath(
+                ownerReturnPath(root.record_key, activityAddress(selection)),
+              );
+          }}
+        >
+          {root.title}
+        </Button>
+      ) : null}
+      {originalRecord && (
+        <Button
+          type="link"
+          size="small"
+          href={atlasRoutePath({
+            kind: "record",
+            recordKey: originalRecord.record_key,
+          })}
+          onClick={(event) => {
+            if (!onReference || !shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            onReference(originalRecord.record_key, event.currentTarget, originalRecord);
+          }}
+        >
+          Original record
+        </Button>
+      )}
+      <div className="record-reference__title">
+        {!hideTitle && (
+          <h2>
+            {identity.title} {actionCost && <ActionCost fact={actionCost} />}
+          </h2>
+        )}
+        <p className="record-reference__kind">{classification}</p>
+      </div>
+      <div className="badge-row">
+        {identity.rarity?.trim() && identity.rarity !== "common" && (
+          <span className="record-reference__rarity">
+            {sentenceCase(identity.rarity)}
+          </span>
+        )}
+        {identity.traits.map((trait) => (
+          <Tag key={`${trait.kind}-${trait.value}`}>{sentenceCase(trait.label)}</Tag>
+        ))}
+      </div>
+      {identity.publication?.trim() && <p className="muted">{identity.publication}</p>}
+    </header>
   );
 }
 
-function RelationshipView({
-  relationship,
+export function RecordPresentation({
+  presentation,
+  root,
+  selection,
+  relationships = [],
   onReference,
+  compact = false,
+  encounter = false,
+  hideIdentity = false,
+  hideTitle = false,
+  showOwnerReturn = true,
+  reading,
+  onOwnerReturn,
+  visibleOwnerRecordKey,
 }: {
-  relationship: PresentationRelationship;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  presentation: RecordPresentationView;
+  root?: RecordSummaryView;
+  selection?: RecordNavigationView;
+  relationships?: RecordRelationshipView[];
+  onReference: RecordReferenceHandler;
+  compact?: boolean;
+  encounter?: boolean;
+  hideIdentity?: boolean;
+  hideTitle?: boolean;
+  showOwnerReturn?: boolean;
+  reading?: OwnedReadingContext;
+  visibleOwnerRecordKey?: string;
+  onOwnerReturn?: (
+    parent: string,
+    landing: RecordNavigationView,
+    anchor: HTMLElement,
+  ) => void;
 }) {
-  if (relationship.record_key) {
-    return (
-      <button
-        className="relationship-link"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onReference(
-            relationship.record_key!,
-            event.currentTarget.getBoundingClientRect(),
-          );
-        }}
-      >
-        {relationship.label}
-      </button>
-    );
-  }
-  return <span className="relationship-chip">{relationship.label}</span>;
+  const body = presentation.body;
+  const actor =
+    body.kind === "creature"
+      ? body.value
+      : body.kind === "hazard"
+        ? body.value.actor
+        : null;
+  const content = (
+    <ContentFields
+      fields={
+        body.kind === "hazard"
+          ? presentation.content.filter((field) => field.role !== "stealth")
+          : presentation.content
+      }
+      relationships={relationships}
+      onReference={onReference}
+    />
+  );
+  const usedOwned =
+    actor?.activities.value?.map((activity) => JSON.stringify(activity.navigation)) ??
+    [];
+  const owned = presentation.owned.filter(
+    (link) => !usedOwned.includes(JSON.stringify(link.navigation)),
+  );
+  return (
+    <article
+      className={`record-reference${compact ? " record-reference--compact" : ""}${encounter ? " record-reference--encounter" : ""}`}
+    >
+      {!hideIdentity && (
+        <RecordIdentity
+          hideTitle={hideTitle}
+          showOwnerReturn={showOwnerReturn}
+          identity={presentation.identity}
+          classification={presentation.classification}
+          actionCost={body.kind === "activity" ? body.value.action_cost : undefined}
+          visibleOwnerRecordKey={visibleOwnerRecordKey}
+          root={root}
+          selection={selection}
+          onOwnerReturn={onOwnerReturn}
+          originalRecord={
+            selection?.owners.length
+              ? (relationships.find(
+                  (relationship) =>
+                    relationship.origin === "structured" &&
+                    relationship.kind === "CompendiumProvenance" &&
+                    relationship.status === "resolved_record",
+                )?.target ?? undefined)
+              : undefined
+          }
+          onReference={onReference}
+        />
+      )}
+      {!encounter && (
+        <div className="record-reference__flavor">
+          <ContentFields
+            fields={
+              body.kind === "hazard"
+                ? presentation.content.filter((field) => field.role === "description")
+                : presentation.content
+            }
+            relationships={relationships}
+            onReference={onReference}
+          />
+        </div>
+      )}
+      {body.kind === "creature" && encounter && (
+        <ActorSecondaryFacts actor={body.value} />
+      )}
+      {body.kind === "creature" && (
+        <ActorFacts
+          actor={body.value}
+          hideHitPoints={encounter}
+          encounter={encounter}
+        />
+      )}
+      {body.kind === "hazard" && (
+        <>
+          <section className="hazard-reference__detection">
+            <h3>Detection</h3>
+            <FactRow label="Hazard">
+              {factText(body.value.complex, (complex) =>
+                complex ? "Complex" : "Simple",
+              )}
+            </FactRow>
+            <FactRow label="Stealth">
+              <NumberFact fact={body.value.stealth} signed />
+            </FactRow>
+            {presentation.content
+              .filter((field) => field.role === "stealth" && contentFieldVisible(field))
+              .map((field) => (
+                <PreparedContent
+                  key={JSON.stringify(field.locator)}
+                  content={field}
+                  relationships={relationships}
+                  onReference={onReference}
+                />
+              ))}
+          </section>
+          {!encounter && (
+            <ContentFields
+              fields={presentation.content.filter((field) => field.role === "disable")}
+              relationships={relationships}
+              onReference={onReference}
+            />
+          )}
+          <ActorFacts
+            actor={body.value.actor}
+            hideHitPoints={encounter}
+            encounter={encounter}
+            hazard
+            hideSaves={!body.value.show_saves}
+            hidePrimaryDefenses={
+              body.value.defense_block.state === "value" &&
+              body.value.defense_block.value === false
+            }
+          />
+          {!(
+            body.value.defense_block.state === "value" &&
+            body.value.defense_block.value === false
+          ) && (
+            <FactRow label="Hardness">
+              <NumberFact fact={body.value.hardness} />
+            </FactRow>
+          )}
+          {body.value.defense_block.state !== "value" && (
+            <FactRow label="Defense block">
+              {factText(body.value.defense_block, (value) =>
+                value ? "Present" : "Absent",
+              )}
+            </FactRow>
+          )}
+        </>
+      )}
+      {body.kind === "spell" && <SpellReference spell={body.value} />}
+      {body.kind === "activity" && (
+        <ActorActivity
+          activity={body.value}
+          onReference={onReference}
+          selected
+          hideCost={!hideIdentity}
+        />
+      )}
+      {body.kind === "physical_reference" && (
+        <div className="record-fact-list">
+          <FactLine label="Usage" fact={body.value.usage} />
+          <PhysicalPrice fact={body.value.price} />
+          {body.value.price_per.state !== "missing" && (
+            <FactLine label="Price per" fact={body.value.price_per} />
+          )}
+          <FactLine label="Bulk" fact={body.value.bulk} />
+        </div>
+      )}
+      {body.kind === "roll_table" && (
+        <FactLine label="Formula" fact={body.value.formula} required />
+      )}
+      {body.kind === "table_result" && (
+        <div className="record-fact-list">
+          <FactLine label="Range" fact={body.value.range} required />
+          <FactLine label="Weight" fact={body.value.weight} />
+          <FactLine label="Result type" fact={body.value.result_type} required />
+        </div>
+      )}
+      {body.kind === "hazard" && encounter && (
+        <ActorSecondaryFacts actor={body.value.actor} hazard />
+      )}
+      {actor && (
+        <ActorActivities
+          actor={actor}
+          onReference={onReference}
+          encounter={encounter}
+          reading={reading}
+        />
+      )}
+      {!encounter && body.kind === "hazard" && (
+        <ContentFields
+          fields={presentation.content.filter(
+            (field) => !["disable", "stealth", "description"].includes(field.role),
+          )}
+          relationships={relationships}
+          onReference={onReference}
+        />
+      )}
+      {encounter && presentation.content.some(contentFieldVisible) && (
+        <Collapse
+          size="small"
+          ghost
+          items={[{ key: "content", label: "Source description", children: content }]}
+        />
+      )}
+      {body.kind === "roll_table" && body.value.results.state !== "value" && (
+        <FactLine label="Results" fact={body.value.results} />
+      )}
+      {(body.kind === "roll_table" ? (body.value.results.value ?? []) : owned).length >
+        0 && (
+        <section className="record-reference__owned">
+          <h3>
+            {body.kind === "roll_table"
+              ? "Results"
+              : presentation.identity.kind === "journal"
+                ? "Pages"
+                : "Owned records"}
+          </h3>
+          {(body.kind === "roll_table" ? (body.value.results.value ?? []) : owned).map(
+            (link, index) => (
+              <div key={index}>
+                <Button
+                  type="link"
+                  href={atlasRoutePath({
+                    kind: "record",
+                    recordKey: link.navigation.record_key,
+                    selection: link.navigation,
+                  })}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
+                    onReference(
+                      link.navigation.record_key,
+                      event.currentTarget,
+                      link.navigation,
+                    );
+                  }}
+                >
+                  {link.title}
+                </Button>
+                <ActionCost fact={link.action_cost} />
+                {link.usage && !isEmptyFactValue(link.usage) && (
+                  <span className="muted"> {link.usage}</span>
+                )}
+              </div>
+            ),
+          )}
+        </section>
+      )}
+    </article>
+  );
 }
-
-function renderSpans(
-  spans: PresentationInline[],
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void,
-): React.ReactNode {
-  return spans.map((span, index) => {
-    switch (span.kind) {
-      case "text":
-        return <span key={index}>{span.text}</span>;
-      case "strong":
-        return <strong key={index}>{renderSpans(span.spans, onReference)}</strong>;
-      case "emphasis":
-        return <em key={index}>{renderSpans(span.spans, onReference)}</em>;
-      case "code":
-        return <code key={index}>{span.text}</code>;
-      case "line_break":
-        return <br key={index} />;
-      case "reference":
-        if (!span.record_key) {
-          return <span key={index}>{span.label}</span>;
-        }
-        return (
-          <button
-            className="inline-reference"
-            key={index}
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onReference(
-                span.record_key!,
-                event.currentTarget.getBoundingClientRect(),
-              );
-            }}
-          >
-            {span.label}
-          </button>
-        );
-    }
-  });
+function PhysicalPrice({ fact }: { fact: FactView<PhysicalPriceView> }) {
+  if (!hasReadingFact(fact, { required: true })) return null;
+  if (fact.state !== "value" || !fact.value)
+    return <FactLine label="Price" fact={fact} required />;
+  const coins = Object.entries(fact.value).filter(
+    ([, value]) => !["missing", "not_applicable"].includes(value.state),
+  );
+  return (
+    <FactRow label="Price">
+      {coins.length
+        ? coins.map(([unit, value], index) => (
+            <span key={unit}>
+              {index ? ", " : ""}
+              <NumberFact fact={value} /> {unit}
+            </span>
+          ))
+        : "Empty"}
+    </FactRow>
+  );
 }

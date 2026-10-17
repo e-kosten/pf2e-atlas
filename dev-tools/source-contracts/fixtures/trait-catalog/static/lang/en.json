@@ -1,0 +1,18 @@
+{
+  "PF2E": {
+    "Fire": "Fire",
+    "Original": "Original label",
+    "Override": "Override label",
+    "Deadly": "Deadly 2d10",
+    "Undocumented": "Without description",
+    "OtherFire": "Fire tag",
+    "Shoddy": "Shoddy",
+    "Common": "Common",
+    "TraitRange20": "Range 20 feet",
+    "TraitRangeIncrement30": "Range increment 30 feet",
+    "FireDescription": "Fire prose with @UUID[example].",
+    "SharedDescription": "Shared description",
+    "DeadlyDescription": "Authored general Deadly description",
+    "RangeDescription": "Authored general Range description"
+  }
+}

@@ -1,12 +1,14 @@
 # Contributing
 
-## Branching
+## Worktrees And Pull Requests
 
-This repo uses a simple trunk-based workflow:
+Implementation uses dedicated linked worktrees and feature PRs:
 
-- `main` is the primary branch
-- create short-lived feature branches from `main`
-- merge back to `main` after validation
+- create a task worktree under `.worktrees/<task-slug>` on a short-lived feature branch
+- choose the base from the workstream: `main` for independent mainline work, or `integration/source-modeling` for the source-modeling workstream; dependent PRs may target the preceding feature branch
+- continue related feedback and revisions in the same task worktree and PR
+- preserve unrelated changes and running builds being reviewed
+- land through a reviewed PR after applicable validation and CI; merging is a separate human decision
 
 Recommended branch names:
 
@@ -15,9 +17,55 @@ Recommended branch names:
 - `docs/<topic>`
 - `chore/<topic>`
 
+For agents, authorization to implement includes logical local commits, pushing the task branch, and opening or updating its PR. Separate permission is not needed for these routine steps. Planning alone does not authorize implementation, and explicit plan-only, no-commit, or local-only instructions take precedence. Do not merge, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization.
+
+Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and limitations. Keep review fixes visible as additional logical commits; agree on any published-history rewrite before performing it.
+
+Keep the worktree available while its PR or local build is being reviewed. After merge or cancellation, remove it as part of task completion once needed work is preserved and no active process or another checkout depends on it. At the next task's start, finish outstanding cleanup. Retaining a branch does not require retaining its checkout or compiler cache.
+
+Before removal, inspect Git status, untracked and ignored files, running previews/builds, and incoming symlinks. Preserve needed dirty files and saved state outside the retiring checkout; do not archive compiler output with them. A live `node_modules` symlink target must remain even if its original PR has merged. Remove worktrees with `git worktree remove`, one at a time, and verify the inventory. Use `--force` only after accounting for every needed file it would discard; do not broadly delete `.worktrees/`.
+
+For retained worktrees, record the path, purpose, owner, and removal condition. Stable previews retain their frozen binary, artifact, saved state, and small review evidence; they normally do not require a compiler cache. Temporary review checkouts last only as long as their review.
+
+## Local Build Review
+
+User experience changes, including CLI behavior and output, get an early human
+checkpoint once the core flow is functional. Provide a runnable preview or sample
+CLI commands and output after minimal usability checks, then pause for feedback
+before broad test rewrites and final validation. Clearly identify unfinished
+behavior and validation gaps. Existing tests remain intact, and all applicable
+final gates and independent reviews still follow once the UX direction is agreed.
+
+Provide a stable local build when a change is useful to inspect. State its branch, commit, URL or run command, and any sample-data limitations. Disclose uncommitted differences if present. Preserve that build while developing further changes, using a separate checkout or built artifact when necessary, and explicitly identify when an updated build replaces it.
+
+Human UI previews use the existing full-corpus artifact and verified model cache,
+with all stored search profiles usable. Reuse a compatible running backend and
+its preview-local saved state when only frontend code changes; otherwise start
+the candidate backend against the same read-only artifact/cache with separate
+mutable preview state. Verify readiness and a real query with each profile before
+handoff. Keep build provenance and restart instructions in the local preview
+handoff. The small model-free browser fixture is for automated acceptance and
+targeted fault checks; do not offer it as the product preview or rebuild/copy the
+corpus for each UI branch.
+
+UI changes require interaction and visual review alongside automated checks. Agents use Astra sub-agents for presentation review, including actual browser inspection. Local validation, hosted CI, and human acceptance are separate outcomes; a passing gate does not establish visual acceptance.
+
+## Working Plans
+
+Substantial tasks may use one concise local plan under `scratch/plans/`; ordinary
+fixes do not require one. Refine the same plan as scope evolves, using an explicit
+status and concrete acceptance checks. The local `scratch/plans/README.md`, when
+present, indexes current and deferred work. Archive completed or superseded plans,
+update mutable links, and retain provenance-bound originals. Plans are local working
+artifacts; architecture docs and the tracked backlog remain durable shared guidance.
+Use the task's appropriate checkout while planning. Plan approval and execution
+authorization are separate; keep planning uncommitted unless explicitly requested.
+
 ## Commit Messages
 
 Use Conventional Commits for all changes. Every commit message must include a Conventional Commit summary line. A short description body is optional, but when present it must appear after a blank line.
+
+Commit at logical, validated boundaries rather than accumulating an entire multi-stage task uncommitted. Each commit should express a coherent change, include its relevant tests and documentation, and leave the branch buildable. A substantial PR may contain several commits. Avoid arbitrary progress snapshots and unrelated changes in the same commit.
 
 Summary-only format:
 
@@ -47,16 +95,26 @@ Recommended types:
 PF2e Atlas is a Rust workspace:
 
 - `Cargo.toml`: workspace definition and shared dependency versions
-- `crates/atlas-cli`: command parsing, JSON/text output, progress output, exit codes, and agent skill installation
+- `crates/atlas-cli`: product command parsing, presentation, exit codes, and agent skill installation
+- `crates/atlas-dev`: private Rust developer source and artifact diagnostics
+- `crates/atlas-cli-support`: shared argument vocabulary, JSON envelopes, and progress rendering
 - `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction
 - `crates/atlas-search`: product-facing retrieval orchestration
 - `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL
-- `crates/atlas-ingest`: Foundry source loading, normalization, enrichment, generated records, embeddings during builds, and SQLite artifact writing
-- `crates/atlas-embedding`: model catalog, query/document embedding generation, token budgeting, and semantic input rendering
-- `crates/atlas-record`: normalized records, content documents, presentation, FTS projection, and graph/reference policy
-- `crates/atlas-domain`: shared request, filter, record-key, detail-level, and metadata vocabulary
+- `crates/atlas-foundry-model`: generated authored DTOs, field-retaining admission and checked snapshot codecs
+- `crates/atlas-ingest`: typed Foundry loading, preparation, attributed indexing inputs, embedding execution and artifact-build composition
+- `crates/atlas-embedding`: two pinned search-profile contracts, shared BGE segmentation, native final budgets, FastEmbed inference and retained shared query sessions
+- `crates/atlas-record`: source-backed records, borrowed authored views, selected content preparation, query facts and reference policy
+- `crates/atlas-domain`: shared typed query, source address, lightweight summary and canonical record-key vocabulary
+- `crates/atlas-app-service`: saved-list and encounter workflows, local overlays and consumer presentation projections
+- `crates/atlas-app-model`: generated frontend contracts for product workflows and presentation
+- `crates/atlas-local-state`: saved lists and encounters in a separate writable database
+- `crates/atlas-web`: web transport and embedded frontend hosting
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing
 - `skills/pf2e-atlas-cli`: first-party local-agent skill installed by `atlas agent skills`
+- `dev-tools/`: private TypeScript packages for source contracts and release tooling,
+  with implementation, command entry points, tests and fixtures in separate directories
+- `scripts/`: operational shell and PowerShell workflows, verification and installers
 
 Architecture notes live under [`docs/architecture`](./docs/architecture/overview.md):
 
@@ -76,6 +134,73 @@ scripts/install-git-hooks.sh
 scripts/preflight.sh
 # or: just dev-setup
 ```
+
+Use Cargo's default `target/` directory inside each checkout, including linked
+worktrees. Compiled tests embed checkout-specific fixture paths, so sharing a
+`CARGO_TARGET_DIR` across worktrees can reuse binaries with stale paths. Run
+`git push` directly; no Cargo environment override is needed.
+
+### Build Profiles And Disk Budget
+
+Ordinary development and tests use limited debug information and enable
+incremental compilation. This keeps source/function backtraces and qualified
+function names and reuses compiler work during editing. The large generated
+`atlas-foundry-model` crate disables incremental compilation to avoid retaining
+its extra compiler cache; Cargo still reuses its unchanged completed output.
+Clean CI jobs set `CARGO_INCREMENTAL=0` globally. Tests inherit development settings,
+including debug assertions and overflow checks; release uses its own profile.
+
+For a debugger session that needs variable/type inspection, use the full-debug
+profile for both builds and tests:
+
+```bash
+cargo build -p atlas-cli --profile debug-full
+cargo test -p atlas-local-state --profile debug-full
+```
+
+That profile writes to `target/debug-full`. Retain it while debugging; remove it
+when the session is over and the output is no longer needed:
+
+```bash
+cargo clean --profile debug-full
+```
+
+Use the checked-in defaults consistently across manual checks and hooks. Avoid
+profile/env changes for individual agents or validation retries, and retire
+obsolete configurations rather than retaining both indefinitely. Normal
+`git push` needs no override. Keep active targets: routinely deleting and
+rebuilding them adds latency and disk writes. Neither retained size nor build
+time alone establishes SSD write volume or endurance.
+
+Before creating a worktree or running expensive gates, check free space and the
+current task's output:
+
+```bash
+df -h .
+git worktree list
+test ! -d target || du -sh target
+```
+
+Below 30 GiB free, reclaim obsolete task build output before starting another
+large build. A target above 15 GiB warrants inspecting `debug/deps`,
+`debug/incremental`, and `debug/build` for accumulated configurations. These
+thresholds prompt investigation, never automatic deletion of active files.
+Monitor growth during long builds. Source/model assets, user-authored SQLite
+state and artifacts still under review have separate preservation requirements.
+
+Keep one checkout-local Cargo target per task; do not copy or symlink Cargo
+outputs across checkout paths. Before cleaning an inactive checkout, verify that
+no preview, build or retained binary depends on its output. Keep small reports
+and representative screenshots; retire obsolete generated corpora, duplicate
+artifacts and experiments after preserving a reproduction recipe. A cleanup
+handoff records what was removed, what remains, its owner/removal condition, and
+the measured space recovered.
+
+The Rust web server embeds the built frontend in both debug and release binaries.
+Build the frontend before compiling a preview binary, then keep that binary and
+its reference artifact fixed while they are under review. Later frontend builds
+do not update a running Rust server; restart it with the new binary intentionally.
+Use the Vite dev server when frontend hot reload is wanted.
 
 Build and test from the repository root:
 
@@ -111,6 +236,57 @@ atlas completions bash
 atlas completions fish
 ```
 
+## Rust Developer Commands
+
+Build and run developer diagnostics independently of the product CLI, web UI
+bundle, and Node:
+
+```bash
+cargo run -p atlas-dev -- --help
+cargo run -p atlas-dev -- source load --source vendor/pf2e --json
+cargo run -p atlas-dev -- source analyze --source vendor/pf2e --json
+cargo run -p atlas-dev -- source audit-paths --source vendor/pf2e --record-type npc --json
+cargo run -p atlas-dev -- index inspect --index .cache/pf2e-index.sqlite --json
+cargo run -p atlas-dev -- index record actionspf2e:1kGNdIIhuglAjIp9 --index .cache/pf2e-index.sqlite --json
+cargo test -p atlas-dev -p atlas-cli-support
+```
+
+These commands use the same global/repo path policy, JSON envelope, and progress
+controls as atlas. `source load` reads generated authored DTOs, keeping original
+bytes, raw values, provenance and every admission
+diagnostic. Its report counts modeled, partial, raw-only and quarantined outcomes
+separately. It applies no source defaults, coercions, metric extraction or
+embedding work. Embedded children and authored links remain in their source DTOs;
+generic rule retention does not imply specific-rule interpretation.
+Partial modeled documents produce exit 0; raw-only roots, quarantine, unavailable
+packs or empty input produce exit 1 with the report on stdout. Root/manifest
+errors produce exit 2. JSON `status: ok` means a report was produced; check the
+counts and exit code for completeness. The loading API retains the full source
+corpus in memory, with quarantine bytes retained only for successful file reads.
+Analysis reports typed source selection and admission without writing SQLite;
+path auditing reports observed paths and values. Index inspection reads an
+existing artifact without changing it. `index record` decodes its checked source
+snapshot and developer provenance; `--original --source vendor/pf2e` explicitly
+reads the original clone file only after checking its recorded path and hash.
+Source commands' `--manifest` overrides
+the Foundry input manifest. Reports go to stdout; `--json` selects JSON.
+Use Cargo's release profile for ingest performance measurements:
+
+```bash
+cargo run --release -p atlas-dev -- source analyze --source vendor/pf2e --json
+```
+
+Setup and index build/check/validate remain operational product commands:
+
+```bash
+cargo run -p atlas-cli -- index build --no-embeddings --json
+```
+
+Foundry compiler research runs through the separate private
+[TypeScript package](./dev-tools/source-contracts/README.md), with npm entry points.
+Rust developer commands do not launch TypeScript tools. Neither developer
+surface is included in published product bundles; atlas-dev is built locally.
+
 ## Release Process
 
 User-facing binaries are published from GitHub Releases. Maintainers need the GitHub CLI and cargo-dist:
@@ -120,6 +296,12 @@ gh auth login
 gh auth status
 cargo install cargo-dist --locked
 ```
+
+Release tooling also requires Node 22 or later and an XZ-capable `tar`. Install the
+private maintainer package with `npm --prefix dev-tools/release ci --ignore-scripts`
+and validate it with `npm --prefix dev-tools/release run verify`. See
+[release tooling](./dev-tools/release/README.md) for notices, manifest, checksum and
+platform smoke-test commands. These dependencies stay out of product bundles.
 
 Releases use a three-step flow:
 
@@ -208,9 +390,11 @@ Published release assets are treated as immutable. Fix bad published releases wi
 
 Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for Linux x64, Linux ARM64, macOS Apple Silicon, and Windows x64 release targets. macOS Intel and Windows ARM64 release binaries are deferred until the native ONNX Runtime packaging strategy supports them cleanly.
 
-## Validation Before Commit
+## Validation At Commits And Review
 
-Run the full Rust gate before opening a branch for review, merging back to `main`, or preparing a Rust-heavy commit manually:
+Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates. A draft PR may be opened earlier with outstanding validation clearly identified. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
+
+For Rust changes, run the full Rust gate:
 
 ```bash
 just verify
@@ -227,30 +411,58 @@ just web-ui-verify
 # or: npm --prefix web/atlas-ui run verify
 ```
 
-For the same path-sensitive validation used by hooks:
+Shared browser layout, navigation, overlays and forms also use the maintained
+device acceptance suite:
+
+```bash
+npm --prefix web/atlas-ui exec -- playwright install chromium webkit
+npm --prefix web/atlas-ui run test:devices
+```
+
+The command builds the frontend and launches `atlas-web`'s developer-only
+`browser_fixture` example on 127.0.0.1:8796. The first run compiles Rust using the
+normal checkout-local target; later runs reuse it. Port 8796 must be free: the
+suite never adopts an unrelated running server. It creates a small checked-source
+SQLite artifact and separate mutable state under `scratch/responsive-validation/runs`.
+Graceful SIGINT removes the default temporary run directory. A forced kill may
+leave a run directory for inspection; remove only that inactive run after retaining
+needed evidence. No Foundry clone or embedding models are downloaded.
+
+The fixture uses real index, retrieval, app-service and web owners. Structural
+stored vectors enable browsing/Similar without claiming inference or ranking
+quality; query-asset unavailability remains truthful. The bounded Chromium/WebKit
+phone/tablet/desktop matrix exercises real touch and keyboard flows. It is separate
+from `npm --prefix web/atlas-ui run test:e2e`, whose broader scenarios require a
+caller-supplied real corpus server.
+
+CI runs device acceptance after verification in the existing Rust job, reusing
+its compiler output and frontend installation. Failure traces, screenshots and
+the HTML report are retained as a short-lived workflow artifact. Local results
+are under `scratch/responsive-validation/browser`. The frontend `verify` command
+alone does not execute browsers. Follow the frontend guidelines for Astra visual
+review and actual-device checks; passing emulation does not certify a physical
+phone's software keyboard, browser chrome or text-enlargement behavior.
+
+For path-sensitive formatting or explicit full validation (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
 
 ```bash
 just verify-changed --staged
 just verify-changed --range origin/main...HEAD --full
 ```
 
-Tracked git hooks live in `.githooks/` and enforce:
+Tracked git hooks live in `.githooks/`:
 
-- `pre-commit`: run path-sensitive fast checks for staged Rust and web UI changes; docs-only commits are allowed without code validation
-- `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
-- `pre-merge-commit`: run the same path-sensitive fast checks for non-docs merge commits
-- `pre-push`: run path-sensitive full checks for pushed Rust and web UI changes
+- `pre-commit` and `pre-merge-commit`: check staged whitespace and run path-sensitive formatting checks (Rust and/or frontend). Docs-only changes need only the whitespace check.
+- `commit-msg`: require a Conventional Commit subject; an optional body must be blank-line-separated.
+- Pushes do not run validation automatically. Run the applicable local gates explicitly before marking a PR ready, reuse passing evidence for unchanged code, and require green CI on the published head before merging. CI retains Clippy, typechecking, tests, builds and platform/browser checks.
+
+Formatting checks read files in the working tree; whitespace checks read the staged diff. Review partial staging carefully so local evidence corresponds to the committed candidate. Hooks do not replace code review or CI.
 
 When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
 
-Fast-forward merges do not run Git's `pre-merge-commit` hook. Land linked worktrees with:
+Docs-only or instruction-only changes do not require the Rust or frontend gates unless they affect executable examples, generated output expectations, or another validated artifact. Inspect the diff and check whitespace and any changed links or examples.
 
-```bash
-scripts/land-worktree.sh
-# or: just land
-```
-
-Run that command from the linked task worktree. It rebases onto `main`, runs the Rust verification gate, fast-forwards `main`, and reruns the same gate on `main`.
+The normal landing path is a reviewed GitHub PR, with applicable local gates, CI, and human acceptance reported separately. `scripts/land-worktree.sh` and `just land` directly fast-forward local `main`; they are not the normal PR workflow and require explicit authorization to use. Do not interpret a passing gate as permission to merge.
 
 ## Vendored PF2E Data
 
@@ -267,3 +479,119 @@ The normal setup path can fetch or update source data automatically:
 ```bash
 atlas setup
 ```
+
+## Source Modeling Integration
+
+Source-modeling work lands through `integration/source-modeling`. The bottom
+feature PR targets that branch; dependent PRs target the preceding feature branch.
+The draft integration-to-`main` PR shows work as reviewed feature PRs land and
+remains a separate merge decision. `integration/record-refactor` is retained as
+the earlier research and product-preview reference.
+
+## Source declaration research
+
+The shared HTML interpretation API is in `atlas-record::source_content`. Its
+tests include typed generated-source traversal with an owned Item and invalid
+neighboring field. The developer example can prepare an explicitly inventoried
+HTML-field JSONL sample with supplied localization and a simple root-record
+lookup index:
+
+```bash
+cargo run -p atlas-record --example source_content_probe -- HTML-fields.jsonl locale.json records.jsonl output.jsonl
+```
+
+Input field packets contain `owner` (`pack.id`, optionally with an owned suffix),
+`field` (dotted source field) and `markup`; record-index packets contain `id`
+(`pack.id`) and `name`. These are probe inputs, not product CLI or artifact
+contracts. The probe explicitly uses source-inspection audience settings and
+snapshot-local child locators. The output is not a browser/Foundry acceptance
+result or an audience-safe application response. See
+[ADR 0044](./docs/architecture/decisions/0044-shared-source-content-interpretation.md).
+
+Offline declaration and trait metadata tooling lives in [dev-tools/source-contracts](./dev-tools/source-contracts/README.md). Its pinned Node dependencies, strict TypeScript build and fixture tests are separate from the Rust build and published product. Run `npm --prefix dev-tools/source-contracts ci --ignore-scripts`, then `npm --prefix dev-tools/source-contracts run verify`. Run extraction with `npm --prefix dev-tools/source-contracts run extract -- --source PATH --out PATH [--strict]`. Rust developer commands use Rust libraries; compiler research runs through this npm package.
+
+Source-model generation also requires rustfmt. Package verification
+uses small offline fixtures. `verify-generated` extracts the pinned upstream
+declarations and checks committed Rust, fetching into the ignored cache when needed.
+`generate` emits/checks the complete authored portfolio, `sample-equipment`
+extracts raw equipment packets and `compare-equipment` compares Rust probe results.
+`sample-items` recursively samples Item sources, including embedded/subitems;
+the Rust `item_generation_probe` example compares typed slices against raw source
+projections. These private experiment commands are documented in the package README and
+[shared Item report](./docs/research/shared-item-source-generation.md). Rust tests
+live under atlas-foundry-model; its source parsers need no Node runtime.
+`sample-predicates` extracts selected predicate-bearing field contexts, including
+ChoiceSet constructor inputs. The Rust `predicate_generation_probe` compares
+typed values and reports source conflicts with a nonzero exit. See the
+[recursive generation report](./docs/research/recursive-source-generation.md).
+`sample-rules` samples root/embedded Item rules; `compare-rules` compiles scratch
+schema/authored portfolios and checks raw-value fidelity in Rust. Rejections and
+unmodeled keys remain counted and exit nonzero. Foundry runtime admission is a
+separate evidence state; see the [authored-rule report](./docs/research/authored-rule-source.md).
+
+The small `dev-tools/source-contracts/source-pin.json` records upstream identity.
+Private `npm --prefix dev-tools/source-contracts run generate -- --check` fetches
+the pin when needed, extracts afresh into ignored `.cache/source-contracts`,
+and checks committed Rust under `crates/atlas-foundry-model/src/source_model/generated`.
+Omit `--check` to regenerate. `--source PATH` seeds the cache from matching local
+source without modifying that checkout. CI runs `verify-generated` separately
+from offline fixture tests. Ordinary Rust builds require neither Node nor Foundry.
+
+`atlas-foundry-model` owns pure strict/admission APIs and typed snapshots. Ingest
+owns files/provenance and calls shared admission once. Model serialization
+includes explicit union tags. `parse_source_value` reads authored JSON, while
+Serde Deserialize reads typed source values; never use it to admit source files.
+
+Run the standalone corpus proof against the authenticated source pin:
+
+```sh
+cargo run -p atlas-foundry-model --example snapshot_corpus -- /path/to/pinned/pf2e
+```
+
+It asserts exact Rust equality after encoding/decoding every root and checks
+pinned loading outcomes. It is contributor validation, not runtime loading or
+an artifact migration. Codec/source policy changes follow ADR 0043.
+
+The database-independent record enrichment handoff is
+`atlas-ingest::enrich_loaded_source`. It consumes admitted models, retains source
+bytes/provenance and diagnostics, and calls `atlas-record::source_record` for
+owned identity, selected content, references and typed query/text views. Audience
+and implicit check-DC policy are required inputs; no product default is implied.
+
+Run its bounded corpus evidence example with the authenticated source pin and
+that pin's locale:
+
+```sh
+cargo run -p atlas-ingest --example source_enrichment_probe -- /path/to/pinned/pf2e /path/to/pinned/pf2e/static/lang/en.json
+```
+
+The JSON report checks all retained typed snapshots before/after enrichment,
+compares selected query values independently to authored JSON, checks visible
+reference/interaction markers, and measures sizes and stage/warm timings. Raw
+JSON comparison exists only in this developer proof. The probe explicitly uses
+a public audience with GM-only implicit DCs; it does not publish CLI commands,
+persist corpus receipts or validate browser behavior, search relevance or SQLite
+hydration. See [ADR 0045](./docs/architecture/decisions/0045-source-backed-record-enrichment.md)
+and the [projection inventory](./docs/research/source-record-query-projections.md).
+
+
+`compare-portfolio` checks these maintained models against all five document
+kinds and specific rules through the Rust `source_portfolio_probe` example.
+It reports every rejection and value difference, and compares the pinned corpus
+baseline. Known failures still return nonzero, even when the baseline matches;
+this tooling does not decide production ingest rejection policy. See the package
+README and [maintained portfolio report](./docs/research/maintained-source-portfolio.md).
+
+Search-profile operations use the artifact manifest: fresh `atlas setup` prepares
+BGE Base; omitted flags on a later setup preserve the stored set. Explicit repeated
+`--search-profile` flags define that set. Search/web omission selects a sole stored
+profile, or Base when both are built. Pinned model files live under
+`hf-models/<model-id>/<revision>/`; setup repairs selected invalid files through
+verified temporary download and rename. Do not relocate this path policy into
+vector identity or add a legacy-layout reader.
+
+Use `--progress always --json >report.json 2>progress.log` when reviewing normal
+build progress. Check selected profile names, shared occurrences versus unique
+inference inputs, reused counts and bounded stage updates. Include an unchanged
+reuse-heavy tiny build and `--progress never`; JSON stdout must stay parseable.
+Rendering/control-plane corrections do not justify a full-corpus reembedding.

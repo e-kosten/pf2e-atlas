@@ -1,38 +1,101 @@
+import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { Drawer } from "antd";
-import { RecordPresentation } from "./RecordPresentation";
+import { useRef } from "react";
+import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
+import { usePreviewContentFocus } from "./usePreviewContentFocus";
+import { ActionCost } from "./ActionCost";
 
 export function RecordPreviewDrawer({
+  context = "reference",
   detail,
   loading,
+  error,
+  onRetry,
+  onReload,
+  reloadLabel,
+  retryLabel,
   onClose,
+  onAfterClose,
   onOpenFullPage,
   onReference,
   open,
-  afterOpenChange,
+  fullPageHref,
+  landing,
+  readingHistory,
+  onOwnerReturn,
+  visibleOwnerRecordKey,
 }: {
-  afterOpenChange: (open: boolean) => void;
+  onAfterClose: () => void;
   open: boolean;
 } & RecordPreviewContentProps) {
+  const actions = useRef<HTMLDivElement>(null);
+  const readingRef = usePreviewReadingPosition(
+    detail,
+    readingHistory,
+    "drawer",
+    open,
+    landing,
+  );
+  const contentFocus = usePreviewContentFocus(open, readingRef.ref);
   return (
     <Drawer
-      afterOpenChange={afterOpenChange}
+      afterOpenChange={(open) => {
+        if (open)
+          actions.current?.querySelector<HTMLElement>("a[href],button")?.focus();
+        else onAfterClose();
+      }}
+      focusable={{ focusTriggerAfterClose: false }}
       className="record-preview-drawer"
-      closable={false}
-      destroyOnHidden
+      closable={{ placement: "end" }}
       open={open}
       placement="right"
-      title="Reference"
-      width="min(560px, calc(100vw - 24px))"
-      extra={<RecordPreviewActions onClose={onClose} onOpenFullPage={onOpenFullPage} />}
+      title={
+        <>
+          {detail?.presentation.identity.title ?? "Loading record…"}{" "}
+          {detail?.presentation.body.kind === "activity" && (
+            <ActionCost fact={detail.presentation.body.value.action_cost} />
+          )}
+        </>
+      }
+      size="min(560px, 100vw)"
+      classNames={{
+        header: "record-preview-drawer__header",
+        body: "record-preview-drawer__body",
+      }}
+      extra={
+        <div ref={actions}>
+          <RecordPreviewActions
+            showClose={false}
+            readingHistory={readingHistory}
+            onClose={onClose}
+            onOpenFullPage={onOpenFullPage}
+            fullPageHref={fullPageHref}
+          />
+        </div>
+      }
       onClose={onClose}
     >
-      <section aria-label="Reference preview" role="dialog">
-        <RecordPresentation
+      <section {...contentFocus} aria-label="Reference content">
+        <RecordDetailPane
+          hideTitle
+          visibleOwnerRecordKey={visibleOwnerRecordKey}
+          showRelated={context !== "encounter"}
+          showOwnerReturn={context !== "encounter"}
           detail={detail}
           loading={loading}
+          error={error}
+          onRetry={onRetry}
+          onReload={onReload}
+          reloadLabel={reloadLabel}
+          retryLabel={retryLabel}
+          onBack={onClose}
+          backLabel="Close preview"
           onReference={onReference}
+          landing={landing}
+          onLandingReady={readingRef.onLandingReady}
+          onOwnerReturn={onOwnerReturn}
         />
       </section>
     </Drawer>

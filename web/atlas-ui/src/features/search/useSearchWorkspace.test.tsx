@@ -1,64 +1,522 @@
+import {
+  summaryFixture,
+  editorFixture,
+  fieldFixture,
+  valuesFixture,
+  detailFixture,
+} from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   FilterEditorView,
-  FilterValueListView,
-  OpenResultWindowRequest,
-  ResultWindowPage,
+  SearchResultsRequest,
+  SearchResultsPage,
+  RecordDetailRequest,
 } from "../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
-  encodeSearchState,
+  searchStateQueryString,
 } from "../../shared/filters/searchState";
+import { KIND_PREFERENCE_KEY } from "./workspaceState";
+import { AtlasApiError } from "../../api/atlasApi";
 import { useSearchWorkspace } from "./useSearchWorkspace";
 
 const apiMocks = vi.hoisted(() => ({
   discoverFilterEditor: vi.fn(),
   discoverFilterValues: vi.fn(),
+  discoverFilterCounts: vi.fn(),
   getRecordDetail: vi.fn(),
   getReadiness: vi.fn(),
-  openResultWindow: vi.fn(),
-  readResultWindowPage: vi.fn(),
+  searchPage: vi.fn(),
 }));
 
-vi.mock("../../api/atlasApi", () => ({
+vi.mock("../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../api/atlasApi")>()),
   discoverFilterEditor: apiMocks.discoverFilterEditor,
   discoverFilterValues: apiMocks.discoverFilterValues,
+  discoverFilterCounts: apiMocks.discoverFilterCounts,
   getReadiness: apiMocks.getReadiness,
   getRecordDetail: apiMocks.getRecordDetail,
-  openResultWindow: apiMocks.openResultWindow,
-  readResultWindowPage: apiMocks.readResultWindowPage,
+  searchPage: apiMocks.searchPage,
 }));
 
 describe("useSearchWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     apiMocks.getReadiness.mockResolvedValue({
       status: "ready",
       message: "Ready",
     });
-    apiMocks.discoverFilterEditor.mockResolvedValue({
-      matching_record_count: 0n,
-      groups: [],
+    apiMocks.discoverFilterEditor.mockResolvedValue({ ...editorFixture(), groups: [] });
+    apiMocks.discoverFilterValues.mockResolvedValue(valuesFixture("record.kind"));
+    apiMocks.discoverFilterCounts.mockResolvedValue({
+      counts: { status: "unavailable", reason: "non_conjunctive_context" },
     });
-    apiMocks.discoverFilterValues.mockResolvedValue({
-      field_id: "kind",
-      matching_record_count: 0n,
-      options: [],
-    });
-    apiMocks.openResultWindow.mockResolvedValue(resultWindowPage());
-    apiMocks.readResultWindowPage.mockResolvedValue(resultWindowPage());
+    apiMocks.searchPage.mockResolvedValue(searchResultsPage());
     history.replaceState(null, "", "/");
   });
 
-  it("debounces result-window requests while preserving immediate search state", async () => {
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
+  it("restores similarity URLs, disables contextual counts, sends stateless pages, and replaces or clears the criterion", async () => {
+    localStorage.setItem(
+      KIND_PREFERENCE_KEY,
+      JSON.stringify({ include: ["creature"], exclude: [] }),
+    );
+    const filter = { kind: "in" as const, field: "record.kind", values: ["spell"] };
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: "items:seed",
+      mode: "similar_records" as const,
+      filter,
+    };
+    const similarUrl = "/search" + searchStateQueryString(state);
+    history.replaceState(null, "", similarUrl);
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
+      Promise.resolve({
+        ...searchResultsPage(),
+        page: { ...searchResultsPage().page, number: request.page.number },
+        mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
+      }),
+    );
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+    await waitFor(() => expect(result.current.resultPage).toBeDefined());
+    expect(result.current.search.filter).toMatchObject(filter);
+    expect(apiMocks.searchPage.mock.calls[0][0].criteria).toEqual({
+      kind: "similar_records",
+      seed_record_key: "items:seed",
+      filter: result.current.search.filter,
     });
+    expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
+    expect(result.current.filterEditor).toBeDefined();
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
+    expect(apiMocks.searchPage.mock.calls[1][0]).toEqual({
+      search_profile: "bge-base",
+      criteria: {
+        kind: "similar_records",
+        seed_record_key: "items:seed",
+        filter: result.current.search.filter,
+      },
+      page: { number: 2, size: 25 },
+      expected_artifact_generation: "generation-a",
+    });
+    act(() => result.current.setSearch({ ...result.current.search, query: "dragon" }));
+    expect(result.current.search.similarSeed).toBeNull();
+    expect(window.location.search).not.toContain("similar=");
+    // Back/Forward use the same popstate restoration owner as real browser history.
+    act(() => {
+      history.replaceState(null, "", similarUrl);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(result.current.search.similarSeed).toBe("items:seed");
+    expect(result.current.pageNumber).toBe(1);
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        similarSeed: null,
+        mode: "browse",
+      }),
+    );
+    expect(result.current.search.filter).toMatchObject(filter);
+    expect(result.current.search.query).toBe("");
+  });
+
+  it("switches a later page atomically, rejects late old rows, and retains exact reading and shared caches", async () => {
+    history.replaceState(
+      null,
+      "",
+      "/search" +
+        searchStateQueryString({
+          ...DEFAULT_SEARCH_STATE,
+          query: "dirge",
+          mode: "text_search",
+          filter: { kind: "in", field: "record.kind", values: ["spell"] },
+        }),
+    );
+    const oldPage = deferred<SearchResultsPage>();
+    const newPage = deferred<SearchResultsPage>();
+    apiMocks.getRecordDetail.mockImplementation(
+      (_key: string, selection?: RecordDetailRequest) => {
+        const detail = detailFixture("spell:heal", "Heal");
+        return Promise.resolve(selection ? { ...detail, selected: selection } : detail);
+      },
+    );
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["items:base"]))
+      .mockReturnValueOnce(oldPage.promise)
+      .mockReturnValueOnce(newPage.promise);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result, rerender } = renderHook(
+      ({ profile }) => useSearchWorkspace({ searchProfile: profile }),
+      { initialProps: { profile: "bge-base" }, wrapper: queryClientWrapper(client) },
+    );
+    await waitFor(() => expect(result.current.resultPage?.rows).toHaveLength(1));
+    act(() => result.current.selectRecord("spell:heal"));
+    await waitFor(() => expect(result.current.reading.detail).toBeDefined());
+    const exact = {
+      ...result.current.reading.request!,
+      navigation: {
+        ...result.current.reading.request!.navigation,
+        owners: [{ collection: "items", identity: { Stable: "owned-spell" } }],
+        field: "/system/description/value",
+        source_fingerprint: "snapshot-a",
+      },
+    };
+    act(() => result.current.reading.inspect(exact));
+    const positions = result.current.positions;
+    const criteria = result.current.search;
+    const graphKey = ["related-records", "shared-graph"];
+    client.setQueryData(graphKey, { retained: true });
+    act(() => result.current.setPageNumber(4));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    expect(result.current.resultPage?.rows[0].record.record_key).toBe("items:base");
+    rerender({ profile: "embeddinggemma" });
+    expect(result.current.pageNumber).toBe(1);
+    expect(result.current.resultPage).toBeUndefined();
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(3));
+    expect(apiMocks.searchPage.mock.calls[2][0]).toMatchObject({
+      search_profile: "embeddinggemma",
+      page: { number: 1 },
+      expected_artifact_generation: "generation-a",
+    });
+    await act(async () =>
+      newPage.resolve(
+        searchResultsPage(["items:gemma"], { profile: "embeddinggemma" }),
+      ),
+    );
+    await act(async () =>
+      oldPage.resolve(searchResultsPage(["items:old-late"], { pageNumber: 4 })),
+    );
+    await waitFor(() =>
+      expect(result.current.resultPage?.rows[0].record.record_key).toBe("items:gemma"),
+    );
+    expect(result.current.search).toBe(criteria);
+    expect(result.current.selectedRecordKey).toBe("spell:heal");
+    expect(result.current.reading.request).toEqual(exact);
+    expect(
+      JSON.parse(new URLSearchParams(window.location.search).get("selection")!),
+    ).toMatchObject(exact.navigation);
+    expect(result.current.positions).toBe(positions);
+    expect(client.getQueryData(graphKey)).toEqual({ retained: true });
+    expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(1);
+    expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
+    expect(
+      apiMocks.searchPage.mock.calls.filter(
+        ([request]) => request.search_profile === "embeddinggemma",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("adopts only the current profile's first generation without repeating its inference", async () => {
+    seedSearchUrl();
+    const abandoned = deferred<SearchResultsPage>();
+    apiMocks.searchPage.mockReturnValueOnce(abandoned.promise).mockResolvedValue(
+      searchResultsPage(["items:current"], {
+        profile: "embeddinggemma",
+        generation: "generation-b",
+      }),
+    );
+    const { result, rerender } = renderHook(
+      ({ profile }) => useSearchWorkspace({ searchProfile: profile }),
+      {
+        initialProps: { profile: "bge-base" },
+        wrapper: queryClientWrapper(),
+      },
+    );
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    rerender({ profile: "embeddinggemma" });
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-b"),
+    );
+    await act(async () => abandoned.resolve(searchResultsPage()));
+    expect(result.current.resultPage?.artifact_generation).toBe("generation-b");
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(2);
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(3));
+    expect(apiMocks.searchPage.mock.calls[2][0]).toMatchObject({
+      search_profile: "embeddinggemma",
+      expected_artifact_generation: "generation-b",
+    });
+  });
+
+  it("retains pending explicit URL intent through criterion and record-selection writes without starting retrieval", async () => {
+    history.replaceState(null, "", "/search?q=heal&search_profile=embeddinggemma");
+    apiMocks.getRecordDetail.mockImplementation((key: string) =>
+      Promise.resolve(detailFixture(key)),
+    );
+    const { result } = renderHook(
+      () =>
+        useSearchWorkspace({
+          searchProfile: null,
+          pendingUrlProfile: "embeddinggemma",
+        }),
+      { wrapper: queryClientWrapper() },
+    );
+    act(() => result.current.setSearch({ ...result.current.search, query: "frost" }));
+    expect(new URLSearchParams(window.location.search).get("search_profile")).toBe(
+      "embeddinggemma",
+    );
+    act(() => result.current.selectRecord("spell:heal"));
+    await waitFor(() => expect(result.current.reading.detail).toBeDefined());
+    expect(new URLSearchParams(window.location.search).get("search_profile")).toBe(
+      "embeddinggemma",
+    );
+    act(() => result.current.selectRecord(null));
+    expect(window.location.pathname).toBe("/search");
+    expect(new URLSearchParams(window.location.search).get("search_profile")).toBe(
+      "embeddinggemma",
+    );
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("frost");
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
+  });
+
+  it("rejects a successful response for another profile and keeps model-free Similar usable", async () => {
+    seedSearchUrl();
+    apiMocks.searchPage.mockResolvedValue(
+      searchResultsPage([], { profile: "embeddinggemma" }),
+    );
+    const { result, rerender } = renderHook(
+      ({ usable }) =>
+        useSearchWorkspace({ searchProfile: "bge-base", searchProfileUsable: usable }),
+      { initialProps: { usable: true }, wrapper: queryClientWrapper() },
+    );
+    await waitFor(() =>
+      expect(result.current.errorMessage).toContain("does not match this request"),
+    );
+    expect(result.current.resultPage).toBeUndefined();
+    rerender({ usable: false });
+    apiMocks.searchPage.mockResolvedValue(searchResultsPage(["items:similar"]));
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        query: "",
+        similarSeed: "items:seed",
+        mode: "similar_records",
+      }),
+    );
+    await waitFor(() => expect(result.current.resultPage?.rows).toHaveLength(1));
+    expect(
+      apiMocks.searchPage.mock.calls[apiMocks.searchPage.mock.calls.length - 1]?.[0],
+    ).toMatchObject({
+      search_profile: "bge-base",
+      criteria: { kind: "similar_records" },
+    });
+  });
+
+  it("does not adopt a generation when an abandoned criterion finishes late", async () => {
+    history.replaceState(null, "", "/search?similar=items:first");
+    const first = deferred<SearchResultsPage>();
+    apiMocks.searchPage
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(searchResultsPage([], { generation: "generation-b" }));
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        similarSeed: "items:second",
+      }),
+    );
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-b"),
+    );
+    await act(async () =>
+      first.resolve(searchResultsPage([], { generation: "generation-a" })),
+    );
+    expect(result.current.resultPage?.artifact_generation).toBe("generation-b");
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() =>
+      expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          expected_artifact_generation: "generation-b",
+          page: { number: 2, size: 25 },
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
+  });
+
+  it("adopts the first generation without repeating retrieval", async () => {
+    seedSearchUrl();
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-a"),
+    );
+    await delay(40);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    expect(apiMocks.searchPage).toHaveBeenCalledWith(
+      expect.objectContaining({ expected_artifact_generation: null }),
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("pauses a changed generation and refreshes page one without retaining late A reads", async () => {
+    seedSearchUrl();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const oldDetail = deferred<ReturnType<typeof detailFixture>>();
+    const oldPage = deferred<SearchResultsPage>();
+    const oldCatalog = deferred<FilterEditorView>();
+    const freshPage = deferred<SearchResultsPage>();
+    const freshCatalog = deferred<FilterEditorView>();
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:old"]))
+      .mockReturnValueOnce(oldPage.promise)
+      .mockRejectedValueOnce(
+        new AtlasApiError(409, "The reference collection has changed", {
+          code: "artifact_generation_changed",
+          message: "The reference collection has changed",
+          recoverable_action: "refresh_results",
+        }),
+      )
+      .mockReturnValue(freshPage.promise);
+    apiMocks.getRecordDetail.mockReturnValueOnce(oldDetail.promise).mockResolvedValue({
+      ...detailFixture("spell:heal"),
+      artifact_generation: "generation-b",
+    });
+    apiMocks.discoverFilterEditor
+      .mockResolvedValueOnce(filterEditor())
+      .mockReturnValueOnce(oldCatalog.promise)
+      .mockReturnValue(freshCatalog.promise);
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(client),
+      },
+    );
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-a"),
+    );
+    act(() => result.current.selectRecord("spell:heal"));
+    await waitFor(() => expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(1));
+    // A background catalog read can remain queued when another page reports B.
+    act(() => {
+      void client.invalidateQueries({ queryKey: ["filter-discovery"] });
+    });
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2));
+    act(() => {
+      void client.invalidateQueries({ queryKey: ["results"] });
+    });
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(result.current.resultsPaused).toBe(true));
+    expect(result.current.pageNumber).toBe(2);
+    act(() => result.current.setPageNumber(3));
+    expect(result.current.pageNumber).toBe(2);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(3);
+    client.setQueryData(["encounter", "draft"], { name: "Preserved encounter" });
+    client.setQueryData(["saved-list", "draft"], { name: "Preserved list" });
+    const criteria = result.current.search;
+    await act(async () => result.current.refreshResults());
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(4));
+    expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
+      {
+        search_profile: "bge-base",
+        criteria: { kind: "text_search", query: "dirge", filter: null, mode: "hybrid" },
+        page: { number: 1, size: 25 },
+        expected_artifact_generation: null,
+      },
+      expect.any(AbortSignal),
+    );
+    expect(result.current.resultPage).toBeUndefined();
+    expect(result.current.filterEditor).toBeUndefined();
+    expect(result.current.search).toEqual(criteria);
+    expect(result.current.selectedRecordKey).toBe("spell:heal");
+    expect(client.getQueryData(["encounter", "draft"])).toEqual({
+      name: "Preserved encounter",
+    });
+    expect(client.getQueryData(["saved-list", "draft"])).toEqual({
+      name: "Preserved list",
+    });
+    expect(apiMocks.getRecordDetail.mock.calls[0][2].aborted).toBe(true);
+    expect(apiMocks.discoverFilterEditor.mock.calls[1][1].aborted).toBe(true);
+    await act(async () => {
+      oldDetail.resolve(detailFixture("spell:heal", "Old A detail"));
+      oldCatalog.resolve(filterEditor());
+      oldPage.resolve(searchResultsPage(["spell:late-old"]));
+    });
+    expect(result.current.reading.detail?.record.title).not.toBe("Old A detail");
+    expect(result.current.filterEditor).toBeUndefined();
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: ["results"] })
+        .some((query) => query.queryKey.includes("generation-a")),
+    ).toBe(false);
+    const editorB = { ...filterEditor(), groups: [] };
+    await act(async () => {
+      freshPage.resolve(
+        searchResultsPage(["spell:new"], { generation: "generation-b" }),
+      );
+      freshCatalog.resolve(editorB);
+    });
+    await waitFor(() =>
+      expect(result.current.resultPage?.artifact_generation).toBe("generation-b"),
+    );
+    expect(result.current.resultPage?.page.number).toBe(1);
+    expect(result.current.resultPage?.rows[0].record.record_key).toBe("spell:new");
+    expect(result.current.filterEditor).toEqual(editorB);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(4);
+    expect(window.location.search).toBe("?search_profile=bge-base&q=dirge");
+  });
+
+  it("keeps remembered Kind while editing an authoritative text URL, then clears it on a Kind edit", async () => {
+    const preference = { include: ["creature"], exclude: [] };
+    localStorage.setItem(KIND_PREFERENCE_KEY, JSON.stringify(preference));
+    seedSearchUrl("heal");
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+    await waitFor(() => expect(result.current.filterEditor).toBeDefined());
+    expect(result.current.search.filter).toBeNull();
+    act(() =>
+      result.current.setSearch({ ...result.current.search, query: "Fireball" }),
+    );
+    expect(JSON.parse(localStorage.getItem(KIND_PREFERENCE_KEY)!)).toEqual(preference);
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        filter: { kind: "in", field: "record.kind", values: ["spell"] },
+      }),
+    );
+    expect(JSON.parse(localStorage.getItem(KIND_PREFERENCE_KEY)!)).toEqual({
+      include: ["spell"],
+      exclude: [],
+    });
+    act(() => result.current.setSearch({ ...result.current.search, filter: null }));
+    expect(localStorage.getItem(KIND_PREFERENCE_KEY)).toBeNull();
+  });
+
+  it("debounces search-page requests while preserving immediate search state", async () => {
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
 
     await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).toHaveBeenCalled();
 
     act(() => {
@@ -75,372 +533,256 @@ describe("useSearchWorkspace", () => {
     });
 
     expect(result.current.search.query).toBe("fi");
-    expect(result.current.diagnostics.searchDebouncing).toBe(true);
+    expect(result.current.resultsLoading).toBe(true);
+    expect(result.current.resultPage).toBeUndefined();
     expect(window.location.pathname).toBe("/search");
-    expect(window.location.search).toBe("?q=fi&mode=text");
+    expect(window.location.search).toBe("?search_profile=bge-base&q=fi");
     await delay(150);
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
+    expect(result.current.resultsLoading).toBe(true);
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
-    expect(result.current.diagnostics.searchDebouncing).toBe(false);
-    expect(result.current.diagnostics.resultRequest).toMatchObject({
-      kind: "open_window",
-    });
-    const request = apiMocks.openResultWindow.mock
-      .calls[0][0] as OpenResultWindowRequest;
-    expect(request.mode).toMatchObject({
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    const request = apiMocks.searchPage.mock.calls[0][0] as SearchResultsRequest;
+    expect(request.criteria).toMatchObject({
       kind: "text_search",
       query: "fi",
     });
   });
 
   it("can disable search workspace queries for non-search routes", async () => {
-    const { result } = renderHook(() => useSearchWorkspace({ enabled: false }), {
-      wrapper: queryClientWrapper(),
-    });
+    const { result } = renderHook(
+      () => useSearchWorkspace({ enabled: false, searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
 
-    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
+    expect(apiMocks.getReadiness).not.toHaveBeenCalled();
     act(() => result.current.refresh());
-    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(2));
     await delay(50);
 
-    expect(apiMocks.openResultWindow).not.toHaveBeenCalled();
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
     expect(result.current.resultsLoading).toBe(false);
   });
 
-  it("tracks keyboard result selection separately from opened detail routes", async () => {
+  it("keeps preview selection explicit and restores the search URL when cleared", async () => {
     seedSearchUrl();
-    apiMocks.openResultWindow.mockResolvedValue(
-      resultWindowPage(["spell:dirge-of-doom", "spell:heal"]),
+    apiMocks.searchPage.mockResolvedValue(
+      searchResultsPage(["spell:dirge-of-doom", "spell:heal"]),
     );
-    apiMocks.getRecordDetail.mockResolvedValue({ record_key: "spell:heal" });
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
+    apiMocks.getRecordDetail.mockResolvedValue(detailFixture("spell:heal"));
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
 
     await waitFor(() =>
-      expect(result.current.activeResultKey).toBe("spell:dirge-of-doom"),
+      expect(result.current.resultPage?.rows[0]?.record.record_key).toBe(
+        "spell:dirge-of-doom",
+      ),
     );
 
-    act(() => result.current.moveResultSelection("next"));
-    expect(result.current.activeResultKey).toBe("spell:heal");
     expect(result.current.selectedRecordKey).toBeNull();
-
-    act(() => result.current.openActiveResult());
+    act(() => result.current.selectRecord("spell:heal"));
     expect(result.current.selectedRecordKey).toBe("spell:heal");
-    expect(window.location.pathname).toBe("/search/records/spell%3Aheal");
-    expect(window.location.search).toBe("?q=dirge&mode=text");
+    expect(window.location.pathname).toBe("/search/records/spell:heal");
+    expect(window.location.search).toBe("?search_profile=bge-base&q=dirge");
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
     expect(window.location.pathname).toBe("/search");
-    expect(window.location.search).toBe("?q=dirge&mode=text");
+    expect(window.location.search).toBe("?search_profile=bge-base&q=dirge");
   });
 
-  it("writes simple filters as compact URL params", async () => {
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
+  it("writes shared structured predicates in URL state", async () => {
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
 
     await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
 
     act(() =>
       result.current.setSearch({
         ...DEFAULT_SEARCH_STATE,
-        filterClauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any",
-            values: ["affliction", "character"],
-          },
-          {
-            id: "kind-exclude_any",
-            field: "kind",
-            operator: "exclude_any",
-            values: ["character_option"],
-          },
-        ],
+        filter: {
+          kind: "all_of",
+          children: [
+            {
+              kind: "in",
+              clause_id: "kind-include_any",
+              field: "record.kind",
+              values: ["affliction", "character"],
+            },
+            {
+              kind: "not",
+              predicate: {
+                kind: "in",
+                clause_id: "kind-exclude_any",
+                field: "record.kind",
+                values: ["character_option"],
+              },
+            },
+          ],
+        },
       }),
     );
 
     expect(window.location.pathname).toBe("/search");
     expect(window.location.search).toBe(
-      "?kind=affliction&kind=character&exclude-kind=character_option",
+      searchStateQueryString(result.current.search, "bge-base"),
     );
   });
 
-  it("discovers values for count-backed visible editor fields", async () => {
-    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
-    const { result } = renderHook(() => useSearchWorkspace(), {
+  it("does not query collection states as scalar values", async () => {
+    apiMocks.discoverFilterEditor.mockResolvedValue(
+      editorFixture([fieldFixture("actor.items", "collection")]),
+    );
+
+    renderHook(() => useSearchWorkspace({ searchProfile: "bge-base" }), {
       wrapper: queryClientWrapper(),
     });
 
-    await waitFor(() =>
-      expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-        expect.objectContaining({ field_id: "kind" }),
-      ),
-    );
-    expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "pack" }),
-    );
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
+    await delay(50);
+
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "level" }),
+      expect.objectContaining({ field_id: "actor.items" }),
+      expect.any(AbortSignal),
     );
-    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "basic_save" }),
+  });
+
+  it("refreshes applicability while retaining the editor when filter criteria change", async () => {
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
     );
+
+    await waitFor(() => expect(result.current.filterEditor).toEqual(filterEditor()));
 
     act(() =>
       result.current.setSearch({
         ...result.current.search,
-        hiddenFilterIds: ["pack"],
-        visibleFilterIds: ["basic_save"],
-      }),
-    );
-
-    await waitFor(() =>
-      expect(apiMocks.discoverFilterValues).toHaveBeenCalledWith(
-        expect.objectContaining({ field_id: "basic_save" }),
-      ),
-    );
-  });
-
-  it("does not discover values for non-applicable count-backed fields", async () => {
-    apiMocks.discoverFilterEditor.mockResolvedValue({
-      matching_record_count: 1n,
-      groups: [
-        {
-          id: "standard",
-          label: "Standard",
-          fields: [
+        filter: {
+          kind: "all_of",
+          children: [
             {
-              id: "traits",
-              label: "Traits",
-              control: { kind: "multi_select" },
-              placement: "always_visible",
-              applicability: "selected_unavailable",
-              allowed_operators: ["include_any", "exclude_any"],
-              default_operator: "include_any",
-              supports_counts: true,
+              kind: "in",
+              clause_id: "kind-include_any",
+              field: "record.kind",
+              values: ["creature"],
             },
           ],
         },
-      ],
-    } satisfies FilterEditorView);
-
-    renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
-
-    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
-    await delay(50);
-
-    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "traits" }),
-    );
-  });
-
-  it("passes selected visible fields to editor discovery", async () => {
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
-
-    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
-
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        visibleFilterIds: ["publication_title"],
       }),
     );
 
-    await waitFor(() =>
-      expect(apiMocks.discoverFilterEditor).toHaveBeenCalledWith(
-        expect.objectContaining({
-          selected_field_ids: ["publication_title"],
-        }),
-      ),
-    );
-  });
-
-  it("keeps previous filter editor data while refreshed discovery is pending", async () => {
-    const nextEditor = deferred<FilterEditorView>();
-    apiMocks.discoverFilterEditor
-      .mockResolvedValueOnce(filterEditor())
-      .mockReturnValueOnce(nextEditor.promise);
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.filterEditor).toEqual(filterEditor()));
-
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        filterClauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any",
-            values: ["creature"],
-          },
-        ],
-      }),
-    );
-
-    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.search.filter).not.toBeNull());
     expect(result.current.filterEditor).toEqual(filterEditor());
-    expect(result.current.filterDiscoveryLoading).toBe(true);
-
-    await act(async () => {
-      nextEditor.resolve({
-        matching_record_count: 1n,
-        groups: [],
-      });
-      await nextEditor.promise;
-    });
-
-    await waitFor(() => expect(result.current.filterEditor?.groups).toEqual([]));
+    expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2);
+    expect(apiMocks.discoverFilterEditor).toHaveBeenLastCalledWith(
+      { selected_field_ids: [], filter: result.current.search.filter },
+      expect.any(AbortSignal),
+    );
   });
 
-  it("does not discover values from placeholder editor data during editor refresh", async () => {
-    const nextEditor = deferred<FilterEditorView>();
-    apiMocks.discoverFilterEditor
-      .mockResolvedValueOnce(filterEditor())
-      .mockReturnValueOnce(nextEditor.promise);
-    const { result } = renderHook(() => useSearchWorkspace(), {
+  it("does not request value discovery for closed catalog choices or hidden controls", async () => {
+    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
+    renderHook(() => useSearchWorkspace({ searchProfile: "bge-base" }), {
       wrapper: queryClientWrapper(),
     });
-
-    await waitFor(() => expect(result.current.filterEditor).toEqual(filterEditor()));
-    await waitFor(() => expect(apiMocks.discoverFilterValues).toHaveBeenCalled());
-    const valueRequestsBeforeRefresh = apiMocks.discoverFilterValues.mock.calls.length;
-
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        filterClauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any",
-            values: ["creature"],
-          },
-        ],
-      }),
-    );
-
-    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
     await delay(50);
-
-    expect(apiMocks.discoverFilterValues).toHaveBeenCalledTimes(
-      valueRequestsBeforeRefresh,
-    );
-
-    await act(async () => {
-      nextEditor.resolve({
-        matching_record_count: 1n,
-        groups: [],
-      });
-      await nextEditor.promise;
-    });
+    expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
   });
 
-  it("keeps previous field values while refreshed value discovery is pending", async () => {
-    const nextKindValues = deferred<FilterValueListView>();
-    let kindValueRequests = 0;
-    apiMocks.discoverFilterEditor.mockResolvedValue(filterEditor());
-    apiMocks.discoverFilterValues.mockImplementation(
-      (request: { field_id: string }) => {
-        if (request.field_id !== "kind") {
-          return Promise.resolve(emptyValues(request.field_id));
-        }
-        kindValueRequests += 1;
-        return kindValueRequests === 1
-          ? Promise.resolve(kindValues(["spell", "creature"]))
-          : nextKindValues.promise;
+  it("sends complete criteria and the adopted generation on later pages", async () => {
+    seedSearchUrl();
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:dirge-of-doom"]))
+      .mockResolvedValue(searchResultsPage(["spell:heal"], { pageNumber: 2 }));
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
       },
     );
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
 
-    await waitFor(() =>
-      expect(result.current.filterValuesByField.kind?.options).toHaveLength(2),
-    );
-
-    act(() =>
-      result.current.setSearch({
-        ...result.current.search,
-        filterClauses: [
-          {
-            id: "kind-include_any",
-            field: "kind",
-            operator: "include_any",
-            values: ["creature"],
-          },
-        ],
-      }),
-    );
-
-    await waitFor(() => expect(kindValueRequests).toBe(2));
-    expect(result.current.filterValuesByField.kind?.options).toHaveLength(2);
-    expect(result.current.filterDiscoveryLoading).toBe(true);
-
-    await act(async () => {
-      nextKindValues.resolve(kindValues(["spell", "creature", "feat"]));
-      await nextKindValues.promise;
-    });
-
-    await waitFor(() =>
-      expect(result.current.filterValuesByField.kind?.options).toHaveLength(3),
-    );
-  });
-
-  it("reads later pages from the current result window", async () => {
-    seedSearchUrl();
-    apiMocks.openResultWindow.mockResolvedValue(
-      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
-    );
-    apiMocks.readResultWindowPage.mockResolvedValue(
-      resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
-    );
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
-
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
 
     act(() => result.current.setPageNumber(2));
 
     await waitFor(() =>
-      expect(apiMocks.readResultWindowPage).toHaveBeenCalledWith(7n, {
-        page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
-      }),
+      expect(apiMocks.searchPage).toHaveBeenCalledWith(
+        {
+          search_profile: "bge-base",
+          expected_artifact_generation: "generation-a",
+          criteria: {
+            kind: "text_search",
+            query: "dirge",
+            filter: null,
+            mode: "hybrid",
+          },
+          page: { number: 2, size: DEFAULT_SEARCH_STATE.pageSize },
+        },
+        expect.any(AbortSignal),
+      ),
     );
     expect(result.current.pageNumber).toBe(2);
-    expect(result.current.diagnostics.resultRequest).toMatchObject({
-      kind: "page",
-    });
+  });
+  it("keeps selected-detail failures pane-local and retries without changing search/results", async () => {
+    seedSearchUrl();
+    apiMocks.getRecordDetail
+      .mockRejectedValueOnce(new Error("Selected record unavailable"))
+      .mockResolvedValueOnce(detailFixture("spell:heal"));
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    act(() => result.current.selectRecord("spell:heal"));
+    await waitFor(() =>
+      expect(result.current.reading.error?.message).toBe("Selected record unavailable"),
+    );
+    const search = result.current.search;
+    const rows = result.current.resultPage;
+    expect(result.current.errorMessage).toBeNull();
+    act(() => result.current.reading.retry());
+    await waitFor(() => expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(2));
+    expect(result.current.search).toEqual(search);
+    expect(result.current.resultPage).toEqual(rows);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
   });
 
   it("keeps previous rows while marking page transitions as refreshing", async () => {
     seedSearchUrl();
-    const nextPage = deferred<ResultWindowPage>();
-    apiMocks.openResultWindow.mockResolvedValue(
-      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
+    const nextPage = deferred<SearchResultsPage>();
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:dirge-of-doom"]))
+      .mockReturnValue(nextPage.promise);
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
     );
-    apiMocks.readResultWindowPage.mockReturnValue(nextPage.promise);
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
 
     await waitFor(() =>
-      expect(result.current.activeResultKey).toBe("spell:dirge-of-doom"),
+      expect(result.current.resultPage?.rows[0]?.record.record_key).toBe(
+        "spell:dirge-of-doom",
+      ),
     );
 
     act(() => result.current.setPageNumber(2));
@@ -452,9 +794,7 @@ describe("useSearchWorkspace", () => {
     );
 
     await act(async () => {
-      nextPage.resolve(
-        resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
-      );
+      nextPage.resolve(searchResultsPage(["spell:heal"], { pageNumber: 2 }));
       await nextPage.promise;
     });
 
@@ -465,19 +805,19 @@ describe("useSearchWorkspace", () => {
 
   it("resets page execution when search changes from a later page", async () => {
     seedSearchUrl();
-    apiMocks.openResultWindow.mockResolvedValue(
-      resultWindowPage(["spell:dirge-of-doom"], { windowId: 7n }),
+    apiMocks.searchPage
+      .mockResolvedValueOnce(searchResultsPage(["spell:dirge-of-doom"]))
+      .mockResolvedValue(searchResultsPage(["spell:heal"], { pageNumber: 2 }));
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
     );
-    apiMocks.readResultWindowPage.mockResolvedValue(
-      resultWindowPage(["spell:heal"], { pageNumber: 2, windowId: 7n }),
-    );
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     act(() => result.current.setPageNumber(2));
-    await waitFor(() => expect(apiMocks.readResultWindowPage).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
 
     act(() =>
       result.current.setSearch({
@@ -487,16 +827,14 @@ describe("useSearchWorkspace", () => {
       }),
     );
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
-    expect(apiMocks.readResultWindowPage).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(3));
     expect(result.current.pageNumber).toBe(1);
-    const request = apiMocks.openResultWindow.mock
-      .calls[1][0] as OpenResultWindowRequest;
+    const request = apiMocks.searchPage.mock.calls[2][0] as SearchResultsRequest;
     expect(request.page).toEqual({
       number: 1,
       size: DEFAULT_SEARCH_STATE.pageSize,
     });
-    expect(request.mode).toMatchObject({
+    expect(request.criteria).toMatchObject({
       kind: "text_search",
       query: "heal",
     });
@@ -509,169 +847,86 @@ describe("useSearchWorkspace", () => {
       query: "acid",
       mode: "text_search" as const,
     };
-    const { result } = renderHook(() => useSearchWorkspace(), {
-      wrapper: queryClientWrapper(),
-    });
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
 
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
 
     history.pushState(
       null,
       "",
-      `/search/records/spell%3Aacid-arrow?s=${encodeSearchState(restoredSearch)}`,
+      `/search/records/spell%3Aacid-arrow${searchStateQueryString(restoredSearch)}`,
     );
     act(() => window.dispatchEvent(new PopStateEvent("popstate")));
 
     expect(result.current.search.query).toBe("acid");
     expect(result.current.selectedRecordKey).toBe("spell:acid-arrow");
-    await waitFor(() => expect(apiMocks.openResultWindow).toHaveBeenCalledTimes(2));
-    const request = apiMocks.openResultWindow.mock
-      .calls[1][0] as OpenResultWindowRequest;
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    const request = apiMocks.searchPage.mock.calls[1][0] as SearchResultsRequest;
     expect(request.page).toEqual({
       number: 1,
       size: DEFAULT_SEARCH_STATE.pageSize,
     });
-    expect(request.mode).toMatchObject({
+    expect(request.criteria).toMatchObject({
       kind: "text_search",
       query: "acid",
     });
   });
 });
 
-function queryClientWrapper() {
-  const queryClient = new QueryClient({
+function queryClientWrapper(
+  queryClient = new QueryClient({
     defaultOptions: {
       queries: {
         retry: false,
       },
     },
-  });
+  }),
+) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
 function seedSearchUrl(query = "dirge") {
-  history.replaceState(null, "", `/search?q=${encodeURIComponent(query)}&mode=text`);
+  history.replaceState(null, "", `/search?q=${encodeURIComponent(query)}`);
 }
 
-function resultWindowPage(
+function searchResultsPage(
   recordKeys: string[] = [],
-  options: { pageNumber?: number; windowId?: bigint } = {},
-): ResultWindowPage {
+  options: { pageNumber?: number; generation?: string; profile?: string } = {},
+): SearchResultsPage {
   return {
-    window_id: options.windowId ?? 1n,
-    mode: { kind: "text_search", query: "" },
+    search_profile: options.profile ?? "bge-base",
+    artifact_generation: options.generation ?? "generation-a",
+    mode: { kind: "text_search", query: "", mode: "hybrid" },
     page: {
-      number: options.pageNumber ?? 1,
+      number: options.pageNumber || 1,
       size: 25,
-      count: 0,
-      total: 0n,
+      count: recordKeys.length,
+      total: BigInt(recordKeys.length),
       has_more: false,
+      next_page: null,
     },
-    rows: recordKeys.map((recordKey) => ({
-      record: {
-        record_key: recordKey,
-        title: recordKey.split(":")[1] ?? recordKey,
-        kind: "spell",
-        kind_label: "Spell",
-      },
-    })),
+    rows: recordKeys.map((key) => ({ record: summaryFixture(key), matches: [] })),
+    coverage: null,
   };
 }
 
 function filterEditor(): FilterEditorView {
-  return {
-    matching_record_count: 4n,
-    groups: [
-      {
-        id: "standard",
-        label: "Standard",
-        fields: [
-          {
-            id: "kind",
-            label: "Kinds",
-            control: { kind: "multi_select" },
-            placement: "always_visible",
-            applicability: "applicable",
-            allowed_operators: ["include_any"],
-            default_operator: "include_any",
-            supports_counts: true,
-          },
-          {
-            id: "level",
-            label: "Level",
-            control: {
-              kind: "range",
-              min_label: "Min",
-              max_label: "Max",
-              min: 0,
-              max: 30,
-              step: 1,
-            },
-            placement: "always_visible",
-            applicability: "applicable",
-            allowed_operators: ["range"],
-            default_operator: "range",
-            supports_counts: false,
-          },
-        ],
-      },
-      {
-        id: "source",
-        label: "Source",
-        fields: [
-          {
-            id: "pack",
-            label: "Pack",
-            control: { kind: "multi_select" },
-            placement: "initially_visible",
-            applicability: "applicable",
-            allowed_operators: ["include_any"],
-            default_operator: "include_any",
-            supports_counts: true,
-          },
-          {
-            id: "basic_save",
-            label: "Basic Save",
-            control: {
-              kind: "boolean",
-              true_label: "Yes",
-              false_label: "No",
-            },
-            placement: "addable",
-            applicability: "applicable",
-            allowed_operators: ["include_any"],
-            default_operator: "include_any",
-            supports_counts: true,
-          },
-        ],
-      },
-    ],
-  };
-}
-
-function kindValues(values: string[]): FilterValueListView {
-  return {
-    field_id: "kind",
-    matching_record_count: BigInt(values.length),
-    options: values.map((value) => ({
-      value,
-      label: value,
-      count: 1n,
-      selected: false,
-      disabled: false,
-      status: "available",
-    })),
-  };
-}
-
-function emptyValues(fieldId: string): FilterValueListView {
-  return {
-    field_id: fieldId,
-    matching_record_count: 0n,
-    options: [],
-  };
+  const editor = editorFixture([
+    fieldFixture("record.kind", "string", "Kind"),
+    fieldFixture("common.traits", "set", "Traits"),
+    fieldFixture("source.pack"),
+    fieldFixture("actor.level", "number"),
+    fieldFixture("spell.basic_save"),
+  ]);
+  editor.groups[0].fields[4].placement = "addable";
+  return editor;
 }
 
 function delay(milliseconds: number) {

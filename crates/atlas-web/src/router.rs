@@ -5,13 +5,14 @@ use axum::routing::{get, post};
 use crate::assets::{root, static_asset};
 use crate::handlers::{
     add_encounter_manual_participant, add_encounter_participant_condition,
-    add_encounter_record_participant, add_saved_list_item, create_encounter, create_saved_list,
-    delete_encounter, delete_saved_list, discover_filter_editor, discover_filter_values, encounter,
-    encounter_condition_definitions, encounters, filter_saved_list, open_result_window,
-    read_result_window_page, readiness, record_detail, remove_encounter_participant,
-    remove_encounter_participant_condition, remove_saved_list_item, reorder_encounter_participant,
-    saved_list, saved_lists, set_encounter_turn, update_encounter, update_encounter_participant,
-    update_encounter_participant_condition, update_saved_list,
+    add_encounter_record_participant, add_saved_list_item, advance_encounter_turn,
+    create_encounter, create_saved_list, delete_encounter, delete_saved_list,
+    discover_filter_editor, discover_filter_values, encounter, encounter_condition_definitions,
+    encounter_turn_review, encounters, filter_saved_list, readiness, record_detail,
+    remove_encounter_participant, remove_encounter_participant_condition, remove_saved_list_item,
+    reorder_encounter_participant, saved_list, saved_lists, search_page, set_encounter_turn,
+    update_encounter, update_encounter_participant, update_encounter_participant_condition,
+    update_saved_list,
 };
 use crate::service::AtlasWebState;
 
@@ -23,6 +24,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
+        .route("/api/related",post(crate::handlers::related_records))
         .route("/api/encounters", get(encounters).post(create_encounter))
         .route(
             "/api/encounters/condition-definitions",
@@ -49,6 +51,14 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             axum::routing::patch(update_encounter_participant).delete(remove_encounter_participant),
         )
         .route(
+            "/api/encounters/{encounter_ref}/participants/{participant_key}/reference",
+            post(crate::handlers::encounter_reference),
+        )
+        .route(
+            "/api/encounters/{encounter_ref}/participants/{participant_key}/hp",
+            post(crate::handlers::apply_encounter_hp_action),
+        )
+        .route(
             "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions",
             post(add_encounter_participant_condition),
         )
@@ -57,6 +67,8 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             axum::routing::patch(update_encounter_participant_condition)
                 .delete(remove_encounter_participant_condition),
         )
+        .route("/api/encounters/{encounter_ref}/turn-review", get(encounter_turn_review))
+        .route("/api/encounters/{encounter_ref}/advance", post(advance_encounter_turn))
         .route(
             "/api/encounters/{encounter_ref}/turn",
             post(set_encounter_turn),
@@ -75,12 +87,12 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         )
         .route("/api/filters/editor", post(discover_filter_editor))
         .route("/api/filters/values", post(discover_filter_values))
-        .route("/api/result-windows", post(open_result_window))
-        .route(
-            "/api/result-windows/{window_id}/page",
-            post(read_result_window_page),
-        )
+        .route("/api/filters/counts", post(crate::handlers::discover_filter_counts))
+        .route("/api/filters/validate", post(crate::handlers::validate_filter))
+        .route("/api/search/page", post(search_page))
         .route("/api/records/{record_key}", get(record_detail))
+        .route("/api/records/detail", post(crate::handlers::record_detail_at))
+        .route("/api/records/owned-reading", post(crate::handlers::owned_reading))
         .fallback(get(static_asset))
         .with_state(state)
 }

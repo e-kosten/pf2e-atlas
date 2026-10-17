@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Partially superseded by [ADR 0046](./0046-source-backed-reference-artifact.md).
+
+The runtime/index/search ownership boundaries remain. Concrete checked index
+readers and retrieval methods replace the capability-trait bundle and writer
+interface described below; there is no compatibility implementation of them.
 
 ## Context
 

@@ -1,323 +1,535 @@
+use crate::{AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, FilterDiscoveryContext,
-    FilterEditorView, FilterValueListView,
+    DiscoverFilterCountsRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
+    FilterCountsView, FilterDiscoveryContext, FilterEditorView, FilterValueListView,
+    FilterVocabularyScope,
 };
-use atlas_domain::RecordKey;
-use atlas_domain::{FilterFieldDiscovery, FilterValueDiscovery, SearchFilterNode};
+use atlas_domain::{
+    QueryCapability, QueryFacetOutcome, QueryFieldCounts, QueryPredicate, QueryValueOptions,
+    RecordKey,
+};
 use atlas_search::{
-    DiscoverFilterFieldsRequest as SearchDiscoverFilterFieldsRequest,
-    DiscoverFilterValuesRequest as SearchDiscoverFilterValuesRequest, FilterDiscoveryRetrieval,
-    MetricDiscoverySelector, RecordScope,
+    DiscoverFilterCountsRequest as SearchCounts,
+    DiscoverFilterValueCountsRequest as SearchValueCounts,
+    DiscoverFilterValuesRequest as SearchValues,
+    DiscoverFilterVocabularyRequest as SearchVocabulary, FilterDiscoveryContext as SearchContext,
+    RecordScope, RetrievalMode,
 };
-
-use crate::discovery::{filter_editor_view, filter_value_list_view};
-use crate::error::AppServiceResult;
-use crate::filter::{
-    app_filter_field_id, discovery_field_id, filter_context_excluding_field,
-    lower_basic_filter_context,
-};
-use crate::service::AtlasAppService;
 
 #[derive(Debug, Clone)]
 pub struct RawFilterValuesRequest {
     pub field: String,
-    pub filter: Option<SearchFilterNode>,
-    pub filter_json: Option<serde_json::Value>,
-    pub sort: Option<atlas_domain::FilterValueSort>,
-    pub sample_limit: Option<usize>,
-    pub metric_selector: Option<atlas_search::MetricDiscoverySelector>,
-    pub metric_domain: Option<String>,
+    pub filter: Option<QueryPredicate>,
+    pub clause_id: Option<String>,
+    pub text: Option<String>,
+    pub offset: usize,
+    pub limit: usize,
 }
-
+#[derive(Debug, Clone)]
+pub struct RawFilterCountsRequest {
+    pub field: String,
+    pub filter: Option<QueryPredicate>,
+    pub clause_id: Option<String>,
+}
 impl AtlasAppService {
+    pub fn discover_filter_fields(&self) -> AppServiceResult<QueryCapability> {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), |retrieval| {
+            Ok(retrieval.discover_filter_fields()?)
+        })
+    }
     pub fn discover_filter_editor(
         &self,
         request: DiscoverFilterEditorRequest,
     ) -> AppServiceResult<FilterEditorView> {
-        let filter = lower_basic_filter_context(&request.context)?;
-        let record_keys = record_scope_keys(self, &request.context)?;
-        let selected_field_ids = selected_filter_field_ids(&request);
-        self.submit_retrieval(move |retrieval| {
-            let scope = record_scope(record_keys.as_deref());
-            let discovery =
-                retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
-                    filter: filter.as_ref(),
-                    scope,
-                    filter_json: None,
-                })?;
-            let selected_candidates =
-                retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
-                    filter: None,
-                    scope,
-                    filter_json: None,
-                })?;
-            Ok(filter_editor_view(
-                discovery,
-                selected_candidates,
-                &selected_field_ids,
-            ))
-        })
+        // Editor metadata describes the global executable catalog. Invalid current
+        // criteria must not prevent discovering the controls needed to repair them.
+        self.with_retrieval(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |retrieval| {
+                let catalog = retrieval.discover_filter_fields()?;
+                let mut editor = crate::discovery::filter_editor_view(catalog, &request.selected_field_ids)?;
+                // One family inventory answers applicability; never fan out across fields.
+                let filter = request.filter.as_ref().filter(|filter| retrieval.validate_filter(filter).is_ok());
+                let families = editor_values(retrieval, "source.type", filter)?;
+                let kinds = editor_values(retrieval, "record.kind", None)?;
+                for field in editor.groups.iter_mut().flat_map(|group| &mut group.fields) {
+                    field.applicable = field.definition.scope.is_some()
+                        || families.is_empty()
+                        || field.definition.family_types.is_empty()
+                        || field.definition.family_types.iter().any(|family| families.contains(family));
+                    if field.definition.id == "record.kind" {
+                        field.choices.retain(|choice| matches!(&choice.value, atlas_domain::QueryLiteral::String(value) if kinds.contains(value)));
+                    }
+                }
+                Ok(editor)
+            },
+        )
     }
-
-    pub fn discover_filter_values(
-        &self,
-        request: DiscoverFilterValuesRequest,
-    ) -> AppServiceResult<FilterValueListView> {
-        let discovery_context = filter_context_excluding_field(&request.context, &request.field_id);
-        let filter = lower_basic_filter_context(&discovery_context)?;
-        let record_keys = record_scope_keys(self, &discovery_context)?;
-        self.submit_retrieval(move |retrieval| {
-            let discovery =
-                retrieval.discover_filter_values(SearchDiscoverFilterValuesRequest {
-                    field: discovery_field_id(&request.field_id),
-                    filter: filter.as_ref(),
-                    scope: record_scope(record_keys.as_deref()),
-                    filter_json: None,
-                    sort: None,
-                    sample_limit: None,
-                    metric_selector: metric_selector(request.metric_query.as_deref()),
-                    metric_domain: request.metric_domain.clone(),
-                })?;
-            filter_value_list_view(&request.field_id, &request.context, discovery)
-        })
-    }
-
-    pub fn discover_raw_filter_fields(
-        &self,
-        filter: Option<SearchFilterNode>,
-        filter_json: Option<serde_json::Value>,
-    ) -> AppServiceResult<FilterFieldDiscovery> {
-        self.submit_retrieval(move |retrieval| {
-            Ok(
-                retrieval.discover_filter_fields(SearchDiscoverFilterFieldsRequest {
-                    filter: filter.as_ref(),
-                    scope: RecordScope::All,
-                    filter_json,
-                })?,
-            )
-        })
-    }
-
     pub fn discover_raw_filter_values(
         &self,
         request: RawFilterValuesRequest,
-    ) -> AppServiceResult<FilterValueDiscovery> {
-        self.submit_retrieval(move |retrieval| {
-            Ok(
-                retrieval.discover_filter_values(SearchDiscoverFilterValuesRequest {
-                    field: request.field,
-                    filter: request.filter.as_ref(),
-                    scope: RecordScope::All,
-                    filter_json: request.filter_json,
-                    sort: request.sort,
-                    sample_limit: request.sample_limit,
-                    metric_selector: request.metric_selector,
-                    metric_domain: request.metric_domain,
-                })?,
-            )
+    ) -> AppServiceResult<QueryValueOptions> {
+        self.with_retrieval(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |retrieval| {
+                required_facet(retrieval.discover_filter_values(SearchValues {
+                    only_matching: false,
+                    field: &request.field,
+                    clause_id: request.clause_id.as_deref(),
+                    context: SearchContext {
+                        search_profile: None,
+                        text: None,
+                        mode: RetrievalMode::Fts,
+                        scope: RecordScope::All,
+                        prefer_remaster: true,
+                        filter: request.filter.as_ref(),
+                    },
+                    text: request.text.as_deref(),
+                    offset: request.offset,
+                    limit: request.limit,
+                })?)
+            },
+        )
+    }
+    pub fn discover_raw_filter_counts(
+        &self,
+        request: RawFilterCountsRequest,
+    ) -> AppServiceResult<QueryFieldCounts> {
+        self.with_retrieval(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |retrieval| {
+                required_facet(retrieval.discover_filter_counts(SearchCounts {
+                    field: &request.field,
+                    clause_id: request.clause_id.as_deref(),
+                    context: SearchContext {
+                        search_profile: None,
+                        text: None,
+                        mode: RetrievalMode::Fts,
+                        scope: RecordScope::All,
+                        prefer_remaster: true,
+                        filter: request.filter.as_ref(),
+                    },
+                })?)
+            },
+        )
+    }
+    pub fn discover_filter_values(
+        &self,
+        request: DiscoverFilterValuesRequest,
+        execution: &ReadExecutionContext,
+    ) -> AppServiceResult<FilterValueListView> {
+        execution.check()?;
+        let projection_execution = execution.clone();
+        match request {
+            DiscoverFilterValuesRequest::Contextual {
+                only_matching,
+                context,
+                field_id,
+                clause_id,
+                text: value_text,
+                offset,
+                limit,
+            } => {
+                let (keys, filter, text, mode, search_profile, expected_generation) =
+                    context_parts(self, context)?;
+                self.with_retrieval(execution, move |retrieval| {
+                    check_generation(retrieval, expected_generation.as_deref())?;
+                    let resolved =
+                        retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
+                    let generation = retrieval.artifact_generation()?;
+                    let outcome = retrieval.discover_filter_values(SearchValues {
+                        only_matching,
+                        field: &field_id,
+                        clause_id: clause_id.as_deref(),
+                        context: SearchContext {
+                            search_profile: search_profile.as_ref(),
+                            text: text.as_deref(),
+                            mode,
+                            scope: scope(&keys),
+                            prefer_remaster: true,
+                            filter: filter.as_ref(),
+                        },
+                        text: value_text.as_deref(),
+                        offset,
+                        limit,
+                    })?;
+                    projection_execution.check()?;
+                    Ok(FilterValueListView::Contextual {
+                        outcome,
+                        search_profile: resolved,
+                        artifact_generation: generation,
+                    })
+                })
+            }
+            DiscoverFilterValuesRequest::Vocabulary {
+                scope: vocabulary_scope,
+                field_id,
+                text,
+                offset,
+                limit,
+                selected_values,
+            } => {
+                let keys = match &vocabulary_scope {
+                    FilterVocabularyScope::Artifact => None,
+                    FilterVocabularyScope::SavedList { list_ref } => {
+                        Some(self.saved_list_record_keys(list_ref)?)
+                    }
+                };
+                self.with_retrieval(execution, move |retrieval| {
+                    let values = retrieval.discover_filter_vocabulary(SearchVocabulary {
+                        field: &field_id,
+                        scope: scope(&keys),
+                        text: text.as_deref(),
+                        offset,
+                        limit,
+                        selected_values: &selected_values,
+                    })?;
+                    projection_execution.check()?;
+                    Ok(FilterValueListView::Vocabulary {
+                        scope: vocabulary_scope,
+                        values,
+                    })
+                })
+            }
+        }
+    }
+    pub fn discover_filter_counts(
+        &self,
+        request: DiscoverFilterCountsRequest,
+        execution: &ReadExecutionContext,
+    ) -> AppServiceResult<FilterCountsView> {
+        execution.check()?;
+        let (keys, filter, text, mode, search_profile, expected_generation) =
+            context_parts(self, request.context)?;
+        let projection_execution = execution.clone();
+        self.with_retrieval(execution, move |retrieval| {
+            check_generation(retrieval, expected_generation.as_deref())?;
+            let resolved = retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
+            let generation = retrieval.artifact_generation()?;
+            let counts = retrieval.discover_filter_value_counts(SearchValueCounts {
+                field: &request.field_id,
+                clause_id: request.clause_id.as_deref(),
+                values: &request.values,
+                context: SearchContext {
+                    search_profile: search_profile.as_ref(),
+                    text: text.as_deref(),
+                    mode,
+                    scope: scope(&keys),
+                    prefer_remaster: true,
+                    filter: filter.as_ref(),
+                },
+            })?;
+            projection_execution.check()?;
+            Ok(FilterCountsView {
+                counts,
+                search_profile: resolved,
+                artifact_generation: generation,
+            })
         })
     }
 }
-
-fn selected_filter_field_ids(request: &DiscoverFilterEditorRequest) -> Vec<String> {
-    let mut fields = request
-        .selected_field_ids
-        .iter()
-        .map(|field| app_filter_field_id(field))
-        .collect::<Vec<_>>();
-    match &request.context {
-        FilterDiscoveryContext::Filtered { filter } => {
-            fields.extend(
-                filter
-                    .clauses
-                    .iter()
-                    .map(|clause| app_filter_field_id(&clause.field)),
-            );
-        }
-        FilterDiscoveryContext::SavedList { filter, .. } => {
-            fields.extend(
-                filter
-                    .clauses
-                    .iter()
-                    .map(|clause| app_filter_field_id(&clause.field)),
-            );
+fn editor_values(
+    retrieval: &mut atlas_search::AtlasRetrievalService,
+    field: &str,
+    filter: Option<&QueryPredicate>,
+) -> AppServiceResult<Vec<String>> {
+    let mut values = Vec::new();
+    let mut offset = 0;
+    loop {
+        let result = retrieval.discover_filter_values(SearchValues {
+            only_matching: true,
+            field,
+            clause_id: None,
+            context: SearchContext {
+                search_profile: None,
+                text: None,
+                mode: RetrievalMode::Fts,
+                scope: RecordScope::All,
+                prefer_remaster: false,
+                filter,
+            },
+            text: None,
+            offset,
+            limit: 40,
+        })?;
+        let QueryFacetOutcome::Available { value } = result else {
+            return Ok(values);
+        };
+        let length = value.options.len();
+        values.extend(
+            value
+                .options
+                .into_iter()
+                .filter_map(|option| match option.value {
+                    atlas_domain::QueryLiteral::String(value) => Some(value),
+                    _ => None,
+                }),
+        );
+        offset += length;
+        if length == 0 || offset as u64 >= value.total_values {
+            break;
         }
     }
-    fields.sort();
-    fields.dedup();
-    fields
+    Ok(values)
 }
-
-fn record_scope_keys(
+type ContextParts = (
+    Option<Vec<RecordKey>>,
+    Option<QueryPredicate>,
+    Option<String>,
+    RetrievalMode,
+    Option<atlas_domain::SearchProfileId>,
+    Option<String>,
+);
+fn context_parts(
     service: &AtlasAppService,
-    context: &FilterDiscoveryContext,
-) -> AppServiceResult<Option<Vec<RecordKey>>> {
+    context: FilterDiscoveryContext,
+) -> AppServiceResult<ContextParts> {
     match context {
-        FilterDiscoveryContext::Filtered { .. } => Ok(None),
-        FilterDiscoveryContext::SavedList { list_ref, .. } => {
-            Ok(Some(service.saved_list_record_keys(list_ref)?))
+        FilterDiscoveryContext::Filtered {
+            filter,
+            text,
+            mode,
+            search_profile,
+            expected_artifact_generation,
+        } => Ok((
+            None,
+            filter,
+            text,
+            crate::retrieval::retrieval_mode(mode),
+            search_profile,
+            expected_artifact_generation,
+        )),
+        FilterDiscoveryContext::SavedList {
+            list_ref,
+            filter,
+            text,
+            mode,
+            search_profile,
+            expected_artifact_generation,
+        } => Ok((
+            Some(service.saved_list_record_keys(&list_ref)?),
+            filter,
+            text,
+            crate::retrieval::retrieval_mode(mode),
+            search_profile,
+            expected_artifact_generation,
+        )),
+    }
+}
+fn scope(keys: &Option<Vec<RecordKey>>) -> RecordScope<'_> {
+    keys.as_deref()
+        .map(RecordScope::Keys)
+        .unwrap_or(RecordScope::All)
+}
+
+fn required_facet<T>(outcome: QueryFacetOutcome<T>) -> AppServiceResult<T> {
+    match outcome {
+        QueryFacetOutcome::Available { value } => Ok(value),
+        QueryFacetOutcome::Unavailable { reason } => {
+            Err(crate::AppServiceError::invalid_request(format!(
+                "Contextual discovery is unavailable for this condition ({reason:?}); query execution remains supported. Discover unscoped values without a target clause."
+            )))
         }
     }
 }
 
-fn record_scope(keys: Option<&[RecordKey]>) -> RecordScope<'_> {
-    match keys {
-        Some(keys) => RecordScope::Keys(keys),
-        None => RecordScope::All,
+fn check_generation(
+    retrieval: &atlas_search::AtlasRetrievalService,
+    expected: Option<&str>,
+) -> AppServiceResult<()> {
+    let actual = retrieval.artifact_generation()?;
+    if let Some(expected) = expected
+        && expected != actual
+    {
+        return Err(crate::AppServiceError::artifact_generation_changed(
+            expected,
+            &actual,
+            atlas_app_model::AppRecoverableAction::RefreshResults,
+        ));
     }
-}
-
-fn metric_selector(query: Option<&str>) -> Option<MetricDiscoverySelector> {
-    let query = query?.trim();
-    if query.is_empty() {
-        None
-    } else {
-        Some(MetricDiscoverySelector::Query(query.to_string()))
-    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use atlas_app_model::{
-        BasicSearchFilter, FilterClause, FilterClauseOperator, FilterDiscoveryContext,
-        FilterFieldApplicability,
-    };
-
+    use super::*;
     use crate::test_support::fixture_worker;
+    use atlas_app_model::{
+        AppErrorCode, FilterOperandView, RetrievalModeView, SearchCriteria, SearchPageRequest,
+        SearchResultsRequest,
+    };
+    use serde_json::json;
+    use std::collections::BTreeMap;
 
-    #[test]
-    fn worker_discovers_app_facing_filter_fields_and_values() {
-        let fixture = fixture_worker();
-        let worker = &fixture.worker;
-        let context = FilterDiscoveryContext::Filtered {
-            filter: BasicSearchFilter {
-                clauses: vec![FilterClause {
-                    id: "kind-include_any".to_string(),
-                    field: "kind".to_string(),
-                    operator: FilterClauseOperator::IncludeAny,
-                    values: vec!["rule".to_string()],
-                    range: None,
-                    metric: None,
-                }],
-            },
-        };
-
-        let editor = worker
-            .discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
-                context: context.clone(),
-                selected_field_ids: Vec::new(),
-            })
-            .expect("fixture editor discovery should succeed");
-
-        assert_eq!(editor.matching_record_count, 3);
-        let fields = editor
-            .groups
-            .iter()
-            .flat_map(|group| group.fields.iter())
-            .collect::<Vec<_>>();
-        assert!(fields.iter().any(|field| field.id == "kind"));
-        assert!(fields.iter().any(|field| field.id == "pack"));
-        assert!(!fields.iter().any(|field| field.id == "pack_label"));
-
-        let values = worker
-            .discover_filter_values(atlas_app_model::DiscoverFilterValuesRequest {
-                context,
-                field_id: "pack".to_string(),
-                metric_query: None,
-                metric_domain: None,
-            })
-            .expect("fixture value discovery should succeed");
-
-        assert_eq!(values.field_id, "pack");
-        assert_eq!(values.matching_record_count, 3);
-        assert_eq!(values.options[0].value, "Actions");
-        assert_eq!(values.options[0].count, Some(3));
-        assert!(!values.options[0].disabled);
+    fn editor_request() -> DiscoverFilterEditorRequest {
+        DiscoverFilterEditorRequest {
+            filter: None,
+            selected_field_ids: vec!["actor.hp.maximum".into()],
+        }
     }
 
     #[test]
-    fn worker_preserves_clause_selected_fields_when_editor_scope_has_no_matches() {
-        let fixture = fixture_worker();
-        let worker = &fixture.worker;
-        let editor = worker
-            .discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
-                context: FilterDiscoveryContext::Filtered {
-                    filter: BasicSearchFilter {
-                        clauses: vec![filter_clause("pack_label", "Missing")],
+    fn filter_editor_remains_available_to_repair_invalid_fields_and_choices() {
+        let f = fixture_worker();
+        let baseline = f.worker.discover_filter_editor(editor_request()).unwrap();
+        for input in [
+            json!({"kind":"compare","clause_id":"invalid","field":"invented.field","op":"eq","value":"example"}),
+            json!({"kind":"in","clause_id":"invalid","field":"record.kind","values":["action"]}),
+        ] {
+            let predicate: QueryPredicate = serde_json::from_value(input).unwrap();
+            assert!(
+                !f.worker
+                    .validate_filter(predicate.clone())
+                    .unwrap()
+                    .errors
+                    .is_empty()
+            );
+            let search_error = f
+                .worker
+                .search_page(
+                    SearchResultsRequest {
+                        search_profile: None,
+                        criteria: SearchCriteria::ListRecords {
+                            filter: Some(predicate.clone()),
+                        },
+                        page: SearchPageRequest {
+                            number: 1,
+                            size: 10,
+                        },
+                        expected_artifact_generation: None,
                     },
-                },
-                selected_field_ids: vec!["publication_category".to_string()],
-            })
-            .expect("fixture editor discovery should succeed");
+                    &ReadExecutionContext::uncancellable(),
+                )
+                .unwrap_err()
+                .into_app_error();
+            assert_eq!(search_error.code, AppErrorCode::FilterInvalid);
+            let count_error = f
+                .worker
+                .discover_filter_counts(
+                    DiscoverFilterCountsRequest {
+                        context: FilterDiscoveryContext::Filtered {
+                            search_profile: None,
+                            expected_artifact_generation: None,
+                            filter: Some(predicate),
+                            text: None,
+                            mode: RetrievalModeView::Lexical,
+                        },
+                        field_id: "record.kind".into(),
+                        clause_id: Some("invalid".into()),
+                        values: vec![],
+                    },
+                    &ReadExecutionContext::uncancellable(),
+                )
+                .unwrap_err()
+                .into_app_error();
+            assert_eq!(count_error.code, AppErrorCode::FilterInvalid);
+            assert_eq!(
+                f.worker.discover_filter_editor(editor_request()).unwrap(),
+                baseline,
+            );
+        }
+    }
 
-        assert_eq!(editor.matching_record_count, 0);
-        let fields = editor
+    #[test]
+    fn editor_narrows_product_controls_without_removing_repair_metadata() {
+        let f = fixture_worker();
+        let editor = f
+            .worker
+            .discover_filter_editor(DiscoverFilterEditorRequest {
+                filter: Some(
+                    serde_json::from_value(
+                        json!({"kind":"in","field":"record.kind","values":["creature"]}),
+                    )
+                    .unwrap(),
+                ),
+                selected_field_ids: vec![],
+            })
+            .unwrap();
+        let fields: Vec<_> = editor
             .groups
             .iter()
-            .flat_map(|group| group.fields.iter())
-            .collect::<Vec<_>>();
-        let pack = fields
-            .iter()
-            .find(|field| field.id == "pack")
-            .expect("active pack_label clause should preserve app-facing pack field");
-        assert_eq!(
-            pack.applicability,
-            FilterFieldApplicability::SelectedUnavailable
+            .flat_map(|group| &group.fields)
+            .collect();
+        assert!(
+            !fields
+                .iter()
+                .any(|field| field.definition.path == "heritage.ancestry.uuid")
         );
-        let publication_family = fields
+        let hardness = fields
             .iter()
-            .find(|field| field.id == "publication_family")
-            .expect("explicit selected alias should preserve publication family field");
+            .find(|field| field.definition.id == "hazard.hardness")
+            .unwrap();
+        assert!(!hardness.applicable);
+        let kind = fields
+            .iter()
+            .find(|field| field.definition.id == "record.kind")
+            .unwrap();
+        assert!(
+            !kind
+                .choices
+                .iter()
+                .any(|choice| choice.value
+                    == atlas_domain::QueryLiteral::String("affliction".into()))
+        );
+        let duration = fields
+            .iter()
+            .find(|field| field.definition.id == "effect.duration.rounds")
+            .unwrap();
+        assert_eq!(duration.unit_fields.len(), 4);
+        assert_eq!(duration.label, "Duration");
+    }
+
+    #[test]
+    fn filter_editor_operands_cover_the_real_executable_catalog() {
+        use FilterOperandView::{List, Predicate, Range, Scalar, State};
+        let f = fixture_worker();
+        let editor = f.worker.discover_filter_editor(editor_request()).unwrap();
+        let actual: BTreeMap<_, _> = editor
+            .groups
+            .iter()
+            .flat_map(|group| &group.fields)
+            .flat_map(|field| &field.operators)
+            .map(|operator| (operator.operator.as_str(), operator.operand))
+            .collect();
         assert_eq!(
-            publication_family.applicability,
-            FilterFieldApplicability::SelectedUnavailable
+            actual,
+            BTreeMap::from([
+                ("eq", Scalar),
+                ("neq", Scalar),
+                ("lt", Scalar),
+                ("lte", Scalar),
+                ("gt", Scalar),
+                ("gte", Scalar),
+                ("includes", Scalar),
+                ("in", List),
+                ("includes_any", List),
+                ("includes_all", List),
+                ("excludes_any", List),
+                ("between", Range),
+                ("state", State),
+                ("exists", Predicate),
+            ])
+        );
+
+        let includes = |values| {
+            serde_json::from_value::<QueryPredicate>(json!({
+                "kind":"set_match","field":"traits","op":"includes","values":values
+            }))
+            .unwrap()
+        };
+        assert!(
+            f.worker
+                .validate_filter(includes(vec!["fire"]))
+                .unwrap()
+                .errors
+                .is_empty()
         );
         assert!(
-            !fields.iter().any(|field| field.id == "kind"),
-            "unselected unavailable candidates should not be returned"
+            !f.worker
+                .validate_filter(includes(vec!["fire", "magical"]))
+                .unwrap()
+                .errors
+                .is_empty()
         );
-    }
-
-    #[test]
-    fn worker_discovers_values_with_same_app_field_excluded_from_scope() {
-        let fixture = fixture_worker();
-        let worker = &fixture.worker;
-        let context = FilterDiscoveryContext::Filtered {
-            filter: BasicSearchFilter {
-                clauses: vec![
-                    filter_clause("kind", "rule"),
-                    filter_clause("pack_label", "Missing"),
-                ],
-            },
-        };
-
-        let values = worker
-            .discover_filter_values(atlas_app_model::DiscoverFilterValuesRequest {
-                context,
-                field_id: "pack".to_string(),
-                metric_query: None,
-                metric_domain: None,
-            })
-            .expect("same-field exclusion should keep pack discovery valid");
-
-        assert_eq!(values.field_id, "pack");
-        assert_eq!(
-            values.matching_record_count, 3,
-            "pack_label clause should be excluded while kind=rule remains active"
-        );
-        assert_eq!(values.options.len(), 1);
-        assert_eq!(values.options[0].value, "Actions");
-        assert_eq!(values.options[0].count, Some(3));
-    }
-
-    fn filter_clause(field: &str, value: &str) -> FilterClause {
-        FilterClause {
-            id: format!("{field}-include_any"),
-            field: field.to_string(),
-            operator: FilterClauseOperator::IncludeAny,
-            values: vec![value.to_string()],
-            range: None,
-            metric: None,
-        }
     }
 }

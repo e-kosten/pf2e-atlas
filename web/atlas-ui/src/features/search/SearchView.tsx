@@ -1,58 +1,101 @@
-import { ExternalLink } from "lucide-react";
+import { Alert, Button, Space, Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
-import { FilterPanel } from "../../shared/filters/FilterPanel";
-import { ResultTable } from "./ResultTable";
-import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
+import { FilterControls } from "../../shared/filters/FilterPanel";
+import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
-import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
-import {
-  navigateToAtlasRoute,
-  recordPath,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
-import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
+import { SearchModelSelect } from "./SearchModelSelect";
+import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
+import { useSearchProfile } from "../../shared/search/SearchProfileContext";
+import { hasExecutableSearch } from "../../shared/filters/searchState";
 
-type SearchViewProps = {
-  workspace: SearchWorkspaceState;
-};
-
-export function SearchView({ workspace }: SearchViewProps) {
+export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
+  const profile = useSearchProfile();
+  const hasCriteria = hasExecutableSearch(workspace.search);
+  const failed = Boolean(
+    workspace.errorMessage || workspace.search.filterError || profile.error,
+  );
+  const loading =
+    !failed &&
+    (workspace.resultsLoading ||
+      workspace.resultsRefreshing ||
+      (hasCriteria && profile.loading));
+  const page = workspace.resultPage?.page;
+  const showHeader = page && page.total > 0n;
   return (
-    <WorkspaceLayout
-      filter={<FilterPanel workspace={workspace} />}
-      results={<ResultTable workspace={workspace} />}
-      resultsHeaderActions={<ResultPaneHeader workspace={workspace} />}
-      selectedRecordKey={workspace.selectedRecordKey}
-      detailHeaderActions={
-        workspace.selectedRecordKey ? (
-          <>
-            <AddToListButton recordKey={workspace.selectedRecordKey} />
-            <PaneIconLink
-              href={recordPath(workspace.selectedRecordKey)}
-              icon={<ExternalLink size={16} />}
-              label="Open full page"
-              onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) {
-                  return;
-                }
-                event.preventDefault();
-                navigateToAtlasRoute({
-                  kind: "record",
-                  recordKey: workspace.selectedRecordKey!,
-                });
-              }}
-            />
-          </>
-        ) : null
-      }
-      detail={
-        <RecordDetailPane
-          detail={workspace.recordDetail}
-          loading={workspace.detailLoading}
-          onReference={workspace.selectRecord}
+    <main className="search-workspace">
+      <FilterControls
+        filterState={workspace}
+        layout="toolbar"
+        searchRowEnd={<SearchModelSelect />}
+      >
+        {workspace.search.similarSeed && (
+          <Space>
+            <Typography.Text>
+              {workspace.resultPage?.mode.kind === "similar_records"
+                ? `Similar to ${workspace.resultPage.mode.seed.title}`
+                : "Similar records"}
+            </Typography.Text>
+            <Button
+              aria-label="Clear similar criterion"
+              size="small"
+              onClick={() =>
+                workspace.setSearch({
+                  ...workspace.search,
+                  similarSeed: null,
+                  mode: "browse",
+                })
+              }
+            >
+              Clear
+            </Button>
+          </Space>
+        )}
+      </FilterControls>
+      <SearchProfileNotice />
+      {workspace.errorMessage && (
+        <Alert
+          type="error"
+          showIcon
+          title="Unable to update results"
+          description={workspace.errorMessage}
+          action={
+            <Button
+              loading={workspace.resultsRecovering}
+              onClick={() =>
+                workspace.resultsPaused
+                  ? void workspace.refreshResults()
+                  : workspace.refresh()
+              }
+            >
+              {workspace.resultsPaused ? "Refresh results" : "Retry"}
+            </Button>
+          }
         />
-      }
-    />
+      )}
+      <ReferenceBrowser
+        emptyMessage={
+          failed
+            ? null
+            : hasCriteria
+              ? "No matching records."
+              : "Search or choose filters."
+        }
+        rows={workspace.resultPage?.rows ?? []}
+        loading={loading}
+        selectedRecordKey={workspace.selectedRecordKey}
+        onSelect={(row) => workspace.selectRecord(row.record.record_key)}
+        reading={workspace.reading}
+        positions={workspace.positions}
+        resultsHeader={
+          showHeader ? <ResultPaneHeader workspace={workspace} /> : undefined
+        }
+        readerActions={
+          workspace.reading.detail && (
+            <AddToListButton recordKey={workspace.reading.detail.record.record_key} />
+          )
+        }
+      />
+    </main>
   );
 }

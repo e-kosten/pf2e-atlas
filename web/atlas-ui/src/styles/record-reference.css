@@ -1,0 +1,293 @@
+.record-reference {
+  --record-inset: 24px;
+  container-type: inline-size;
+  container-name: record-pane;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  padding: var(--record-inset);
+  line-height: 1.55;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.record-reference__content,
+.prepared-content {
+  min-width: 0;
+  max-width: 100%;
+}
+.prepared-content,
+.prose {
+  width: 100%;
+  max-width: 78ch;
+  justify-self: start;
+  margin-inline: 0;
+}
+.prepared-content :is(p, ul, ol, blockquote, dl) {
+  margin-block: 0 12px;
+}
+.record-reference .prepared-content :is(h2, h3, h4, h5, h6) {
+  margin-block: 20px 8px;
+  text-wrap: pretty;
+}
+.prepared-content > :last-child {
+  margin-bottom: 0;
+}
+.prepared-content {
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+.prepared-content table {
+  overflow-wrap: normal;
+}
+.record-reference__header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+  min-width: 0;
+}
+.record-reference__title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.record-reference__title h2 {
+  flex: 1 1 12ch;
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+.record-reference__title .record-reference__kind {
+  margin: 0 0 0 auto;
+  text-align: right;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.record-reference__header p {
+  margin: 6px 0 0;
+}
+.badge-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  min-width: 0;
+}
+.record-reference .muted {
+  color: var(--muted);
+}
+.actor-casting__spells {
+  margin-left: 16px;
+}
+.actor-casting {
+  align-content: start;
+}
+.record-reference h3 {
+  margin: 0 0 8px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.record-reference h4 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.record-reference h5 {
+  margin: 0 0 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.record-fact-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.record-fact {
+  line-height: 1.7;
+}
+.record-fact > strong {
+  margin-right: 4px;
+}
+.record-number {
+  padding: 0;
+  height: auto;
+  font-weight: 700;
+}
+.record-number-explanation p {
+  margin: 4px 0;
+}
+.actor-reference__facts {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.actor-reference__defenses {
+  border-bottom: 1px solid var(--line);
+  padding-block: 10px;
+}
+.actor-reference__activities {
+  display: grid;
+  gap: 8px;
+}
+.actor-activity {
+  padding-block: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.actor-activity p,
+.record-damage p {
+  margin: 4px 0;
+}
+.spell-reference {
+  display: grid;
+  gap: 14px;
+}
+.spell-reference__casting {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.spell-reference__change {
+  margin-top: 10px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+}
+.record-reference--compact {
+  --record-inset: 14px;
+  gap: 10px;
+}
+.record-reference--encounter {
+  --record-inset: 0px;
+}
+.record-reference--compact .record-key {
+  display: none;
+}
+.record-reference--compact .record-reference__title h2 {
+  font-size: 1.2rem;
+}
+.record-reference--compact .record-reference__kind {
+  font-size: 0.85rem;
+}
+@media (max-width: 600px) {
+  .record-reference:not(.record-reference--compact):not(.record-reference--encounter) {
+    --record-inset: 16px;
+  }
+}
+
+.record-reference__flavor:empty {
+  display: none;
+}
+.actor-reference__mechanics {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.actor-reference__actions {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  min-width: 0;
+}
+.actor-reference__facts > *,
+.actor-reference__mechanics > * {
+  min-width: 0;
+}
+.actor-casting__rows {
+  display: grid;
+  gap: 8px;
+}
+.actor-casting__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  padding-block: 4px;
+}
+.actor-casting__row > :first-child {
+  font-weight: 600;
+}
+.actor-casting__row .muted {
+  font-size: 0.85rem;
+}
+.actor-activity__title {
+  display: inline-flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.owned-ability-reading__entry {
+  min-width: 0;
+  padding-block: 8px;
+}
+.owned-reading-continuation {
+  overflow-anchor: none;
+  padding-block: 8px;
+  color: var(--muted);
+}
+.record-reference__owner {
+  padding-inline: 0;
+}
+.record-reference__facts,
+.record-number,
+.actor-casting__row {
+  font-variant-numeric: tabular-nums;
+}
+.hazard-reference__detection {
+  display: grid;
+  gap: 6px;
+}
+.hazard-reference__detection .prepared-content {
+  max-width: 78ch;
+}
+@container record-pane (min-width: 680px) {
+  .actor-reference__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .actor-reference__mechanics {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+  .actor-reference__mechanics:not(:has(> .actor-casting)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .actor-reference__runtime {
+    grid-column: 1 / -1;
+  }
+}
+
+.record-reference--encounter {
+  gap: 12px;
+}
+.actor-reference__facts--combat {
+  gap: 8px;
+}
+.actor-reference__facts--combat .actor-reference__defenses {
+  padding-block: 0 6px;
+}
+.actor-reference__facts--combat .actor-reference__defenses h3 {
+  margin-bottom: 4px;
+}
+.actor-reference__facts--combat .actor-reference__awareness,
+.actor-reference__facts--combat .actor-reference__movement {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 12px;
+}
+.actor-reference__combat-budget {
+  align-self: start;
+}
+.actor-reference__secondary {
+  display: grid;
+  gap: 12px;
+}
+.actor-reference__skills {
+  display: grid;
+  gap: 16px;
+}
+@container record-pane (min-width: 480px) {
+  .actor-reference__facts--combat {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

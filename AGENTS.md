@@ -4,17 +4,31 @@
 
 PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 
-- `crates/atlas-cli`: command parsing, output, progress, exit codes, and agent skill installation.
+- `crates/atlas-cli`: product command parsing, presentation, exit codes, and agent skill installation.
+- `crates/atlas-dev`: local Rust developer commands for source analysis, path auditing, and artifact inspection; excluded from releases.
+- `crates/atlas-cli-support`: shared path/progress argument vocabulary, JSON envelopes, and progress rendering for both Rust CLIs.
 - `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction.
 - `crates/atlas-search`: product-facing retrieval orchestration.
 - `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL.
-- `crates/atlas-ingest`: Foundry source loading, normalization, enrichment, generated records, embedding execution during builds, and artifact writing.
-- `crates/atlas-embedding`: model catalog, query/document embedding generation, token budgeting, and semantic text rendering.
-- `crates/atlas-record`: normalized records, content documents, presentation contracts, FTS projection, and reference graph policy.
-- `crates/atlas-domain`: shared request, filter, record-key, detail-level, and metadata vocabulary.
+- `crates/atlas-foundry-model`: generated authored DTOs, ordered source primitives, strict parsing/admission, pure document dispatch and typed snapshot codec.
+- `crates/atlas-ingest`: typed Foundry loading, content/reference preparation, attributed indexing inputs, embedding execution and artifact-build composition.
+- `crates/atlas-embedding`: the two pinned search-profile contracts, shared baseline segmentation, native budgets, retained query sessions and FastEmbed inference.
+- `crates/atlas-record`: source-backed records, borrowed authored views, selected content, typed query facts and reference policy.
+- `crates/atlas-domain`: shared typed query, source address, lightweight summary and canonical record-key vocabulary.
+- `crates/atlas-app-service`: product workflows, local overlays and consumer presentation projections.
+- `crates/atlas-app-model`: generated frontend contracts for workflows and presentation.
+- `crates/atlas-local-state`: saved lists and encounters in their separate writable database.
+- `crates/atlas-web`: web transport and embedded frontend hosting.
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing.
 
 The first-party local-agent skill lives in `skills/pf2e-atlas-cli`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
+
+Private TypeScript contributor packages live under `dev-tools/`. Keep package
+configuration at each package root, implementation in `src/`, command parsing and
+exit behavior in `src/cli/`, and tests in `tests/`. Source-contract fixtures stay
+in the package; large extracted declaration graphs belong in ignored caches and
+are regenerated from the pinned upstream source. Operational shell and
+PowerShell workflows and installers remain under `scripts/`.
 
 ## Architecture Docs
 
@@ -41,6 +55,15 @@ Keep each documentation surface focused on its job:
 
 When writing or editing docs, prefer statements of current behavior and current ownership over repo-history framing unless the document is explicitly an ADR or backlog/history note.
 
+## Planning Documents
+
+Use a written plan for substantial work, with one current plan per task. Reuse it
+as the discussion evolves; routine fixes and next-step questions need no new file.
+Keep plans concise and their status explicit. Consult the local
+`scratch/plans/README.md` when present; keep it current and archive completed or
+superseded plans with references/provenance preserved. Use the task's appropriate
+checkout and base. See the repo-plan skill for the local lifecycle.
+
 ## Frontend UI Direction
 
 For `web/atlas-ui`, Ant Design is the selected component library for generic application UI. Prefer Ant components and component tokens for buttons, icon buttons, links, navigation controls, tables, forms, overlays, selectors, alerts, empty/loading states, tags, pagination, and selected/active/hover styling before adding custom controls or local CSS state styling. Custom Atlas components should be reserved for product-specific surfaces such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, and encounter-runtime panels. See `web/atlas-ui/docs/frontend-guidelines.md` and `web/atlas-ui/AGENTS.md` for concrete frontend editing rules.
@@ -50,7 +73,8 @@ For `web/atlas-ui`, Ant Design is the selected component library for generic app
 - `scripts/install-git-hooks.sh`: configure this clone to use the tracked git hooks in `.githooks/`.
 - `scripts/preflight.sh`: verify the current checkout is a linked worktree on a non-`main` branch.
 - `just verify` or `scripts/verify.sh`: run the Rust fmt, clippy, test, and build gate.
-- `cargo run -p atlas-cli -- --help`: run the CLI from source.
+- `cargo run -p atlas-cli -- --help`: run the product CLI from source.
+- `cargo run -p atlas-dev -- --help`: run Rust developer diagnostics without building the web UI or starting Node.
 - `cargo run -p atlas-cli -- setup --check --json`: inspect setup readiness from source.
 - `cargo install --path crates/atlas-cli --locked`: install the local `atlas` CLI.
 
@@ -64,9 +88,11 @@ Prefer descriptive module names and explicit ownership:
 - runtime path/setup policy belongs in `atlas-runtime`
 - SQLite reading and validation belong in `atlas-index`
 - retrieval orchestration belongs in `atlas-search`
-- source loading, normalization, enrichment, and writing belong in `atlas-ingest`
-- presentation-neutral record/content models belong in `atlas-record`
-- CLI presentation and exit behavior belong in `atlas-cli`
+- typed source loading, preparation and artifact-build composition belong in `atlas-ingest`
+- source-backed record/content policies and borrowed authored views belong in `atlas-record`
+- consumer presentation and local gameplay overlays belong in `atlas-app-service`
+- Product command presentation and exit behavior belong in `atlas-cli`; developer command presentation belongs in `atlas-dev`
+- Shared CLI argument vocabulary, JSON envelopes, and progress rendering belong in `atlas-cli-support`; runtime path policy stays in `atlas-runtime`
 
 Use `cargo fmt` for formatting. Keep Clippy clean under the workspace gate.
 
@@ -80,20 +106,26 @@ Keep crate entry points focused on composition:
 
 Rust workspace tests are the primary validation surface. Add or update tests under the owning crate for behavior changes, especially around ingest, indexing, lookup, search, filter discovery, graph context, and artifact validation.
 
-Run the Rust verification gate before committing non-docs changes:
+Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates: the Rust gate for Rust changes and the frontend gate for web UI changes. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
+
+Commit and merge hooks enforce formatting and staged whitespace only. Pushes do not rerun validation automatically. Run substantive checks explicitly, report their candidate and results, and confirm CI passes on the published PR head before declaring it ready to merge.
+
+The Rust gate is:
 
 ```bash
 just verify
 # or: scripts/verify.sh
 ```
 
-Docs-only or instruction-only changes do not require the Rust verification gate unless the change also affects executable examples, generated output expectations, or another validated artifact.
+Docs-only or instruction-only changes do not require the Rust or frontend gates unless the change also affects executable examples, generated output expectations, or another validated artifact. Inspect the diff and check whitespace and any changed links or examples. See `CONTRIBUTING.md` for gate commands and hook behavior.
 
 ## Commit Guidelines
 
 Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include a summary line; a description body is optional, but when present it must be separated from the summary by a blank line.
 
-Agents should not commit automatically just because an implementation task appears complete. Treat commits as an explicit milestone. When the user asks for a commit, inspect the scoped diff, run the validation appropriate to the change, fix blocking issues, and then create the commit. Do not assume commit preparation must invoke a separate validation skill unless the user explicitly asks for that validation.
+Authorization to implement includes creating local commits at logical, validated boundaries. Do not request separate permission for each commit. Planning or design discussion alone does not authorize implementation. Explicit user instructions such as plan-only, no commits, or local-only take precedence.
+
+Each commit should express a coherent change, include its relevant tests and documentation, and leave the branch buildable. A PR may contain several commits; commit boundaries do not dictate PR size. Avoid accumulating an entire multi-stage task uncommitted. Do not assume commit preparation must invoke a separate validation skill unless the user explicitly asks for that validation.
 
 Do not batch unrelated changes into one commit, and do not commit half-finished work just to create progress snapshots. If the worktree already contains unrelated uncommitted changes, leave them untouched and commit only the files for the completed unit of work, or explicitly tell the user why a clean commit boundary is blocked.
 
@@ -106,11 +138,44 @@ Refactors must land as finished end-state changes, not as transitional scaffoldi
 - Do not treat a refactor as complete if it leaves behind intermediate shims, compatibility wrappers, transitional files, partial migrations, or mixed old-and-new implementations across the codebase.
 - Validation for refactor work must explicitly check for leftover uses of the old implementation, leftover shim files, and any other signs of an intermediate state.
 
-## Optional Worktree Policy
+## Worktree Policy
 
-Agents may work in the current checkout unless the user explicitly asks for a worktree or the task has a concrete need for checkout isolation. Use worktrees for parallel delegated implementation, risky long-running work, preserving a dirty main checkout, or when the user wants an isolated branch.
+Implement each task in a dedicated linked worktree on a feature branch, normally under `.worktrees/<task-slug>`. Continue using that worktree for related feedback and revisions rather than creating a new worktree for every turn. Read-only exploration may use the current checkout. Preserve unrelated changes and any running preview the user is reviewing.
+
+Choose the base branch from the task context. For the source-modeling workstream, use `integration/source-modeling`; dependent PRs may target their preceding feature branch. Use `main` for independent work intended for the current mainline. Verify the base before editing, and do not mix unrelated workstreams.
+
+Keep the task worktree available while its PR or local build is under review. After merge or cancellation, remove it as part of task completion once needed uncommitted work is preserved and no active preview, agent, build, or symlink depends on it. At the start of the next task, inspect existing worktrees and finish outstanding cleanup. Retaining Git history does not require retaining a checkout or its build output.
+
+If a worktree must remain, record its path, purpose, owner, and removal condition in the task handoff. Preserve only the frozen binary, artifact, saved state, and small review evidence needed for a stable preview; a preview normally does not need its compiler cache. Check Git status and ignored files before removal. Never force-remove needed dirty work, user state, or another checkout's symlink target. Remove worktrees serially with `git worktree remove` and verify the resulting inventory.
+
+These workflow rules take precedence over older skill defaults requiring separate commit permission, direct local landing, or immediate worktree cleanup.
 
 Git commands that mutate repository state must never be run in parallel within the same repository or worktree. Serialize `git add`, `git commit`, `git rebase`, `git merge`, `git cherry-pick`, `git worktree`, and `git stash` operations.
+
+## Disk And Build Output
+
+Before creating a worktree or starting an expensive gate, check free space and the current task's compiler-cache size. Periodically inspect the worktree inventory rather than repeatedly scanning all archived evidence. Below 30 GiB free, reclaim this task's obsolete build output first; stop expanding caches if that cannot be done safely. A checkout target above 15 GiB is an investigation trigger, not permission to delete active files. Check growth during long builds rather than running the disk to exhaustion.
+
+Use checkout-local Cargo output; never share or symlink targets across worktrees because tests can embed checkout-specific paths. Reuse one target per task rather than creating outputs for each agent or validation retry. Ordinary dev/test builds use limited debug information and enable incremental compilation except for the large generated atlas-foundry-model crate. Clean CI jobs disable incremental compilation globally. Keep hooks and manual checks on these defaults rather than introducing per-agent overrides. Use the documented full-debug profile when variable/type inspection is needed; retain active output and remove obsolete configurations when no longer needed. Do not routinely clean active targets to meet a size preference: rebuilding adds latency and disk writes.
+
+Compiler caches are disposable when their task ends; saved state, source/model assets, and builds still under review require explicit preservation. Preserve live dependency targets such as `node_modules` when another checkout links to them. Use focused checks during iteration and full gates at the required milestones; reuse successful evidence for an unchanged candidate. See CONTRIBUTING.md for debugging and retention details.
+
+## Pull Requests And Human Review
+
+For changes that affect user experience, including UI and CLI behavior or output,
+provide an early functional review checkpoint. Share a runnable preview or CLI
+commands with representative output as soon as the core flow works, then pause
+for user feedback before broad test rewrites, full validation or independent
+presentation review. Run the compilation and focused checks needed to make that
+checkpoint usable, and disclose unfinished behavior and validation gaps. Preserve
+existing tests; early review does not replace the required final tests, reviews
+and gates after the UX direction is confirmed.
+
+For implementation work, pushing the task branch and opening or updating a PR are part of the normal workflow unless the user requests local-only work. Confirm the intended PR base from the task context. Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and outstanding limitations. Keep related review fixes on the same PR as additional logical commits; do not rewrite published history without agreement.
+
+Provide a stable local build when the change is useful to inspect. Identify its branch, commit, URL or command, and any sample-data limitations; disclose uncommitted differences if present. Keep the reviewed build stable while developing further changes, using a separate checkout or built artifact when necessary. Explicitly identify when an updated build replaces it. UI work requires interaction and visual review alongside automated checks; use Astra sub-agents for presentation review, including actual browser inspection.
+
+Do not merge PRs, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization. Do not use `scripts/land-worktree.sh` or `just land` as the normal landing path. Passing local checks, passing CI, and human acceptance are separate outcomes; report their status independently.
 
 ## Configuration & Data Notes
 

@@ -1,10 +1,10 @@
-import { Button, Table, Typography } from "antd";
+import { Table, Typography } from "antd";
 import type { TableProps } from "antd";
 import type { Key, MouseEvent, ReactNode } from "react";
 
 type IndexTableProps<Row extends object> = Omit<
   TableProps<Row>,
-  "onRow" | "pagination" | "rowKey" | "size"
+  "onRow" | "pagination" | "rowKey" | "size" | "tableLayout"
 > & {
   onActivateRow: (row: Row) => void;
   rowKey: (row: Row) => Key;
@@ -18,13 +18,40 @@ export function IndexTable<Row extends object>({
   return (
     <Table<Row>
       {...props}
+      tableLayout="auto"
       pagination={false}
       onRow={(row) => ({
         className: "index-row",
         tabIndex: 0,
-        onClick: () => onActivateRow(row),
+        onClick: (event) => {
+          if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey
+          ) {
+            return;
+          }
+          const interactive =
+            event.target instanceof Element
+              ? event.target.closest(
+                  'a, button, input, select, textarea, summary, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="combobox"], [contenteditable]:not([contenteditable="false"]), [tabindex]:not([tabindex="-1"])',
+                )
+              : null;
+          if (interactive && interactive !== event.currentTarget) {
+            return;
+          }
+          onActivateRow(row);
+        },
         onKeyDown: (event) => {
-          if (event.key === "Enter") {
+          if (
+            event.key === "Enter" &&
+            event.target === event.currentTarget &&
+            !event.defaultPrevented
+          ) {
+            event.preventDefault();
             onActivateRow(row);
           }
         },
@@ -54,6 +81,7 @@ export function RowTitleLink({
 }) {
   return (
     <Typography.Link
+      style={{ display: "grid", height: "auto", padding: 0 }}
       className="index-row-link"
       disabled={disabled}
       href={disabled ? undefined : href}
@@ -62,29 +90,5 @@ export function RowTitleLink({
       <span className="index-row-link__title">{title}</span>
       {subtitle ? <small>{subtitle}</small> : null}
     </Typography.Link>
-  );
-}
-
-export function RowTitleButton({
-  disabled = false,
-  onClick,
-  subtitle,
-  title,
-}: {
-  disabled?: boolean;
-  onClick: (event: MouseEvent<HTMLElement>) => void;
-  subtitle?: ReactNode;
-  title: ReactNode;
-}) {
-  return (
-    <Button
-      className="index-row-link index-row-link--button"
-      disabled={disabled}
-      onClick={onClick}
-      type="link"
-    >
-      <span className="index-row-link__title">{title}</span>
-      {subtitle ? <small>{subtitle}</small> : null}
-    </Button>
   );
 }

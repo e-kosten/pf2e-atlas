@@ -154,19 +154,26 @@ pub struct TagAssignmentContextPacket {
 }
 ```
 
-The record context should be built from `RecordPresentationDocument`, `PresentationSection`, and `PresentationContent` or a stable projection of those types. If agents need plain text, derive it with a renderer-neutral plain-text function from the presentation/content model and include it beside structured sections. Do not scrape or round-trip terminal output.
+The record context should use checked source-backed facts and selected prepared
+content through intentional app-service views. Derive plain text from selected
+prepared HTML when needed; do not scrape terminal output or expose the complete
+DTO as a tagging contract. This future context does not restore the retired
+RecordPresentationDocument or persisted RichDocument model.
 
 Include:
 
 - record key, title, record kind, level, rarity, traits, and publication summary
 - optional `foundry_record_type` as a refinement fact
 - renderer-neutral presentation sections and content sections
-- normalized facts and labelled metrics/mechanics summaries
+- typed authored facts and explicitly supported labelled mechanics summaries
 - compact related-record summaries
 - current assignment if present
 - applicable tag definitions, guidance, and applicability explanations
 
-Do not expose `AtlasRecord` wholesale as the agent contract. Do not expose raw Foundry JSON, low-level provenance (`source_path`, `raw_json`), coarse Foundry document type, folder ids, visibility/retrieval policy internals, FTS/search projection text, raw reference-policy settings, or variant-detection heuristics/confidence as baseline tagging context. Do not expose raw mechanics or metric rows without labels.
+Do not expose the complete source-backed record as the agent contract. Keep raw
+Foundry JSON, source paths, folder IDs, preparation internals and full search
+projections out of baseline tagging context. Selected facts need clear labels,
+availability and provenance rather than anonymous metric rows.
 
 ## Agent Workflow
 
@@ -188,7 +195,7 @@ Agents may suggest new ontology entries as secondary output when the catalog mis
 
 - `atlas-tags` owns tag ontology, YAML parsing, applicability evaluation, assignment validation, ontology-suggestion validation, evidence validation, and agent contract DTOs.
 - `atlas-domain` owns shared PF2e Atlas primitives that tags depend on, such as `RecordKind`, `RecordKey`, metadata fields, and filter vocabulary. It should not own tag ontology simply because tags cross crate boundaries.
-- `atlas-record` owns tagging record-context projections from normalized records, `RichDocument`, `RecordPresentationDocument`, metrics, traits, references, and normalized facts. It must not know about SQLite tables or agent workflow.
+- `atlas-record` owns borrowed source facts and pure content interpretation; it knows neither SQLite tables nor agent workflow. `atlas-app-service` composes intentional product-facing record context from those facts and selected prepared content.
 - `atlas-ingest` consumes validated tag catalogs and assignment files during regular index build.
 - `atlas-index` owns the `record_tags` table family, physical schema, read/write capabilities, validation, and filter/discovery SQL over authoritative tag rows.
 - `atlas-search` owns product-facing tagging services: untagged worklists, applicable tag discovery, assignment context assembly, reconciliation contracts, and search/filter integration.
@@ -197,9 +204,15 @@ Agents may suggest new ontology entries as secondary output when the catalog mis
 
 ## Artifact Contract
 
-Runtime tag filters must use authoritative SQLite rows in `record_tags`, written during regular `atlas index build` from validated YAML catalog and assignment files. `record_tags` is the product-facing table name; do not use legacy `record_derived_tags` for the new model.
+Future runtime tag filters require authoritative index-owned assignment rows,
+written from validated catalogs and assignments. The source-backed artifact does
+not implement a record_tags table or tag predicates. Add that storage/query
+contract together when tag integration is approved; independent YAML validation
+does not imply product filtering support.
 
-The current artifact may continue to reject `metadata.set.derived_tags` until authoritative rows, validation, and query support exist. Once `record_tags` exists, filter discovery and search should compose tag filters through the same authoritative SQL keyset path as other filters.
+When implemented, discovery and search must compose tag predicates through the
+same catalog-bound SQL eligibility path as other filters. Retired derived-tag
+field names do not acquire compatibility aliases.
 
 ## Deferred Decisions
 

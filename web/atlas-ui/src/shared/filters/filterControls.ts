@@ -1,543 +1,254 @@
 import type {
-  FilterClause,
-  FilterClauseOperator,
-  FilterEditorFieldView,
-  FilterValueOption,
+  FilterDiscoveryContext,
+  FilterEditorView,
+  FilterVocabularyScope,
+  QueryFieldDefinition,
+  QueryPredicate,
 } from "../../generated/atlas";
-import type {
-  MetricComparisonState,
-  NumericRangeState,
-  SearchFormState,
-} from "./searchState";
-import type { FilterEditorView, FilterValueListView } from "../../generated/atlas";
-
-export type FilterSelectOption = {
-  value: string;
-  label: string;
-  disabled?: boolean;
-};
-
-export type FilterControlKind = "option" | "range" | "boolean" | "metric";
-
-export type FilterSelectGroup = {
-  label: string;
-  options: FilterSelectOption[];
-};
-
-export type ValueFilterOperatorPolicy = {
-  defaultOperator: "include_all" | "include_any";
-  canExclude: boolean;
-};
-
+import type { SearchFormState } from "./searchState";
 export type FilterPanelState = {
   search: SearchFormState;
   setSearch: (next: SearchFormState) => void;
   filterEditor: FilterEditorView | undefined;
-  filterValuesByField: Record<string, FilterValueListView | undefined>;
-  filterDiscoveryLoading: boolean;
-  errorMessage: string | null;
+  filterCountsEnabled?: boolean;
+  filterCountQueryKey?: readonly unknown[];
+  filterDiscoveryContext?: FilterDiscoveryContext;
+  vocabularyScope?: FilterVocabularyScope;
+  filterDiscoveryLoading?: boolean;
+  filterDiscoveryError?: string | null;
 };
-
-export function additionalFilterGroups(
-  workspace: FilterPanelState,
-): FilterSelectGroup[] {
-  const visible = new Set(workspace.search.visibleFilterIds);
-  const hidden = new Set(workspace.search.hiddenFilterIds);
-  return (workspace.filterEditor?.groups ?? [])
-    .map((group) => ({
-      label: group.label,
-      options: group.fields
-        .filter(
-          (field) =>
-            (field.placement === "addable" ||
-              (field.placement === "initially_visible" && hidden.has(field.id))) &&
-            !visible.has(field.id) &&
-            field.applicability === "applicable",
-        )
-        .map((field) => ({ value: field.id, label: field.label })),
-    }))
-    .filter((group) => group.options.length > 0);
-}
-
-export function visibleEditorFilterFields(
-  workspace: FilterPanelState,
-): FilterEditorFieldView[] {
-  const hidden = new Set(workspace.search.hiddenFilterIds);
-  return (workspace.filterEditor?.groups ?? [])
-    .flatMap((group) => group.fields)
-    .filter(
-      (field) =>
-        field.placement === "always_visible" ||
-        (field.placement === "initially_visible" && !hidden.has(field.id)),
-    );
-}
-
-export function additionalVisibleFilterIds(workspace: FilterPanelState): string[] {
-  return workspace.search.visibleFilterIds.filter((fieldId) => {
-    const field = fieldById(workspace, fieldId);
-    return field && field.placement === "addable";
-  });
-}
-
-export function discoveredOptions(
-  workspace: FilterPanelState,
-  fieldId: string,
-): FilterSelectOption[] {
-  const options = workspace.filterValuesByField[fieldId]?.options;
-  if (!options || options.length === 0) {
-    return [];
-  }
-  return options.map(valueOption);
-}
-
-export function addVisibleFilter(workspace: FilterPanelState, fieldId: string | null) {
-  if (!fieldId) {
-    return;
-  }
-  const field = fieldById(workspace, fieldId);
-  if (!field || workspace.search.visibleFilterIds.includes(fieldId)) {
-    return;
-  }
-  if (field.placement === "initially_visible") {
-    workspace.setSearch({
-      ...workspace.search,
-      hiddenFilterIds: workspace.search.hiddenFilterIds.filter(
-        (hiddenFieldId) => hiddenFieldId !== fieldId,
-      ),
-    });
-    return;
-  }
-  workspace.setSearch({
-    ...workspace.search,
-    visibleFilterIds: [...workspace.search.visibleFilterIds, fieldId],
-  });
-}
-
-export function removeVisibleFilter(workspace: FilterPanelState, fieldId: string) {
-  const field = fieldById(workspace, fieldId);
-  if (field?.placement === "always_visible") {
-    return;
-  }
-  const hiddenFilterIds =
-    field?.placement === "initially_visible" &&
-    !workspace.search.hiddenFilterIds.includes(fieldId)
-      ? [...workspace.search.hiddenFilterIds, fieldId]
-      : workspace.search.hiddenFilterIds;
-  workspace.setSearch({
-    ...clearFieldValue(workspace.search, fieldId),
-    hiddenFilterIds,
-    visibleFilterIds: workspace.search.visibleFilterIds.filter(
-      (visibleFieldId) => visibleFieldId !== fieldId,
-    ),
-  });
-}
-
-export function hasActiveFilters(search: SearchFormState): boolean {
-  return (
-    search.query.length > 0 ||
-    search.filterClauses.length > 0 ||
-    search.visibleFilterIds.length > 0 ||
-    search.hiddenFilterIds.length > 0
-  );
-}
-
-export function hasActiveFieldFilter(
-  search: SearchFormState,
-  fieldId: string,
-): boolean {
-  return search.filterClauses.some((clause) => clause.field === fieldId);
-}
-
 export function clearAllFilters(search: SearchFormState): SearchFormState {
   return {
     ...search,
-    query: "",
-    mode: "browse",
-    visibleFilterIds: [],
-    hiddenFilterIds: [],
-    filterClauses: [],
+    filter: null,
+    filterError: null,
   };
 }
 
-export function clearFieldFilter(
-  search: SearchFormState,
-  fieldId: string,
-): SearchFormState {
-  return clearFieldValue(search, fieldId);
+export function predicateMentionsField(
+  predicate: QueryPredicate,
+  path: string,
+): boolean {
+  if (!predicate || typeof predicate !== "object") return false;
+  if ("field" in predicate) return predicate.field === path;
+  if (predicate.kind === "all_of" || predicate.kind === "any_of")
+    return (
+      Array.isArray(predicate.children) &&
+      predicate.children.some((child) => predicateMentionsField(child, path))
+    );
+  if (predicate.kind === "not" || predicate.kind === "exists")
+    return predicateMentionsField(predicate.predicate, path);
+  return false;
 }
-
-export function valuesForField(search: SearchFormState, fieldId: string): string[] {
-  return valueClause(search, fieldId)?.values ?? [];
-}
-
-export function setValuesForField(
-  search: SearchFormState,
-  fieldId: string,
-  values: string[],
-  policy?: ValueFilterOperatorPolicy,
-): SearchFormState {
-  const operator = valueClause(search, fieldId)?.operator ?? includeOperator(policy);
-  return setValuesClause(
-    removeValuesFromClause(search, fieldId, "exclude_any", values),
-    fieldId,
-    operator,
-    values,
-  );
-}
-
-export function includeOperatorForField(
-  search: SearchFormState,
-  fieldId: string,
-): "include_all" | "include_any" {
-  const operator = valueClause(search, fieldId)?.operator;
-  return operator === "include_any" ? "include_any" : "include_all";
-}
-
-export function setIncludeOperatorForField(
-  search: SearchFormState,
-  fieldId: string,
-  operator: "include_all" | "include_any",
-): SearchFormState {
-  const values = valuesForField(search, fieldId);
-  return setValuesClause(
-    removeClauses(search, fieldId, ["include_all", "include_any"]),
-    fieldId,
-    operator,
-    values,
-  );
-}
-
-export function excludedValuesForField(
-  search: SearchFormState,
-  fieldId: string,
-): string[] {
-  return clauseForField(search, fieldId, "exclude_any")?.values ?? [];
-}
-
-function setExcludedValuesForField(
-  search: SearchFormState,
-  fieldId: string,
-  values: string[],
-): SearchFormState {
-  return setValuesClause(
-    removeValuesFromClauses(search, fieldId, ["include_all", "include_any"], values),
-    fieldId,
-    "exclude_any",
-    values,
-  );
-}
-
-export function cycleSelectedValueForField(
-  search: SearchFormState,
-  fieldId: string,
-  value: string,
-  policy?: ValueFilterOperatorPolicy,
-): SearchFormState {
-  const excludedValues = excludedValuesForField(search, fieldId);
-  if (excludedValues.includes(value)) {
-    return setExcludedValuesForField(
-      search,
-      fieldId,
-      excludedValues.filter((excluded) => excluded !== value),
+function commonShape(predicate: QueryPredicate, field: QueryFieldDefinition): boolean {
+  if (field.field_type === "number") {
+    if (predicate.kind === "compare")
+      return (
+        predicate.field === field.path && ["eq", "gte", "lte"].includes(predicate.op)
+      );
+    return (
+      predicate.kind === "all_of" &&
+      predicate.children.length === 2 &&
+      predicate.children.every(
+        (child) =>
+          child.kind === "compare" &&
+          child.field === field.path &&
+          typeof child.value === "number",
+      ) &&
+      predicate.children.some(
+        (child) => child.kind === "compare" && child.op === "gte",
+      ) &&
+      predicate.children.some((child) => child.kind === "compare" && child.op === "lte")
     );
   }
-  const values = valuesForField(search, fieldId);
-  if (values.includes(value)) {
-    if (policy?.canExclude ?? true) {
-      return setExcludedValueForField(search, fieldId, value);
-    }
-    return setValuesForField(
-      search,
-      fieldId,
-      values.filter((included) => included !== value),
-      policy,
+  if (predicate.kind === "all_of")
+    return (
+      predicate.children.length === 2 &&
+      predicate.children.every(
+        (child) => child.kind !== "all_of" && commonShape(child, field),
+      ) &&
+      isExcluded(predicate.children[0]) !== isExcluded(predicate.children[1]) &&
+      !conditionValues(predicate.children[0]).some((value) =>
+        conditionValues(predicate.children[1]).includes(value),
+      )
     );
-  }
-  return setValuesForField(search, fieldId, [...values, value], policy);
-}
-
-function setExcludedValueForField(
-  search: SearchFormState,
-  fieldId: string,
-  value: string,
-): SearchFormState {
-  const excludedValues = excludedValuesForField(search, fieldId);
-  if (excludedValues.includes(value)) {
-    return search;
-  }
-  return setExcludedValuesForField(search, fieldId, [...excludedValues, value]);
-}
-
-export function clearSelectedValueForField(
-  search: SearchFormState,
-  fieldId: string,
-  value: string,
-): SearchFormState {
-  return removeValuesFromClauses(
-    search,
-    fieldId,
-    ["include_all", "include_any", "exclude_any"],
-    [value],
-  );
-}
-
-export function valueFilterOperatorPolicy(
-  field: FilterEditorFieldView | undefined,
-): ValueFilterOperatorPolicy {
-  const defaultOperator =
-    field?.default_operator === "include_all" ||
-    field?.default_operator === "include_any"
-      ? field.default_operator
-      : "include_any";
-  return {
-    defaultOperator,
-    canExclude: field?.allowed_operators.includes("exclude_any") ?? true,
-  };
-}
-
-export function rangeForField(
-  search: SearchFormState,
-  fieldId: string,
-): NumericRangeState {
-  const range = clauseForField(search, fieldId, "range")?.range;
-  return { min: range?.min ?? null, max: range?.max ?? null };
-}
-
-export function setRangeForField(
-  search: SearchFormState,
-  fieldId: string,
-  range: NumericRangeState,
-): SearchFormState {
-  if (range.min === null && range.max === null) {
-    return removeClauses(search, fieldId, ["range"]);
-  }
-  return upsertClause(search, {
-    id: `${fieldId}-range`,
-    field: fieldId,
-    operator: "range",
-    values: [],
-    range: {
-      min: range.min ?? undefined,
-      max: range.max ?? undefined,
-    },
-  });
-}
-
-export function booleanForField(
-  search: SearchFormState,
-  fieldId: string,
-): string | null {
-  const value = valuesForField(search, fieldId)[0] ?? null;
-  return value === "true" || value === "false" ? value : null;
-}
-
-export function setBooleanForField(
-  search: SearchFormState,
-  fieldId: string,
-  value: string | null,
-): SearchFormState {
-  return setValuesForField(search, fieldId, value ? [value] : []);
-}
-
-export function metricComparisonForField(
-  search: SearchFormState,
-  fieldId: string,
-): MetricComparisonState {
-  const metric = clauseForField(search, fieldId, "metric_compare")?.metric;
-  return {
-    key: metric?.key ?? null,
-    op: metric?.op ?? "gte",
-    value: metric?.value ?? null,
-  };
-}
-
-export function setMetricComparisonForField(
-  search: SearchFormState,
-  fieldId: string,
-  comparison: MetricComparisonState,
-): SearchFormState {
-  if (
-    !comparison.key ||
-    comparison.value === null ||
-    !Number.isFinite(comparison.value)
-  ) {
-    return removeClauses(search, fieldId, ["metric_compare"]);
-  }
-  return upsertClause(search, {
-    id: `${fieldId}-metric_compare`,
-    field: fieldId,
-    operator: "metric_compare",
-    values: [],
-    metric: {
-      key: comparison.key,
-      op: comparison.op,
-      value: comparison.value,
-    },
-  });
-}
-
-export function controlKindForField(
-  workspace: FilterPanelState,
-  fieldId: string,
-): FilterControlKind {
-  const field = fieldById(workspace, fieldId);
-  return controlKind(field);
-}
-
-export function labelForField(workspace: FilterPanelState, fieldId: string): string {
-  return fieldById(workspace, fieldId)?.label ?? fieldId;
-}
-
-export function editorFieldForId(
-  workspace: FilterPanelState,
-  fieldId: string,
-): FilterEditorFieldView | undefined {
-  return fieldById(workspace, fieldId);
-}
-
-function valueOption(option: FilterValueOption): FilterSelectOption {
-  const count = option.count;
-  return {
-    value: option.value,
-    label:
-      count === undefined
-        ? option.label
-        : `${option.label} (${count.toLocaleString()})`,
-    disabled: option.disabled,
-  };
-}
-
-function fieldById(
-  workspace: FilterPanelState,
-  fieldId: string,
-): FilterEditorFieldView | undefined {
-  return (workspace.filterEditor?.groups ?? [])
-    .flatMap((group) => group.fields)
-    .find((field) => field.id === fieldId);
-}
-
-function controlKind(field: FilterEditorFieldView | undefined): FilterControlKind {
-  switch (field?.control.kind) {
-    case "range":
-      return "range";
-    case "boolean":
-      return "boolean";
-    case "metric_comparison":
-      return "metric";
-    default:
-      return "option";
-  }
-}
-
-function valueClause(
-  search: SearchFormState,
-  fieldId: string,
-): FilterClause | undefined {
+  if (field.field_type === "set")
+    return (
+      predicate.kind === "set_match" &&
+      predicate.field === field.path &&
+      ["includes_any", "excludes_any"].includes(predicate.op)
+    );
   return (
-    clauseForField(search, fieldId, "include_all") ??
-    clauseForField(search, fieldId, "include_any")
+    (predicate.kind === "in" && predicate.field === field.path) ||
+    (predicate.kind === "compare" &&
+      predicate.field === field.path &&
+      predicate.op === "eq") ||
+    (predicate.kind === "not" &&
+      predicate.predicate.kind === "in" &&
+      predicate.predicate.field === field.path)
   );
 }
-
-function clauseForField(
-  search: SearchFormState,
-  fieldId: string,
-  operator: FilterClauseOperator,
-): FilterClause | undefined {
-  return search.filterClauses.find(
-    (clause) => clause.field === fieldId && clause.operator === operator,
-  );
+export type CommonCondition =
+  | { status: "empty"; clause: null }
+  | { status: "editable"; clause: QueryPredicate }
+  | { status: "advanced"; clause: null };
+/** Recognize quick controls within positive conjunctions, never simplify a tree. */
+export function commonCondition(
+  predicate: QueryPredicate | null,
+  field: QueryFieldDefinition,
+): CommonCondition {
+  if (!predicate || !predicateMentionsField(predicate, field.path))
+    return { status: "empty", clause: null };
+  if (commonShape(predicate, field)) return { status: "editable", clause: predicate };
+  if (predicate.kind !== "all_of") return { status: "advanced", clause: null };
+  const matches = commonMatches(predicate, field);
+  return matches.length === 1 && commonShape(matches[0], field)
+    ? { status: "editable", clause: matches[0] }
+    : matches.length === 2 && commonShape({ kind: "all_of", children: matches }, field)
+      ? { status: "editable", clause: { kind: "all_of", children: matches } }
+      : { status: "advanced", clause: null };
 }
-
-function setValuesClause(
-  search: SearchFormState,
-  fieldId: string,
-  operator: FilterClauseOperator,
-  values: string[],
-): SearchFormState {
-  if (values.length === 0) {
-    return removeClauses(search, fieldId, [operator]);
-  }
-  return upsertClause(search, {
-    id: `${fieldId}-${operator}`,
-    field: fieldId,
-    operator,
-    values,
-  });
+function commonMatches(
+  predicate: QueryPredicate,
+  field: QueryFieldDefinition,
+): QueryPredicate[] {
+  if (!predicateMentionsField(predicate, field.path)) return [];
+  if (commonShape(predicate, field) || predicate.kind !== "all_of") return [predicate];
+  return predicate.children.flatMap((child) => commonMatches(child, field));
 }
-
-function upsertClause(search: SearchFormState, clause: FilterClause): SearchFormState {
-  let replaced = false;
-  const filterClauses = search.filterClauses.map((existing) => {
-    if (existing.field === clause.field && existing.operator === clause.operator) {
-      replaced = true;
-      return clause;
+export function replaceCommonCondition(
+  predicate: QueryPredicate | null,
+  field: QueryFieldDefinition,
+  replacement: QueryPredicate | null,
+): QueryPredicate | null {
+  const current = commonCondition(predicate, field);
+  if (current.status === "advanced")
+    throw new Error("Edit this condition in advanced filters");
+  if (current.clause === predicate) return replacement;
+  if (predicate?.kind === "all_of") {
+    const removed = commonMatches(predicate, field);
+    let inserted = false;
+    function replace(node: QueryPredicate): QueryPredicate | null {
+      if (removed.includes(node)) {
+        if (inserted || !replacement) return null;
+        inserted = true;
+        return replacement;
+      }
+      if (node.kind !== "all_of") return node;
+      const children = node.children.flatMap((child) => {
+        const next = replace(child);
+        return next ? [next] : [];
+      });
+      return children.length ? { ...node, children } : null;
     }
-    return existing;
+    const updated = replace(predicate);
+    const children = updated?.kind === "all_of" ? updated.children : [];
+    if (!current.clause && replacement) children.push(replacement);
+    return children.length ? { ...predicate, children } : null;
+  }
+  if (!replacement) return predicate;
+  return predicate
+    ? { kind: "all_of", children: [predicate, replacement] }
+    : replacement;
+}
+export function isExcluded(clause: QueryPredicate): boolean {
+  return (
+    clause.kind === "not" ||
+    (clause.kind === "set_match" && clause.op === "excludes_any")
+  );
+}
+export function choiceClauses(clause: QueryPredicate | null): QueryPredicate[] {
+  return clause?.kind === "all_of" ? clause.children : clause ? [clause] : [];
+}
+export type ChoiceState = "neutral" | "include" | "exclude";
+export function choiceValueState(
+  clause: QueryPredicate | null,
+  value: string,
+): ChoiceState {
+  const match = choiceClauses(clause).find((child) =>
+    conditionValues(child).includes(value),
+  );
+  return match ? (isExcluded(match) ? "exclude" : "include") : "neutral";
+}
+/** Change one literal while retaining the other literals and each surviving leaf ID. */
+export function changeChoiceValue(
+  field: QueryFieldDefinition,
+  current: QueryPredicate | null,
+  value: string,
+  state: ChoiceState,
+): QueryPredicate | null {
+  const clauses = choiceClauses(current);
+  const source = clauses.find((child) => conditionValues(child).includes(value));
+  const children = [false, true].flatMap((exclude) => {
+    const previous = clauses.find((child) => isExcluded(child) === exclude);
+    const values = conditionValues(previous ?? null).filter((entry) => entry !== value);
+    if (state === (exclude ? "exclude" : "include")) values.push(value);
+    const identity =
+      previous ?? (source && conditionValues(source).length === 1 ? source : null);
+    const next = choiceCondition(field, identity, values, exclude);
+    return next ? [next] : [];
   });
-  if (!replaced) {
-    filterClauses.push(clause);
-  }
-  return { ...search, filterClauses };
+  return children.length > 1
+    ? {
+        kind: "all_of",
+        clause_id: current?.kind === "all_of" ? current.clause_id : crypto.randomUUID(),
+        children,
+      }
+    : (children[0] ?? null);
 }
 
-function removeValuesFromClauses(
-  search: SearchFormState,
-  fieldId: string,
-  operators: FilterClauseOperator[],
+export function conditionLeaf(clause: QueryPredicate | null): QueryPredicate | null {
+  return clause?.kind === "not" ? clause.predicate : clause;
+}
+export function choiceCondition(
+  field: QueryFieldDefinition,
+  current: QueryPredicate | null,
   values: string[],
-): SearchFormState {
-  return operators.reduce(
-    (nextSearch, operator) =>
-      removeValuesFromClause(nextSearch, fieldId, operator, values),
-    search,
-  );
-}
-
-function removeValuesFromClause(
-  search: SearchFormState,
-  fieldId: string,
-  operator: FilterClauseOperator,
-  values: string[],
-): SearchFormState {
-  if (values.length === 0) {
-    return search;
-  }
-  const clause = clauseForField(search, fieldId, operator);
-  if (!clause) {
-    return search;
-  }
-  const valueSet = new Set(values);
-  return setValuesClause(
-    search,
-    fieldId,
-    operator,
-    (clause.values ?? []).filter((value) => !valueSet.has(value)),
-  );
-}
-
-function removeClauses(
-  search: SearchFormState,
-  fieldId: string,
-  operators?: FilterClauseOperator[],
-): SearchFormState {
-  const operatorSet = operators ? new Set<FilterClauseOperator>(operators) : null;
-  return {
-    ...search,
-    filterClauses: search.filterClauses.filter(
-      (clause) =>
-        clause.field !== fieldId ||
-        (operatorSet !== null && !operatorSet.has(clause.operator)),
-    ),
+  exclude: boolean,
+): QueryPredicate | null {
+  if (!values.length) return null;
+  const leaf = conditionLeaf(current);
+  const clause_id = leaf?.clause_id ?? crypto.randomUUID();
+  if (field.field_type === "set")
+    return {
+      kind: "set_match",
+      clause_id,
+      field: field.path,
+      op: exclude ? "excludes_any" : "includes_any",
+      values,
+    };
+  const predicate: QueryPredicate = {
+    kind: "in",
+    clause_id,
+    field: field.path,
+    values,
   };
+  return exclude
+    ? {
+        kind: "not",
+        ...(current?.kind === "not" && current.clause_id
+          ? { clause_id: current.clause_id }
+          : {}),
+        predicate,
+      }
+    : predicate;
 }
-
-function clearFieldValue(search: SearchFormState, fieldId: string): SearchFormState {
-  return removeClauses(search, fieldId);
+export function conditionValues(clause: QueryPredicate | null): string[] {
+  const leaf = conditionLeaf(clause);
+  return leaf && "values" in leaf
+    ? leaf.values.map(String)
+    : leaf?.kind === "compare"
+      ? [String(leaf.value)]
+      : [];
 }
-
-function includeOperator(
-  policy: ValueFilterOperatorPolicy | undefined,
-): FilterClauseOperator {
-  return policy?.defaultOperator ?? "include_any";
+export function conditionRange(clause: QueryPredicate | null): [string, string] {
+  const children = clause?.kind === "all_of" ? clause.children : clause ? [clause] : [];
+  let min = "",
+    max = "";
+  for (const child of children)
+    if (child.kind === "compare") {
+      if (child.op === "gte" || child.op === "eq") min = String(child.value);
+      if (child.op === "lte" || child.op === "eq") max = String(child.value);
+    }
+  return [min, max];
 }

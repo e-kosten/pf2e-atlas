@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
+use atlas_domain::SearchProfileId;
 use clap::{Args, Subcommand};
 
-use crate::cli::args::CliPathMode;
+use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 #[command(
@@ -69,6 +69,11 @@ pub(crate) struct SetupPathOptions {
 pub(crate) struct SetupRunOptions {
     #[arg(
         long,
+        help = "Indexing locale; defaults to English for a new artifact and preserves an existing artifact locale"
+    )]
+    pub(crate) locale: Option<String>,
+    #[arg(
+        long,
         help = "Prepare a record/resolve-ready artifact without semantic embeddings"
     )]
     pub(crate) no_embeddings: bool,
@@ -87,8 +92,8 @@ pub(crate) struct SetupRunOptions {
         help = "Rebuild the artifact even if it already satisfies the selected setup target"
     )]
     pub(crate) force_rebuild: bool,
-    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL, help = "Embedding model to use for full setup")]
-    pub(crate) embedding_model: EmbeddingModelId,
+    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Desired stored search profile; repeat for both; omission preserves existing profiles (fresh default: bge-base)")]
+    pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(
         long,
         default_value_t = 32,

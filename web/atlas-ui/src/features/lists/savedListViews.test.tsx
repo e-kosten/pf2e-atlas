@@ -1,22 +1,46 @@
+import {
+  detailFixture,
+  summaryFixture,
+  editorFixture,
+  fieldFixture,
+  valuesFixture,
+} from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { retireImmutableReferenceQueries } from "../../shared/queries/immutableReferenceQueries";
+import { App, ConfigProvider, Grid } from "antd";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import type {
   RecordDetailView,
   SavedListDetailView,
   SavedListIndexView,
+  DiscoverFilterValuesRequest,
+  FilterVocabularyScope,
 } from "../../generated/atlas";
+import { useFilterVocabulary } from "../../shared/filters/useFilterDiscovery";
+import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
+import { useSavedListFilterDiscovery } from "./useSavedListFilters";
 import { AddToListButton } from "./AddToListButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
 import { ListIndexView } from "./ListIndexView";
 import { savedListTagOptions } from "./listUtils";
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 
 const apiMocks = vi.hoisted(() => ({
+  searchPage: vi.fn(),
   addSavedListItem: vi.fn(),
   createSavedList: vi.fn(),
   deleteSavedList: vi.fn(),
   discoverFilterEditor: vi.fn(),
+  discoverFilterCounts: vi.fn(),
   discoverFilterValues: vi.fn(),
   filterSavedList: vi.fn(),
   getRecordDetail: vi.fn(),
@@ -26,11 +50,14 @@ const apiMocks = vi.hoisted(() => ({
   updateSavedList: vi.fn(),
 }));
 
-vi.mock("../../api/atlasApi", () => ({
+vi.mock("../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../api/atlasApi")>()),
+  searchPage: apiMocks.searchPage,
   addSavedListItem: apiMocks.addSavedListItem,
   createSavedList: apiMocks.createSavedList,
   deleteSavedList: apiMocks.deleteSavedList,
   discoverFilterEditor: apiMocks.discoverFilterEditor,
+  discoverFilterCounts: apiMocks.discoverFilterCounts,
   discoverFilterValues: apiMocks.discoverFilterValues,
   filterSavedList: apiMocks.filterSavedList,
   getRecordDetail: apiMocks.getRecordDetail,
@@ -43,18 +70,36 @@ vi.mock("../../api/atlasApi", () => ({
 describe("list views", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true, xl: true });
     history.replaceState(null, "", "/lists");
     apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
     apiMocks.getSavedList.mockResolvedValue(savedListDetailFixture());
     apiMocks.filterSavedList.mockResolvedValue(savedListDetailFixture());
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditorFixture());
+    apiMocks.discoverFilterCounts.mockResolvedValue({
+      counts: { status: "unavailable", reason: "non_conjunctive_context" },
+    });
     apiMocks.discoverFilterValues.mockImplementation((request: { field_id: string }) =>
-      Promise.resolve({
-        field_id: request.field_id,
-        matching_record_count: 1n,
-        options: [],
-      }),
+      Promise.resolve(valuesFixture(request.field_id)),
     );
+    apiMocks.searchPage.mockResolvedValue({
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      mode: { kind: "list_records" },
+      coverage: null,
+      page: {
+        number: 1,
+        size: 25,
+        count: 2,
+        total: 2n,
+        has_more: false,
+        next_page: null,
+      },
+      rows: [
+        { record: summaryFixture("actions:testAction1", "Test Action 1"), matches: [] },
+        { record: summaryFixture("rules:nested", "Nested Rule"), matches: [] },
+      ],
+    });
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
@@ -107,6 +152,17 @@ describe("list views", () => {
     const listLink = (await screen.findByText("research")).closest("a");
     expect(listLink).not.toBeNull();
     expect(screen.getByText("2 saved lists")).toBeInTheDocument();
+    const controls = screen
+      .getByRole("textbox", { name: "Search saved lists" })
+      .closest<HTMLElement>(".primary-toolbar")!;
+    expect(controls.parentElement).toHaveClass("entity-index-page__controls");
+    expect(controls).toContainElement(
+      screen.getByRole("button", { name: "Edit Tags filter" }),
+    );
+    expect(controls).toContainElement(screen.getByRole("button", { name: "New list" }));
+    expect(
+      screen.getByRole("heading", { name: "Saved Lists" }).closest("section"),
+    ).not.toContainElement(controls);
 
     fireEvent.click(listLink!);
 
@@ -137,21 +193,248 @@ describe("list views", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
   });
 
-  it("filters saved-list index rows by tag", async () => {
+  it.each(["arc-one", "constructor"])(
+    "filters saved-list index rows by the literal tag %s",
+    async (tag) => {
+      const fixture = savedListIndexFixture();
+      fixture.lists[0].tags = [tag, "boss"];
+      apiMocks.getSavedLists.mockResolvedValue(fixture);
+      render(<ListIndexView route={{ kind: "lists" }} />, {
+        wrapper: queryClientWrapper(),
+      });
+
+      expect(await screen.findByText("Research")).toBeInTheDocument();
+      expect(screen.getByText("Encounters")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Edit Tags filter" }));
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: `Tags: ${tag}, neutral; activate to include`,
+        }),
+      );
+
+      await waitFor(() =>
+        expect(screen.queryByText("Encounters")).not.toBeInTheDocument(),
+      );
+      expect(screen.getByText("Research")).toBeInTheDocument();
+      expect(screen.getByText("1 saved list")).toBeInTheDocument();
+    },
+  );
+
+  it("combines any included tag with no excluded tags, retaining searchable stable rows", async () => {
     render(<ListIndexView route={{ kind: "lists" }} />, {
       wrapper: queryClientWrapper(),
     });
-
-    expect(await screen.findByText("Research")).toBeInTheDocument();
-    expect(screen.getByText("Encounters")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("checkbox", { name: "arc-one" }));
-
-    await waitFor(() =>
-      expect(screen.queryByText("Encounters")).not.toBeInTheDocument(),
+    await screen.findByText("Research");
+    fireEvent.click(screen.getByRole("button", { name: "Edit Tags filter" }));
+    const one = await screen.findByRole("button", {
+      name: "Tags: arc-one, neutral; activate to include",
+    });
+    fireEvent.click(one);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Tags: arc-two, neutral; activate to include",
+      }),
     );
-    expect(screen.getByText("Research")).toBeInTheDocument();
-    expect(screen.getByText("1 saved list")).toBeInTheDocument();
+    expect(screen.getByText("2 saved lists")).toBeVisible();
+    fireEvent.click(one);
+    expect(screen.getByText("1 saved list")).toBeVisible();
+    expect(screen.queryByText("Campaign prep")).toBeNull();
+    expect(screen.getByText("Fight prep")).toBeVisible();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search tags choices" }), {
+      target: { value: "boss" },
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", {
+          name: "Tags: boss, neutral; activate to include",
+        }),
+      ).toBeVisible(),
+    );
+    expect(screen.queryByRole("button", { name: /Tags: arc-two/ })).toBeNull();
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Search tags choices" }), {
+      key: "Escape",
+    });
+    expect(screen.getByRole("button", { name: "Edit Tags filter" })).toHaveFocus();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove excluded arc-one from Tags" }),
+    );
+    expect(screen.getByText("Fight prep")).toBeVisible();
+  });
+
+  it("restores list-name, tag and actual index scroll state after unmount and resets scroll on a filter change", async () => {
+    const wrapper = queryClientWrapper();
+    const view = render(<ListIndexView route={{ kind: "lists" }} />, { wrapper });
+    await screen.findByText("Research");
+    fireEvent.change(screen.getByRole("textbox", { name: "Search saved lists" }), {
+      target: { value: "Research" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Edit Tags filter" }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Tags: boss, neutral; activate to include",
+      }),
+    );
+    const table = view.container.querySelector<HTMLElement>(
+      ".entity-index-page__table",
+    )!;
+    table.scrollTop = 345;
+    fireEvent.scroll(table);
+    view.unmount();
+    const returned = render(<ListIndexView route={{ kind: "lists" }} />, { wrapper });
+    expect(
+      await screen.findByRole("textbox", { name: "Search saved lists" }),
+    ).toHaveValue("Research");
+    expect(
+      screen.getByRole("button", { name: "Remove included boss from Tags" }),
+    ).toBeVisible();
+    const restored = returned.container.querySelector<HTMLElement>(
+      ".entity-index-page__table",
+    )!;
+    expect(restored.scrollTop).toBe(345);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search saved lists" }), {
+      target: { value: "" },
+    });
+    expect(restored.scrollTop).toBe(0);
+    expect(screen.getByText("Campaign prep")).toBeVisible();
+  });
+
+  it("snapshots responsive document scroll before route rendering clamps it, then restores it on return", async () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const descriptor = Object.getOwnPropertyDescriptor(window, "scrollY")!;
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      writable: true,
+      value: 613,
+    });
+    try {
+      const wrapper = queryClientWrapper();
+      const view = render(<ListIndexView route={{ kind: "lists" }} />, { wrapper });
+      const link = await screen.findByText("research");
+      // Initial restore belongs to the fresh index; emulate subsequent user scrolling.
+      Object.defineProperty(window, "scrollY", {
+        configurable: true,
+        writable: true,
+        value: 613,
+      });
+      fireEvent.click(link.closest("a")!);
+      Object.defineProperty(window, "scrollY", {
+        configurable: true,
+        writable: true,
+        value: 0,
+      });
+      view.unmount();
+      render(<ListIndexView route={{ kind: "lists" }} />, { wrapper });
+      await screen.findByText("Campaign prep");
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 613);
+    } finally {
+      scrollTo.mockRestore();
+      Object.defineProperty(window, "scrollY", descriptor);
+    }
+  });
+
+  it("distinguishes initial list failure from empty data and retries", async () => {
+    apiMocks.getSavedLists.mockRejectedValueOnce(new Error("Index unavailable"));
+    render(<ListIndexView route={{ kind: "lists" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Saved lists could not load",
+    );
+    expect(
+      screen.queryByText("No saved lists. Create a list to collect records."),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Retry lists" }));
+    expect(await screen.findByText("Campaign prep")).toBeVisible();
+  });
+
+  it("retains loaded rows on index refresh failure and distinguishes filtered emptiness", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <App>
+          <ListIndexView route={{ kind: "lists" }} />
+        </App>
+      </QueryClientProvider>,
+    );
+    await screen.findByText("Campaign prep");
+    fireEvent.click(screen.getByRole("button", { name: "Edit Tags filter" }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Tags: arc-one, neutral; activate to include",
+      }),
+    );
+    apiMocks.getSavedLists.mockRejectedValueOnce(new Error("Refresh unavailable"));
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ["saved-lists"] });
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Saved lists could not refresh",
+    );
+    expect(screen.getByText("Campaign prep")).toBeVisible();
+    apiMocks.getSavedLists.mockResolvedValue({
+      lists: [savedListIndexFixture().lists[1]],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Retry lists" }));
+    expect(await screen.findByText("No lists match these filters")).toBeVisible();
+    expect(
+      screen.queryByText("No saved lists. Create a list to collect records."),
+    ).toBeNull();
+  });
+
+  it("cancels whole-list deletion, retains metadata through a pending rejection and retries once", async () => {
+    let fail!: (error: Error) => void;
+    apiMocks.deleteSavedList.mockReturnValueOnce(
+      new Promise<void>((_ok, reject) => {
+        fail = reject;
+      }),
+    );
+    render(<ListEditView route={{ kind: "listEdit", slug: "research" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const name = await screen.findByRole("textbox", { name: "Name" });
+    fireEvent.change(name, { target: { value: "Unsaved metadata" } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(apiMocks.deleteSavedList).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Delete list" }));
+    await waitFor(() => expect(apiMocks.deleteSavedList).toHaveBeenCalledOnce());
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(name).toHaveValue("Unsaved metadata");
+    await act(async () => fail(new Error("Delete rejected")));
+    expect(await screen.findAllByText("Delete rejected")).not.toHaveLength(0);
+    expect(name).toHaveValue("Unsaved metadata");
+    fireEvent.click(screen.getByRole("button", { name: "Delete list" }));
+    await waitFor(() => expect(apiMocks.deleteSavedList).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(window.location.pathname).toBe("/lists"));
+  });
+
+  it("keeps a readable primary index column when long titles and twenty tags compete for table width", async () => {
+    const fixture = savedListIndexFixture();
+    fixture.lists[0].name =
+      "Preparation for the planar expedition and the next several sessions";
+    fixture.lists[0].tags = Array.from(
+      { length: 20 },
+      (_, index) => `Preparation tag ${index}`,
+    );
+    apiMocks.getSavedLists.mockResolvedValue(fixture);
+    render(<ListIndexView route={{ kind: "lists" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const title = await screen.findByRole("link", {
+      name: /^Preparation for the planar expedition/,
+    });
+    const table = title.closest("table")!;
+    expect(table).toHaveStyle({ tableLayout: "auto" });
+    expect(table.querySelector("colgroup col")).toHaveStyle({ minWidth: "240px" });
+    expect(title).toHaveAttribute("href", "/lists/research");
+    for (const cell of title.closest("tr")!.querySelectorAll("td"))
+      expect(cell).toHaveStyle({ verticalAlign: "top" });
+    expect(
+      title.closest("tr")!.querySelector(".list-index-view__description"),
+    ).toHaveAttribute("title", "Campaign prep");
   });
 
   it("derives saved-list tag options from existing lists", () => {
@@ -177,14 +460,19 @@ describe("list views", () => {
     expect(
       await screen.findByRole("heading", { name: "Test Action 1" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Test Action 1" })).toBeInTheDocument();
-    expect(screen.getByText("List")).toBeInTheDocument();
-    expect(screen.getByText("Items")).toBeInTheDocument();
-    expect(screen.getByText("Standard filters")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
+      "href",
+      "/records/actions:testAction1",
+    );
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Saved records" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Advanced filters" }),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
-        filter: { clauses: [] },
+        filter: undefined,
       }),
     );
     expect(
@@ -192,10 +480,12 @@ describe("list views", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Active")).not.toBeInTheDocument();
     expect(screen.queryByText("research")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("link", { name: "Edit list" }));
     await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Test Action 1" }));
+    expect(apiMocks.removeSavedListItem).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
 
     await waitFor(() =>
       expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith({
@@ -205,7 +495,100 @@ describe("list views", () => {
     );
   });
 
-  it("opens references from the selected saved-list detail in a popover", async () => {
+  it("refreshes mounted list discovery after removing its last item without refreshing other scopes", async () => {
+    let removed = false;
+    const aliases = ["research", "list_research"];
+    apiMocks.discoverFilterEditor.mockResolvedValue(
+      editorFixture([fieldFixture("traits", "set", "Traits")]),
+    );
+    apiMocks.filterSavedList.mockImplementation(async () => ({
+      ...savedListDetailFixture(),
+      items: removed ? [] : savedListDetailFixture().items,
+    }));
+    apiMocks.removeSavedListItem.mockImplementation(async () => {
+      removed = true;
+      return {
+        list_key: "list_research",
+        slug: "research",
+        record_key: "actions:testAction1",
+        outcome: "removed",
+      };
+    });
+    apiMocks.discoverFilterValues.mockImplementation(
+      async (request: DiscoverFilterValuesRequest) => {
+        if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
+        const affected =
+          request.scope.kind === "saved_list" &&
+          aliases.includes(request.scope.list_ref);
+        const empty = affected && removed;
+        return {
+          kind: "vocabulary",
+          scope: request.scope,
+          values: {
+            field: request.field_id,
+            options: empty ? [] : [{ value: "fire" }],
+            selected_values: request.selected_values,
+            total_values: empty ? 0n : 1n,
+            basis: "product_key_scope_before_edition_preference",
+          },
+        };
+      },
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <App>
+          <ListDetailView
+            route={{ kind: "list", slug: "research", selectedRecordKey: null }}
+          />
+          <ListDiscoveryProbe listRef="research" />
+          <ListDiscoveryProbe listRef="list_research" />
+          <ListDiscoveryProbe listRef="other-list" />
+          <VocabularyProbe scope={{ kind: "artifact" }} label="artifact values" />
+        </App>
+      </QueryClientProvider>,
+    );
+    for (const alias of [...aliases, "other-list"])
+      await waitFor(() =>
+        expect(screen.getByLabelText(`values ${alias}`)).toHaveTextContent(
+          '"options":["fire"]',
+        ),
+      );
+    await waitFor(() =>
+      expect(screen.getByLabelText("artifact values")).toHaveTextContent("fire"),
+    );
+    expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
+    const otherRequests = apiMocks.discoverFilterValues.mock.calls.filter(
+      ([request]) =>
+        request.scope.kind === "artifact" || request.scope.list_ref === "other-list",
+    ).length;
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Remove Test Action 1" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+
+    for (const alias of aliases) {
+      await waitFor(() =>
+        expect(screen.getByLabelText(`values ${alias}`)).toHaveTextContent(
+          '"options":[],"selected":["retained"],"total":"0"',
+        ),
+      );
+    }
+    expect(screen.getByLabelText("values other-list")).toHaveTextContent("fire");
+    expect(screen.getByLabelText("artifact values")).toHaveTextContent("fire");
+    expect(
+      apiMocks.discoverFilterValues.mock.calls.filter(
+        ([request]) =>
+          request.scope.kind === "artifact" || request.scope.list_ref === "other-list",
+      ),
+    ).toHaveLength(otherRequests);
+    expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
+  });
+
+  it("follows references in the existing list reader while retaining selection and exact full-page links", async () => {
     history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
     render(
       <ListDetailView
@@ -218,13 +601,125 @@ describe("list views", () => {
       { wrapper: queryClientWrapper() },
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Nested Rule" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
 
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith("rules:nested"),
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "rules:nested",
+        undefined,
+        expect.any(AbortSignal),
+      ),
     );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Nested Rule" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(screen.getByRole("link", { name: "Open full page" })).toHaveAttribute(
+      "href",
+      "/records/rules:nested",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(
+      await screen.findByRole("heading", { name: "Test Action 1" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("link", { name: "Nested Rule" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Return to selection" }));
+    expect(
+      await screen.findByRole("heading", { name: "Test Action 1" }),
+    ).toBeInTheDocument();
     expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
+  });
+
+  it.each([false, true])(
+    "recovers the same selected reader when an unresolved member becomes active (filtered omission=%s)",
+    async (omitWhileBlocked) => {
+      const unresolved = savedListDetailFixture();
+      unresolved.items[0] = {
+        ...unresolved.items[0],
+        status: "unresolved",
+        record: undefined,
+      };
+      apiMocks.filterSavedList.mockResolvedValue(unresolved);
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={client}>
+          <App>
+            <ListDetailView
+              route={{
+                kind: "list",
+                slug: "research",
+                selectedRecordKey: "actions:testAction1",
+              }}
+            />
+          </App>
+        </QueryClientProvider>,
+      );
+      await screen.findByText("Record unavailable in this reference collection");
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("heading", { name: "Test Action 1" }),
+        ).not.toBeInTheDocument(),
+      );
+      if (omitWhileBlocked) {
+        await act(async () => {
+          client.setQueriesData(
+            { queryKey: ["saved-list", "research"] },
+            { ...unresolved, items: [] },
+          );
+        });
+        expect(
+          screen.queryByRole("heading", { name: "Test Action 1" }),
+        ).not.toBeInTheDocument();
+      }
+      await act(async () => {
+        client.setQueriesData(
+          { queryKey: ["saved-list", "research"] },
+          savedListDetailFixture(),
+        );
+      });
+      expect(
+        await screen.findByRole("heading", { name: "Test Action 1" }),
+      ).toBeVisible();
+      expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
+        "aria-current",
+        "true",
+      );
+    },
+  );
+
+  it("preserves selected membership and nested reading while filters hide the selected member", async () => {
+    apiMocks.filterSavedList.mockImplementation(
+      async (request: { query?: string }) => ({
+        ...savedListDetailFixture(),
+        items: request.query ? [] : savedListDetailFixture().items,
+      }),
+    );
+    render(
+      <ListDetailView
+        route={{
+          kind: "list",
+          slug: "research",
+          selectedRecordKey: "actions:testAction1",
+        }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+    fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
+    await screen.findByRole("heading", { name: "Nested Rule" });
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+    fireEvent.change(input, { target: { value: "no matching records" } });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+    expect(
+      await screen.findByText("No saved records match these filters"),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Nested Rule" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Return to selection" }));
+    expect(await screen.findByRole("heading", { name: "Test Action 1" })).toBeVisible();
+    expect(apiMocks.removeSavedListItem).not.toHaveBeenCalled();
   });
 
   it("searches within a saved list through the filter route", async () => {
@@ -242,18 +737,20 @@ describe("list views", () => {
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
-        filter: { clauses: [] },
+        filter: undefined,
       }),
     );
-    fireEvent.change(await screen.findByPlaceholderText("Search records"), {
+    const search = await screen.findByRole("searchbox", { name: "Search records" });
+    fireEvent.change(search, {
       target: { value: "Test Action 2" },
     });
+    fireEvent.keyDown(search, { key: "Enter", keyCode: 13 });
 
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
         query: "Test Action 2",
-        filter: { clauses: [] },
+        filter: undefined,
       }),
     );
   });
@@ -307,6 +804,8 @@ describe("list views", () => {
 
     await screen.findByDisplayValue("Research");
     fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
+    expect(apiMocks.deleteSavedList).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: "Delete list" }));
 
     await waitFor(() =>
       expect(apiMocks.deleteSavedList).toHaveBeenCalledWith("list_research"),
@@ -314,23 +813,96 @@ describe("list views", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/lists"));
   });
 
-  it("switches between saved lists from the list pane picker", async () => {
+  it("returns to the saved-lists index using a native parent link without a duplicate switcher", async () => {
+    render(
+      <ListDetailView
+        route={{ kind: "list", slug: "research", selectedRecordKey: null }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+    const parent = await screen.findByRole("link", { name: "Saved lists" });
+    expect(parent).toHaveAttribute("href", "/lists");
+    expect(screen.queryByRole("combobox", { name: "Selected list" })).toBeNull();
+    fireEvent.click(parent);
+    await waitFor(() => expect(window.location.pathname).toBe("/lists"));
+  });
+
+  it("adds records in the shared preview picker, retaining reader, search and candidate through pending failure and retry", async () => {
+    let reject!: (error: Error) => void;
+    apiMocks.addSavedListItem.mockReturnValueOnce(
+      new Promise((_resolve, no) => {
+        reject = no;
+      }),
+    );
     render(
       <ListDetailView
         route={{
           kind: "list",
           slug: "research",
-          selectedRecordKey: null,
+          selectedRecordKey: "actions:testAction1",
         }}
       />,
       { wrapper: queryClientWrapper() },
     );
+    await screen.findByRole("heading", { name: "Test Action 1" });
+    fireEvent.click(screen.getByRole("button", { name: "Add records" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("link", { name: /Test Action 1/ }));
+    await within(dialog).findByRole("heading", { name: "Test Action 1" });
+    const input = within(dialog).getByRole("searchbox", { name: "Search records" });
+    fireEvent.change(input, { target: { value: "Unsubmitted search" } });
+    const add = within(dialog).getByRole("button", { name: "Add" });
+    fireEvent.click(add);
+    fireEvent.click(add);
+    await waitFor(() => expect(apiMocks.addSavedListItem).toHaveBeenCalledOnce());
+    expect(add).toBeDisabled();
+    expect(input).toHaveValue("Unsubmitted search");
+    await act(async () => reject(new Error("Add rejected")));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Add rejected");
+    expect(add).toBeEnabled();
+    fireEvent.click(add);
+    expect(await within(dialog).findByText("Added to list.")).toBeVisible();
+    expect(apiMocks.addSavedListItem).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("dialog")).toBeVisible();
+    expect(input).toHaveValue("Unsubmitted search");
+    expect(add).toBeDisabled();
+    fireEvent.click(
+      dialog.querySelector<HTMLElement>('[data-record-key="rules:nested"]')!,
+    );
+    await waitFor(() => expect(add).toBeEnabled());
+    apiMocks.addSavedListItem.mockResolvedValueOnce({
+      list_key: "list_research",
+      slug: "research",
+      record_key: "rules:nested",
+      outcome: "already_present",
+    });
+    fireEvent.click(add);
+    expect(await within(dialog).findByText("Already in this list.")).toBeVisible();
+    expect(apiMocks.addSavedListItem).toHaveBeenLastCalledWith({
+      list_ref: "research",
+      record_ref: "rules:nested",
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("heading", { name: "Test Action 1" })).toBeVisible();
+    expect(window.location.pathname).toBe("/lists");
+  });
 
-    const selector = await screen.findByRole("combobox", { name: "Selected list" });
-    fireEvent.mouseDown(selector);
-    fireEvent.click(await screen.findByText("Encounters"));
-
-    await waitFor(() => expect(window.location.pathname).toBe("/lists/encounters"));
+  it("explains the saved-list action on keyboard focus without loading lists", async () => {
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <AddToListButton recordKey="actions:testAction1" />
+      </ConfigProvider>,
+      { wrapper: queryClientWrapper() },
+    );
+    const action = screen.getByRole("button", { name: "Add to saved list" });
+    act(() => action.focus());
+    expect(action).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Add to saved list");
+    expect(apiMocks.getSavedLists).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    act(() => action.blur());
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
   });
 
   it("adds the current record to a selected list", async () => {
@@ -358,7 +930,7 @@ describe("list views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "New List" }));
+    fireEvent.click(screen.getByRole("button", { name: "New list" }));
     expect(screen.queryByLabelText("Slug")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Name"), {
@@ -378,7 +950,100 @@ describe("list views", () => {
       expect(window.location.pathname).toBe("/lists/boss-fight-prep"),
     );
   });
+  it("preserves touched list fields during same-identity refresh and resets entity switches", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>
+        <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(
+      <ListEditView route={{ kind: "listEdit", slug: "research" }} />,
+      { wrapper },
+    );
+    const name = await screen.findByLabelText("Name");
+    fireEvent.change(name, { target: { value: "My list draft" } });
+    client.setQueryData(["record-detail", "old"], {
+      artifact_generation: "generation-a",
+    });
+    await act(async () => retireImmutableReferenceQueries(client));
+    expect(client.getQueryData(["record-detail", "old"])).toBeUndefined();
+    expect(client.getQueryData(["saved-list", "research"])).toBeDefined();
+    expect(name).toHaveValue("My list draft");
+    act(() =>
+      client.setQueryData(["saved-list", "research"], {
+        ...savedListDetailFixture(),
+        list: {
+          ...savedListDetailFixture().list,
+          name: "Server name",
+          description: "Server description",
+        },
+      }),
+    );
+    expect(name).toHaveValue("My list draft");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Description")).toHaveValue("Server description"),
+    );
+    apiMocks.getSavedList.mockResolvedValue({
+      ...savedListDetailFixture(),
+      list: {
+        ...savedListDetailFixture().list,
+        list_key: "other-list",
+        slug: "other",
+        name: "Other list",
+      },
+    });
+    rerender(<ListEditView route={{ kind: "listEdit", slug: "other" }} />);
+    expect(await screen.findByLabelText("Name")).toHaveValue("Other list");
+  });
+  it("retries an initial list failure without discarding later edits", async () => {
+    apiMocks.getSavedList.mockRejectedValueOnce(new Error("List unavailable"));
+    render(<ListEditView route={{ kind: "listEdit", slug: "research" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Retry list" }));
+    expect(await screen.findByLabelText("Name")).toHaveValue("Research");
+  });
 });
+
+function VocabularyProbe({
+  scope,
+  label,
+}: {
+  scope: FilterVocabularyScope;
+  label: string;
+}) {
+  const query = useFilterVocabulary(scope, "traits", "", 0, ["retained"]);
+  const values = query.data?.values;
+  return (
+    <output aria-label={label}>
+      {JSON.stringify({
+        options: values?.options.map((option) => option.value),
+        selected: values?.selected_values,
+        total: values?.total_values.toString(),
+      })}
+    </output>
+  );
+}
+
+function ListDiscoveryProbe({ listRef }: { listRef: string }) {
+  useSavedListFilterDiscovery(listRef, {
+    ...DEFAULT_SEARCH_STATE,
+    filter: {
+      kind: "set_match",
+      clause_id: "trait",
+      field: "traits",
+      op: "includes_any",
+      values: ["retained"],
+    },
+  });
+  return (
+    <VocabularyProbe
+      scope={{ kind: "saved_list", list_ref: listRef }}
+      label={`values ${listRef}`}
+    />
+  );
+}
 
 function queryClientWrapper() {
   const queryClient = new QueryClient({
@@ -389,7 +1054,15 @@ function queryClientWrapper() {
     },
   });
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <SearchProfileProvider>
+            <App>{children}</App>
+          </SearchProfileProvider>
+        </ConfigProvider>
+      </QueryClientProvider>
+    );
   };
 }
 
@@ -402,7 +1075,7 @@ function savedListIndexFixture(): SavedListIndexView {
         name: "Research",
         description: "Campaign prep",
         tags: ["arc-one", "boss"],
-        item_count: 1n,
+        item_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
       },
@@ -412,7 +1085,7 @@ function savedListIndexFixture(): SavedListIndexView {
         name: "Encounters",
         description: "Fight prep",
         tags: ["arc-two"],
-        item_count: 0n,
+        item_count: 0,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-03T00:00:00Z",
       },
@@ -426,97 +1099,32 @@ function savedListDetailFixture(): SavedListDetailView {
     items: [
       {
         record_key: "actions:testAction1",
-        position: 1n,
+        position: 1,
         status: "active",
         snapshot: {
           title: "Test Action 1",
           kind: "rule",
         },
-        record: {
-          record_key: "actions:testAction1",
-          title: "Test Action 1",
-          kind: "rule",
-          kind_label: "Rule",
-        },
+        record: summaryFixture("actions:testAction1", "Test Action 1"),
       },
     ],
   };
 }
 
 function filterEditorFixture() {
-  return {
-    matching_record_count: 1n,
-    groups: [
-      {
-        id: "standard",
-        label: "Standard filters",
-        fields: [
-          filterField("level", "Level", "range"),
-          filterField("rarity", "Rarity", "option"),
-          filterField("kind", "Kind", "option"),
-          filterField("traits", "Traits", "option"),
-          filterField("pack", "Pack", "option"),
-        ],
-      },
-    ],
-  };
-}
-
-function filterField(id: string, label: string, controlKind: "option" | "range") {
-  return {
-    id,
-    label,
-    placement: "always_visible",
-    applicability: "applicable",
-    supports_counts: true,
-    allowed_operators: ["include_any", "include_all", "exclude_any"],
-    default_operator: "include_any",
-    control:
-      controlKind === "range"
-        ? {
-            kind: "range",
-            min: 0,
-            max: 25,
-            step: 1,
-            min_label: "Min",
-            max_label: "Max",
-          }
-        : { kind: "option" },
-  };
+  return editorFixture([
+    fieldFixture("actor.level", "number", "Level"),
+    fieldFixture("common.rarity", "string", "Rarity"),
+    fieldFixture("record.kind", "string", "Kind"),
+    fieldFixture("common.traits", "set", "Traits"),
+    fieldFixture("source.pack", "string", "Pack"),
+  ]);
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  return {
-    record_key: recordKey,
-    title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-    kind: "rule",
-    presentation: {
-      record_key: recordKey,
-      kind: "rule",
-      title: recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-      identity: [],
-      badges: [],
-      sections:
-        recordKey === "rules:nested"
-          ? []
-          : [
-              {
-                kind: "references",
-                title: "References",
-                blocks: [
-                  {
-                    kind: "relationships",
-                    content: [
-                      {
-                        kind: "reference",
-                        label: "Nested Rule",
-                        record_key: "rules:nested",
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-    },
-  };
+  return detailFixture(
+    recordKey,
+    recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
+    recordKey === "rules:nested" ? undefined : "rules:nested",
+  );
 }

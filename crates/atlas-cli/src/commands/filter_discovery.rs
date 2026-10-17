@@ -1,425 +1,328 @@
+use super::{filters::build_filter, product::app_result};
+use crate::client::{ClientOptions, connect};
+use atlas_app_service::{RawFilterCountsRequest, RawFilterValuesRequest};
+use atlas_cli_support::write_json_data;
+use atlas_domain::{QueryFieldDefinition, QueryFieldType};
 use std::process::ExitCode;
-
-use atlas_app_model::{AppError, AppErrorCode};
-use atlas_app_service::RawFilterValuesRequest;
-use atlas_domain::{
-    BooleanFieldCounts, FilterFieldDiscovery, FilterFieldGroup, FilterFieldInfo, FilterFieldType,
-    FilterSample, FilterValueDiscovery, FilterValuePayload, FilterValuePolicy, MetricKeyDiscovery,
-    MetricValuePayload, NumericFieldStats,
-};
-use atlas_search::MetricDiscoverySelector;
-use serde_json::Value;
-
-use crate::cli::args::FilterOptions;
-use crate::client::{
-    AtlasClient, AtlasClientConfig, AtlasClientHandle, LocalAtlasClientOptions, connect,
-};
-use crate::output::{write_json_data, write_json_error};
-
 pub(crate) mod args;
-
-use args::{CliFilterValueSort, FiltersFieldsOptions, FiltersValuesOptions};
-
-use super::filters::build_filter;
-
-pub(crate) fn run_filters_fields(options: FiltersFieldsOptions) -> Result<ExitCode, String> {
-    let (filter, filter_value) = match build_filter(
-        options.filter_json.as_deref(),
-        &FilterOptions::from(options.filter_options),
-    ) {
-        Ok(filter) => filter,
-        Err(error) => {
-            return discovery_cli_error(options.json, error.code, error.message, ExitCode::from(2));
-        }
-    };
-    let client =
-        match filter_discovery_client(options.index, options.path_mode.into(), options.json)? {
-            FilterDiscoveryCommandStep::Ready(client) => client,
-            FilterDiscoveryCommandStep::Exit(code) => return Ok(code),
-        };
-    match client.discover_raw_filter_fields(filter, filter_value) {
-        Ok(data) => {
-            if options.json {
-                write_json_data(data)?;
-            } else {
-                print_filter_fields(&data);
-            }
-            Ok(ExitCode::SUCCESS)
-        }
-        Err(error) => write_discovery_error(error, options.json),
-    }
-}
-
-pub(crate) fn run_filters_values(options: FiltersValuesOptions) -> Result<ExitCode, String> {
-    let metric_selector = match metric_selector_from_options(&options) {
-        Ok(selector) => selector,
-        Err(message) => {
-            return discovery_cli_error(options.json, "invalid_option", message, ExitCode::from(2));
-        }
-    };
-    let (filter, filter_value) = match build_filter(
-        options.filter_json.as_deref(),
-        &FilterOptions::from(options.filter_options),
-    ) {
-        Ok(filter) => filter,
-        Err(error) => {
-            return discovery_cli_error(options.json, error.code, error.message, ExitCode::from(2));
-        }
-    };
-    let request = RawFilterValuesRequest {
-        field: options.field,
-        filter,
-        filter_json: filter_value,
-        sort: options.sort.map(discovery_sort),
-        sample_limit: options.sample_limit,
-        metric_selector,
-        metric_domain: options.metric_domain,
-    };
-    let client =
-        match filter_discovery_client(options.index, options.path_mode.into(), options.json)? {
-            FilterDiscoveryCommandStep::Ready(client) => client,
-            FilterDiscoveryCommandStep::Exit(code) => return Ok(code),
-        };
-    match client.discover_raw_filter_values(request) {
-        Ok(data) => {
-            if options.json {
-                write_json_data(data)?;
-            } else {
-                print_filter_values(&data);
-            }
-            Ok(ExitCode::SUCCESS)
-        }
-        Err(error) => write_discovery_error(error, options.json),
-    }
-}
-
-enum FilterDiscoveryCommandStep<T> {
-    Ready(T),
-    Exit(ExitCode),
-}
-
-fn filter_discovery_client(
-    index: Option<std::path::PathBuf>,
-    path_mode: atlas_runtime::AtlasPathMode,
-    json: bool,
-) -> Result<FilterDiscoveryCommandStep<AtlasClientHandle>, String> {
-    match connect(AtlasClientConfig::Local(LocalAtlasClientOptions {
-        path_mode,
-        index_path: index,
-        embedding_cache_root: None,
+use args::{FiltersFieldsOptions, FiltersValuesOptions};
+pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, String> {
+    let s = connect(ClientOptions {
+        search_profile: None,
+        path_mode: o.path_mode.into(),
+        index: o.index,
+        embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
-    })) {
-        Ok(client) => Ok(FilterDiscoveryCommandStep::Ready(client)),
-        Err(error) if json => {
-            write_discovery_error(error, true)?;
-            Ok(FilterDiscoveryCommandStep::Exit(ExitCode::from(3)))
+    })
+    .map_err(|e| e.message)?;
+    if o.field.is_none() && !o.all && o.text.is_none() {
+        let Some(mut editor) = app_result(
+            s.discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
+                filter: None,
+                selected_field_ids: vec![],
+            }),
+            o.json,
+        )?
+        else {
+            return Ok(ExitCode::from(3));
+        };
+        if let Some(id) = &o.group {
+            if !editor.groups.iter().any(|group| &group.id == id) {
+                return Err(format!(
+                    "Unknown group `{id}`; use atlas filters fields to list groups"
+                ));
+            }
+            editor.groups.retain(|group| &group.id == id);
         }
-        Err(error) => Err(error.message),
+        if o.json {
+            write_json_data(&editor)?;
+        } else {
+            for group in editor.groups {
+                println!("{}\t{}", group.id, group.label);
+                if o.group.is_some() {
+                    for field in group
+                        .fields
+                        .iter()
+                        .filter(|field| field.definition.scope.is_none())
+                    {
+                        println!(
+                            "  {}\t{}\t{}",
+                            field.definition.id,
+                            type_label(&field.definition.field_type),
+                            field.label
+                        );
+                    }
+                    // Embedded members are discovered through their collection, not duplicated here.
+                }
+            }
+            println!(
+                "\nUse --group ID to browse, --field ID to inspect, or --text QUERY to search all fields."
+            );
+        }
+        return Ok(ExitCode::SUCCESS);
     }
-}
-
-fn discovery_sort(sort: CliFilterValueSort) -> atlas_domain::FilterValueSort {
-    match sort {
-        CliFilterValueSort::Count => atlas_domain::FilterValueSort::Count,
-        CliFilterValueSort::Alpha => atlas_domain::FilterValueSort::Alpha,
-        CliFilterValueSort::Canonical => atlas_domain::FilterValueSort::Canonical,
+    let Some(mut c) = app_result(s.discover_filter_fields(), o.json)? else {
+        return Ok(ExitCode::from(3));
+    };
+    if let Some(id) = &o.field
+        && !c.fields.iter().any(|field| &field.id == id)
+    {
+        if let Some(collection) = id.strip_suffix("[]")
+            && c.fields.iter().any(|field| {
+                field.id == collection && field.field_type == QueryFieldType::Collection
+            })
+        {
+            return Err(format!(
+                "`{id}` identifies collection entries.\nUse atlas filters fields --field {collection} to inspect the collection and its fields."
+            ));
+        }
+        return Err(format!(
+            "Unknown field `{id}`; use atlas filters fields --text QUERY"
+        ));
     }
-}
-
-fn metric_selector_from_options(
-    options: &FiltersValuesOptions,
-) -> Result<Option<MetricDiscoverySelector>, String> {
-    let mut selectors = Vec::new();
-    if let Some(metric) = options.metric.clone() {
-        selectors.push(("--metric", MetricDiscoverySelector::ExactKey(metric)));
-    }
-    if let Some(prefix) = options.metric_prefix.clone() {
-        selectors.push(("--metric-prefix", MetricDiscoverySelector::Prefix(prefix)));
-    }
-    if let Some(label) = options.metric_label.clone() {
-        selectors.push(("--metric-label", MetricDiscoverySelector::Label(label)));
-    }
-    if let Some(query) = options.metric_query.clone() {
-        selectors.push(("--metric-query", MetricDiscoverySelector::Query(query)));
-    }
-
-    match selectors.len() {
-        0 => Ok(None),
-        1 => Ok(selectors.pop().map(|(_, selector)| selector)),
-        _ => Err(format!(
-            "metric selector flags are mutually exclusive: {}",
-            selectors
-                .into_iter()
-                .map(|(flag, _)| flag)
-                .collect::<Vec<_>>()
-                .join(", ")
-        )),
-    }
-}
-
-fn write_discovery_error(error: AppError, json: bool) -> Result<ExitCode, String> {
-    discovery_cli_error(
-        json,
-        discovery_error_code(error.code),
-        error.message,
-        discovery_error_exit_code(error.code),
-    )
-}
-
-fn discovery_error_code(code: AppErrorCode) -> &'static str {
-    match code {
-        AppErrorCode::FilterFieldInvalid => "invalid_field",
-        AppErrorCode::FilterOptionInvalid | AppErrorCode::InvalidRequest => "invalid_option",
-        AppErrorCode::FilterFieldNotApplicable => "field_not_applicable",
-        AppErrorCode::FilterMetricAmbiguous => "ambiguous_metric",
-        AppErrorCode::FilterInvalid => "invalid_filter",
-        AppErrorCode::IndexUnavailable => "index_unavailable",
-        AppErrorCode::ArtifactIncompatible => "artifact_contract_violation",
-        AppErrorCode::SetupRequired
-        | AppErrorCode::SetupInProgress
-        | AppErrorCode::ArtifactNotReady => "runtime_error",
-        _ => "query_failed",
-    }
-}
-
-fn discovery_error_exit_code(code: AppErrorCode) -> ExitCode {
-    match code {
-        AppErrorCode::FilterFieldInvalid
-        | AppErrorCode::FilterOptionInvalid
-        | AppErrorCode::FilterFieldNotApplicable
-        | AppErrorCode::FilterMetricAmbiguous
-        | AppErrorCode::FilterInvalid
-        | AppErrorCode::InvalidRequest => ExitCode::from(2),
-        _ => ExitCode::from(3),
-    }
-}
-
-fn discovery_cli_error(
-    json: bool,
-    code: &'static str,
-    message: String,
-    exit_code: ExitCode,
-) -> Result<ExitCode, String> {
-    if json {
-        write_json_error(code, message)?;
+    if o.json {
+        c.fields
+            .retain(|field| matches_field(field, o.field.as_deref(), o.text.as_deref()));
+        write_json_data(&c)?;
     } else {
-        eprintln!("{message}");
-    }
-    Ok(exit_code)
-}
-
-fn print_filter_fields(data: &FilterFieldDiscovery) {
-    println!("Filter fields");
-    print_filter_context(data.filter.as_ref(), data.matching_record_count);
-    println!();
-
-    let groups = [
-        FilterFieldGroup::Record,
-        FilterFieldGroup::Spell,
-        FilterFieldGroup::Actor,
-        FilterFieldGroup::Item,
-        FilterFieldGroup::Variant,
-        FilterFieldGroup::Metric,
-    ];
-    for group in groups {
-        let fields = data
+        for f in c
             .fields
             .iter()
-            .filter(|field| field.group == group)
-            .collect::<Vec<_>>();
-        if fields.is_empty() {
-            continue;
-        }
-        println!("{}", group_label(group));
-        for field in fields {
-            print_field_row(field);
-        }
-        println!();
-    }
-}
-
-fn print_field_row(field: &FilterFieldInfo) {
-    let flags = if field.cli_flags.is_empty() {
-        String::new()
-    } else {
-        format!("  flags: {}", field.cli_flags.join(", "))
-    };
-    println!(
-        "  {:<22} {:<12} {}{}",
-        field.field,
-        field_type_label(field.field_type),
-        value_policy_label(field.value_policy),
-        flags
-    );
-}
-
-fn print_filter_values(data: &FilterValueDiscovery) {
-    println!("Values for field: {}", data.field);
-    print_filter_context(data.filter.as_ref(), data.matching_record_count);
-    println!();
-
-    match &data.payload {
-        FilterValuePayload::Enumerable {
-            values, null_count, ..
-        } => {
-            for value in values {
-                println!("{:<28} {}", value.value, value.count);
+            .filter(|field| matches_field(field, o.field.as_deref(), o.text.as_deref()))
+        {
+            println!("{}\t{}\t{}", f.id, type_label(&f.field_type), f.label);
+            if o.field.is_none() {
+                continue;
             }
-            println!();
-            println!("Null values: {null_count}");
-        }
-        FilterValuePayload::Sample {
-            sample,
-            field_stats,
-            null_count,
-        } => print_sample_values(sample, field_stats.distinct_count, *null_count),
-        FilterValuePayload::NumericStats { stats } => print_numeric_stats(stats),
-        FilterValuePayload::BooleanCounts { counts } => print_boolean_counts(counts),
-        FilterValuePayload::MetricKeys { metrics } => print_metric_keys(metrics),
-        FilterValuePayload::MetricValues { metric, values } => {
-            print_metric_header(metric);
-            println!();
-            match values {
-                MetricValuePayload::NumericStats { stats } => print_numeric_stats(stats),
-                MetricValuePayload::TextValues { values } => {
-                    for value in values {
-                        println!("{:<28} {}", value.value, value.count);
-                    }
+            println!("  Operators: {}", f.operators.join(", "));
+            if !f.family_types.is_empty() {
+                println!("  Source families: {}", f.family_types.join(", "));
+            }
+            if let Some(units) = &f.units {
+                println!("  Units: {units}");
+            }
+            if let Some(scope) = &f.scope {
+                println!("  Collection: {scope}; field within each entry: {}", f.path);
+                println!("  Combine conditions inside one exists(...) to match the same entry.");
+            } else if f.field_type == QueryFieldType::Collection {
+                println!("  Use exists(...) to match an entry in this collection.");
+            }
+            if !f.choices.is_empty() {
+                println!("  Allowed choices: {}", f.choices.join(", "));
+            }
+            println!("  Basis: {}", f.basis);
+            println!("  CEL examples:");
+            for example in &f.examples {
+                println!("  {example}");
+            }
+            if f.field_type == QueryFieldType::Collection {
+                println!("  Entry fields:");
+                for child in c
+                    .fields
+                    .iter()
+                    .filter(|child| child.scope.as_deref() == Some(f.path.as_str()))
+                {
+                    println!(
+                        "    {}\t{}\t{}",
+                        child.id,
+                        type_label(&child.field_type),
+                        child.label
+                    );
                 }
-                MetricValuePayload::BooleanCounts { counts } => print_boolean_counts(counts),
+                println!(
+                    "  Inspect an entry field with --field ID; discover its values with filters values --field ID."
+                );
+                println!(
+                    "  Combine entry conditions inside one exists(...) to match the same entry."
+                );
             }
         }
-    }
-}
-
-fn print_filter_context(filter: Option<&Value>, matching_record_count: u64) {
-    if let Some(filter) = filter {
-        println!("Filter: {}", filter_label(filter));
-    }
-    println!("Matching records: {matching_record_count}");
-}
-
-fn print_sample_values(sample: &FilterSample, distinct_count: u64, null_count: u64) {
-    println!("Distinct values: {distinct_count}");
-    println!("Null values: {null_count}");
-    println!();
-    for example in &sample.examples {
-        let suffix = if example.truncated { "..." } else { "" };
-        println!("{:<28} {}{}", example.text, example.count, suffix);
-    }
-    if sample.omitted_distinct_count > 0 {
-        println!();
-        println!("{} distinct values omitted", sample.omitted_distinct_count);
-    }
-}
-
-fn print_metric_keys(metrics: &[MetricKeyDiscovery]) {
-    println!("Metrics");
-    println!();
-    for metric in metrics {
-        let label = metric.label.as_deref().unwrap_or("");
-        if let Some(stats) = &metric.numeric_stats {
+        if o.field.is_none() {
+            println!("\nUse --field ID for operators, applicability, choices and CEL examples.");
             println!(
-                "{:<18} {:<7} {:<22} count: {}  min: {}  p50: {}  max: {}",
-                metric.metric_key,
-                metric.value_type,
-                label,
-                metric.count,
-                number_or_dash(stats.min),
-                number_or_dash(stats.p50),
-                number_or_dash(stats.max)
-            );
-        } else {
-            println!(
-                "{:<18} {:<7} {:<22} count: {}",
-                metric.metric_key, metric.value_type, label, metric.count
+                "Use --text QUERY to find fields, or filters values --field ID for values and statistics."
             );
         }
     }
+    Ok(ExitCode::SUCCESS)
 }
-
-fn print_metric_header(metric: &MetricKeyDiscovery) {
-    let label = metric.label.as_deref().unwrap_or("");
-    println!(
-        "Metric: {}  {}  {}  count: {}",
-        metric.metric_key, metric.value_type, label, metric.count
+pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, String> {
+    let (filter, _) = build_filter(&o.filter_options).map_err(|e| e.message)?;
+    let s = connect(ClientOptions {
+        search_profile: None,
+        path_mode: o.path_mode.into(),
+        index: o.index,
+        embedding_cache: None,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+    })
+    .map_err(|e| e.message)?;
+    let Some(counts) = app_result(
+        s.discover_raw_filter_counts(RawFilterCountsRequest {
+            field: o.field.clone(),
+            filter: filter.clone(),
+            clause_id: None,
+        }),
+        o.json,
+    )?
+    else {
+        return Ok(ExitCode::from(3));
+    };
+    let Some(catalog) = app_result(s.discover_filter_fields(), o.json)? else {
+        return Ok(ExitCode::from(3));
+    };
+    let definition = catalog
+        .fields
+        .iter()
+        .find(|field| field.id == o.field)
+        .ok_or_else(|| format!("Unknown field `{}`", o.field))?;
+    let statistics_only = matches!(
+        definition.field_type,
+        QueryFieldType::Number | QueryFieldType::Collection
     );
-}
-
-fn print_numeric_stats(stats: &NumericFieldStats) {
-    println!("Numeric stats");
-    println!("Count: {}", stats.count);
-    println!("Null values: {}", stats.null_count);
-    println!(
-        "Min: {}  p05: {}  p25: {}  p50: {}  mean: {}  p75: {}  p95: {}  max: {}",
-        number_or_dash(stats.min),
-        number_or_dash(stats.p05),
-        number_or_dash(stats.p25),
-        number_or_dash(stats.p50),
-        number_or_dash(stats.mean),
-        number_or_dash(stats.p75),
-        number_or_dash(stats.p95),
-        number_or_dash(stats.max)
-    );
-}
-
-fn print_boolean_counts(counts: &BooleanFieldCounts) {
-    println!("true   {}", counts.r#true);
-    println!("false  {}", counts.r#false);
-    println!("null   {}", counts.null);
-}
-
-fn filter_label(filter: &Value) -> String {
-    match (
-        filter.get("kind").and_then(Value::as_str),
-        filter.get("value").and_then(Value::as_str),
-    ) {
-        (Some("record_kind"), Some(value)) => format!("kind = {value}"),
-        _ => serde_json::to_string(filter).unwrap_or_else(|_| "<filter>".to_string()),
+    if statistics_only && (o.text.is_some() || o.offset != 0 || o.limit != 50) {
+        return Err("--text, --offset and --limit apply to sampled values, not numeric or collection statistics".into());
     }
-}
-
-fn group_label(group: FilterFieldGroup) -> &'static str {
-    match group {
-        FilterFieldGroup::Record => "record",
-        FilterFieldGroup::Spell => "spell",
-        FilterFieldGroup::Actor => "actor",
-        FilterFieldGroup::Item => "item",
-        FilterFieldGroup::Variant => "variant",
-        FilterFieldGroup::Metric => "metric",
-    }
-}
-
-fn field_type_label(field_type: FilterFieldType) -> &'static str {
-    match field_type {
-        FilterFieldType::Set => "set",
-        FilterFieldType::EnumString => "enum_string",
-        FilterFieldType::Text => "text",
-        FilterFieldType::Number => "number",
-        FilterFieldType::Boolean => "boolean",
-        FilterFieldType::Metric => "metric",
-    }
-}
-
-fn value_policy_label(policy: FilterValuePolicy) -> &'static str {
-    match policy {
-        FilterValuePolicy::Enumerable => "enumerable",
-        FilterValuePolicy::Sample => "sample",
-        FilterValuePolicy::NumericStats => "numeric_stats",
-        FilterValuePolicy::BooleanCounts => "boolean_counts",
-        FilterValuePolicy::MetricKeys => "metric_keys",
-        FilterValuePolicy::MetricValues => "metric_values",
-    }
-}
-
-fn number_or_dash(value: Option<f64>) -> String {
-    value
-        .map(|value| {
-            if value.fract() == 0.0 {
-                format!("{}", value as i64)
-            } else {
-                format!("{value:.2}")
+    let values = if statistics_only {
+        None
+    } else {
+        let Some(values) = app_result(
+            s.discover_raw_filter_values(RawFilterValuesRequest {
+                field: o.field,
+                filter,
+                clause_id: None,
+                text: o.text,
+                offset: o.offset,
+                limit: o.limit,
+            }),
+            o.json,
+        )?
+        else {
+            return Ok(ExitCode::from(3));
+        };
+        Some(values)
+    };
+    if o.json {
+        write_json_data(serde_json::json!({"values":values,"counts":counts}))?;
+    } else {
+        println!("{} ({})", definition.label, definition.id);
+        if let Some(values) = values {
+            for v in &values.options {
+                println!(
+                    "{}\t{} records",
+                    serde_json::to_string(&v.value).map_err(|e| e.to_string())?,
+                    v.distinct_roots
+                );
             }
+            println!(
+                "{} of {} values shown",
+                values.options.len(),
+                values.total_values
+            );
+            let next_offset = o.offset.saturating_add(values.options.len());
+            if (next_offset as u64) < values.total_values {
+                println!("Next page: repeat with --offset {next_offset}");
+            }
+            println!(
+                "Counts are distinct parent records for each value, retaining all supplied filters."
+            );
+            if definition.scope.is_some() {
+                println!(
+                    "An existing collection filter may match a different entry; use one exists(...) for same-entry constraints."
+                );
+            }
+            if !values.exhaustive {
+                println!("Counts cover a limited candidate set, not the full collection.");
+            }
+        }
+        if definition.field_type == QueryFieldType::Number {
+            match (&counts.minimum, &counts.maximum) {
+                (Some(lo), Some(hi)) => println!(
+                    "Range: {lo}–{hi}{}",
+                    definition
+                        .units
+                        .as_ref()
+                        .map(|u| format!(" {u}"))
+                        .unwrap_or_default()
+                ),
+                _ => println!("No known numeric values in this selection."),
+            }
+        }
+        if definition.field_type == QueryFieldType::Collection {
+            println!(
+                "Use filters fields --text '{}' to find fields within this collection.",
+                definition.id
+            );
+        }
+        println!(
+            "Source availability ({}; before remaster suppression):",
+            counts.counting_scope
+        );
+        for state in counts.states {
+            println!(
+                "{}\t{} records\t{} occurrences",
+                state.state.as_str(),
+                state.distinct_roots,
+                state.occurrences
+            );
+        }
+        if definition.scope.is_some() {
+            println!(
+                "Occurrences count collection entries; a parent record can contribute more than one."
+            );
+        }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn matches_field(field: &QueryFieldDefinition, id: Option<&str>, text: Option<&str>) -> bool {
+    id.is_none_or(|id| field.id == id)
+        && text.is_none_or(|query| {
+            let query = query.to_lowercase();
+            [&field.id, &field.label]
+                .into_iter()
+                .chain(field.scope.iter())
+                .chain(field.family_types.iter())
+                .any(|value| value.to_lowercase().contains(&query))
         })
-        .unwrap_or_else(|| "-".to_string())
+}
+fn type_label(field_type: &QueryFieldType) -> &'static str {
+    match field_type {
+        QueryFieldType::String => "text",
+        QueryFieldType::Number => "number",
+        QueryFieldType::Boolean => "yes/no",
+        QueryFieldType::Set => "set",
+        QueryFieldType::Collection => "collection",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn field_discovery_uses_labels_and_stable_ids_with_explicit_scope() {
+        let catalog = atlas_index::query_capabilities().unwrap();
+        let hp = catalog
+            .fields
+            .iter()
+            .find(|f| f.id == "actor.hp.maximum")
+            .unwrap();
+        assert_eq!(hp.label, "Maximum HP");
+        assert!(matches_field(hp, None, Some("maximum hp")));
+        assert!(matches_field(hp, None, Some("hazard")));
+        assert!(!matches_field(hp, Some("shield.hp.maximum"), None));
+        assert_eq!(
+            catalog
+                .fields
+                .iter()
+                .filter(|f| matches_field(f, Some("actor.hp.maximum"), None))
+                .count(),
+            1
+        );
+        assert!(
+            catalog
+                .fields
+                .iter()
+                .all(|f| !f.label.is_empty() && !f.label.contains('.'))
+        );
+    }
 }

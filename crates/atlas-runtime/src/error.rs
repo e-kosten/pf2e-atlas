@@ -7,6 +7,12 @@ pub struct RuntimeError {
 }
 
 impl RuntimeError {
+    pub(crate) fn unsupported_search_profile(error: impl fmt::Display) -> Self {
+        Self::new(
+            RuntimeErrorKind::UnsupportedSearchProfile,
+            error.to_string(),
+        )
+    }
     pub fn kind(&self) -> &RuntimeErrorKind {
         &self.kind
     }
@@ -68,6 +74,7 @@ impl std::error::Error for RuntimeError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeErrorKind {
+    UnsupportedSearchProfile,
     CurrentDirectoryUnavailable,
     RepoModeOutsideCheckout,
     CacheRootUnavailable { platform: RuntimePlatform },

@@ -3,13 +3,13 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-05-18
+Last reviewed: 2026-10-13
 
 ## Problem
 
-Human-readable Atlas search previews show key, name, kind, traits, source, and a text excerpt, but the most useful scan facts differ by record kind. Creature result previews should expose level and combat stats such as AC or HP. Equipment previews often need price, bulk, category, and activation details. Spell previews already benefit from level and traits but may need action cost, traditions, save, range, and duration more consistently.
+Human search results show concise identity, classification and matching evidence. Additional scan facts may help callers reject or choose candidates, but their usefulness differs by record kind. Evaluate the smallest useful additions against actual search tasks.
 
-Without kind-specific facts, users and agents must run follow-up `record get --detail standard --json` calls for records that could have been rejected from the preview list.
+Without kind-specific facts, users and agents must run follow-up `record get --json` calls for records that could have been rejected from the preview list.
 
 ## Desired Outcome
 
@@ -24,9 +24,9 @@ Candidate preview facts:
 
 ## Constraints
 
-- Keep `summary` compact for table output; richer scan facts belong in `preview` or `description`.
+- Keep result summaries compact and evaluate any added projection/read cost.
 - Preserve structured JSON output as the source of truth for agents needing exact fields.
-- Do not duplicate kind fact extraction policy in the CLI presentation layer if a runtime record view model should own it.
+- Reuse the shared application projection for semantic facts; the CLI owns output layout.
 
 ## Notes
 

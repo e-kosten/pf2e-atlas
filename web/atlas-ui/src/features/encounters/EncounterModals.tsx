@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Modal, Select } from "antd";
-import { useEffect } from "react";
+import { Alert, Button, Form, Input, Modal, Popconfirm, Select } from "antd";
+import { useEffect, useId, useRef } from "react";
 import { createEncounter } from "../../api/atlasApi";
 import type {
   EncounterStatusView,
@@ -28,6 +28,7 @@ export function CreateEncounterModal({
   onCancel: () => void;
   onCreated: (slug: string) => void;
 }) {
+  const formId = useId();
   const [form] = Form.useForm<CreateEncounterForm>();
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -43,9 +44,29 @@ export function CreateEncounterModal({
       title="New encounter"
       open={open}
       onCancel={onCancel}
+      confirmLoading={mutation.isPending}
+      cancelButtonProps={{ disabled: mutation.isPending }}
+      closable={!mutation.isPending}
+      keyboard={!mutation.isPending}
+      mask={{ closable: !mutation.isPending }}
       onOk={() => form.submit()}
     >
-      <Form form={form} layout="vertical" onFinish={(v) => mutation.mutate(v)}>
+      <Form
+        name={formId}
+        disabled={mutation.isPending}
+        form={form}
+        layout="vertical"
+        onFinish={(v) => {
+          if (!mutation.isPending) mutation.mutate(v);
+        }}
+      >
+        {mutation.error && (
+          <Alert
+            type="error"
+            title="Encounter could not be created"
+            description={mutation.error.message}
+          />
+        )}
         <Form.Item name="name" label="Name" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
@@ -57,30 +78,42 @@ export function CreateEncounterModal({
 export function EditEncounterModal({
   encounter,
   encounterNote,
-  onArchive,
   open,
   onCancel,
-  onComplete,
   onDelete,
   onSave,
+  disabled = false,
+  pending = false,
+  error,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
-  onArchive?: () => void;
   open: boolean;
   onCancel: () => void;
-  onComplete?: () => void;
-  onDelete?: () => void;
-  onSave: (encounter: UpdateEncounterRequest) => void;
+  onDelete?: () => Promise<unknown>;
+  onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
+  disabled?: boolean;
+  pending?: boolean;
+  error?: string;
 }) {
   return (
-    <Modal title="Edit encounter" open={open} onCancel={onCancel} footer={null}>
+    <Modal
+      title="Settings"
+      open={open}
+      destroyOnHidden
+      onCancel={onCancel}
+      footer={null}
+      closable={!pending}
+      keyboard={!pending}
+      mask={{ closable: !pending }}
+    >
       <EditEncounterForm
         encounter={encounter}
+        disabled={disabled}
+        pending={pending}
+        error={error}
         encounterNote={encounterNote}
-        onArchive={onArchive}
         onCancel={onCancel}
-        onComplete={onComplete}
         onDelete={onDelete}
         onSave={onSave}
       />
@@ -91,44 +124,78 @@ export function EditEncounterModal({
 export function EditEncounterForm({
   encounter,
   encounterNote,
-  onArchive,
   onCancel,
-  onComplete,
   onDelete,
   onSave,
+  disabled = false,
+  pending = false,
+  error,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
-  onArchive?: () => void;
   onCancel?: () => void;
-  onComplete?: () => void;
-  onDelete?: () => void;
-  onSave: (encounter: UpdateEncounterRequest) => void;
+  onDelete?: () => Promise<unknown>;
+  onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
+  disabled?: boolean;
+  pending?: boolean;
+  error?: string;
 }) {
+  const formId = useId();
   const [form] = Form.useForm<EditEncounterFormValues>();
+  const initializedKey = useRef<string | null>(null);
   useEffect(() => {
-    form.setFieldsValue({
+    const values = {
       name: encounter.name,
       description: encounter.description,
       note: encounterNote,
       status: encounter.status,
-    });
+    };
+    if (initializedKey.current !== encounter.encounter_key) {
+      form.resetFields();
+      form.setFieldsValue(values);
+      form.setFields(
+        (Object.keys(values) as Array<keyof EditEncounterFormValues>).map((name) => ({
+          name,
+          touched: false,
+        })),
+      );
+      initializedKey.current = encounter.encounter_key;
+    } else {
+      for (const field of Object.keys(values) as Array<keyof EditEncounterFormValues>) {
+        if (!form.isFieldTouched(field)) form.setFieldValue(field, values[field]);
+      }
+    }
   }, [encounter, encounterNote, form]);
   return (
     <Form
+      name={formId}
+      disabled={disabled}
       form={form}
       layout="vertical"
-      onFinish={(values) =>
-        onSave({
-          encounter_key: encounter.encounter_key,
-          slug: encounter.slug,
-          name: values.name,
-          ...(values.description ? { description: values.description } : {}),
-          ...(values.note ? { note: values.note } : {}),
-          status: values.status,
-        })
-      }
+      onFinish={async (values) => {
+        if (disabled) return;
+        try {
+          await onSave({
+            encounter_key: encounter.encounter_key,
+            slug: encounter.slug,
+            name: values.name,
+            ...(values.description ? { description: values.description } : {}),
+            ...(values.note ? { note: values.note } : {}),
+            status: values.status,
+          });
+          form.setFields(
+            (Object.keys(values) as Array<keyof EditEncounterFormValues>).map(
+              (name) => ({ name, touched: false }),
+            ),
+          );
+        } catch {
+          /* The owner displays the failure; keep this draft. */
+        }
+      }}
     >
+      {error && (
+        <Alert type="error" title="Encounter action failed" description={error} />
+      )}
       <Form.Item name="name" label="Name" rules={[{ required: true }]}>
         <Input />
       </Form.Item>
@@ -147,15 +214,34 @@ export function EditEncounterForm({
         />
       </Form.Item>
       <div className="encounter-actions">
-        {onCancel ? <Button onClick={onCancel}>Cancel</Button> : null}
-        {onComplete ? <Button onClick={onComplete}>Complete</Button> : null}
-        {onArchive ? <Button onClick={onArchive}>Archive</Button> : null}
-        {onDelete ? (
-          <Button danger onClick={onDelete}>
-            Delete
+        {onCancel ? (
+          <Button disabled={pending} onClick={onCancel}>
+            Cancel
           </Button>
         ) : null}
-        <Button type="primary" onClick={() => form.submit()}>
+        {onDelete ? (
+          <Popconfirm
+            title={`Delete ${encounter.name}?`}
+            description="This permanently deletes the encounter."
+            placement="topLeft"
+            okText="Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true, loading: pending }}
+            cancelButtonProps={{ disabled: pending }}
+            disabled={disabled}
+            onConfirm={onDelete}
+          >
+            <Button disabled={disabled} danger>
+              Delete
+            </Button>
+          </Popconfirm>
+        ) : null}
+        <Button
+          disabled={disabled}
+          loading={pending}
+          type="primary"
+          onClick={() => form.submit()}
+        >
           Save
         </Button>
       </div>

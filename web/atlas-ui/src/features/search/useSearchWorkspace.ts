@@ -1,21 +1,20 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
-import { keepPreviousData, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
-  getReadiness,
-  getRecordDetail,
-  openResultWindow,
-  readResultWindowPage,
-} from "../../api/atlasApi";
-import type {
-  FilterEditorView,
-  FilterValueListView,
-  RecordDetailView,
-  ResultWindowPage,
-} from "../../generated/atlas";
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { searchPage } from "../../api/atlasApi";
+import { assertSearchIdentity } from "../../shared/search/searchIdentity";
+import type { FilterEditorView, SearchResultsPage } from "../../generated/atlas";
 import {
   buildFilterDiscoveryContext,
-  buildOpenRequest,
+  buildSearchRequest,
   DEFAULT_SEARCH_STATE,
+  SIMILAR_QUERY_CONFLICT,
   encodeSearchExecutionState,
   encodeSearchState,
   hasExecutableSearch,
@@ -23,8 +22,19 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { useFilterDiscovery } from "../../shared/filters/useFilterDiscovery";
+import { commonCondition } from "../../shared/filters/filterControls";
+import {
+  rootNavigation,
+  useReferenceReading,
+  type ReferenceReading,
+} from "../../shared/records/useReferenceReading";
+import {
+  useBrowsePositions,
+  type BrowsePositions,
+} from "../../shared/records/useBrowsePositions";
 import {
   initialWorkspaceInteractionState,
+  rememberKindPreference,
   workspaceInteractionReducer,
 } from "./workspaceState";
 import {
@@ -33,92 +43,143 @@ import {
   searchPath,
 } from "../../app/routes";
 
+import {
+  isArtifactGenerationChanged,
+  retireImmutableReferenceQueries,
+} from "../../shared/queries/immutableReferenceQueries";
+
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
-
-export type AtlasRequestTiming = {
-  durationMs: number;
-  finishedAt: number;
-};
-
-export type AtlasWorkspaceDiagnostics = {
-  activeWindowId: string | null;
-  detailRequest: AtlasRequestTiming | null;
-  resultRequest:
-    | (AtlasRequestTiming & {
-        kind: "open_window" | "page";
-      })
-    | null;
-  searchDebouncing: boolean;
-};
-
-type ResultWindowHandle = {
-  searchExecutionToken: string;
-  windowId: bigint;
-};
 
 export type SearchWorkspaceState = {
   search: SearchFormState;
+  reading: ReferenceReading;
+  positions: BrowsePositions;
   setSearch: (next: SearchFormState) => void;
-  activeResultKey: string | null;
-  focusResult: (recordKey: string) => void;
-  moveResultSelection: (direction: "next" | "previous") => void;
-  openActiveResult: () => void;
   selectedRecordKey: string | null;
   selectRecord: (recordKey: string | null) => void;
   pageNumber: number;
   setPageNumber: (page: number) => void;
-  resultPage: ResultWindowPage | undefined;
-  recordDetail: RecordDetailView | undefined;
+  resultPage: SearchResultsPage | undefined;
   filterEditor: FilterEditorView | undefined;
-  filterValuesByField: Record<string, FilterValueListView | undefined>;
-  readiness: UseQueryResult<Awaited<ReturnType<typeof getReadiness>>, Error>;
+  filterCountsEnabled?: boolean;
+  filterCountQueryKey?: readonly unknown[];
   resultsLoading: boolean;
   resultsRefreshing: boolean;
-  detailLoading: boolean;
+  resultsPaused?: boolean;
+  resultsRecovering?: boolean;
+  refreshResults: () => Promise<void>;
   filterDiscoveryLoading: boolean;
-  diagnostics: AtlasWorkspaceDiagnostics;
+  filterDiscoveryContext: import("../../generated/atlas").FilterDiscoveryContext;
+  vocabularyScope: import("../../generated/atlas").FilterVocabularyScope;
+  filterDiscoveryError: string | null;
   errorMessage: string | null;
   refresh: () => void;
 };
 
 type UseAtlasWorkspaceOptions = {
   enabled?: boolean;
+  searchProfile: string | null;
+  pendingUrlProfile?: string | null;
+  searchProfileStored?: boolean;
+  searchProfileUsable?: boolean;
+  includeSearchProfileInUrl?: boolean;
 };
 
 export function useSearchWorkspace({
   enabled = true,
-}: UseAtlasWorkspaceOptions = {}): SearchWorkspaceState {
+  searchProfile,
+  pendingUrlProfile = null,
+  searchProfileStored = true,
+  searchProfileUsable = true,
+  includeSearchProfileInUrl = true,
+}: UseAtlasWorkspaceOptions): SearchWorkspaceState {
+  // Unresolved metadata is distinct from deliberate single-profile URL omission.
+  // This literal comes from the existing selection owner and never enables reads.
+  const urlProfile =
+    searchProfile === null
+      ? pendingUrlProfile
+      : includeSearchProfileInUrl
+        ? searchProfile
+        : null;
   const [interaction, dispatch] = useReducer(
     workspaceInteractionReducer,
     undefined,
     initialWorkspaceInteractionState,
   );
-  const { search, selectedRecordKey, focusedResultKey, pageNumber, activeSearch } =
-    interaction;
-  const [lastDetailRequest, setLastDetailRequest] = useState<AtlasRequestTiming | null>(
-    null,
+  const { search, selectedRecordKey, activeSearch } = interaction;
+  const [pagingProfile, setPagingProfile] = useState(searchProfile);
+  const profileChanged = pagingProfile !== searchProfile;
+  // Adjust the execution page in this render, before any new-profile query can run.
+  // This leaves the reader's artifact epoch and all draft owners untouched.
+  if (profileChanged) {
+    setPagingProfile(searchProfile);
+    if (pagingProfile !== null) dispatch({ type: "resultPage.changed", pageNumber: 1 });
+  }
+  const pageNumber =
+    profileChanged && pagingProfile !== null ? 1 : interaction.pageNumber;
+  const queryClient = useQueryClient();
+  const [retrieval, setRetrieval] = useState({
+    epoch: 0,
+    generation: null as string | null,
+    recovering: false,
+  });
+  const initialRoute = currentAtlasRoute();
+  const reading = useReferenceReading(
+    initialRoute.kind === "search" && initialRoute.selectedRecordKey
+      ? {
+          navigation:
+            initialRoute.selection ?? rootNavigation(initialRoute.selectedRecordKey),
+          landing: initialRoute.landing,
+        }
+      : null,
+    enabled && !retrieval.recovering,
+    retrieval.epoch,
   );
-  const [lastResultRequest, setLastResultRequest] =
-    useState<AtlasWorkspaceDiagnostics["resultRequest"]>(null);
-  const [resultWindow, setResultWindow] = useState<ResultWindowHandle | null>(null);
+  const inspectReading = reading.select;
+  const positions = useBrowsePositions();
+  const liveRequest = useRef({ token: "", epoch: 0, retiring: false });
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const searchExecutionToken = useMemo(
-    () => encodeSearchExecutionState(search),
-    [search],
+    () => encodeSearchExecutionState(search, searchProfile),
+    [search, searchProfile],
   );
   const activeSearchExecutionToken = useMemo(
-    () => encodeSearchExecutionState(activeSearch),
-    [activeSearch],
+    () => encodeSearchExecutionState(activeSearch, searchProfile),
+    [activeSearch, searchProfile],
   );
-  const canRunResultSearch = enabled && hasExecutableSearch(activeSearch);
+  const canRunResultSearch =
+    enabled &&
+    searchProfile !== null &&
+    (activeSearch.query.trim() ? searchProfileUsable : searchProfileStored) &&
+    hasExecutableSearch(activeSearch);
+  useLayoutEffect(() => {
+    liveRequest.current = {
+      token: activeSearchExecutionToken,
+      epoch: retrieval.epoch,
+      retiring: retrieval.recovering,
+    };
+    return () => {
+      liveRequest.current.retiring = true;
+    };
+  }, [activeSearchExecutionToken, retrieval.epoch, retrieval.recovering]);
   useEffect(() => {
     const onUrlStateChange = () => {
       const route = currentAtlasRoute();
+      if (route.kind !== "search") return;
       dispatch({
         type: "url.restored",
         search: initialWorkspaceInteractionState().search,
-        selectedRecordKey: route.kind === "search" ? route.selectedRecordKey : null,
+        selectedRecordKey: route.selectedRecordKey,
+        pageNumber: history.state?.atlasSearchPage ?? 1,
       });
+      inspectReading(
+        route.selectedRecordKey
+          ? {
+              navigation: route.selection ?? rootNavigation(route.selectedRecordKey),
+              landing: route.landing,
+            }
+          : null,
+      );
     };
     window.addEventListener("popstate", onUrlStateChange);
     window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, onUrlStateChange);
@@ -126,7 +187,7 @@ export function useSearchWorkspace({
       window.removeEventListener("popstate", onUrlStateChange);
       window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onUrlStateChange);
     };
-  }, []);
+  }, [inspectReading]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -135,153 +196,163 @@ export function useSearchWorkspace({
     return () => window.clearTimeout(timeout);
   }, [search, searchToken]);
 
-  const readiness = useQuery({
-    queryKey: ["readiness"],
-    queryFn: getReadiness,
-  });
-
-  const resultsQuery = useQuery({
-    queryKey: ["results", activeSearchExecutionToken, pageNumber],
-    enabled: canRunResultSearch,
-    placeholderData: keepPreviousData,
-    queryFn: async () => {
-      const startedAt = performance.now();
-      if (
-        pageNumber === 1 ||
-        resultWindow?.searchExecutionToken !== activeSearchExecutionToken
-      ) {
-        try {
-          const page = await openResultWindow(
-            buildOpenRequest(activeSearch, pageNumber),
-          );
-          setResultWindow({
-            searchExecutionToken: activeSearchExecutionToken,
-            windowId: page.window_id,
-          });
-          return page;
-        } finally {
-          setLastResultRequest({
-            durationMs: elapsedMilliseconds(startedAt),
-            finishedAt: Date.now(),
-            kind: "open_window",
-          });
-        }
+  const resultsKey = [
+    "results",
+    activeSearchExecutionToken,
+    retrieval.epoch,
+    retrieval.generation,
+    pageNumber,
+  ];
+  const resultsQuery = useQuery<SearchResultsPage>({
+    queryKey: resultsKey,
+    enabled: canRunResultSearch && !retrieval.recovering,
+    staleTime: 20_000,
+    placeholderData: (previous, previousQuery) =>
+      previous?.search_profile === searchProfile &&
+      previousQuery?.queryKey[2] === retrieval.epoch &&
+      previousQuery.queryKey[3] === retrieval.generation
+        ? previous
+        : undefined,
+    queryFn: async ({ signal }) => {
+      const isCurrent = () =>
+        !signal.aborted &&
+        !liveRequest.current.retiring &&
+        liveRequest.current.epoch === retrieval.epoch &&
+        liveRequest.current.token === activeSearchExecutionToken;
+      const page = await searchPage(
+        buildSearchRequest(
+          activeSearch,
+          pageNumber,
+          retrieval.generation,
+          searchProfile ?? undefined,
+        ),
+        signal,
+      );
+      assertSearchIdentity(page, searchProfile, retrieval.generation);
+      if (retrieval.generation === null && isCurrent()) {
+        // Adopt the returned generation without issuing the same search again.
+        queryClient.setQueryData(
+          [
+            "results",
+            activeSearchExecutionToken,
+            retrieval.epoch,
+            page.artifact_generation,
+            pageNumber,
+          ],
+          page,
+        );
+        setRetrieval((current) =>
+          current.epoch === retrieval.epoch && !current.recovering
+            ? { ...current, generation: page.artifact_generation }
+            : current,
+        );
       }
-      try {
-        return await readResultWindowPage(resultWindow.windowId, {
-          page: { number: pageNumber, size: activeSearch.pageSize },
-        });
-      } finally {
-        setLastResultRequest({
-          durationMs: elapsedMilliseconds(startedAt),
-          finishedAt: Date.now(),
-          kind: "page",
-        });
-      }
+      return page;
     },
   });
+  const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
+
+  async function refreshResults() {
+    if (liveRequest.current.retiring) return;
+    // Retire the owner before awaiting cancellation, so a late completion cannot seed.
+    liveRequest.current.retiring = true;
+    setRetrieval((current) => ({ ...current, recovering: true }));
+    await retireImmutableReferenceQueries(queryClient);
+    dispatch({ type: "resultPage.changed", pageNumber: 1 });
+    setRetrieval((current) => ({
+      epoch: current.epoch + 1,
+      generation: null,
+      recovering: false,
+    }));
+  }
+
+  useEffect(() => {
+    if (!enabled || !reading.detail || currentAtlasRoute().kind !== "search") return;
+    const url = new URL(
+      searchPath(reading.detail.record.record_key) +
+        searchStateQueryString(search, urlProfile),
+      window.location.origin,
+    );
+    const selected = reading.detail.selected;
+    if (
+      selected.owners.length ||
+      selected.field ||
+      selected.passage ||
+      selected.source_fingerprint
+    )
+      url.searchParams.set("selection", JSON.stringify(selected));
+    if (reading.landing)
+      url.searchParams.set("landing", JSON.stringify(reading.landing));
+    history.replaceState(
+      { ...history.state, atlasSearchPage: pageNumber },
+      "",
+      url.pathname + url.search,
+    );
+  }, [enabled, reading.detail, reading.landing, search, urlProfile, pageNumber]);
+
+  useEffect(() => {
+    if (!enabled || urlProfile === null || currentAtlasRoute().kind !== "search")
+      return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("search_profile", urlProfile);
+    history.replaceState(
+      { ...history.state, atlasSearchPage: pageNumber },
+      "",
+      url.pathname + url.search,
+    );
+  }, [enabled, urlProfile, pageNumber]);
 
   const filterDiscoveryContext = useMemo(
-    () => buildFilterDiscoveryContext(activeSearch),
-    [activeSearch],
+    () =>
+      buildFilterDiscoveryContext(
+        search,
+        searchProfile ?? undefined,
+        retrieval.generation ?? undefined,
+      ),
+    [search, searchProfile, retrieval.generation],
   );
 
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
-    enabled,
-    hiddenFieldIds: search.hiddenFilterIds,
-    queryKeyPrefix: ["filter-discovery", activeSearchExecutionToken],
-    retainedValueQueryKeyPrefix: ["filter-discovery"],
-    selectedFieldIds: search.visibleFilterIds,
-    visibleFieldIds: search.visibleFilterIds,
+    enabled: enabled && !retrieval.recovering,
+    queryKeyPrefix: ["filter-discovery", retrieval.epoch],
+    catalogIdentity: [retrieval.epoch],
   });
-
-  const detailQuery = useQuery({
-    queryKey: ["record-detail", selectedRecordKey],
-    queryFn: async () => {
-      const startedAt = performance.now();
-      try {
-        return await getRecordDetail(selectedRecordKey!);
-      } finally {
-        setLastDetailRequest({
-          durationMs: elapsedMilliseconds(startedAt),
-          finishedAt: Date.now(),
-        });
-      }
-    },
-    enabled: enabled && selectedRecordKey !== null,
-  });
-
-  const resultRows = useMemo(
-    () => (canRunResultSearch ? (resultsQuery.data?.rows ?? []) : []),
-    [canRunResultSearch, resultsQuery.data?.rows],
-  );
-
-  const activeResultKey = useMemo(() => {
-    if (resultRows.length === 0) {
-      return null;
-    }
-    return focusedResultKey &&
-      resultRows.some((row) => row.record.record_key === focusedResultKey)
-      ? focusedResultKey
-      : resultRows[0].record.record_key;
-  }, [focusedResultKey, resultRows]);
 
   function setSearch(next: SearchFormState) {
+    // Keyword entry intentionally replaces similarity, while ordinary filters retain it.
+    if (next.query.trim()) next = { ...next, similarSeed: null, mode: "text_search" };
+    else next = { ...next, mode: next.similarSeed ? "similar_records" : "browse" };
+    if (
+      next.filterError === SIMILAR_QUERY_CONFLICT &&
+      (next.query !== search.query || next.similarSeed !== search.similarSeed)
+    )
+      next = { ...next, filterError: null };
+    const kind = filterDiscovery.filterEditor?.groups
+      .flatMap((group) => group.fields)
+      .find((field) => field.definition.path === "record.kind");
+    if (
+      kind &&
+      JSON.stringify(commonCondition(search.filter, kind.definition)) !==
+        JSON.stringify(commonCondition(next.filter, kind.definition))
+    )
+      rememberKindPreference(next.filter, kind.definition);
     dispatch({ type: "search.changed", search: next });
-    const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next)}`;
-    history.replaceState(null, "", url);
+    const url = `${searchPath(selectedRecordKey)}${searchStateQueryString(next, urlProfile)}`;
+    if (search.similarSeed !== next.similarSeed) history.pushState(null, "", url);
+    else history.replaceState({ ...history.state, atlasSearchPage: 1 }, "", url);
   }
 
   function selectRecord(recordKey: string | null) {
     dispatch({ type: "record.selected", recordKey });
-    const searchQuery = searchStateQueryString(search);
+    const searchQuery = searchStateQueryString(search, urlProfile);
     const url = `${searchPath(recordKey)}${searchQuery}`;
-    history.pushState(null, "", url);
+    history.replaceState({ ...history.state, atlasSearchPage: pageNumber }, "", url);
+    reading.select(recordKey ? { navigation: rootNavigation(recordKey) } : null);
   }
 
-  function moveResultSelection(direction: "next" | "previous") {
-    if (resultRows.length === 0) {
-      dispatch({ type: "result.focused", recordKey: null });
-      return;
-    }
-    const currentIndex = activeResultKey
-      ? resultRows.findIndex((row) => row.record.record_key === activeResultKey)
-      : -1;
-    const fallbackIndex = direction === "next" ? 0 : resultRows.length - 1;
-    const nextIndex =
-      currentIndex === -1
-        ? fallbackIndex
-        : Math.min(
-            resultRows.length - 1,
-            Math.max(0, currentIndex + (direction === "next" ? 1 : -1)),
-          );
-    dispatch({
-      type: "result.focused",
-      recordKey: resultRows[nextIndex].record.record_key,
-    });
-  }
-
-  function focusResult(recordKey: string) {
-    dispatch({ type: "result.focused", recordKey });
-  }
-
-  function openActiveResult() {
-    if (activeResultKey) {
-      selectRecord(activeResultKey);
-    }
-  }
-
-  const errorMessage =
-    messageFromError(resultsQuery.error) ??
-    messageFromError(detailQuery.error) ??
-    filterDiscovery.errorMessage ??
-    messageFromError(readiness.error);
+  const errorMessage = messageFromError(resultsQuery.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
-  const activeWindowId =
-    resultWindow?.searchExecutionToken === activeSearchExecutionToken
-      ? resultWindow.windowId.toString()
-      : null;
   const resultsRefreshing =
     canRunResultSearch &&
     (searchDebouncing ||
@@ -291,39 +362,55 @@ export function useSearchWorkspace({
   return {
     search,
     setSearch,
-    activeResultKey,
-    focusResult,
-    moveResultSelection,
-    openActiveResult,
+    reading,
+    positions,
     selectedRecordKey,
     selectRecord,
     pageNumber,
-    setPageNumber: (pageNumber) => dispatch({ type: "resultPage.changed", pageNumber }),
-    resultPage: canRunResultSearch ? resultsQuery.data : undefined,
-    recordDetail: detailQuery.data,
-    filterEditor: filterDiscovery.filterEditor,
-    filterValuesByField: filterDiscovery.filterValuesByField,
-    readiness,
-    resultsLoading: canRunResultSearch && (resultsQuery.isLoading || searchDebouncing),
-    resultsRefreshing,
-    detailLoading: detailQuery.isLoading || detailQuery.isFetching,
-    filterDiscoveryLoading: filterDiscovery.loading,
-    diagnostics: {
-      activeWindowId,
-      detailRequest: lastDetailRequest,
-      resultRequest: lastResultRequest,
-      searchDebouncing,
+    setPageNumber: (pageNumber) => {
+      if (!resultsPaused && !retrieval.recovering) {
+        dispatch({ type: "resultPage.changed", pageNumber });
+        history.replaceState(
+          { ...history.state, atlasSearchPage: pageNumber },
+          "",
+          window.location.href,
+        );
+      }
     },
+    resultPage: canRunResultSearch ? resultsQuery.data : undefined,
+    filterEditor: filterDiscovery.filterEditor,
+    filterCountsEnabled:
+      filterDiscovery.filterCountsEnabled &&
+      searchProfile !== null &&
+      searchProfileStored,
+    filterCountQueryKey: filterDiscovery.filterCountQueryKey,
+    filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
+    vocabularyScope: filterDiscovery.vocabularyScope,
+    filterDiscoveryError: filterDiscovery.errorMessage,
+    resultsLoading:
+      enabled &&
+      searchProfile !== null &&
+      (search.query.trim() ? searchProfileUsable : searchProfileStored) &&
+      hasExecutableSearch(search) &&
+      (resultsQuery.isLoading || searchDebouncing),
+    resultsRefreshing,
+    resultsPaused,
+    resultsRecovering: retrieval.recovering,
+    refreshResults,
+    filterDiscoveryLoading: filterDiscovery.loading,
     errorMessage,
     refresh: () => {
-      void readiness.refetch();
       if (!enabled) {
+        return;
+      }
+      if (resultsPaused) {
+        void refreshResults();
         return;
       }
       if (canRunResultSearch) {
         void resultsQuery.refetch();
       }
-      void detailQuery.refetch();
+      reading.retry();
     },
   };
 }
@@ -336,10 +423,6 @@ function messageFromError(error: unknown): string | null {
     return error.message;
   }
   return String(error);
-}
-
-function elapsedMilliseconds(startedAt: number): number {
-  return Math.max(0, Math.round(performance.now() - startedAt));
 }
 
 export function resetSearchState(): SearchFormState {

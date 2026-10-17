@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Input, Select } from "antd";
-import { Trash2 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { ArrowLeft, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
 import type { UpdateSavedListRequest } from "../../generated/atlas";
 import {
@@ -11,7 +11,6 @@ import {
   type AtlasRoute,
 } from "../../app/routes";
 import {
-  formatDate,
   InlineError,
   normalizeOptionalText,
   normalizeTags,
@@ -19,6 +18,8 @@ import {
   slugify,
 } from "./listUtils";
 import { useSavedLists } from "./savedListQueries";
+import { formatDate } from "../../shared/ui/formatDate";
+import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 
 type ListEditViewProps = {
   route: Extract<AtlasRoute, { kind: "listEdit" }>;
@@ -67,22 +68,54 @@ export function ListEditView({ route }: ListEditViewProps) {
     },
   });
 
+  const initializedKey = useRef<string | null>(null);
   useEffect(() => {
     if (!list.data) {
       return;
     }
-    form.setFieldsValue({
+    const values = {
       name: list.data.list.name,
       description: list.data.list.description ?? undefined,
       tags: list.data.list.tags,
-    });
+    };
+    if (initializedKey.current !== list.data.list.list_key) {
+      form.resetFields();
+      form.setFieldsValue(values);
+      form.setFields(
+        (Object.keys(values) as Array<keyof EditListFormValues>).map((name) => ({
+          name,
+          touched: false,
+        })),
+      );
+      initializedKey.current = list.data.list.list_key;
+    } else {
+      for (const field of Object.keys(values) as Array<keyof EditListFormValues>) {
+        if (!form.isFieldTouched(field)) form.setFieldValue(field, values[field]);
+      }
+    }
   }, [form, list.data]);
 
   return (
     <main className="list-edit-view">
-      <section className="list-index-view__toolbar">
+      <section className="list-edit-view__header">
+        <Button
+          type="link"
+          href={listPath(route.slug)}
+          icon={<ArrowLeft size={15} />}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            navigateToAtlasRoute({
+              kind: "list",
+              slug: route.slug,
+              selectedRecordKey: null,
+            });
+          }}
+        >
+          Back to list
+        </Button>
         <div>
-          <h2>Edit List</h2>
+          <h2>Edit list</h2>
           {list.data && <p>{list.data.list.name}</p>}
         </div>
       </section>
@@ -90,7 +123,9 @@ export function ListEditView({ route }: ListEditViewProps) {
         {list.isLoading ? (
           <div className="detail-empty">Loading list</div>
         ) : !list.data ? (
-          <div className="detail-empty">List not found</div>
+          <div className="detail-empty">
+            {list.error ? "List unavailable" : "List not found"}
+          </div>
         ) : (
           <div className="list-edit-view__form">
             <Form
@@ -121,7 +156,7 @@ export function ListEditView({ route }: ListEditViewProps) {
                   },
                 ]}
               >
-                <Input className="list-edit-view__name" />
+                <Input />
               </Form.Item>
               <Form.Item label="Description" name="description">
                 <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
@@ -129,9 +164,8 @@ export function ListEditView({ route }: ListEditViewProps) {
               <Form.Item label="Tags" name="tags">
                 <Select
                   mode="tags"
-                  optionFilterProp="label"
+                  showSearch={{ optionFilterProp: "label" }}
                   options={tagOptions}
-                  showSearch
                   tokenSeparators={[","]}
                 />
               </Form.Item>
@@ -168,18 +202,27 @@ export function ListEditView({ route }: ListEditViewProps) {
               </div>
             </dl>
             <div className="list-edit-view__danger">
-              <Button
-                danger
+              <DangerActionButton
+                confirmTitle={`Delete ${list.data.list.name}?`}
+                confirmContent="This permanently deletes the list and its saved membership."
+                confirmOkText="Delete list"
                 icon={<Trash2 size={16} />}
                 loading={deleteListMutation.isPending}
-                onClick={() => deleteListMutation.mutate()}
+                onConfirm={() => deleteListMutation.mutateAsync()}
               >
                 Delete List
-              </Button>
+              </DangerActionButton>
             </div>
           </div>
         )}
-        {list.error && <InlineError message={list.error.message} />}
+        {list.error && (
+          <>
+            <InlineError message={list.error.message} />
+            <Button loading={list.isFetching} onClick={() => void list.refetch()}>
+              Retry list
+            </Button>
+          </>
+        )}
         {update.error && <InlineError message={update.error.message} />}
         {deleteListMutation.error && (
           <InlineError message={deleteListMutation.error.message} />

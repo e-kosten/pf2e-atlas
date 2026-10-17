@@ -1,33 +1,27 @@
+import { ListRecordPicker } from "./ListRecordPicker";
 import {
   keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ExternalLink } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { filterSavedList, removeSavedListItem } from "../../api/atlasApi";
+import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import {
-  recordPath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-  type AtlasRoute,
-} from "../../app/routes";
-import {
-  buildBasicFilter,
+  buildFilter,
   DEFAULT_SEARCH_STATE,
   encodeSearchExecutionState,
   type SearchFormState,
 } from "../../shared/filters/searchState";
-import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
-import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
-import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
-import { useRecordDetail } from "../../shared/records/useRecordDetail";
-import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
-import { ListInfoPane } from "./ListInfoPane";
+import { BrowseReader } from "../../shared/records/BrowseReader";
+import {
+  rootNavigation,
+  useReferenceReading,
+} from "../../shared/records/useReferenceReading";
+import { ListBrowseHeader } from "./ListBrowseHeader";
 import { ListItemsPane } from "./ListItemsPane";
-import { useSavedLists } from "./savedListQueries";
+import { invalidateSavedListQueries } from "./savedListQueries";
 import {
   listSearchQuery,
   useDebouncedSearchFilters,
@@ -38,17 +32,11 @@ type ListDetailViewProps = {
   route: Extract<AtlasRoute, { kind: "list" }>;
 };
 
-const LIST_WORKSPACE_WIDTH_SPECS = {
-  filter: { defaultWidth: 280, minWidth: 240 },
-  results: { defaultWidth: 420, minWidth: 280 },
-  detail: { defaultWidth: 640, minWidth: 360 },
-};
-
 export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
-  const lists = useSavedLists();
+  const [addOpen, setAddOpen] = useState(false);
   const [filters, setFilters] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
-  const recordPreview = useRecordPreview();
+  const reading = useReferenceReading();
   const activeFilters = useDebouncedSearchFilters(filters);
   const filterToken = useMemo(
     () => encodeSearchExecutionState(activeFilters),
@@ -63,22 +51,44 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       return filterSavedList({
         list_ref: route.slug,
         ...(query ? { query } : {}),
-        filter: buildBasicFilter(activeFilters),
+        ...(buildFilter(activeFilters) ? { filter: buildFilter(activeFilters)! } : {}),
       });
     },
   });
   const selectedItem = list.data?.items.find(
     (item) => item.record_key === route.selectedRecordKey,
   );
-  const detail = useRecordDetail(
-    selectedItem?.status === "unresolved" ? null : route.selectedRecordKey,
+  const inspectSelection = reading.select;
+  const selectedRoute = useRef<{ identity: string; blocked: boolean } | undefined>(
+    undefined,
   );
+  useEffect(() => {
+    const identity = JSON.stringify([route.slug, route.selectedRecordKey]);
+    const previous = selectedRoute.current;
+    const changed = previous?.identity !== identity;
+    const unavailable = selectedItem?.status === "unresolved";
+    const recovered = !changed && previous.blocked && selectedItem?.status === "active";
+    selectedRoute.current = {
+      identity,
+      // An omitted filtered member supplies no new availability information.
+      blocked: unavailable || (!changed && previous.blocked && !recovered),
+    };
+    if (!changed && !unavailable && !recovered) return;
+    inspectSelection(
+      route.selectedRecordKey && !unavailable
+        ? { navigation: rootNavigation(route.selectedRecordKey) }
+        : null,
+    );
+  }, [route.slug, route.selectedRecordKey, selectedItem?.status, inspectSelection]);
   const removeItem = useMutation({
     mutationFn: (recordKey: string) =>
       removeSavedListItem({ list_ref: route.slug, record_ref: recordKey }),
-    onSuccess: async (_view, recordKey) => {
-      await queryClient.invalidateQueries({ queryKey: ["saved-list", route.slug] });
-      await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
+    onSuccess: async (view, recordKey) => {
+      await invalidateSavedListQueries(queryClient, [
+        route.slug,
+        view.slug,
+        view.list_key,
+      ]);
       if (recordKey === route.selectedRecordKey) {
         navigateToAtlasRoute({
           kind: "list",
@@ -90,104 +100,64 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   });
 
   return (
-    <>
-      <WorkspaceLayout
-        filter={
-          <ListInfoPane
-            currentSlug={route.slug}
-            filterState={{
-              search: filters,
-              setSearch: setFilters,
-              filterEditor: filterDiscovery.filterEditor,
-              filterValuesByField: filterDiscovery.filterValuesByField,
-              filterDiscoveryLoading: filterDiscovery.loading,
-              errorMessage: filterDiscovery.errorMessage,
-            }}
-            list={list.data?.list}
-            lists={lists.data?.lists ?? []}
-            loading={list.isLoading}
-            listsLoading={lists.isLoading || lists.isFetching}
-            onSelectList={(slug) =>
-              navigateToAtlasRoute({ kind: "list", slug, selectedRecordKey: null })
-            }
-          />
-        }
-        results={
-          <ListItemsPane
-            items={list.data?.items ?? []}
-            loading={list.isLoading || list.isFetching}
-            removingKey={
-              removeItem.isPending && typeof removeItem.variables === "string"
-                ? removeItem.variables
-                : null
-            }
-            selectedRecordKey={route.selectedRecordKey}
-            onRemove={(recordKey) => removeItem.mutate(recordKey)}
-            onSelect={(recordKey) =>
-              navigateToAtlasRoute({
-                kind: "list",
-                slug: route.slug,
-                selectedRecordKey: recordKey,
-              })
-            }
-          />
-        }
-        selectedRecordKey={route.selectedRecordKey}
-        labels={{ filter: "List", results: "Items", detail: "Detail" }}
-        sizing="detail-focus"
-        widthSpecs={LIST_WORKSPACE_WIDTH_SPECS}
-        detailHeaderActions={
-          route.selectedRecordKey ? (
-            <PaneIconLink
-              href={recordPath(route.selectedRecordKey)}
-              icon={<ExternalLink size={16} />}
-              label="Open full page"
-              onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) {
-                  return;
-                }
-                event.preventDefault();
-                navigateToAtlasRoute({
-                  kind: "record",
-                  recordKey: route.selectedRecordKey!,
-                });
-              }}
-            />
-          ) : null
-        }
-        detail={
-          <RecordDetailPane
-            detail={selectedItem?.status === "unresolved" ? undefined : detail.data}
-            emptyMessage={
-              selectedItem?.status === "unresolved"
-                ? "This saved record is unresolved."
-                : undefined
-            }
-            errors={[list.error, detail.error, removeItem.error, recordPreview.error]}
-            loading={
-              selectedItem?.status === "unresolved"
-                ? false
-                : detail.isLoading || detail.isFetching
-            }
-            onReference={recordPreview.open}
-          />
-        }
+    <main className="list-workspace">
+      <ListBrowseHeader
+        error={list.error}
+        onRetry={() => void list.refetch()}
+        filterState={{
+          search: filters,
+          setSearch: setFilters,
+          filterEditor: filterDiscovery.filterEditor,
+          filterCountsEnabled: filterDiscovery.filterCountsEnabled,
+          filterCountQueryKey: filterDiscovery.filterCountQueryKey,
+          filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
+          vocabularyScope: filterDiscovery.vocabularyScope,
+          filterDiscoveryLoading: filterDiscovery.loading,
+          filterDiscoveryError: filterDiscovery.errorMessage,
+        }}
+        list={list.data?.list}
+        loading={list.isLoading}
+        onAddRecords={() => setAddOpen(true)}
       />
-      {recordPreview.recordKey ? (
-        <RecordPreviewPopover
-          anchor={recordPreview.anchor}
-          detail={recordPreview.detail}
-          loading={recordPreview.loading}
-          onClose={recordPreview.close}
-          onOpenFullPage={() =>
+      <ListRecordPicker
+        key={route.slug}
+        list={list.data?.list}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+      />
+      <BrowseReader
+        reading={reading}
+        selectedRecordKey={route.selectedRecordKey}
+        resultsLabel="Saved records"
+        resultsIdentity={list.data?.items}
+        resultsLoading={list.isLoading || list.isFetching}
+        resultsHeader={
+          <span>
+            {list.data
+              ? `${list.data.items.length.toLocaleString()} saved records`
+              : "Saved records"}
+          </span>
+        }
+      >
+        <ListItemsPane
+          error={removeItem.error}
+          items={list.data?.items ?? []}
+          loading={list.isLoading || list.isFetching}
+          unavailable={Boolean(list.error && !list.data)}
+          filtered={Boolean(filters.query.trim() || buildFilter(filters))}
+          removingKey={removeItem.isPending ? removeItem.variables : null}
+          selectedRecordKey={route.selectedRecordKey}
+          onRemove={(key) => removeItem.mutateAsync(key)}
+          onSelect={(recordKey) => {
+            reading.select({ navigation: rootNavigation(recordKey) });
             navigateToAtlasRoute({
-              kind: "record",
-              recordKey: recordPreview.recordKey!,
-            })
-          }
-          onReference={recordPreview.open}
+              kind: "list",
+              slug: route.slug,
+              selectedRecordKey: recordKey,
+            });
+          }}
         />
-      ) : null}
-    </>
+      </BrowseReader>
+    </main>
   );
 }

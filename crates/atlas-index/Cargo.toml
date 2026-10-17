@@ -11,6 +11,11 @@ test-support = []
 
 [dependencies]
 atlas-domain.workspace = true
+atlas-foundry-model.workspace = true
+flate2 = "1"
+tempfile = "3"
+same-file = "1"
+cel.workspace = true
 atlas-embedding.workspace = true
 atlas-record.workspace = true
 atlas-sqlite-vec.workspace = true
