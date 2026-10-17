@@ -18,13 +18,6 @@ absolute_git_common_dir() {
   cd "$(git rev-parse --git-common-dir)" && pwd -P
 }
 
-is_zero_oid() {
-  case "$1" in
-    0000000000000000000000000000000000000000 | 0000000000000000000000000000000000000000000000000000000000000000) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
 # Keep the path policy shared by commit hooks and changed-path verification.
 validation_surface_for_path() {
   case "$1" in

@@ -62,11 +62,20 @@
   flex-direction: column;
   gap: 12px;
 }
+.common-choice-menu[role="dialog"] {
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+}
+.common-choice-menu > * {
+  flex-shrink: 0;
+}
 .common-choice-options {
   display: flex;
   flex-direction: column;
   gap: 2px;
   max-height: 288px;
+  min-height: 36px;
+  flex-shrink: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -110,6 +119,18 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.filter-collection-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+.filter-collection-amount {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
 }
 .filter-vocabulary-footer {
   display: flex;
@@ -156,12 +177,6 @@
   grid-column: 3;
   grid-row: 2;
 }
-.advanced-filters .rule > .filter-rule-exclude {
-  grid-column: 2;
-  grid-row: 2;
-  min-height: var(--control-height, 32px);
-  align-items: center;
-}
 .advanced-filters .rule > .filter-collection-condition {
   grid-column: 1 / -1;
   grid-row: 3;
@@ -172,21 +187,22 @@
 }
 @container (min-width: 480px) {
   .advanced-filters .rule {
-    grid-template-columns: 130px minmax(0, 1fr) auto auto;
+    grid-template-columns: 130px minmax(0, 1fr) auto;
   }
   .advanced-filters .rule > .filter-rule-value {
     grid-column: 2;
     grid-row: 2;
   }
   .advanced-filters .rule > .rule-remove {
-    grid-column: 4;
-  }
-  .advanced-filters .rule > .filter-rule-exclude {
     grid-column: 3;
   }
   .advanced-filters .rule:has(> .filter-collection-condition) > .rule-operators {
-    grid-column: 1 / 3;
+    grid-column: 1;
     width: 100%;
+  }
+  .advanced-filters .rule > .filter-collection-condition {
+    grid-column: 2;
+    grid-row: 2;
   }
 }
 .filter-controls__search-row > .reference-search-entry {
@@ -198,4 +214,21 @@
   flex: 0 0 auto;
   min-width: 10rem;
   max-width: 100%;
+}
+
+.advanced-filters .queryBuilder > .ruleGroup {
+  border: 0;
+  padding: 0;
+}
+.filter-collection-amount {
+  min-height: 32px;
+}
+.filter-collection-add-amount {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.filter-duration-value {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(100px, auto);
+  gap: 8px;
 }

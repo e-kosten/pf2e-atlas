@@ -88,6 +88,17 @@ match executable bindings, never artifact-supplied SQL. CLI CEL and the structur
 UI builder lower independently to the shared predicate. Do not invent another
 expression parser, filter authority, per-field CLI flag set or metric EAV store.
 
+App-service owns product filter grouping and editor hints shared by CLI discovery
+and the web builder, including compact collection controls and short choice lists.
+Product field discovery omits source UUID references and groups unit-specific
+effect duration fields into one editor control. The executable artifact catalog
+retains technical bindings. Applicability uses one family inventory under the
+committed filter, and Kind choices omit categories absent from the artifact.
+These hints reference existing catalog fields; they do not define new predicates
+or aliases. Index owns contextual option eligibility and applies matching-only
+enumeration before pagination, retaining selected values. Unsupported count
+contexts remain browsable through count-free vocabulary.
+
 Keep product retrieval in search. Surfaces do not open SQLite, implement ranking,
 scan source clones or load models. Summary reads are body free; explicit detail
 decodes one root and batches selected cache reads. Filters and key scopes apply
@@ -127,12 +138,24 @@ Keep local state separate from artifact generation. Unknown saved keys retain
 their snapshots. NPC variants/conditions are read-time participant overlays over
 authored baselines. New HP uses known integral effective maxima; saved HP,
 explicit overrides and edit intent survive rebuilds. Missing values stay unknown.
+Encounter Damage/Heal and exact HP correction inputs are explicit revision-checked
+actions interpreted by app-service; the browser sends raw integer formulas and
+does not calculate persisted HP. Enter sends a signed Heal action; negative Damage
+or Heal amounts reverse the operation in Rust and use its complete HP policy.
+The bounded addition/subtraction shortcut permits one initial sign and is not
+a general expression or dice engine. The HP editor saves its supplied corrections
+in one guarded action, preserving omitted fields and explicit unknowns. Condition
+manual-effect notes carry their exact condition ID; unrelated diagnostics remain
+separate from condition cards.
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
 Local-state owns complete atomic user actions and coherent aggregate reads.
 Participant replacements require the revision the caller read; stale writes
 receive a conflict without changing state. App-service owns pure turn selection
-over the local-state transaction snapshot. Existing-encounter mutations return
+over the local-state transaction snapshot. Turn review returns a durable encounter
+revision; Continue checks it and decrements explicitly anchored round durations
+with the turn in one transaction. Zero duration retains the condition for explicit
+removal, and nonround durations remain table reminders. Existing-encounter mutations return
 a canonical identity receipt without postcommit reference hydration; explicit
 reads independently refresh presentation. See
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).

@@ -128,7 +128,7 @@ it.each([false, true])(
         conflict,
       );
     });
-    expect(result.current.errorMessage).toMatch(/Participant changed/);
+    expect(result.current.errorMessage).toMatch(/Encounter changed/);
     expect(api.getEncounter).toHaveBeenCalledExactlyOnceWith("encounter-key");
     expect(api.updateEncounterParticipant).toHaveBeenCalledOnce();
     if (readFailure) {

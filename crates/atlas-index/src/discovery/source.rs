@@ -29,6 +29,7 @@ pub struct QueryFacetContext {
 }
 #[derive(Debug, Clone)]
 pub struct QueryValuesRequest {
+    pub only_matching: bool,
     pub field: String,
     pub clause_id: Option<String>,
     pub query: ValidatedQuery,
@@ -43,6 +44,14 @@ pub struct QueryCountsRequest {
     pub clause_id: Option<String>,
     pub query: ValidatedQuery,
     pub context: QueryFacetContext,
+}
+#[derive(Debug, Clone)]
+pub struct QueryValueCountsRequest {
+    pub field: String,
+    pub clause_id: Option<String>,
+    pub query: ValidatedQuery,
+    pub context: QueryFacetContext,
+    pub values: Vec<QueryLiteral>,
 }
 #[derive(Debug, Clone)]
 pub struct QueryVocabularyRequest {
@@ -363,6 +372,16 @@ fn remove_clause(
             Some(&expected.definition.id),
         )
     })?;
+    if expected.definition.scope.is_none() {
+        return match root_field_context(query.predicate(), &expected.definition.path) {
+            Some(base) => Ok(QueryFacetOutcome::Available {
+                value: (validate_query(&base)?, target, None),
+            }),
+            None => Ok(QueryFacetOutcome::Unavailable {
+                reason: FacetUnavailableReason::NonConjunctiveContext,
+            }),
+        };
+    }
     if let Some(reason) = removal.unavailable {
         return Ok(QueryFacetOutcome::Unavailable { reason });
     }
@@ -383,6 +402,44 @@ pub fn facet_base_query(
         None => Ok(QueryFacetOutcome::Available {
             value: query.clone(),
         }),
+    }
+}
+// Remove a root field's complete selection only through conjunctions. A NOT
+// around one field leaf is a negative selection; compound NOT/OR is not a facet.
+fn root_field_context(p: &QueryPredicate, field: &str) -> Option<QueryPredicate> {
+    fn is_field(p: &QueryPredicate, expected: &str) -> bool {
+        matches!(&p.expression,
+            QueryExpression::Compare { field, .. } | QueryExpression::In { field, .. }
+            | QueryExpression::SetMatch { field, .. } | QueryExpression::StateMatch { field, .. }
+            if field == expected)
+    }
+    fn contains(p: &QueryPredicate, field: &str) -> bool {
+        if is_field(p, field) {
+            return true;
+        }
+        match &p.expression {
+            QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
+                children.iter().any(|child| contains(child, field))
+            }
+            QueryExpression::Not { predicate } => contains(predicate, field),
+            _ => false, // Exists belongs to a different scope.
+        }
+    }
+    if is_field(p, field) {
+        return Some(QueryPredicate::boolean(true));
+    }
+    match &p.expression {
+        QueryExpression::AllOf { children } => Some(QueryPredicate::new(QueryExpression::AllOf {
+            children: children
+                .iter()
+                .map(|child| root_field_context(child, field))
+                .collect::<Option<Vec<_>>>()?,
+        })),
+        QueryExpression::Not { predicate } if is_field(predicate, field) => {
+            Some(QueryPredicate::boolean(true))
+        }
+        QueryExpression::Not { .. } | QueryExpression::AnyOf { .. } if contains(p, field) => None,
+        _ => Some(p.clone()),
     }
 }
 fn replace_clause(p: &QueryPredicate, id: &str, replacement: &QueryPredicate) -> QueryPredicate {
@@ -457,6 +514,139 @@ fn selected(target: Option<&QueryPredicate>) -> Vec<QueryLiteral> {
         _ => Vec::new(),
     }
 }
+/// Validate every requested literal before optional discovery availability.
+pub fn validate_value_counts(field_id: &str, values: &[QueryLiteral]) -> Result<(), IndexError> {
+    validate_value_discovery(field_id, 0, 1, None)?;
+    if values.len() > atlas_domain::QueryLimits::default().literal_list {
+        return Err(error(
+            "discovery_limit",
+            "Too many values for contextual counts",
+            Some(field_id),
+        )
+        .into());
+    }
+    let d = field(field_id)?;
+    for value in values {
+        let candidate = candidate_clause(d, value)?;
+        let candidate = if let Some(scope) = &d.definition.scope {
+            QueryPredicate::new(QueryExpression::Exists {
+                collection: scope.clone(),
+                scope_id: "count-value".into(),
+                predicate: Box::new(candidate),
+            })
+        } else {
+            candidate
+        };
+        validate_query(&candidate)?;
+    }
+    Ok(())
+}
+pub(crate) fn field_value_counts(
+    connection: &Connection,
+    request: &QueryValueCountsRequest,
+) -> Result<QueryFacetOutcome<QueryValueOptions>, IndexError> {
+    validate_value_counts(&request.field, &request.values)?;
+    let d = field(&request.field)?;
+    let target = match request.clause_id.as_deref() {
+        Some(id) => match remove_clause(&request.query, id, d)? {
+            QueryFacetOutcome::Available {
+                value: (_, target, _),
+            } => Some(target),
+            QueryFacetOutcome::Unavailable { reason } => {
+                return Ok(QueryFacetOutcome::Unavailable { reason });
+            }
+        },
+        None => None,
+    };
+    let mut values = Vec::new();
+    for value in &request.values {
+        if !values.contains(value) {
+            values.push(value.clone());
+        }
+    }
+    let total_values = values.len() as u64;
+    Ok(QueryFacetOutcome::Available {
+        value: QueryValueOptions {
+            field: request.field.clone(),
+            options: count_options(
+                connection,
+                d,
+                &request.query,
+                request.clause_id.as_deref(),
+                &request.context,
+                values,
+                &selected(target.as_ref()),
+            )?,
+            total_values,
+            exhaustive: !request.context.bounded_candidates,
+            count_basis: "exact counterfactual displayed roots".into(),
+        },
+    })
+}
+fn count_options(
+    connection: &Connection,
+    d: &crate::query::catalog::Descriptor,
+    query: &ValidatedQuery,
+    clause_id: Option<&str>,
+    context: &QueryFacetContext,
+    values: Vec<QueryLiteral>,
+    selected: &[QueryLiteral],
+) -> Result<Vec<QueryValueOption>, IndexError> {
+    let root_base = if clause_id.is_some() && d.definition.scope.is_none() {
+        Some(
+            root_field_context(query.predicate(), &d.definition.path).ok_or_else(|| {
+                IndexError::Invalid("option counts require a validated facet context".into())
+            })?,
+        )
+    } else {
+        None
+    };
+    let mut options = Vec::new();
+    for value in values {
+        let candidate = candidate_clause(d, &value)?;
+        let p = if let Some(base) = &root_base {
+            QueryPredicate::new(QueryExpression::AllOf {
+                children: vec![base.clone(), candidate],
+            })
+        } else if let Some(id) = clause_id {
+            replace_clause(query.predicate(), id, &candidate)
+        } else {
+            let candidate = if let Some(scope) = &d.definition.scope {
+                QueryPredicate::new(QueryExpression::Exists {
+                    collection: scope.clone(),
+                    scope_id: "discovery-option".to_owned(),
+                    predicate: Box::new(candidate),
+                })
+            } else {
+                candidate
+            };
+            QueryPredicate::new(QueryExpression::AllOf {
+                children: vec![query.predicate().clone(), candidate],
+            })
+        };
+        let accepted = validate_query(&p)?;
+        let mut compiled = compile_predicate(&accepted)?;
+        let keys = key_filter(context, &mut compiled.parameters);
+        let preference = if context.prefer_remaster {
+            "WHERE NOT EXISTS(SELECT 1 FROM remaster_pairs p JOIN matches replacement ON replacement.record_id=p.remaster_record_id WHERE p.legacy_record_id=m.record_id)"
+        } else {
+            ""
+        };
+        let sql = format!(
+            "WITH matches AS (SELECT r.record_id FROM records r WHERE ({}) AND ({keys})) SELECT COUNT(*) FROM matches m {preference}",
+            compiled.expression
+        );
+        let count = connection.query_row(&sql, params_from_iter(&compiled.parameters), |r| {
+            r.get::<_, u64>(0)
+        })?;
+        options.push(QueryValueOption {
+            selected: selected.contains(&value),
+            value,
+            distinct_roots: count,
+        });
+    }
+    Ok(options)
+}
 pub(crate) fn field_values(
     connection: &Connection,
     request: &QueryValuesRequest,
@@ -486,26 +676,28 @@ pub(crate) fn field_values(
         .definition
         .choices
         .iter()
+        .filter(|_| !request.only_matching)
         .cloned()
         .map(QueryLiteral::String)
-        .chain(if d.definition.field_type == QueryFieldType::Boolean {
-            vec![QueryLiteral::Boolean(false), QueryLiteral::Boolean(true)]
-        } else {
-            vec![]
-        })
+        .chain(
+            if d.definition.field_type == QueryFieldType::Boolean && !request.only_matching {
+                vec![QueryLiteral::Boolean(false), QueryLiteral::Boolean(true)]
+            } else {
+                vec![]
+            },
+        )
         .chain(selected(target.as_ref()))
     {
         if !values.contains(&value) {
             values.push(value);
         }
     }
-    values.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+    super::value_order::sort_values(&d.definition.path, &mut values);
     let selected = selected(target.as_ref());
     if let Some(text) = &request.text {
         values.retain(|value|selected.contains(value) || matches!(value,QueryLiteral::String(s) if s.to_lowercase().contains(&text.to_lowercase())));
     }
     let total_values = values.len() as u64;
-    let mut options = Vec::new();
     let mut page = values
         .into_iter()
         .skip(request.offset)
@@ -518,45 +710,15 @@ pub(crate) fn field_values(
             page.push(value.clone());
         }
     }
-    for value in page {
-        let candidate = candidate_clause(d, &value)?;
-        let p = if let Some(id) = &request.clause_id {
-            replace_clause(request.query.predicate(), id, &candidate)
-        } else {
-            let candidate = if let Some(scope) = &d.definition.scope {
-                QueryPredicate::new(QueryExpression::Exists {
-                    collection: scope.clone(),
-                    scope_id: "discovery-option".to_owned(),
-                    predicate: Box::new(candidate),
-                })
-            } else {
-                candidate
-            };
-            QueryPredicate::new(QueryExpression::AllOf {
-                children: vec![request.query.predicate().clone(), candidate],
-            })
-        };
-        let accepted = validate_query(&p)?;
-        let mut compiled = compile_predicate(&accepted)?;
-        let keys = key_filter(&request.context, &mut compiled.parameters);
-        let preference = if request.context.prefer_remaster {
-            "WHERE NOT EXISTS(SELECT 1 FROM remaster_pairs p JOIN matches replacement ON replacement.record_id=p.remaster_record_id WHERE p.legacy_record_id=m.record_id)"
-        } else {
-            ""
-        };
-        let sql = format!(
-            "WITH matches AS (SELECT r.record_id FROM records r WHERE ({}) AND ({keys})) SELECT COUNT(*) FROM matches m {preference}",
-            compiled.expression
-        );
-        let count = connection.query_row(&sql, params_from_iter(&compiled.parameters), |r| {
-            r.get::<_, u64>(0)
-        })?;
-        options.push(QueryValueOption {
-            selected: selected.contains(&value),
-            value,
-            distinct_roots: count,
-        });
-    }
+    let options = count_options(
+        connection,
+        d,
+        &request.query,
+        request.clause_id.as_deref(),
+        &request.context,
+        page,
+        &selected,
+    )?;
     Ok(QueryFacetOutcome::Available {
         value: QueryValueOptions {
             field: request.field.clone(),
@@ -681,7 +843,7 @@ pub(crate) fn field_vocabulary(
             QueryLiteral::Number(_) => false,
         });
     }
-    values.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
+    super::value_order::sort_values(&d.definition.path, &mut values);
     let total_values = values.len() as u64;
     let options = values
         .into_iter()

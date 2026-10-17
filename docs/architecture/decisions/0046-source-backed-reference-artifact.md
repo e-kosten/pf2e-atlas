@@ -45,7 +45,9 @@ Product editor labels/group order decorate that catalog in app-service.
 
 Optional contextual discovery availability is distinct from query validity.
 The index's self-exclusion analysis is the sole capability authority; search
-consults it before embeddings/ranking. Valid OR/NOT/negative-target limitations
+consults it before embeddings/ranking. Root conjunction facets exclude the full
+edited field selection, including negative leaves. Scoped facets preserve
+same-child sibling conditions. Valid compound OR/NOT and scoped-negative limitations
 produce typed optional unavailability, while malformed target/type/scope/limits
 and real failures remain errors. Explicit count-free vocabulary requests have no
 search context and enumerate applicable product values in artifact or saved-list

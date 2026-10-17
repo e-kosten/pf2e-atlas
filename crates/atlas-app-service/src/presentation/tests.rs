@@ -960,3 +960,87 @@ fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_own
     };
     assert!(fixture.worker.record_detail_at(stale).is_err());
 }
+
+#[test]
+fn activity_reference_details_use_selected_body_and_declared_content_not_names() {
+    let items = json!([
+        {"_id":"aaaaaaaaaaaaaaa1","type":"melee","name":"Staff","system":{"description":{"value":"","gm":""},"bonus":{"value":10},"damageRolls":{"one":{"damage":"1d4+2","damageType":"bludgeoning"}}}},
+        {"_id":"aaaaaaaaaaaaaaa2","type":"melee","name":"Staff","system":{"description":{"value":"<p>Knocks the target back.</p>"}}},
+        {"_id":"aaaaaaaaaaaaaaa3","type":"action","name":"Custom action","system":{"description":{"value":"<p>Additional action rules.</p>"}}},
+        {"_id":"aaaaaaaaaaaaaaa4","type":"action","name":"Custom action","system":{"description":{"value":" \n\t "}}},
+        {"_id":"aaaaaaaaaaaaaaa5","type":"weapon","name":"Staff","system":{"description":{"value":""}}},
+        {"_id":"aaaaaaaaaaaaaaa6","type":"spell","name":"Spell","system":{"description":{"value":""},"level":{"value":1}}},
+        {"_id":"aaaaaaaaaaaaaaa7","type":"melee","name":"Unknown description","system":{}},
+        {"_id":"aaaaaaaaaaaaaaa8","type":"action","name":"Custom null body","system":{"description":{"value":null}}},
+        {"_id":"aaaaaaaaaaaaaaa9","type":"action","name":"Custom invalid body","system":{"description":{"value":42}}},
+        {"_id":"aaaaaaaaaaaaaa10","type":"melee","name":"Unavailable system","system":42},
+        {"_id":"aaaaaaaaaaaaaa11","type":"melee","name":"Markup only","system":{"description":{"value":"<p></p>"}}},
+        {"_id":"aaaaaaaaaaaaaa12","type":"melee","name":"GM details","system":{"description":{"value":"","gm":"<p>Additional GM detail.</p>"}}},
+        {"_id":"aaaaaaaaaaaaaa13","type":"spellcastingEntry","name":"Spellcasting","system":{"description":{"value":""}}}
+    ]);
+    let input = record(
+        "actors",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":items}),
+    );
+    let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+    let activities = body.activities.value.unwrap();
+    assert_eq!(activities.len(), 13);
+    let flags = activities
+        .iter()
+        .map(|activity| activity.has_reference_details)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        flags,
+        [
+            false, true, true, false, true, true, true, true, true, true, true, true, true
+        ]
+    );
+    assert_eq!(activities[0].title, activities[1].title);
+    assert_eq!(activities[2].title, activities[3].title);
+    assert_eq!(activities[0].title, activities[4].title);
+}
+
+#[test]
+fn reference_details_flag_agrees_with_actual_selected_spell_and_physical_dispatch() {
+    let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[
+        {"_id":"bbbbbbbbbbbbbbbb","type":"melee","name":"Staff","system":{"description":{"value":""}}},
+        {"_id":"cccccccccccccccc","type":"weapon","name":"Staff","system":{"description":{"value":""}}},
+        {"_id":"dddddddddddddddd","type":"spell","name":"Spell","system":{"description":{"value":""},"level":{"value":1}}}
+    ]});
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+        Ok(open_source_fixture(
+            vec![record("actors", "Actor", source.clone())],
+            false,
+        )?)
+    });
+    let f = fixture_worker_with_executor(executor);
+    let parent = f.worker.record_detail("actors:aaaaaaaaaaaaaaaa").unwrap();
+    let activities = actor(&parent.presentation)
+        .activities
+        .value
+        .as_ref()
+        .unwrap();
+    for (index, activity) in activities.iter().enumerate() {
+        let selected = f
+            .worker
+            .record_detail_at(RecordDetailRequest {
+                record_key: activity.navigation.record_key.clone(),
+                owners: activity.navigation.owners.clone(),
+                fields: vec![],
+                passage: None,
+                source_fingerprint: activity.navigation.source_fingerprint.clone(),
+            })
+            .unwrap();
+        match (index, selected.presentation.body) {
+            (0, RecordBodyView::Activity(summary)) => {
+                assert!(!activity.has_reference_details);
+                assert!(!summary.has_reference_details);
+            }
+            (1, RecordBodyView::PhysicalReference(_)) | (2, RecordBodyView::Spell(_)) => {
+                assert!(activity.has_reference_details)
+            }
+            _ => panic!("selected body diverged from reference-details policy"),
+        }
+    }
+}

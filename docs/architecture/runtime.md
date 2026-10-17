@@ -207,6 +207,13 @@ keys; search forwards scope without embedding; index enumerates known applicable
 product values before edition preference. Empty membership remains empty, and
 retained selections do not inflate suggestion totals. Contextual counts retain
 their exact same-child/counterfactual/remaster and bounded-candidate semantics.
+The app counts operation accepts a bounded explicit literal page, independently
+of vocabulary enumeration. It uses the same index-owned counterfactual compiler
+and counts distinct displayed roots for each replacement literal. Text context
+returns optional unavailability before inference, after field/literal/target
+validation. Raw CLI field counts retain availability states and numeric extrema.
+Shared browser pickers request optional counts only while open, retaining their
+independent vocabulary when counts are unavailable or fail.
 
 Index owns useful human labels alongside executable filter definitions.
 App-service adds collection-context prefixes, groups, choice and operator labels
@@ -359,10 +366,40 @@ participant choices replace them, and saved HP/overrides/edit intent survive
 artifact rebuilds. No Foundry world execution or guessed aggregate mechanics is
 introduced. Local-state migrations preserve existing ambiguous values.
 
+Encounter HP actions carry participant identity, expected revision and one explicit
+operation: damage, heal, exact current/temporary/maximum correction, or derived
+maximum reset. App-service interprets raw integer addition/subtraction input against
+the checked current participant, then reuses provenance policy and the transactional
+replacement guard. The bounded shortcut accepts one initial plus/minus sign.
+Enter sends signed Heal intent (positive heals, negative damages); negative Damage
+or Heal amounts reverse the operation in Rust before applying its complete policy.
+Exact correction formulas retain their zero floor and never acquire a maximum
+clamp. Null explicitly clears
+current/maximum availability. Formula length, arithmetic and browser-safe final
+input bounds are checked; dice and general expressions are unsupported. Damage
+absorbs temporary HP first, floors current HP at zero and marks zero HP defeated;
+healing caps at a known maximum and does not clear defeated. Missing current HP
+rejects damage/healing rather than inventing a value. These actions return the
+same durable receipt, independently of subsequent presentation refresh. The
+three-field HP editor sends SetValues with only supplied raw inputs; an explicit
+null inside a current/maximum wrapper clears availability. All fields parse before
+one guarded replacement, preserving omitted values/provenance and same-value
+maximum edit intent. Condition-specific manual notes use canonical rule identity
+and exact condition IDs; noncondition diagnostics omit that ID. The browser can
+place these notes on their cards without hiding unrelated runtime context.
+
 Local-state initialization and migrations commit schema and metadata together.
 List metadata/tags, quantity additions and removal with replacement turn each
 have one write transaction. Next turn chooses from the same locked snapshot it
-updates, using pure app-service policy. Participant replacements require an
+updates, using pure app-service policy. A side-effect-free turn review returns the
+encounter revision; Continue checks it in the immediate transaction before applying
+old-END/new-START duration decrements and the new turn. Every relevant durable
+encounter mutation advances that revision. Duration rounds store one remaining
+amount and explicit participant/event anchor; zero retains the condition until
+explicit removal, unresolved anchors never tick, and nonround units are reminders.
+Manual Set turn, reorder and removal never tick. Only canonical Persistent Damage
+supplies its owner-END damage/recovery table reminder; no dice, HP, severity or
+expiry action is automatic. Participant replacements require an
 expected revision and fail with a typed conflict when stale. Condition IDs are
 not reused, and condition edits check participant ownership inside the write.
 Existing-encounter mutations return a durable canonical-key receipt rather than

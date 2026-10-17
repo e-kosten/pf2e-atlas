@@ -70,13 +70,85 @@ impl Drop for Fixture {
     }
 }
 #[test]
+fn collection_discovery_lists_members_and_suggests_the_collection_path() {
+    let f = Fixture::new();
+    let groups = f.data(&["filters", "fields", "--json"]);
+    assert!(
+        groups["groups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|group| group["id"] == "movement")
+    );
+    let group = f.data(&["filters", "fields", "--group", "movement", "--json"]);
+    assert_eq!(group["groups"].as_array().unwrap().len(), 1);
+    assert!(
+        group["groups"][0]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|field| field["definition"]["id"] == "actor.speeds")
+    );
+    let output = f.command(&["filters", "fields", "--field", "actor.speeds"], false);
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("actor.speeds[].type"), "{text}");
+    assert!(text.contains("actor.speeds[].value"), "{text}");
+    assert!(!text.contains("actor.senses[].type"), "{text}");
+    let json = f.data(&["filters", "fields", "--field", "actor.speeds", "--json"]);
+    assert_eq!(json["fields"].as_array().unwrap().len(), 1);
+    let invalid = f.command(&["filters", "fields", "--field", "actor.speeds[]"], false);
+    assert!(!invalid.status.success());
+    assert!(
+        String::from_utf8(invalid.stderr)
+            .unwrap()
+            .contains("--field actor.speeds")
+    );
+    let unknown = f.command(&["filters", "fields", "--field", "missing[]"], false);
+    assert!(!unknown.status.success());
+    assert!(
+        String::from_utf8(unknown.stderr)
+            .unwrap()
+            .contains("Unknown field")
+    );
+}
+
+#[test]
+fn filter_value_pages_distinguish_pagination_from_count_coverage() {
+    let f = Fixture::new();
+    let args = ["filters", "values", "--field", "rarity", "--limit", "2"];
+    let output = f.command(&args, false);
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("Next page: repeat with --offset 2"), "{text}");
+    assert!(text.contains("before remaster suppression"), "{text}");
+    let json = f.data(&[
+        "filters", "values", "--field", "rarity", "--limit", "2", "--json",
+    ]);
+    assert_eq!(json["values"]["exhaustive"], true);
+    assert_eq!(json["values"]["options"].as_array().unwrap().len(), 2);
+    let last = f.command(
+        &[
+            "filters", "values", "--field", "rarity", "--limit", "2", "--offset", "2",
+        ],
+        false,
+    );
+    assert!(last.status.success());
+    assert!(
+        !String::from_utf8(last.stdout)
+            .unwrap()
+            .contains("Next page:")
+    );
+}
+
+#[test]
 fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     let f = Fixture::new();
     let check = f.data(&["index", "check", "--no-embeddings", "--json"]);
     assert_eq!(check["product_records"], 1);
     let validation = f.data(&["index", "validate", "--no-embeddings", "--json"]);
     assert_eq!(validation["checked_snapshots"], 2);
-    let fields = f.data(&["filters", "fields", "--json"]);
+    let fields = f.data(&["filters", "fields", "--all", "--json"]);
     assert!(
         fields["fields"]
             .as_array()

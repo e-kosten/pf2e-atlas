@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import {
+  applyEncounterHpAction,
+  advanceEncounterTurn,
   addEncounterManualParticipant,
   addEncounterParticipantCondition,
   addEncounterRecordParticipant,
@@ -16,6 +18,8 @@ import {
   updateEncounterParticipantCondition,
 } from "../../api/atlasApi";
 import type {
+  ApplyEncounterHpActionRequest,
+  EncounterDetailView,
   AddEncounterManualParticipantRequest,
   AddEncounterParticipantConditionRequest,
   AddEncounterRecordParticipantRequest,
@@ -26,13 +30,15 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
+  | { kind: "hp"; request: ApplyEncounterHpActionRequest }
   | { kind: "metadata"; request: UpdateEncounterRequest }
   | { kind: "participant"; request: UpdateEncounterParticipantRequest }
   | { kind: "add-record"; request: AddEncounterRecordParticipantRequest }
   | { kind: "add-manual"; request: AddEncounterManualParticipantRequest }
   | { kind: "reorder"; request: ReorderEncounterParticipantRequest }
   | { kind: "remove"; participantKey: string }
-  | { kind: "turn"; participantKey?: string }
+  | { kind: "turn"; participantKey: string }
+  | { kind: "advance"; expectedRevision: bigint }
   | { kind: "add-condition"; request: AddEncounterParticipantConditionRequest }
   | {
       kind: "update-condition";
@@ -57,6 +63,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   const [refreshOrigin, setRefreshOrigin] = useState<"saved" | "conflict">("saved");
   const [refreshing, setRefreshing] = useState(false);
   const refreshKey = useRef<string | undefined>(undefined);
+  const refreshedView = useRef<EncounterDetailView | undefined>(undefined);
   const currentRef = encounterKey ?? encounterRef;
   const refresh = async (key = refreshKey.current ?? currentRef) => {
     await queryClient.invalidateQueries({ queryKey: ["encounters"] });
@@ -75,13 +82,16 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     });
     queryClient.setQueryData(["encounter", encounterRef], view);
     setRefreshError(null);
+    return view;
   };
   const attemptRefresh = async (encounterKey?: string) => {
     try {
-      await refresh(encounterKey);
+      refreshedView.current = await refresh(encounterKey);
       refreshSucceeded.current = true;
+      return refreshedView.current;
     } catch (error) {
       refreshSucceeded.current = false;
+      refreshedView.current = undefined;
       setRefreshError(
         error instanceof Error ? error : new Error("Encounter refresh failed"),
       );
@@ -91,6 +101,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     retry: false,
     mutationFn: (command: EncounterMutationCommand) => {
       switch (command.kind) {
+        case "hp":
+          return applyEncounterHpAction(currentRef, command.request);
         case "metadata":
           return updateEncounter(command.request);
         case "participant":
@@ -109,6 +121,10 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           return reorderEncounterParticipant(currentRef, command.request);
         case "remove":
           return removeEncounterParticipant(currentRef, command.participantKey);
+        case "advance":
+          return advanceEncounterTurn(currentRef, {
+            expected_revision: command.expectedRevision,
+          });
         case "turn":
           return setEncounterTurn({
             encounter_ref: currentRef,
@@ -153,7 +169,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     onError: async (error) => {
       if (
         error instanceof AtlasApiError &&
-        error.appError?.code === "encounter_participant_conflict"
+        (error.appError?.code === "encounter_participant_conflict" ||
+          error.appError?.code === "encounter_turn_conflict")
       ) {
         setRefreshOrigin("conflict");
         await attemptRefresh();
@@ -167,7 +184,12 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     inFlight.current = true;
     try {
       const receipt = await mutation.mutateAsync(command);
-      return { receipt, refreshed: refreshSucceeded.current, active: active.current };
+      return {
+        receipt,
+        refreshed: refreshSucceeded.current,
+        active: active.current,
+        view: refreshedView.current,
+      };
     } finally {
       inFlight.current = false;
     }
@@ -177,7 +199,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     inFlight.current = true;
     setRefreshing(true);
     try {
-      await attemptRefresh();
+      return await attemptRefresh();
     } finally {
       inFlight.current = false;
       setRefreshing(false);
@@ -185,13 +207,14 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   };
   const conflict =
     mutation.error instanceof AtlasApiError &&
-    mutation.error.appError?.code === "encounter_participant_conflict";
+    (mutation.error.appError?.code === "encounter_participant_conflict" ||
+      mutation.error.appError?.code === "encounter_turn_conflict");
   return {
     run,
     pending: mutation.isPending || refreshing,
     error: mutation.error,
     errorMessage: conflict
-      ? "Participant changed. Review the refreshed values before retrying your edit."
+      ? "Encounter changed. Review the refreshed values before retrying your edit."
       : mutation.error?.message,
     refreshError,
     refreshMessage:

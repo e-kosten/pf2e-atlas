@@ -79,6 +79,7 @@ impl From<LocalStateError> for AppServiceError {
             LocalStateError::StaleParticipantRevision { .. } => {
                 AppErrorCode::EncounterParticipantConflict
             }
+            LocalStateError::StaleEncounterRevision { .. } => AppErrorCode::EncounterTurnConflict,
             LocalStateError::UnsupportedMetadata { .. }
             | LocalStateError::IncompatibleSchema(_)
             | LocalStateError::ListKeyAllocationFailed
@@ -94,13 +95,24 @@ impl From<LocalStateError> for AppServiceError {
             participant_key,
             expected_revision,
             actual_revision,
-        } = error
+        } = &error
         {
             app_error.details = Some(serde_json::json!({
                 "participant_key": participant_key,
                 "expected_revision": expected_revision,
                 "actual_revision": actual_revision,
             }));
+            app_error.retryable = Some(false);
+        }
+        if let LocalStateError::StaleEncounterRevision {
+            encounter_key,
+            expected_revision,
+            actual_revision,
+        } = &error
+        {
+            app_error.details = Some(
+                serde_json::json!({"encounter_key":encounter_key,"expected_revision":expected_revision,"actual_revision":actual_revision}),
+            );
             app_error.retryable = Some(false);
         }
         Self { error: app_error }

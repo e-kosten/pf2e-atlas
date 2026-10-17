@@ -115,15 +115,3 @@
   color: var(--muted);
   margin: 4px 0 0;
 }
-
-.encounter-variant-select {
-  min-width: 104px;
-}
-
-.encounter-variant-control {
-  align-items: center;
-  color: var(--muted);
-  display: flex;
-  font-size: 12px;
-  gap: 4px;
-}

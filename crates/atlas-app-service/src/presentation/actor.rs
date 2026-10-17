@@ -341,6 +341,7 @@ pub(super) fn authored_activity(
         ),
     };
     ActorActivityView {
+        has_reference_details: has_reference_details(item),
         title: node_title(SourceNodeView::Item(item)),
         family: family.into(),
         kind: match family {
@@ -399,6 +400,39 @@ pub(super) fn authored_activity(
         notes: vec![],
     }
 }
+fn has_reference_details(item: ItemSourceView<'_>) -> bool {
+    match selected_item_body(item) {
+        SelectedItemBody::Spell(_)
+        | SelectedItemBody::Physical
+        | SelectedItemBody::Activity {
+            casting_context: true,
+        } => return true,
+        SelectedItemBody::Activity {
+            casting_context: false,
+        }
+        | SelectedItemBody::Content => {}
+    }
+    let fields = SourceNodeView::Item(item).content_selections();
+    // This metadata check preserves content-free/lazy projection: it neither
+    // prepares HTML nor reads child content. Markup-only strings remain linked.
+    let public = fields
+        .iter()
+        .find(|field| field.field == "/system/description/value");
+    if !matches!(public.map(|field| field.text), Some(SourceFieldView::Value(text)) if text.trim().is_empty())
+    {
+        // Missing, null or invalid content cannot prove a fully presented summary.
+        return true;
+    }
+    fields
+        .iter()
+        .filter(|field| field.field != "/name" && field.field != "/system/description/value")
+        .any(|field| match field.text {
+            SourceFieldView::Value(text) => !text.trim().is_empty(),
+            SourceFieldView::Missing | SourceFieldView::NotApplicable => false,
+            _ => true,
+        })
+}
+
 pub(crate) fn compose_participant(
     mut presentation: RecordPresentationView,
     block: &crate::encounters::mechanics::StatBlockView,

@@ -23,6 +23,7 @@ impl<T> QueryFacetOutcome<T> {
 pub enum FacetUnavailableReason {
     NonConjunctiveContext,
     NegativeCondition,
+    TextContext,
 }
 
 /// Suggestions are independent of search conditions and have no result counts.

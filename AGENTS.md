@@ -108,6 +108,8 @@ Rust workspace tests are the primary validation surface. Add or update tests und
 
 Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates: the Rust gate for Rust changes and the frontend gate for web UI changes. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
 
+Commit and merge hooks enforce formatting and staged whitespace only. Pushes do not rerun validation automatically. Run substantive checks explicitly, report their candidate and results, and confirm CI passes on the published PR head before declaring it ready to merge.
+
 The Rust gate is:
 
 ```bash
@@ -159,6 +161,15 @@ Use checkout-local Cargo output; never share or symlink targets across worktrees
 Compiler caches are disposable when their task ends; saved state, source/model assets, and builds still under review require explicit preservation. Preserve live dependency targets such as `node_modules` when another checkout links to them. Use focused checks during iteration and full gates at the required milestones; reuse successful evidence for an unchanged candidate. See CONTRIBUTING.md for debugging and retention details.
 
 ## Pull Requests And Human Review
+
+For changes that affect user experience, including UI and CLI behavior or output,
+provide an early functional review checkpoint. Share a runnable preview or CLI
+commands with representative output as soon as the core flow works, then pause
+for user feedback before broad test rewrites, full validation or independent
+presentation review. Run the compilation and focused checks needed to make that
+checkpoint usable, and disclose unfinished behavior and validation gaps. Preserve
+existing tests; early review does not replace the required final tests, reviews
+and gates after the UX direction is confirmed.
 
 For implementation work, pushing the task branch and opening or updating a PR are part of the normal workflow unless the user requests local-only work. Confirm the intended PR base from the task context. Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and outstanding limitations. Keep related review fixes on the same PR as additional logical commits; do not rewrite published history without agreement.
 

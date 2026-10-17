@@ -40,7 +40,7 @@ export function OwnedAbilityReading({
         <Alert
           type="info"
           title="Ability content unavailable"
-          description="Open the parent reference to read its authored abilities."
+          description="Open the parent reference to read its abilities."
         />
         {abilities.map((activity) => (
           <ActorActivity
@@ -195,7 +195,7 @@ function OwnedAbilityBatch({
                   <Alert
                     type="info"
                     title="Ability content unavailable"
-                    description="Open the parent reference to read its authored abilities."
+                    description="Open the parent reference to read its abilities."
                   />
                 )}
                 {first && first.start > 0 && (

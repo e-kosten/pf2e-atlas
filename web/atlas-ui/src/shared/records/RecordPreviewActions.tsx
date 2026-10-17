@@ -8,11 +8,13 @@ export function RecordPreviewActions({
   onOpenFullPage,
   fullPageHref,
   readingHistory,
+  showClose = true,
 }: {
   onClose: () => void;
   onOpenFullPage: () => void;
   fullPageHref?: string;
   readingHistory?: RecordPreviewContentProps["readingHistory"];
+  showClose?: boolean;
 }) {
   return (
     <div className="encounter-actions">
@@ -36,12 +38,14 @@ export function RecordPreviewActions({
         }}
         size="small"
       />
-      <Button
-        aria-label="Close reference preview"
-        icon={<X size={14} />}
-        onClick={onClose}
-        size="small"
-      />
+      {showClose && (
+        <Button
+          aria-label="Close reference preview"
+          icon={<X size={14} />}
+          onClick={onClose}
+          size="small"
+        />
+      )}
     </div>
   );
 }

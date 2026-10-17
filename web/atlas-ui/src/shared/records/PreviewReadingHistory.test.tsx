@@ -9,7 +9,6 @@ import {
 } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
 import { StrictMode } from "react";
-import { readingScrollGeometry } from "../../test/readingScrollGeometry";
 import { getOwnedReading, getRecordDetail } from "../../api/atlasApi";
 import type { OwnedReadingBatchView } from "../../generated/atlas";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
@@ -29,15 +28,17 @@ vi.mock("../../api/atlasApi", async (original) => ({
 }));
 
 it.each([
-  ["popover", "strike"],
-  ["drawer", "strike"],
-  ["popover", "ability"],
-  ["drawer", "ability"],
+  ["popover", "strike", "landed"],
+  ["drawer", "strike", "landed"],
+  ["popover", "ability", "landed"],
+  ["drawer", "ability", "landed"],
+  ["popover", "ability", "selected"],
+  ["drawer", "ability", "selected"],
 ] as const)(
-  "restores %s history after the landed %s mounts, retaining initial landing and final opener",
-  async (host, kind) => {
+  "restores %s history after the %s mounts in %s reading, retaining position and final opener",
+  async (host, kind, reading) => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
-      xl: host === "popover",
+      md: host === "popover",
       xs: host === "drawer",
     });
     const activity = { ...activityFixture("Jaws", "actors:ghoul"), kind };
@@ -51,6 +52,14 @@ it.each([
       value: { ...actorFixture(), activities: knownFact([activity]) },
     };
     const content = detailFixture("actors:ghoul", "Ghoul", "rules:linked");
+    if (reading === "selected") {
+      parent.selected = activity.navigation;
+      parent.relationships = content.relationships;
+      parent.presentation = {
+        ...detailFixture("actors:ghoul", "Jaws", "rules:linked").presentation,
+        body: { kind: "activity", value: activity },
+      };
+    }
     const batch: OwnedReadingBatchView = {
       artifact_generation: parent.artifact_generation,
       parent: parent.selected,
@@ -89,7 +98,7 @@ it.each([
                 parent.record.record_key,
                 event.currentTarget,
                 parent.selected,
-                activity.navigation,
+                reading === "landed" ? activity.navigation : undefined,
               )
             }
           >
@@ -116,7 +125,64 @@ it.each([
       host === "drawer"
         ? ".record-preview-drawer__body"
         : ".record-preview-popover__body";
-    let geometry: ReturnType<typeof readingScrollGeometry> | undefined;
+    const root = document.documentElement;
+    const priorOuterScroll = root.scrollTop;
+    root.scrollTop = 0;
+    // The scrolling library discovers ancestors by dimensions before measuring
+    // their rectangles, so provide geometry from the instant each host mounts.
+    for (const [property, value] of Object.entries({
+      clientHeight: 300,
+      offsetHeight: 300,
+      scrollHeight: 3000,
+      clientWidth: 500,
+      offsetWidth: 500,
+      scrollWidth: 500,
+    }) as Array<
+      [
+        (
+          | "clientHeight"
+          | "offsetHeight"
+          | "scrollHeight"
+          | "clientWidth"
+          | "offsetWidth"
+          | "scrollWidth"
+        ),
+        number,
+      ]
+    >) {
+      const original =
+        Object.getOwnPropertyDescriptor(HTMLElement.prototype, property)?.get ??
+        Object.getOwnPropertyDescriptor(Element.prototype, property)!.get!;
+      vi.spyOn(HTMLElement.prototype, property, "get").mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        if (!this.matches(selector)) return original.call(this);
+        this.style.overflowY = "auto";
+        this.style.overflowX = "auto";
+        this.style.border = "0px solid transparent";
+        return value;
+      });
+    }
+    const originalRect = HTMLElement.prototype.getBoundingClientRect;
+    // The desktop host mounts only with ready content. Install jsdom dimensions
+    // on its first layout measurement, before the real landing effect runs.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        const scroll = document.querySelector<HTMLElement>(selector);
+        if (scroll && this === scroll) return new DOMRect(0, 50, 500, 300);
+        if (scroll?.contains(this) && this.hasAttribute("data-atlas-activity-anchor"))
+          return new DOMRect(0, 150 - scroll.scrollTop, 400, 30);
+        return originalRect.call(this);
+      },
+    );
+    const originalScroll = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = function () {
+      const scroll = this.closest<HTMLElement>(selector);
+      if (scroll) {
+        scroll.scrollTop = 100;
+        root.scrollTop = 719;
+      }
+    };
     try {
       render(
         <StrictMode>
@@ -131,10 +197,12 @@ it.each([
       );
       const opener = screen.getByRole("button", { name: "Open landed parent" });
       fireEvent.click(opener);
+      await waitFor(() => expect(document.querySelector(selector)).not.toBeNull());
       const scroll = document.querySelector<HTMLElement>(selector)!;
-      geometry = readingScrollGeometry(scroll);
       const nested = await screen.findByRole("link", { name: "Nested Rule" });
-      await waitFor(() => expect(scroll.scrollTop).toBe(100));
+      await waitFor(() =>
+        expect(scroll.scrollTop).toBe(reading === "landed" ? 100 : 0),
+      );
       expect(document.documentElement.scrollTop).toBe(0);
       scroll.scrollTop = 425;
       // Preview positioning reacts to captured scroll events. Its rerender must
@@ -143,9 +211,15 @@ it.each([
       expect(scroll.scrollTop).toBe(425);
       nested.focus();
       fireEvent.click(nested);
-      await screen.findByRole("heading", { name: "Linked rule" });
+      await waitFor(() =>
+        expect(
+          screen.getByRole(host === "drawer" ? "dialog" : "heading", {
+            name: "Linked rule",
+          }),
+        ).toBeVisible(),
+      );
       let finish: (() => void) | undefined;
-      if (kind === "ability") {
+      if (kind === "ability" && reading === "landed") {
         client.removeQueries({ queryKey: ["owned-reading"] });
         getAbilities.mockImplementationOnce(
           () =>
@@ -155,7 +229,7 @@ it.each([
         );
       }
       fireEvent.click(screen.getByRole("button", { name: "Back" }));
-      if (kind === "ability") {
+      if (kind === "ability" && reading === "landed") {
         await waitFor(() => expect(finish).toBeDefined());
         scroll.scrollTop = 0;
         expect(screen.queryByRole("link", { name: "Nested Rule" })).toBeNull();
@@ -165,28 +239,28 @@ it.each([
       await waitFor(() => expect(scroll.scrollTop).toBe(425));
       expect(returned).toHaveFocus();
       expect(document.documentElement.scrollTop).toBe(0);
-      fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+      const closeName = host === "drawer" ? "Close" : "Close reference preview";
+      fireEvent.click(screen.getByRole("button", { name: closeName }));
       await waitFor(() =>
-        expect(
-          screen.queryByRole("button", { name: "Close reference preview" }),
-        ).toBeNull(),
+        expect(screen.queryByRole("button", { name: closeName })).toBeNull(),
       );
       expect(opener).toHaveFocus();
-      geometry.restore();
       // Allow the new host's jsdom geometry to be installed before its cached
       // target could synchronously mount. The address is still a fresh opening.
       client.removeQueries({ queryKey: ["record-detail"] });
       fireEvent.click(opener);
-      geometry = readingScrollGeometry(document.querySelector<HTMLElement>(selector)!);
       await screen.findByRole("link", { name: "Nested Rule" });
       await waitFor(() =>
-        expect(document.querySelector<HTMLElement>(selector)!.scrollTop).toBe(100),
+        expect(document.querySelector<HTMLElement>(selector)!.scrollTop).toBe(
+          reading === "landed" ? 100 : 0,
+        ),
       );
     } finally {
-      geometry?.restore();
       cleanup();
       client.clear();
       vi.restoreAllMocks();
+      HTMLElement.prototype.scrollIntoView = originalScroll;
+      root.scrollTop = priorOuterScroll;
     }
   },
 );

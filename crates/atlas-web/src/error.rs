@@ -44,6 +44,7 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::EncounterNotFound
         | AppErrorCode::EncounterParticipantNotFound => StatusCode::NOT_FOUND,
         AppErrorCode::SavedListAlreadyExists
+        | AppErrorCode::EncounterTurnConflict
         | AppErrorCode::EncounterParticipantConflict
         | AppErrorCode::EncounterAlreadyExists
         | AppErrorCode::FilterEditorConflict

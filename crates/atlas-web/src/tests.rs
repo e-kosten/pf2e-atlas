@@ -1,18 +1,18 @@
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
-    AppReadinessStatus, AppReadinessView, CreateEncounterRequest, CreateSavedListRequest,
-    DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
-    DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
+    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AdvanceEncounterTurnRequest,
+    AppError, AppErrorCode, AppReadinessStatus, AppReadinessView, ApplyEncounterHpActionRequest,
+    CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView, DeleteSavedListView,
+    DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
     EncounterDetailView, EncounterIndexView, EncounterMutationView,
     EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
     EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterStatusView, EncounterSummaryView, FilterEditorView, FilterSavedListRequest,
-    FilterValueListView, RecordDetailView, RecordSummaryView, RemoveSavedListItemRequest,
-    ReorderEncounterParticipantRequest, SavedListCreateView, SavedListDetailView,
-    SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
+    EncounterStatusView, EncounterSummaryView, EncounterTurnReviewView, FilterEditorView,
+    FilterSavedListRequest, FilterValueListView, RecordDetailView, RecordSummaryView,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
     SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
     SearchModeSummary, SearchPageView, SearchResultsPage, SearchResultsRequest,
     SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
@@ -374,12 +374,12 @@ async fn record_and_filter_routes_use_real_router_wiring() {
         "/api/filters/counts",
         Some(json!({
             "context":{"kind":"filtered","filter":null,"text":null,"mode":"lexical"},
-            "field_id":"source.pack","clause_id":null
+            "field_id":"source.pack","clause_id":null,"values":["Actions"]
         })),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["counts"]["value"]["counting_scope"], "roots");
+    assert_eq!(body["counts"]["value"]["options"][0]["distinct_roots"], 1);
     let (status, body) = route_json(
         Method::POST,
         "/api/filters/validate",
@@ -628,7 +628,7 @@ async fn encounter_routes_use_real_router_wiring() {
             "participant_key": "ignored",
             "name": "Frightened",
             "value": 1,
-            "duration_rounds": 2
+            "duration": {"amount":2,"unit":"rounds","timing":{"participant_key":"pc_1","event":"end"}}
         })),
     )
     .await;
@@ -640,9 +640,10 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/participant_a/conditions/7",
         Some(json!({
             "condition_id": 999,
+            "expected_encounter_revision":7,
             "name": "Frightened",
             "value": 2,
-            "duration_rounds": 1
+            "duration": {"amount":1,"unit":"rounds","timing":{"participant_key":"pc_1","event":"end"}}
         })),
     )
     .await;
@@ -654,6 +655,7 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/wrong_participant/conditions/7",
         Some(json!({
             "condition_id": 999,
+            "expected_encounter_revision":7,
             "name": "Frightened",
             "value": 3
         })),
@@ -746,6 +748,69 @@ async fn participant_revision_is_required_and_stale_edits_return_409() {
     assert_eq!(body, json!({"encounter_key":"ambush"}));
 }
 
+#[tokio::test]
+async fn turn_review_and_advance_use_explicit_revision_path_and_typed_failures() {
+    let (status, body) = route_json(Method::GET, "/api/encounters/ambush/turn-review", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["expected_revision"], 7);
+    assert_eq!(body["next_participant_key"], "pc_1");
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/advance",
+        Some(json!({"expected_revision":7})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!({"encounter_key":"ambush"}));
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/advance",
+        Some(json!({"expected_revision":6})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "encounter_turn_conflict");
+    for body in [
+        json!({}),
+        json!({"expected_revision":null}),
+        json!({"expected_revision":1.5}),
+        json!({"expected_revision":7,"encounter_ref":"spoof"}),
+    ] {
+        let (status, body) =
+            route_json(Method::POST, "/api/encounters/ambush/advance", Some(body)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["code"], "invalid_request");
+    }
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/turn",
+        Some(json!({"encounter_ref":"ignored"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt() {
+    let path = "/api/encounters/ambush/participants/participant_a/hp";
+    let mut request = json!({"participant_key":"ignored_body_identity","action":{"kind":"damage","amount":"10+2"}});
+    let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+    request["expected_revision"] = json!(6);
+    let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "encounter_participant_conflict");
+    request["expected_revision"] = json!(7);
+    let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!({"encounter_key":"ambush"}));
+    request["action"] = json!({"kind":"damage","amount":12});
+    let (status, body) = route_json(Method::POST, path, Some(request)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+}
+
 async fn route_json(method: Method, path: &str, body: Option<Value>) -> (StatusCode, Value) {
     let app = test_router();
     let mut builder = Request::builder().method(method).uri(path);
@@ -797,7 +862,7 @@ impl AtlasWebService for MockService {
         &self,
         _request: DiscoverFilterEditorRequest,
     ) -> Result<FilterEditorView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["record.kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
+        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["record.kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","short_choices":true,"applicable":true,"unit_fields":[],"collection_control":null,"placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
     }
     fn discover_filter_values(
         &self,
@@ -839,7 +904,7 @@ impl AtlasWebService for MockService {
                 },
             });
         }
-        Ok(serde_json::from_value(json!({"search_profile":"bge-base","artifact_generation":"fixture-generation","counts":{"status":"available","value":{"field":"source.pack","counting_scope":"roots","states":[],"exhaustive":true,"count_basis":"distinct roots","minimum":null,"maximum":null}}})).expect("typed counts fixture"))
+        Ok(serde_json::from_value(json!({"search_profile":"bge-base","artifact_generation":"fixture-generation","counts":{"status":"available","value":{"field":"source.pack","options":[{"value":"Actions","distinct_roots":1,"selected":false}],"total_values":1,"exhaustive":true,"count_basis":"distinct roots"}}})).expect("typed counts fixture"))
     }
     fn validate_filter(
         &self,
@@ -1035,6 +1100,33 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn apply_encounter_hp_action(
+        &self,
+        encounter_ref: &str,
+        request: ApplyEncounterHpActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        if request.participant_key != "participant_a" {
+            return Err(AppServiceError::invalid_request(
+                "participant path override missing",
+            ));
+        }
+        if request.expected_revision != 7 {
+            return Err(AppServiceError::new(
+                AppErrorCode::EncounterParticipantConflict,
+                "participant changed",
+            ));
+        }
+        assert_eq!(
+            request.action,
+            atlas_app_model::EncounterHpAction::Damage {
+                amount: "10+2".into()
+            }
+        );
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+
     fn reorder_encounter_participant(
         &self,
         encounter_ref: &str,
@@ -1052,6 +1144,34 @@ impl AtlasWebService for MockService {
     ) -> Result<EncounterMutationView, AppServiceError> {
         Ok(EncounterMutationView {
             encounter_key: encounter_ref.to_string(),
+        })
+    }
+
+    fn encounter_turn_review(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<EncounterTurnReviewView, AppServiceError> {
+        Ok(EncounterTurnReviewView {
+            encounter_key: encounter_ref.into(),
+            expected_revision: 7,
+            current_participant_key: None,
+            next_participant_key: Some("pc_1".into()),
+            reminders: vec![],
+        })
+    }
+    fn advance_encounter_turn(
+        &self,
+        encounter_ref: &str,
+        request: AdvanceEncounterTurnRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        if request.expected_revision != 7 {
+            return Err(AppServiceError::new(
+                AppErrorCode::EncounterTurnConflict,
+                "encounter changed",
+            ));
+        }
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
         })
     }
 
@@ -1242,6 +1362,7 @@ fn encounter_detail(
     include_condition: bool,
 ) -> EncounterDetailView {
     EncounterDetailView {
+        revision: 7,
         artifact_generation: Some("test-generation".into()),
         encounter: encounter_summary(encounter_ref, "Ambush"),
         note: Some("Fixture notes".to_string()),
@@ -1287,7 +1408,11 @@ fn encounter_participant(
                 name: "Frightened".to_string(),
                 value: Some(1),
                 source_participant_key: None,
-                duration_rounds: Some(2),
+                duration: Some(atlas_app_model::ConditionDurationView {
+                    amount: 2,
+                    unit: atlas_app_model::ConditionDurationUnit::Rounds,
+                    timing: None,
+                }),
                 note: None,
                 created_at: "2026-01-01T00:00:00Z".to_string(),
                 updated_at: "2026-01-01T00:00:00Z".to_string(),
@@ -1358,7 +1483,7 @@ async fn filter_discovery_transport_keeps_explicit_vocabulary_and_optional_unava
     assert_eq!(body["scope"]["list_ref"], "my-list");
     assert_eq!(body["values"]["selected_values"][0], "retained");
     assert!(body["values"].get("count_basis").is_none());
-    let (status,body)=route_json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid"},"field_id":"traits","clause_id":"negative-condition"}))).await;
+    let (status,body)=route_json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid"},"field_id":"traits","clause_id":"negative-condition","values":["fire"]}))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["counts"]["status"], "unavailable");
     let (status,_)=route_json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon","mode":"hybrid"}}))).await;

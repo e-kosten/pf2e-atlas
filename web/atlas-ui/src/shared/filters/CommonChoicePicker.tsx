@@ -1,8 +1,9 @@
-import { Alert, Button, Space, Spin, Typography } from "antd";
+import { Alert, Button, Checkbox, Space, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
 import type {
   FilterEditorFieldView,
   FilterVocabularyScope,
+  FilterDiscoveryContext,
   QueryPredicate,
 } from "../../generated/atlas";
 import { sentenceCase } from "../ui/labels";
@@ -13,7 +14,12 @@ import {
   choiceValueState,
   conditionValues,
 } from "./filterControls";
-import { useFilterVocabulary, VOCABULARY_PAGE_SIZE } from "./useFilterDiscovery";
+import {
+  findClauseIds,
+  useFilterOptionCounts,
+  useFilterVocabulary,
+  VOCABULARY_PAGE_SIZE,
+} from "./useFilterDiscovery";
 
 /** Backend-owned categorical fields adapt vocabulary and clauses to the shared picker. */
 export function CommonChoicePicker({
@@ -21,18 +27,32 @@ export function CommonChoicePicker({
   clause,
   scope,
   onChange,
+  countContext,
+  countsEnabled = true,
+  countQueryKey,
+  countLimit = 0,
 }: {
   field: FilterEditorFieldView;
   clause: QueryPredicate | null;
   scope: FilterVocabularyScope;
   onChange: (next: QueryPredicate | null) => void;
+  countContext?: FilterDiscoveryContext;
+  countsEnabled?: boolean;
+  countQueryKey?: readonly unknown[];
+  countLimit?: number;
 }) {
   const selected = choiceClauses(clause).flatMap(conditionValues);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
-  const closedChoices = field.choices.length > 0;
+  const [showUnavailable, setShowUnavailable] = useState(false);
+  const closedChoices = field.short_choices;
+  const ids = findClauseIds(
+    countContext?.filter ?? null,
+    field.definition.path,
+    field.definition.scope,
+  );
   const query = useFilterVocabulary(
     scope,
     field.definition.id,
@@ -40,6 +60,9 @@ export function CommonChoicePicker({
     offset,
     selected,
     open && !closedChoices,
+    countContext && countsEnabled && !showUnavailable
+      ? { context: countContext, clauseId: ids[0] ?? null }
+      : undefined,
   );
   useEffect(() => {
     const timeout = window.setTimeout(() => setSearch(text), 250);
@@ -54,12 +77,33 @@ export function CommonChoicePicker({
         value: String(option.value),
         label: sentenceCase(String(option.value)),
       }));
+  const counts = useFilterOptionCounts(
+    countContext,
+    field.definition.id,
+    ids[0] ?? null,
+    [
+      ...new Set([
+        ...selected,
+        ...choices
+          .filter(
+            (choice) =>
+              !closedChoices ||
+              choice.label.toLowerCase().includes(text.trim().toLowerCase()),
+          )
+          .map((choice) => choice.value),
+      ]),
+    ],
+    open && countsEnabled && (closedChoices || !!query.data),
+    countLimit,
+    countQueryKey,
+  );
   return (
     <ChoicePicker
       labelForValue={sentenceCase}
       id={field.definition.id}
       label={field.label}
       choices={choices}
+      counts={counts}
       selected={selected}
       stateOf={(value) => choiceValueState(clause, value)}
       onChange={(value, state) =>
@@ -81,11 +125,20 @@ export function CommonChoicePicker({
       }}
       emptyMessage={query.error && !closedChoices ? null : "No matching values"}
       filterChoices={closedChoices}
-      loading={!closedChoices && query.isFetching}
+      loading={!closedChoices && query.isLoading}
     >
       {!closedChoices && (
         <div className="common-choice-footer">
-          {query.isFetching && <Spin size="small" />}
+          <Checkbox
+            checked={showUnavailable}
+            onChange={(event) => {
+              setShowUnavailable(event.target.checked);
+              setOffset(0);
+            }}
+          >
+            Show unavailable
+          </Checkbox>
+          {query.isLoading && <Spin size="small" />}
           {query.data && (
             <Typography.Text type="secondary" role="status">
               {new Intl.NumberFormat().format(query.data.values.total_values)} values

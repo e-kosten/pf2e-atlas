@@ -1,4 +1,7 @@
 mod conditions;
+mod hp;
+#[cfg(test)]
+mod hp_tests;
 mod hydration;
 pub(crate) mod mechanics;
 mod projection;
@@ -8,5 +11,8 @@ mod reference_tests;
 mod stat_block;
 #[cfg(test)]
 mod tests;
+mod timing;
+#[cfg(test)]
+mod timing_tests;
 mod turns;
 mod workflow;

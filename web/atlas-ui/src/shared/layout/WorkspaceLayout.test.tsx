@@ -28,3 +28,24 @@ it("keeps pane identity through collapse and restores detail for a new selection
     "workspace-pane--collapsed",
   );
 });
+
+it("keeps a noncollapsible participant visible while the roster collapses", () => {
+  const { container } = render(
+    <WorkspaceLayout
+      filter={<div>Roster rows</div>}
+      results={<div>Participant content</div>}
+      selectedRecordKey={null}
+      labels={{ filter: "Roster", results: "Participant" }}
+      collapsiblePanes={["filter"]}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: "Collapse Participant" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Collapse Roster" }));
+  expect(screen.getByText("Participant content")).toBeVisible();
+  expect(container.querySelector(".workspace-pane--results")).not.toHaveClass(
+    "workspace-pane--collapsed",
+  );
+  expect(container.querySelector(".workspace-grid")).toHaveStyle({
+    "--pane-columns": "44px var(--panel-gap) minmax(0, 1fr)",
+  });
+});
