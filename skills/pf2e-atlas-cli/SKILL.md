@@ -110,6 +110,8 @@ Discover filters before constructing a more specific expression:
 
 ```sh
 atlas filters fields --json
+atlas filters fields --group movement --json
+atlas filters fields --all --json
 atlas filters fields --text 'maximum hp' --json
 atlas filters fields --field actor.hp.maximum --json
 atlas filters values --field traits --kind spell --json
@@ -117,16 +119,29 @@ atlas filters values --field actor.hp.maximum --kind creature --json
 atlas search --where 'actor.saves.fortitude >= 12' --print-filter --json
 ```
 
+`filters fields` describes allowed choices; `filters values` retains all supplied
+filters and returns contextual counts (including zero-match closed choices).
+`--text` searches values, not record content. Value counts refer to distinct
+parent records after remaster preference; source-availability statistics are
+before that preference and may count multiple collection occurrences per parent.
+Unavailable discovery is an error, never a zero count. For same-entry constraints,
+combine conditions inside one CEL `exists`, for example
+`actor.speeds.exists(s, s.type == "fly" && s.value >= 30)`.
+Scoped value discovery can match a different entry from an existing collection
+condition; verify the complete expression with `search --where`.
+
 The catalog defines valid CEL paths, types, operators, family applicability, units,
 closed choices and value discovery. Open strings such as traits use admitted
-identifiers and sampled values. Common flags `--kind`, `--pack-name`, `--rarity`
+identifiers and observed values. Common flags `--kind`, `--pack-name`, `--rarity`
 and `--trait` combine with `--where` through the same typed predicate. Unsupported
 CEL syntax or fields fail explicitly. The retired metric/reference/filter-JSON
 flags are not available; do not fabricate an alternative expression language.
 Unknown, missing, null, invalid and not-applicable values are distinct. Only a true
 predicate admits a record; do not assume missing stats have a numeric value.
-The human catalog is a compact index; `--field` expands one descriptor. JSON
-always retains complete descriptor metadata, with optional field/text narrowing.
+The default catalog uses shared UI product groups; `--group ID` browses one.
+`--all` lists the flat catalog; `--field` expands one descriptor. Default and
+`--group` JSON return the grouped editor catalog. `--all`, `--field`, and `--text`
+return the query catalog with complete descriptor metadata.
 Numeric and collection discovery return statistics/availability with `values: null`;
 categorical and Boolean fields return paged values plus availability counts.
 

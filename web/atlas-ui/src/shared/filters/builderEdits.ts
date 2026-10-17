@@ -22,6 +22,8 @@ export function normalizeBuilderEdit(
           ? normalizeBuilderEdit(old, node, fields, scope)
           : node;
       const oldRule = old && !("rules" in old) ? old : undefined;
+      // A newly inserted complete condition has no previous operand to convert.
+      if (!oldRule) return node;
       const field = fields.find(
         (candidate) =>
           candidate.definition.id === node.field &&
@@ -34,6 +36,11 @@ export function normalizeBuilderEdit(
         return { ...node, value: true };
       if (!operand) return node;
       const changedField = oldRule?.field !== node.field;
+      if (
+        changedField &&
+        field?.unit_fields.some((option) => option.field_id === oldRule.field)
+      )
+        return node;
       if (changedField || oldRule?.operator !== node.operator) {
         const oldOperand = changedField
           ? null

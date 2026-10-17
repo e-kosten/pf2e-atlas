@@ -112,9 +112,12 @@ export function ChoicePicker({
       <div className="common-choice-options" aria-busy={loading}>
         {rows.map((option) => {
           const state = stateOf(option.value);
+          const unavailable = counts?.get(option.value) === 0n;
           const next: ChoiceState =
             state === "neutral"
-              ? "include"
+              ? unavailable
+                ? "exclude"
+                : "include"
               : state === "include"
                 ? "exclude"
                 : "neutral";
@@ -133,6 +136,10 @@ export function ChoicePicker({
               variant="text"
               styles={{
                 root: {
+                  color:
+                    unavailable && state === "neutral"
+                      ? token.colorTextDisabled
+                      : undefined,
                   background:
                     state === "include"
                       ? token.colorPrimaryBg
@@ -223,7 +230,7 @@ export function ChoicePicker({
               input.current?.focus();
             }
           }}
-          placement="bottomLeft"
+          placement="bottom"
           trigger="click"
           arrow={false}
           destroyOnHidden

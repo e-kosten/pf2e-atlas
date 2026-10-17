@@ -3,4 +3,4 @@ import type { FilterDiscoveryContext } from "./FilterDiscoveryContext";
 import type { FilterVocabularyScope } from "./FilterVocabularyScope";
 import type { QueryLiteral } from "./QueryLiteral";
 
-export type DiscoverFilterValuesRequest = { "kind": "contextual", context: FilterDiscoveryContext, field_id: string, clause_id: string | null, text: string | null, offset: number, limit: number, } | { "kind": "vocabulary", scope: FilterVocabularyScope, field_id: string, text: string | null, offset: number, limit: number, selected_values: Array<QueryLiteral>, };
+export type DiscoverFilterValuesRequest = { "kind": "contextual", only_matching: boolean, context: FilterDiscoveryContext, field_id: string, clause_id: string | null, text: string | null, offset: number, limit: number, } | { "kind": "vocabulary", scope: FilterVocabularyScope, field_id: string, text: string | null, offset: number, limit: number, selected_values: Array<QueryLiteral>, };

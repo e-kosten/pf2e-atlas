@@ -1,4 +1,5 @@
 mod source;
+mod value_order;
 pub use source::{
     QueryCountsRequest, QueryFacetContext, QueryValueCountsRequest, QueryValuesRequest,
     QueryVocabularyRequest, facet_base_query, validate_value_counts, validate_value_discovery,

@@ -47,7 +47,21 @@ impl AtlasAppService {
             &crate::ReadExecutionContext::uncancellable(),
             move |retrieval| {
                 let catalog = retrieval.discover_filter_fields()?;
-                crate::discovery::filter_editor_view(catalog, &request.selected_field_ids)
+                let mut editor = crate::discovery::filter_editor_view(catalog, &request.selected_field_ids)?;
+                // One family inventory answers applicability; never fan out across fields.
+                let filter = request.filter.as_ref().filter(|filter| retrieval.validate_filter(filter).is_ok());
+                let families = editor_values(retrieval, "source.type", filter)?;
+                let kinds = editor_values(retrieval, "record.kind", None)?;
+                for field in editor.groups.iter_mut().flat_map(|group| &mut group.fields) {
+                    field.applicable = field.definition.scope.is_some()
+                        || families.is_empty()
+                        || field.definition.family_types.is_empty()
+                        || field.definition.family_types.iter().any(|family| families.contains(family));
+                    if field.definition.id == "record.kind" {
+                        field.choices.retain(|choice| matches!(&choice.value, atlas_domain::QueryLiteral::String(value) if kinds.contains(value)));
+                    }
+                }
+                Ok(editor)
             },
         )
     }
@@ -59,6 +73,7 @@ impl AtlasAppService {
             &crate::ReadExecutionContext::uncancellable(),
             move |retrieval| {
                 required_facet(retrieval.discover_filter_values(SearchValues {
+                    only_matching: false,
                     field: &request.field,
                     clause_id: request.clause_id.as_deref(),
                     context: SearchContext {
@@ -107,6 +122,7 @@ impl AtlasAppService {
         let projection_execution = execution.clone();
         match request {
             DiscoverFilterValuesRequest::Contextual {
+                only_matching,
                 context,
                 field_id,
                 clause_id,
@@ -122,6 +138,7 @@ impl AtlasAppService {
                         retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
                     let generation = retrieval.artifact_generation()?;
                     let outcome = retrieval.discover_filter_values(SearchValues {
+                        only_matching,
                         field: &field_id,
                         clause_id: clause_id.as_deref(),
                         context: SearchContext {
@@ -210,6 +227,50 @@ impl AtlasAppService {
             })
         })
     }
+}
+fn editor_values(
+    retrieval: &mut atlas_search::AtlasRetrievalService,
+    field: &str,
+    filter: Option<&QueryPredicate>,
+) -> AppServiceResult<Vec<String>> {
+    let mut values = Vec::new();
+    let mut offset = 0;
+    loop {
+        let result = retrieval.discover_filter_values(SearchValues {
+            only_matching: true,
+            field,
+            clause_id: None,
+            context: SearchContext {
+                search_profile: None,
+                text: None,
+                mode: RetrievalMode::Fts,
+                scope: RecordScope::All,
+                prefer_remaster: false,
+                filter,
+            },
+            text: None,
+            offset,
+            limit: 40,
+        })?;
+        let QueryFacetOutcome::Available { value } = result else {
+            return Ok(values);
+        };
+        let length = value.options.len();
+        values.extend(
+            value
+                .options
+                .into_iter()
+                .filter_map(|option| match option.value {
+                    atlas_domain::QueryLiteral::String(value) => Some(value),
+                    _ => None,
+                }),
+        );
+        offset += length;
+        if length == 0 || offset as u64 >= value.total_values {
+            break;
+        }
+    }
+    Ok(values)
 }
 type ContextParts = (
     Option<Vec<RecordKey>>,
@@ -302,6 +363,7 @@ mod tests {
 
     fn editor_request() -> DiscoverFilterEditorRequest {
         DiscoverFilterEditorRequest {
+            filter: None,
             selected_field_ids: vec!["actor.hp.maximum".into()],
         }
     }
@@ -366,6 +428,55 @@ mod tests {
                 baseline,
             );
         }
+    }
+
+    #[test]
+    fn editor_narrows_product_controls_without_removing_repair_metadata() {
+        let f = fixture_worker();
+        let editor = f
+            .worker
+            .discover_filter_editor(DiscoverFilterEditorRequest {
+                filter: Some(
+                    serde_json::from_value(
+                        json!({"kind":"in","field":"record.kind","values":["creature"]}),
+                    )
+                    .unwrap(),
+                ),
+                selected_field_ids: vec![],
+            })
+            .unwrap();
+        let fields: Vec<_> = editor
+            .groups
+            .iter()
+            .flat_map(|group| &group.fields)
+            .collect();
+        assert!(
+            !fields
+                .iter()
+                .any(|field| field.definition.path == "heritage.ancestry.uuid")
+        );
+        let hardness = fields
+            .iter()
+            .find(|field| field.definition.id == "hazard.hardness")
+            .unwrap();
+        assert!(!hardness.applicable);
+        let kind = fields
+            .iter()
+            .find(|field| field.definition.id == "record.kind")
+            .unwrap();
+        assert!(
+            !kind
+                .choices
+                .iter()
+                .any(|choice| choice.value
+                    == atlas_domain::QueryLiteral::String("affliction".into()))
+        );
+        let duration = fields
+            .iter()
+            .find(|field| field.definition.id == "effect.duration.rounds")
+            .unwrap();
+        assert_eq!(duration.unit_fields.len(), 4);
+        assert_eq!(duration.label, "Duration");
     }
 
     #[test]

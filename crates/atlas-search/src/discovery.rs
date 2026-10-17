@@ -10,6 +10,7 @@ pub struct FilterDiscoveryContext<'a> {
     pub filter: Option<&'a QueryPredicate>,
 }
 pub struct DiscoverFilterValuesRequest<'a> {
+    pub only_matching: bool,
     pub field: &'a str,
     pub clause_id: Option<&'a str>,
     pub context: FilterDiscoveryContext<'a>,
@@ -162,6 +163,7 @@ impl AtlasRetrievalService {
                 }
             };
         Ok(self.index.field_values(&QueryValuesRequest {
+            only_matching: request.only_matching,
             field: request.field.to_owned(),
             clause_id: request.clause_id.map(str::to_owned),
             query,

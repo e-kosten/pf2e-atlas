@@ -171,7 +171,7 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
   fireEvent.click(await screen.findByRole("button", { name: "Edit Kind filter" }));
   expect(await screen.findByLabelText("4 matching records")).toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Kind: Spell, neutral; activate to include" }),
+    screen.getByRole("button", { name: "Kind: Spell, neutral; activate to exclude" }),
   ).toBeEnabled();
   expect(discoverFilterCounts).toHaveBeenCalledWith(
     expect.objectContaining({

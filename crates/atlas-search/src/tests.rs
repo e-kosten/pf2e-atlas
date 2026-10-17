@@ -950,7 +950,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
         vec![effect("aaaaaaaaaaaaaaaa", "Flame", 1, "")],
         false,
     ));
-    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"not","predicate":{"clause_id":"target","kind":"compare","field":"rarity","op":"eq","value":"common"}})).unwrap();
+    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"any_of","children":[{"clause_id":"target","kind":"compare","field":"rarity","op":"eq","value":"common"},{"kind":"compare","field":"rarity","op":"eq","value":"rare"}]})).unwrap();
     let context = FilterDiscoveryContext {
         search_profile: None,
         text: Some("flame"),
@@ -979,6 +979,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
     assert_eq!(error.kind(), SearchErrorKind::InvalidFilter);
     assert_eq!(error.query_error.unwrap().code, "facet_target_field");
     let mut invalid_values = DiscoverFilterValuesRequest {
+        only_matching: false,
         field: "rarity",
         clause_id: Some("target"),
         context,
@@ -997,6 +998,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
     );
     let positive = atlas_domain::QueryPredicate::boolean(true);
     invalid_values = DiscoverFilterValuesRequest {
+        only_matching: false,
         field: "rarity",
         clause_id: None,
         context: FilterDiscoveryContext {

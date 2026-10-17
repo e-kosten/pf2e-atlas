@@ -1,4 +1,4 @@
-import { Alert, Button, Space, Spin, Typography } from "antd";
+import { Alert, Button, Checkbox, Space, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
 import type {
   FilterEditorFieldView,
@@ -46,7 +46,13 @@ export function CommonChoicePicker({
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
-  const closedChoices = field.choices.length > 0;
+  const [showUnavailable, setShowUnavailable] = useState(false);
+  const closedChoices = field.short_choices;
+  const ids = findClauseIds(
+    countContext?.filter ?? null,
+    field.definition.path,
+    field.definition.scope,
+  );
   const query = useFilterVocabulary(
     scope,
     field.definition.id,
@@ -54,6 +60,9 @@ export function CommonChoicePicker({
     offset,
     selected,
     open && !closedChoices,
+    countContext && countsEnabled && !showUnavailable
+      ? { context: countContext, clauseId: ids[0] ?? null }
+      : undefined,
   );
   useEffect(() => {
     const timeout = window.setTimeout(() => setSearch(text), 250);
@@ -68,11 +77,6 @@ export function CommonChoicePicker({
         value: String(option.value),
         label: sentenceCase(String(option.value)),
       }));
-  const ids = findClauseIds(
-    countContext?.filter ?? null,
-    field.definition.path,
-    field.definition.scope,
-  );
   const counts = useFilterOptionCounts(
     countContext,
     field.definition.id,
@@ -89,11 +93,7 @@ export function CommonChoicePicker({
           .map((choice) => choice.value),
       ]),
     ],
-    open &&
-      countsEnabled &&
-      ids.length <= 1 &&
-      (closedChoices || !!query.data) &&
-      !query.isPlaceholderData,
+    open && countsEnabled && (closedChoices || !!query.data),
     countLimit,
     countQueryKey,
   );
@@ -125,11 +125,20 @@ export function CommonChoicePicker({
       }}
       emptyMessage={query.error && !closedChoices ? null : "No matching values"}
       filterChoices={closedChoices}
-      loading={!closedChoices && query.isFetching}
+      loading={!closedChoices && query.isLoading}
     >
       {!closedChoices && (
         <div className="common-choice-footer">
-          {query.isFetching && <Spin size="small" />}
+          <Checkbox
+            checked={showUnavailable}
+            onChange={(event) => {
+              setShowUnavailable(event.target.checked);
+              setOffset(0);
+            }}
+          >
+            Show unavailable
+          </Checkbox>
+          {query.isLoading && <Spin size="small" />}
           {query.data && (
             <Typography.Text type="secondary" role="status">
               {new Intl.NumberFormat().format(query.data.values.total_values)} values

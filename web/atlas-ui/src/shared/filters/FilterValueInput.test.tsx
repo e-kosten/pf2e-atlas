@@ -15,6 +15,7 @@ function renderInput(
   onChange = vi.fn(),
   initialValues = ["absent-selected"],
   withCounts = false,
+  excluded = false,
 ) {
   const definition = {
     ...fieldFixture("traits", "set", "Traits"),
@@ -27,6 +28,7 @@ function renderInput(
       <FilterValueInput
         field={field}
         operator="includes_any"
+        excluded={excluded}
         value={value}
         onChange={(next) => {
           setValue(next as string[]);
@@ -66,6 +68,13 @@ function renderInput(
   );
 }
 describe("shared value control vocabulary", () => {
+  it("allows excluding a known-zero choice", async () => {
+    const change = vi.fn();
+    renderInput(true, change, ["fire"], true, true);
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+    fireEvent.click(await screen.findByText("cold (0)"));
+    expect(change).toHaveBeenCalledWith(["fire", "cold"]);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     api.discoverFilterCounts.mockResolvedValue({
@@ -86,17 +95,28 @@ describe("shared value control vocabulary", () => {
       },
     });
     api.discoverFilterValues.mockImplementation((request) =>
-      Promise.resolve({
-        kind: "vocabulary",
-        scope: request.scope,
-        values: {
-          field: "traits",
-          selected_values: request.selected_values,
-          total_values: 90n,
-          options: request.offset ? [{ value: "second-page" }] : [{ value: "fire" }],
-          basis: "product_key_scope_before_edition_preference",
-        },
-      }),
+      Promise.resolve(
+        request.kind === "contextual"
+          ? {
+              kind: "contextual",
+              search_profile: "bge-base",
+              artifact_generation: "generation-a",
+              outcome: { status: "unavailable", reason: "non_conjunctive_context" },
+            }
+          : {
+              kind: "vocabulary",
+              scope: request.scope,
+              values: {
+                field: "traits",
+                selected_values: request.selected_values,
+                total_values: 90n,
+                options: request.offset
+                  ? [{ value: "second-page" }]
+                  : [{ value: "fire" }],
+                basis: "product_key_scope_before_edition_preference",
+              },
+            },
+      ),
     );
   });
   it("uses closed labels locally without requesting any discovery", () => {
@@ -123,7 +143,7 @@ describe("shared value control vocabulary", () => {
   });
   it("annotates advanced open vocabulary independently of paging and retained selections", async () => {
     renderInput(false, vi.fn(), ["absent-selected"], true);
-    await waitFor(() => expect(api.discoverFilterValues).toHaveBeenCalled());
+    expect(api.discoverFilterValues).not.toHaveBeenCalled();
     expect(api.discoverFilterCounts).not.toHaveBeenCalled();
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
     await waitFor(() =>
@@ -143,8 +163,8 @@ describe("shared value control vocabulary", () => {
   });
   it("keeps selected values while paging server suggestions in the saved-list scope", async () => {
     renderInput();
-    await waitFor(() => expect(api.discoverFilterValues).toHaveBeenCalled());
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+    await waitFor(() => expect(api.discoverFilterValues).toHaveBeenCalled());
     fireEvent.click(await screen.findByRole("button", { name: "More values" }));
     await waitFor(() =>
       expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
@@ -161,7 +181,10 @@ describe("shared value control vocabulary", () => {
     expect(
       await screen.findByRole("option", { name: "second-page" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Available values in this list")).toBeInTheDocument();
+    expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scope: { kind: "saved_list", list_ref: "research" } }),
+      expect.any(AbortSignal),
+    );
   });
   it("sends search terms to the server and resets paging while preserving selections", async () => {
     renderInput();
@@ -186,6 +209,9 @@ describe("shared value control vocabulary", () => {
         await vi.advanceTimersByTimeAsync(1);
       });
       fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
       fireEvent.click(screen.getByRole("button", { name: "More values" }));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);

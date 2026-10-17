@@ -119,22 +119,31 @@ describe("compact common choice picker", () => {
       },
     });
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
-    api.discoverFilterValues.mockImplementation(async (request) => ({
-      kind: "vocabulary",
-      scope: request.scope,
-      values: {
-        field: request.field_id,
-        selected_values: request.selected_values,
-        total_values: 90n,
-        options: request.offset
-          ? [{ value: "second-page" }]
-          : [{ value: "fire" }, { value: "cold" }],
-        basis: "product_key_scope_before_edition_preference",
-      },
-    }));
+    api.discoverFilterValues.mockImplementation(async (request) =>
+      request.kind === "contextual"
+        ? {
+            kind: "contextual",
+            search_profile: "bge-base",
+            artifact_generation: "generation-a",
+            outcome: { status: "unavailable", reason: "non_conjunctive_context" },
+          }
+        : {
+            kind: "vocabulary",
+            scope: request.scope,
+            values: {
+              field: request.field_id,
+              selected_values: request.selected_values,
+              total_values: 90n,
+              options: request.offset
+                ? [{ value: "second-page" }]
+                : [{ value: "fire" }, { value: "cold" }],
+              basis: "product_key_scope_before_edition_preference",
+            },
+          },
+    );
   });
   afterEach(() => vi.restoreAllMocks());
-  it("loads counts only for the open picker and keeps zero and uncounted choices enabled", async () => {
+  it("loads counts only for the open picker and permits excluding zero choices", async () => {
     picker({ withCounts: true });
     expect(api.discoverFilterCounts).not.toHaveBeenCalled();
     open();
@@ -142,7 +151,7 @@ describe("compact common choice picker", () => {
     expect(screen.getByLabelText("0 matching records")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: "Traits: Cold, neutral; activate to include",
+        name: "Traits: Cold, neutral; activate to exclude",
       }),
     ).toBeEnabled();
     expect(

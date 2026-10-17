@@ -1,7 +1,8 @@
 //! Product editor metadata decorates, but never replaces, the executable catalog.
 use atlas_app_model::{
-    FilterChoiceView, FilterControlView, FilterEditorFieldView, FilterEditorGroupView,
-    FilterEditorView, FilterFieldPlacement, FilterOperandView, FilterOperatorView,
+    FilterChoiceView, FilterCollectionControlView, FilterControlView, FilterEditorFieldView,
+    FilterEditorGroupView, FilterEditorView, FilterFieldPlacement, FilterOperandView,
+    FilterOperatorView,
 };
 use atlas_domain::{QueryCapability, QueryFieldDefinition, QueryFieldType, QueryLiteral};
 use std::collections::BTreeMap;
@@ -11,6 +12,10 @@ const COMMON: [&str; 4] = ["record.kind", "record.level_or_rank", "rarity", "tra
 enum ProductGroup {
     Common,
     Creatures,
+    Defenses,
+    Movement,
+    Languages,
+    Embedded,
     Hazards,
     Equipment,
     Spells,
@@ -31,6 +36,10 @@ impl ProductGroup {
         match self {
             Self::Common => ("common", "Common"),
             Self::Creatures => ("creatures", "Creatures"),
+            Self::Defenses => ("defenses", "Defenses"),
+            Self::Movement => ("movement", "Movement and senses"),
+            Self::Languages => ("languages", "Languages"),
+            Self::Embedded => ("embedded", "Embedded records"),
             Self::Hazards => ("hazards", "Hazards"),
             Self::Equipment => ("equipment", "Equipment"),
             Self::Spells => ("spells", "Spells"),
@@ -54,6 +63,11 @@ pub(crate) fn filter_editor_view(
 ) -> crate::AppServiceResult<FilterEditorView> {
     let mut groups = BTreeMap::<ProductGroup, FilterEditorGroupView>::new();
     for definition in catalog.fields {
+        // Source identifiers remain executable technical bindings, but are not
+        // useful product filter controls. Ancestry has a separate slug filter.
+        if definition.path == "heritage.ancestry.uuid" {
+            continue;
+        }
         let group = product_group(&definition);
         let control = match definition.field_type {
             QueryFieldType::String => FilterControlView::Text,
@@ -69,7 +83,7 @@ pub(crate) fn filter_editor_view(
                 FilterFieldPlacement::Addable
             };
         let label = field_label(&definition);
-        let choices = definition
+        let choices: Vec<_> = definition
             .choices
             .iter()
             .map(|value| FilterChoiceView {
@@ -106,7 +120,45 @@ pub(crate) fn filter_editor_view(
             "source.document_kind" => Some("Source document classification; use Kind for reference categories.".into()),
             _ => None,
         };
+        let collection_control = match definition.id.as_str() {
+            "actor.speeds" | "actor.weaknesses" | "actor.resistances" => {
+                Some(FilterCollectionControlView {
+                    category_field_id: format!("{}[].type", definition.id),
+                    amount_field_id: Some(format!("{}[].value", definition.id)),
+                })
+            }
+            "actor.senses" | "actor.immunities" | "spell.damage" => {
+                Some(FilterCollectionControlView {
+                    category_field_id: format!("{}[].type", definition.id),
+                    amount_field_id: None,
+                })
+            }
+            _ => None,
+        };
+        let unit_fields = if ["rounds", "minutes", "hours", "days"]
+            .iter()
+            .any(|unit| definition.id == format!("effect.duration.{unit}"))
+        {
+            ["rounds", "minutes", "hours", "days"]
+                .iter()
+                .map(|unit| atlas_app_model::FilterUnitFieldView {
+                    field_id: format!("effect.duration.{unit}"),
+                    unit: (*unit).into(),
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let label = if unit_fields.is_empty() {
+            label
+        } else {
+            "Duration".into()
+        };
         let field = FilterEditorFieldView {
+            applicable: true,
+            unit_fields,
+            short_choices: matches!(definition.id.as_str(), "record.kind" | "rarity")
+                || (!choices.is_empty() && choices.len() <= 12),
             definition,
             control,
             placement,
@@ -114,6 +166,7 @@ pub(crate) fn filter_editor_view(
             help,
             choices,
             operators,
+            collection_control,
         };
         groups
             .entry(group)
@@ -155,6 +208,29 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         return ProductGroup::Common;
     }
     let path = d.scope.as_deref().unwrap_or(&d.path);
+    if path == "actor.items" {
+        return ProductGroup::Embedded;
+    }
+    if path == "actor.languages" {
+        return ProductGroup::Languages;
+    }
+    if matches!(
+        path,
+        "actor.speeds" | "actor.senses" | "actor.speed.land" | "actor.perception"
+    ) {
+        return ProductGroup::Movement;
+    }
+    if matches!(
+        path,
+        "actor.armor_class"
+            | "actor.hp.maximum"
+            | "actor.immunities"
+            | "actor.weaknesses"
+            | "actor.resistances"
+    ) || path.starts_with("actor.saves.")
+    {
+        return ProductGroup::Defenses;
+    }
     match path.split('.').next().unwrap_or("") {
         "actor" => ProductGroup::Creatures,
         "hazard" => ProductGroup::Hazards,
@@ -175,22 +251,13 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
     }
 }
 fn field_label(d: &QueryFieldDefinition) -> String {
-    let label = &d.label;
-    if let Some(scope) = &d.scope {
-        let context = match scope.as_str() {
-            "actor.items" => "Embedded item",
-            "actor.immunities" => "Immunity",
-            "actor.weaknesses" => "Weakness",
-            "actor.resistances" => "Resistance",
-            "actor.speeds" => "Movement",
-            "actor.senses" => "Sense",
-            "spell.damage" => "Spell damage",
-            _ => "Entry",
-        };
-        format!("{context}: {label}")
-    } else {
-        label.clone()
+    if d.path == "actor.items" {
+        return "Embedded records".into();
     }
+    if d.scope.as_deref() == Some("actor.items") && d.path == "source.type" {
+        return "Item type".into();
+    }
+    d.label.clone()
 }
 fn words(value: &str) -> String {
     let spaced = value.replace(['_', '-'], " ");

@@ -293,6 +293,10 @@ export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditor
                 ? "set"
                 : "text",
           placement: "initially_visible",
+          applicable: true,
+          unit_fields: [],
+          short_choices:
+            definition.choices.length > 0 || definition.field_type === "boolean",
         })),
       },
     ],

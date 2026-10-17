@@ -88,6 +88,17 @@ match executable bindings, never artifact-supplied SQL. CLI CEL and the structur
 UI builder lower independently to the shared predicate. Do not invent another
 expression parser, filter authority, per-field CLI flag set or metric EAV store.
 
+App-service owns product filter grouping and editor hints shared by CLI discovery
+and the web builder, including compact collection controls and short choice lists.
+Product field discovery omits source UUID references and groups unit-specific
+effect duration fields into one editor control. The executable artifact catalog
+retains technical bindings. Applicability uses one family inventory under the
+committed filter, and Kind choices omit categories absent from the artifact.
+These hints reference existing catalog fields; they do not define new predicates
+or aliases. Index owns contextual option eligibility and applies matching-only
+enumeration before pagination, retaining selected values. Unsupported count
+contexts remain browsable through count-free vocabulary.
+
 Keep product retrieval in search. Surfaces do not open SQLite, implement ranking,
 scan source clones or load models. Summary reads are body free; explicit detail
 decodes one root and batches selected cache reads. Filters and key scopes apply
