@@ -114,7 +114,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   current source-backed stat and HP projections. Status: proposed.
 
 - [Rust encounter condition mechanics](items/rust-encounter-condition-mechanics.md)
-  Move beyond durable condition annotations into explicit, tested mechanical condition projections where PF2e rules are deterministic. Status: proposed.
+  Complete standard condition automation across creature facts, attacks, damage,
+  spellcasting and turn effects, with explicit context where required. Status: planned.
 
 - [Rust encounter actor context effects](items/rust-encounter-actor-context-effects.md)
   Model future actor-vs-actor encounter effects such as visibility, targeting, and situational condition reminders without forcing them into participant-local stat mutation. Status: proposed.
