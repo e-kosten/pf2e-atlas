@@ -108,6 +108,8 @@ Rust workspace tests are the primary validation surface. Add or update tests und
 
 Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates: the Rust gate for Rust changes and the frontend gate for web UI changes. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
 
+Commit and merge hooks enforce formatting and staged whitespace only. Pushes do not rerun validation automatically. Run substantive checks explicitly, report their candidate and results, and confirm CI passes on the published PR head before declaring it ready to merge.
+
 The Rust gate is:
 
 ```bash

@@ -6,12 +6,12 @@ usage() {
   cat <<'EOF'
 Usage: scripts/verify-changed.sh (--staged | --range <git-range> | --paths-file <file> | --all) [--full] [--verbose]
 
-Run path-sensitive validation.
+Run path-sensitive formatting checks, or full validation with --full.
 
 Modes:
   --staged       validate staged paths for pre-commit
   --range RANGE  validate paths changed in a git diff range
-  --paths-file FILE  validate literal paths collected by the pre-push hook
+  --paths-file FILE  validate a newline-separated list of paths
   --all          validate Rust and web UI gates regardless of paths
 
 Options:
@@ -161,14 +161,6 @@ if [ "$rust_touched" -eq 1 ]; then
     fi
   else
     run_check "cargo fmt" cargo fmt --check
-    run_check "broad clippy" cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
-    run_check "strict runtime clippy" cargo clippy --workspace --lib --bins -- -D warnings \
-      -D clippy::unwrap_used \
-      -D clippy::expect_used \
-      -D clippy::panic \
-      -D clippy::unimplemented \
-      -D clippy::todo \
-      -D clippy::unreachable
   fi
 fi
 
@@ -177,7 +169,5 @@ if [ "$web_touched" -eq 1 ]; then
     run_check "web UI verify" npm --prefix web/atlas-ui run verify
   else
     run_check "web UI format" npm --prefix web/atlas-ui run format:check
-    run_check "web UI lint" npm --prefix web/atlas-ui run lint
-    run_check "web UI typecheck" npm --prefix web/atlas-ui run typecheck
   fi
 fi

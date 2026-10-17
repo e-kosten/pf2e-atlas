@@ -138,7 +138,7 @@ scripts/preflight.sh
 Use Cargo's default `target/` directory inside each checkout, including linked
 worktrees. Compiled tests embed checkout-specific fixture paths, so sharing a
 `CARGO_TARGET_DIR` across worktrees can reuse binaries with stale paths. Run
-`git push` directly; its validation hook needs no Cargo environment override.
+`git push` directly; no Cargo environment override is needed.
 
 ### Build Profiles And Disk Budget
 
@@ -443,23 +443,20 @@ alone does not execute browsers. Follow the frontend guidelines for Astra visual
 review and actual-device checks; passing emulation does not certify a physical
 phone's software keyboard, browser chrome or text-enlargement behavior.
 
-For the same path-sensitive validation used by hooks (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
+For path-sensitive formatting or explicit full validation (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
 
 ```bash
 just verify-changed --staged
 just verify-changed --range origin/main...HEAD --full
 ```
 
-Tracked git hooks live in `.githooks/` and enforce:
+Tracked git hooks live in `.githooks/`:
 
-- `pre-commit`: run path-sensitive fast checks for staged Rust and web UI changes; docs-only commits are allowed without code validation
-- `commit-msg`: require a Conventional Commit subject line; bodies are optional but must be blank-line-separated when present
-- `pre-merge-commit`: run the same path-sensitive fast checks for non-docs merge commits
-- `pre-push`: run path-sensitive full checks across all pushed refs. New branches
-  use known destination-remote ancestry to recognize documentation-only changes;
-  unknown paths or uncertain ancestry require both gates. Push distinct code tips
-  from their matching checkouts. The hook checks the committed tip against HEAD;
-  keep the working tree clean so validation also matches the pushed source.
+- `pre-commit` and `pre-merge-commit`: check staged whitespace and run path-sensitive formatting checks (Rust and/or frontend). Docs-only changes need only the whitespace check.
+- `commit-msg`: require a Conventional Commit subject; an optional body must be blank-line-separated.
+- Pushes do not run validation automatically. Run the applicable local gates explicitly before marking a PR ready, reuse passing evidence for unchanged code, and require green CI on the published head before merging. CI retains Clippy, typechecking, tests, builds and platform/browser checks.
+
+Formatting checks read files in the working tree; whitespace checks read the staged diff. Review partial staging carefully so local evidence corresponds to the committed candidate. Hooks do not replace code review or CI.
 
 When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
 
