@@ -1,4 +1,7 @@
 import {
+  applyEncounterHpAction,
+  getEncounterTurnReview,
+  advanceEncounterTurn,
   getReadiness,
   getRecordDetail,
   getRelatedRecords,
@@ -13,6 +16,7 @@ import {
   getSavedLists,
   AtlasApiError,
   getEncounter,
+  getEncounterReference,
   updateEncounterParticipant,
   addEncounterManualParticipant,
   updateEncounter,
@@ -28,11 +32,7 @@ import type {
   EncounterMutationView,
   UpdateEncounterParticipantRequest,
 } from "../generated/atlas";
-import {
-  damageChanges,
-  healChanges,
-  participantUpdate,
-} from "../features/encounters/participantEdits";
+import { participantUpdate } from "../features/encounters/participantEdits";
 import { detailFixture } from "../test/fixtures";
 const fetchMock = vi.fn();
 beforeEach(() => {
@@ -51,6 +51,42 @@ function respond(value: unknown, status = 200) {
   );
 }
 describe("source-backed API transport", () => {
+  it("reads turn reviews without mutation and sends the exact advance revision", async () => {
+    respond({
+      encounter_key: "ambush",
+      expected_revision: 12,
+      current_participant_key: "a",
+      next_participant_key: "b",
+      reminders: [
+        {
+          kind: "duration_reminder",
+          participant_key: "a",
+          participant_name: "Goblin",
+          condition_id: 7,
+          condition_name: "Frightened",
+          duration: { amount: 0, unit: "minutes", timing: null },
+        },
+      ],
+    });
+    const review = await getEncounterTurnReview("ambush");
+    expect(review.expected_revision).toBe(12n);
+    expect(review.reminders[0]).toMatchObject({
+      condition_id: 7n,
+      duration: { amount: 0n, unit: "minutes", timing: null },
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/encounters/ambush/turn-review");
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
+    respond({ encounter_key: "ambush" });
+    await advanceEncounterTurn("ambush", {
+      expected_revision: review.expected_revision,
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/encounters/ambush/advance");
+    expect(fetchMock.mock.calls[1][1].method).toBe("POST");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      expected_revision: 12,
+    });
+  });
+
   it("normalizes tagged vocabulary totals without fabricating option counts", async () => {
     const controller = new AbortController();
     respond({
@@ -98,6 +134,7 @@ describe("source-backed API transport", () => {
       },
       field_id: "traits",
       clause_id: "traits",
+      values: ["fire"],
     };
     respond({ counts: { status: "unavailable", reason: "negative_condition" } });
     expect(await discoverFilterCounts(request, controller.signal)).toEqual({
@@ -106,6 +143,32 @@ describe("source-backed API transport", () => {
     expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
     respond({ code: "query_error", message: "Invalid target" }, 400);
     await expect(discoverFilterCounts(request)).rejects.toThrow("Invalid target");
+  });
+  it("decodes per-option counts including known zero without field-state statistics", async () => {
+    respond({
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      counts: {
+        status: "available",
+        value: {
+          field: "traits",
+          options: [{ value: "fire", distinct_roots: 0, selected: false }],
+          total_values: 1,
+          exhaustive: true,
+          count_basis: "exact counterfactual displayed roots",
+        },
+      },
+    });
+    const result = await discoverFilterCounts({
+      context: { kind: "filtered", filter: null, text: null, mode: "hybrid" },
+      field_id: "traits",
+      clause_id: null,
+      values: ["fire"],
+    });
+    expect(result.counts).toMatchObject({
+      status: "available",
+      value: { options: [{ value: "fire", distinct_roots: 0n }], total_values: 1n },
+    });
   });
   const participantJson = {
     revision: 7,
@@ -116,7 +179,17 @@ describe("source-backed API transport", () => {
     current_hp: 20,
     max_hp: 30,
     initiative: -1,
-    conditions: [{ condition_id: 9, value: 1, duration_rounds: 4 }],
+    conditions: [
+      {
+        condition_id: 9,
+        value: 1,
+        duration: {
+          amount: 4,
+          unit: "rounds",
+          timing: { participant_key: "ghoul", event: "end" },
+        },
+      },
+    ],
     display_name: "Ghoul",
     side: "enemy",
     participant_variant: "normal",
@@ -128,8 +201,73 @@ describe("source-backed API transport", () => {
     status: "active",
     note_hint: null,
   };
-  it("normalizes actual HTTP encounter integers before Damage and Heal", async () => {
-    respond({ encounter: { round_number: 1 }, participants: [participantJson] });
+  it.each(["creature", "hazard"] as const)(
+    "preserves exact condition diagnostic identity through %s encounter and reference transport",
+    async (kind) => {
+      const notes = [
+        {
+          source: "condition",
+          label: "Enfeebled",
+          reason: "Manual attack adjustment",
+          condition_id: 9,
+        },
+        { source: "rule", label: "Other effect", reason: "Manual adjustment" },
+      ];
+      const actor = { runtime: { unapplied_effects: notes } };
+      const presentation = {
+        body: { kind, value: kind === "creature" ? actor : { actor } },
+      };
+      respond({
+        revision: 8,
+        encounter: { round_number: 1 },
+        participants: [{ ...participantJson, presentation }],
+      });
+      const encounter = await getEncounter("test");
+      const expected = [
+        {
+          ...notes[0],
+          condition_id: encounter.participants[0].conditions[0].condition_id,
+        },
+        notes[1],
+      ];
+      const body = encounter.participants[0].presentation?.body;
+      expect(
+        body &&
+          (body.kind === "creature"
+            ? body.value.runtime
+            : body.kind === "hazard"
+              ? body.value.actor.runtime
+              : null
+          )?.unapplied_effects,
+      ).toEqual(expected);
+      respond({ presentation });
+      const reference = await getEncounterReference("test", "ghoul", {
+        artifact_generation: "generation-test",
+        selection: {
+          record_key: "actors:ghoul",
+          owners: [],
+          fields: [],
+          passage: null,
+          source_fingerprint: null,
+        },
+      });
+      const referenceBody = reference.presentation.body;
+      expect(
+        (referenceBody.kind === "creature"
+          ? referenceBody.value.runtime
+          : referenceBody.kind === "hazard"
+            ? referenceBody.value.actor.runtime
+            : null
+        )?.unapplied_effects,
+      ).toEqual(expected);
+    },
+  );
+  it("normalizes actual HTTP encounter integers for display and revision-bound edits", async () => {
+    respond({
+      revision: 8,
+      encounter: { round_number: 1 },
+      participants: [participantJson],
+    });
     const detail = await getEncounter("test");
     const participant = detail.participants[0];
     expect(detail.encounter.round_number).toBe(1n);
@@ -141,10 +279,18 @@ describe("source-backed API transport", () => {
       current_hp: 20n,
       max_hp: 30n,
       temporary_hp: 0n,
-      conditions: [{ condition_id: 9n, value: 1n, duration_rounds: 4n }],
+      conditions: [
+        {
+          condition_id: 9n,
+          value: 1n,
+          duration: {
+            amount: 4n,
+            unit: "rounds",
+            timing: { participant_key: "ghoul", event: "end" },
+          },
+        },
+      ],
     });
-    expect(damageChanges(participant, 1).current_hp).toBe(19n);
-    expect(healChanges(participant, 1).current_hp).toBe(21n);
     respond({ encounter_key: "encounter-test" });
     expect(
       await updateEncounterParticipant(
@@ -162,6 +308,7 @@ describe("source-backed API transport", () => {
     "rejects missing or malformed participant revision %s",
     async (revision) => {
       respond({
+        revision: 8,
         encounter: { round_number: 1 },
         participants: [{ ...participantJson, revision }],
       });
@@ -170,6 +317,7 @@ describe("source-backed API transport", () => {
   );
   it("normalizes the largest safe revision without rounding", async () => {
     respond({
+      revision: 8,
       encounter: { round_number: 1 },
       participants: [{ ...participantJson, revision: Number.MAX_SAFE_INTEGER }],
     });
@@ -254,7 +402,7 @@ describe("source-backed API transport", () => {
       name: "turn",
       path: "/api/encounters/test/turn",
       method: "POST",
-      call: () => setEncounterTurn({ encounter_ref: "test" }),
+      call: () => setEncounterTurn({ encounter_ref: "test", participant_key: "ghoul" }),
     },
     {
       name: "condition addition",
@@ -272,6 +420,7 @@ describe("source-backed API transport", () => {
       method: "PATCH",
       call: () =>
         updateEncounterParticipantCondition("test", "ghoul", {
+          expected_encounter_revision: 8n,
           condition_id: 9n,
           name: "Condition",
         }),
@@ -292,6 +441,26 @@ describe("source-backed API transport", () => {
       expect(fetchMock).toHaveBeenCalledWith(path, expect.objectContaining({ method }));
     },
   );
+  it("sends HP intent and formula text unchanged with the participant revision", async () => {
+    respond({ encounter_key: "encounter-test" });
+    await expect(
+      applyEncounterHpAction("test", {
+        participant_key: "ghoul",
+        expected_revision: 7n,
+        action: { kind: "damage", amount: " 10 - 3 " },
+      }),
+    ).resolves.toEqual({ encounter_key: "encounter-test" });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/encounters/test/participants/ghoul/hp",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      participant_key: "ghoul",
+      expected_revision: 7,
+      action: { kind: "damage", amount: " 10 - 3 " },
+    });
+  });
   it("preserves typed stale-participant conflicts without retrying", async () => {
     const conflict = {
       code: "encounter_participant_conflict",
@@ -319,17 +488,16 @@ describe("source-backed API transport", () => {
   });
   it("preserves unavailable HP and rejects already-rounded integer responses", async () => {
     const unknown = { ...participantJson, current_hp: undefined, max_hp: undefined };
-    respond({ encounter: { round_number: 1 }, participants: [unknown] });
+    respond({ revision: 8, encounter: { round_number: 1 }, participants: [unknown] });
     const participant = (await getEncounter("test")).participants[0];
     expect(participant.current_hp).toBeUndefined();
-    expect(damageChanges(participant, 1)).toEqual({});
-    expect(healChanges(participant, 1)).toEqual({});
     for (const invalid of [
       Number.MAX_SAFE_INTEGER + 1,
       Number.MIN_SAFE_INTEGER - 1,
       0.5,
     ]) {
       respond({
+        revision: 8,
         encounter: { round_number: 1 },
         participants: [{ ...participantJson, current_hp: invalid }],
       });
@@ -541,6 +709,7 @@ describe("source-backed API transport", () => {
     });
     const result = await discoverFilterValues({
       kind: "contextual",
+      only_matching: false,
       context: {
         kind: "filtered",
         search_profile: "embeddinggemma",

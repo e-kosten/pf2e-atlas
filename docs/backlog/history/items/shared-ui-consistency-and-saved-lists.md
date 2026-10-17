@@ -7,8 +7,8 @@ Delivered through [PR58](https://github.com/e-kosten/pf2e-atlas/pull/58): shared
 list/search browsing, consistent indexes/toolbars, readable content widths,
 list editing/Add and in-place reference reading. User visual approval,
 independent review, Astra browser review and hosted CI preceded merge.
-Repeatable device/browser acceptance continues in
-[responsive UI validation](../../items/responsive-ui-validation.md).
+Repeatable device/browser acceptance landed in PR59; see
+[responsive UI validation](responsive-ui-validation.md).
 
 ## Problem
 

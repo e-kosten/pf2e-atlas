@@ -24,6 +24,8 @@ Before creating a feature-local interaction pattern, check `src/shared/ui`.
 
 If a second surface needs a behavior, move it into `src/shared/ui` instead of copying the feature-local implementation. Feature modules should compose shared primitives with feature-specific requests, labels, mutations, and DTOs. Shared primitives should normally wrap or compose Ant components; do not create plain-button or plain-anchor replacements for generic Ant behavior unless there is a documented product-specific reason.
 
+For overlays and secondary tasks, follow
+[Choosing an interaction surface](docs/frontend-guidelines.md#choosing-an-interaction-surface).
 For record browsing, links and nested previews, follow
 [In-place reference reading](docs/frontend-guidelines.md#in-place-reference-reading).
 Reuse the shared browse/reader and preview owners with exact backend navigation;
@@ -65,3 +67,5 @@ button and callback flows use `useConfirmDangerAction`; prepared source dialogs
 use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
 Ant internals through documented `classNames`, `styles` and component tokens;
 Atlas-owned classes describe product layout rather than internal Ant DOM.
+
+Follow the root repository early functional UX checkpoint rule for substantial visible frontend changes. Keep existing tests enabled and disclose stale expectations; complete frontend gates and Astra visual review after the user confirms the direction.

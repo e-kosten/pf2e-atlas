@@ -40,6 +40,14 @@ pub enum LocalStateError {
         expected_revision: i64,
         actual_revision: i64,
     },
+    #[error(
+        "encounter `{encounter_key}` changed: expected revision {expected_revision}, actual revision {actual_revision}"
+    )]
+    StaleEncounterRevision {
+        encounter_key: String,
+        expected_revision: i64,
+        actual_revision: i64,
+    },
     #[error("could not allocate a unique encounter key")]
     EncounterKeyAllocationFailed,
     #[error("could not allocate a unique encounter participant key")]

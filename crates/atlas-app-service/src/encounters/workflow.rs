@@ -1,8 +1,9 @@
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AppErrorCode, CreateEncounterRequest,
-    DeleteEncounterView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterMutationView, ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
+    AddEncounterRecordParticipantRequest, AdvanceEncounterTurnRequest, AppErrorCode,
+    CreateEncounterRequest, DeleteEncounterView, EncounterCreateView, EncounterDetailView,
+    EncounterIndexView, EncounterMutationView, EncounterTurnReviewView,
+    ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest,
 };
@@ -24,7 +25,8 @@ use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
     participant_side, participant_variant, reorder_placement,
 };
-use super::turns::{next_turn, next_turn_after_removed};
+use super::timing::{duration_input, turn_review, turn_update};
+use super::turns::next_turn_after_removed;
 
 const MAX_ADD_QUANTITY: u32 = 50;
 
@@ -415,6 +417,12 @@ impl AtlasAppService {
         if let Some(source) = &request.source_participant_key {
             ensure_participant_in_encounter(self, &receipt.encounter_key, source)?;
         }
+        let snapshot = self
+            .local_state_store()?
+            .encounters()
+            .get_with_participants(&receipt.encounter_key)?
+            .ok_or_else(|| encounter_not_found(encounter_ref))?;
+        let duration = duration_input(request.duration, None, &snapshot)?;
         let condition = resolve_condition_input(self, request.condition_ref, request.name)?;
         self.local_state_store()?
             .encounters()
@@ -424,7 +432,7 @@ impl AtlasAppService {
                 name: condition.name,
                 value: request.value,
                 source_participant_key: request.source_participant_key,
-                duration_rounds: request.duration_rounds.map(|value| value.max(0)),
+                duration,
                 note: request.note,
             })?;
         Ok(receipt)
@@ -436,13 +444,27 @@ impl AtlasAppService {
         participant_key: &str,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
+        if request.expected_encounter_revision < 0 {
+            return Err(AppServiceError::invalid_request(
+                "expected encounter revision must be nonnegative",
+            ));
+        }
         let receipt = encounter_receipt(self, encounter_ref)?;
-        let existing = condition_in_participant(
-            self,
-            &receipt.encounter_key,
-            participant_key,
-            request.condition_id,
-        )?;
+        let snapshot = self
+            .local_state_store()?
+            .encounters()
+            .get_with_participants(&receipt.encounter_key)?
+            .ok_or_else(|| encounter_not_found(encounter_ref))?;
+        let existing = condition_in_snapshot(&snapshot, participant_key, request.condition_id)?;
+        if request.expected_encounter_revision != snapshot.encounter.revision {
+            return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
+                encounter_key: snapshot.encounter.encounter_key,
+                expected_revision: request.expected_encounter_revision,
+                actual_revision: snapshot.encounter.revision,
+            }
+            .into());
+        }
+        let duration = duration_input(request.duration, existing.duration.as_ref(), &snapshot)?;
         let condition = resolve_condition_update_input(
             self,
             request.condition_ref,
@@ -454,13 +476,14 @@ impl AtlasAppService {
         }
         let updated = self.local_state_store()?.encounters().update_condition(
             UpdateEncounterParticipantCondition {
+                expected_encounter_revision: request.expected_encounter_revision,
                 participant_key: participant_key.to_string(),
                 condition_id: request.condition_id,
                 condition_key: condition.key,
                 name: condition.name,
                 value: request.value,
                 source_participant_key: request.source_participant_key,
-                duration_rounds: request.duration_rounds.map(|value| value.max(0)),
+                duration,
                 note: request.note,
             },
         )?;
@@ -505,16 +528,44 @@ impl AtlasAppService {
         let encounter = store
             .encounters()
             .advance_turn(&request.encounter_ref, |snapshot| {
-                match request.participant_key {
-                    Some(participant_key) => atlas_local_state::EncounterTurnState {
-                        participant_key: Some(participant_key),
-                        round_number: snapshot.encounter.round_number,
-                        mark_running: false,
-                    },
-                    None => next_turn(snapshot),
+                atlas_local_state::EncounterTurnState {
+                    participant_key: Some(request.participant_key),
+                    round_number: snapshot.encounter.round_number,
+                    mark_running: false,
                 }
             })?
             .ok_or_else(|| encounter_not_found(&request.encounter_ref))?;
+        Ok(EncounterMutationView {
+            encounter_key: encounter.encounter_key,
+        })
+    }
+    pub fn encounter_turn_review(
+        &self,
+        encounter_ref: &str,
+    ) -> AppServiceResult<EncounterTurnReviewView> {
+        let snapshot = self
+            .local_state_store()?
+            .encounters()
+            .get_with_participants(encounter_ref)?
+            .ok_or_else(|| encounter_not_found(encounter_ref))?;
+        Ok(turn_review(&snapshot))
+    }
+
+    pub fn advance_encounter_turn(
+        &self,
+        encounter_ref: &str,
+        request: AdvanceEncounterTurnRequest,
+    ) -> AppServiceResult<EncounterMutationView> {
+        if request.expected_revision < 0 {
+            return Err(AppServiceError::invalid_request(
+                "expected revision must be nonnegative",
+            ));
+        }
+        let encounter = self
+            .local_state_store()?
+            .encounters()
+            .advance_reviewed_turn(encounter_ref, request.expected_revision, turn_update)?
+            .ok_or_else(|| encounter_not_found(encounter_ref))?;
         Ok(EncounterMutationView {
             encounter_key: encounter.encounter_key,
         })
@@ -532,9 +583,17 @@ fn condition_in_participant(
         .encounters()
         .get_with_participants(encounter_ref)?
         .ok_or_else(|| encounter_not_found(encounter_ref))?;
+    condition_in_snapshot(&detail, participant_key, condition_id)
+}
+
+fn condition_in_snapshot(
+    detail: &atlas_local_state::EncounterWithParticipants,
+    participant_key: &str,
+    condition_id: i64,
+) -> AppServiceResult<EncounterParticipantCondition> {
     detail
         .participants
-        .into_iter()
+        .iter()
         .find(|participant| participant.participant_key == participant_key)
         .ok_or_else(|| {
             AppServiceError::new(
@@ -543,8 +602,9 @@ fn condition_in_participant(
             )
         })?
         .conditions
-        .into_iter()
+        .iter()
         .find(|condition| condition.condition_id == condition_id)
+        .cloned()
         .ok_or_else(|| {
             AppServiceError::new(
                 AppErrorCode::EncounterParticipantNotFound,

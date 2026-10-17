@@ -2,4 +2,4 @@
 import type { EncounterParticipantView } from "./EncounterParticipantView";
 import type { EncounterSummaryView } from "./EncounterSummaryView";
 
-export type EncounterDetailView = { artifact_generation: string | null, encounter: EncounterSummaryView, note?: string, current_turn_participant_key?: string, participants: Array<EncounterParticipantView>, };
+export type EncounterDetailView = { revision: bigint, artifact_generation: string | null, encounter: EncounterSummaryView, note?: string, current_turn_participant_key?: string, participants: Array<EncounterParticipantView>, };

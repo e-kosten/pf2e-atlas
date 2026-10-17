@@ -1,7 +1,6 @@
 import {
   Alert,
   Button,
-  Checkbox,
   Drawer,
   Form,
   Input,
@@ -12,19 +11,35 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { ClearOutlined, FilterOutlined } from "@ant-design/icons";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import {
+  ClearOutlined,
+  CloseOutlined,
+  FilterOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import {
+  createContext,
+  useContext,
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   QueryBuilder,
   RuleComponents,
+  RuleGroupBodyComponents,
+  type UseRuleGroup,
   useRule,
+  update,
+  type RuleType,
   type RuleProps,
   type RuleGroupType,
   type ValueEditorProps,
   type FieldSelectorProps,
-  type NotToggleProps,
   type OperatorSelectorProps,
   type CombinatorSelectorProps,
+  type ActionProps,
 } from "react-querybuilder";
 import { QueryBuilderAntD } from "@react-querybuilder/antd";
 import type {
@@ -55,6 +70,7 @@ import { CommonChoicePicker } from "./CommonChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
 import { isBuilderGroup, normalizeBuilderEdit } from "./builderEdits";
+import { CollectionValueInput, isCompactCollection } from "./CollectionValueInput";
 
 export function FilterPanel({
   workspace,
@@ -88,13 +104,18 @@ export function FilterControls({
     [editor],
   );
   const prepared = useFilterEditor(search, fields, setSearch);
+  const countWorkspace = {
+    ...workspace,
+    filterCountsEnabled:
+      workspace.filterCountsEnabled !== false && search.mode !== "similar_records",
+  };
   const advancedEditor =
     editor && prepared.query ? (
       <StructuredBuilder
         editor={editor}
         query={prepared.query}
         onChange={prepared.change}
-        workspace={workspace}
+        workspace={countWorkspace}
       />
     ) : null;
   const commonLayout = layout === "panel" ? "panel" : "toolbar";
@@ -151,7 +172,7 @@ export function FilterControls({
                     field.definition,
                   );
               }}
-              workspace={workspace}
+              workspace={countWorkspace}
               onAdvanced={() => setAdvanced(true)}
             />
           ) : null;
@@ -228,6 +249,15 @@ export function FilterControls({
         onClose={() => setAdvanced(false)}
       >
         <section className="advanced-filters" aria-label="Advanced filters">
+          {prepared.error &&
+            !search.filterError &&
+            search.filter &&
+            prepared.query &&
+            hasConfiguredCondition(prepared.query) && (
+              <Typography.Text type="secondary" role="status">
+                Changes pending
+              </Typography.Text>
+            )}
           {advancedEditor}
           {inlineError}
         </section>
@@ -328,6 +358,10 @@ function CommonFilter({
           field={field}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+          countContext={workspace.filterDiscoveryContext}
+          countsEnabled={workspace.filterCountsEnabled !== false}
+          countQueryKey={workspace.filterCountQueryKey}
+          countLimit={workspace.filterEditor?.limits.literal_list ?? 0}
           onChange={update}
         />
       )}
@@ -390,7 +424,10 @@ function CommonRange({
 type BuilderContext = {
   editor: FilterEditorView;
   scope: string | null;
+  narrowFields: boolean;
   workspace: FilterPanelState;
+  replaceGroup: (path: number[], group: RuleGroupType) => void;
+  replaceRule: (path: number[], rule: RuleType) => void;
 };
 function StructuredBuilder({
   editor,
@@ -426,7 +463,7 @@ function StructuredBuilder({
             ),
           )
         }
-        showNotToggle
+        autoSelectField={false}
         enableMountQueryChange={false}
         fields={[
           ...editor.groups
@@ -442,10 +479,6 @@ function StructuredBuilder({
                 })),
             }))
             .filter((group) => group.options.length),
-          {
-            label: "Structural conditions",
-            options: [{ name: BOOLEAN_CONDITION, label: "All records / No records" }],
-          },
         ]}
         combinators={[
           { name: "and", label: "Match all" },
@@ -458,7 +491,36 @@ function StructuredBuilder({
                 visible.find((field) => field.definition.id === id)?.operators ?? []
               ).map((operator) => ({ name: operator.operator, label: operator.label }))
         }
-        context={{ editor, scope, workspace } satisfies BuilderContext}
+        context={
+          {
+            editor,
+            scope,
+            narrowFields: isPositiveConjunction(query),
+            workspace,
+            replaceGroup: (path, group) =>
+              onChange(
+                update(query, { combinator: group.combinator, not: group.not }, path),
+              ),
+            replaceRule: (path, rule) =>
+              onChange(
+                normalizeBuilderEdit(
+                  query,
+                  update(
+                    query,
+                    {
+                      field: rule.field,
+                      operator: rule.operator,
+                      value: rule.value,
+                      meta: rule.meta,
+                    },
+                    path,
+                  ),
+                  editor.groups.flatMap((group) => group.fields),
+                  scope,
+                ),
+              ),
+          } satisfies BuilderContext
+        }
         translations={{
           addRule: { label: "Add condition", title: "Add condition" },
           addGroup: { label: "Add group", title: "Add group" },
@@ -466,41 +528,52 @@ function StructuredBuilder({
           removeGroup: { label: "Remove group", title: "Remove group" },
         }}
         controlElements={{
+          removeRuleAction: RemoveCondition,
+          addRuleAction: HiddenGroupAction,
+          addGroupAction: HiddenGroupAction,
+          ruleGroupBodyElements: FilterGroupBody,
+          removeGroupAction: RemoveCondition,
           rule: FilterRule,
           valueEditor: BuilderValueEditor,
           fieldSelector: BuilderFieldSelector,
           operatorSelector: BuilderOperatorSelector,
-          combinatorSelector: BuilderCombinatorSelector,
-          notToggle: ExcludeGroup,
+          combinatorSelector: GroupMatchSelector,
         }}
       />
     </QueryBuilderAntD>
   );
 }
+const RuleEditContext = createContext<{
+  rule: PredicateRule;
+  replace: (rule: PredicateRule) => void;
+} | null>(null);
 function FilterRule(props: RuleProps) {
   const rule = useRule(props);
-  const excluded = !!(props.rule as PredicateRule).meta?.atlasExcluded;
+  const { replaceRule } = props.context as BuilderContext;
   return (
-    <div className={rule.outerClassName} data-rule-id={props.rule.id}>
-      <RuleComponents {...rule} />
-      <Checkbox
-        className="filter-rule-exclude"
-        checked={excluded}
-        disabled={props.disabled}
-        onChange={(event) =>
-          rule.generateOnChangeHandler("meta")({
-            ...props.rule.meta,
-            atlasExcluded: event.target.checked,
-          })
-        }
-      >
-        Exclude
-      </Checkbox>
-    </div>
+    <RuleEditContext.Provider
+      value={{
+        rule: props.rule as PredicateRule,
+        replace: (next) => replaceRule(props.path, next),
+      }}
+    >
+      <div className={rule.outerClassName} data-rule-id={props.rule.id}>
+        <RuleComponents {...rule} />
+      </div>
+    </RuleEditContext.Provider>
+  );
+}
+// Current-result applicability is safe for additive conditions. Boolean groups
+// that can broaden the result need the complete catalog while being edited.
+function isPositiveConjunction(group: RuleGroupType): boolean {
+  return (
+    group.combinator === "and" &&
+    !group.not &&
+    group.rules.every((rule) => !("rules" in rule) || isPositiveConjunction(rule))
   );
 }
 function BuilderFieldSelector(props: FieldSelectorProps) {
-  const { editor, scope } = props.context as BuilderContext;
+  const { editor, scope, narrowFields } = props.context as BuilderContext;
   const groups = [
     ...editor.groups
       .map((group) => ({
@@ -509,79 +582,176 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
           .filter(
             (field) =>
               field.definition.scope === scope &&
-              (scope === null || field.definition.field_type !== "collection"),
+              (scope === null || field.definition.field_type !== "collection") &&
+              (!narrowFields ||
+                field.applicable ||
+                field.definition.id === props.value ||
+                field.unit_fields.some((unit) => unit.field_id === props.value)) &&
+              (!field.unit_fields.length ||
+                field.unit_fields[0].field_id === field.definition.id),
           )
           .map((field) => ({ value: field.definition.id, label: field.label })),
       }))
       .filter((group) => group.options.length),
-    {
-      label: "Structural conditions",
-      options: [{ value: BOOLEAN_CONDITION, label: "All records / No records" }],
-    },
+    ...(props.value === BOOLEAN_CONDITION
+      ? [
+          {
+            label: "Technical condition",
+            options: [{ value: BOOLEAN_CONDITION, label: "Constant condition" }],
+          },
+        ]
+      : []),
   ];
   return (
     <Select
       className={props.className}
       aria-label="Filter field"
+      placeholder="Choose a filter…"
       showSearch={{ optionFilterProp: "label" }}
       options={groups}
-      value={props.value}
-      onChange={props.handleOnChange}
-      disabled={props.disabled}
-    />
-  );
-}
-function ExcludeGroup(props: NotToggleProps) {
-  return (
-    <Checkbox
-      className={props.className}
-      checked={props.checked}
-      onChange={(event) => props.handleOnChange(event.target.checked)}
-      disabled={props.disabled}
-    >
-      Exclude this group
-    </Checkbox>
-  );
-}
-function BuilderOperatorSelector(props: OperatorSelectorProps) {
-  const { editor } = props.context as BuilderContext;
-  const field = editor.groups
-    .flatMap((group) => group.fields)
-    .find((field) => field.definition.id === props.field);
-  return (
-    <Select
-      className={props.className}
-      aria-label={"Condition for " + (field?.label ?? "this field")}
-      value={props.value}
-      options={
-        props.field === BOOLEAN_CONDITION
-          ? [{ value: "constant", label: "Matches" }]
-          : (field?.operators.map((operator) => ({
-              value: operator.operator,
-              label: operator.label,
-            })) ?? [])
+      value={
+        props.value === "~"
+          ? undefined
+          : (editor.groups
+              .flatMap((group) => group.fields)
+              .find((field) => field.definition.id === props.value)?.unit_fields[0]
+              ?.field_id ?? props.value)
       }
       onChange={props.handleOnChange}
       disabled={props.disabled}
     />
   );
 }
-function BuilderCombinatorSelector(props: CombinatorSelectorProps) {
+function RemoveCondition(props: ActionProps) {
+  return (
+    <Button
+      className={props.className}
+      type="text"
+      icon={<CloseOutlined />}
+      aria-label={props.title || "Remove condition"}
+      disabled={props.disabled}
+      onClick={props.handleOnClick}
+    />
+  );
+}
+function GroupMatchSelector(props: CombinatorSelectorProps) {
+  const { replaceGroup } = props.context as BuilderContext;
+  const group = props.ruleGroup as RuleGroupType;
   return (
     <Select
-      className={props.className}
       aria-label="Match conditions"
-      value={props.value}
+      value={(group.not ? "not:" : "") + group.combinator}
       options={[
         { value: "and", label: "Match all" },
         { value: "or", label: "Match any" },
+        { value: "not:or", label: "Match none" },
+        { value: "not:and", label: "Not all match" },
       ]}
-      onChange={props.handleOnChange}
+      onChange={(value) =>
+        replaceGroup(props.path, {
+          ...group,
+          combinator: value.replace("not:", ""),
+          not: value.startsWith("not:"),
+        })
+      }
+    />
+  );
+}
+function HiddenGroupAction() {
+  return null;
+}
+function hasConfiguredCondition(group: RuleGroupType): boolean {
+  return group.rules.some((rule) =>
+    "rules" in rule ? hasConfiguredCondition(rule) : rule.field !== "~",
+  );
+}
+function FilterGroupBody(props: UseRuleGroup) {
+  return (
+    <>
+      <RuleGroupBodyComponents {...props} />
+      <Space className="filter-group-actions">
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          aria-label="Add condition"
+          disabled={props.disabled}
+          onClick={props.addRule}
+        >
+          Add condition
+        </Button>
+        {props.schema.maxLevels > props.path.length && (
+          <Button type="text" disabled={props.disabled} onClick={props.addGroup}>
+            Add group
+          </Button>
+        )}
+      </Space>
+    </>
+  );
+}
+function BuilderOperatorSelector(props: OperatorSelectorProps) {
+  const editing = useContext(RuleEditContext);
+  const { editor } = props.context as BuilderContext;
+  const field = editor.groups
+    .flatMap((group) => group.fields)
+    .find((field) => field.definition.id === props.field);
+  const excluded = !!editing?.rule.meta?.atlasExcluded;
+  const operators =
+    field?.operators.filter(
+      (operator) => operator.operator !== "state" || props.value === "state",
+    ) ?? [];
+  const options = operators.map((operator) => ({
+    value: operator.operator,
+    label: operator.operator === "exists" ? "has" : operator.label,
+  }));
+  for (const operator of operators) {
+    if (
+      ["in", "includes_all", "exists"].includes(operator.operator) ||
+      (excluded && operator.operator === props.value)
+    ) {
+      options.push({
+        value: "not:" + operator.operator,
+        label:
+          operator.operator === "exists"
+            ? "has no"
+            : operator.operator === "in"
+              ? "is none of"
+              : operator.operator === "eq"
+                ? "is not"
+                : operator.operator === "neq"
+                  ? "is"
+                  : operator.operator === "includes"
+                    ? "excludes"
+                    : operator.operator === "includes_all"
+                      ? "does not include all"
+                      : "not " + operator.label,
+      });
+    }
+  }
+  return (
+    <Select
+      className={props.className}
+      aria-label={"Condition for " + (field?.label ?? "this field")}
+      value={excluded ? "not:" + props.value : props.value}
+      options={
+        props.field === BOOLEAN_CONDITION
+          ? [{ value: "constant", label: "Matches" }]
+          : options
+      }
+      onChange={(next) => {
+        if (!editing) return props.handleOnChange(next);
+        const negate = next.startsWith("not:");
+        editing.replace({
+          ...editing.rule,
+          operator: negate ? next.slice(4) : next,
+          meta: { ...editing.rule.meta, atlasExcluded: negate },
+        });
+      }}
       disabled={props.disabled}
     />
   );
 }
 function BuilderValueEditor(props: ValueEditorProps) {
+  const editing = useContext(RuleEditContext);
   const { editor, scope, workspace } = props.context as BuilderContext;
   if (props.field === BOOLEAN_CONDITION)
     return (
@@ -604,12 +774,25 @@ function BuilderValueEditor(props: ValueEditorProps) {
         field.definition.id === props.field && field.definition.scope === scope,
     );
   if (!field)
-    return (
+    return props.field === "~" ? null : (
       <Typography.Text type="danger" role="status" className="filter-rule-value">
         This field is unavailable. Choose another field or remove this condition.
       </Typography.Text>
     );
-  if (props.operator === "exists")
+  if (props.operator === "exists") {
+    const query = isBuilderGroup(props.value) ? props.value : emptyGroup();
+    if (isCompactCollection(field, query))
+      return (
+        <div className="filter-collection-condition">
+          <CollectionValueInput
+            field={field}
+            editor={editor}
+            query={query}
+            onChange={props.handleOnChange}
+            workspace={workspace}
+          />
+        </div>
+      );
     return (
       <div className="filter-collection-condition">
         <StructuredBuilder
@@ -621,6 +804,7 @@ function BuilderValueEditor(props: ValueEditorProps) {
         />
       </div>
     );
+  }
   let error: string | null = null;
   try {
     builderPredicate(
@@ -640,15 +824,36 @@ function BuilderValueEditor(props: ValueEditorProps) {
       <Form.Item
         style={{ marginBottom: 0 }}
         validateStatus={error && !incomplete ? "error" : undefined}
-        help={error ? <span role="status">{error}</span> : undefined}
+        help={error && !incomplete ? <span role="status">{error}</span> : undefined}
       >
-        <FilterValueInput
-          field={field}
-          operator={props.operator}
-          value={props.value}
-          onChange={props.handleOnChange}
-          scope={workspace.vocabularyScope ?? { kind: "artifact" }}
-        />
+        <div className={field.unit_fields.length ? "filter-duration-value" : undefined}>
+          <FilterValueInput
+            excluded={!!props.rule.meta?.atlasExcluded}
+            field={field}
+            operator={props.operator}
+            value={props.value}
+            onChange={props.handleOnChange}
+            scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+            countContext={workspace.filterDiscoveryContext}
+            countsEnabled={workspace.filterCountsEnabled !== false}
+            countQueryKey={workspace.filterCountQueryKey}
+            countLimit={workspace.filterEditor?.limits.literal_list ?? 0}
+            clauseId={String(props.rule.id)}
+          />
+          {field.unit_fields.length > 0 && (
+            <Select
+              aria-label="Duration unit"
+              value={field.definition.id}
+              options={field.unit_fields.map((option) => ({
+                value: option.field_id,
+                label: option.unit,
+              }))}
+              onChange={(id) =>
+                editing && editing.replace({ ...editing.rule, field: id })
+              }
+            />
+          )}
+        </div>
       </Form.Item>
     </div>
   );

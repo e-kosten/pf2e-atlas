@@ -90,9 +90,11 @@ and user-facing catalog labels. Labels name the useful property; source-family
 applicability, stable query IDs and collection scopes remain separate metadata.
 CLI numeric discovery uses range/state statistics rather than enumerating values;
 collection discovery uses states and directs callers to scoped member descriptors.
-Discovery shares query eligibility. Contextual facet counts self-exclude the target predicate while
-preserving same-child siblings. Valid conditions below OR/NOT or using negative
-comparisons can report typed optional discovery unavailability; the query itself
+Discovery shares query eligibility. Root facets self-exclude all selections of
+the edited field through conjunctions, including individual negative selections.
+Scoped facets replace the target clause while preserving same-child siblings.
+Targets inside OR or compound NOT, and unsupported scoped negatives, can report
+typed optional discovery unavailability; the query itself
 remains executable. The index validates the complete predicate, target field,
 scope, clause identity, value type and request limits before that classification.
 Malformed requests and service failures remain errors. Search obtains availability

@@ -171,21 +171,6 @@
 .record-reference--compact .record-reference__kind {
   font-size: 0.85rem;
 }
-.encounter-reference__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.encounter-reference__controls {
-  display: grid;
-  gap: 12px;
-  margin-block: 12px;
-}
-.encounter-reference__controls .encounter-hp-panel {
-  border: 0;
-  padding: 0;
-}
 @media (max-width: 600px) {
   .record-reference:not(.record-reference--compact):not(.record-reference--encounter) {
     --record-inset: 16px;
@@ -296,6 +281,10 @@
 .actor-reference__secondary {
   display: grid;
   gap: 12px;
+}
+.actor-reference__skills {
+  display: grid;
+  gap: 16px;
 }
 @container record-pane (min-width: 480px) {
   .actor-reference__facts--combat {

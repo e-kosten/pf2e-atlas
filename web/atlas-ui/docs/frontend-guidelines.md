@@ -37,7 +37,7 @@ request/cache/response identity. It preserves submitted criteria, unfinished
 controls, exact reference reading, scroll positions and explicit picker candidates
 and Add forms. It does not advance the artifact epoch or retire shared detail,
 graph, catalog, vocabulary, saved-list or encounter caches. Contextual discovery
-carries profile and known generation; ordinary contextual counts remain disabled.
+carries profile and known generation; option counts load only for active pickers.
 
 ## Boundaries
 
@@ -243,9 +243,8 @@ them to neutral. Reset that transient history when the menu closes.
 Do not represent exclusion as checkbox indeterminate or a boolean aria-pressed.
 They recognize simple conditions through positive conjunctions and exact numeric
 range groups. Advanced displays the complete expression. Individual conditions
-have an Exclude control stored in the builder's rule metadata. Negation of a
-conjunction or disjunction uses the
-builder group's native exclusion flag, retaining the group and negation identities;
+combine polarity with the operator, stored in the builder's rule metadata. Group
+match controls combine combinator and exclusion while retaining group identities;
 complex expressions
 remain editable through the full builder. Structural true/false conditions have
 explicit editor controls and lower to boolean constants, never synthetic backend
@@ -255,8 +254,14 @@ Successful edits retain the builder tree rather than reconstructing it from the
 executable predicate. External changed criteria reset drafts; preview navigation
 and local URL updates preserve them. Operator input shapes come from app-service
 metadata; apply value transitions atomically before rendering a different input.
-Editor catalog loading is independent of criteria validity so invalid URL fields
-and choices remain repairable.
+Editor metadata remains available for invalid criteria. Valid committed filters
+can narrow addable fields using backend applicability for positive conjunctions;
+OR and negated draft groups retain the complete catalog so users can broaden the
+query. Existing conditions remain editable. Keep displayed options/counts during refresh within the same artifact,
+profile and membership scope, replacing them in place when responses arrive.
+Do not retain counts after an actual unavailable/error response. The drawer is the
+root expression surface; reserve group framing for nested expressions and put
+Add condition/group after the group's entries.
 
 Browser-local remembered Kind is only a default for a fresh bare search visit.
 An incoming search URL is authoritative, and clearing Kind clears the preference.
@@ -314,7 +319,12 @@ The encounter chooser shares browsing/reading without copying search state or
 mutation rules. Following references changes the reader, not the Add candidate.
 Provide Return to selection, preserve quantity/initiative through retrieval and
 Add failures, and disable competing actions during Add. Only the encounter owner
-commits the explicit candidate. Reset the chooser after successful close.
+commits the explicit candidate. Successful encounter additions keep the chooser
+open with Done, retain the candidate for another addition and reset quantity and
+initiative only after canonical refresh. Report the completed addition without
+adding selection captions or empty-selection prompt rows. Reset the chooser after
+close; a committed-write refresh failure retains the submitted draft until Retry
+loads current state. Consume that recovery once rather than resetting later edits.
 
 The web product uses hybrid text retrieval and filter-only browsing. Retrieval
 options are not browser criteria or URL overrides; CLI modes remain independent.
@@ -329,17 +339,50 @@ At narrow group widths, keep operation and Remove together with a full-width
 value beneath; use the group's available width so nested rules also fit.
 Do not offer another collection scope inside an existing Exists condition.
 
-Contextual option counts are deferred; ordinary filter editing does not request
-them or display unavailable-count notices. The backend count contract remains
-available for the planned restoration. Open values
-use explicit count-free vocabulary requests with artifact or saved-list scope,
-server search and bounded paging; selected literals remain visible separately
-from suggestion pages. Common pickers show concise totals as values, never result
-counts, with an optional plain saved-list scope label. Advanced value controls
-retain their scoped vocabulary explanation, including legacy entries.
-Closed choices use catalog labels without values requests. The adapter does not
+Contextual option counts are optional annotations for the active categorical
+picker's displayed page and retained selections, bounded by catalog limits.
+They count distinct eligible parent records for each replacement value, preserving
+other conditions, same-child witnesses and edition preference. A multi-selection's
+count is for one replacement literal, rather than the union with current selections.
+Count requests retain profile/generation identity and cancellation; an incomplete
+draft, text search or Similar mode keeps count-free choices. Unsupported target
+contexts and count errors leave annotations absent without warnings or disabled
+choices. Missing counts never become zero. Catalog loading does not request counts.
+Long choice sets use paged contextual vocabulary when supported, with a Show
+unavailable option for the full vocabulary. Unsupported contexts use count-free
+vocabulary; transport and artifact-identity failures remain errors. Short choice
+sets retain declared choices and dim known-zero positive options. Exclusion must
+still allow zero-positive-match values. Selected values remain available across
+paging and refresh. Small closed selectors use catalog labels locally; long
+closed selectors use the same paging path as open vocabulary.
+The adapter does not
 parse CEL, infer fields from records, or decide contextual capability in React.
 Reject unsafe integer input before creating numeric literals.
+
+### Choosing an interaction surface
+
+Choose the surface by the user's task, then adapt it to available space. Reuse
+the shared owner for that interaction rather than choosing independently in each
+feature.
+
+| Surface                 | Default use                                                                       | Examples                                       |
+| ----------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Tooltip                 | Short, noninteractive explanation                                                 | Icon labels                                    |
+| Popover                 | Quick anchored lookup or small interaction that keeps surrounding content visible | Encounter spell references; match explanations |
+| Drawer                  | Substantial secondary task, or reference reading on narrow screens                | Advanced filters; phone reference previews     |
+| Modal                   | Bounded decision or edit requiring focused attention                              | HP settings; condition editing                 |
+| Existing reader or page | Sustained reading and browsing                                                    | Search result reader; full record              |
+
+Essential content must be available through click/tap and keyboard activation,
+not only hover. Escape dismisses the innermost surface, and closing restores
+focus to its opener. Preserve the underlying selection, scroll position and
+unfinished edits. Use native Ant positioning and lifecycle; keep one shared
+record renderer across hosts with navigation appropriate to the context.
+
+Reference previews follow the policy below, including local Back, responsive
+hosts and delayed loading feedback. Do not change hosts after loading based on
+record length. Extended reading remains available through normal page navigation;
+a pinned reader would be a separate product feature.
 
 ### In-place reference reading
 
@@ -351,7 +394,7 @@ position. Return to selection restores the feature-selected record. Keep this
 history bounded and local to the reading session, separate from browser history.
 
 Where no reader is present, use the shared reference preview: native Ant Popover
-at `xl` and above, shared Ant Drawer below `xl` (1200px), including tablets.
+at `md` and above, native Ant Drawer below `md` (768px).
 Both hosts use `RecordDetailPane` and the same family renderer. Long records
 scroll inside their host; do not switch hosts after loading based on record
 length or family. Inline owned abilities follow their existing reading policy;
@@ -388,12 +431,25 @@ during native animation or skip that callback.
 
 When reference navigation removes focused content, move focus to a surviving
 reading target without stealing connected, intentional or nested-dialog focus.
+Initial desktop reference reads delay the trigger's loading indicator by 500 ms
+using Ant's built-in delay. Open the content-sized native popover as soon as the
+record or error arrives; never delay ready content to display an indicator. Do not
+open a short loading panel that jumps as content loads. Pending reads remain dismissible
+with Escape or an outside click; visible popovers and phone drawers retain native
+dismissal and positioning. Moving focus into a preview must not scroll its owner.
+When viewport resizing reflows an open anchored preview, preserve its visible
+opener using native scrolling; keep tablet and desktop encounter pane scrolling
+consistent. Phone drawers retain their underlying reading position.
 Use the actual reader/preview scroll container, contain overlay scrolling and
 retain reading/results positions. Narrow Results returns focus to its initiating
 row. Reuse the shared reader/preview owners and native link activation guard;
 do not create feature-local overlay or navigation policies.
 
 ### Record presentation
+
+Use “Original” in product labels for source values before encounter adjustments.
+Keep technical terms such as “authored” in implementation and architecture
+discussion rather than user-facing copy.
 
 Use the semantic family union rather than a generic section/value/profile layout
 interpreter. Availability belongs to the backend facts; known zero, false and
@@ -485,9 +541,10 @@ a fresh request without seeding immutable reference caches.
 Participant/generation changes, disappearance and unresolved sources remain
 explicit without baseline-detail fallback. Keep the native full reference link,
 ready-lifecycle initial focus, nested source-modal Escape and original trigger
-focus recovery. Keep secondary
-encounter facts below usable actions in a local disclosure rather than placing
-all reference facts before the combat actions. Selected casting entries show their checked parent and
+focus recovery. Later encounter facts use visible Languages and compact Ability
+modifiers before Skills, with the shared family availability/empty-value policy.
+Keep these useful reference facts after combat actions without an opaque
+catch-all disclosure. Selected casting entries show their checked parent and
 associated customized spells; base and authored cast ranks do not imply executed
 rank or form changes. A hazard's backend defense-block fact controls its primary
 AC/HP/hardness display; keep independent zero saves and unavailable facts intact.
@@ -539,8 +596,24 @@ Atlas-owned classes describe product layout rather than internal Ant DOM.
 ## Mutable workflows
 
 Source content in an encounter loads only on explicit request. HP mutations
-carry explicit edit intent; unknown current HP disables arithmetic and remains
-unknown until explicitly set.
+carry an explicit action, raw integer/addition/subtraction input and the read
+participant revision. Rust interprets formulas, damage/healing and correction
+intent. Damage and Heal accept signed raw amounts; Rust reverses the operation
+for a negative result. Enter in participant HP change submits Heal intent once
+(positive heals, negative damages). Enter remains inert in the Damage-only turn
+review. Unknown current HP disables amount operations
+and remains unknown until explicitly set. Display-only HP meter ratios stay local.
+
+The roster presents initiative, participant and HP in compact labelled columns,
+with distinct selected, current-turn and defeated states. Accessible movement
+actions disclose the target initiative. Phone layouts drill into a selected
+participant and restore roster focus/scroll on Back. Advancing the turn follows
+the canonical server-selected participant in the reader; ordinary selection does
+not change the turn. Use distinct Encounter settings, Participant settings and HP
+settings. The participant pencil opens name, initiative, side, adjustment and
+notes, with subdued Original record access inside that editor. Defeated belongs
+beside HP; only applied Elite/Weak appears by classification. Mounted Ant forms need distinct
+names so their visible labels focus the correct inputs.
 
 Whole-list deletion and saved-member removal use the shared contextual danger
 confirmation and await their action. Keep membership/order semantics in the list
@@ -565,3 +638,57 @@ Preserve touched same-entity metadata during background refresh, and reset draft
 on entity or editing-session change. Key route owners by identity and prevent old
 Save completions from navigating a newer editor. Keep source-backed facts and
 gameplay derivation in Rust; the browser submits explicit edit intent and revision.
+
+### Encounter reading context
+
+Encounter composition permits collapsing the roster only; its participant reader
+stays available and fills the remaining pane. Shared `WorkspaceLayout` accepts
+explicit collapsible pane identities without changing other browsing defaults.
+Encounter preview hosts explicitly carry encounter context. Both wide popovers
+and phone drawers omit owner-return captions and Related records; actual
+reading-history Back and Original record provenance remain independent. Direct
+record pages retain owner context and Related records. Drawers use their native
+header and close control, with the document title shown once.
+Creature Lore rows use the authored title and signed modifier once. Actor spell
+lists display known authored casting rank, preserving an unavailable casting
+rank explicitly; base rank and authored heightening remain in the opened detail.
+The browser does not calculate selected-rank spell effects.
+
+Participant settings uses one labeled Save/Cancel form and the complete guarded
+participant update. Edit HP shows Current, Maximum and Temporary fields; Save
+submits touched raw inputs in one atomic Rust HP action. Omitted fields retain
+their values and provenance. HP change submits raw formula text through explicit Damage/Heal
+buttons or the participant Enter shortcut described above. Original record opens
+immutable authored data through the shared record renderer.
+
+Condition Add defaults to explicit No duration and never requires timing unless
+the user enables a round duration. Add and Edit show the whole form, with adjacent
+duration amount/unit and Count down at before Whose turn. Numeric controls
+validate whole, nonnegative values before conversion; selecting No duration
+removes the duration. Full condition drafts retain their opening encounter revision. After a
+conflict, explicit Reload condition replaces the draft with canonical remaining
+duration and a fresh revision. Do not silently refresh a retained draft's guard.
+
+Next turn reads the Rust turn review and opens a review only for its reminders.
+The browser never ticks durations, chooses timing anchors, infers persistent
+condition identity, rolls damage/recovery, or removes an expired condition.
+Immediate review actions target the reminder's participant and exact condition,
+show a saved receipt, and refresh both encounter and review before Continue.
+Cancel leaves already saved actions intact. Removing the last reminder does not
+advance; Continue uses the current review revision in the atomic advance command.
+Read-only Retry never repeats an action or advances a turn.
+
+Encounter roster handles use the sortable-list library for whole-row movement,
+touch and keyboard pickup/movement/drop, then submit one guarded reorder command.
+Current turn uses the strong filled row treatment; preview selection uses a
+separate outline. Play and confirmed
+delete remain direct row actions. Fade defeated names and facts without dimming
+controls. Encounter-owned section spacing belongs under encounter styles; shared
+record CSS must not override HP borders, padding or encounter control spacing.
+HP and Conditions share a row when the reader has room and stack on narrow panes;
+HP identity/value and action groups align left and right. Creature-level facts,
+including ability modifiers/skills, precede embedded activities. In encounters,
+the Rust-owned has_reference_details flag controls activity-title links: known
+complete summaries stay plain, while additional content/richer views open the
+shared preview. Condition-specific manual notices attach by exact condition ID;
+do not repeat those notes as generic Runtime diagnostics.

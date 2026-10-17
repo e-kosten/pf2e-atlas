@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import { Alert, Modal } from "antd";
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo, useLayoutEffect, useRef } from "react";
 import type {
   PreparedContentFieldView,
   RecordRelationshipView,
@@ -36,7 +36,8 @@ export function PreparedContent({
         : "",
     [body],
   );
-  useEffect(() => {
+  // Native links must exist before parent reading hosts restore a bookmark.
+  useLayoutEffect(() => {
     if (body.kind !== "html") return;
     const markers = container.current?.querySelectorAll<HTMLElement>(
       "[data-atlas-reference],[data-atlas-interaction]",

@@ -15,41 +15,126 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
     })
     .map_err(|e| e.message)?;
+    if o.field.is_none() && !o.all && o.text.is_none() {
+        let Some(mut editor) = app_result(
+            s.discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
+                filter: None,
+                selected_field_ids: vec![],
+            }),
+            o.json,
+        )?
+        else {
+            return Ok(ExitCode::from(3));
+        };
+        if let Some(id) = &o.group {
+            if !editor.groups.iter().any(|group| &group.id == id) {
+                return Err(format!(
+                    "Unknown group `{id}`; use atlas filters fields to list groups"
+                ));
+            }
+            editor.groups.retain(|group| &group.id == id);
+        }
+        if o.json {
+            write_json_data(&editor)?;
+        } else {
+            for group in editor.groups {
+                println!("{}\t{}", group.id, group.label);
+                if o.group.is_some() {
+                    for field in group
+                        .fields
+                        .iter()
+                        .filter(|field| field.definition.scope.is_none())
+                    {
+                        println!(
+                            "  {}\t{}\t{}",
+                            field.definition.id,
+                            type_label(&field.definition.field_type),
+                            field.label
+                        );
+                    }
+                    // Embedded members are discovered through their collection, not duplicated here.
+                }
+            }
+            println!(
+                "\nUse --group ID to browse, --field ID to inspect, or --text QUERY to search all fields."
+            );
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
     let Some(mut c) = app_result(s.discover_filter_fields(), o.json)? else {
         return Ok(ExitCode::from(3));
     };
     if let Some(id) = &o.field
         && !c.fields.iter().any(|field| &field.id == id)
     {
+        if let Some(collection) = id.strip_suffix("[]")
+            && c.fields.iter().any(|field| {
+                field.id == collection && field.field_type == QueryFieldType::Collection
+            })
+        {
+            return Err(format!(
+                "`{id}` identifies collection entries.\nUse atlas filters fields --field {collection} to inspect the collection and its fields."
+            ));
+        }
         return Err(format!(
             "Unknown field `{id}`; use atlas filters fields --text QUERY"
         ));
     }
-    c.fields
-        .retain(|field| matches_field(field, o.field.as_deref(), o.text.as_deref()));
     if o.json {
+        c.fields
+            .retain(|field| matches_field(field, o.field.as_deref(), o.text.as_deref()));
         write_json_data(&c)?;
     } else {
-        for f in c.fields {
+        for f in c
+            .fields
+            .iter()
+            .filter(|field| matches_field(field, o.field.as_deref(), o.text.as_deref()))
+        {
             println!("{}\t{}\t{}", f.id, type_label(&f.field_type), f.label);
             if o.field.is_none() {
                 continue;
             }
-            println!(
-                "  operators={} source families={} units={}",
-                f.operators.join(", "),
-                f.family_types.join(", "),
-                f.units.as_deref().unwrap_or("none")
-            );
+            println!("  Operators: {}", f.operators.join(", "));
+            if !f.family_types.is_empty() {
+                println!("  Source families: {}", f.family_types.join(", "));
+            }
+            if let Some(units) = &f.units {
+                println!("  Units: {units}");
+            }
             if let Some(scope) = &f.scope {
-                println!("  scope={scope}; path within entry={}", f.path);
+                println!("  Collection: {scope}; field within each entry: {}", f.path);
+                println!("  Combine conditions inside one exists(...) to match the same entry.");
+            } else if f.field_type == QueryFieldType::Collection {
+                println!("  Use exists(...) to match an entry in this collection.");
             }
             if !f.choices.is_empty() {
-                println!("  choices={}", f.choices.join(", "));
+                println!("  Allowed choices: {}", f.choices.join(", "));
             }
-            println!("  discovery={:?}; {}", f.value_discovery, f.basis);
-            for example in f.examples {
+            println!("  Basis: {}", f.basis);
+            println!("  CEL examples:");
+            for example in &f.examples {
                 println!("  {example}");
+            }
+            if f.field_type == QueryFieldType::Collection {
+                println!("  Entry fields:");
+                for child in c
+                    .fields
+                    .iter()
+                    .filter(|child| child.scope.as_deref() == Some(f.path.as_str()))
+                {
+                    println!(
+                        "    {}\t{}\t{}",
+                        child.id,
+                        type_label(&child.field_type),
+                        child.label
+                    );
+                }
+                println!(
+                    "  Inspect an entry field with --field ID; discover its values with filters values --field ID."
+                );
+                println!(
+                    "  Combine entry conditions inside one exists(...) to match the same entry."
+                );
             }
         }
         if o.field.is_none() {
@@ -123,21 +208,31 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
         if let Some(values) = values {
             for v in &values.options {
                 println!(
-                    "{}\t{} roots",
+                    "{}\t{} records",
                     serde_json::to_string(&v.value).map_err(|e| e.to_string())?,
                     v.distinct_roots
                 );
             }
             println!(
-                "{} of {} values shown{}",
+                "{} of {} values shown",
                 values.options.len(),
-                values.total_values,
-                if values.exhaustive {
-                    ""
-                } else {
-                    "; additional values are available"
-                }
+                values.total_values
             );
+            let next_offset = o.offset.saturating_add(values.options.len());
+            if (next_offset as u64) < values.total_values {
+                println!("Next page: repeat with --offset {next_offset}");
+            }
+            println!(
+                "Counts are distinct parent records for each value, retaining all supplied filters."
+            );
+            if definition.scope.is_some() {
+                println!(
+                    "An existing collection filter may match a different entry; use one exists(...) for same-entry constraints."
+                );
+            }
+            if !values.exhaustive {
+                println!("Counts cover a limited candidate set, not the full collection.");
+            }
         }
         if definition.field_type == QueryFieldType::Number {
             match (&counts.minimum, &counts.maximum) {
@@ -158,13 +253,21 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
                 definition.id
             );
         }
-        println!("Availability ({}):", counts.counting_scope);
+        println!(
+            "Source availability ({}; before remaster suppression):",
+            counts.counting_scope
+        );
         for state in counts.states {
             println!(
-                "{}\t{} roots\t{} occurrences",
+                "{}\t{} records\t{} occurrences",
                 state.state.as_str(),
                 state.distinct_roots,
                 state.occurrences
+            );
+        }
+        if definition.scope.is_some() {
+            println!(
+                "Occurrences count collection entries; a parent record can contribute more than one."
             );
         }
     }

@@ -615,6 +615,7 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            filter: None,
             selected_field_ids: vec!["actor.hp.maximum".into()],
         })
         .unwrap();
@@ -759,6 +760,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            filter: None,
             selected_field_ids: vec![],
         })
         .unwrap();
@@ -780,8 +782,13 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
         .iter()
         .flat_map(|g| &g.fields)
         .collect::<Vec<_>>();
-    assert_eq!(fields.len(), catalog.fields.len());
-    for definition in catalog.fields {
+    let product_definitions = catalog
+        .fields
+        .into_iter()
+        .filter(|field| field.path != "heritage.ancestry.uuid")
+        .collect::<Vec<_>>();
+    assert_eq!(fields.len(), product_definitions.len());
+    for definition in product_definitions {
         let field = fields
             .iter()
             .find(|f| f.definition.id == definition.id)
@@ -795,7 +802,11 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
                 .collect::<Vec<_>>(),
             definition.operators.iter().collect::<Vec<_>>()
         );
-        for choice in &definition.choices {
+        for choice in definition
+            .choices
+            .iter()
+            .filter(|_| definition.id != "record.kind")
+        {
             assert!(
                 field
                     .choices
@@ -828,7 +839,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
 #[test]
 fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
     let f = fixture_worker();
-    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"not","predicate":{"clause_id":"choice","kind":"compare","field":"rarity","op":"eq","value":"rare"}})).unwrap();
+    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"any_of","children":[{"clause_id":"choice","kind":"compare","field":"rarity","op":"eq","value":"rare"},{"kind":"compare","field":"rarity","op":"eq","value":"common"}]})).unwrap();
     let context = FilterDiscoveryContext::Filtered {
         search_profile: None,
         expected_artifact_generation: None,
@@ -843,6 +854,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
                 context: context.clone(),
                 field_id: "rarity".into(),
                 clause_id: Some("choice".into()),
+                values: vec![atlas_domain::QueryLiteral::String("rare".into())],
             },
             &crate::ReadExecutionContext::uncancellable(),
         )
@@ -857,6 +869,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
         .worker
         .discover_filter_values(
             DiscoverFilterValuesRequest::Contextual {
+                only_matching: false,
                 context: context.clone(),
                 field_id: "rarity".into(),
                 clause_id: Some("choice".into()),
@@ -881,12 +894,51 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
                 context,
                 field_id: "traits".into(),
                 clause_id: Some("choice".into()),
+                values: vec![atlas_domain::QueryLiteral::String("fire".into())],
             },
             &crate::ReadExecutionContext::uncancellable(),
         )
         .unwrap_err()
         .into_app_error();
     assert_eq!(invalid.code, AppErrorCode::FilterInvalid);
+}
+
+#[test]
+fn explicit_option_counts_defer_text_without_inference_and_validate_literals_first() {
+    let f = fixture_worker();
+    let context = FilterDiscoveryContext::Filtered {
+        search_profile: None,
+        expected_artifact_generation: None,
+        filter: None,
+        text: Some("unavailable query model".into()),
+        mode: RetrievalModeView::Hybrid,
+    };
+    let mut request = DiscoverFilterCountsRequest {
+        context,
+        field_id: "rarity".into(),
+        clause_id: None,
+        values: vec![atlas_domain::QueryLiteral::String("rare".into())],
+    };
+    let outcome = f
+        .worker
+        .discover_filter_counts(
+            request.clone(),
+            &crate::ReadExecutionContext::uncancellable(),
+        )
+        .unwrap();
+    assert!(matches!(
+        outcome.counts,
+        atlas_domain::QueryFacetOutcome::Unavailable {
+            reason: atlas_domain::FacetUnavailableReason::TextContext
+        }
+    ));
+    request.values = vec![atlas_domain::QueryLiteral::Boolean(true)];
+    let error = f
+        .worker
+        .discover_filter_counts(request, &crate::ReadExecutionContext::uncancellable())
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::FilterInvalid);
 }
 
 #[test]

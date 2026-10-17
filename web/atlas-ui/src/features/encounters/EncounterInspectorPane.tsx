@@ -1,31 +1,27 @@
-import { Alert, Button, Collapse, Form, Input, Select, Modal } from "antd";
-import { Pencil } from "lucide-react";
-import { useState } from "react";
+import { Alert, Button } from "antd";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
-  EncounterParticipantVariantView,
+  EncounterHpAction,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
-import { optionalBigIntInput, participantUpdate } from "./participantEdits";
+import { participantUpdate } from "./participantEdits";
 import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
-import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
-import { useRecordDetail } from "../../shared/records/useRecordDetail";
-import {
-  RecordIdentity,
-  RecordPresentation,
-} from "../../shared/records/RecordPresentation";
+import { RecordPresentation } from "../../shared/records/RecordPresentation";
 import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
-import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
+import { EncounterParticipantSettings } from "./EncounterParticipantSettings";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
 import { atlasRoutePath } from "../../app/routes";
 
 export function EncounterInspectorPane({
   disabled,
+  encounterRevision,
+  pending,
+  recovery,
   conditionsDisabled,
   conditionError,
   onRetryConditions,
@@ -37,6 +33,7 @@ export function EncounterInspectorPane({
   onRemoveCondition,
   onUpdateCondition,
   onUpdate,
+  onHpAction,
   participant,
   participants,
   conditionDefinitions,
@@ -54,6 +51,9 @@ export function EncounterInspectorPane({
   previewSelection,
 }: {
   disabled: boolean;
+  encounterRevision: bigint;
+  pending: boolean;
+  recovery?: React.ReactNode;
   conditionsDisabled: boolean;
   conditionError: Error | null;
   onRetryConditions: () => void;
@@ -63,13 +63,17 @@ export function EncounterInspectorPane({
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onAddCondition: (
     condition: AddEncounterParticipantConditionRequest,
-  ) => Promise<unknown>;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<unknown>;
+  ) => Promise<boolean>;
+  onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
-  ) => Promise<unknown>;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
+  ) => Promise<boolean>;
+  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onHpAction: (
+    participant: EncounterParticipantView,
+    action: EncounterHpAction,
+  ) => Promise<boolean>;
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
@@ -92,11 +96,18 @@ export function EncounterInspectorPane({
     );
   }
   return (
-    <section className="encounter-pane encounter-record-pane">
+    <section
+      className="encounter-pane encounter-record-pane"
+      tabIndex={-1}
+      aria-label="Participant"
+    >
       {
         <EncounterParticipantSurface
           key={`participant-${participant.participant_key}`}
           disabled={disabled}
+          encounterRevision={encounterRevision}
+          pending={pending}
+          recovery={recovery}
           conditionsDisabled={conditionsDisabled}
           conditionError={conditionError}
           onRetryConditions={onRetryConditions}
@@ -106,20 +117,16 @@ export function EncounterInspectorPane({
           onReference={onReference}
           onRemoveCondition={onRemoveCondition}
           onUpdate={onUpdate}
+          onHpAction={onHpAction}
           onUpdateCondition={onUpdateCondition}
           participant={participant}
           participants={participants}
         />
       }
-      {participant.record_key && (
-        <ParticipantSourceContent
-          key={`source-${participant.participant_key}`}
-          recordKey={participant.record_key}
-          onReference={onReference}
-        />
-      )}
       {previewRecordKey && (
         <RecordPreviewPopover
+          context="encounter"
+          visibleOwnerRecordKey={participant.record_key}
           anchor={previewAnchor}
           readingHistory={previewReadingHistory}
           landing={previewLanding}
@@ -147,6 +154,9 @@ export function EncounterInspectorPane({
 
 function EncounterParticipantSurface({
   disabled,
+  encounterRevision,
+  pending,
+  recovery,
   conditionsDisabled,
   conditionError,
   onRetryConditions,
@@ -156,11 +166,15 @@ function EncounterParticipantSurface({
   onReference,
   onRemoveCondition,
   onUpdate,
+  onHpAction,
   onUpdateCondition,
   participant,
   participants,
 }: {
   disabled: boolean;
+  encounterRevision: bigint;
+  pending: boolean;
+  recovery?: React.ReactNode;
   conditionsDisabled: boolean;
   conditionError: Error | null;
   onRetryConditions: () => void;
@@ -168,56 +182,84 @@ function EncounterParticipantSurface({
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (
     condition: AddEncounterParticipantConditionRequest,
-  ) => Promise<unknown>;
+  ) => Promise<boolean>;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<unknown>;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
+  onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<boolean>;
+  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onHpAction: (
+    participant: EncounterParticipantView,
+    action: EncounterHpAction,
+  ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
     condition: UpdateEncounterParticipantConditionRequest,
-  ) => Promise<unknown>;
+  ) => Promise<boolean>;
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
 }) {
-  const [noteOpen, setNoteOpen] = useState(false);
   const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
     onUpdate(participantUpdate(participant, changes));
   const presentation = participant.presentation;
+  const body = presentation?.body;
+  const hasHp = !(
+    body?.kind === "hazard" &&
+    body.value.defense_block.state === "value" &&
+    body.value.defense_block.value === false
+  );
+  const statusControl = (
+    <Button
+      size="small"
+      disabled={disabled}
+      onClick={() =>
+        void updateParticipant({ defeated: !participant.defeated }).catch(() => {})
+      }
+    >
+      {participant.defeated ? "Mark active" : "Mark defeated"}
+    </Button>
+  );
   return (
     <section className="encounter-reference">
       <div className="encounter-reference__header">
-        {presentation ? (
-          <RecordIdentity
-            identity={{ ...presentation.identity, title: participant.display_name }}
-            classification={presentation.classification}
-          />
-        ) : (
+        <div className="encounter-reference__identity">
           <h2>{participant.display_name}</h2>
-        )}
-        <div className="encounter-reference__header-actions">
-          <Button
-            aria-label="Participant note"
-            icon={<Pencil size={14} aria-hidden="true" />}
-            onClick={() => setNoteOpen((open) => !open)}
-            size="small"
-            type={noteOpen ? "primary" : "default"}
-          />
-          <ParticipantVariantControl
-            disabled={disabled}
+          <p className="record-reference__kind">
+            {presentation?.classification ?? participant.participant_kind}
+            {participant.participant_variant !== "normal" && (
+              <span className="encounter-reference__variant">
+                {participant.participant_variant === "elite" ? "Elite" : "Weak"}
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="encounter-reference__actions">
+          {!hasHp && statusControl}
+          <EncounterParticipantSettings
             participant={participant}
-            onUpdate={updateParticipant}
+            disabled={disabled}
+            pending={pending}
+            error={error}
+            recovery={recovery}
+            onUpdate={onUpdate}
           />
         </div>
       </div>
       {participant.status === "unresolved" && (
-        <p>Authored record unavailable. Saved participant settings remain editable.</p>
+        <p>Original record unavailable. Saved participant settings remain editable.</p>
       )}
-      <div className="encounter-reference__controls">
-        <EncounterHpControls
-          disabled={disabled}
-          current={participant}
-          onUpdate={updateParticipant}
-        />
+      <div
+        className={`encounter-reference__controls${hasHp ? "" : " encounter-reference__controls--without-hp"}`}
+      >
+        {hasHp && (
+          <EncounterHpControls
+            pending={pending}
+            recovery={recovery}
+            error={error}
+            disabled={disabled}
+            current={participant}
+            onAction={(action) => onHpAction(participant, action)}
+            statusControl={statusControl}
+          />
+        )}
         {conditionError && (
           <Alert
             type="error"
@@ -227,6 +269,9 @@ function EncounterParticipantSurface({
           />
         )}
         <EncounterConditionControls
+          encounterRevision={encounterRevision}
+          pending={pending}
+          recovery={recovery}
           disabled={disabled}
           addDisabled={conditionsDisabled}
           error={error}
@@ -239,24 +284,6 @@ function EncounterParticipantSurface({
           participants={participants}
         />
       </div>
-      <Collapse
-        ghost
-        size="small"
-        items={[
-          {
-            key: "participant-details",
-            label: "Edit details",
-            styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
-            children: (
-              <ParticipantEditStrip
-                disabled={disabled}
-                participant={participant}
-                onUpdate={updateParticipant}
-              />
-            ),
-          },
-        ]}
-      />
       {presentation && (
         <RecordPresentation
           presentation={presentation}
@@ -265,166 +292,6 @@ function EncounterParticipantSurface({
           hideIdentity
         />
       )}
-      {noteOpen && (
-        <ParticipantNoteEditor
-          disabled={disabled}
-          participant={participant}
-          onUpdate={updateParticipant}
-        />
-      )}
     </section>
-  );
-}
-
-function ParticipantVariantControl({
-  disabled,
-  onUpdate,
-  participant,
-}: {
-  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => Promise<unknown>;
-  participant: EncounterParticipantView;
-  disabled: boolean;
-}) {
-  if (participant.participant_kind !== "creature") {
-    return null;
-  }
-  return (
-    <div className="encounter-variant-control">
-      <span>Variant</span>
-      <Select
-        disabled={disabled}
-        aria-label="Variant"
-        className="encounter-variant-select"
-        onChange={(value: EncounterParticipantVariantView) =>
-          void onUpdate({ participant_variant: value }).catch(() => {})
-        }
-        options={[
-          { label: "Normal", value: "normal" },
-          { label: "Elite", value: "elite" },
-          { label: "Weak", value: "weak" },
-        ]}
-        size="small"
-        value={participant.participant_variant}
-      />
-    </div>
-  );
-}
-
-function ParticipantEditStrip({
-  disabled,
-  onUpdate,
-  participant,
-}: {
-  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => Promise<unknown>;
-  participant: EncounterParticipantView;
-  disabled: boolean;
-}) {
-  return (
-    <section className="encounter-participant-strip">
-      <Form.Item style={{ marginBottom: 0 }} label="Name" layout="vertical">
-        <EditableCommitField
-          disabled={disabled}
-          ariaLabel="Participant name"
-          onCommit={(displayName) => onUpdate({ display_name: displayName })}
-          value={participant.display_name}
-        />
-      </Form.Item>
-      <Form.Item style={{ marginBottom: 0 }} label="Initiative" layout="vertical">
-        <EditableCommitField
-          disabled={disabled}
-          ariaLabel="Participant initiative"
-          inputMode="numeric"
-          onCommit={(value) => {
-            const initiative = optionalBigIntInput(value);
-            if (initiative !== null) {
-              return onUpdate({ initiative });
-            }
-          }}
-          value={participant.initiative?.toString() ?? ""}
-        />
-      </Form.Item>
-      <Form.Item style={{ marginBottom: 0 }} label="Side" layout="vertical">
-        <Select
-          disabled={disabled}
-          aria-label="Participant side"
-          value={participant.side}
-          onChange={(side) => void onUpdate({ side }).catch(() => {})}
-          options={["pc", "ally", "enemy", "neutral", "hazard"].map((value) => ({
-            value,
-            label: value,
-          }))}
-        />
-      </Form.Item>
-      <Button
-        disabled={disabled}
-        onClick={() =>
-          void onUpdate({ defeated: !participant.defeated }).catch(() => {})
-        }
-      >
-        {participant.defeated ? "Mark active" : "Mark defeated"}
-      </Button>
-    </section>
-  );
-}
-
-function ParticipantNoteEditor({
-  disabled,
-  onUpdate,
-  participant,
-}: {
-  disabled: boolean;
-  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => Promise<unknown>;
-  participant: EncounterParticipantView;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const value = draft ?? participant.note ?? "";
-  return (
-    <Input.TextArea
-      disabled={disabled}
-      aria-label="Participant note text"
-      value={value}
-      onChange={(event) => setDraft(event.currentTarget.value)}
-      onBlur={() => {
-        if (!disabled && value !== (participant.note ?? "")) {
-          void onUpdate({ note: value })
-            .then(() => setDraft(null))
-            .catch(() => {});
-        }
-      }}
-    />
-  );
-}
-
-function ParticipantSourceContent({
-  recordKey,
-  onReference,
-}: {
-  recordKey: string;
-  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
-}) {
-  const [open, setOpen] = useState(false);
-  const detail = useRecordDetail(open ? recordKey : null);
-  return (
-    <>
-      <Button onClick={() => setOpen(true)}>Source content</Button>
-      <Modal
-        open={open}
-        onCancel={() => setOpen(false)}
-        footer={null}
-        title="Authored source content"
-      >
-        <RecordDetailPane
-          detail={detail.data}
-          loading={detail.isLoading || detail.isFetching}
-          error={detail.error}
-          onRetry={() => {
-            void detail.refetch();
-          }}
-          onBack={() => setOpen(false)}
-          backLabel="Close source content"
-          onReference={onReference}
-        />
-      </Modal>
-    </>
   );
 }

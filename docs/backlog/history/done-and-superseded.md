@@ -6,6 +6,10 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Responsive UI validation](./items/responsive-ui-validation.md)
+  Shared responsive guidance, real-app device acceptance in CI and short-height
+  picker repairs landed in PR59. Human previews use the full corpus. Status: done.
+
 - [Shared UI consistency and saved-list presentation](./items/shared-ui-consistency-and-saved-lists.md)
   Shared browsing/readers, consistent toolbars/indexes, readable content and list
   editing/Add landed in PR58. Device acceptance is a separate follow-up. Status: done.

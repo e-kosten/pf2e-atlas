@@ -2,9 +2,9 @@ use rusqlite::TransactionBehavior;
 
 use super::model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterTurnState, EncounterWithParticipants, NewEncounter,
-    ReorderEncounterParticipant, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    EncounterParticipantCondition, EncounterTurnState, EncounterTurnUpdate,
+    EncounterWithParticipants, NewEncounter, ReorderEncounterParticipant, UpdateEncounter,
+    UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 use super::storage;
 use crate::{LocalStateError, LocalStateResult, LocalStateStore};
@@ -248,6 +248,43 @@ impl<'a> Encounters<'a> {
             turn.participant_key.as_deref(),
             Some(turn.round_number),
             turn.mark_running,
+        )?;
+        let result = storage::get(&transaction, encounter_ref)?;
+        transaction.commit()?;
+        Ok(result)
+    }
+
+    /// Check a reviewed revision and apply turn/timing in one write transaction.
+    /// The callback is pure and may only plan updates from this locked snapshot.
+    pub fn advance_reviewed_turn(
+        &self,
+        encounter_ref: &str,
+        expected_revision: i64,
+        choose: impl FnOnce(&EncounterWithParticipants) -> EncounterTurnUpdate,
+    ) -> LocalStateResult<Option<Encounter>> {
+        validate_ref(encounter_ref)?;
+        let mut connection = self.store.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(snapshot) = storage::get_with_participants(&transaction, encounter_ref)? else {
+            return Ok(None);
+        };
+        if snapshot.encounter.revision != expected_revision {
+            return Err(LocalStateError::StaleEncounterRevision {
+                encounter_key: snapshot.encounter.encounter_key,
+                expected_revision,
+                actual_revision: snapshot.encounter.revision,
+            });
+        }
+        let update = choose(&snapshot);
+        for (condition_id, amount) in update.durations {
+            storage::update_duration_amount(&transaction, condition_id, amount)?;
+        }
+        storage::set_turn_state(
+            &transaction,
+            encounter_ref,
+            update.turn.participant_key.as_deref(),
+            Some(update.turn.round_number),
+            update.turn.mark_running,
         )?;
         let result = storage::get(&transaction, encounter_ref)?;
         transaction.commit()?;

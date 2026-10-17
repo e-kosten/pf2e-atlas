@@ -242,7 +242,7 @@ it.each(["popover", "drawer", "comparison"])(
   "uses the actual %s scrolling container and never drains a visible idle sentinel",
   async (surface) => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
-      xl: surface !== "drawer",
+      md: surface !== "drawer",
       xs: surface === "drawer",
     });
     const client = new QueryClient({

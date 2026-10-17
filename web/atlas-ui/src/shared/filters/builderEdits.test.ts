@@ -8,6 +8,14 @@ const child = { ...fieldFixture("item.name"), scope: collection.path };
 const fields = editorFixture([kind, collection, child]).groups[0].fields;
 
 describe("atomic builder edits", () => {
+  it("preserves the first value supplied with a new condition", () => {
+    const previous: RuleGroupType = { combinator: "and", rules: [] };
+    const next: RuleGroupType = {
+      ...previous,
+      rules: [{ id: "new", field: kind.id, operator: "eq", value: "creature" }],
+    };
+    expect(normalizeBuilderEdit(previous, next, fields, null)).toEqual(next);
+  });
   it("converts a singleton list before the scalar control is rendered", () => {
     const previous = {
       combinator: "and",

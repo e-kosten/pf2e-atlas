@@ -1,9 +1,9 @@
 # Contextual filter option counts
 
-Status: proposed
+Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-13
+Last reviewed: 2026-10-16
 
 Restore contextual match counts alongside categorical options in common and
 advanced pickers. PR55 completed the reference browser using count-free vocabulary;

@@ -10,6 +10,7 @@ pub struct FilterDiscoveryContext<'a> {
     pub filter: Option<&'a QueryPredicate>,
 }
 pub struct DiscoverFilterValuesRequest<'a> {
+    pub only_matching: bool,
     pub field: &'a str,
     pub clause_id: Option<&'a str>,
     pub context: FilterDiscoveryContext<'a>,
@@ -21,6 +22,12 @@ pub struct DiscoverFilterCountsRequest<'a> {
     pub field: &'a str,
     pub clause_id: Option<&'a str>,
     pub context: FilterDiscoveryContext<'a>,
+}
+pub struct DiscoverFilterValueCountsRequest<'a> {
+    pub field: &'a str,
+    pub clause_id: Option<&'a str>,
+    pub context: FilterDiscoveryContext<'a>,
+    pub values: &'a [atlas_domain::QueryLiteral],
 }
 use crate::{AtlasRetrievalService, SearchError};
 use atlas_domain::{
@@ -39,6 +46,41 @@ pub struct DiscoverFilterVocabularyRequest<'a> {
     pub selected_values: &'a [QueryLiteral],
 }
 impl AtlasRetrievalService {
+    pub fn discover_filter_value_counts(
+        &mut self,
+        request: DiscoverFilterValueCountsRequest<'_>,
+    ) -> Result<QueryFacetOutcome<QueryValueOptions>, SearchError> {
+        atlas_index::validate_value_counts(request.field, request.values)?;
+        let query = self.predicate(request.context.filter)?;
+        self.resolve_search_profile(request.context.search_profile, false)?;
+        if let QueryFacetOutcome::Unavailable { reason } =
+            atlas_index::facet_base_query(request.field, request.clause_id, &query)?
+        {
+            return Ok(QueryFacetOutcome::Unavailable { reason });
+        }
+        if request
+            .context
+            .text
+            .is_some_and(|text| !text.trim().is_empty())
+        {
+            return Ok(QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::TextContext,
+            });
+        }
+        Ok(self
+            .index
+            .field_value_counts(&atlas_index::QueryValueCountsRequest {
+                field: request.field.into(),
+                clause_id: request.clause_id.map(str::to_owned),
+                query,
+                context: QueryFacetContext {
+                    eligible_keys: request.context.scope.keys().map(<[_]>::to_vec),
+                    bounded_candidates: false,
+                    prefer_remaster: request.context.prefer_remaster,
+                },
+                values: request.values.to_vec(),
+            })?)
+    }
     pub fn discover_filter_fields(&self) -> Result<QueryCapability, SearchError> {
         Ok(atlas_index::query_capabilities()?)
     }
@@ -121,6 +163,7 @@ impl AtlasRetrievalService {
                 }
             };
         Ok(self.index.field_values(&QueryValuesRequest {
+            only_matching: request.only_matching,
             field: request.field.to_owned(),
             clause_id: request.clause_id.map(str::to_owned),
             query,

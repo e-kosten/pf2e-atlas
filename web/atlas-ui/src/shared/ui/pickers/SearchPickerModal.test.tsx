@@ -10,7 +10,12 @@ import {
   discoverFilterEditor,
   discoverFilterCounts,
 } from "../../../api/atlasApi";
-import { detailFixture, editorFixture, summaryFixture } from "../../../test/fixtures";
+import {
+  detailFixture,
+  editorFixture,
+  fieldFixture,
+  summaryFixture,
+} from "../../../test/fixtures";
 import { SearchPickerModal } from "./SearchPickerModal";
 
 vi.mock("../../../api/atlasApi", async (original) => ({
@@ -133,6 +138,56 @@ beforeEach(() => {
     artifact_generation: "generation-a",
     counts: { status: "unavailable", reason: "non_conjunctive_context" },
   });
+});
+it("inherits lazy contextual counts in Add pickers and leaves text searches count-free", async () => {
+  vi.mocked(discoverFilterEditor).mockResolvedValue(
+    editorFixture([
+      {
+        ...fieldFixture("record.kind", "string", "Kind"),
+        choices: ["creature", "spell"],
+      },
+    ]),
+  );
+  vi.mocked(discoverFilterCounts).mockResolvedValue({
+    search_profile: "bge-base",
+    artifact_generation: "generation-a",
+    counts: {
+      status: "available",
+      value: {
+        field: "record.kind",
+        options: [
+          { value: "creature", distinct_roots: 4n, selected: false },
+          { value: "spell", distinct_roots: 0n, selected: false },
+        ],
+        total_values: 2n,
+        exhaustive: true,
+        count_basis: "exact counterfactual displayed roots",
+      },
+    },
+  });
+  renderPicker();
+  await screen.findByRole("link", { name: /Ghoul/ });
+  expect(discoverFilterCounts).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByRole("button", { name: "Edit Kind filter" }));
+  expect(await screen.findByLabelText("4 matching records")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Kind: Spell, neutral; activate to exclude" }),
+  ).toBeEnabled();
+  expect(discoverFilterCounts).toHaveBeenCalledWith(
+    expect.objectContaining({
+      context: expect.objectContaining({
+        search_profile: "bge-base",
+        expected_artifact_generation: "generation-a",
+      }),
+      values: ["creature", "spell"],
+    }),
+    expect.any(AbortSignal),
+  );
+  await submit("dragon");
+  await waitFor(() =>
+    expect(screen.queryByLabelText("4 matching records")).not.toBeInTheDocument(),
+  );
+  expect(discoverFilterCounts).toHaveBeenCalledTimes(1);
 });
 it("shows loading without pagination, then completed empty for a queryless picker", async () => {
   let finish!: (value: ReturnType<typeof result>) => void;

@@ -4,7 +4,8 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use super::model::{
-    AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
+    AddEncounterParticipant, AddEncounterParticipantCondition, ConditionDuration,
+    ConditionDurationUnit, ConditionTiming, ConditionTurnEvent, Encounter, EncounterParticipant,
     EncounterParticipantCondition, EncounterStatus, EncounterWithParticipants, NewEncounter,
     ParticipantKind, ParticipantSide, ParticipantVariant, ReorderEncounterParticipant,
     ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
@@ -55,7 +56,7 @@ pub(crate) fn insert_encounter(
 pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<Encounter>> {
     let mut statement = connection.prepare(
         "SELECT encounter_key, slug, name, description, note, status, round_number,
-                current_turn_participant_key, created_at, updated_at
+                current_turn_participant_key, created_at, updated_at, revision
          FROM encounters
          ORDER BY updated_at DESC, slug ASC",
     )?;
@@ -70,7 +71,7 @@ pub(crate) fn get(
     connection
         .query_row(
             "SELECT encounter_key, slug, name, description, note, status, round_number,
-                    current_turn_participant_key, created_at, updated_at
+                    current_turn_participant_key, created_at, updated_at, revision
              FROM encounters
              WHERE encounter_key = ?1 OR slug = ?1",
             params![encounter_ref],
@@ -102,7 +103,7 @@ pub(crate) fn update_encounter(
     let now = now_rfc3339()?;
     let result = connection.execute(
         "UPDATE encounters
-         SET slug = ?1, name = ?2, description = ?3, note = ?4, status = ?5, updated_at = ?6
+         SET slug = ?1, name = ?2, description = ?3, note = ?4, status = ?5, updated_at = ?6, revision = revision + 1
          WHERE encounter_key = ?7",
         params![
             encounter.slug,
@@ -360,16 +361,19 @@ pub(crate) fn add_condition(
     connection.execute(
         "INSERT INTO encounter_participant_conditions (
             participant_id, condition_key, name, value, source_participant_key,
-            duration_rounds, note, created_at, updated_at
+            duration_amount, duration_unit, duration_anchor_key, duration_event, note, created_at, updated_at
          )
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
         params![
             participant_id,
             condition.condition_key,
             condition.name,
             condition.value,
             condition.source_participant_key,
-            condition.duration_rounds,
+            condition.duration.as_ref().map(|d| d.amount),
+            condition.duration.as_ref().map(|d| d.unit.as_str()),
+            condition.duration.as_ref().and_then(|d| d.timing.as_ref()).map(|t| t.participant_key.as_str()),
+            condition.duration.as_ref().and_then(|d| d.timing.as_ref()).map(|t| t.event.as_str()),
             condition.note,
             now,
         ],
@@ -393,6 +397,18 @@ pub(crate) fn update_condition(
     else {
         return Ok(false);
     };
+    let (encounter_key, actual_revision): (String, i64) = connection.query_row(
+        "SELECT encounter_key,revision FROM encounters WHERE id=?1",
+        [encounter_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    if condition.expected_encounter_revision != actual_revision {
+        return Err(LocalStateError::StaleEncounterRevision {
+            encounter_key,
+            expected_revision: condition.expected_encounter_revision,
+            actual_revision,
+        });
+    }
     if let Some(source_participant_key) = &condition.source_participant_key
         && participant_encounter_id(connection, source_participant_key)? != Some(encounter_id)
     {
@@ -404,14 +420,17 @@ pub(crate) fn update_condition(
     let updated = connection.execute(
         "UPDATE encounter_participant_conditions
          SET condition_key = ?1, name = ?2, value = ?3, source_participant_key = ?4,
-             duration_rounds = ?5, note = ?6, updated_at = ?7
-         WHERE id = ?8 AND participant_id = ?9",
+             duration_amount = ?5, duration_unit = ?6, duration_anchor_key = ?7, duration_event = ?8, note = ?9, updated_at = ?10
+         WHERE id = ?11 AND participant_id = ?12",
         params![
             condition.condition_key,
             condition.name,
             condition.value,
             condition.source_participant_key,
-            condition.duration_rounds,
+            condition.duration.as_ref().map(|d| d.amount),
+            condition.duration.as_ref().map(|d| d.unit.as_str()),
+            condition.duration.as_ref().and_then(|d| d.timing.as_ref()).map(|t| t.participant_key.as_str()),
+            condition.duration.as_ref().and_then(|d| d.timing.as_ref()).map(|t| t.event.as_str()),
             condition.note,
             now,
             condition.condition_id,
@@ -477,7 +496,7 @@ pub(crate) fn set_turn_state(
         connection.execute(
             "UPDATE encounters
              SET current_turn_participant_key = ?1, round_number = ?2,
-                 status = COALESCE(?3, status), updated_at = ?4
+                 status = COALESCE(?3, status), updated_at = ?4, revision = revision + 1
              WHERE id = ?5",
             params![
                 participant_key,
@@ -491,7 +510,7 @@ pub(crate) fn set_turn_state(
         let status = if mark_running { Some("running") } else { None };
         connection.execute(
             "UPDATE encounters
-             SET current_turn_participant_key = ?1, status = COALESCE(?2, status), updated_at = ?3
+             SET current_turn_participant_key = ?1, status = COALESCE(?2, status), updated_at = ?3, revision = revision + 1
              WHERE id = ?4",
             params![participant_key, status, now, encounter_id],
         )?;
@@ -530,6 +549,7 @@ fn participants(
 fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
     let status: String = row.get(5)?;
     Ok(Encounter {
+        revision: row.get(10)?,
         encounter_key: row.get(0)?,
         slug: row.get(1)?,
         name: row.get(2)?,
@@ -604,7 +624,7 @@ fn participant_conditions(
 ) -> LocalStateResult<Vec<EncounterParticipantCondition>> {
     let mut statement = connection.prepare(
         "SELECT condition.id, condition.condition_key, condition.name, condition.value,
-                condition.source_participant_key, condition.duration_rounds, condition.note,
+                condition.source_participant_key, condition.duration_amount, condition.duration_unit, condition.duration_anchor_key, condition.duration_event, condition.note,
                 condition.created_at, condition.updated_at
          FROM encounter_participant_conditions condition
          JOIN encounter_participants participant ON participant.id = condition.participant_id
@@ -622,10 +642,33 @@ fn condition_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPart
         name: row.get(2)?,
         value: row.get(3)?,
         source_participant_key: row.get(4)?,
-        duration_rounds: row.get(5)?,
-        note: row.get(6)?,
-        created_at: row.get(7)?,
-        updated_at: row.get(8)?,
+        duration: match row.get::<_, Option<i64>>(5)? {
+            None => None,
+            Some(amount) => Some(ConditionDuration {
+                amount,
+                unit: match row.get::<_, String>(6)?.as_str() {
+                    "rounds" => ConditionDurationUnit::Rounds,
+                    "minutes" => ConditionDurationUnit::Minutes,
+                    "hours" => ConditionDurationUnit::Hours,
+                    "days" => ConditionDurationUnit::Days,
+                    _ => return Err(rusqlite::Error::InvalidQuery),
+                },
+                timing: match row.get::<_, Option<String>>(7)? {
+                    None => None,
+                    Some(participant_key) => Some(ConditionTiming {
+                        participant_key,
+                        event: match row.get::<_, String>(8)?.as_str() {
+                            "start" => ConditionTurnEvent::Start,
+                            "end" => ConditionTurnEvent::End,
+                            _ => return Err(rusqlite::Error::InvalidQuery),
+                        },
+                    }),
+                },
+            }),
+        },
+        note: row.get(9)?,
+        created_at: row.get(10)?,
+        updated_at: row.get(11)?,
     })
 }
 
@@ -636,7 +679,7 @@ pub(crate) fn condition(
     connection
         .query_row(
             "SELECT id, condition_key, name, value, source_participant_key,
-                duration_rounds, note, created_at, updated_at
+                duration_amount, duration_unit, duration_anchor_key, duration_event, note, created_at, updated_at
          FROM encounter_participant_conditions WHERE id = ?1",
             [condition_id],
             condition_from_row,
@@ -850,7 +893,7 @@ fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {
 
 fn touch_encounter(connection: &Connection, encounter_id: i64) -> LocalStateResult<()> {
     connection.execute(
-        "UPDATE encounters SET updated_at = ?1 WHERE id = ?2",
+        "UPDATE encounters SET updated_at = ?1, revision = revision + 1 WHERE id = ?2",
         params![now_rfc3339()?, encounter_id],
     )?;
     Ok(())
@@ -868,4 +911,17 @@ fn now_rfc3339() -> LocalStateResult<String> {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .map_err(Into::into)
+}
+
+/// Applied only inside the locked turn transaction, from its canonical snapshot.
+pub(crate) fn update_duration_amount(
+    connection: &Connection,
+    condition_id: i64,
+    amount: i64,
+) -> LocalStateResult<()> {
+    connection.execute(
+        "UPDATE encounter_participant_conditions SET duration_amount=?1,updated_at=?2 WHERE id=?3",
+        params![amount, now_rfc3339()?, condition_id],
+    )?;
+    Ok(())
 }

@@ -1,5 +1,4 @@
 import type {
-  FilterCountsView,
   FilterDiscoveryContext,
   FilterEditorView,
   FilterVocabularyScope,
@@ -11,7 +10,8 @@ export type FilterPanelState = {
   search: SearchFormState;
   setSearch: (next: SearchFormState) => void;
   filterEditor: FilterEditorView | undefined;
-  filterCountsByField?: Record<string, FilterCountsView | undefined>;
+  filterCountsEnabled?: boolean;
+  filterCountQueryKey?: readonly unknown[];
   filterDiscoveryContext?: FilterDiscoveryContext;
   vocabularyScope?: FilterVocabularyScope;
   filterDiscoveryLoading?: boolean;

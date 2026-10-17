@@ -76,6 +76,7 @@ export function activityFixture(
     title,
     family: "melee",
     kind: "strike",
+    has_reference_details: true,
     navigation: {
       record_key: recordKey,
       owners: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],
@@ -292,6 +293,10 @@ export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditor
                 ? "set"
                 : "text",
           placement: "initially_visible",
+          applicable: true,
+          unit_fields: [],
+          short_choices:
+            definition.choices.length > 0 || definition.field_type === "boolean",
         })),
       },
     ],

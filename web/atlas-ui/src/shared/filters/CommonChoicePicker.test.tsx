@@ -13,7 +13,10 @@ import { CommonChoicePicker } from "./CommonChoicePicker";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import type { FilterVocabularyScope, QueryPredicate } from "../../generated/atlas";
 
-const api = vi.hoisted(() => ({ discoverFilterValues: vi.fn() }));
+const api = vi.hoisted(() => ({
+  discoverFilterValues: vi.fn(),
+  discoverFilterCounts: vi.fn(),
+}));
 const popup = vi.hoisted(() => ({
   deferred: false,
   mount: null as (() => void) | null,
@@ -45,10 +48,12 @@ function picker({
   closed = true,
   initial = null,
   scope = { kind: "artifact" },
+  withCounts = false,
 }: {
   closed?: boolean;
   initial?: QueryPredicate | null;
   scope?: FilterVocabularyScope;
+  withCounts?: boolean;
 } = {}) {
   const definition = {
     ...fieldFixture("traits", "set", "Traits"),
@@ -63,6 +68,12 @@ function picker({
         field={field}
         clause={clause}
         scope={scope}
+        countLimit={128}
+        countContext={
+          withCounts
+            ? { kind: "filtered", filter: clause, text: null, mode: "hybrid" }
+            : undefined
+        }
         onChange={(next) => {
           setClause(next);
           onChange(next);
@@ -90,22 +101,100 @@ describe("compact common choice picker", () => {
     popup.mount = null;
     popup.complete = null;
     vi.clearAllMocks();
-    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
-    api.discoverFilterValues.mockImplementation(async (request) => ({
-      kind: "vocabulary",
-      scope: request.scope,
-      values: {
-        field: request.field_id,
-        selected_values: request.selected_values,
-        total_values: 90n,
-        options: request.offset
-          ? [{ value: "second-page" }]
-          : [{ value: "fire" }, { value: "cold" }],
-        basis: "product_key_scope_before_edition_preference",
+    api.discoverFilterCounts.mockResolvedValue({
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      counts: {
+        status: "available",
+        value: {
+          field: "traits",
+          options: [
+            { value: "fire", distinct_roots: 4n, selected: false },
+            { value: "cold", distinct_roots: 0n, selected: false },
+          ],
+          total_values: 2n,
+          exhaustive: true,
+          count_basis: "exact counterfactual displayed roots",
+        },
       },
-    }));
+    });
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+    api.discoverFilterValues.mockImplementation(async (request) =>
+      request.kind === "contextual"
+        ? {
+            kind: "contextual",
+            search_profile: "bge-base",
+            artifact_generation: "generation-a",
+            outcome: { status: "unavailable", reason: "non_conjunctive_context" },
+          }
+        : {
+            kind: "vocabulary",
+            scope: request.scope,
+            values: {
+              field: request.field_id,
+              selected_values: request.selected_values,
+              total_values: 90n,
+              options: request.offset
+                ? [{ value: "second-page" }]
+                : [{ value: "fire" }, { value: "cold" }],
+              basis: "product_key_scope_before_edition_preference",
+            },
+          },
+    );
   });
   afterEach(() => vi.restoreAllMocks());
+  it("loads counts only for the open picker and permits excluding zero choices", async () => {
+    picker({ withCounts: true });
+    expect(api.discoverFilterCounts).not.toHaveBeenCalled();
+    open();
+    expect(await screen.findByLabelText("4 matching records")).toBeInTheDocument();
+    expect(screen.getByLabelText("0 matching records")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Traits: Cold, neutral; activate to exclude",
+      }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", {
+        name: "Traits: Magical, neutral; activate to include",
+      }),
+    ).toBeEnabled();
+    expect(api.discoverFilterCounts).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Search traits choices" }), {
+      key: "Escape",
+    });
+    expect(screen.queryByLabelText("4 matching records")).not.toBeInTheDocument();
+  });
+  it("counts the displayed open vocabulary page and selected literals independently", async () => {
+    picker({
+      closed: false,
+      withCounts: true,
+      initial: {
+        kind: "set_match",
+        field: "traits",
+        clause_id: "traits",
+        op: "includes_any",
+        values: ["retained"],
+      },
+    });
+    open();
+    await waitFor(() =>
+      expect(api.discoverFilterCounts).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          clause_id: "traits",
+          values: ["retained", "fire", "cold"],
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More values" }));
+    await waitFor(() =>
+      expect(api.discoverFilterCounts).toHaveBeenLastCalledWith(
+        expect.objectContaining({ values: ["retained", "second-page"] }),
+        expect.any(AbortSignal),
+      ),
+    );
+  });
   it("preserves an early focused and edited row when native opening completes", async () => {
     popup.deferred = true;
     picker();
