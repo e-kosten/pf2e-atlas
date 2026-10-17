@@ -14,6 +14,33 @@ use atlas_record::source_record::{
 };
 use facts::*;
 
+/// One dispatch policy for selected item bodies and summary link usefulness.
+#[derive(Clone, Copy)]
+enum SelectedItemBody<'a> {
+    Spell(&'a atlas_foundry_model::generated::SpellSource),
+    Activity { casting_context: bool },
+    Physical,
+    Content,
+}
+fn selected_item_body(item: ItemSourceView<'_>) -> SelectedItemBody<'_> {
+    match item {
+        ItemSourceView::SpellSource(source) => SelectedItemBody::Spell(source),
+        _ if matches!(
+            item.family(),
+            "melee" | "action" | "effect" | "feat" | "lore" | "spellcastingEntry"
+        ) =>
+        {
+            SelectedItemBody::Activity {
+                casting_context: item.family() == "spellcastingEntry",
+            }
+        }
+        _ if !matches!(item.physical_price(), SourceFieldView::NotApplicable) => {
+            SelectedItemBody::Physical
+        }
+        _ => SelectedItemBody::Content,
+    }
+}
+
 pub(crate) fn record_presentation(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
@@ -68,34 +95,30 @@ pub(crate) fn record_presentation(
                 retrieval.source_fingerprint(),
             )))
         }
-        SourceNodeView::Item(ItemSourceView::SpellSource(source)) => {
-            RecordBodyView::Spell(Box::new(spell::authored_spell(source)))
-        }
-        SourceNodeView::Item(item)
-            if matches!(
-                item.family(),
-                "melee" | "action" | "effect" | "feat" | "lore" | "spellcastingEntry"
-            ) =>
-        {
-            RecordBodyView::Activity(Box::new(actor::authored_activity(
-                item,
-                RecordNavigationView {
-                    record_key: record.key().to_string(),
-                    owners: owners.to_vec(),
-                    field: None,
-                    passage: None,
-                    source_fingerprint: navigation_fingerprint(
-                        owners,
-                        retrieval.source_fingerprint(),
-                    ),
-                },
-            )))
-        }
-        SourceNodeView::Item(item)
-            if !matches!(item.physical_price(), SourceFieldView::NotApplicable) =>
-        {
-            RecordBodyView::PhysicalReference(Box::new(physical(item)))
-        }
+        SourceNodeView::Item(item) => match selected_item_body(item) {
+            SelectedItemBody::Spell(source) => {
+                RecordBodyView::Spell(Box::new(spell::authored_spell(source)))
+            }
+            SelectedItemBody::Activity { .. } => {
+                RecordBodyView::Activity(Box::new(actor::authored_activity(
+                    item,
+                    RecordNavigationView {
+                        record_key: record.key().to_string(),
+                        owners: owners.to_vec(),
+                        field: None,
+                        passage: None,
+                        source_fingerprint: navigation_fingerprint(
+                            owners,
+                            retrieval.source_fingerprint(),
+                        ),
+                    },
+                )))
+            }
+            SelectedItemBody::Physical => {
+                RecordBodyView::PhysicalReference(Box::new(physical(item)))
+            }
+            SelectedItemBody::Content => RecordBodyView::Content,
+        },
         SourceNodeView::Table(table) => {
             RecordBodyView::RollTable(Box::new(RollTablePresentationView {
                 formula: text((&table.formula).into()),
@@ -136,7 +159,7 @@ pub(crate) fn record_presentation(
         }
         RecordBodyView::Activity(activity) => {
             label_traits(activity);
-            if activity.kind == ActorActivityKindView::CastingEntry
+            if matches!(node, SourceNodeView::Item(item) if matches!(selected_item_body(item), SelectedItemBody::Activity { casting_context: true }))
                 && owners.len() == 1
                 && let Some(parent_node @ SourceNodeView::Actor(_)) = record.node_at(&[])
             {

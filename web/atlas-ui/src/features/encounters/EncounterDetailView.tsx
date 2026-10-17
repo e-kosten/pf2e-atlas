@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button } from "antd";
+import { Alert, Button, Grid } from "antd";
 import { Edit2 } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
-import type { EncounterSummaryView } from "../../generated/atlas";
 import { useEncounterMutations } from "./useEncounterMutations";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
+import { EncounterTurnReview } from "./EncounterTurnReview";
+import { useEncounterTurnReview } from "./useEncounterTurnReview";
 import { EncounterRosterPane } from "./EncounterRosterPane";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
@@ -28,6 +29,28 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
 }
 function EncounterDetail({ route }: EncounterDetailViewProps) {
   const confirmDangerAction = useConfirmDangerAction();
+  const screens = Grid.useBreakpoint();
+  const narrow = screens.md === false;
+  const [participantOpen, setParticipantOpen] = useState(false);
+  const host = useRef<HTMLDivElement>(null);
+  const rosterPosition = useRef({ page: 0, pane: 0 });
+  const focusDestination = useRef<"participant" | "roster" | null>(null);
+  const followAfterRefresh = useRef(false);
+  useLayoutEffect(() => {
+    const destination = focusDestination.current;
+    if (!destination) return;
+    focusDestination.current = null;
+    if (destination === "participant") {
+      host.current?.querySelector<HTMLElement>(".encounter-record-pane")?.focus();
+    } else {
+      const pane = host.current?.querySelector<HTMLElement>(".encounter-roster");
+      if (pane) pane.scrollTop = rosterPosition.current.pane;
+      window.scrollTo({ top: rosterPosition.current.page });
+      host.current
+        ?.querySelector<HTMLElement>("[data-participant-key][aria-pressed=true]")
+        ?.focus({ preventScroll: true });
+    }
+  }, [participantOpen, narrow]);
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
@@ -66,27 +89,79 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     presentation: selected?.presentation,
     reloadEncounter: () => encounter.refetch({ throwOnError: true }),
   });
-  const encounterSummary = encounter.data?.encounter ?? null;
-  const updateEncounterStatus = async (status: EncounterSummaryView["status"]) => {
-    if (!encounterSummary) {
-      return;
+  const revealParticipant = (key: string) => {
+    setSelectedParticipantKey(key);
+    recordPreview.close();
+    setParticipantOpen(true);
+    if (narrow) {
+      if (!participantOpen) {
+        rosterPosition.current = {
+          page: window.scrollY,
+          pane: host.current?.querySelector(".encounter-roster")?.scrollTop ?? 0,
+        };
+      }
+      focusDestination.current = "participant";
+      if (participantOpen)
+        host.current?.querySelector<HTMLElement>(".encounter-record-pane")?.focus();
     }
-    await mutations.run({
-      kind: "metadata",
-      request: {
-        encounter_key: encounterSummary.encounter_key,
-        slug: encounterSummary.slug,
-        name: encounterSummary.name,
-        description: encounterSummary.description,
-        note: encounter.data?.note,
-        status,
-      },
-    });
-    setEditEncounterOpen(false);
   };
+  const followTurn = (view: typeof encounter.data) => {
+    if (view?.current_turn_participant_key) {
+      revealParticipant(view.current_turn_participant_key);
+      const reader = host.current?.querySelector<HTMLElement>(".encounter-record-pane");
+      if (reader) reader.scrollTop = 0;
+      followAfterRefresh.current = false;
+      turnReview.close();
+    }
+  };
+  const advanceTurn = async (expectedRevision: bigint) => {
+    followAfterRefresh.current = true;
+    try {
+      const result = await mutations.run({ kind: "advance", expectedRevision });
+      if (result.active && result.refreshed) {
+        followTurn(result.view);
+        return true;
+      }
+    } catch {
+      followAfterRefresh.current = false;
+      await turnReview.refresh();
+    }
+    return false;
+  };
+  const turnReview = useEncounterTurnReview({
+    encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
+    mutations,
+    onAdvance: advanceTurn,
+  });
+  const encounterSummary = encounter.data?.encounter ?? null;
+
+  const recovery = mutations.refreshError ? (
+    <Alert
+      type="error"
+      title={mutations.refreshMessage}
+      description={mutations.refreshError.message}
+      action={
+        <Button
+          loading={mutations.pending}
+          disabled={mutations.pending}
+          onClick={() =>
+            void mutations.retryRefresh().then((view) => {
+              if (followAfterRefresh.current) followTurn(view);
+              else if (turnReview.open) void turnReview.refresh();
+            })
+          }
+        >
+          Retry encounter refresh
+        </Button>
+      }
+    />
+  ) : null;
 
   return (
-    <div className="encounter-detail-view">
+    <div
+      ref={host}
+      className={`encounter-detail-view${participantOpen ? " encounter-detail-view--participant" : ""}`}
+    >
       <div>
         <section className="encounter-detail-header">
           <div>
@@ -100,12 +175,12 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             </p>
           </div>
           <Button
-            aria-label="Edit encounter"
+            aria-label="Settings"
             disabled={disabled}
             icon={<Edit2 size={14} />}
             onClick={() => setEditEncounterOpen(true)}
           >
-            Edit
+            Settings
           </Button>
         </section>
         {encounter.error && !mutations.refreshError && (
@@ -123,17 +198,18 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             }
           />
         )}
-        {mutations.refreshError && (
+        {recovery}
+        {turnReview.error && !turnReview.open && (
           <Alert
             type="error"
-            title={mutations.refreshMessage}
-            description={mutations.refreshError.message}
+            title="Turn review could not load"
+            description={turnReview.error.message}
             action={
               <Button
-                loading={mutations.pending}
-                onClick={() => void mutations.retryRefresh()}
+                loading={turnReview.loading}
+                onClick={() => void turnReview.begin()}
               >
-                Retry encounter refresh
+                Retry turn review
               </Button>
             }
           />
@@ -146,18 +222,41 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           />
         )}
       </div>
+      {narrow && participantOpen && (
+        <div className="encounter-mobile-navigation">
+          <Button
+            onClick={() => {
+              focusDestination.current = "roster";
+              setParticipantOpen(false);
+              recordPreview.close();
+            }}
+          >
+            Back to roster
+          </Button>
+          <Button disabled={disabled} onClick={() => void turnReview.begin()}>
+            Next turn
+          </Button>
+        </div>
+      )}
       <WorkspaceLayout
         filter={
           <EncounterRosterPane
+            recovery={recovery}
             disabled={disabled}
             error={mutations.errorMessage}
             currentTurnParticipantKey={
               encounter.data?.current_turn_participant_key ?? null
             }
             loading={encounter.isLoading}
-            onAddRecord={(request) => mutations.run({ kind: "add-record", request })}
-            onAddManual={(request) => mutations.run({ kind: "add-manual", request })}
-            onAdvanceTurn={() => void mutations.run({ kind: "turn" }).catch(() => {})}
+            onAddRecord={async (request) => {
+              const result = await mutations.run({ kind: "add-record", request });
+              return result.active && result.refreshed;
+            }}
+            onAddManual={async (request) => {
+              const result = await mutations.run({ kind: "add-manual", request });
+              return result.active && result.refreshed;
+            }}
+            onAdvanceTurn={() => void turnReview.begin()}
             onRemove={(participant) =>
               confirmDangerAction({
                 title: `Remove ${participant.display_name}?`,
@@ -170,27 +269,29 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   }),
               })
             }
-            onSelect={(participantKey) => {
-              setSelectedParticipantKey(participantKey);
-              recordPreview.close();
+            onSelect={revealParticipant}
+            onReorder={async (participantKey, targetParticipantKey, placement) => {
+              const result = await mutations.run({
+                kind: "reorder",
+                request: {
+                  participant_key: participantKey,
+                  target_participant_key: targetParticipantKey,
+                  placement,
+                },
+              });
+              return result.active && result.refreshed;
             }}
-            onReorder={(participantKey, targetParticipantKey, placement) =>
-              void mutations
-                .run({
-                  kind: "reorder",
-                  request: {
-                    participant_key: participantKey,
-                    target_participant_key: targetParticipantKey,
-                    placement,
-                  },
-                })
-                .catch(() => {})
-            }
-            onSetTurn={(participant) =>
+            onSetTurn={(participant) => {
+              followAfterRefresh.current = true;
               void mutations
                 .run({ kind: "turn", participantKey: participant.participant_key })
-                .catch(() => {})
-            }
+                .then((result) => {
+                  if (result.active && result.refreshed) followTurn(result.view);
+                })
+                .catch(() => {
+                  followAfterRefresh.current = false;
+                });
+            }}
             onUpdate={(request) => mutations.run({ kind: "participant", request })}
             participants={encounter.data?.participants ?? []}
             selectedParticipantKey={selected?.participant_key ?? null}
@@ -199,6 +300,20 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
         }
         results={
           <EncounterInspectorPane
+            encounterRevision={encounter.data?.revision ?? 0n}
+            pending={mutations.pending}
+            recovery={recovery}
+            onHpAction={async (participant, action) => {
+              const result = await mutations.run({
+                kind: "hp",
+                request: {
+                  participant_key: participant.participant_key,
+                  expected_revision: participant.revision,
+                  action,
+                },
+              });
+              return result.active && result.refreshed;
+            }}
             disabled={disabled}
             conditionsDisabled={
               conditionDefinitions.isPending || !!conditionDefinitions.error
@@ -206,9 +321,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             conditionError={conditionDefinitions.error}
             onRetryConditions={() => void conditionDefinitions.refetch()}
             error={mutations.errorMessage}
-            onAddCondition={(request) =>
-              mutations.run({ kind: "add-condition", request })
-            }
+            onAddCondition={async (request) => {
+              const result = await mutations.run({ kind: "add-condition", request });
+              return result.active && result.refreshed;
+            }}
             onCloseRecordPreview={recordPreview.close}
             onOpenRecordFullPage={(recordKey) =>
               navigateToAtlasRoute({
@@ -218,17 +334,26 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               })
             }
             onReference={recordPreview.open}
-            onRemoveCondition={(participantKey, conditionId) =>
-              mutations.run({ kind: "remove-condition", participantKey, conditionId })
-            }
-            onUpdate={(request) => mutations.run({ kind: "participant", request })}
-            onUpdateCondition={(participantKey, condition) =>
-              mutations.run({
+            onRemoveCondition={async (participantKey, conditionId) => {
+              const result = await mutations.run({
+                kind: "remove-condition",
+                participantKey,
+                conditionId,
+              });
+              return result.active && result.refreshed;
+            }}
+            onUpdate={async (request) => {
+              const result = await mutations.run({ kind: "participant", request });
+              return result.active && result.refreshed;
+            }}
+            onUpdateCondition={async (participantKey, condition) => {
+              const result = await mutations.run({
                 kind: "update-condition",
                 participantKey,
                 request: condition,
-              })
-            }
+              });
+              return result.active && result.refreshed;
+            }}
             participant={selected}
             participants={encounter.data?.participants ?? []}
             conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
@@ -246,9 +371,48 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             previewRecordKey={recordPreview.recordKey}
           />
         }
+        collapsiblePanes={["filter"]}
         labels={{ filter: "Roster", results: "Participant" }}
         selectedRecordKey={selected?.record_key ?? selected?.participant_key ?? null}
         widthSpecs={ENCOUNTER_WIDTH_SPECS}
+      />
+      <EncounterTurnReview
+        open={turnReview.open}
+        data={turnReview.data}
+        participants={encounter.data?.participants ?? []}
+        pending={mutations.pending}
+        disabled={disabled}
+        loading={turnReview.loading}
+        error={turnReview.error}
+        actionError={mutations.errorMessage}
+        recovery={recovery}
+        receipt={turnReview.receipt}
+        onRetry={() => void turnReview.refresh()}
+        onCancel={turnReview.close}
+        onContinue={() => void turnReview.advance()}
+        onHpAction={(participant, action) =>
+          turnReview.execute(
+            {
+              kind: "hp",
+              request: {
+                participant_key: participant.participant_key,
+                expected_revision: participant.revision,
+                action,
+              },
+            },
+            `HP saved for ${participant.display_name}.`,
+          )
+        }
+        onRemove={(reminder) =>
+          turnReview.execute(
+            {
+              kind: "remove-condition",
+              participantKey: reminder.participant_key,
+              conditionId: reminder.condition_id,
+            },
+            `${reminder.condition_name} removed from ${reminder.participant_name}.`,
+          )
+        }
       />
       {encounterSummary && (
         <EditEncounterModal
@@ -258,20 +422,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           error={mutations.errorMessage}
           encounterNote={encounter.data?.note}
           open={editEncounterOpen}
-          onArchive={() => updateEncounterStatus("archived")}
           onCancel={() => setEditEncounterOpen(false)}
-          onComplete={() => updateEncounterStatus("complete")}
-          onDelete={() =>
-            confirmDangerAction({
-              title: `Delete ${encounterSummary.name}?`,
-              content: "This permanently deletes the encounter.",
-              okText: "Delete",
-              onConfirm: async () => {
-                const result = await mutations.run({ kind: "delete" });
-                if (result.active) navigateToAtlasRoute({ kind: "encounters" });
-              },
-            })
-          }
+          onDelete={async () => {
+            const result = await mutations.run({ kind: "delete" });
+            if (result.active) navigateToAtlasRoute({ kind: "encounters" });
+          }}
           onSave={async (request) => {
             await mutations.run({ kind: "metadata", request });
             setEditEncounterOpen(false);

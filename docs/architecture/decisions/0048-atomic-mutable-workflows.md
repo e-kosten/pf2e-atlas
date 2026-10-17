@@ -25,7 +25,28 @@ require the revision the caller read. App-service checks it before source-based
 derivation, and local-state checks it again under the write transaction. Stale
 requests receive a typed conflict without changing state. Reordering advances
 revisions of affected participants. Conditions use non-reused IDs, and condition
-edits verify their participant owner inside the write transaction.
+edits verify their participant owner inside the write transaction. Full condition
+replacements also require the encounter revision the editor read, checked before
+validation and again inside the write; a stale notes draft cannot restore an older
+remaining duration after Continue.
+
+HP operations carry raw input and explicit damage, healing or exact-correction
+intent rather than client-computed replacement HP. App-service evaluates the
+bounded integer addition/subtraction shortcut against the revision-checked current
+participant and reuses the same provenance/replacement policy. Local-state checks
+that revision again under the write transaction, so concurrent changes cannot
+commit calculations made from stale HP. A single initial plus/minus sign extends
+the bounded integer shortcut. Signed Heal intent handles Enter; negative Damage
+or Heal amounts reverse the operation before running the actual damage/healing
+policy, including temporary HP, floor/cap and defeated behavior. Exact corrections
+keep their zero floor and preserve manual values above the maximum;
+derived-maximum reset retains the existing provenance and deficit policy. The
+three-field HP editor submits one SetValues operation. Omitted current/maximum/
+temporary fields preserve their values and edit intent; supplied current/maximum
+wrappers carry raw formula input or explicit null for unknown. All supplied
+inputs are interpreted before one guarded participant replacement, including
+same-value explicit maximum intent. No sequential partial saves are used. No new
+storage schema or expression/rules engine is introduced.
 
 App-service owns turn eligibility and selection policy. Local-state supplies
 the locked encounter snapshot to a narrow pure callback and applies the chosen
@@ -68,3 +89,39 @@ Revision checks cover participant replacements. This does not introduce merge
 semantics for concurrent edits to list or encounter metadata, an idempotency key
 for a response lost after commit, or new gameplay automation. Those require
 separate contracts if concrete consumers need them.
+
+## Encounter boundary review and durations
+
+Encounter rows have a monotonic durable revision advanced by metadata, roster,
+participant, condition and turn mutations. A side-effect-free turn review reads
+one coherent local snapshot and returns that revision with the planned next actor
+and reminders. Continue checks the revision under the same immediate transaction
+that applies pure app-service timing policy and the next turn. Replaying a review,
+including after a complete initiative wrap, conflicts instead of ticking twice.
+A receipt contains the canonical encounter key; reference hydration never follows
+a committed timing write inside the command.
+
+A condition duration stores one amount and its unit. For rounds the amount is
+remaining, and an explicit participant/start-or-end anchor identifies the event
+that decrements it. Nonround units are table reminders. Source attribution does
+not imply a timing anchor. Legacy rounds retain their unit and remaining amount
+with unresolved timing after the atomic mutable-state migration; unrelated edits
+can preserve them without guessing an anchor. Missing or removed anchors never
+tick. Manual Set turn, reorder, removal, reads and retries are not timing events.
+A genuine advance processes the old actor's END and the new actor's START once;
+entry without an old actor has only START, and no eligible next actor has neither.
+
+Zero rounds derive pending expiry and retain the condition and its effects.
+Review forecasts an upcoming expiry before Continue; Remove now is an independent
+saved condition deletion, so Cancel does not undo it. Continue can instead retain
+the newly zero duration. Canonical Persistent Damage adds an owner-END table
+reminder, with damage/HP and exact condition clearing as explicit separate actions.
+The service does not roll dice, apply damage, resolve recovery, delete expired
+conditions, or decay severity automatically. Conditions without explicit rule
+identity or typed source timing require the user to choose their anchor.
+
+The [round-duration rule](https://2e.aonprd.com/Rules.aspx?ID=2378) distinguishes
+creator-START from detrimental-through-target-turn END timing; applicability
+cannot be inferred from a condition's display name. The canonical
+[Persistent Damage rule](https://2e.aonprd.com/Conditions.aspx?ID=86) supplies its
+owner-END reminder and table recovery sequence, independently of duration expiry.

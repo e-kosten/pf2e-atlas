@@ -21,6 +21,7 @@ import type {
   FilterValueListView,
   SearchResultsRequest,
   RecordDetailView,
+  RecordPresentationView,
   RecordDetailRequest,
   OwnedReadingRequest,
   OwnedReadingBatchView,
@@ -122,7 +123,7 @@ export async function getEncounterReference(
   request: import("../generated/atlas").EncounterReferenceRequest,
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
-  return atlasFetch(
+  const detail = await atlasFetch<RecordDetailView>(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reference`,
     {
       signal,
@@ -130,6 +131,7 @@ export async function getEncounterReference(
       body: jsonBody(request),
     },
   );
+  return { ...detail, presentation: normalizeConditionNotes(detail.presentation) };
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {
@@ -194,6 +196,16 @@ export async function addEncounterManualParticipant(
   );
 }
 
+export async function applyEncounterHpAction(
+  encounterRef: string,
+  request: import("../generated/atlas").ApplyEncounterHpActionRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/hp`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
 export async function updateEncounterParticipant(
   encounterRef: string,
   request: UpdateEncounterParticipantRequest,
@@ -228,6 +240,24 @@ export async function removeEncounterParticipant(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}`,
     { method: "DELETE" },
   );
+}
+
+export async function getEncounterTurnReview(
+  encounterRef: string,
+): Promise<import("../generated/atlas").EncounterTurnReviewView> {
+  return atlasFetchEncounter(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/turn-review`,
+  );
+}
+
+export async function advanceEncounterTurn(
+  encounterRef: string,
+  request: import("../generated/atlas").AdvanceEncounterTurnRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/advance`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
 }
 
 export async function setEncounterTurn(
@@ -389,6 +419,35 @@ function validateResponseNumbers(value: unknown): void {
   else if (isRecord(value)) Object.values(value).forEach(validateResponseNumbers);
 }
 
+function normalizeConditionNotes(
+  presentation: RecordPresentationView,
+): RecordPresentationView {
+  const body = presentation.body;
+  const actor =
+    body.kind === "creature"
+      ? body.value
+      : body.kind === "hazard"
+        ? body.value.actor
+        : null;
+  if (!actor?.runtime) return presentation;
+  const value = {
+    ...actor,
+    runtime: {
+      ...actor.runtime,
+      unapplied_effects: actor.runtime.unapplied_effects.map((note) =>
+        note.condition_id === undefined
+          ? note
+          : { ...note, condition_id: toBigInt(note.condition_id) },
+      ),
+    },
+  };
+  return body.kind === "creature"
+    ? { ...presentation, body: { ...body, value } }
+    : body.kind === "hazard"
+      ? { ...presentation, body: { ...body, value: { ...body.value, actor: value } } }
+      : presentation;
+}
+
 async function atlasFetchEncounter<T>(
   path: string,
   init: RequestInit = {},
@@ -406,12 +465,17 @@ async function atlasFetchEncounter<T>(
         .filter((field) => value[field] !== undefined)
         .map((field) => [field, toBigInt(value[field])]),
     );
+  const duration = (value: unknown) => {
+    if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition duration");
+    return { ...value, amount: toBigInt(value.amount) };
+  };
   const condition = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter condition");
     return {
       ...value,
       condition_id: toBigInt(value.condition_id),
-      ...optionalIntegers(value, ["value", "duration_rounds"]),
+      ...optionalIntegers(value, ["value"]),
+      ...(value.duration === undefined ? {} : { duration: duration(value.duration) }),
     };
   };
   const participant = (value: unknown) => {
@@ -431,13 +495,26 @@ async function atlasFetchEncounter<T>(
       temporary_hp: toBigInt(value.temporary_hp),
       ...optionalIntegers(value, ["initiative", "max_hp", "current_hp"]),
       conditions: value.conditions.map(condition),
+      ...(value.presentation === undefined
+        ? {}
+        : {
+            presentation: normalizeConditionNotes(
+              value.presentation as RecordPresentationView,
+            ),
+          }),
     };
   };
   if (Array.isArray(result.encounters))
     result.encounters = result.encounters.map(summary);
   if (result.encounter !== undefined) result.encounter = summary(result.encounter);
-  if (Array.isArray(result.participants))
+  if (Array.isArray(result.participants)) {
+    result.revision = toBigInt(result.revision);
     result.participants = result.participants.map(participant);
+  }
+  if (Array.isArray(result.reminders)) {
+    result.expected_revision = toBigInt(result.expected_revision);
+    result.reminders = result.reminders.map(condition);
+  }
   if (Array.isArray(result.conditions))
     result.conditions = result.conditions.map((value) => {
       if (!isRecord(value))

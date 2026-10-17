@@ -5,8 +5,10 @@ import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
+import { ActionCost } from "./ActionCost";
 
 export function RecordPreviewDrawer({
+  context = "reference",
   detail,
   loading,
   error,
@@ -23,6 +25,7 @@ export function RecordPreviewDrawer({
   landing,
   readingHistory,
   onOwnerReturn,
+  visibleOwnerRecordKey,
 }: {
   onAfterClose: () => void;
   open: boolean;
@@ -45,11 +48,18 @@ export function RecordPreviewDrawer({
       }}
       focusable={{ focusTriggerAfterClose: false }}
       className="record-preview-drawer"
-      closable={false}
+      closable={{ placement: "end" }}
       open={open}
       placement="right"
-      title={<span className="sr-only">Reference</span>}
-      size="min(560px, calc(100vw - 24px))"
+      title={
+        <>
+          {detail?.presentation.identity.title ?? "Loading record…"}{" "}
+          {detail?.presentation.body.kind === "activity" && (
+            <ActionCost fact={detail.presentation.body.value.action_cost} />
+          )}
+        </>
+      }
+      size="min(560px, 100vw)"
       classNames={{
         header: "record-preview-drawer__header",
         body: "record-preview-drawer__body",
@@ -57,6 +67,7 @@ export function RecordPreviewDrawer({
       extra={
         <div ref={actions}>
           <RecordPreviewActions
+            showClose={false}
             readingHistory={readingHistory}
             onClose={onClose}
             onOpenFullPage={onOpenFullPage}
@@ -68,7 +79,10 @@ export function RecordPreviewDrawer({
     >
       <section {...contentFocus} aria-label="Reference content">
         <RecordDetailPane
-          compact
+          hideTitle
+          visibleOwnerRecordKey={visibleOwnerRecordKey}
+          showRelated={context !== "encounter"}
+          showOwnerReturn={context !== "encounter"}
           detail={detail}
           loading={loading}
           error={error}

@@ -1,9 +1,9 @@
 # Rust Spell Rank Preview
 
-Status: proposed
+Status: planned
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-13
+Last reviewed: 2026-10-16
 
 ## Problem
 
@@ -12,9 +12,10 @@ changes. Users cannot yet preview how a selected rank changes supported spell
 facts. Adding a rank selector without a computed result would misrepresent the
 current reference contract.
 
-The user also flagged creature-roster wording such as “Base rank 4 / Cast rank 5”
-as confusing. Review that wording and its relationship to selected-rank preview
-before implementation. Agree the presentation with the user first.
+Creature spell lists are being simplified to show casting rank, with base-rank
+and heightening context in the opened spell. Correct-rank spell rendering is a
+required separate follow-up to the encounter workflow, rather than an optional
+rank-selector feature. Agree its detailed interaction before implementation.
 
 ## Desired Outcome
 
@@ -22,6 +23,21 @@ Design a bounded Rust-owned preview operation using the exact checked root/owner
 address, requested rank and optional form. Preserve parent-owned customizations.
 Return supported effective facts, change explanations, and explicit unavailable
 or unsupported outcomes.
+
+Opening an actor-owned spell must show its mechanics at the authored casting
+rank where that rank is known, rather than requiring the user to discover and
+apply a separate patch. Preserve the exact embedded copy and its customizations.
+First establish upstream persisted-versus-derived semantics: an embedded spell
+is not evidence that heightening has already been applied, and a modified formula
+is not evidence for guessing whether to apply it again.
+
+A concrete corpus example is Fabled Harrowkin's embedded Dimension Door: base
+rank 4, `location.heightenedLevel` 5, stored range 120 feet, with the rank 5
+heightening patch specifying 1 mile. Cover that case and interval damage in regression tests,
+alongside customized embedded spells, equal/missing ranks and cantrip rules.
+Keep supported area/range/damage changes coherent in the presented spell, and
+make field-specific limitations visible without labelling baseline facts as
+successfully calculated higher-rank mechanics.
 
 Agree fixed-layer ordering, interval steps, formula support, component identity,
 overflow behavior and field availability before implementation. Missing patches

@@ -29,6 +29,13 @@ For retained worktrees, record the path, purpose, owner, and removal condition. 
 
 ## Local Build Review
 
+User experience changes, including CLI behavior and output, get an early human
+checkpoint once the core flow is functional. Provide a runnable preview or sample
+CLI commands and output after minimal usability checks, then pause for feedback
+before broad test rewrites and final validation. Clearly identify unfinished
+behavior and validation gaps. Existing tests remain intact, and all applicable
+final gates and independent reviews still follow once the UX direction is agreed.
+
 Provide a stable local build when a change is useful to inspect. State its branch, commit, URL or run command, and any sample-data limitations. Disclose uncommitted differences if present. Preserve that build while developing further changes, using a separate checkout or built artifact when necessary, and explicitly identify when an updated build replaces it.
 
 Human UI previews use the existing full-corpus artifact and verified model cache,

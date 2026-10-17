@@ -22,6 +22,7 @@ type WorkspaceLayoutProps = {
   labels?: Partial<Record<PaneKey, string>>;
   widthSpecs?: Partial<PaneState>;
   selectedRecordKey: string | null;
+  collapsiblePanes?: readonly PaneKey[];
 };
 
 const COLLAPSED_WIDTH = 44;
@@ -41,6 +42,7 @@ export function WorkspaceLayout({
   labels = {},
   selectedRecordKey,
   widthSpecs = {},
+  collapsiblePanes = ["filter", "results", "detail"],
 }: WorkspaceLayoutProps) {
   const effectiveWidthSpecs = {
     filter: widthSpecs.filter ?? WIDTH_SPECS.filter,
@@ -63,13 +65,15 @@ export function WorkspaceLayout({
 
   const effectiveCollapsed = useMemo(
     () => ({
-      ...collapsed,
+      filter: collapsiblePanes.includes("filter") && collapsed.filter,
+      results: collapsiblePanes.includes("results") && collapsed.results,
       detail:
+        collapsiblePanes.includes("detail") &&
         collapsed.detail &&
         detailCollapsedForRecordKey !== null &&
         detailCollapsedForRecordKey === selectedRecordKey,
     }),
-    [collapsed, detailCollapsedForRecordKey, selectedRecordKey],
+    [collapsed, detailCollapsedForRecordKey, selectedRecordKey, collapsiblePanes],
   );
 
   function togglePane(pane: PaneKey) {
@@ -97,6 +101,7 @@ export function WorkspaceLayout({
             content: (
               <WorkspacePane
                 pane="filter"
+                collapsible={collapsiblePanes.includes("filter")}
                 collapsed={effectiveCollapsed.filter}
                 headerActions={filterHeaderActions}
                 label={paneLabels.filter}
@@ -123,6 +128,7 @@ export function WorkspaceLayout({
             content: (
               <WorkspacePane
                 pane="results"
+                collapsible={collapsiblePanes.includes("results")}
                 collapsed={effectiveCollapsed.results}
                 headerActions={resultsHeaderActions}
                 label={paneLabels.results}
@@ -150,6 +156,7 @@ export function WorkspaceLayout({
               content: (
                 <WorkspacePane
                   pane="detail"
+                  collapsible={collapsiblePanes.includes("detail")}
                   collapsed={effectiveCollapsed.detail}
                   headerActions={detailHeaderActions}
                   label={paneLabels.detail}
@@ -201,6 +208,7 @@ function WorkspacePane({
   pane,
   children,
   collapsed,
+  collapsible,
   headerActions,
   label,
   onToggle,
@@ -208,6 +216,7 @@ function WorkspacePane({
   pane: PaneKey;
   children: React.ReactNode;
   collapsed: boolean;
+  collapsible: boolean;
   headerActions?: React.ReactNode;
   label: string;
   onToggle: () => void;
@@ -218,13 +227,15 @@ function WorkspacePane({
       headerActions={
         <>
           {!collapsed && headerActions}
-          <PaneIconButton
-            icon={
-              collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />
-            }
-            label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
-            onClick={onToggle}
-          />
+          {collapsible && (
+            <PaneIconButton
+              icon={
+                collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />
+              }
+              label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
+              onClick={onToggle}
+            />
+          )}
         </>
       }
       label={label}

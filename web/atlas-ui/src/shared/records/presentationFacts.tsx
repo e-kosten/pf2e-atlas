@@ -52,7 +52,7 @@ export function NumberFact({
       title="Effective value"
       content={
         <div className="record-number-explanation">
-          <p>Authored: {format(adjustment.authored)}</p>
+          <p>Original: {format(adjustment.authored)}</p>
           <p>Effective: {text}</p>
           {adjustment.applied.map((modifier, index) => (
             <p key={index}>

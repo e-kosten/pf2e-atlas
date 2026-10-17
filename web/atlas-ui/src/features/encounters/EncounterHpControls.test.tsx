@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { ConfigProvider } from "antd";
 import { EncounterHpControls } from "./EncounterHpControls";
 import type { EncounterParticipantView } from "../../generated/atlas";
 
@@ -24,18 +25,27 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
     note_hint: "",
     conditions: [],
   };
-  const onUpdate = vi.fn().mockResolvedValue(undefined);
+  const onAction = vi.fn().mockResolvedValue(true);
   const { rerender } = render(
-    <EncounterHpControls current={current} onUpdate={onUpdate} />,
+    <EncounterHpControls current={current} onAction={onAction} />,
+    {
+      wrapper: ({ children }) => (
+        <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+      ),
+    },
   );
-  fireEvent.change(screen.getByRole("textbox", { name: "HP" }), {
+  fireEvent.click(screen.getByRole("button", { name: "Edit HP" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Current HP" }), {
     target: { value: "13" },
   });
-  fireEvent.click(screen.getAllByRole("button", { name: "Set" })[0]);
-  expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ current_hp: 13n }));
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
-    expect(screen.getByRole("textbox", { name: "HP" })).toHaveValue("20"),
+    expect(onAction).toHaveBeenCalledWith({
+      kind: "set_values",
+      current: { input: "13" },
+    }),
   );
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   rerender(
     <EncounterHpControls
       current={{
@@ -45,8 +55,10 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
         participant_variant: "elite",
         variant_origin: "explicit",
       }}
-      onUpdate={onUpdate}
+      onAction={onAction}
     />,
   );
-  expect(screen.getByRole("textbox", { name: "HP" })).toHaveValue("23");
+  expect(screen.getByLabelText("HP summary")).toHaveTextContent("23/30");
+  fireEvent.click(screen.getByRole("button", { name: "Edit HP" }));
+  expect(screen.getByRole("textbox", { name: "Current HP" })).toHaveValue("23");
 });

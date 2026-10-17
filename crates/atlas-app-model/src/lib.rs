@@ -15,18 +15,21 @@ mod search;
 pub use encounter::{
     ActionBudgetView, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
-    CreateEncounterRequest, DeleteEncounterView, EncounterConditionApplicabilityView,
+    AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest, ConditionDurationUnit,
+    ConditionDurationView, ConditionTimingView, ConditionTurnEvent, CreateEncounterRequest,
+    DeleteEncounterView, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterIndexView, EncounterMutationView,
-    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
-    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterReferenceRequest, EncounterStatusView, EncounterSummaryView,
-    ReorderEncounterParticipantPlacementView, ReorderEncounterParticipantRequest,
-    RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView,
-    RuntimeEffectNoteView, SetEncounterTurnRequest, StatModifierTypeView, StatModifierView,
-    UnappliedEffectView, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest,
+    EncounterDetailView, EncounterHpAction, EncounterHpValueInput, EncounterIndexView,
+    EncounterMutationView, EncounterParticipantConditionView, EncounterParticipantKindView,
+    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
+    EncounterParticipantView, EncounterReferenceRequest, EncounterStatusView, EncounterSummaryView,
+    EncounterTurnReminderView, EncounterTurnReviewView, ReorderEncounterParticipantPlacementView,
+    ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
+    RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
+    StatModifierTypeView, StatModifierView, UnappliedEffectView,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
@@ -123,6 +126,9 @@ mod tests {
 
     fn export_bindings_to(path: &Path) {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
+        EncounterTurnReviewView::export_all_to(path).expect("turn review bindings");
+        AdvanceEncounterTurnRequest::export_all_to(path).expect("turn advance bindings");
+        ApplyEncounterHpActionRequest::export_all_to(path).expect("HP action bindings");
         OwnedReadingRequest::export_all_to(path).expect("owned reading request bindings");
         OwnedReadingBatchView::export_all_to(path).expect("owned reading response bindings");
         RelatedRecordsView::export_all_to(path).expect("related bindings");

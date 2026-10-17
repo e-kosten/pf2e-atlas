@@ -86,11 +86,13 @@ function Flow({
   identity = "participant-a",
   generation = "generation-a",
   reloadEncounter,
+  context = "encounter",
 }: {
   activity?: ActorActivityView;
   identity?: string;
   generation?: string | null;
   reloadEncounter?: () => Promise<unknown>;
+  context?: "encounter" | "reference";
 }) {
   const jaws = activity ?? activityFixture();
   const preview = useRecordPreview({
@@ -120,6 +122,7 @@ function Flow({
       </button>
       {preview.recordKey && (
         <RecordPreviewPopover
+          context={context}
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
           landing={preview.landing}
@@ -143,7 +146,11 @@ function Flow({
     </>
   );
 }
-function mount(activity = activityFixture(), reloadEncounter?: () => Promise<unknown>) {
+function mount(
+  activity = activityFixture(),
+  reloadEncounter?: () => Promise<unknown>,
+  context: "encounter" | "reference" = "encounter",
+) {
   currentActivity = activity;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -159,6 +166,7 @@ function mount(activity = activityFixture(), reloadEncounter?: () => Promise<unk
           <ConfigProvider theme={{ token: { motion: false } }}>
             <App>
               <Flow
+                context={context}
                 activity={value}
                 identity={identity}
                 generation={generation}
@@ -234,6 +242,7 @@ it("renders a complete casting entry, its local spell roster, and one title thro
   expect(screen.getByRole("link", { name: /Local Fireball/ })).toBeVisible();
   expect(screen.queryByRole("heading", { name: "Description" })).toBeNull();
   expect(screen.queryByText("Reference")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Related records" })).toBeNull();
   expect(api.getRecordDetail).not.toHaveBeenCalled();
 });
 
@@ -315,7 +324,7 @@ it.each(["Related", "Similar"])(
         }),
     );
     const activityA = activityFixture();
-    const { update } = mount(activityA, reloadEncounter);
+    const { update } = mount(activityA, reloadEncounter, "reference");
     fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
     await waitFor(() =>
       expect(screen.getByText(/Exact local Jaws prose/)).toBeVisible(),
@@ -341,7 +350,9 @@ it.each(["Related", "Similar"])(
     const relatedRequestCount = api.getRelatedRecords.mock.calls.length;
     fireEvent.click(reloadButton);
     expect(reloadEncounter).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/Exact local Jaws prose/)).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByText(/Exact local Jaws prose/)).not.toBeVisible(),
+    );
 
     const activityB = {
       ...activityA,
@@ -464,6 +475,7 @@ it.each(["desktop", "narrow"])(
   async (viewport) => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
       xl: viewport === "desktop",
+      md: viewport === "desktop",
       xs: viewport === "narrow",
     });
     mount();
@@ -481,7 +493,9 @@ it.each(["desktop", "narrow"])(
     fireEvent.keyDown(ok, { key: "Escape", keyCode: 27 });
     await waitFor(() => expect(modal).not.toBeInTheDocument());
     expect(marker).toHaveFocus();
-    const close = screen.getByRole("button", { name: "Close reference preview" });
+    const close = screen.getByRole("button", {
+      name: viewport === "narrow" ? "Close" : "Close reference preview",
+    });
     act(() => close.focus());
     fireEvent.keyDown(close, { key: "Escape", keyCode: 27 });
     await waitFor(() =>
