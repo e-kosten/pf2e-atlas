@@ -31,8 +31,13 @@ export async function noPageOverflow(page: Page) {
   ).toBe(true);
 }
 
-export async function readThenBack(page: Page, host: Locator, info: TestInfo) {
-  const link = host.getByRole("link", { name: "Off-Guard", exact: true }).last();
+export async function readThenBack(
+  page: Page,
+  host: Locator,
+  info: TestInfo,
+  targetName = "Off-Guard",
+) {
+  const link = host.getByRole("link", { name: targetName, exact: true }).last();
   await expect(link).toBeVisible();
   // Put the departing link in the actual scroll host, then capture the position
   // at activation time. Subsequent reflow is checked by anchor, not pixel identity.
@@ -43,11 +48,15 @@ export async function readThenBack(page: Page, host: Locator, info: TestInfo) {
   const href = await link.getAttribute("href");
   // Keyboard activation avoids a pointer's pre-click scroll changing the bookmark.
   await link.press("Enter");
-  await expect(
-    host.getByRole("heading", { name: "Off-Guard", exact: true }),
-  ).toBeVisible();
+  const drawer = page.locator(".record-preview-drawer");
+  const title = async (name: string | RegExp) => {
+    if (await drawer.isVisible())
+      await expect(page.getByRole("dialog", { name })).toBeVisible();
+    else await expect(host.getByRole("heading", { name })).toBeVisible();
+  };
+  await title(targetName);
   await activate(page.getByRole("button", { name: "Back", exact: true }), info);
-  await expect(host.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
+  await title(/^Signal Pulse\b/);
   await expect
     .poll(() => host.evaluate((node) => node.scrollTop))
     .toBeCloseTo(position, 0);

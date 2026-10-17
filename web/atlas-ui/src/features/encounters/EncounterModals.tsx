@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Input, Modal, Select } from "antd";
+import { Alert, Button, Form, Input, Modal, Popconfirm, Select } from "antd";
 import { useEffect, useId, useRef } from "react";
 import { createEncounter } from "../../api/atlasApi";
 import type {
@@ -78,10 +78,8 @@ export function CreateEncounterModal({
 export function EditEncounterModal({
   encounter,
   encounterNote,
-  onArchive,
   open,
   onCancel,
-  onComplete,
   onDelete,
   onSave,
   disabled = false,
@@ -90,11 +88,9 @@ export function EditEncounterModal({
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
-  onArchive?: () => Promise<unknown>;
   open: boolean;
   onCancel: () => void;
-  onComplete?: () => Promise<unknown>;
-  onDelete?: () => void;
+  onDelete?: () => Promise<unknown>;
   onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
   disabled?: boolean;
   pending?: boolean;
@@ -102,7 +98,7 @@ export function EditEncounterModal({
 }) {
   return (
     <Modal
-      title="Encounter settings"
+      title="Settings"
       open={open}
       destroyOnHidden
       onCancel={onCancel}
@@ -117,9 +113,7 @@ export function EditEncounterModal({
         pending={pending}
         error={error}
         encounterNote={encounterNote}
-        onArchive={onArchive}
         onCancel={onCancel}
-        onComplete={onComplete}
         onDelete={onDelete}
         onSave={onSave}
       />
@@ -130,9 +124,7 @@ export function EditEncounterModal({
 export function EditEncounterForm({
   encounter,
   encounterNote,
-  onArchive,
   onCancel,
-  onComplete,
   onDelete,
   onSave,
   disabled = false,
@@ -141,10 +133,8 @@ export function EditEncounterForm({
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
-  onArchive?: () => Promise<unknown>;
   onCancel?: () => void;
-  onComplete?: () => Promise<unknown>;
-  onDelete?: () => void;
+  onDelete?: () => Promise<unknown>;
   onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
   disabled?: boolean;
   pending?: boolean;
@@ -229,20 +219,22 @@ export function EditEncounterForm({
             Cancel
           </Button>
         ) : null}
-        {onComplete ? (
-          <Button disabled={disabled} onClick={() => void onComplete().catch(() => {})}>
-            Complete
-          </Button>
-        ) : null}
-        {onArchive ? (
-          <Button disabled={disabled} onClick={() => void onArchive().catch(() => {})}>
-            Archive
-          </Button>
-        ) : null}
         {onDelete ? (
-          <Button disabled={disabled} danger onClick={onDelete}>
-            Delete
-          </Button>
+          <Popconfirm
+            title={`Delete ${encounter.name}?`}
+            description="This permanently deletes the encounter."
+            placement="topLeft"
+            okText="Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true, loading: pending }}
+            cancelButtonProps={{ disabled: pending }}
+            disabled={disabled}
+            onConfirm={onDelete}
+          >
+            <Button disabled={disabled} danger>
+              Delete
+            </Button>
+          </Popconfirm>
         ) : null}
         <Button
           disabled={disabled}

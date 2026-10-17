@@ -22,7 +22,7 @@ const current: EncounterParticipantView = {
   note_hint: null,
   conditions: [],
 };
-it("sends one raw correction per explicit action and Cancel does not write", async () => {
+it("sends one atomic raw correction for all edited fields and Cancel does not write", async () => {
   const onAction = vi.fn().mockResolvedValue(true);
   const onCommitted = vi.fn();
   const onCancel = vi.fn();
@@ -38,14 +38,52 @@ it("sends one raw correction per explicit action and Cancel does not write", asy
       />
     </ConfigProvider>,
   );
-  fireEvent.change(screen.getByLabelText("HP"), { target: { value: " 20 - 3 " } });
-  fireEvent.click(screen.getByRole("button", { name: "Set current HP" }));
+  fireEvent.change(screen.getByLabelText("Current HP"), {
+    target: { value: " 20 - 3 " },
+  });
+  fireEvent.change(screen.getByLabelText("Maximum HP"), {
+    target: { value: "30 + 2" },
+  });
+  fireEvent.change(screen.getByLabelText("Temporary HP"), { target: { value: "0" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(onAction).toHaveBeenCalledOnce());
-  expect(onAction).toHaveBeenCalledWith({ kind: "set_current", input: " 20 - 3 " });
+  expect(onAction).toHaveBeenCalledWith({
+    kind: "set_values",
+    current: { input: " 20 - 3 " },
+    maximum: { input: "30 + 2" },
+    temporary: "0",
+  });
   expect(onCommitted).toHaveBeenCalledWith(true);
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(onCancel).toHaveBeenCalledOnce();
   expect(onAction).toHaveBeenCalledOnce();
+});
+
+it("closes an untouched form without writing and preserves explicit same-value intent", async () => {
+  const onAction = vi.fn().mockResolvedValue(true);
+  const onCancel = vi.fn();
+  render(
+    <EncounterHpEditor
+      current={current}
+      disabled={false}
+      pending={false}
+      onAction={onAction}
+      onCommitted={vi.fn()}
+      onCancel={onCancel}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
+  expect(onAction).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText("Maximum HP"), { target: { value: "26" } });
+  fireEvent.change(screen.getByLabelText("Maximum HP"), { target: { value: "25" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({
+      kind: "set_values",
+      maximum: { input: "25" },
+    }),
+  );
 });
 it("keeps the raw correction after failure and empty current is explicit unknown", async () => {
   const onAction = vi.fn().mockRejectedValue(new Error("Invalid formula"));
@@ -60,14 +98,19 @@ it("keeps the raw correction after failure and empty current is explicit unknown
       onCancel={vi.fn()}
     />,
   );
-  fireEvent.change(screen.getByLabelText("HP"), { target: { value: "2 + bad" } });
-  fireEvent.click(screen.getByRole("button", { name: "Set current HP" }));
+  fireEvent.change(screen.getByLabelText("Current HP"), {
+    target: { value: "2 + bad" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(onAction).toHaveBeenCalledOnce());
-  expect(screen.getByLabelText("HP")).toHaveValue("2 + bad");
+  expect(screen.getByLabelText("Current HP")).toHaveValue("2 + bad");
   expect(onCommitted).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByLabelText("HP"), { target: { value: "" } });
-  fireEvent.click(screen.getByRole("button", { name: "Set current HP" }));
+  fireEvent.change(screen.getByLabelText("Current HP"), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
-    expect(onAction).toHaveBeenLastCalledWith({ kind: "set_current", input: null }),
+    expect(onAction).toHaveBeenLastCalledWith({
+      kind: "set_values",
+      current: { input: null },
+    }),
   );
 });

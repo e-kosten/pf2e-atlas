@@ -15,6 +15,7 @@ export function EncounterHpControls({
   error,
   recovery,
   onAction,
+  statusControl,
 }: {
   current: EncounterParticipantView;
   disabled?: boolean;
@@ -22,6 +23,7 @@ export function EncounterHpControls({
   error?: string;
   recovery?: ReactNode;
   onAction: (action: EncounterHpAction) => Promise<boolean>;
+  statusControl?: ReactNode;
 }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [committed, setCommitted] = useState(false);
@@ -52,18 +54,23 @@ export function EncounterHpControls({
   return (
     <div className="encounter-hp-panel">
       <div className="encounter-hp-panel__header">
-        <h3>HP</h3>
-        <span aria-label="HP summary">{hpSummary}</span>
-        <Button
-          size="small"
-          disabled={disabled}
-          onClick={() => {
-            setCommitted(false);
-            setEditorOpen(true);
-          }}
-        >
-          Edit HP
-        </Button>
+        <div className="encounter-hp-panel__identity">
+          <h3>HP</h3>
+          <span aria-label="HP summary">{hpSummary}</span>
+        </div>
+        <div className="encounter-hp-panel__actions">
+          {statusControl}
+          <Button
+            size="small"
+            disabled={disabled}
+            onClick={() => {
+              setCommitted(false);
+              setEditorOpen(true);
+            }}
+          >
+            Edit HP
+          </Button>
+        </div>
       </div>
       {hpKnown && maxKnown && (
         <div className="encounter-hp-meter" aria-label={`HP remaining: ${hpSummary}`}>
@@ -93,7 +100,13 @@ export function EncounterHpControls({
       <EncounterHpAmount
         key={current.participant_key}
         disabled={disabled || !hpKnown}
-        onAction={onAction}
+        pending={pending && hpKnown}
+        onAction={async (action) => {
+          // A resolved write is committed even when its follow-up read failed.
+          // Clear the amount so read recovery cannot repeat saved damage/healing.
+          await onAction(action);
+          return true;
+        }}
       />
       <Modal
         title="Edit HP"

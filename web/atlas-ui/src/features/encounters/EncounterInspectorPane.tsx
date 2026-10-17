@@ -1,9 +1,7 @@
-import { Alert, Button, Select, Modal } from "antd";
-import { useState } from "react";
+import { Alert, Button } from "antd";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
-  EncounterParticipantVariantView,
   EncounterHpAction,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
@@ -12,18 +10,12 @@ import type {
 } from "../../generated/atlas";
 import { participantUpdate } from "./participantEdits";
 import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
-import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
-import { useRecordDetail } from "../../shared/records/useRecordDetail";
-import {
-  RecordIdentity,
-  RecordPresentation,
-} from "../../shared/records/RecordPresentation";
+import { RecordPresentation } from "../../shared/records/RecordPresentation";
 import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
 import { EncounterParticipantSettings } from "./EncounterParticipantSettings";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
-import { atlasRoutePath, navigateToAtlasRoute } from "../../app/routes";
+import { atlasRoutePath } from "../../app/routes";
 
 export function EncounterInspectorPane({
   disabled,
@@ -133,6 +125,7 @@ export function EncounterInspectorPane({
       }
       {previewRecordKey && (
         <RecordPreviewPopover
+          context="encounter"
           visibleOwnerRecordKey={participant.record_key}
           anchor={previewAnchor}
           readingHistory={previewReadingHistory}
@@ -207,21 +200,39 @@ function EncounterParticipantSurface({
   const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
     onUpdate(participantUpdate(participant, changes));
   const presentation = participant.presentation;
+  const body = presentation?.body;
+  const hasHp = !(
+    body?.kind === "hazard" &&
+    body.value.defense_block.state === "value" &&
+    body.value.defense_block.value === false
+  );
+  const statusControl = (
+    <Button
+      size="small"
+      disabled={disabled}
+      onClick={() =>
+        void updateParticipant({ defeated: !participant.defeated }).catch(() => {})
+      }
+    >
+      {participant.defeated ? "Mark active" : "Mark defeated"}
+    </Button>
+  );
   return (
     <section className="encounter-reference">
       <div className="encounter-reference__header">
-        {presentation ? (
-          <RecordIdentity
-            identity={{ ...presentation.identity, title: participant.display_name }}
-            classification={presentation.classification}
-          />
-        ) : (
+        <div className="encounter-reference__identity">
           <h2>{participant.display_name}</h2>
-        )}
-        <div className="encounter-reference__header-actions">
-          {participant.record_key && (
-            <ParticipantSourceContent recordKey={participant.record_key} />
-          )}
+          <p className="record-reference__kind">
+            {presentation?.classification ?? participant.participant_kind}
+            {participant.participant_variant !== "normal" && (
+              <span className="encounter-reference__variant">
+                {participant.participant_variant === "elite" ? "Elite" : "Weak"}
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="encounter-reference__actions">
+          {!hasHp && statusControl}
           <EncounterParticipantSettings
             participant={participant}
             disabled={disabled}
@@ -231,37 +242,24 @@ function EncounterParticipantSurface({
             onUpdate={onUpdate}
           />
         </div>
-        <div className="encounter-reference__adjustment">
-          <ParticipantVariantControl
-            disabled={disabled}
-            participant={participant}
-            onUpdate={updateParticipant}
-          />
-          <Button
-            size="small"
-            disabled={disabled}
-            onClick={() =>
-              void updateParticipant({ defeated: !participant.defeated }).catch(
-                () => {},
-              )
-            }
-          >
-            {participant.defeated ? "Mark active" : "Mark defeated"}
-          </Button>
-        </div>
       </div>
       {participant.status === "unresolved" && (
-        <p>Authored record unavailable. Saved participant settings remain editable.</p>
+        <p>Original record unavailable. Saved participant settings remain editable.</p>
       )}
-      <div className="encounter-reference__controls">
-        <EncounterHpControls
-          pending={pending}
-          recovery={recovery}
-          error={error}
-          disabled={disabled}
-          current={participant}
-          onAction={(action) => onHpAction(participant, action)}
-        />
+      <div
+        className={`encounter-reference__controls${hasHp ? "" : " encounter-reference__controls--without-hp"}`}
+      >
+        {hasHp && (
+          <EncounterHpControls
+            pending={pending}
+            recovery={recovery}
+            error={error}
+            disabled={disabled}
+            current={participant}
+            onAction={(action) => onHpAction(participant, action)}
+            statusControl={statusControl}
+          />
+        )}
         {conditionError && (
           <Alert
             type="error"
@@ -295,93 +293,5 @@ function EncounterParticipantSurface({
         />
       )}
     </section>
-  );
-}
-
-function ParticipantVariantControl({
-  disabled,
-  onUpdate,
-  participant,
-}: {
-  onUpdate: (changes: Partial<UpdateEncounterParticipantRequest>) => Promise<boolean>;
-  participant: EncounterParticipantView;
-  disabled: boolean;
-}) {
-  if (participant.participant_kind !== "creature") {
-    return null;
-  }
-  return (
-    <div className="encounter-variant-control">
-      <span>Adjustment</span>
-      <Select
-        disabled={disabled}
-        aria-label="Adjustment"
-        className="encounter-variant-select"
-        onChange={(value: EncounterParticipantVariantView) =>
-          void onUpdate({ participant_variant: value }).catch(() => {})
-        }
-        options={[
-          { label: "Normal", value: "normal" },
-          { label: "Elite", value: "elite" },
-          { label: "Weak", value: "weak" },
-        ]}
-        size="small"
-        value={participant.participant_variant}
-      />
-    </div>
-  );
-}
-
-function ParticipantSourceContent({ recordKey }: { recordKey: string }) {
-  const [open, setOpen] = useState(false);
-  const detail = useRecordDetail(open ? recordKey : null);
-  const preview = useRecordPreview();
-  const close = () => {
-    preview.close();
-    setOpen(false);
-  };
-  return (
-    <>
-      <Button size="small" onClick={() => setOpen(true)}>
-        Source
-      </Button>
-      <Modal open={open} onCancel={close} footer={null} title="Source record">
-        <p className="muted">Authored reference; encounter changes are not applied.</p>
-        <RecordDetailPane
-          detail={detail.data}
-          loading={detail.isLoading || detail.isFetching}
-          error={detail.error}
-          onRetry={() => {
-            void detail.refetch();
-          }}
-          onBack={close}
-          backLabel="Close source content"
-          onReference={preview.open}
-        />
-        {preview.recordKey && (
-          <RecordPreviewPopover
-            visibleOwnerRecordKey={recordKey}
-            anchor={preview.anchor}
-            detail={preview.detail}
-            loading={preview.loading}
-            error={preview.error}
-            onRetry={preview.retry}
-            onClose={preview.close}
-            onReference={preview.open}
-            readingHistory={preview.readingHistory}
-            landing={preview.landing}
-            onOpenFullPage={() => {
-              if (preview.recordKey)
-                navigateToAtlasRoute({
-                  kind: "record",
-                  recordKey: preview.recordKey,
-                  selection: preview.selection,
-                  landing: preview.landing,
-                });
-            }}
-          />
-        )}
-      </Modal>
-    </>
   );
 }

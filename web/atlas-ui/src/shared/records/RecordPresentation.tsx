@@ -106,8 +106,12 @@ export function RecordIdentity({
   visibleOwnerRecordKey,
   originalRecord,
   onReference,
+  hideTitle = false,
+  showOwnerReturn = true,
 }: {
   identity: RecordSummaryView;
+  hideTitle?: boolean;
+  showOwnerReturn?: boolean;
   classification: string;
   actionCost?: FactView<ActionCostView>;
   root?: RecordSummaryView;
@@ -123,7 +127,10 @@ export function RecordIdentity({
 }) {
   return (
     <header className="record-reference__header">
-      {root && root.record_key !== visibleOwnerRecordKey && selection?.owners.length ? (
+      {showOwnerReturn &&
+      root &&
+      root.record_key !== visibleOwnerRecordKey &&
+      selection?.owners.length ? (
         <Button
           type="link"
           size="small"
@@ -167,9 +174,11 @@ export function RecordIdentity({
         </Button>
       )}
       <div className="record-reference__title">
-        <h2>
-          {identity.title} {actionCost && <ActionCost fact={actionCost} />}
-        </h2>
+        {!hideTitle && (
+          <h2>
+            {identity.title} {actionCost && <ActionCost fact={actionCost} />}
+          </h2>
+        )}
         <p className="record-reference__kind">{classification}</p>
       </div>
       <div className="badge-row">
@@ -196,6 +205,8 @@ export function RecordPresentation({
   compact = false,
   encounter = false,
   hideIdentity = false,
+  hideTitle = false,
+  showOwnerReturn = true,
   reading,
   onOwnerReturn,
   visibleOwnerRecordKey,
@@ -208,6 +219,8 @@ export function RecordPresentation({
   compact?: boolean;
   encounter?: boolean;
   hideIdentity?: boolean;
+  hideTitle?: boolean;
+  showOwnerReturn?: boolean;
   reading?: OwnedReadingContext;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
@@ -246,6 +259,8 @@ export function RecordPresentation({
     >
       {!hideIdentity && (
         <RecordIdentity
+          hideTitle={hideTitle}
+          showOwnerReturn={showOwnerReturn}
           identity={presentation.identity}
           classification={presentation.classification}
           actionCost={body.kind === "activity" ? body.value.action_cost : undefined}
@@ -278,6 +293,9 @@ export function RecordPresentation({
             onReference={onReference}
           />
         </div>
+      )}
+      {body.kind === "creature" && encounter && (
+        <ActorSecondaryFacts actor={body.value} />
       )}
       {body.kind === "creature" && (
         <ActorFacts
@@ -373,6 +391,9 @@ export function RecordPresentation({
           <FactLine label="Result type" fact={body.value.result_type} required />
         </div>
       )}
+      {body.kind === "hazard" && encounter && (
+        <ActorSecondaryFacts actor={body.value.actor} hazard />
+      )}
       {actor && (
         <ActorActivities
           actor={actor}
@@ -380,9 +401,6 @@ export function RecordPresentation({
           encounter={encounter}
           reading={reading}
         />
-      )}
-      {actor && encounter && (
-        <ActorSecondaryFacts actor={actor} hazard={body.kind === "hazard"} />
       )}
       {!encounter && body.kind === "hazard" && (
         <ContentFields

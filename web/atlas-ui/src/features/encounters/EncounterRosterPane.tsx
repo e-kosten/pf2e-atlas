@@ -1,6 +1,22 @@
-import { Alert, Button, Dropdown, Form, Input, InputNumber, Modal, Tag } from "antd";
-import { MoreHorizontal, Play } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { Alert, Button, Form, Input, InputNumber, Modal } from "antd";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Play, Trash2 } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
   AddEncounterManualParticipantRequest,
   AddEncounterRecordParticipantRequest,
@@ -14,14 +30,14 @@ import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 import { optionalBigIntInput, participantUpdate } from "./participantEdits";
 
 type AddRecordForm = {
-  quantity?: number;
-  initiative?: number;
+  quantity?: number | null;
+  initiative?: number | null;
 };
 
 type AddPcForm = {
   name: string;
-  maxHp?: number;
-  initiative?: number;
+  maxHp?: number | null;
+  initiative?: number | null;
 };
 
 export function EncounterRosterPane({
@@ -55,7 +71,7 @@ export function EncounterRosterPane({
     participantKey: string,
     targetParticipantKey: string,
     placement: "before" | "after",
-  ) => void;
+  ) => Promise<boolean>;
   onSelect: (participantKey: string) => void;
   onSetTurn: (participant: EncounterParticipantView) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
@@ -64,6 +80,28 @@ export function EncounterRosterPane({
   slug: string;
 }) {
   const formId = useId();
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  // Hold only visual order during the guarded write/read. Values and gameplay
+  // ordering still come from the canonical refreshed encounter.
+  const [droppedOrder, setDroppedOrder] = useState<{
+    base: EncounterParticipantView[];
+    keys: string[];
+  } | null>(null);
+  const displayedParticipants =
+    droppedOrder?.base === participants
+      ? [...participants].sort(
+          (a, b) =>
+            droppedOrder.keys.indexOf(a.participant_key) -
+            droppedOrder.keys.indexOf(b.participant_key),
+        )
+      : participants;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const draggedParticipant = participants.find(
+    (p) => p.participant_key === draggingKey,
+  );
   const [added, setAdded] = useState("");
   const [candidateName, setCandidateName] = useState("");
   const [committedAdd, setCommittedAdd] = useState<string | null>(null);
@@ -94,9 +132,7 @@ export function EncounterRosterPane({
         encounter_ref: slug,
         record_ref: selectedRecordKey ?? "",
         quantity: values.quantity ?? 1,
-        ...(values.initiative === undefined
-          ? {}
-          : { initiative: BigInt(values.initiative) }),
+        ...(values.initiative == null ? {} : { initiative: BigInt(values.initiative) }),
       });
       if (saved) {
         setAdded(`Added ${values.quantity ?? 1} × ${candidateName}.`);
@@ -115,10 +151,8 @@ export function EncounterRosterPane({
       const saved = await onAddManual({
         encounter_ref: slug,
         display_name: values.name,
-        ...(values.maxHp === undefined ? {} : { max_hp: BigInt(values.maxHp) }),
-        ...(values.initiative === undefined
-          ? {}
-          : { initiative: BigInt(values.initiative) }),
+        ...(values.maxHp == null ? {} : { max_hp: BigInt(values.maxHp) }),
+        ...(values.initiative == null ? {} : { initiative: BigInt(values.initiative) }),
       });
       if (saved) {
         setPcOpen(false);
@@ -131,27 +165,11 @@ export function EncounterRosterPane({
       /* The owner displays the failure; retain this draft. */
     }
   };
-  const setInitiativeParticipants = participants.filter(
-    (participant) => participant.initiative !== undefined,
-  );
-  const unsetInitiativeParticipants = participants.filter(
-    (participant) => participant.initiative === undefined,
-  );
   const renderParticipant = (participant: EncounterParticipantView) => {
-    const index = participants.findIndex(
-      (p) => p.participant_key === participant.participant_key,
-    );
-    const move = (offset: number) => {
-      const target = participants[index + offset];
-      if (target)
-        onReorder(
-          participant.participant_key,
-          target.participant_key,
-          offset < 0 ? "before" : "after",
-        );
-    };
     return (
-      <div
+      <SortableRosterRow
+        id={participant.participant_key}
+        disabled={disabled}
         className={rosterRowClass(
           participant,
           participant.participant_key === currentTurnParticipantKey,
@@ -159,76 +177,81 @@ export function EncounterRosterPane({
         )}
         key={participant.participant_key}
       >
-        <EditableCommitField
-          disabled={disabled}
-          ariaLabel={`${participant.display_name} initiative`}
-          className="encounter-roster__initiative-input"
-          inputMode="numeric"
-          size="small"
-          onCommit={(value) => commitRosterInitiative(participant, value, onUpdate)}
-          value={inputNumberValue(participant.initiative)}
-        />
-        <Button
-          type="text"
-          className="encounter-roster__select"
-          data-participant-key={participant.participant_key}
-          aria-pressed={participant.participant_key === selectedParticipantKey}
-          onClick={() => onSelect(participant.participant_key)}
-        >
-          <span className="encounter-roster__name">{participant.display_name}</span>
-          {participant.participant_key === currentTurnParticipantKey && (
-            <Tag color="processing">Current turn</Tag>
-          )}
-          {participant.defeated && (
-            <span className="encounter-roster__state">Defeated</span>
-          )}
-        </Button>
-        <span
-          className="encounter-roster__hp"
-          aria-label={`${participant.display_name} HP`}
-        >
-          {inputNumberValue(participant.current_hp) || "—"}/
-          {inputNumberValue(participant.max_hp) || "—"}
-          {participant.temporary_hp > 0n && (
-            <small>+{participant.temporary_hp.toString()} temp</small>
-          )}
-        </span>
-        <Dropdown
-          trigger={["click"]}
-          disabled={disabled}
-          menu={{
-            items: [
-              { key: "turn", label: "Set turn", onClick: () => onSetTurn(participant) },
-              {
-                key: "up",
-                label: `Move before ${participants[index - 1]?.display_name ?? "previous participant"}${participants[index - 1]?.initiative === undefined ? " (unset initiative)" : ` (initiative ${participants[index - 1].initiative})`}`,
-                disabled: index === 0,
-                onClick: () => move(-1),
-              },
-              {
-                key: "down",
-                label: `Move after ${participants[index + 1]?.display_name ?? "next participant"}${participants[index + 1]?.initiative === undefined ? " (unset initiative)" : ` (initiative ${participants[index + 1].initiative})`}`,
-                disabled: index === participants.length - 1,
-                onClick: () => move(1),
-              },
-              { type: "divider" },
-              {
-                key: "remove",
-                label: "Remove",
-                danger: true,
-                onClick: () => onRemove(participant),
-              },
-            ],
-          }}
-        >
-          <Button
-            size="small"
-            type="text"
-            aria-label={`Actions for ${participant.display_name}`}
-            icon={<MoreHorizontal size={16} aria-hidden="true" />}
-          />
-        </Dropdown>
-      </div>
+        {({ attributes, listeners, setActivatorNodeRef }) => (
+          <>
+            <Button
+              {...attributes}
+              {...listeners}
+              ref={setActivatorNodeRef}
+              type="text"
+              size="small"
+              disabled={disabled}
+              className="encounter-roster__drag-handle"
+              aria-label={`Reorder ${participant.display_name}`}
+              title="Drag to reorder. With a keyboard, press Space then use the arrow keys."
+              icon={<GripVertical size={16} aria-hidden="true" />}
+            />
+            <EditableCommitField
+              disabled={disabled}
+              ariaLabel={`${participant.display_name} initiative`}
+              className="encounter-roster__initiative-input"
+              inputMode="numeric"
+              placeholder="—"
+              size="small"
+              onCommit={(value) => commitRosterInitiative(participant, value, onUpdate)}
+              value={inputNumberValue(participant.initiative)}
+            />
+            <Button
+              type="text"
+              className="encounter-roster__select"
+              data-participant-key={participant.participant_key}
+              aria-pressed={participant.participant_key === selectedParticipantKey}
+              aria-current={
+                participant.participant_key === currentTurnParticipantKey
+                  ? "true"
+                  : undefined
+              }
+              onClick={() => onSelect(participant.participant_key)}
+            >
+              <span className="encounter-roster__name">{participant.display_name}</span>
+              {participant.defeated && (
+                <span className="encounter-roster__state">Defeated</span>
+              )}
+            </Button>
+            <span
+              className="encounter-roster__hp"
+              aria-label={`${participant.display_name} HP`}
+            >
+              {inputNumberValue(participant.current_hp) || "—"}/
+              {inputNumberValue(participant.max_hp) || "—"}
+              {participant.temporary_hp > 0n && (
+                <small>+{participant.temporary_hp.toString()} temp</small>
+              )}
+            </span>
+            <div className="encounter-roster__row-actions">
+              <Button
+                type="text"
+                size="small"
+                disabled={disabled}
+                aria-label={`Set turn to ${participant.display_name}`}
+                title={`Set turn to ${participant.display_name}`}
+                icon={<Play size={14} aria-hidden="true" />}
+                onClick={() => onSetTurn(participant)}
+              />
+              <Button
+                type="text"
+                size="small"
+                danger
+                disabled={disabled}
+                aria-label={`Remove ${participant.display_name}`}
+                title={`Remove ${participant.display_name}`}
+                icon={<Trash2 size={14} aria-hidden="true" />}
+                onClick={() => onRemove(participant)}
+              />
+            </div>
+          </>
+        )}
+      </SortableRosterRow>
     );
   };
 
@@ -269,26 +292,77 @@ export function EncounterRosterPane({
       ) : participants.length === 0 ? (
         <div className="detail-empty">Add a creature, hazard, or PC.</div>
       ) : (
-        <div className="encounter-roster__list">
-          <div className="encounter-roster__columns" aria-hidden="true">
-            <span>Init</span>
-            <span>Participant</span>
-            <span>HP</span>
-            <span />
-          </div>
-          {setInitiativeParticipants.length > 0 && (
-            <div className="encounter-roster__group">
-              <span className="encounter-roster__group-label">Initiative set</span>
-              {setInitiativeParticipants.map(renderParticipant)}
+        <DndContext
+          sensors={sensors}
+          onDragStart={({ active }) => setDraggingKey(String(active.id))}
+          onDragCancel={() => setDraggingKey(null)}
+          onDragEnd={async ({ active, over }) => {
+            setDraggingKey(null);
+            if (disabled || !over || active.id === over.id) return;
+            const from = participants.findIndex((p) => p.participant_key === active.id);
+            const to = participants.findIndex((p) => p.participant_key === over.id);
+            if (from < 0 || to < 0) return;
+            setDroppedOrder({
+              base: participants,
+              keys: arrayMove(
+                participants.map((p) => p.participant_key),
+                from,
+                to,
+              ),
+            });
+            try {
+              const refreshed = await onReorder(
+                String(active.id),
+                String(over.id),
+                from < to ? "after" : "before",
+              );
+              // Canonical query notifications may render after this promise.
+              // Keep the visual order until the participants snapshot changes.
+              if (!refreshed) setDroppedOrder(null);
+            } catch {
+              /* The mutation owner displays failures; restore canonical order. */
+              setDroppedOrder(null);
+            }
+          }}
+        >
+          <SortableContext
+            items={displayedParticipants.map((p) => p.participant_key)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="encounter-roster__list">
+              <div className="encounter-roster__columns" aria-hidden="true">
+                <span />
+                <span>Init</span>
+                <span>Participant</span>
+                <span>HP</span>
+                <span />
+              </div>
+              {displayedParticipants.map(renderParticipant)}
             </div>
-          )}
-          {unsetInitiativeParticipants.length > 0 && (
-            <div className="encounter-roster__group">
-              <span className="encounter-roster__group-label">Unset initiative</span>
-              {unsetInitiativeParticipants.map(renderParticipant)}
-            </div>
-          )}
-        </div>
+          </SortableContext>
+          <DragOverlay dropAnimation={null}>
+            {draggedParticipant && (
+              <div
+                className="encounter-roster__row encounter-roster__drag-preview"
+                aria-hidden
+              >
+                <GripVertical size={16} />
+                <span>{inputNumberValue(draggedParticipant.initiative) || "—"}</span>
+                <span className="encounter-roster__name">
+                  {draggedParticipant.display_name}
+                </span>
+                <span className="encounter-roster__hp">
+                  {inputNumberValue(draggedParticipant.current_hp) || "—"}/
+                  {inputNumberValue(draggedParticipant.max_hp) || "—"}
+                </span>
+                <span className="encounter-roster__row-actions">
+                  <Play size={14} />
+                  <Trash2 size={14} />
+                </span>
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
       )}
       <SearchPickerModal<AddRecordForm>
         buildRequest={encounterRecordPickerRequest}
@@ -321,10 +395,23 @@ export function EncounterRosterPane({
             description={error}
           />
         )}
-        <Form.Item name="quantity" label="Quantity" initialValue={1}>
+        <Form.Item
+          name="quantity"
+          label="Quantity"
+          initialValue={1}
+          rules={[
+            {
+              required: true,
+              type: "integer",
+              min: 1,
+              max: 50,
+              message: "Enter a whole number from 1 to 50.",
+            },
+          ]}
+        >
           <InputNumber aria-label="Quantity" min={1} max={50} />
         </Form.Item>
-        <Form.Item name="initiative" label="Initiative">
+        <Form.Item name="initiative" label="Initiative" rules={[initiativeRule]}>
           <InputNumber aria-label="Initiative" />
         </Form.Item>
       </SearchPickerModal>
@@ -357,15 +444,73 @@ export function EncounterRosterPane({
           <Form.Item name="name" label="Name" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="maxHp" label="Max HP">
+          <Form.Item
+            name="maxHp"
+            label="Max HP"
+            rules={[
+              {
+                type: "integer",
+                min: 0,
+                max: Number.MAX_SAFE_INTEGER,
+                message: "Enter a nonnegative whole number within the supported range.",
+              },
+            ]}
+          >
             <InputNumber aria-label="Max HP" min={0} />
           </Form.Item>
-          <Form.Item name="initiative" label="Initiative">
+          <Form.Item name="initiative" label="Initiative" rules={[initiativeRule]}>
             <InputNumber aria-label="Initiative" />
           </Form.Item>
         </Form>
       </Modal>
     </section>
+  );
+}
+
+const initiativeRule = {
+  type: "integer" as const,
+  min: Number.MIN_SAFE_INTEGER,
+  max: Number.MAX_SAFE_INTEGER,
+  message: "Enter a whole number within the supported range.",
+};
+
+function SortableRosterRow({
+  id,
+  disabled,
+  className,
+  children,
+}: {
+  id: string;
+  disabled: boolean;
+  className: string;
+  children: (
+    handle: Pick<
+      ReturnType<typeof useSortable>,
+      "attributes" | "listeners" | "setActivatorNodeRef"
+    >,
+  ) => ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled });
+  return (
+    <div
+      ref={setNodeRef}
+      className={className}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.25 : undefined,
+      }}
+    >
+      {children({ attributes, listeners, setActivatorNodeRef })}
+    </div>
   );
 }
 

@@ -1,27 +1,11 @@
-import { Alert, Button, Form, Input, Select, Space } from "antd";
+import { Alert, Button, Form, Input, Space } from "antd";
 import { useEffect, useId, type ReactNode } from "react";
 import type {
   EncounterHpAction,
   EncounterParticipantView,
 } from "../../generated/atlas";
 
-type HpTarget = "current" | "temporary" | "maximum";
-type HpValues = { target: HpTarget; input: string };
-const labels: Record<HpTarget, string> = {
-  current: "Set current HP",
-  temporary: "Set temporary HP",
-  maximum: "Override maximum",
-};
-function initialInput(current: EncounterParticipantView, target: HpTarget) {
-  return (
-    (target === "current"
-      ? current.current_hp
-      : target === "temporary"
-        ? current.temporary_hp
-        : current.max_hp
-    )?.toString() ?? ""
-  );
-}
+type HpValues = { current: string; maximum: string; temporary: string };
 
 export function EncounterHpEditor({
   current,
@@ -44,19 +28,23 @@ export function EncounterHpEditor({
 }) {
   const name = useId();
   const [form] = Form.useForm<HpValues>();
-  const target: HpTarget = Form.useWatch("target", form) ?? "current";
   useEffect(() => {
-    if (!form.isFieldTouched("input"))
-      form.setFields([
-        { name: "input", value: initialInput(current, target), touched: false },
-      ]);
-  }, [current, target, form]);
+    const values: HpValues = {
+      current: current.current_hp?.toString() ?? "",
+      maximum: current.max_hp?.toString() ?? "",
+      temporary: current.temporary_hp.toString(),
+    };
+    for (const field of Object.keys(values) as Array<keyof HpValues>) {
+      if (!form.isFieldTouched(field))
+        form.setFields([{ name: field, value: values[field], touched: false }]);
+    }
+  }, [current, form]);
   const apply = async (action: EncounterHpAction) => {
     if (disabled) return;
     try {
       onCommitted(await onAction(action));
     } catch {
-      /* Preserve raw formula and show the mutation owner's error. */
+      /* The owner displays errors and keeps the entered values available. */
     }
   };
   return (
@@ -70,80 +58,62 @@ export function EncounterHpEditor({
         form={form}
         disabled={disabled}
         layout="vertical"
-        initialValues={{ target: "current", input: initialInput(current, "current") }}
         onFinish={(values) => {
-          const input = values.input ?? "";
-          void apply(
-            values.target === "temporary"
-              ? { kind: "set_temporary", input }
-              : {
-                  kind: values.target === "current" ? "set_current" : "set_maximum",
-                  input: input.trim() ? input : null,
-                },
-          );
+          if (disabled) return;
+          if (!form.isFieldsTouched()) {
+            onCancel();
+            return;
+          }
+          const optional = (input: string | undefined) =>
+            input?.trim() ? input : null;
+          void apply({
+            kind: "set_values",
+            ...(form.isFieldTouched("current")
+              ? { current: { input: optional(values.current) } }
+              : {}),
+            ...(form.isFieldTouched("maximum")
+              ? { maximum: { input: optional(values.maximum) } }
+              : {}),
+            ...(form.isFieldTouched("temporary")
+              ? { temporary: values.temporary }
+              : {}),
+          });
         }}
       >
-        <Form.Item name="target" label="Edit">
-          <Select
-            aria-label="HP field"
-            options={[
-              { value: "current", label: "Current HP" },
-              { value: "temporary", label: "Temporary HP" },
-              { value: "maximum", label: "Maximum HP" },
-            ]}
-            onChange={(value: HpTarget) =>
-              form.setFields([
-                {
-                  name: "input",
-                  value: initialInput(current, value),
-                  touched: false,
-                  errors: [],
-                },
-              ])
-            }
-          />
+        <Form.Item name="current" label="Current HP">
+          <Input aria-label="Current HP" placeholder="Unknown" />
         </Form.Item>
         <Form.Item
-          name="input"
-          label={
-            target === "current"
-              ? "Current HP"
-              : target === "temporary"
-                ? "Temporary HP"
-                : "Maximum HP"
+          name="maximum"
+          label="Maximum HP"
+          extra={
+            current.record_key && current.hp_origin === "explicit" ? (
+              <Button
+                type="link"
+                size="small"
+                disabled={disabled}
+                onClick={() => void apply({ kind: "use_derived_maximum" })}
+              >
+                Use creature default
+              </Button>
+            ) : undefined
           }
-          rules={
-            target === "temporary"
-              ? [
-                  {
-                    required: true,
-                    whitespace: true,
-                    message: "Enter temporary HP, or 0 to clear it.",
-                  },
-                ]
-              : []
-          }
-          extra={target === "temporary" ? undefined : "Leave blank if unknown."}
         >
-          <Input
-            aria-label={
-              target === "current"
-                ? "HP"
-                : target === "temporary"
-                  ? "Temp HP"
-                  : "Maximum HP"
-            }
-          />
+          <Input aria-label="Maximum HP" placeholder="Unknown" />
         </Form.Item>
-        {target === "maximum" && (
-          <p className="muted">
-            {current.max_hp === undefined
-              ? "Maximum unavailable"
-              : current.hp_origin === "explicit"
-                ? "Manual maximum"
-                : "Creature default"}
-          </p>
-        )}
+        <Form.Item
+          name="temporary"
+          label="Temporary HP"
+          rules={[
+            {
+              required: true,
+              whitespace: true,
+              message: "Enter temporary HP, or 0 to clear it.",
+            },
+          ]}
+        >
+          <Input aria-label="Temporary HP" />
+        </Form.Item>
         <Space wrap>
           <Button
             type="primary"
@@ -151,18 +121,8 @@ export function EncounterHpEditor({
             loading={pending}
             disabled={disabled}
           >
-            {labels[target]}
+            Save
           </Button>
-          {target === "maximum" &&
-            current.record_key &&
-            current.hp_origin === "explicit" && (
-              <Button
-                disabled={disabled}
-                onClick={() => void apply({ kind: "use_derived_maximum" })}
-              >
-                Use creature default
-              </Button>
-            )}
           <Button disabled={pending} onClick={onCancel}>
             Cancel
           </Button>

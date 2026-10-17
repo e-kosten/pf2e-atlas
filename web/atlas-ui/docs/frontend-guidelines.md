@@ -355,6 +355,31 @@ The adapter does not
 parse CEL, infer fields from records, or decide contextual capability in React.
 Reject unsafe integer input before creating numeric literals.
 
+### Choosing an interaction surface
+
+Choose the surface by the user's task, then adapt it to available space. Reuse
+the shared owner for that interaction rather than choosing independently in each
+feature.
+
+| Surface                 | Default use                                                                       | Examples                                       |
+| ----------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Tooltip                 | Short, noninteractive explanation                                                 | Icon labels                                    |
+| Popover                 | Quick anchored lookup or small interaction that keeps surrounding content visible | Encounter spell references; match explanations |
+| Drawer                  | Substantial secondary task, or reference reading on narrow screens                | Advanced filters; phone reference previews     |
+| Modal                   | Bounded decision or edit requiring focused attention                              | HP settings; condition editing                 |
+| Existing reader or page | Sustained reading and browsing                                                    | Search result reader; full record              |
+
+Essential content must be available through click/tap and keyboard activation,
+not only hover. Escape dismisses the innermost surface, and closing restores
+focus to its opener. Preserve the underlying selection, scroll position and
+unfinished edits. Use native Ant positioning and lifecycle; keep one shared
+record renderer across hosts with navigation appropriate to the context.
+
+Reference previews follow the policy below, including local Back, responsive
+hosts and delayed loading feedback. Do not change hosts after loading based on
+record length. Extended reading remains available through normal page navigation;
+a pinned reader would be a separate product feature.
+
 ### In-place reference reading
 
 Use the current reader for references in search, saved-list browsing, record
@@ -365,7 +390,7 @@ position. Return to selection restores the feature-selected record. Keep this
 history bounded and local to the reading session, separate from browser history.
 
 Where no reader is present, use the shared reference preview: native Ant Popover
-at `xl` and above, shared Ant Drawer below `xl` (1200px), including tablets.
+at `md` and above, native Ant Drawer below `md` (768px).
 Both hosts use `RecordDetailPane` and the same family renderer. Long records
 scroll inside their host; do not switch hosts after loading based on record
 length or family. Inline owned abilities follow their existing reading policy;
@@ -402,12 +427,25 @@ during native animation or skip that callback.
 
 When reference navigation removes focused content, move focus to a surviving
 reading target without stealing connected, intentional or nested-dialog focus.
+Initial desktop reference reads delay the trigger's loading indicator by 500 ms
+using Ant's built-in delay. Open the content-sized native popover as soon as the
+record or error arrives; never delay ready content to display an indicator. Do not
+open a short loading panel that jumps as content loads. Pending reads remain dismissible
+with Escape or an outside click; visible popovers and phone drawers retain native
+dismissal and positioning. Moving focus into a preview must not scroll its owner.
+When viewport resizing reflows an open anchored preview, preserve its visible
+opener using native scrolling; keep tablet and desktop encounter pane scrolling
+consistent. Phone drawers retain their underlying reading position.
 Use the actual reader/preview scroll container, contain overlay scrolling and
 retain reading/results positions. Narrow Results returns focus to its initiating
 row. Reuse the shared reader/preview owners and native link activation guard;
 do not create feature-local overlay or navigation policies.
 
 ### Record presentation
+
+Use “Original” in product labels for source values before encounter adjustments.
+Keep technical terms such as “authored” in implementation and architecture
+discussion rather than user-facing copy.
 
 Use the semantic family union rather than a generic section/value/profile layout
 interpreter. Availability belongs to the backend facts; known zero, false and
@@ -556,8 +594,10 @@ Atlas-owned classes describe product layout rather than internal Ant DOM.
 Source content in an encounter loads only on explicit request. HP mutations
 carry an explicit action, raw integer/addition/subtraction input and the read
 participant revision. Rust interprets formulas, damage/healing and correction
-intent. Damage and Heal use separate buttons with nonnegative evaluated amounts;
-Enter in Amount does not mutate. Unknown current HP disables amount operations
+intent. Damage and Heal accept signed raw amounts; Rust reverses the operation
+for a negative result. Enter in participant HP change submits Heal intent once
+(positive heals, negative damages). Enter remains inert in the Damage-only turn
+review. Unknown current HP disables amount operations
 and remains unknown until explicitly set. Display-only HP meter ratios stay local.
 
 The roster presents initiative, participant and HP in compact labelled columns,
@@ -566,7 +606,9 @@ actions disclose the target initiative. Phone layouts drill into a selected
 participant and restore roster focus/scroll on Back. Advancing the turn follows
 the canonical server-selected participant in the reader; ordinary selection does
 not change the turn. Use distinct Encounter settings, Participant settings and HP
-settings, with Adjustment aligned below identity. Mounted Ant forms need distinct
+settings. The participant pencil opens name, initiative, side, adjustment and
+notes, with subdued Original record access inside that editor. Defeated belongs
+beside HP; only applied Elite/Weak appears by classification. Mounted Ant forms need distinct
 names so their visible labels focus the correct inputs.
 
 Whole-list deletion and saved-member removal use the shared contextual danger
@@ -598,25 +640,28 @@ gameplay derivation in Rust; the browser submits explicit edit intent and revisi
 Encounter composition permits collapsing the roster only; its participant reader
 stays available and fills the remaining pane. Shared `WorkspaceLayout` accepts
 explicit collapsible pane identities without changing other browsing defaults.
-An anchored preview host may identify an already visible owner record. The shared
-wide popover suppresses that matching owner-return caption; the narrow drawer
-retains it because it covers the parent. Actual reading-history Back and Original
-record provenance remain independent, and direct record pages keep owner context.
+Encounter preview hosts explicitly carry encounter context. Both wide popovers
+and phone drawers omit owner-return captions and Related records; actual
+reading-history Back and Original record provenance remain independent. Direct
+record pages retain owner context and Related records. Drawers use their native
+header and close control, with the document title shown once.
 Creature Lore rows use the authored title and signed modifier once. Actor spell
 lists display known authored casting rank, preserving an unavailable casting
 rank explicitly; base rank and authored heightening remain in the opened detail.
 The browser does not calculate selected-rank spell effects.
 
 Participant settings uses one labeled Save/Cancel form and the complete guarded
-participant update. Edit HP selects one correction at a time; each submit is one
-Rust HP action. The amount control submits raw formula text only from its explicit
-Damage or Heal button. Source opens immutable authored data through the shared
-record renderer, separately from adjusted encounter reading.
+participant update. Edit HP shows Current, Maximum and Temporary fields; Save
+submits touched raw inputs in one atomic Rust HP action. Omitted fields retain
+their values and provenance. HP change submits raw formula text through explicit Damage/Heal
+buttons or the participant Enter shortcut described above. Original record opens
+immutable authored data through the shared record renderer.
 
-Condition Add and Edit share one form with inline optional details. Numeric
-controls validate whole, nonnegative values before conversion; clearing an
-optional duration removes it, while clearing a required condition value is an
-error. Full condition drafts retain their opening encounter revision. After a
+Condition Add defaults to explicit No duration and never requires timing unless
+the user enables a round duration. Add and Edit show the whole form, with adjacent
+duration amount/unit and Count down at before Whose turn. Numeric controls
+validate whole, nonnegative values before conversion; selecting No duration
+removes the duration. Full condition drafts retain their opening encounter revision. After a
 conflict, explicit Reload condition replaces the draft with canonical remaining
 duration and a fresh revision. Do not silently refresh a retained draft's guard.
 
@@ -628,3 +673,18 @@ show a saved receipt, and refresh both encounter and review before Continue.
 Cancel leaves already saved actions intact. Removing the last reminder does not
 advance; Continue uses the current review revision in the atomic advance command.
 Read-only Retry never repeats an action or advances a turn.
+
+Encounter roster handles use the sortable-list library for whole-row movement,
+touch and keyboard pickup/movement/drop, then submit one guarded reorder command.
+Current turn uses the strong filled row treatment; preview selection uses a
+separate outline. Play and confirmed
+delete remain direct row actions. Fade defeated names and facts without dimming
+controls. Encounter-owned section spacing belongs under encounter styles; shared
+record CSS must not override HP borders, padding or encounter control spacing.
+HP and Conditions share a row when the reader has room and stack on narrow panes;
+HP identity/value and action groups align left and right. Creature-level facts,
+including ability modifiers/skills, precede embedded activities. In encounters,
+the Rust-owned has_reference_details flag controls activity-title links: known
+complete summaries stay plain, while additional content/richer views open the
+shared preview. Condition-specific manual notices attach by exact condition ID;
+do not repeat those notes as generic Runtime diagnostics.

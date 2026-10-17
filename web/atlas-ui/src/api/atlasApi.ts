@@ -21,6 +21,7 @@ import type {
   FilterValueListView,
   SearchResultsRequest,
   RecordDetailView,
+  RecordPresentationView,
   RecordDetailRequest,
   OwnedReadingRequest,
   OwnedReadingBatchView,
@@ -122,7 +123,7 @@ export async function getEncounterReference(
   request: import("../generated/atlas").EncounterReferenceRequest,
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
-  return atlasFetch(
+  const detail = await atlasFetch<RecordDetailView>(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reference`,
     {
       signal,
@@ -130,6 +131,7 @@ export async function getEncounterReference(
       body: jsonBody(request),
     },
   );
+  return { ...detail, presentation: normalizeConditionNotes(detail.presentation) };
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {
@@ -417,6 +419,35 @@ function validateResponseNumbers(value: unknown): void {
   else if (isRecord(value)) Object.values(value).forEach(validateResponseNumbers);
 }
 
+function normalizeConditionNotes(
+  presentation: RecordPresentationView,
+): RecordPresentationView {
+  const body = presentation.body;
+  const actor =
+    body.kind === "creature"
+      ? body.value
+      : body.kind === "hazard"
+        ? body.value.actor
+        : null;
+  if (!actor?.runtime) return presentation;
+  const value = {
+    ...actor,
+    runtime: {
+      ...actor.runtime,
+      unapplied_effects: actor.runtime.unapplied_effects.map((note) =>
+        note.condition_id === undefined
+          ? note
+          : { ...note, condition_id: toBigInt(note.condition_id) },
+      ),
+    },
+  };
+  return body.kind === "creature"
+    ? { ...presentation, body: { ...body, value } }
+    : body.kind === "hazard"
+      ? { ...presentation, body: { ...body, value: { ...body.value, actor: value } } }
+      : presentation;
+}
+
 async function atlasFetchEncounter<T>(
   path: string,
   init: RequestInit = {},
@@ -464,6 +495,13 @@ async function atlasFetchEncounter<T>(
       temporary_hp: toBigInt(value.temporary_hp),
       ...optionalIntegers(value, ["initiative", "max_hp", "current_hp"]),
       conditions: value.conditions.map(condition),
+      ...(value.presentation === undefined
+        ? {}
+        : {
+            presentation: normalizeConditionNotes(
+              value.presentation as RecordPresentationView,
+            ),
+          }),
     };
   };
   if (Array.isArray(result.encounters))

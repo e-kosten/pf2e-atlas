@@ -128,6 +128,117 @@ fn damage_absorbs_temporary_hp_then_floors_and_healing_preserves_defeated() {
 }
 
 #[test]
+fn signed_amounts_reverse_operations_through_actual_hp_policy() {
+    for (action, current_hp, temporary_hp) in [
+        (
+            EncounterHpAction::Heal {
+                amount: "10".into(),
+            },
+            30,
+            8,
+        ),
+        (
+            EncounterHpAction::Heal {
+                amount: "-10".into(),
+            },
+            23,
+            0,
+        ),
+        (
+            EncounterHpAction::Damage {
+                amount: "+10".into(),
+            },
+            23,
+            0,
+        ),
+        (
+            EncounterHpAction::Damage {
+                amount: "-10".into(),
+            },
+            30,
+            8,
+        ),
+        (
+            EncounterHpAction::Heal {
+                amount: "+2-12".into(),
+            },
+            23,
+            0,
+        ),
+        (
+            EncounterHpAction::Damage {
+                amount: "-12+2".into(),
+            },
+            30,
+            8,
+        ),
+    ] {
+        let (f, key, p) = manual(Some(30), Some(25));
+        apply(
+            &f.worker,
+            &key,
+            &p,
+            EncounterHpAction::SetTemporary { input: "8".into() },
+        );
+        let after = apply(&f.worker, &key, &p, action);
+        assert_eq!(
+            (after.current_hp, after.temporary_hp, after.defeated),
+            (Some(current_hp), temporary_hp, false)
+        );
+    }
+}
+
+#[test]
+fn negative_heal_floors_and_marks_defeated_while_negative_damage_caps_without_clearing_it() {
+    let (f, key, p) = manual(Some(30), Some(5));
+    apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::SetTemporary { input: "3".into() },
+    );
+    let zero = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::Heal {
+            amount: "-100".into(),
+        },
+    );
+    assert_eq!(
+        (zero.current_hp, zero.temporary_hp, zero.defeated),
+        (Some(0), 0, true)
+    );
+    let healed = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::Damage {
+            amount: "-40".into(),
+        },
+    );
+    assert_eq!(
+        (healed.current_hp, healed.temporary_hp, healed.defeated),
+        (Some(30), 0, true)
+    );
+    apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::SetMaximum { input: None },
+    );
+    let uncapped = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::Damage {
+            amount: "-2".into(),
+        },
+    );
+    assert_eq!((uncapped.current_hp, uncapped.defeated), (Some(32), true));
+}
+
+#[test]
 fn exact_corrections_preserve_outliers_availability_and_maximum_intent() {
     let (f, key, p) = manual(Some(30), Some(25));
     let corrected = apply(
@@ -195,6 +306,12 @@ fn exact_corrections_preserve_outliers_availability_and_maximum_intent() {
     for action in [
         EncounterHpAction::Damage { amount: "1".into() },
         EncounterHpAction::Heal { amount: "1".into() },
+        EncounterHpAction::Heal {
+            amount: "-1".into(),
+        },
+        EncounterHpAction::Damage {
+            amount: "-1".into(),
+        },
     ] {
         let before = saved(&f.worker, &key);
         assert_eq!(
@@ -231,13 +348,19 @@ fn invalid_or_stale_actions_leave_every_field_unchanged() {
     let before = saved(&f.worker, &key);
     for action in [
         EncounterHpAction::Damage {
-            amount: "2-3".into(),
+            amount: "2--3".into(),
         },
         EncounterHpAction::Heal {
-            amount: "-3".into(),
+            amount: "--3".into(),
         },
         EncounterHpAction::SetTemporary {
             input: "1d6".into(),
+        },
+        EncounterHpAction::Damage {
+            amount: "-9007199254740992".into(),
+        },
+        EncounterHpAction::Heal {
+            amount: "-9007199254740991-1".into(),
         },
         EncounterHpAction::SetCurrent {
             input: Some("9007199254740992".into()),
@@ -289,7 +412,9 @@ fn concurrent_amount_actions_cannot_overwrite_from_the_same_revision() {
     let request = ApplyEncounterHpActionRequest {
         participant_key: p,
         expected_revision: saved(&f.worker, &key).revision,
-        action: EncounterHpAction::Damage { amount: "5".into() },
+        action: EncounterHpAction::Heal {
+            amount: "-5".into(),
+        },
     };
     let outcomes = std::thread::scope(|scope| {
         let first = scope.spawn(|| f.worker.apply_encounter_hp_action(&key, request.clone()));
@@ -338,7 +463,9 @@ fn hp_receipt_does_not_depend_on_postcommit_reference_hydration() {
         &f.worker,
         &key,
         &before.participant_key,
-        EncounterHpAction::Damage { amount: "5".into() },
+        EncounterHpAction::Heal {
+            amount: "-5".into(),
+        },
     );
     assert_eq!(after.current_hp, Some(55));
     assert_eq!(
@@ -473,5 +600,233 @@ fn same_value_exact_current_correction_marks_derived_hp_edited() {
     assert_eq!(
         after.hp_origin,
         atlas_local_state::ParticipantHpOrigin::DerivedEdited
+    );
+}
+
+fn exact(input: Option<&str>) -> Option<EncounterHpValueInput> {
+    Some(EncounterHpValueInput {
+        input: input.map(Into::into),
+    })
+}
+
+#[test]
+fn atomic_corrections_save_three_fields_once_and_keep_exact_manual_outliers() {
+    let (f, key, p) = manual(Some(30), Some(25));
+    let before = saved(&f.worker, &key);
+    let after = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::SetValues {
+            current: exact(Some("90+10")),
+            maximum: exact(Some("10+5")),
+            temporary: Some("2+3".into()),
+        },
+    );
+    assert_eq!(
+        (after.current_hp, after.max_hp, after.temporary_hp),
+        (Some(100), Some(15), 5)
+    );
+    assert_eq!(
+        after.hp_origin,
+        atlas_local_state::ParticipantHpOrigin::Explicit
+    );
+    assert_eq!(
+        (after.defeated, after.initiative, after.note),
+        (before.defeated, before.initiative, before.note)
+    );
+    let cleared = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::SetValues {
+            current: exact(None),
+            maximum: exact(None),
+            temporary: Some("0".into()),
+        },
+    );
+    assert_eq!(
+        (cleared.current_hp, cleared.max_hp, cleared.temporary_hp),
+        (None, None, 0)
+    );
+    let floor = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::SetValues {
+            current: exact(Some("-2")),
+            maximum: exact(Some("2-3")),
+            temporary: Some("-10".into()),
+        },
+    );
+    assert_eq!(
+        (
+            floor.current_hp,
+            floor.max_hp,
+            floor.temporary_hp,
+            floor.defeated
+        ),
+        (Some(0), Some(0), 0, false)
+    );
+}
+
+#[test]
+fn atomic_corrections_reject_any_invalid_or_stale_field_without_partial_write() {
+    let (f, key, p) = manual(Some(30), Some(25));
+    let before = saved(&f.worker, &key);
+    for action in [
+        EncounterHpAction::SetValues {
+            current: exact(Some("8")),
+            maximum: exact(Some("12")),
+            temporary: Some("bad".into()),
+        },
+        EncounterHpAction::SetValues {
+            current: exact(Some("8")),
+            maximum: exact(Some("1d6")),
+            temporary: Some("0".into()),
+        },
+        EncounterHpAction::SetValues {
+            current: exact(Some("9007199254740992")),
+            maximum: exact(None),
+            temporary: Some("0".into()),
+        },
+        EncounterHpAction::SetValues {
+            current: None,
+            maximum: None,
+            temporary: None,
+        },
+    ] {
+        assert_eq!(
+            f.worker
+                .apply_encounter_hp_action(
+                    &key,
+                    ApplyEncounterHpActionRequest {
+                        participant_key: p.clone(),
+                        expected_revision: before.revision,
+                        action
+                    }
+                )
+                .unwrap_err()
+                .into_app_error()
+                .code,
+            AppErrorCode::InvalidRequest
+        );
+        assert_eq!(saved(&f.worker, &key), before);
+    }
+    assert_eq!(
+        f.worker
+            .apply_encounter_hp_action(
+                &key,
+                ApplyEncounterHpActionRequest {
+                    participant_key: p,
+                    expected_revision: before.revision - 1,
+                    action: EncounterHpAction::SetValues {
+                        current: exact(Some("8")),
+                        maximum: exact(None),
+                        temporary: Some("0".into())
+                    }
+                }
+            )
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::EncounterParticipantConflict
+    );
+    assert_eq!(saved(&f.worker, &key), before);
+}
+
+#[test]
+fn omitted_atomic_fields_preserve_derived_provenance_and_supplied_same_values_mark_intent() {
+    let f = encounter_fixture_worker();
+    let key = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Atomic provenance".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter
+        .encounter_key;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let p = saved(&f.worker, &key).participant_key;
+    let temp = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::SetValues {
+            current: None,
+            maximum: None,
+            temporary: Some("4".into()),
+        },
+    );
+    assert_eq!(
+        (
+            temp.current_hp,
+            temp.max_hp,
+            temp.temporary_hp,
+            temp.hp_origin
+        ),
+        (
+            Some(60),
+            Some(60),
+            4,
+            atlas_local_state::ParticipantHpOrigin::DerivedPristine
+        )
+    );
+    let current = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::SetValues {
+            current: exact(Some("60")),
+            maximum: None,
+            temporary: None,
+        },
+    );
+    assert_eq!(
+        (
+            current.current_hp,
+            current.max_hp,
+            current.temporary_hp,
+            current.hp_origin
+        ),
+        (
+            Some(60),
+            Some(60),
+            4,
+            atlas_local_state::ParticipantHpOrigin::DerivedEdited
+        )
+    );
+    let maximum = apply(
+        &f.worker,
+        &key,
+        &p,
+        EncounterHpAction::SetValues {
+            current: None,
+            maximum: exact(Some("60")),
+            temporary: None,
+        },
+    );
+    assert_eq!(
+        (
+            maximum.current_hp,
+            maximum.max_hp,
+            maximum.temporary_hp,
+            maximum.hp_origin
+        ),
+        (
+            Some(60),
+            Some(60),
+            4,
+            atlas_local_state::ParticipantHpOrigin::Explicit
+        )
     );
 }

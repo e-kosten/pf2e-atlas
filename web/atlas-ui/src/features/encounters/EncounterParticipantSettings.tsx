@@ -4,12 +4,15 @@ import type {
   EncounterParticipantView,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import { Pencil } from "lucide-react";
+import { EncounterOriginalRecord } from "./EncounterOriginalRecord";
 import { optionalBigIntInput, participantUpdate } from "./participantEdits";
 
 type ParticipantValues = {
   name: string;
   initiative: string;
   side: EncounterParticipantView["side"];
+  adjustment: EncounterParticipantView["participant_variant"];
   note: string;
 };
 
@@ -34,14 +37,16 @@ export function EncounterParticipantSettings({
     <>
       <Button
         size="small"
+        type="text"
+        aria-label="Participant settings"
+        title="Participant settings"
+        icon={<Pencil size={16} aria-hidden="true" />}
         disabled={disabled}
         onClick={() => {
           setCommitted(false);
           setOpen(true);
         }}
-      >
-        Participant settings
-      </Button>
+      />
       <Modal
         title="Participant settings"
         open={open && !(committed && !disabled)}
@@ -94,6 +99,7 @@ function ParticipantSettingsForm({
       name: participant.display_name,
       initiative: participant.initiative?.toString() ?? "",
       side: participant.side,
+      adjustment: participant.participant_variant,
       note: participant.note ?? "",
     };
     for (const field of Object.keys(values) as Array<keyof ParticipantValues>) {
@@ -126,6 +132,9 @@ function ParticipantSettingsForm({
                 display_name: values.name,
                 initiative,
                 side: values.side,
+                ...(form.isFieldTouched("adjustment")
+                  ? { participant_variant: values.adjustment }
+                  : {}),
                 note: values.note || undefined,
               }),
             );
@@ -166,12 +175,27 @@ function ParticipantSettingsForm({
             }))}
           />
         </Form.Item>
+        {participant.participant_kind === "creature" && (
+          <Form.Item name="adjustment" label="Adjustment">
+            <Select
+              aria-label="Adjustment"
+              options={[
+                { value: "normal", label: "Normal" },
+                { value: "elite", label: "Elite" },
+                { value: "weak", label: "Weak" },
+              ]}
+            />
+          </Form.Item>
+        )}
         <Form.Item name="note" label="Notes">
           <Input.TextArea
             aria-label="Participant notes"
             autoSize={{ minRows: 3, maxRows: 8 }}
           />
         </Form.Item>
+        {participant.record_key && (
+          <EncounterOriginalRecord recordKey={participant.record_key} />
+        )}
         <Space wrap>
           <Button
             type="primary"

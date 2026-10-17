@@ -16,6 +16,7 @@ export type { AddEncounterRecordParticipantRequest } from "../../../../crates/at
 export type { AddSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/AddSavedListItemRequest";
 export type { ApplyEncounterHpActionRequest } from "../../../../crates/atlas-app-model/bindings/ApplyEncounterHpActionRequest";
 export type { EncounterHpAction } from "../../../../crates/atlas-app-model/bindings/EncounterHpAction";
+export type { EncounterHpValueInput } from "../../../../crates/atlas-app-model/bindings/EncounterHpValueInput";
 export type { AppError } from "../../../../crates/atlas-app-model/bindings/AppError";
 export type { AppErrorCode } from "../../../../crates/atlas-app-model/bindings/AppErrorCode";
 export type { AppReadinessStatus } from "../../../../crates/atlas-app-model/bindings/AppReadinessStatus";

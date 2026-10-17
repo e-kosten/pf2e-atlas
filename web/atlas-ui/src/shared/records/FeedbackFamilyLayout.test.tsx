@@ -38,8 +38,8 @@ it("keeps encounter essentials before strikes and secondary facts available with
   expect(screen.queryByRole("button", { name: "More creature facts" })).toBeNull();
   expect(
     screen
-      .getByRole("link", { name: "Jaws" })
-      .compareDocumentPosition(screen.getByText("Necril")) &
+      .getByText("Necril")
+      .compareDocumentPosition(screen.getByRole("link", { name: "Jaws" })) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   expect(screen.getByText("Stealth").parentElement).toHaveTextContent("+0");
@@ -338,9 +338,7 @@ it.each([false, true])(
     if (hasBudget) {
       expect(screen.getByText("Actions").parentElement).toHaveTextContent("0");
       expect(screen.getByText("Reactions").parentElement).toHaveTextContent("0");
-      expect(screen.getByText("Can act").parentElement).toHaveTextContent(
-        "Unconscious blocks actions.",
-      );
+      expect(screen.queryByText("Can act")).toBeNull();
       expect(screen.getByText("Can react").parentElement).toHaveTextContent(
         "Unconscious blocks reactions.",
       );
@@ -351,7 +349,7 @@ it.each([false, true])(
     );
     if (hasBudget) {
       expect(screen.getByText(/supplied action budget/)).toBeVisible();
-      for (const label of ["Actions", "Reactions", "Can act", "Can react"])
+      for (const label of ["Actions", "Reactions", "Can react"])
         expect(screen.getAllByText(label)).toHaveLength(1);
     }
     expect(screen.getAllByText("AC")).toHaveLength(1);
@@ -408,7 +406,7 @@ it.each([
   },
 );
 
-it("renders an authored Lore title and signed modifier once with exact navigation", () => {
+it("combines Lore and other skills with capitalized labels and signed modifiers", () => {
   const lore = {
     ...activityFixture("Dragon Lore"),
     kind: "lore" as const,
@@ -416,20 +414,27 @@ it("renders an authored Lore title and signed modifier once with exact navigatio
   };
   const actor = actorFixture();
   actor.activities = knownFact([lore]);
+  actor.skills = knownFact([
+    {
+      key: "arcana",
+      label: "arcana",
+      modifier: numberFact(8),
+      note: unavailableFact("not_applicable"),
+      conditional: knownFact([]),
+    },
+  ]);
   const detail = detailFixture("actors:mage", "Mage");
   detail.presentation.body = { kind: "creature", value: actor };
   const onReference = vi.fn();
   render(
     <RecordPresentation presentation={detail.presentation} onReference={onReference} />,
   );
-  expect(screen.getAllByText("Lore")).toHaveLength(1);
+  expect(screen.queryByRole("heading", { name: "Lore" })).toBeNull();
+  expect(screen.getAllByRole("heading", { name: "Skills" })).toHaveLength(1);
+  expect(screen.getByText("Arcana").parentElement).toHaveTextContent("+8");
   expect(screen.getAllByText("Dragon Lore")).toHaveLength(1);
-  const link = screen.getByRole("link", { name: "Dragon Lore" });
-  expect(link.parentElement).toHaveTextContent("Dragon Lore +10");
-  fireEvent.click(link);
-  expect(onReference).toHaveBeenCalledWith(
-    lore.navigation.record_key,
-    expect.any(HTMLElement),
-    lore.navigation,
+  expect(screen.getByText("Dragon Lore").parentElement).toHaveTextContent(
+    "Dragon Lore +10",
   );
+  expect(screen.queryByRole("link", { name: "Dragon Lore" })).toBeNull();
 });
