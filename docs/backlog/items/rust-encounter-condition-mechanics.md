@@ -1,17 +1,30 @@
 # Rust Encounter Condition Mechanics
 
-Status: proposed
+Status: planned
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-24
+Last reviewed: 2026-10-16
 
 ## Problem
 
-Encounter v1 stores condition annotations with value, duration, source, and notes. The initial mechanics projection applies a deterministic subset of conditions to typed creature stats, but broader PF2e condition handling still needs careful scope because many effects are situational or target mechanics the model does not yet type.
+Encounters track conditions, round durations, expiry confirmation and persistent
+damage reminders. Mechanical projection is incomplete: a condition can adjust
+some displayed values while leaving attacks, damage or spellcasting unchanged.
+Condition-specific manual notices make that limitation visible but do not finish
+the automation.
 
 ## Desired Outcome
 
-Extend condition mechanics beyond the initial deterministic projection.
+Complete mechanical automation for standard conditions. Collect the typed context
+needed for each effect and apply it consistently across creature facts, attacks,
+damage, spellcasting and action availability. Conditions should not remain
+partially implemented merely because their effects cross presentation groups.
+
+Prioritize the current gaps, including Enfeebled Strength-based attacks/damage,
+Clumsy Dexterity-based attacks, Stupefied spellcasting, conditional AC effects,
+restricted extra actions and condition-specific turn transitions. Use Foundry
+types/rules and authoritative PF2e rules to establish applicability; do not infer
+attack ability or rule identity from names or formatted text.
 
 The initial implementation supports these conditions through the shared typed target and modifier-resolution machinery:
 
@@ -22,12 +35,22 @@ The initial implementation supports these conditions through the shared typed ta
 - enfeebled;
 - stupefied.
 
-Remaining design and implementation work should answer:
+The follow-up must establish:
 
 - how numeric condition values are interpreted;
 - which actor stats are adjusted and which remain annotation-only;
 - how unsupported or situational effects are displayed without implying automation;
-- how broad the modeled-condition catalog should become before unsupported conditions get first-class annotation-only definitions.
+- complete coverage of the standard condition catalog, including effects that
+  need explicit target/context choices rather than an unconditional modifier;
+- source-grounded tests for complete effects and interactions, including typed
+  modifier stacking, representative creatures and turn boundaries.
+
+Done means standard conditions have complete supported mechanical behavior;
+genuine table decisions expose the necessary user interaction. No known mechanical
+effect is silently skipped or replaced indefinitely by a generic unsupported
+notice. Custom/unknown effects can remain durable annotations. Automatic dice,
+recovery adjudication and unconfirmed expiry removal remain separate product
+decisions; completing numerical automation does not authorize them.
 
 The approved [encounter workflow revision](rust-web-encounter-runner-polish.md)
 owns round-duration countdowns, explicit expiry confirmation and actionable
