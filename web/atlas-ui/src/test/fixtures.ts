@@ -76,6 +76,7 @@ export function activityFixture(
     title,
     family: "melee",
     kind: "strike",
+    has_reference_details: true,
     navigation: {
       record_key: recordKey,
       owners: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],

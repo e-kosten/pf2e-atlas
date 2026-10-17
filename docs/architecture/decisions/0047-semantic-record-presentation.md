@@ -219,7 +219,7 @@ companion. Following document links changes local reading position, independentl
 of selection or mutation drafts. A bounded session history restores exact
 navigation and scroll; browser history remains ordinary route navigation.
 Where no reader is present, shared previews use a desktop Popover and a Drawer
-below xl, with one renderer and one nested reading session. Native exact hrefs
+below md (768px), with one renderer and one nested reading session. Native exact hrefs
 retain deliberate full-page and modified-click navigation. These browser rules
 live in the frontend guidelines; they do not introduce stored content, a generic
 navigation framework or new backend presentation semantics.
@@ -237,3 +237,14 @@ immutable artifact-context hash for generation-aware secondary queries. This doe
 not replace source fingerprints in snapshot-local navigation. Similar remains a
 root discovery criterion in the stateless search-page workflow of ADR0049, with a
 body-free seed summary and truthful bounded pages, rather than a relationship.
+
+
+Embedded activity summaries expose `has_reference_details` from app-service.
+Selected item-body dispatch is shared with that decision: spell, physical and
+casting-entry context can add typed facts; summary-only activity/content bodies
+need declared additional prose. Known blank public prose with no other supplied
+prose can use a plain encounter heading. Missing/invalid/unavailable prose retains
+a link conservatively. This bounded metadata check borrows existing typed content
+selections without per-row fetches, HTML preparation, cache expansion or browser
+parsing. Nonblank markup-only authored strings can retain a link; the flag is not
+a new meaningful-HTML classifier. Complete selected navigation remains available.

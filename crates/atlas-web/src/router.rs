@@ -5,9 +5,10 @@ use axum::routing::{get, post};
 use crate::assets::{root, static_asset};
 use crate::handlers::{
     add_encounter_manual_participant, add_encounter_participant_condition,
-    add_encounter_record_participant, add_saved_list_item, create_encounter, create_saved_list,
-    delete_encounter, delete_saved_list, discover_filter_editor, discover_filter_values, encounter,
-    encounter_condition_definitions, encounters, filter_saved_list, readiness, record_detail,
+    add_encounter_record_participant, add_saved_list_item, advance_encounter_turn,
+    create_encounter, create_saved_list, delete_encounter, delete_saved_list,
+    discover_filter_editor, discover_filter_values, encounter, encounter_condition_definitions,
+    encounter_turn_review, encounters, filter_saved_list, readiness, record_detail,
     remove_encounter_participant, remove_encounter_participant_condition, remove_saved_list_item,
     reorder_encounter_participant, saved_list, saved_lists, search_page, set_encounter_turn,
     update_encounter, update_encounter_participant, update_encounter_participant_condition,
@@ -54,6 +55,10 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             post(crate::handlers::encounter_reference),
         )
         .route(
+            "/api/encounters/{encounter_ref}/participants/{participant_key}/hp",
+            post(crate::handlers::apply_encounter_hp_action),
+        )
+        .route(
             "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions",
             post(add_encounter_participant_condition),
         )
@@ -62,6 +67,8 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             axum::routing::patch(update_encounter_participant_condition)
                 .delete(remove_encounter_participant_condition),
         )
+        .route("/api/encounters/{encounter_ref}/turn-review", get(encounter_turn_review))
+        .route("/api/encounters/{encounter_ref}/advance", post(advance_encounter_turn))
         .route(
             "/api/encounters/{encounter_ref}/turn",
             post(set_encounter_turn),

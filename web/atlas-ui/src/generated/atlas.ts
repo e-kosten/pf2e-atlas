@@ -14,6 +14,9 @@ export type { AddEncounterManualParticipantRequest } from "../../../../crates/at
 export type { AddEncounterParticipantConditionRequest } from "../../../../crates/atlas-app-model/bindings/AddEncounterParticipantConditionRequest";
 export type { AddEncounterRecordParticipantRequest } from "../../../../crates/atlas-app-model/bindings/AddEncounterRecordParticipantRequest";
 export type { AddSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/AddSavedListItemRequest";
+export type { ApplyEncounterHpActionRequest } from "../../../../crates/atlas-app-model/bindings/ApplyEncounterHpActionRequest";
+export type { EncounterHpAction } from "../../../../crates/atlas-app-model/bindings/EncounterHpAction";
+export type { EncounterHpValueInput } from "../../../../crates/atlas-app-model/bindings/EncounterHpValueInput";
 export type { AppError } from "../../../../crates/atlas-app-model/bindings/AppError";
 export type { AppErrorCode } from "../../../../crates/atlas-app-model/bindings/AppErrorCode";
 export type { AppReadinessStatus } from "../../../../crates/atlas-app-model/bindings/AppReadinessStatus";
@@ -184,3 +187,10 @@ export type { VariantGroupView } from "../../../../crates/atlas-app-model/bindin
 export type { RelatedCategoryView } from "../../../../crates/atlas-app-model/bindings/RelatedCategoryView";
 export type { RelatedRecordsRequest } from "../../../../crates/atlas-app-model/bindings/RelatedRecordsRequest";
 export type { RelatedRecordsView } from "../../../../crates/atlas-app-model/bindings/RelatedRecordsView";
+export type { AdvanceEncounterTurnRequest } from "../../../../crates/atlas-app-model/bindings/AdvanceEncounterTurnRequest";
+export type { ConditionDurationUnit } from "../../../../crates/atlas-app-model/bindings/ConditionDurationUnit";
+export type { ConditionDurationView } from "../../../../crates/atlas-app-model/bindings/ConditionDurationView";
+export type { ConditionTimingView } from "../../../../crates/atlas-app-model/bindings/ConditionTimingView";
+export type { ConditionTurnEvent } from "../../../../crates/atlas-app-model/bindings/ConditionTurnEvent";
+export type { EncounterTurnReviewView } from "../../../../crates/atlas-app-model/bindings/EncounterTurnReviewView";
+export type { EncounterTurnReminderView } from "../../../../crates/atlas-app-model/bindings/EncounterTurnReminderView";

@@ -181,16 +181,14 @@ pub(super) fn participant_stat_block(
             }
         }
     } else if adjustment_applicable {
-        block.unapplied_effects.push(UnappliedEffectView{source:"npc-adjustment".into(),label:"Source adjustment unavailable".into(),reason:"Missing or invalid adjustment does not establish Normal; choose an explicit variant to apply an adjustment.".into()});
+        block.unapplied_effects.push(UnappliedEffectView{condition_id:None,source:"npc-adjustment".into(),label:"Source adjustment unavailable".into(),reason:"Missing or invalid adjustment does not establish Normal; choose an explicit variant to apply an adjustment.".into()});
     }
     let mut movement_restriction = None;
     for c in &participant.conditions {
         let Some(rule) = condition_rule_for_key(c.condition_key.as_deref()) else {
-            block.unapplied_effects.push(UnappliedEffectView {
-                source: c.name.clone(),
-                label: c.name.clone(),
-                reason: "This condition is tracked without an automated rule.".into(),
-            });
+            block
+                .unapplied_effects
+                .push(condition_note(c, "Effects need manual handling."));
             continue;
         };
         let amount = c.value.unwrap_or(1).max(0);
@@ -307,18 +305,8 @@ pub(super) fn participant_stat_block(
             }
             applied |= !block.speeds.is_empty();
         }
-        if !applied
-            || matches!(
-                rule,
-                ConditionRule::Enfeebled
-                    | ConditionRule::Clumsy
-                    | ConditionRule::Stupefied
-                    | ConditionRule::Prone
-                    | ConditionRule::Quickened
-                    | ConditionRule::Stunned
-            )
-        {
-            block.unapplied_effects.push(UnappliedEffectView{source:c.name.clone(),label:c.name.clone(),reason:"Attack ability, spellcasting, restricted actions or situational effects require additional authored/runtime context; unsupported effects remain unapplied.".into()});
+        if let Some(reason) = condition_manual_reason(rule, applied) {
+            block.unapplied_effects.push(condition_note(c, reason));
         }
     }
     if let Some((rule, condition)) = movement_restriction {
@@ -350,6 +338,58 @@ pub(super) fn participant_stat_block(
     block.action_budget = Some(action_budget(participant));
     block
 }
+fn condition_note(
+    condition: &atlas_local_state::EncounterParticipantCondition,
+    reason: &str,
+) -> UnappliedEffectView {
+    UnappliedEffectView {
+        condition_id: Some(condition.condition_id),
+        source: condition.name.clone(),
+        label: condition.name.clone(),
+        reason: reason.into(),
+    }
+}
+
+fn condition_manual_reason(rule: ConditionRule, applied: bool) -> Option<&'static str> {
+    match rule {
+        ConditionRule::Enfeebled => {
+            Some("Strength-based attack and damage penalties need manual adjustment.")
+        }
+        ConditionRule::Clumsy => Some("Dexterity-based attack penalties need manual adjustment."),
+        ConditionRule::Stupefied => {
+            Some("Spell attack/DC penalties and the spellcasting flat check need manual handling.")
+        }
+        ConditionRule::Prone => {
+            Some("Attack penalties and restrictions on movement/actions need manual handling.")
+        }
+        ConditionRule::Quickened => {
+            Some("The additional action's permitted uses need manual handling.")
+        }
+        ConditionRule::Stunned => {
+            Some("Stunned value recovery and restricted action use need manual handling.")
+        }
+        ConditionRule::Frightened | ConditionRule::Sickened if !applied => {
+            Some("Check and DC penalties need manual adjustment where statistics are unavailable.")
+        }
+        ConditionRule::OffGuard if !applied => {
+            Some("The AC penalty needs manual adjustment where AC is unavailable.")
+        }
+        ConditionRule::Slowed if !applied => Some(
+            "Action loss is shown in the action budget; spending actions is tracked at the table.",
+        ),
+        ConditionRule::Immobilized if !applied => {
+            Some("Movement restrictions need manual handling where speed is unavailable.")
+        }
+        ConditionRule::Grabbed | ConditionRule::Restrained if !applied => Some(
+            "AC and movement restrictions need manual handling where statistics are unavailable.",
+        ),
+        ConditionRule::Encumbered if !applied => Some(
+            "Dexterity-based penalties and the speed reduction need manual adjustment where statistics are unavailable.",
+        ),
+        _ => None,
+    }
+}
+
 pub(super) fn arithmetic_baseline(presentation: &RecordPresentationView) -> Option<StatBlockView> {
     let a = match &presentation.body {
         RecordBodyView::Creature(a) => a.as_ref(),
@@ -402,6 +442,7 @@ pub(super) fn arithmetic_baseline(presentation: &RecordPresentationView) -> Opti
     for v in a.skills.value.iter().flatten() {
         if let Some(note) = &v.note.value {
             notes.push(UnappliedEffectView {
+                condition_id: None,
                 source: format!("skill.{}", v.key),
                 label: v.label.clone(),
                 reason: note.clone(),
@@ -410,7 +451,7 @@ pub(super) fn arithmetic_baseline(presentation: &RecordPresentationView) -> Opti
         if let Some(c) = &v.conditional.value {
             for e in c {
                 if let (Some(label), Some(n)) = (&e.label.value, &e.modifier.value) {
-                    notes.push(UnappliedEffectView{source:format!("skill.{}",v.key),label:label.clone(),reason:format!("Conditional modifier {n}; apply only when its authored predicate matches.")});
+                    notes.push(UnappliedEffectView{condition_id:None,source:format!("skill.{}",v.key),label:label.clone(),reason:format!("Conditional modifier {n}; apply only when its authored predicate matches.")});
                 }
             }
         }
@@ -436,6 +477,7 @@ pub(super) fn arithmetic_baseline(presentation: &RecordPresentationView) -> Opti
     for activity in a.activities.value.iter().flatten() {
         for n in &activity.notes {
             notes.push(UnappliedEffectView {
+                condition_id: None,
                 source: n.source.clone(),
                 label: n.label.clone(),
                 reason: n.reason.clone(),
@@ -571,7 +613,17 @@ pub(super) fn participant_runtime_block(p: &EncounterParticipant) -> StatBlockVi
         speeds: vec![],
         action_budget: Some(action_budget(p)),
         activities: vec![],
-        unapplied_effects: vec![],
+        unapplied_effects: p
+            .conditions
+            .iter()
+            .filter_map(|condition| {
+                match condition_rule_for_key(condition.condition_key.as_deref()) {
+                    Some(rule) => condition_manual_reason(rule, false)
+                        .map(|reason| condition_note(condition, reason)),
+                    None => Some(condition_note(condition, "Effects need manual handling.")),
+                }
+            })
+            .collect(),
     }
 }
 fn action_budget(p: &EncounterParticipant) -> ActionBudgetView {

@@ -3,6 +3,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Encounter {
+    pub revision: i64,
     pub encounter_key: String,
     pub slug: String,
     pub name: String,
@@ -104,7 +105,7 @@ pub struct EncounterParticipantCondition {
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -256,19 +257,20 @@ pub struct AddEncounterParticipantCondition {
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateEncounterParticipantCondition {
+    pub expected_encounter_revision: i64,
     pub participant_key: String,
     pub condition_id: i64,
     pub condition_key: Option<String>,
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
 }
 
@@ -325,4 +327,53 @@ impl ParticipantVariantOrigin {
             _ => Self::Explicit,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionDurationUnit {
+    Rounds,
+    Minutes,
+    Hours,
+    Days,
+}
+impl ConditionDurationUnit {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Rounds => "rounds",
+            Self::Minutes => "minutes",
+            Self::Hours => "hours",
+            Self::Days => "days",
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionTurnEvent {
+    Start,
+    End,
+}
+impl ConditionTurnEvent {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Start => "start",
+            Self::End => "end",
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ConditionTiming {
+    pub participant_key: String,
+    pub event: ConditionTurnEvent,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ConditionDuration {
+    pub amount: i64,
+    pub unit: ConditionDurationUnit,
+    pub timing: Option<ConditionTiming>,
+}
+#[derive(Debug, Clone)]
+pub struct EncounterTurnUpdate {
+    pub turn: EncounterTurnState,
+    pub durations: Vec<(i64, i64)>,
 }

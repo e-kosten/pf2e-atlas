@@ -28,6 +28,7 @@ pub(super) fn encounter_detail_view(
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
     let note = encounter.note.clone();
     Ok(EncounterDetailView {
+        revision: encounter.revision,
         artifact_generation,
         encounter: encounter_summary(encounter, participant_count),
         note,
@@ -210,7 +211,7 @@ fn condition_view(condition: EncounterParticipantCondition) -> EncounterParticip
         name: condition.name,
         value: condition.value,
         source_participant_key: condition.source_participant_key,
-        duration_rounds: condition.duration_rounds,
+        duration: condition.duration.map(super::timing::duration_view),
         note: condition.note,
         created_at: condition.created_at,
         updated_at: condition.updated_at,

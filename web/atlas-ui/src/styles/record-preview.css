@@ -1,3 +1,10 @@
+.record-preview-loading {
+  position: absolute;
+  inset-inline-start: 100%;
+  top: 0;
+  margin-inline-start: 4px;
+}
+
 .record-preview-popover__header {
   align-items: center;
   display: flex;
@@ -14,7 +21,7 @@
 }
 
 .record-preview-drawer__header {
-  padding: 10px 12px;
+  padding: 16px;
 }
 
 .record-preview-drawer__body {

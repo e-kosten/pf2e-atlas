@@ -33,6 +33,7 @@ fn initialize_in_transaction(connection: &Connection) -> LocalStateResult<()> {
         validate_v6_tables(connection)?;
         validate_v7_tables(connection)?;
         validate_v8_tables(connection)?;
+        validate_v9_tables(connection)?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -45,6 +46,7 @@ fn initialize_in_transaction(connection: &Connection) -> LocalStateResult<()> {
     create_v6_schema(connection)?;
     add_v7_columns(connection)?;
     add_v8_columns(connection)?;
+    add_v9_columns(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
@@ -206,6 +208,13 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
             [],
         )?;
     }
+    if metadata_value(connection, METADATA_SCHEMA_VERSION)?.as_deref() == Some("8") {
+        add_v9_columns(connection)?;
+        connection.execute(
+            "UPDATE local_state_metadata SET value='9' WHERE key='schema_version'",
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -216,7 +225,7 @@ fn migrate_through_v6(connection: &Connection) -> LocalStateResult<()> {
         ));
     };
     match schema_version.as_str() {
-        "6" | "7" => Ok(()),
+        "6" | "7" | "8" => Ok(()),
         LOCAL_STATE_SCHEMA_VERSION => Ok(()),
         "1" => {
             migrate_v1_to_v2(connection)?;
@@ -549,6 +558,52 @@ fn validate_v8_tables(connection: &Connection) -> LocalStateResult<()> {
     Ok(())
 }
 
+fn add_v9_columns(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "ALTER TABLE encounters ADD COLUMN revision INTEGER NOT NULL DEFAULT 0 CHECK(typeof(revision) = 'integer' AND revision >= 0);
+         CREATE TABLE encounter_participant_conditions_v9 (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           participant_id INTEGER NOT NULL,
+           condition_key TEXT,
+           name TEXT NOT NULL,
+           value INTEGER,
+           source_participant_key TEXT,
+           duration_amount INTEGER,
+           duration_unit TEXT CHECK(duration_unit IN ('rounds','minutes','hours','days')),
+           duration_anchor_key TEXT,
+           duration_event TEXT CHECK(duration_event IN ('start','end')),
+           note TEXT,
+           created_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL,
+           FOREIGN KEY (participant_id) REFERENCES encounter_participants(id) ON DELETE CASCADE,
+           CHECK((duration_amount IS NULL) = (duration_unit IS NULL)),
+           CHECK((duration_anchor_key IS NULL) = (duration_event IS NULL)),
+           CHECK(duration_unit = 'rounds' OR duration_anchor_key IS NULL)
+         );
+         INSERT INTO encounter_participant_conditions_v9 (
+           id,participant_id,condition_key,name,value,source_participant_key,
+           duration_amount,duration_unit,note,created_at,updated_at
+         ) SELECT id,participant_id,condition_key,name,value,source_participant_key,
+                  duration_rounds,CASE WHEN duration_rounds IS NOT NULL THEN 'rounds' END,note,created_at,updated_at
+           FROM encounter_participant_conditions;
+         INSERT INTO sqlite_sequence(name,seq)
+           SELECT 'encounter_participant_conditions_v9',seq FROM sqlite_sequence
+           WHERE name='encounter_participant_conditions'
+             AND NOT EXISTS(SELECT 1 FROM sqlite_sequence WHERE name='encounter_participant_conditions_v9');
+         UPDATE sqlite_sequence SET seq=MAX(seq,COALESCE((SELECT seq FROM sqlite_sequence WHERE name='encounter_participant_conditions'),0))
+           WHERE name='encounter_participant_conditions_v9';
+         DROP TABLE encounter_participant_conditions;
+         ALTER TABLE encounter_participant_conditions_v9 RENAME TO encounter_participant_conditions;",
+    )?;
+    Ok(())
+}
+
+fn validate_v9_tables(connection: &Connection) -> LocalStateResult<()> {
+    connection.prepare("SELECT revision FROM encounters LIMIT 0")?;
+    connection.prepare("SELECT duration_amount,duration_unit,duration_anchor_key,duration_event FROM encounter_participant_conditions LIMIT 0")?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -559,6 +614,99 @@ mod tests {
 
     use super::*;
     use crate::LocalStateStore;
+
+    #[test]
+    fn v8_timing_migration_preserves_rows_unresolved_rounds_and_nonreused_ids_atomically()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let connection = Connection::open(temp_path("v9-timing"))?;
+        create_v6_schema(&connection)?;
+        add_v7_columns(&connection)?;
+        add_v8_columns(&connection)?;
+        connection.execute_batch("INSERT INTO local_state_metadata VALUES('local_state_contract_version','pf2e-atlas-local-state/v1'),('schema_version','8');
+          INSERT INTO encounters(id,encounter_key,slug,name,status,round_number,current_turn_participant_key,note,created_at,updated_at) VALUES(1,'e','e','Encounter','running',3,'p','encounter note','then','now');
+          INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,revision,created_at,updated_at) VALUES(1,1,'p','creature',1,'Participant',1,60,-5,7,'then','now');
+          INSERT INTO encounter_participant_conditions(id,participant_id,condition_key,name,value,source_participant_key,duration_rounds,note,created_at,updated_at) VALUES(11,1,'conditionitems:known','Condition',2,'p',4,'condition note','then','now'),(12,1,NULL,'Zero',1,NULL,0,NULL,'then','now'),(99,1,NULL,'Deleted',NULL,NULL,NULL,NULL,'then','now');
+          DELETE FROM encounter_participant_conditions WHERE id=99;
+          INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'l','l','List','then','now');
+          INSERT INTO saved_list_items(list_id,record_key,position,record_title_snapshot,added_at,updated_at) VALUES(1,'actors:one',1,'One','then','now');
+          CREATE TRIGGER reject_v9 BEFORE UPDATE ON local_state_metadata WHEN NEW.key='schema_version' AND NEW.value='9' BEGIN SELECT RAISE(ABORT,'injected'); END;")?;
+        assert!(initialize(&connection).is_err());
+        assert_eq!(
+            metadata_value(&connection, METADATA_SCHEMA_VERSION)?.as_deref(),
+            Some("8")
+        );
+        assert!(!column_exists(&connection, "encounters", "revision")?);
+        assert!(column_exists(
+            &connection,
+            ENCOUNTER_PARTICIPANT_CONDITIONS_TABLE,
+            "duration_rounds"
+        )?);
+        assert!(!table_exists(
+            &connection,
+            "encounter_participant_conditions_v9"
+        )?);
+        connection.execute_batch("DROP TRIGGER reject_v9;")?;
+        initialize(&connection)?;
+        assert!(!column_exists(
+            &connection,
+            ENCOUNTER_PARTICIPANT_CONDITIONS_TABLE,
+            "duration_rounds"
+        )?);
+        let row=connection.query_row("SELECT id,condition_key,value,source_participant_key,duration_amount,duration_unit,duration_anchor_key,duration_event,note,created_at,updated_at FROM encounter_participant_conditions WHERE id=11",[],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,String>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,i64>(4)?,r.get::<_,String>(5)?,r.get::<_,Option<String>>(6)?,r.get::<_,Option<String>>(7)?,r.get::<_,String>(8)?,r.get::<_,String>(9)?,r.get::<_,String>(10)?)))?;
+        assert_eq!(
+            row,
+            (
+                11,
+                "conditionitems:known".into(),
+                2,
+                "p".into(),
+                4,
+                "rounds".into(),
+                None,
+                None,
+                "condition note".into(),
+                "then".into(),
+                "now".into()
+            )
+        );
+        assert_eq!(
+            connection.query_row(
+                "SELECT duration_amount FROM encounter_participant_conditions WHERE id=12",
+                [],
+                |r| r.get::<_, i64>(0)
+            )?,
+            0
+        );
+        assert_eq!(
+            connection.query_row(
+                "SELECT round_number,current_turn_participant_key,note,revision FROM encounters",
+                [],
+                |r| Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, i64>(3)?
+                ))
+            )?,
+            (3, "p".into(), "encounter note".into(), 0)
+        );
+        assert_eq!(
+            connection.query_row(
+                "SELECT current_hp,revision FROM encounter_participants",
+                [],
+                |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
+            )?,
+            (-5, 7)
+        );
+        assert_eq!(
+            connection.query_row("SELECT COUNT(*) FROM saved_list_items", [], |r| r
+                .get::<_, i64>(0))?,
+            1
+        );
+        connection.execute("INSERT INTO encounter_participant_conditions(participant_id,name,created_at,updated_at) VALUES(1,'New','now','now')",[])?;
+        assert!(connection.last_insert_rowid() > 99);
+        Ok(())
+    }
 
     #[test]
     fn fresh_database_initializes_metadata() -> Result<(), Box<dyn std::error::Error>> {

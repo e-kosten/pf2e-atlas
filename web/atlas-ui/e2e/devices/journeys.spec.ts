@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   activate,
   landedSearch,
@@ -197,44 +197,81 @@ test("encounter references retain their owner, scroll and native destination", a
       ).ok(),
     ).toBeTruthy();
     await page.goto(`/encounters/${encounter.slug}`);
+    if ((page.viewportSize()?.width ?? 1440) < 768) {
+      await activate(page.locator("[data-participant-key]").first(), info);
+      await expect(page.getByRole("button", { name: "Back to roster" })).toBeVisible();
+    }
+    const originalSize = page.viewportSize()!;
+    if (originalSize.width < 768)
+      await page.setViewportSize({ width: originalSize.width, height: 560 });
     await activate(page.getByRole("link", { name: "Signal Pulse", exact: true }), info);
     const content = page.getByLabel(
-      info.project.name === "desktop-chromium"
+      (page.viewportSize()?.width ?? 1440) >= 768
         ? "Reference preview"
         : "Reference content",
       { exact: true },
     );
+    const widePreview = (page.viewportSize()?.width ?? 1440) >= 768;
     await expect(
-      content.getByRole("heading", { name: /^Signal Pulse\b/ }),
+      widePreview
+        ? content.getByRole("heading", { name: /^Signal Pulse\b/ })
+        : page.getByRole("dialog", { name: /^Signal Pulse\b/ }),
     ).toBeVisible();
-    await activate(
-      content.getByRole("link", { name: "Return to Atlas Sentinel", exact: true }),
-      info,
-    );
+    const ownerReturn = content.getByRole("link", {
+      name: "Return to Atlas Sentinel",
+      exact: true,
+    });
+    await expect(ownerReturn).toHaveCount(0);
     const host = page.locator(
-      info.project.name === "desktop-chromium"
+      (page.viewportSize()?.width ?? 1440) >= 768
         ? ".record-preview-popover__body"
         : ".record-preview-drawer__body",
     );
-    await expect(host.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
+    await expect(host).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Open reference full page", exact: true }),
+    ).toBeFocused();
+    if (widePreview) {
+      const popup = page.locator(".record-preview-popover");
+      await page.setViewportSize({ width: 844, height: 390 });
+      await expect
+        .poll(async () => {
+          const box = await popup.boundingBox();
+          return (
+            !!box &&
+            box.x >= -1 &&
+            box.y >= -1 &&
+            box.x + box.width <= 845 &&
+            box.y + box.height <= 391
+          );
+        })
+        .toBe(true);
+      await noPageOverflow(page);
+    }
     const outer = await page.evaluate(() => scrollY);
-    await readThenBack(page, host, info);
+    // Capture a real scroll position even when the nested reference is already visible.
+    await host.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    await readThenBack(page, host, info, "Signal Protocol");
     expect(await page.evaluate(() => scrollY)).toBe(outer);
     // A real captured scroll must not restart the same ability's initial landing.
     const position = await host.evaluate((node) => node.scrollTop);
-    await host.evaluate((node) => {
-      node.scrollTop -= 200;
-    });
+    const scrollDelta = Math.min(200, position);
+    expect(scrollDelta).toBeGreaterThan(0);
+    await host.evaluate((node, delta) => {
+      node.scrollTop -= delta;
+    }, scrollDelta);
     await expect
       .poll(() => host.evaluate((node) => node.scrollTop))
-      .toBeCloseTo(position - 200, 0);
+      .toBeCloseTo(position - scrollDelta, 0);
     const full = page.getByRole("link", {
       name: "Open reference full page",
       exact: true,
     });
     expect(
       new URL((await full.getAttribute("href"))!, page.url()).searchParams.get(
-        "landing",
+        "selection",
       ),
     ).toBe(JSON.stringify(landing));
     await expect(full).toBeInViewport();
@@ -245,27 +282,34 @@ test("encounter references retain their owner, scroll and native destination", a
       await full.click({ button: "middle" });
       const other = await opened;
       await expect(other).toHaveURL(/\/records\/browser-actors:/);
-      expect(new URL(other.url()).searchParams.get("landing")).toBe(
+      expect(new URL(other.url()).searchParams.get("selection")).toBe(
         JSON.stringify(landing),
       );
       await expect(page).toHaveURL(new RegExp(`/encounters/${encounter.slug}$`));
       await other.close();
     }
     await activate(
-      page.getByRole("button", { name: "Close reference preview", exact: true }),
+      page.getByRole("button", {
+        name: widePreview ? "Close reference preview" : "Close",
+        exact: true,
+      }),
       info,
     );
     await expect(content).toBeHidden();
     await expect(
       page.getByRole("link", { name: "Signal Pulse", exact: true }),
     ).toBeFocused();
-    const hp = page.getByRole("textbox", { name: "HP", exact: true });
+    await page.setViewportSize(originalSize);
+    await activate(page.getByRole("button", { name: "Edit HP", exact: true }), info);
+    const hpDialog = page.getByRole("dialog", { name: "Edit HP", exact: true });
+    const hp = hpDialog.getByRole("textbox", { name: "Current HP", exact: true });
     await expect(hp).toHaveValue("60");
     let writes = 0;
     page.on("request", (request) => {
       if (
-        request.method() === "PATCH" &&
-        new URL(request.url()).pathname.startsWith(`${path}/participants/`)
+        request.method() === "POST" &&
+        new URL(request.url()).pathname.startsWith(`${path}/participants/`) &&
+        new URL(request.url()).pathname.endsWith("/hp")
       )
         writes++;
     });
@@ -275,25 +319,210 @@ test("encounter references retain their owner, scroll and native destination", a
     // replace readiness, source data or a successful backend response.
     await page.route(detailRead, (route) => route.abort("failed"));
     await hp.fill("55");
-    await activate(
-      page.getByRole("button", { name: "Set", exact: true }).first(),
-      info,
-    );
-    const feedback = page
+    await activate(hpDialog.getByRole("button", { name: "Save", exact: true }), info);
+    const feedback = hpDialog
       .getByRole("alert")
       .filter({ hasText: "Saved, but the encounter could not refresh" });
     await expect(feedback).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Add PC", exact: true }),
-    ).toBeDisabled();
+    const settingsAction = page.getByRole("button", {
+      name: "Settings",
+      exact: true,
+    });
+    await expect(settingsAction).toBeVisible();
+    await expect(settingsAction).toBeDisabled();
     expect(writes).toBe(1);
     await page.unroute(detailRead);
-    await activate(page.getByRole("button", { name: "Retry encounter refresh" }), info);
+    await activate(
+      hpDialog.getByRole("button", { name: "Retry encounter refresh" }),
+      info,
+    );
     await expect(feedback).toBeHidden();
-    await expect(hp).toHaveValue("55");
+    await expect(hpDialog).toBeHidden();
+    await expect(page.getByLabel("HP summary", { exact: true })).toHaveText("55/60");
     expect(writes).toBe(1);
     await noPageOverflow(page);
   } finally {
     expect((await page.request.delete(path)).ok()).toBeTruthy();
   }
 });
+
+test("encounter roster, repeated Add, settings focus and HP intents survive narrow layouts", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Workflow ${info.project.name} ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/record`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            record_ref: sentinel,
+            quantity: 8,
+            initiative: 12,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    for (const [index, name] of [
+      "Mira",
+      "Tamsin the Lantern Keeper",
+      "Corin",
+      "Vel",
+    ].entries()) {
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: {
+              encounter_ref: encounter.encounter_key,
+              display_name: name,
+              max_hp: 40,
+              initiative: 20 - index,
+            },
+          })
+        ).ok(),
+      ).toBeTruthy();
+    }
+    await page.goto(`/encounters/${encounter.slug}`);
+    const row = page
+      .locator("[data-participant-key]")
+      .filter({ hasText: "Tamsin the Lantern Keeper" });
+    await row.scrollIntoViewIfNeeded();
+    if (info.project.use.hasTouch) await row.tap();
+    else {
+      await row.focus();
+      await page.keyboard.press("Enter");
+    }
+    await expect(page.getByLabel("HP summary", { exact: true })).toBeVisible();
+    const back = page.getByRole("button", { name: "Back to roster", exact: true });
+    if (await back.isVisible()) {
+      await expectParticipantWidth(page);
+      await activate(back, info);
+      await expect(row).toBeFocused();
+      await expect(row).toBeInViewport();
+    }
+    const handle = page.getByRole("button", {
+      name: "Reorder Tamsin the Lantern Keeper",
+      exact: true,
+    });
+    await handle.focus();
+    await page.keyboard.press("Space");
+    await expect(handle).toHaveAttribute("aria-pressed", "true");
+    const beforeMove = await (await page.request.get(path)).json();
+    const targetKey = beforeMove.participants[0].participant_key;
+    await page.keyboard.press("ArrowUp");
+    await expect(
+      page.getByRole("status").filter({ hasText: `droppable area ${targetKey}.` }),
+    ).toBeVisible();
+    await page.keyboard.press("Space");
+    await expect
+      .poll(async () => {
+        const response = await page.request.get(path);
+        const view = await response.json();
+        return view.participants
+          .map((participant: { display_name: string }) => participant.display_name)
+          .indexOf("Tamsin the Lantern Keeper");
+      })
+      .toBe(0);
+    await expect(
+      page.getByRole("button", { name: "Add PC", exact: true }),
+    ).toBeEnabled();
+    await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
+    await activate(
+      page
+        .getByRole("dialog", { name: "Add PC", exact: true })
+        .getByRole("button", { name: "Cancel", exact: true }),
+      info,
+    );
+    await activate(page.getByRole("button", { name: "Settings", exact: true }), info);
+    const settings = page.getByRole("dialog", {
+      name: "Settings",
+      exact: true,
+    });
+    await activate(settings.locator("label").filter({ hasText: /^Name$/ }), info);
+    await expect(
+      settings.getByRole("textbox", { name: /^(?:\*\s*)?Name$/ }),
+    ).toBeFocused();
+    await activate(settings.getByRole("button", { name: "Cancel", exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "Add Creature", exact: true }),
+      info,
+    );
+    const picker = page.getByRole("dialog", {
+      name: "Add creature or hazard",
+      exact: true,
+    });
+    await activate(picker.locator(`[data-record-key="${sentinel}"]`).first(), info);
+    await picker.getByLabel("Quantity", { exact: true }).fill("2");
+    await picker.getByLabel("Initiative", { exact: true }).fill("7");
+    await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
+    await expect(picker.getByRole("status")).toContainText("Added 2 × Atlas Sentinel");
+    await expect(picker.getByLabel("Quantity", { exact: true })).toHaveValue("1");
+    await expect(picker.getByLabel("Initiative", { exact: true })).toHaveValue("");
+    await expect(
+      picker.getByRole("button", { name: "Add", exact: true }),
+    ).toBeEnabled();
+    await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
+    await expect(picker.getByRole("status")).toContainText("Added 1 × Atlas Sentinel");
+    await activate(picker.getByRole("button", { name: "Done", exact: true }), info);
+    await activate(page.getByRole("button", { name: "Start turn", exact: true }), info);
+    await expect
+      .poll(
+        async () =>
+          (await (await page.request.get(path)).json()).current_turn_participant_key,
+      )
+      .toBeTruthy();
+    const view = await (await page.request.get(path)).json();
+    await expect(
+      page.locator(".encounter-record-pane").getByRole("heading", {
+        name: view.participants.find(
+          (p: { participant_key: string }) =>
+            p.participant_key === view.current_turn_participant_key,
+        ).display_name,
+        exact: true,
+      }),
+    ).toBeVisible();
+    const amount = page.getByRole("textbox", { name: "HP change", exact: true });
+    await amount.fill("-4 - 2");
+    await amount.press("Enter");
+    await expect(page.getByLabel("HP summary", { exact: true })).toHaveText("34/40");
+    await expect(amount).toHaveValue("");
+    await expect(amount).toBeFocused();
+    await amount.fill("4 + 2");
+    await amount.press("Enter");
+    await expect(page.getByLabel("HP summary", { exact: true })).toHaveText("40/40");
+    await expect(amount).toHaveValue("");
+    await expect(amount).toBeFocused();
+    await amount.fill("4 + 2");
+    await activate(page.getByRole("button", { name: "Damage", exact: true }), info);
+    await expect(page.getByLabel("HP summary", { exact: true })).toHaveText("34/40");
+    if ((page.viewportSize()?.width ?? 1440) >= 768)
+      await page.setViewportSize({ width: 320, height: 700 });
+    if (await back.isVisible()) await expectParticipantWidth(page);
+    await noPageOverflow(page);
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
+
+async function expectParticipantWidth(page: Page) {
+  // Visibility and document overflow do not catch a contained flex item
+  // collapsing to its padding while its parent remains full width.
+  await expect
+    .poll(async () => {
+      const reader = await page.locator(".encounter-record-pane").boundingBox();
+      const parent = await page.locator(".workspace-pane--results").boundingBox();
+      if (!reader || !parent || parent.width === 0) return 0;
+      return reader.width / parent.width;
+    })
+    .toBeGreaterThan(0.95);
+  const reader = (await page.locator(".encounter-record-pane").boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(reader.width).toBeGreaterThan(viewport.width * 0.8);
+  expect(reader.x).toBeGreaterThanOrEqual(0);
+  expect(reader.x + reader.width).toBeLessThanOrEqual(viewport.width + 1);
+}

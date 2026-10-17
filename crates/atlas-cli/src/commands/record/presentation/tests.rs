@@ -558,6 +558,7 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            has_reference_details: false,
             navigation: address(),
             title: "Jaws".into(),
             family: "melee".into(),
