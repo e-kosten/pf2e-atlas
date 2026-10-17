@@ -16,6 +16,7 @@ import {
   getSavedLists,
   AtlasApiError,
   getEncounter,
+  getEncounterReference,
   updateEncounterParticipant,
   addEncounterManualParticipant,
   updateEncounter,
@@ -200,6 +201,67 @@ describe("source-backed API transport", () => {
     status: "active",
     note_hint: null,
   };
+  it.each(["creature", "hazard"] as const)(
+    "preserves exact condition diagnostic identity through %s encounter and reference transport",
+    async (kind) => {
+      const notes = [
+        {
+          source: "condition",
+          label: "Enfeebled",
+          reason: "Manual attack adjustment",
+          condition_id: 9,
+        },
+        { source: "rule", label: "Other effect", reason: "Manual adjustment" },
+      ];
+      const actor = { runtime: { unapplied_effects: notes } };
+      const presentation = {
+        body: { kind, value: kind === "creature" ? actor : { actor } },
+      };
+      respond({
+        revision: 8,
+        encounter: { round_number: 1 },
+        participants: [{ ...participantJson, presentation }],
+      });
+      const encounter = await getEncounter("test");
+      const expected = [
+        {
+          ...notes[0],
+          condition_id: encounter.participants[0].conditions[0].condition_id,
+        },
+        notes[1],
+      ];
+      const body = encounter.participants[0].presentation?.body;
+      expect(
+        body &&
+          (body.kind === "creature"
+            ? body.value.runtime
+            : body.kind === "hazard"
+              ? body.value.actor.runtime
+              : null
+          )?.unapplied_effects,
+      ).toEqual(expected);
+      respond({ presentation });
+      const reference = await getEncounterReference("test", "ghoul", {
+        artifact_generation: "generation-test",
+        selection: {
+          record_key: "actors:ghoul",
+          owners: [],
+          fields: [],
+          passage: null,
+          source_fingerprint: null,
+        },
+      });
+      const referenceBody = reference.presentation.body;
+      expect(
+        (referenceBody.kind === "creature"
+          ? referenceBody.value.runtime
+          : referenceBody.kind === "hazard"
+            ? referenceBody.value.actor.runtime
+            : null
+        )?.unapplied_effects,
+      ).toEqual(expected);
+    },
+  );
   it("normalizes actual HTTP encounter integers for display and revision-bound edits", async () => {
     respond({
       revision: 8,

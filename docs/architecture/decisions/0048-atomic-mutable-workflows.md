@@ -35,8 +35,17 @@ intent rather than client-computed replacement HP. App-service evaluates the
 bounded integer addition/subtraction shortcut against the revision-checked current
 participant and reuses the same provenance/replacement policy. Local-state checks
 that revision again under the write transaction, so concurrent changes cannot
-commit calculations made from stale HP. Exact corrections preserve manual outliers;
-derived-maximum reset retains the existing provenance and deficit policy. No new
+commit calculations made from stale HP. A single initial plus/minus sign extends
+the bounded integer shortcut. Signed Heal intent handles Enter; negative Damage
+or Heal amounts reverse the operation before running the actual damage/healing
+policy, including temporary HP, floor/cap and defeated behavior. Exact corrections
+keep their zero floor and preserve manual values above the maximum;
+derived-maximum reset retains the existing provenance and deficit policy. The
+three-field HP editor submits one SetValues operation. Omitted current/maximum/
+temporary fields preserve their values and edit intent; supplied current/maximum
+wrappers carry raw formula input or explicit null for unknown. All supplied
+inputs are interpreted before one guarded participant replacement, including
+same-value explicit maximum intent. No sequential partial saves are used. No new
 storage schema or expression/rules engine is introduced.
 
 App-service owns turn eligibility and selection policy. Local-state supplies

@@ -284,6 +284,9 @@ pub struct StatModifierView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UnappliedEffectView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub condition_id: Option<i64>,
     pub source: String,
     pub label: String,
     pub reason: String,
@@ -495,6 +498,14 @@ pub enum ReorderEncounterParticipantPlacementView {
     After,
 }
 
+/// A supplied exact value; null explicitly clears current/maximum availability.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct EncounterHpValueInput {
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub input: Option<String>,
+}
+
 /// A deliberate HP operation, interpreted against the checked current participant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -515,6 +526,18 @@ pub enum EncounterHpAction {
     },
     SetTemporary {
         input: String,
+    },
+    /// Correct all supplied values atomically; omitted fields retain their intent.
+    SetValues {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        current: Option<EncounterHpValueInput>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        maximum: Option<EncounterHpValueInput>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        temporary: Option<String>,
     },
     UseDerivedMaximum,
 }
@@ -661,6 +684,34 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn atomic_hp_values_distinguish_omitted_fields_from_explicit_unknown() {
+        let parsed: EncounterHpAction = serde_json::from_value(
+            json!({"kind":"set_values","current":{"input":null},"temporary":"0"}),
+        )
+        .unwrap();
+        assert_eq!(
+            parsed,
+            EncounterHpAction::SetValues {
+                current: Some(EncounterHpValueInput { input: None }),
+                maximum: None,
+                temporary: Some("0".into())
+            }
+        );
+        assert_eq!(
+            serde_json::to_value(parsed).unwrap(),
+            json!({"kind":"set_values","current":{"input":null},"temporary":"0"})
+        );
+        for bad in [
+            json!({"kind":"set_values","current":{}}),
+            json!({"kind":"set_values","maximum":{"input":5}}),
+            json!({"kind":"set_values","temporary":0}),
+            json!({"kind":"set_values","current":{"input":"4","value":4}}),
+        ] {
+            assert!(serde_json::from_value::<EncounterHpAction>(bad).is_err());
+        }
     }
 
     #[test]

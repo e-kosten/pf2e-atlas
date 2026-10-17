@@ -75,7 +75,9 @@ it("returns focus to the original live trigger after following nested references
 });
 
 it("returns focus to the original trigger after dismissing a narrow reference drawer", async () => {
-  const breakpoint = vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xs: true });
+  const breakpoint = vi
+    .spyOn(Grid, "useBreakpoint")
+    .mockReturnValue({ xs: true, md: false });
   function NarrowPreviewFlow() {
     const preview = useRecordPreview();
     return (
@@ -111,13 +113,11 @@ it("returns focus to the original trigger after dismissing a narrow reference dr
         screen.getByRole("button", { name: "Open reference full page" }),
       ).toHaveFocus(),
     );
-    const close = screen.getByRole("button", { name: "Close reference preview" });
+    const close = screen.getByRole("button", { name: "Close" });
     act(() => close.focus());
     fireEvent.keyDown(close, { key: "Escape", keyCode: 27 });
     await waitFor(() =>
-      expect(
-        screen.queryByRole("dialog", { name: "Reference" }),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument(),
     );
     expect(original).toHaveFocus();
   } finally {

@@ -166,6 +166,8 @@ pub enum ActorActivityKindView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    // Whether opening the selected document can add details beyond this summary.
+    pub has_reference_details: bool,
     pub navigation: RecordNavigationView,
     pub title: String,
     pub family: String,

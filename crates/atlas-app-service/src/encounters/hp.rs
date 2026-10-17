@@ -55,36 +55,43 @@ impl AtlasAppService {
             hidden: existing.hidden,
             note: existing.note.clone(),
         };
+        let damage_requested = matches!(&request.action, EncounterHpAction::Damage { .. });
         match request.action {
-            EncounterHpAction::Damage { amount } => {
+            EncounterHpAction::Damage { amount } | EncounterHpAction::Heal { amount } => {
                 let amount = formula_value(&amount, false)?;
-                let current = existing.current_hp.ok_or_else(|| {
-                    AppServiceError::invalid_request("Set current HP before applying damage")
-                })?;
-                if existing.temporary_hp < 0 {
-                    return Err(AppServiceError::invalid_request(
-                        "Correct temporary HP before applying damage",
-                    ));
+                let damage = if amount < 0 {
+                    !damage_requested
+                } else {
+                    damage_requested
+                };
+                // The signed safe-integer bound excludes i64::MIN.
+                let amount = amount.abs();
+                if damage {
+                    let current = existing.current_hp.ok_or_else(|| {
+                        AppServiceError::invalid_request("Set current HP before applying damage")
+                    })?;
+                    if existing.temporary_hp < 0 {
+                        return Err(AppServiceError::invalid_request(
+                            "Correct temporary HP before applying damage",
+                        ));
+                    }
+                    let temporary_damage = existing.temporary_hp.min(amount);
+                    let remaining = amount - temporary_damage;
+                    update.temporary_hp -= temporary_damage;
+                    update.current_hp = Some(current.saturating_sub(remaining).max(0));
+                    update.defeated = update.current_hp == Some(0) || existing.defeated;
+                } else {
+                    let current = existing.current_hp.ok_or_else(|| {
+                        AppServiceError::invalid_request("Set current HP before applying healing")
+                    })?;
+                    let healed = i128::from(current) + i128::from(amount);
+                    let healed = existing
+                        .max_hp
+                        .map_or(healed, |max| healed.min(i128::from(max)));
+                    update.current_hp = Some(i64::try_from(healed).map_err(|_| {
+                        AppServiceError::invalid_request("Healing would overflow current HP")
+                    })?);
                 }
-                let temporary_damage = existing.temporary_hp.min(amount);
-                let remaining = amount - temporary_damage;
-                update.temporary_hp -= temporary_damage;
-                update.current_hp = Some(current.saturating_sub(remaining).max(0));
-                update.defeated = update.current_hp == Some(0) || existing.defeated;
-                update.hp_edit = true;
-            }
-            EncounterHpAction::Heal { amount } => {
-                let amount = formula_value(&amount, false)?;
-                let current = existing.current_hp.ok_or_else(|| {
-                    AppServiceError::invalid_request("Set current HP before applying healing")
-                })?;
-                let healed = i128::from(current) + i128::from(amount);
-                let healed = existing
-                    .max_hp
-                    .map_or(healed, |max| healed.min(i128::from(max)));
-                update.current_hp = Some(i64::try_from(healed).map_err(|_| {
-                    AppServiceError::invalid_request("Healing would overflow current HP")
-                })?);
                 update.hp_edit = true;
             }
             EncounterHpAction::SetCurrent { input } => {
@@ -103,6 +110,37 @@ impl AtlasAppService {
             }
             EncounterHpAction::SetTemporary { input } => {
                 update.temporary_hp = formula_value(&input, true)?
+            }
+            EncounterHpAction::SetValues {
+                current,
+                maximum,
+                temporary,
+            } => {
+                if current.is_none() && maximum.is_none() && temporary.is_none() {
+                    return Err(AppServiceError::invalid_request(
+                        "Choose at least one HP field to correct",
+                    ));
+                }
+                // Interpret every submitted field before the single guarded replacement.
+                if let Some(current) = current {
+                    update.current_hp = current
+                        .input
+                        .as_deref()
+                        .map(|input| formula_value(input, true))
+                        .transpose()?;
+                    update.hp_edit = true;
+                }
+                if let Some(maximum) = maximum {
+                    update.max_hp = maximum
+                        .input
+                        .as_deref()
+                        .map(|input| formula_value(input, true))
+                        .transpose()?;
+                    update.max_hp_edit = true;
+                }
+                if let Some(temporary) = temporary {
+                    update.temporary_hp = formula_value(&temporary, true)?;
+                }
             }
             EncounterHpAction::UseDerivedMaximum => update.use_derived_max = true,
         }
@@ -124,7 +162,20 @@ fn evaluate_formula(input: &str) -> AppServiceResult<i128> {
     }
     let mut chars = input.trim().chars().peekable();
     let mut result = 0_i128;
-    let mut subtract = false;
+    let mut subtract = match chars.peek() {
+        Some('+') => {
+            chars.next();
+            false
+        }
+        Some('-') => {
+            chars.next();
+            true
+        }
+        _ => false,
+    };
+    while chars.peek().is_some_and(|c| c.is_whitespace()) {
+        chars.next();
+    }
     loop {
         let mut term = 0_i128;
         let mut has_digit = false;
@@ -169,9 +220,9 @@ fn evaluate_formula(input: &str) -> AppServiceResult<i128> {
 fn formula_value(input: &str, correction: bool) -> AppServiceResult<i64> {
     let value = evaluate_formula(input)?;
     let value = if correction { value.max(0) } else { value };
-    if !(0..=MAX_INPUT_VALUE).contains(&value) {
+    if !(-MAX_INPUT_VALUE..=MAX_INPUT_VALUE).contains(&value) {
         return Err(AppServiceError::invalid_request(
-            "HP input must evaluate to a nonnegative safe integer",
+            "HP input must evaluate to a safe integer",
         ));
     }
     Ok(value as i64)
@@ -182,10 +233,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn integer_shortcuts_preserve_correction_floor_and_reject_negative_amounts() {
+    fn signed_shortcuts_preserve_correction_floor_and_safe_bounds() {
         assert_eq!(formula_value(" 23 + 4 - 9 ", false).unwrap(), 18);
         assert_eq!(formula_value("2-3", true).unwrap(), 0);
-        assert!(formula_value("2-3", false).is_err());
+        assert_eq!(formula_value("2-3", false).unwrap(), -1);
+        assert_eq!(formula_value("-10", false).unwrap(), -10);
+        assert_eq!(formula_value("+10", false).unwrap(), 10);
+        assert_eq!(formula_value(" - 10 + 3 ", false).unwrap(), -7);
+        assert_eq!(formula_value("+2-3", false).unwrap(), -1);
+        assert_eq!(formula_value("-2+3", false).unwrap(), 1);
+        assert_eq!(formula_value("-10", true).unwrap(), 0);
+        assert_eq!(formula_value("+100", true).unwrap(), 100);
+        assert_eq!(
+            formula_value("-9007199254740991", false).unwrap(),
+            -9_007_199_254_740_991
+        );
         assert_eq!(
             formula_value("9007199254740991+1-1", false).unwrap(),
             9_007_199_254_740_991
@@ -196,8 +258,14 @@ mod tests {
     fn formula_grammar_and_bounds_are_explicit() {
         for input in [
             "",
-            "-1",
-            "+1",
+            "-",
+            "+",
+            "--1",
+            "+-1",
+            "1+-2",
+            "1-+2",
+            "(1)",
+            "−1",
             "1.5",
             "1d6",
             "1*2",
@@ -206,6 +274,8 @@ mod tests {
             "1+",
             "NaN",
             "9007199254740992",
+            "-9007199254740992",
+            "-9007199254740991-1",
             "170141183460469231731687303715884105728",
         ] {
             assert!(formula_value(input, false).is_err(), "accepted {input}");

@@ -35,12 +35,15 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
     },
   );
   fireEvent.click(screen.getByRole("button", { name: "Edit HP" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "HP" }), {
+  fireEvent.change(screen.getByRole("textbox", { name: "Current HP" }), {
     target: { value: "13" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Set current HP" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
-    expect(onAction).toHaveBeenCalledWith({ kind: "set_current", input: "13" }),
+    expect(onAction).toHaveBeenCalledWith({
+      kind: "set_values",
+      current: { input: "13" },
+    }),
   );
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   rerender(
@@ -57,5 +60,5 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
   );
   expect(screen.getByLabelText("HP summary")).toHaveTextContent("23/30");
   fireEvent.click(screen.getByRole("button", { name: "Edit HP" }));
-  expect(screen.getByRole("textbox", { name: "HP" })).toHaveValue("23");
+  expect(screen.getByRole("textbox", { name: "Current HP" })).toHaveValue("23");
 });

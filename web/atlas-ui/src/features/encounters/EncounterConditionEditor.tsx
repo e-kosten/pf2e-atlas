@@ -1,4 +1,4 @@
-import { Alert, Button, Collapse, Form, Input, InputNumber, Select, Space } from "antd";
+import { Alert, Button, Form, Input, InputNumber, Select, Space } from "antd";
 import { useEffect, useId, type ReactNode } from "react";
 import type {
   EncounterConditionDefinitionView,
@@ -11,7 +11,7 @@ export type ConditionFormValues = {
   conditionRef?: string;
   value?: number | null;
   durationAmount?: number | null;
-  durationUnit: Duration["unit"];
+  durationUnit: Duration["unit"] | "none";
   timingParticipant?: string;
   timingEvent?: "start" | "end";
   sourceParticipantKey?: string;
@@ -36,7 +36,11 @@ export const integerRule = (required: boolean) => ({
 });
 
 export function conditionDuration(values: ConditionFormValues): Duration | undefined {
-  if (values.durationAmount === null || values.durationAmount === undefined)
+  if (
+    values.durationUnit === "none" ||
+    values.durationAmount === null ||
+    values.durationAmount === undefined
+  )
     return undefined;
   return {
     amount: BigInt(values.durationAmount),
@@ -81,7 +85,7 @@ export function EncounterConditionEditor({
   );
   const hasValue = definition?.has_value ?? condition?.value !== undefined;
   const durationAmount = Form.useWatch("durationAmount", form);
-  const durationUnit = Form.useWatch("durationUnit", form) ?? "rounds";
+  const durationUnit = Form.useWatch("durationUnit", form) ?? "none";
   const isRounds =
     durationAmount !== undefined &&
     durationAmount !== null &&
@@ -95,7 +99,7 @@ export function EncounterConditionEditor({
         condition.duration === undefined
           ? undefined
           : Number(condition.duration.amount),
-      durationUnit: condition.duration?.unit ?? "rounds",
+      durationUnit: condition.duration?.unit ?? "none",
       timingParticipant: condition.duration?.timing?.participant_key,
       timingEvent: condition.duration?.timing?.event,
       sourceParticipantKey: condition.source_participant_key,
@@ -141,7 +145,7 @@ export function EncounterConditionEditor({
         layout="vertical"
         disabled={disabled}
         initialValues={{
-          durationUnit: condition?.duration?.unit ?? "rounds",
+          durationUnit: condition?.duration?.unit ?? "none",
           durationAmount: condition?.duration
             ? Number(condition.duration.amount)
             : undefined,
@@ -199,98 +203,82 @@ export function EncounterConditionEditor({
             />
           </Form.Item>
         )}
-        <Collapse
-          ghost
-          defaultActiveKey={
-            condition?.duration || condition?.source_participant_key || condition?.note
-              ? ["details"]
-              : []
-          }
-          items={[
-            {
-              key: "details",
-              label: "Optional details",
-              children: (
-                <>
-                  <div className="encounter-duration-fields">
-                    <Form.Item
-                      name="durationAmount"
-                      label="Duration"
-                      rules={[integerRule(false)]}
-                    >
-                      <InputNumber aria-label="Duration amount" step={1} />
-                    </Form.Item>
-                    <Form.Item name="durationUnit" label="Unit">
-                      <Select
-                        aria-label="Duration unit"
-                        options={["rounds", "minutes", "hours", "days"].map(
-                          (value) => ({ value, label: value }),
-                        )}
-                      />
-                    </Form.Item>
-                  </div>
-                  {isRounds ? (
-                    <>
-                      <Form.Item
-                        name="timingParticipant"
-                        label="Whose turn"
-                        rules={[timingRule]}
-                      >
-                        <Select
-                          aria-label="Duration turn"
-                          allowClear
-                          options={participants.map((p) => ({
-                            value: p.participant_key,
-                            label: p.display_name,
-                          }))}
-                        />
-                      </Form.Item>
-                      <Form.Item
-                        name="timingEvent"
-                        label="Count down at"
-                        rules={[timingRule]}
-                      >
-                        <Select
-                          aria-label="Duration timing"
-                          allowClear
-                          options={[
-                            { value: "start", label: "Start of turn" },
-                            { value: "end", label: "End of turn" },
-                          ]}
-                        />
-                      </Form.Item>
-                      {condition?.duration?.unit === "rounds" &&
-                        condition.duration.timing === null && (
-                          <p className="muted">
-                            Timing is not configured. Choose a turn to start tracking
-                            rounds.
-                          </p>
-                        )}
-                    </>
-                  ) : durationAmount !== undefined && durationAmount !== null ? (
-                    <p className="muted">Reminder only; tracked at the table.</p>
-                  ) : null}
-                  <Form.Item name="sourceParticipantKey" label="Source">
-                    <Select
-                      aria-label="Source"
-                      allowClear
-                      options={participants.map((p) => ({
-                        value: p.participant_key,
-                        label: p.display_name,
-                      }))}
-                    />
-                  </Form.Item>
-                  <Form.Item name="note" label="Note">
-                    <Input.TextArea
-                      aria-label="Condition note"
-                      autoSize={{ minRows: 2, maxRows: 8 }}
-                    />
-                  </Form.Item>
-                </>
-              ),
-            },
-          ]}
-        />
+        <div className="encounter-duration-fields">
+          <Form.Item
+            name="durationAmount"
+            label="Duration"
+            rules={[integerRule(durationUnit !== "none")]}
+          >
+            <InputNumber
+              aria-label="Duration amount"
+              step={1}
+              disabled={disabled || durationUnit === "none"}
+            />
+          </Form.Item>
+          <Form.Item name="durationUnit" label="Unit">
+            <Select
+              aria-label="Duration unit"
+              onChange={(unit) => {
+                if (unit === "none") form.setFieldValue("durationAmount", undefined);
+                else if (form.getFieldValue("durationAmount") == null)
+                  form.setFieldValue("durationAmount", 1);
+              }}
+              options={[
+                { value: "none", label: "No duration" },
+                ...["rounds", "minutes", "hours", "days"].map((value) => ({
+                  value,
+                  label: value,
+                })),
+              ]}
+            />
+          </Form.Item>
+        </div>
+        {isRounds ? (
+          <>
+            <Form.Item name="timingEvent" label="Count down at" rules={[timingRule]}>
+              <Select
+                aria-label="Duration timing"
+                allowClear
+                options={[
+                  { value: "start", label: "Start of turn" },
+                  { value: "end", label: "End of turn" },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="timingParticipant" label="Whose turn" rules={[timingRule]}>
+              <Select
+                aria-label="Duration turn"
+                allowClear
+                options={participants.map((p) => ({
+                  value: p.participant_key,
+                  label: p.display_name,
+                }))}
+              />
+            </Form.Item>
+            {condition?.duration?.unit === "rounds" &&
+              condition.duration.timing === null && (
+                <p className="muted">
+                  Timing is not configured. Choose a turn to start tracking rounds.
+                </p>
+              )}
+          </>
+        ) : null}
+        <Form.Item name="sourceParticipantKey" label="Source">
+          <Select
+            aria-label="Source"
+            allowClear
+            options={participants.map((p) => ({
+              value: p.participant_key,
+              label: p.display_name,
+            }))}
+          />
+        </Form.Item>
+        <Form.Item name="note" label="Note">
+          <Input.TextArea
+            aria-label="Condition note"
+            autoSize={{ minRows: 2, maxRows: 8 }}
+          />
+        </Form.Item>
         <Space wrap>
           <Button
             type="primary"

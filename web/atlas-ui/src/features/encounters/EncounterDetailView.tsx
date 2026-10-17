@@ -3,7 +3,6 @@ import { Alert, Button, Grid } from "antd";
 import { Edit2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
-import type { EncounterSummaryView } from "../../generated/atlas";
 import { useEncounterMutations } from "./useEncounterMutations";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
@@ -135,23 +134,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     onAdvance: advanceTurn,
   });
   const encounterSummary = encounter.data?.encounter ?? null;
-  const updateEncounterStatus = async (status: EncounterSummaryView["status"]) => {
-    if (!encounterSummary) {
-      return;
-    }
-    await mutations.run({
-      kind: "metadata",
-      request: {
-        encounter_key: encounterSummary.encounter_key,
-        slug: encounterSummary.slug,
-        name: encounterSummary.name,
-        description: encounterSummary.description,
-        note: encounter.data?.note,
-        status,
-      },
-    });
-    setEditEncounterOpen(false);
-  };
 
   const recovery = mutations.refreshError ? (
     <Alert
@@ -193,12 +175,12 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             </p>
           </div>
           <Button
-            aria-label="Encounter settings"
+            aria-label="Settings"
             disabled={disabled}
             icon={<Edit2 size={14} />}
             onClick={() => setEditEncounterOpen(true)}
           >
-            Encounter settings
+            Settings
           </Button>
         </section>
         {encounter.error && !mutations.refreshError && (
@@ -288,23 +270,28 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               })
             }
             onSelect={revealParticipant}
-            onReorder={(participantKey, targetParticipantKey, placement) =>
-              void mutations
-                .run({
-                  kind: "reorder",
-                  request: {
-                    participant_key: participantKey,
-                    target_participant_key: targetParticipantKey,
-                    placement,
-                  },
-                })
-                .catch(() => {})
-            }
-            onSetTurn={(participant) =>
+            onReorder={async (participantKey, targetParticipantKey, placement) => {
+              const result = await mutations.run({
+                kind: "reorder",
+                request: {
+                  participant_key: participantKey,
+                  target_participant_key: targetParticipantKey,
+                  placement,
+                },
+              });
+              return result.active && result.refreshed;
+            }}
+            onSetTurn={(participant) => {
+              followAfterRefresh.current = true;
               void mutations
                 .run({ kind: "turn", participantKey: participant.participant_key })
-                .catch(() => {})
-            }
+                .then((result) => {
+                  if (result.active && result.refreshed) followTurn(result.view);
+                })
+                .catch(() => {
+                  followAfterRefresh.current = false;
+                });
+            }}
             onUpdate={(request) => mutations.run({ kind: "participant", request })}
             participants={encounter.data?.participants ?? []}
             selectedParticipantKey={selected?.participant_key ?? null}
@@ -435,20 +422,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           error={mutations.errorMessage}
           encounterNote={encounter.data?.note}
           open={editEncounterOpen}
-          onArchive={() => updateEncounterStatus("archived")}
           onCancel={() => setEditEncounterOpen(false)}
-          onComplete={() => updateEncounterStatus("complete")}
-          onDelete={() =>
-            confirmDangerAction({
-              title: `Delete ${encounterSummary.name}?`,
-              content: "This permanently deletes the encounter.",
-              okText: "Delete",
-              onConfirm: async () => {
-                const result = await mutations.run({ kind: "delete" });
-                if (result.active) navigateToAtlasRoute({ kind: "encounters" });
-              },
-            })
-          }
+          onDelete={async () => {
+            const result = await mutations.run({ kind: "delete" });
+            if (result.active) navigateToAtlasRoute({ kind: "encounters" });
+          }}
           onSave={async (request) => {
             await mutations.run({ kind: "metadata", request });
             setEditEncounterOpen(false);

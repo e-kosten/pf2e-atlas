@@ -129,8 +129,13 @@ authored baselines. New HP uses known integral effective maxima; saved HP,
 explicit overrides and edit intent survive rebuilds. Missing values stay unknown.
 Encounter Damage/Heal and exact HP correction inputs are explicit revision-checked
 actions interpreted by app-service; the browser sends raw integer formulas and
-does not calculate persisted HP. The bounded addition/subtraction shortcut is not
-a general expression or dice engine.
+does not calculate persisted HP. Enter sends a signed Heal action; negative Damage
+or Heal amounts reverse the operation in Rust and use its complete HP policy.
+The bounded addition/subtraction shortcut permits one initial sign and is not
+a general expression or dice engine. The HP editor saves its supplied corrections
+in one guarded action, preserving omitted fields and explicit unknowns. Condition
+manual-effect notes carry their exact condition ID; unrelated diagnostics remain
+separate from condition cards.
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
 Local-state owns complete atomic user actions and coherent aggregate reads.

@@ -1,3 +1,4 @@
+import { Pencil, Plus } from "lucide-react";
 import { recordPath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import { Alert, Button, Modal } from "antd";
 import { useState, type ReactNode } from "react";
@@ -55,6 +56,14 @@ export function EncounterConditionControls({
   >(null);
   const [committed, setCommitted] = useState(false);
   const confirmRemove = useConfirmDangerAction();
+  const body = current.presentation?.body;
+  const actor =
+    body?.kind === "creature"
+      ? body.value
+      : body?.kind === "hazard"
+        ? body.value.actor
+        : undefined;
+  const manualNotes = actor?.runtime?.unapplied_effects ?? [];
   const selected =
     editor !== null && editor !== "add"
       ? current.conditions.find((c) => c.condition_id === editor.conditionId)
@@ -124,14 +133,16 @@ export function EncounterConditionControls({
         <h3>Conditions</h3>
         <Button
           size="small"
+          type="text"
+          aria-label="Add Condition"
+          title="Add Condition"
+          icon={<Plus size={16} aria-hidden="true" />}
           disabled={disabled || addDisabled}
           onClick={() => {
             setCommitted(false);
             setEditor("add");
           }}
-        >
-          Add Condition
-        </Button>
+        />
       </div>
       {error && !open && (
         <Alert type="error" title="Condition action failed" description={error} />
@@ -178,6 +189,9 @@ export function EncounterConditionControls({
                   />
                 )}
                 <Button
+                  className="encounter-condition-edit"
+                  type="text"
+                  icon={<Pencil size={14} aria-hidden="true" />}
                   size="small"
                   disabled={disabled}
                   aria-label={`Edit ${condition.name}`}
@@ -188,9 +202,7 @@ export function EncounterConditionControls({
                       revision: encounterRevision,
                     });
                   }}
-                >
-                  Edit
-                </Button>
+                />
                 {condition.duration && (
                   <span className="encounter-condition-meta">
                     {condition.duration.unit === "rounds" &&
@@ -203,6 +215,13 @@ export function EncounterConditionControls({
                       : ""}
                   </span>
                 )}
+                {manualNotes
+                  .filter((note) => note.condition_id === condition.condition_id)
+                  .map((note, index) => (
+                    <p className="encounter-condition-manual-note" key={index}>
+                      {note.reason}
+                    </p>
+                  ))}
               </div>
             );
           })}

@@ -1958,3 +1958,159 @@ fn corpus_npc_adjustment_defaults_preserve_typed_ghoul_hp() {
         "NPC defaults: roots={total} default_unadjusted={defaults} inherited={inherited} unknown={unknown}; actual Ghoul HP=20"
     );
 }
+
+#[test]
+fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
+    let f = encounter_fixture_worker();
+    let e = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Condition notes".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let p = f
+        .worker
+        .encounter(&e.encounter_key)
+        .unwrap()
+        .participants
+        .remove(0)
+        .participant_key;
+    for reference in [
+        Some("conditionitems:MIRkyAjyBeXivMa7"),
+        Some("conditionitems:MIRkyAjyBeXivMa7"),
+        Some("conditionitems:i3OJZU2nk64Df3xm"),
+        Some("conditionitems:XgEqL1kFApUbl5Z2"),
+        None,
+    ] {
+        f.worker
+            .add_encounter_participant_condition(
+                &e.encounter_key,
+                AddEncounterParticipantConditionRequest {
+                    participant_key: p.clone(),
+                    condition_ref: reference.map(Into::into),
+                    name: reference.is_none().then(|| "Enfeebled".into()),
+                    value: Some(1),
+                    source_participant_key: None,
+                    duration: None,
+                    note: None,
+                },
+            )
+            .unwrap();
+    }
+    let detail = f.worker.encounter(&e.encounter_key).unwrap();
+    let participant = &detail.participants[0];
+    let notes = &actor(participant)
+        .runtime
+        .as_ref()
+        .unwrap()
+        .unapplied_effects;
+    let expected = [
+        "Strength-based attack and damage penalties need manual adjustment.",
+        "Strength-based attack and damage penalties need manual adjustment.",
+        "Dexterity-based attack penalties need manual adjustment.",
+        "Effects need manual handling.",
+        "Effects need manual handling.",
+    ];
+    for (condition, reason) in participant.conditions.iter().zip(expected) {
+        let note = notes
+            .iter()
+            .filter(|note| note.condition_id == Some(condition.condition_id))
+            .collect::<Vec<_>>();
+        assert_eq!(note.len(), 1);
+        assert_eq!(
+            (note[0].label.as_str(), note[0].reason.as_str()),
+            (condition.name.as_str(), reason)
+        );
+    }
+    assert_eq!(
+        notes
+            .iter()
+            .filter(|note| note.condition_id.is_some())
+            .count(),
+        5
+    );
+    assert!(
+        notes
+            .iter()
+            .any(|note| note.label == "Identifying spells" && note.condition_id.is_none())
+    );
+    assert!(!notes.iter().any(|note| {
+        note.reason
+            .contains("Attack ability, spellcasting, restricted actions")
+    }));
+}
+
+#[test]
+fn manual_participants_keep_exact_condition_notes_without_authored_statistics() {
+    let f = encounter_fixture_worker();
+    let e = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Manual condition notes".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: e.encounter_key.clone(),
+            display_name: "PC".into(),
+            max_hp: None,
+            current_hp: None,
+            initiative: None,
+        })
+        .unwrap();
+    let p = f
+        .worker
+        .encounter(&e.encounter_key)
+        .unwrap()
+        .participants
+        .remove(0)
+        .participant_key;
+    f.worker
+        .add_encounter_participant_condition(
+            &e.encounter_key,
+            AddEncounterParticipantConditionRequest {
+                participant_key: p,
+                condition_ref: None,
+                name: Some("Custom condition".into()),
+                value: None,
+                source_participant_key: None,
+                duration: None,
+                note: None,
+            },
+        )
+        .unwrap();
+    let detail = f.worker.encounter(&e.encounter_key).unwrap();
+    let participant = &detail.participants[0];
+    let notes = &actor(participant)
+        .runtime
+        .as_ref()
+        .unwrap()
+        .unapplied_effects;
+    assert_eq!(notes.len(), 1);
+    assert_eq!(
+        (
+            notes[0].condition_id,
+            notes[0].label.as_str(),
+            notes[0].reason.as_str()
+        ),
+        (
+            Some(participant.conditions[0].condition_id),
+            "Custom condition",
+            "Effects need manual handling."
+        )
+    );
+}

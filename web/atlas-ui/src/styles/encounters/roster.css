@@ -5,17 +5,11 @@
   flex-wrap: wrap;
 }
 
-.encounter-roster__list,
-.encounter-roster__group {
+.encounter-roster__list {
   display: grid;
   gap: 4px;
 }
 
-.encounter-roster__group + .encounter-roster__group {
-  margin-top: 10px;
-}
-
-.encounter-roster__group-label,
 .encounter-roster__columns {
   color: var(--muted);
   font-size: 12px;
@@ -24,9 +18,9 @@
 .encounter-roster__columns,
 .encounter-roster__row {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 54px 28px;
+  grid-template-columns: 24px 36px minmax(0, 1fr) 48px 52px;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 4px;
 }
 
@@ -37,11 +31,13 @@
 }
 
 .encounter-roster__row--selected {
-  background: var(--panel-subtle);
+  outline: 1px solid var(--active-border);
+  outline-offset: -1px;
 }
 
 .encounter-roster__row--current {
   box-shadow: inset 3px 0 0 var(--active-border);
+  background: var(--active-bg);
 }
 
 .encounter-roster__row--current.encounter-roster__row--selected {
@@ -97,4 +93,29 @@
 
 .encounter-add-receipt {
   flex: 1 1 160px;
+}
+
+.encounter-roster__row-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.encounter-roster__drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.encounter-roster__drag-preview {
+  background: var(--panel);
+  border: 1px solid var(--active-border);
+}
+
+.encounter-roster__drag-handle:active {
+  cursor: grabbing;
+}
+
+.encounter-roster__row--defeated .encounter-roster__name,
+.encounter-roster__row--defeated .encounter-roster__hp {
+  color: var(--muted);
+  opacity: 0.65;
 }

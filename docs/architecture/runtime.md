@@ -370,14 +370,23 @@ Encounter HP actions carry participant identity, expected revision and one expli
 operation: damage, heal, exact current/temporary/maximum correction, or derived
 maximum reset. App-service interprets raw integer addition/subtraction input against
 the checked current participant, then reuses provenance policy and the transactional
-replacement guard. Amounts must evaluate nonnegative; exact correction formulas
-retain their zero floor and never acquire a maximum clamp. Null explicitly clears
+replacement guard. The bounded shortcut accepts one initial plus/minus sign.
+Enter sends signed Heal intent (positive heals, negative damages); negative Damage
+or Heal amounts reverse the operation in Rust before applying its complete policy.
+Exact correction formulas retain their zero floor and never acquire a maximum
+clamp. Null explicitly clears
 current/maximum availability. Formula length, arithmetic and browser-safe final
 input bounds are checked; dice and general expressions are unsupported. Damage
 absorbs temporary HP first, floors current HP at zero and marks zero HP defeated;
 healing caps at a known maximum and does not clear defeated. Missing current HP
 rejects damage/healing rather than inventing a value. These actions return the
-same durable receipt, independently of subsequent presentation refresh.
+same durable receipt, independently of subsequent presentation refresh. The
+three-field HP editor sends SetValues with only supplied raw inputs; an explicit
+null inside a current/maximum wrapper clears availability. All fields parse before
+one guarded replacement, preserving omitted values/provenance and same-value
+maximum edit intent. Condition-specific manual notes use canonical rule identity
+and exact condition IDs; noncondition diagnostics omit that ID. The browser can
+place these notes on their cards without hiding unrelated runtime context.
 
 Local-state initialization and migrations commit schema and metadata together.
 List metadata/tags, quantity additions and removal with replacement turn each
