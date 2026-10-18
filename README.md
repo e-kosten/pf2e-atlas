@@ -111,6 +111,10 @@ atlas record source equipment-srd:s1vB3HdXjMigYAnY --json
 ```
 
 Human record reading supports summary, standard (the default), and full detail.
+Use `record get <spell-key> --rank 5` to preview supported spell mechanics at a
+selected rank; `--json` carries the same effective facts. Owned spells retain
+their local customizations and use their casting context by default. Rank
+preview never spends encounter resources.
 Prepared HTML uses terminal emphasis when stdout is an interactive terminal.
 Pipes, files, `TERM=dumb` and nonempty `NO_COLOR` use plain text formatting.
 `record get --json` returns the complete selected Atlas reference response;

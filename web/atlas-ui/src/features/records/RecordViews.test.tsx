@@ -18,7 +18,8 @@ const apiMocks = vi.hoisted(() => ({
   getSavedLists: vi.fn(),
 }));
 
-vi.mock("../../api/atlasApi", () => ({
+vi.mock("../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../api/atlasApi")>()),
   addSavedListItem: apiMocks.addSavedListItem,
   getRecordDetail: apiMocks.getRecordDetail,
   getSavedLists: apiMocks.getSavedLists,
@@ -170,6 +171,7 @@ describe("record route views", () => {
   });
 
   it("preserves owned field and passage identity through preview follow, close, promotion and history", async () => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true, lg: true });
     const selected = (record_key: string, ordinal: number): RecordNavigationView => ({
       record_key,
       owners: [
@@ -189,11 +191,16 @@ describe("record route views", () => {
     const primary = selected("actors:primary", 0);
     const first = selected("actors:first", 1);
     const second = selected("actors:second", 2);
+    const third = selected("actors:third", 3);
     apiMocks.getRecordDetail.mockImplementation(
       (recordKey: string, selection?: RecordNavigationView) => {
         const result = recordDetailFixture(recordKey);
         result.relationships[0].target =
-          recordKey === primary.record_key ? first : second;
+          recordKey === primary.record_key
+            ? first
+            : recordKey === first.record_key
+              ? second
+              : third;
         if (selection) {
           const { record_key, owners, field, passage, source_fingerprint } = selection;
           result.selected = { record_key, owners, field, passage, source_fingerprint };
@@ -230,18 +237,19 @@ describe("record route views", () => {
       recordKey: second.record_key,
       selection: second,
     });
-    expect(screen.getByRole("link", { name: "Open full page" })).toHaveAttribute(
-      "href",
-      exactFullPage,
-    );
+    expect(
+      screen.getByRole("link", { name: "Open reference full page" }),
+    ).toHaveAttribute("href", exactFullPage);
+    fireEvent.click(screen.getAllByRole("link", { name: "Linked Record" })[2]);
+    await screen.findByRole("heading", { name: "third" });
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    await screen.findByRole("heading", { name: "first" });
-    fireEvent.click(screen.getAllByRole("link", { name: "Linked Record" })[1]);
     await screen.findByRole("heading", { name: "second" });
+    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+    expect(screen.getByRole("heading", { name: "first" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Open preview as reader" }));
     expect(currentAtlasRoute()).toMatchObject({
-      recordKey: second.record_key,
-      selection: second,
+      recordKey: first.record_key,
+      selection: first,
       previewRecordKey: null,
     });
     expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(

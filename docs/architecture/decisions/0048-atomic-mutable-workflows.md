@@ -125,3 +125,52 @@ creator-START from detrimental-through-target-turn END timing; applicability
 cannot be inferred from a condition's display name. The canonical
 [Persistent Damage rule](https://2e.aonprd.com/Conditions.aspx?ID=86) supplies its
 owner-END reminder and table recovery sequence, independently of duration expiry.
+
+### Encounter spell resources
+
+The app-service derives casting eligibility and resource pools from each
+participant's checked Actor source. The local-state owner stores capacities,
+remaining counts, and one undo value per resource under that participant.
+Schema 10 adds `encounter_spell_resources`; schema 11 adds participant-owned
+`encounter_expended_spells` markers. Artifact storage is unchanged.
+Prepared spells have a pool per entry, spell identity and rank. Spontaneous
+spells share rank slots within an entry, innate spells use their explicit use
+counts, and NPC focus spells share the typed focus pool. Cantrips consume no
+resource. Innate spells with absent use counts expose a manual Expended/Restore
+marker instead of an inferred capacity. Markers are per participant and stable
+spell identity, independent of preview rank; they are reminders, not casting
+prohibitions. Rejected or null capacities remain untracked. Source spell
+identities must be stable and unique before they can own persisted resources.
+
+New participants start at their full allotment, independently of exported
+remaining counts. Casting, Undo, count correction and entry restoration replace
+only resource rows in an immediate transaction guarded by participant revision;
+they also advance the encounter revision. HP, conditions and settings are not
+replaced. A later numeric spell-resource mutation invalidates the previous Undo;
+independent expenditure markers do not alter numeric resources or their Undo. Reads,
+rank previews and encounter completion never consume or restore resources.
+Preexisting participants acquire their source-derived pools on their first
+resource mutation. Stored capacities remain authoritative thereafter.
+
+The browser renders the service catalog and sends typed actions through its
+existing route-owned mutation/recovery flow. Shared reference presentation
+accepts action slots without owning encounter state. Casting does not execute
+Foundry rules, target effects, attack rolls or turn advancement.
+
+The resource catalog also identifies display scope: individual spell, shared rank
+slots, or shared entry resources. Browser rosters use this scope for count
+placement and dim exhausted links without preventing reference reading. Preview
+actions use the same resource state. Bounded counts are normalized before numeric
+comparisons because JSON numbers and generated TypeScript bigint annotations do
+not have the same runtime representation.
+
+Resource management edits one entry as a local draft. Restore all changes that
+draft; Cancel and dismissal discard it. Done submits all entry counts in one
+revision-checked request, validated in full before the resource transaction.
+The editor retains its opening participant revision and preserves its draft on
+conflict, rather than rebasing edits onto a newer snapshot without consent.
+
+Shared rank and focus counts also expose a compact immediate editor. Each change
+uses the same revision-checked entry replacement, retaining other pool values.
+Spell action conflicts refresh without replaying writes and show brief action
+feedback; an expenditure marker already in the requested state needs no error.

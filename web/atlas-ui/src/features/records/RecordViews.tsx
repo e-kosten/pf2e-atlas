@@ -67,6 +67,13 @@ export function RecordView({ route }: RecordViewProps) {
               }}
               loading={detail.isLoading || detail.isFetching}
               onReference={preview.open}
+              onRankChange={(spell_rank) => {
+                if (detail.data)
+                  navigateToAtlasRoute({
+                    ...route,
+                    selection: { ...detail.data.selected, spell_rank },
+                  });
+              }}
             />
           </RecordPane>
         }
@@ -87,6 +94,7 @@ export function RecordView({ route }: RecordViewProps) {
           onRetry={preview.retry}
           onClose={preview.close}
           onReference={preview.open}
+          onRankChange={preview.changeRank}
           onOpenFullPage={() => {
             navigateToAtlasRoute({
               kind: "record",
@@ -156,6 +164,13 @@ export function ReaderView({ route }: ReaderViewProps) {
             error={detail.error}
             onRetry={() => void detail.refetch()}
             loading={detail.isLoading || detail.isFetching}
+            onRankChange={(spell_rank) => {
+              if (detail.data)
+                navigateToAtlasRoute({
+                  ...route,
+                  selection: { ...detail.data.selected, spell_rank },
+                });
+            }}
             onOwnerReturn={(parent, landing) =>
               navigateToAtlasRoute({
                 ...route,

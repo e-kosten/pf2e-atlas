@@ -58,6 +58,46 @@ describe("useSearchWorkspace", () => {
     history.replaceState(null, "", "/");
   });
 
+  it("preserves a standalone spell's selected rank in the search URL and restores it on reload", async () => {
+    history.replaceState(null, "", "/search/records/spells:fireball");
+    apiMocks.getRecordDetail.mockImplementation((key, selection) => {
+      const detail = detailFixture(key);
+      detail.selected = { ...detail.selected, spell_rank: selection?.spell_rank };
+      return Promise.resolve(detail);
+    });
+    const first = renderHook(() => useSearchWorkspace({ searchProfile: "bge-base" }), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(first.result.current.reading.detail).toBeDefined());
+    act(() =>
+      first.result.current.reading.changeRank({
+        ...first.result.current.reading.detail!.selected,
+        spell_rank: 5,
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        JSON.parse(new URLSearchParams(location.search).get("selection") ?? "null")
+          ?.spell_rank,
+      ).toBe(5),
+    );
+    first.unmount();
+    const reloaded = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      {
+        wrapper: queryClientWrapper(),
+      },
+    );
+    await waitFor(() =>
+      expect(reloaded.result.current.reading.detail?.selected.spell_rank).toBe(5),
+    );
+    expect(apiMocks.getRecordDetail).toHaveBeenLastCalledWith(
+      "spells:fireball",
+      expect.objectContaining({ spell_rank: 5 }),
+      expect.any(AbortSignal),
+    );
+  });
+
   it("restores similarity URLs, disables contextual counts, sends stateless pages, and replaces or clears the criterion", async () => {
     localStorage.setItem(
       KIND_PREFERENCE_KEY,

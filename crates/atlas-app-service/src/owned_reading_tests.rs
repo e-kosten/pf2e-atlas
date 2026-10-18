@@ -7,6 +7,7 @@ const ACTOR: &str = "actors:testCreature1000";
 fn request(generation: &str, selection: OwnedReadingSelection) -> OwnedReadingRequest {
     OwnedReadingRequest {
         parent: RecordNavigationView {
+            spell_rank: None,
             record_key: ACTOR.into(),
             owners: vec![],
             field: None,

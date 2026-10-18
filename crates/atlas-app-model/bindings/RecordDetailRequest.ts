@@ -2,4 +2,4 @@
 import type { OwnedContentLocator } from "./OwnedContentLocator";
 import type { SourcePassageAddress } from "./SourcePassageAddress";
 
-export type RecordDetailRequest = { record_key: string, owners: Array<OwnedContentLocator>, fields: Array<string>, passage: SourcePassageAddress | null, source_fingerprint: string | null, };
+export type RecordDetailRequest = { spell_rank?: number, record_key: string, owners: Array<OwnedContentLocator>, fields: Array<string>, passage: SourcePassageAddress | null, source_fingerprint: string | null, };

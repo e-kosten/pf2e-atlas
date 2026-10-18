@@ -296,10 +296,13 @@ without altering source facts; required/unavailable values and explicit authored
 clear/empty changes remain visible. No stored visibility flags or HTML emptiness
 parser participates in this policy.
 
-Spells and their owned copies display authored casting context, damage, fixed or
-interval heightening and partial form changes. This is reference data, including
-explicit clears; it does not execute casting, calculate effective forms or spend
-resources. Renderers share semantic responses while independently formatting
+Spells and their owned copies display contextual casting ranks and supported
+fixed/interval heightening over a transient checked-source copy. Invalid context
+and unsupported calculations remain explicit. Partial form changes remain
+reference information; interactive form execution is deferred. Rank preview is
+read-only. Encounter casting separately spends revision-checked participant
+resources or toggles manual expenditure markers; it does not roll dice, execute
+effects or advance turns. Renderers share semantic responses while independently formatting
 terminal and browser layouts. Complete selected navigation drives detail caching
 and reader transitions. Root terminal summaries stay body-free.
 

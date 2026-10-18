@@ -26,6 +26,9 @@ pub struct RecordBadgeView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordNavigationView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spell_rank: Option<u8>,
     pub record_key: String,
     pub owners: Vec<OwnedContentLocator>,
     pub field: Option<String>,
@@ -34,6 +37,9 @@ pub struct RecordNavigationView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordDetailRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spell_rank: Option<u8>,
     pub record_key: String,
     #[serde(default)]
     pub owners: Vec<OwnedContentLocator>,

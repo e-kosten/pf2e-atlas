@@ -206,6 +206,16 @@ export async function applyEncounterHpAction(
   );
 }
 
+export async function applyEncounterSpellAction(
+  encounterRef: string,
+  request: import("../generated/atlas").ApplyEncounterSpellActionRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/spells`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
 export async function updateEncounterParticipant(
   encounterRef: string,
   request: UpdateEncounterParticipantRequest,

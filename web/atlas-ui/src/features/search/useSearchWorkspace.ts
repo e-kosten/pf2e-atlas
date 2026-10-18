@@ -275,6 +275,7 @@ export function useSearchWorkspace({
     );
     const selected = reading.detail.selected;
     if (
+      selected.spell_rank !== undefined ||
       selected.owners.length ||
       selected.field ||
       selected.passage ||

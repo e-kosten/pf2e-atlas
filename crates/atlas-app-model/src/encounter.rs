@@ -365,6 +365,9 @@ pub struct EncounterMutationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spellcasting: Option<EncounterSpellcastingView>,
     pub revision: i64,
     pub hp_origin: String,
     pub variant_origin: String,
@@ -742,4 +745,66 @@ mod tests {
             json!({"encounter_key":"encounter_one"})
         );
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterSpellcastingView {
+    pub resources: Vec<EncounterSpellResourceView>,
+    pub spells: Vec<EncounterSpellView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EncounterSpellResourceScope {
+    Spell,
+    Rank { rank: u8 },
+    Entry,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterSpellResourceView {
+    pub scope: EncounterSpellResourceScope,
+    pub key: String,
+    pub entry_id: String,
+    pub label: String,
+    pub capacity: i64,
+    pub remaining: i64,
+    pub can_undo: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterSpellView {
+    pub navigation: crate::RecordNavigationView,
+    pub entry_id: String,
+    pub title: String,
+    pub ranks: Vec<EncounterSpellRankView>,
+    pub expended: Option<bool>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterSpellRankView {
+    pub rank: u8,
+    pub resource_key: Option<String>,
+    pub unavailable_reason: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ApplyEncounterSpellActionRequest {
+    pub participant_key: String,
+    pub expected_revision: i64,
+    pub action: EncounterSpellAction,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum EncounterSpellAction {
+    SetExpended {
+        selection: crate::RecordNavigationView,
+        expended: bool,
+    },
+    Cast {
+        selection: crate::RecordNavigationView,
+    },
+    Undo {
+        resource_key: String,
+    },
+    SetEntryResources {
+        entry_id: String,
+        remaining: std::collections::BTreeMap<String, i64>,
+    },
 }

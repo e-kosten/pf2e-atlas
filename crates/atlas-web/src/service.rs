@@ -4,13 +4,14 @@ use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AdvanceEncounterTurnRequest,
     AppError, AppErrorCode, AppReadinessView, ApplyEncounterHpActionRequest,
-    CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView, DeleteSavedListView,
-    DiscoverFilterEditorRequest, DiscoverFilterValuesRequest, EncounterConditionCatalogView,
-    EncounterCreateView, EncounterDetailView, EncounterIndexView, EncounterMutationView,
-    EncounterTurnReviewView, FilterEditorView, FilterSavedListRequest, FilterValueListView,
-    RecordDetailView, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
-    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-    SavedListUpdateView, SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
+    ApplyEncounterSpellActionRequest, CreateEncounterRequest, CreateSavedListRequest,
+    DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
+    DiscoverFilterValuesRequest, EncounterConditionCatalogView, EncounterCreateView,
+    EncounterDetailView, EncounterIndexView, EncounterMutationView, EncounterTurnReviewView,
+    FilterEditorView, FilterSavedListRequest, FilterValueListView, RecordDetailView,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListUpdateView,
+    SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListRequest,
 };
@@ -144,6 +145,12 @@ pub(crate) trait AtlasWebService: Send + Sync {
         &self,
         encounter_ref: &str,
         request: ApplyEncounterHpActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
+    fn apply_encounter_spell_action(
+        &self,
+        encounter_ref: &str,
+        request: ApplyEncounterSpellActionRequest,
     ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn reorder_encounter_participant(
@@ -360,6 +367,14 @@ impl AtlasWebService for AtlasAppService {
         request: ApplyEncounterHpActionRequest,
     ) -> Result<EncounterMutationView, AppServiceError> {
         self.apply_encounter_hp_action(encounter_ref, request)
+    }
+
+    fn apply_encounter_spell_action(
+        &self,
+        encounter_ref: &str,
+        request: ApplyEncounterSpellActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.apply_encounter_spell_action(encounter_ref, request)
     }
 
     fn reorder_encounter_participant(

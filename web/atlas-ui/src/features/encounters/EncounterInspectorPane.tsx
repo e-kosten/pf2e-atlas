@@ -8,6 +8,10 @@ import type {
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import {
+  EncounterSpellControls,
+  encounterCastingAnnotations,
+} from "./EncounterSpellControls";
 import { participantUpdate } from "./participantEdits";
 import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
@@ -26,6 +30,7 @@ export function EncounterInspectorPane({
   conditionError,
   onRetryConditions,
   error,
+  spellError,
   onCloseRecordPreview,
   onOpenRecordFullPage,
   onReference,
@@ -34,6 +39,7 @@ export function EncounterInspectorPane({
   onUpdateCondition,
   onUpdate,
   onHpAction,
+  onSpellAction,
   participant,
   participants,
   conditionDefinitions,
@@ -49,6 +55,7 @@ export function EncounterInspectorPane({
   previewReadingHistory,
   previewLanding,
   previewSelection,
+  onPreviewRankChange,
 }: {
   disabled: boolean;
   encounterRevision: bigint;
@@ -58,6 +65,7 @@ export function EncounterInspectorPane({
   conditionError: Error | null;
   onRetryConditions: () => void;
   error?: string;
+  spellError?: string;
   onCloseRecordPreview: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
@@ -70,6 +78,11 @@ export function EncounterInspectorPane({
     condition: UpdateEncounterParticipantConditionRequest,
   ) => Promise<boolean>;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onSpellAction: (
+    participant: EncounterParticipantView,
+    action: import("../../generated/atlas").EncounterSpellAction,
+    expectedRevision?: bigint,
+  ) => Promise<boolean>;
   onHpAction: (
     participant: EncounterParticipantView,
     action: EncounterHpAction,
@@ -77,6 +90,7 @@ export function EncounterInspectorPane({
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
+  onPreviewRankChange?: (rank: number | undefined) => void;
   previewSelection?: import("../../generated/atlas").RecordNavigationView;
   previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
   previewLoading: boolean;
@@ -112,12 +126,14 @@ export function EncounterInspectorPane({
           conditionError={conditionError}
           onRetryConditions={onRetryConditions}
           error={error}
+          spellError={spellError}
           conditionDefinitions={conditionDefinitions}
           onAddCondition={onAddCondition}
           onReference={onReference}
           onRemoveCondition={onRemoveCondition}
           onUpdate={onUpdate}
           onHpAction={onHpAction}
+          onSpellAction={onSpellAction}
           onUpdateCondition={onUpdateCondition}
           participant={participant}
           participants={participants}
@@ -125,7 +141,23 @@ export function EncounterInspectorPane({
       }
       {previewRecordKey && (
         <RecordPreviewPopover
+          actions={
+            previewDetail && (
+              <EncounterSpellControls
+                participant={participant}
+                detail={previewDetail}
+                disabled={disabled || previewLoading}
+                pending={pending}
+                error={spellError}
+                recovery={recovery}
+                onAction={(action, expectedRevision) =>
+                  onSpellAction(participant, action, expectedRevision)
+                }
+              />
+            )
+          }
           context="encounter"
+          onRankChange={onPreviewRankChange}
           visibleOwnerRecordKey={participant.record_key}
           anchor={previewAnchor}
           readingHistory={previewReadingHistory}
@@ -161,12 +193,14 @@ function EncounterParticipantSurface({
   conditionError,
   onRetryConditions,
   error,
+  spellError,
   conditionDefinitions,
   onAddCondition,
   onReference,
   onRemoveCondition,
   onUpdate,
   onHpAction,
+  onSpellAction,
   onUpdateCondition,
   participant,
   participants,
@@ -179,6 +213,7 @@ function EncounterParticipantSurface({
   conditionError: Error | null;
   onRetryConditions: () => void;
   error?: string;
+  spellError?: string;
   conditionDefinitions: EncounterConditionDefinitionView[];
   onAddCondition: (
     condition: AddEncounterParticipantConditionRequest,
@@ -186,6 +221,11 @@ function EncounterParticipantSurface({
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<boolean>;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onSpellAction: (
+    participant: EncounterParticipantView,
+    action: import("../../generated/atlas").EncounterSpellAction,
+    expectedRevision?: bigint,
+  ) => Promise<boolean>;
   onHpAction: (
     participant: EncounterParticipantView,
     action: EncounterHpAction,
@@ -286,6 +326,15 @@ function EncounterParticipantSurface({
       </div>
       {presentation && (
         <RecordPresentation
+          castingAnnotations={encounterCastingAnnotations({
+            participant,
+            disabled,
+            pending,
+            error: spellError,
+            recovery,
+            onAction: (action, expectedRevision) =>
+              onSpellAction(participant, action, expectedRevision),
+          })}
           presentation={presentation}
           onReference={onReference}
           encounter

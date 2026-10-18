@@ -68,6 +68,13 @@ checkout and base. See the repo-plan skill for the local lifecycle.
 
 For `web/atlas-ui`, Ant Design is the selected component library for generic application UI. Prefer Ant components and component tokens for buttons, icon buttons, links, navigation controls, tables, forms, overlays, selectors, alerts, empty/loading states, tags, pagination, and selected/active/hover styling before adding custom controls or local CSS state styling. Custom Atlas components should be reserved for product-specific surfaces such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, and encounter-runtime panels. See `web/atlas-ui/docs/frontend-guidelines.md` and `web/atlas-ui/AGENTS.md` for concrete frontend editing rules.
 
+For updates to an already displayed document, preserve content, layout, scroll and
+focus while fetching the replacement. Delay loading feedback for fast operations;
+slow-operation feedback must not shift the content. Keep failures local with Retry
+and clearly distinguish retained content from a successful update. Never reuse
+content across different source identities or invalidated generations. See the
+frontend guidelines for the shared reading implementation.
+
 ## Build, Test, And Development Commands
 
 - `scripts/install-git-hooks.sh`: configure this clone to use the tracked git hooks in `.githooks/`.

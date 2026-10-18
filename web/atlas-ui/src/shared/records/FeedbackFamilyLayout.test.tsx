@@ -158,6 +158,7 @@ it("renders selected casting membership with parent context, ranks and exact cus
     kind: "spell" as const,
     base_rank: numberFact(4),
     authored_cast_rank: numberFact(5),
+    casting_ranks: [5],
     casting_entry: entry.navigation,
     association: knownFact("raw-casting-id"),
     navigation: {
@@ -180,14 +181,14 @@ it("renders selected casting membership with parent context, ranks and exact cus
     screen.getByRole("heading", { name: "Spells for Fabled Harrowkin" }),
   ).toBeVisible();
   expect(screen.queryByText("Base rank 4")).toBeNull();
-  expect(screen.getByText("Cast rank 5")).toBeVisible();
+  expect(screen.getByText("Rank 5")).toBeVisible();
   expect(screen.queryByText("raw-casting-id")).toBeNull();
   expect(screen.queryByText("No structured damage")).toBeNull();
   fireEvent.click(screen.getByRole("link", { name: "Local Dimension Door" }));
   expect(onReference).toHaveBeenCalledWith(
     spell.navigation.record_key,
     expect.any(HTMLElement),
-    spell.navigation,
+    { ...spell.navigation, spell_rank: 5 },
   );
 });
 
@@ -371,11 +372,11 @@ it.each([false, true])(
 );
 
 it.each([
-  [1, numberFact(1), "Cast rank 1"],
-  [1, numberFact(3), "Cast rank 3"],
-  [0, numberFact(0), "Cast rank 0"],
-  [1, { state: "missing", value: null, adjustment: null }, "Casting rank unavailable"],
-  [1, { state: "invalid", value: null, adjustment: null }, "Casting rank unavailable"],
+  [1, numberFact(1), "Rank 1"],
+  [1, numberFact(3), "Rank 3"],
+  [0, numberFact(0), "Rank 0"],
+  [1, { state: "missing", value: null, adjustment: null }, "Rank unavailable"],
+  [1, { state: "invalid", value: null, adjustment: null }, "Rank unavailable"],
 ] as const)(
   "shows casting facts without substituting base rank %s",
   (base, cast, caption) => {
@@ -388,6 +389,7 @@ it.each([
       kind: "spell" as const,
       base_rank: numberFact(base),
       authored_cast_rank: cast,
+      casting_ranks: cast.state === "value" ? [Number(cast.value)] : [],
       casting_entry: entry.navigation,
     };
     entry.casting_context = {

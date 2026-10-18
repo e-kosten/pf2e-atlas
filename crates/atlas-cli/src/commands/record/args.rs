@@ -22,6 +22,8 @@ pub(crate) enum RecordCommand {
 }
 #[derive(Debug, Args)]
 pub(crate) struct RecordGetOptions {
+    #[arg(long, value_parser = clap::value_parser!(u8).range(1..=10), help = "Preview a spell at this rank")]
+    pub(crate) rank: Option<u8>,
     #[arg(required=true,num_args=1..,help="Foundry keys in pack:id form")]
     pub(crate) keys: Vec<String>,
     #[arg(

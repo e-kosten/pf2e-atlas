@@ -46,6 +46,7 @@ fn encounters_support_manual_pc_participants() -> Result<(), Box<dyn std::error:
     let pc = encounters.add_participant(
         "boss-fight",
         AddEncounterParticipant {
+            spell_resources: Vec::new(),
             hp_origin: crate::ParticipantHpOrigin::Explicit,
             variant_origin: crate::ParticipantVariantOrigin::Explicit,
             participant_variant: crate::ParticipantVariant::Normal,
@@ -695,6 +696,7 @@ fn edit(participant: &EncounterParticipant) -> UpdateEncounterParticipant {
 
 fn creature(name: &str, initiative: Option<i64>, hp: i64) -> AddEncounterParticipant {
     AddEncounterParticipant {
+        spell_resources: Vec::new(),
         hp_origin: crate::ParticipantHpOrigin::Explicit,
         variant_origin: crate::ParticipantVariantOrigin::Explicit,
         participant_variant: crate::ParticipantVariant::Normal,
@@ -905,6 +907,117 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
     assert_eq!(
         store.encounters().get_with_participants("test")?.unwrap(),
         before
+    );
+    Ok(())
+}
+
+#[test]
+fn spell_resource_writes_roll_back_and_survive_reopening() -> Result<(), Box<dyn std::error::Error>>
+{
+    let path = temp_path("spell-resources");
+    let store = LocalStateStore::open(&path)?;
+    let encounters = store.encounters();
+    encounters.create(NewEncounter {
+        slug: "casting".into(),
+        name: "Casting".into(),
+        description: None,
+        note: None,
+    })?;
+    let mut input = creature("Mage", Some(20), 6);
+    input.spell_resources = vec![SpellResource {
+        key: "rank3".into(),
+        capacity: 3,
+        remaining: 0,
+        undo_remaining: None,
+    }];
+    let participant = encounters.add_participant("casting", input)?;
+    let initial = encounters.get_with_participants("casting")?.unwrap();
+    assert_eq!(initial.participants[0].spell_resources[0].remaining, 3);
+    let mut resources = initial.participants[0].spell_resources.clone();
+    resources[0].remaining = 2;
+    resources[0].undo_remaining = Some(3);
+    encounters.replace_spell_resources(
+        &participant.participant_key,
+        participant.revision,
+        &resources,
+    )?;
+    let after = encounters.get_with_participants("casting")?.unwrap();
+    assert_eq!(after.participants[0].current_hp, participant.current_hp);
+    assert_eq!(after.encounter.revision, initial.encounter.revision + 1);
+    resources[0].remaining = 4;
+    assert!(
+        encounters
+            .replace_spell_resources(
+                &participant.participant_key,
+                after.participants[0].revision,
+                &resources
+            )
+            .is_err()
+    );
+    let reopened = LocalStateStore::open(&path)?
+        .encounters()
+        .get_with_participants("casting")?
+        .unwrap();
+    assert_eq!(reopened.participants[0].spell_resources[0].remaining, 2);
+    assert_eq!(
+        reopened.participants[0].revision,
+        after.participants[0].revision
+    );
+    assert_eq!(reopened.encounter.revision, after.encounter.revision);
+    Ok(())
+}
+
+#[test]
+fn spell_expenditure_marker_survives_reopen_and_rejects_stale_restore()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = temp_path("spell-markers");
+    let store = LocalStateStore::open(&path)?;
+    store.encounters().create(NewEncounter {
+        slug: "markers".into(),
+        name: "Markers".into(),
+        description: None,
+        note: None,
+    })?;
+    let participant = store
+        .encounters()
+        .add_participant("markers", creature("Mage", Some(20), 6))?;
+    store.encounters().set_spell_expended(
+        &participant.participant_key,
+        participant.revision,
+        "spell",
+        true,
+    )?;
+    let reopened = LocalStateStore::open(&path)?;
+    let marked = reopened
+        .encounters()
+        .get_with_participants("markers")?
+        .unwrap();
+    assert_eq!(marked.participants[0].expended_spells, vec!["spell"]);
+    assert!(
+        reopened
+            .encounters()
+            .set_spell_expended(
+                &participant.participant_key,
+                participant.revision,
+                "spell",
+                false
+            )
+            .is_err()
+    );
+    reopened.encounters().set_spell_expended(
+        &participant.participant_key,
+        marked.participants[0].revision,
+        "spell",
+        false,
+    )?;
+    assert!(
+        reopened
+            .encounters()
+            .get_with_participants("markers")?
+            .unwrap()
+            .participants[0]
+            .expended_spells
+            .is_empty()
     );
     Ok(())
 }

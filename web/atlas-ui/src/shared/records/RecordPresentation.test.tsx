@@ -123,19 +123,19 @@ describe("semantic family presentation", () => {
     );
     const { rerender } = render(view());
     expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
-    const original = screen.getByRole("link", { name: "Original record" });
-    expect(original).toHaveAttribute("href", "/records/equipment:catalog-staff");
-    fireEvent.click(original);
-    expect(onReference).toHaveBeenCalledWith(
-      "equipment:catalog-staff",
-      original,
+    const original = screen.getByRole("link", { name: "View original" });
+    const destination = new URL(original.getAttribute("href")!, window.location.origin);
+    expect(destination.pathname).toBe("/records/equipment:catalog-staff");
+    expect(JSON.parse(destination.searchParams.get("selection")!)).toEqual(
       relationship.target,
     );
+    fireEvent.click(original);
+    expect(window.location.pathname).toBe("/records/equipment:catalog-staff");
     onReference.mockClear();
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
     rerender(view(false));
-    expect(screen.queryByRole("link", { name: "Original record" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "View original" })).toBeNull();
   });
 
   it("shows selected activity traits once in its identity and retains traits on owned activities", () => {
