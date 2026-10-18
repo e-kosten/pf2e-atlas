@@ -1,6 +1,15 @@
 import DOMPurify from "dompurify";
 import { Alert, Modal } from "antd";
-import { useMemo, useLayoutEffect, useRef } from "react";
+import {
+  useMemo,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useCallback,
+  type ReactPortal,
+} from "react";
+import { createPortal } from "react-dom";
+import { EffectReferenceLink } from "./EffectReferenceLink";
 import type {
   PreparedContentFieldView,
   RecordRelationshipView,
@@ -13,9 +22,10 @@ export type RecordReferenceHandler = (
   navigation?: RecordNavigationView,
   landing?: RecordNavigationView,
 ) => void;
+const NO_RELATIONSHIPS: RecordRelationshipView[] = [];
 export function PreparedContent({
   content,
-  relationships = [],
+  relationships = NO_RELATIONSHIPS,
   onReference,
 }: {
   content: PreparedContentFieldView;
@@ -24,6 +34,15 @@ export function PreparedContent({
 }) {
   const [modal, contextHolder] = Modal.useModal();
   const container = useRef<HTMLDivElement>(null);
+  const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
+  const referenceHandler = useRef(onReference);
+  useLayoutEffect(() => {
+    referenceHandler.current = onReference;
+  }, [onReference]);
+  const openReference = useCallback<RecordReferenceHandler>(
+    (...args) => referenceHandler.current(...args),
+    [],
+  );
   const body = content.body;
   const html = useMemo(
     () =>
@@ -43,6 +62,7 @@ export function PreparedContent({
       "[data-atlas-reference],[data-atlas-interaction]",
     );
     const listeners: Array<() => void> = [];
+    const effects: ReactPortal[] = [];
     markers?.forEach((originalMarker) => {
       let marker = originalMarker;
       const ref = marker.getAttribute("data-atlas-reference");
@@ -61,6 +81,24 @@ export function PreparedContent({
                 c.ordinal === Number(marker.getAttribute("data-atlas-interaction")),
             )?.control
           : null;
+      if (fact?.target && fact.effect_label) {
+        const host = document.createElement("span");
+        host.setAttribute("data-atlas-reference", String(ref));
+        marker.replaceWith(host);
+        effects.push(
+          createPortal(
+            <EffectReferenceLink
+              label={fact.effect_label}
+              target={fact.target}
+              onReference={openReference}
+            />,
+            host,
+            String(ref),
+          ),
+        );
+        listeners.push(() => host.replaceWith(originalMarker));
+        return;
+      }
       if (
         fact?.url &&
         (fact.status === "resolved_url" || fact.status === "unverified_url") &&
@@ -130,7 +168,7 @@ export function PreparedContent({
               JSON.stringify(r.source) === JSON.stringify(content.locator),
           );
           if (!fact?.target) return;
-          onReference(fact.target.record_key, marker as HTMLElement, fact.target);
+          openReference(fact.target.record_key, marker as HTMLElement, fact.target);
           return;
         }
         const ordinal = Number(marker.getAttribute("data-atlas-interaction"));
@@ -170,8 +208,9 @@ export function PreparedContent({
         marker.removeEventListener("keydown", keyboard);
       });
     });
+    setEffectLinks(effects);
     return () => listeners.forEach((remove) => remove());
-  }, [body, content.locator, relationships, onReference, html, modal]);
+  }, [body, content.locator, relationships, openReference, html, modal]);
   if (body.kind === "unavailable")
     return (
       <Alert
@@ -187,6 +226,7 @@ export function PreparedContent({
   return (
     <>
       {contextHolder}
+      {effectLinks}
       <div
         ref={container}
         className="prepared-content"

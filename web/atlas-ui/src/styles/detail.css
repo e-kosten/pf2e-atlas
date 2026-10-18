@@ -101,6 +101,13 @@
   line-height: 1.55;
 }
 
+.prepared-content .effect-reference-link {
+  height: auto;
+  padding: 0 0.2em;
+  font: inherit;
+  vertical-align: baseline;
+}
+
 .prepared-content [role="button"] {
   color: var(--accent-text);
   cursor: pointer;

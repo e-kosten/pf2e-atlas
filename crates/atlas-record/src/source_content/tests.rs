@@ -15,6 +15,34 @@ fn locator() -> SourceContentLocator {
     }
 }
 
+#[test]
+fn reference_labels_retain_source_intent_and_nearest_structural_block() {
+    let content = prepare(
+        "<div><p>@UUID[one] <strong>@UUID[two]{Effect}</strong></p><p>@UUID[three]</p><ul><li>@UUID[four]</li><li>@UUID[five]</li></ul><h2>@UUID[six]{Air Elemental}</h2><a data-uuid='seven'>immune</a></div>",
+    );
+    let labels: Vec<_> = content.references.iter().map(|r| &r.label).collect();
+    assert!(!labels[0].explicit);
+    assert!(
+        labels[1].explicit,
+        "Even a label equal to Effect remains explicit"
+    );
+    assert_eq!(
+        labels[0].block, labels[1].block,
+        "Inline formatting does not split a block"
+    );
+    assert_ne!(labels[1].block, labels[2].block);
+    assert_ne!(labels[3].block, labels[4].block);
+    assert!(labels[5].explicit);
+    assert!(
+        labels[6].explicit,
+        "Authored HTML anchor children are explicit"
+    );
+    assert_eq!(
+        labels[6].block, "/0",
+        "Nested blocks restore their outer context"
+    );
+}
+
 fn audience() -> ContentAudience {
     ContentAudience {
         include_gm: true,
@@ -136,7 +164,7 @@ fn reference_bindings_check_all_visible_facts_without_inventing_hidden_markers()
         .is_err()
     );
     assert!(check(&content.html, &content.locator, &"0".repeat(64), &visible).is_err());
-    for mutate in 0..7 {
+    for mutate in 0..11 {
         let mut refs = visible.clone();
         match mutate {
             0 => refs[0].ordinal += 100,
@@ -145,7 +173,11 @@ fn reference_bindings_check_all_visible_facts_without_inventing_hidden_markers()
             3 => refs[0].kind = ContentReferenceKind::Compendium,
             4 => refs[0].resolution = ContentReferenceResolution::Blocked,
             5 => refs[0].audiences.push("gm".into()),
-            _ => refs[0].visible = false,
+            6 => refs[0].visible = false,
+            7 => refs[0].label.explicit = !refs[0].label.explicit,
+            8 => refs[0].label.block.push_str("/other"),
+            9 => refs[0].label.target_name = Some("Different title".into()),
+            _ => refs[0].label.item_family = Some("effect".into()),
         }
         assert!(
             check(
@@ -224,6 +256,7 @@ impl ContentReferenceResolver for Context {
                     key: locator().record,
                 },
                 display_name: Some("Heal".into()),
+                item_family: Some("spell".into()),
             }
         })
     }

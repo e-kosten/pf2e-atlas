@@ -4,7 +4,7 @@ use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
 /// Interpretation identity, independent of source DTO or artifact versions.
-pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v6";
+pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v7";
 
 /// A source field, never an output hash, display label or HTML node ordinal.
 /// Callers establish identity from their admitted source and retain this locator
@@ -72,6 +72,8 @@ pub trait ContentReferenceResolver {
 pub struct ResolvedContentReference {
     pub target: ContentReferenceTarget,
     pub display_name: Option<String>,
+    /// Family of the exact typed destination, including embedded items.
+    pub item_family: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -116,6 +118,17 @@ pub struct ContentReferenceOccurrence {
     pub resolution: ContentReferenceResolution,
     pub visible: bool,
     pub audiences: Vec<String>,
+    pub label: ContentReferenceLabel,
+}
+
+/// Source facts for presentation; no inferred role or redundancy classification.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContentReferenceLabel {
+    pub explicit: bool,
+    /// Nearest parsed block path, scoped to this content field; empty at its root.
+    pub block: String,
+    pub target_name: Option<String>,
+    pub item_family: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

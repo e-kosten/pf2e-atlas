@@ -1,4 +1,4 @@
-use crate::projection::{navigation_fingerprint, relationship_view};
+use crate::projection::{navigation_fingerprint, relationship_views};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{AppErrorCode, RecordDetailRequest, RecordDetailView, RecordNavigationView};
 use atlas_domain::{QueryPredicate, RecordKey, SourcePassageAddress};
@@ -267,21 +267,25 @@ pub(crate) fn read_record_detail(
             },
             passage: request.passage,
         },
-        relationships: content
-            .relationships
-            .into_iter()
-            .chain(relationships.occurrences)
-            .map(|o| {
-                let mut relationship = relationship_view(o, r.source_fingerprint());
-                if relationship.kind == "CompendiumProvenance"
-                    && relationship.status == "resolved_record"
-                    && let Some(target) = &mut relationship.target
-                {
-                    target.spell_rank = spell_rank;
-                }
-                relationship
-            })
-            .collect(),
+        relationships: relationship_views(
+            content
+                .relationships
+                .into_iter()
+                .chain(relationships.occurrences)
+                .collect(),
+            r.source_fingerprint(),
+        )
+        .into_iter()
+        .map(|mut relationship| {
+            if relationship.kind == "CompendiumProvenance"
+                && relationship.status == "resolved_record"
+                && let Some(target) = &mut relationship.target
+            {
+                target.spell_rank = spell_rank;
+            }
+            relationship
+        })
+        .collect(),
         relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
     };
     Ok((detail, view))

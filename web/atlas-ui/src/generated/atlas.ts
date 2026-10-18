@@ -1,4 +1,5 @@
 export type { ActionBudgetView } from "../../../../crates/atlas-app-model/bindings/ActionBudgetView";
+export type { EffectReferenceLabelView } from "../../../../crates/atlas-app-model/bindings/EffectReferenceLabelView";
 export type { ActionCostView } from "../../../../crates/atlas-app-model/bindings/ActionCostView";
 export type { ActionGlyphView } from "../../../../crates/atlas-app-model/bindings/ActionGlyphView";
 export type { ActorActivityKindView } from "../../../../crates/atlas-app-model/bindings/ActorActivityKindView";
