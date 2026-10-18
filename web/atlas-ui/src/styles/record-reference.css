@@ -396,3 +396,14 @@
   align-self: flex-start;
   padding-inline: 0;
 }
+.prepared-content a,
+.prepared-content a:visited {
+  color: var(--accent-text);
+}
+.prepared-content a:hover {
+  text-decoration: underline;
+}
+.prepared-content a:focus-visible {
+  outline: 2px solid var(--active-border);
+  outline-offset: 2px;
+}

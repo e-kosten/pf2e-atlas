@@ -718,7 +718,7 @@ export function ActorActivities({
     [["strike"], "Strikes"],
     [["ability"], "Abilities"],
     [["gear"], "Equipment"],
-    [["other"], "Other owned records"],
+    [["other"], "Other entries"],
   ];
   return (
     <div ref={container} className="actor-reference__mechanics">
@@ -732,7 +732,7 @@ export function ActorActivities({
       <div className="actor-reference__actions">
         {actor.activities.state !== "value" &&
           actor.activities.state !== "not_applicable" && (
-            <FactRow label="Owned activities">{factText(actor.activities)}</FactRow>
+            <FactRow label="Activities">{factText(actor.activities)}</FactRow>
           )}
         {groups.map(([kinds, title]) => {
           const activities = (actor.activities.value ?? []).filter((activity) =>
@@ -755,7 +755,7 @@ export function ActorActivities({
                     activity={activity}
                     rollControls={activityRolls?.(activity)}
                     onReference={onReference}
-                    interactive={!encounter || activity.has_reference_details}
+                    interactive={activity.has_reference_details}
                   />
                 ))}
               </section>

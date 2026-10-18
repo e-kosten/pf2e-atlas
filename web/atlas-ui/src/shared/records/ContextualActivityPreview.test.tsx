@@ -301,105 +301,23 @@ it("keeps changed participants and stale generations explicit without baseline f
   expect(api.getRecordDetail).not.toHaveBeenCalled();
 });
 
-it.each(["Related", "Similar"])(
-  "%s conflict in a successful contextual preview reloads the encounter before a fresh selection can be opened",
-  async (category) => {
-    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
-    const conflict = new AtlasApiError(409, "The reference collection changed", {
-      code: "artifact_generation_changed",
-      message: "The reference collection changed",
-      recoverable_action: "reload_record",
-      details: {
-        expected_artifact_generation: "generation-a",
-        actual_artifact_generation: "generation-b",
-      },
-    });
-    if (category === "Related") api.getRelatedRecords.mockRejectedValue(conflict);
-    else api.searchPage.mockRejectedValue(conflict);
-    let finishReload!: () => void;
-    const reloadEncounter = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          finishReload = resolve;
-        }),
-    );
-    const activityA = activityFixture();
-    const { update } = mount(activityA, reloadEncounter, "reference");
+it.each([
+  ["reference", true],
+  ["reference", false],
+  ["encounter", true],
+  ["encounter", false],
+] as const)(
+  "omits relationship discovery in %s previews (wide=%s)",
+  async (context, wide) => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: wide });
+    mount(activityFixture(), vi.fn(), context);
     fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
     await waitFor(() =>
       expect(screen.getByText(/Exact local Jaws prose/)).toBeVisible(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Related records" }));
-    if (category === "Similar") {
-      fireEvent.click(
-        await screen.findByRole("button", {
-          name: "Similar to parent record: Current actor",
-        }),
-      );
-      await waitFor(() =>
-        expect(api.searchPage).toHaveBeenCalledWith(
-          expect.objectContaining({ expected_artifact_generation: "generation-a" }),
-          expect.any(AbortSignal),
-        ),
-      );
-    }
-    const reloadButton = await screen.findByRole("button", {
-      name: "Reload encounter",
-    });
-    const similarRequestCount = api.searchPage.mock.calls.length;
-    const relatedRequestCount = api.getRelatedRecords.mock.calls.length;
-    fireEvent.click(reloadButton);
-    expect(reloadEncounter).toHaveBeenCalledTimes(1);
-    await waitFor(() =>
-      expect(screen.queryByText(/Exact local Jaws prose/)).not.toBeVisible(),
-    );
-
-    const activityB = {
-      ...activityA,
-      navigation: {
-        ...activityA.navigation,
-        owners: [{ collection: "/items", identity: { SnapshotLocal: { index: 7 } } }],
-        source_fingerprint: "snapshot-b",
-      },
-    };
-    update(activityB, "participant-a", "generation-b");
-    await act(async () => {
-      finishReload();
-    });
-    await waitFor(() =>
-      expect(
-        screen.getByText(/Close this preview and reopen the activity/),
-      ).toBeVisible(),
-    );
-    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
-    expect(api.getEncounterReference).toHaveBeenCalledTimes(1);
-    expect(api.searchPage).toHaveBeenCalledTimes(similarRequestCount);
-    expect(api.getRelatedRecords).toHaveBeenCalledTimes(relatedRequestCount);
-    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
-    fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
-    await waitFor(() =>
-      expect(screen.getByText(/Exact local Jaws prose/)).toBeVisible(),
-    );
-    expect(api.getEncounterReference).toHaveBeenCalledTimes(2);
-    expect(api.getEncounterReference.mock.calls[0][2]).toEqual(
-      expect.objectContaining({
-        artifact_generation: "generation-a",
-        selection: expect.objectContaining({
-          owners: activityA.navigation.owners,
-          source_fingerprint: activityA.navigation.source_fingerprint,
-        }),
-      }),
-    );
-    expect(api.getEncounterReference.mock.calls[1][2]).toEqual(
-      expect.objectContaining({
-        artifact_generation: "generation-b",
-        selection: expect.objectContaining({
-          owners: activityB.navigation.owners,
-          source_fingerprint: "snapshot-b",
-        }),
-      }),
-    );
-    expect(api.getRecordDetail).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Related records" })).toBeNull();
+    expect(api.getRelatedRecords).not.toHaveBeenCalled();
+    expect(api.searchPage).not.toHaveBeenCalled();
   },
 );
 
