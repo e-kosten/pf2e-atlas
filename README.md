@@ -71,11 +71,10 @@ lexical search and reference lookup available without models.
 
 Without a profile flag, search and web use the sole stored profile, or BGE Base
 when both are stored. Running setup again without profile flags preserves the
-stored set for source updates. Explicit setup flags choose the complete desired
-set. Setup repairs selected pinned assets in revision-specific cache directories;
+requested set for source updates. Explicit setup flags add profiles to that set. Setup repairs selected pinned assets in revision-specific cache directories;
 switching a built profile does not download assets or rebuild the artifact.
 
-The installer installs only the `atlas` CLI. Runtime data stays in user cache locations and is managed by `atlas setup`.
+The installer installs only the `atlas` CLI. The persistent workspace lives in user application-data storage; downloaded source and models stay in cache locations managed by `atlas setup`.
 
 Release binaries are provided for Linux x64, Linux ARM64, macOS Apple Silicon,
 and Windows x64. macOS Intel and Windows ARM64 are not published as release
@@ -142,14 +141,14 @@ Explore available filters and nearby record context:
 ```bash
 atlas filters fields
 atlas filters fields --text 'maximum hp'
-atlas filters fields --field actor.hp.maximum
-atlas filters values --field actor.hp.maximum --kind creature
+atlas filters fields --field defenses.hp.maximum
+atlas filters values --field defenses.hp.maximum --kind creature
 atlas similar "Dirge of Doom" --kind spell
 atlas graph links actionspf2e:1kGNdIIhuglAjIp9
 ```
 
 `filters fields` lists the same product groups used by the UI. Use `--group movement`
-to browse Movement and senses, `--field actor.speeds` to inspect a collection,
+to browse Movement and senses, `--field movement.speeds` to inspect a collection,
 or `--text speed` to search across groups. `--all` lists the full flat catalog.
 JSON defaults to the shared grouped editor metadata; `--group` narrows those
 groups. `--field`, `--text` and `--all` return catalog descriptors.
@@ -171,23 +170,23 @@ CEL expresses collection constraints directly:
 
 ```bash
 # Creatures that speak Common
-atlas search --kind creature --where '"common" in actor.languages'
+atlas search --kind creature --where '"common" in languages'
 # Flying speed of at least 30 feet
-atlas search --kind creature --where 'actor.speeds.exists(s, s.type == "fly" && s.value >= 30)'
+atlas search --kind creature --where 'movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)'
 # Fire resistance of at least 10
-atlas search --kind creature --where 'actor.resistances.exists(r, r.type == "fire" && r.value >= 10)'
+atlas search --kind creature --where 'defenses.resistances.exists(r, r.type == "fire" && r.value >= 10)'
 # At least one embedded fire spell of rank 3 or higher
-atlas search --kind creature --where 'actor.items.exists(i, i.source.type == "spell" && "fire" in i.traits && i.spell.rank >= 3)'
+atlas search --kind creature --where 'embedded.spells.exists(i, "fire" in i.traits && i.spell.rank >= 3)'
 ```
 
 Conditions inside one `exists(...)` must match the **same entry**. Separate
 `exists(...)` expressions can match different entries—for example, flight on one
 movement entry and a high speed on another. Scoped discovery IDs such as
-`actor.speeds[].type` identify catalog fields; use `s.type` inside CEL's `exists`.
-Inspect `filters fields --field actor.speeds` to list the collection's entry fields,
-then `filters fields --field 'actor.speeds[].type'` for that field's choices and
-examples. `actor.speeds[]` alone is not a field ID. JSON `--field` output remains
-the exact requested descriptor; use `--text actor.speeds --json` to discover the
+`movement.speeds[].type` identify catalog fields; use `s.type` inside CEL's `exists`.
+Inspect `filters fields --field movement.speeds` to list the collection's entry fields,
+then `filters fields --field 'movement.speeds[].type'` for that field's choices and
+examples. `movement.speeds[]` alone is not a field ID. JSON `--field` output remains
+the exact requested descriptor; use `--text movement.speeds --json` to discover the
 collection and its member descriptors together.
 CLI value discovery retains the entire supplied filter rather than replacing an
 edited condition as a UI picker does. Its scoped value counts can match a different
@@ -235,41 +234,46 @@ atlas setup --offline
 Remove selected local data:
 
 ```bash
-atlas setup clean --artifact
+atlas setup clean --embeddings --check
 atlas setup clean --all --yes
 ```
 
-Cleanup supports `--artifact`, `--embeddings`, `--source-checkout`, and `--all`, with `--check` for a dry run. Cleanup that selects every target requires `--yes` unless `--check` is used.
+Cleanup supports `--embeddings`, `--source-checkout`, and `--all`, with `--check` for a dry run. It removes external caches, never the persistent workspace or saved lists and encounters. Cleanup that selects every cache target requires `--yes` unless `--check` is used.
 
-To remove Atlas completely, first remove runtime data:
+To remove downloaded source and model caches:
 
 ```bash
 atlas setup clean --all --yes
 ```
 
-Then remove the `atlas` binary from the path printed by the installer.
+To uninstall the CLI, remove the `atlas` binary from the path printed by the installer. Your workspace remains in application-data storage.
 
 ## Advanced Data Locations
 
-The default setup stores Atlas data in platform user cache paths, so the installed CLI can be used from any directory after setup.
+The default setup stores the durable workspace in platform application-data storage and downloaded source/models in user cache storage. The installed CLI can be used from any directory after setup.
 
-- `--path-mode global` uses the default user cache location under `pf2e-atlas`.
+- `--path-mode global` uses `pf2e-atlas/workspace.sqlite` under platform application data, with external caches under the platform user cache directory.
 - `--path-mode repo` is a contributor mode that uses paths inside this repository:
   - source: `vendor/pf2e`
   - embedding model cache: `.cache/hf-models`
-  - SQLite artifact: `.cache/pf2e-index.sqlite`
+  - persistent workspace: `.atlas/workspace.sqlite`
 
-You can override locations for a single command:
+You can select workspace/cache paths for a command and override the source used by setup:
 
 - `--source /path/to/pf2e`
-- `--output /path/to/pf2e-index.sqlite`
-- `--index /path/to/pf2e-index.sqlite`
+- `--output /path/to/workspace.sqlite`
+- `--index /path/to/workspace.sqlite`
 - `--embedding-cache-path /path/to/hf-models`
 
-Setup rebuilds or repairs local search data when validation fails, source data
-changes, or requested profile coverage/contracts change. Compatible unchanged
-profile vectors can be reused independently. Changing a model or passage recipe
-does not invalidate unchanged shared authored-content preparation.
+Setup updates reference data inside the existing workspace, preserving lists and
+encounters. Source, manifest, locale and requested profiles persist independently
+of successful builds. Schema upgrades use migrations; supported new filter
+projections are rebuilt from stored source DTOs. Changed preparation or model
+inputs require corresponding work, while exact compatible vectors are reused
+from durable checkpoints. Interrupted work can resume without discarding saved
+state or already committed inference batches. Maintenance temporarily prevents
+normal access during publication or upgrades. Existing pre-release database
+formats require an explicit fresh workspace; they are not converted automatically.
 
 ## Automation And JSON
 

@@ -15,7 +15,7 @@ describe("source query state", () => {
       mode: "text_search" as const,
       filter: {
         kind: "compare" as const,
-        field: "actor.level",
+        field: "level",
         op: "gte" as const,
         value: 4,
       },
@@ -74,7 +74,7 @@ describe("source query state", () => {
           encodeURIComponent(
             encodeFilterUrl({
               kind: "compare",
-              field: "actor.level",
+              field: "level",
               op: "eq",
               value: 0,
             }),
@@ -93,7 +93,7 @@ it("round trips a root similar criterion and filters without adding a kind filte
     mode: "similar_records" as const,
     filter: {
       kind: "compare" as const,
-      field: "item.level",
+      field: "level",
       op: "gte" as const,
       value: 2,
     },
@@ -160,4 +160,13 @@ it("carries the selected profile through text and Similar deep links and context
     search_profile: "embeddinggemma",
     criteria: { kind: "similar_records", seed_record_key: "actors:seed" },
   });
+});
+
+it("blocks obsolete filter links instead of running an unfiltered search", () => {
+  const state = decodeSearchStateFromParams(
+    new URLSearchParams({ q: "fire", filter: "1.old" }),
+  );
+  expect(state.filterError).toContain("unsupported filter version");
+  expect(hasExecutableSearch(state)).toBe(false);
+  expect(() => buildSearchRequest(state, 1)).toThrow("unsupported filter version");
 });

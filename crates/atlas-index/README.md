@@ -1,31 +1,39 @@
 # atlas-index
 
-`atlas-index` owns index read/write boundaries and concrete SQLite artifact access.
-
-This crate opens validated artifacts, loads persisted rows, validates artifact contract coherence, compiles canonical filters into SQL keysets, runs lexical/vector SQL, exposes inspection summaries, and writes completed SQLite artifacts from build inputs. It is the storage access boundary for both runtime reads and ingest-time artifact writes.
+`atlas-index` owns reference-domain SQLite schema, validation, publication and
+queries within the persistent Atlas workspace. `atlas-storage` owns connections,
+transactions, the migration ledger and coordinated maintenance admission.
 
 ## Owns
 
-- Concrete `SqliteIndexReader` handles tied to a validated artifact generation.
-- `IndexArtifactWriter` write contract and `SqliteIndexWriter` artifact writes.
-- Artifact validation diagnostics and validation reports.
-- Diesel migrations, checked-in schema declarations validated against those migrations, and ordinary relational writer/reader row models.
-- Bounded checked source snapshots, summaries, selected prepared HTML and attributed relationship reads.
-- Filter-to-SQL keyset compilation.
-- Curated lexical units and FTS5, semantic unit attribution, deduplicated input vectors, and sqlite-vec query SQL.
-- Typed query catalog discovery, exact numeric projections, and shared eligibility keysets.
-- Bounded old-source/cache/alias batches for ingest to verify reusable embeddings.
-- Index inspection summaries.
+- `SqliteIndexReader` handles bound to admitted read sessions and snapshots.
+- Reference schema SQL and relational models, composed with saved-state migrations
+  by runtime into one workspace.
+- Incremental reference publication through `SqliteIndexWriter` on an admitted
+  maintenance connection, retaining stable record identities and unchanged rows.
+- Checked DTO snapshots, compact prepared content, diagnostics and relationship
+  occurrences, including exact metadata for reusing source preparation.
+- Typed filter catalog discovery, validation and SQL compilation.
+- Curated FTS5 units, semantic attribution and profile-specific sqlite-vec tables.
+- Durable exact-input embedding checkpoints and reference-update job metadata.
+- Independent requested source/model configuration, component-version inspection
+  and automatic query-projection backfills.
 
-## Should Not Own
+## Boundaries
 
-- Ingest-time source normalization.
-- Query embedding generation.
-- Product-level search ranking or vector-hit collapse.
-- CLI presentation.
+Runtime composes the workspace; product retrieval goes through `atlas-search`.
+Ingest owns source admission, content preparation and model execution. This crate
+does not generate embeddings, decide product ranking, or present CLI output.
+Saved lists and encounters belong to `atlas-local-state` in the same database.
 
-## Boundary Notes
+A reference publication validates its transaction before advancing the reference
+revision. It updates reference-domain rows without replacing the database or
+clearing saved state. Schema upgrades use the shared migration coordinator;
+component upgrades rebuild only affected derived outputs from retained inputs.
 
-Runtime surfaces reach SQLite through `SqliteIndexReader`, rather than opening their own connections. Ingest writes completed artifacts through `IndexArtifactWriter`. The artifact is rebuilt from source when its contract changes; local lists and encounters live in a separate store. `atlas-index` owns the SQLite artifact contract: migration files under `migrations/` define the schema, artifact creation embeds those migrations, and tests check the Diesel declarations against them. Ordinary relational access uses Diesel; FTS5, sqlite-vec, dynamic filter relations, and validation pragmas use explicit SQL. Product-facing retrieval composes through `atlas-search`.
-
-Offline validation checks source addresses, cache safety and coherence, semantic coverage, hash syntax, and vector shape. It does not require model assets or reproduce tokenization. Before reusing vectors, `atlas-ingest` reconstructs each old input with the pinned tokenizer and verifies its hash, token count, and attribution. The index crate supplies bounded batches for that check without depending on embedding execution.
+Offline validation checks source addresses, content coherence, semantic coverage,
+hashes and vector shape without model assets. Embedding reuse reads durable
+checkpoints by exact model identity and execution-input key, checking input hash,
+native token count, dimensions and vector checksum. It does not reconstruct old
+embedding text from active reference rows. Checkpoints remain independent of
+content/projection versions and are pruned only after successful publication.

@@ -35,8 +35,12 @@ pub(crate) fn default_manifest_path(source_root: &Path) -> PathBuf {
 pub(crate) fn parse_manifest(path: &Path) -> Result<ParsedManifest, IngestError> {
     let serialized = fs::read_to_string(path)
         .map_err(|error| IngestError::SourceUnavailable(error.to_string()))?;
-    let content_hash = format!("{:x}", Sha256::digest(serialized.as_bytes()));
-    let manifest = serde_json::from_str(&serialized)
+    parse_manifest_bytes(serialized.as_bytes())
+}
+
+pub(crate) fn parse_manifest_bytes(serialized: &[u8]) -> Result<ParsedManifest, IngestError> {
+    let content_hash = format!("{:x}", Sha256::digest(serialized));
+    let manifest = serde_json::from_slice(serialized)
         .map_err(|error| IngestError::ManifestParseFailed(error.to_string()))?;
     Ok(ParsedManifest {
         manifest,

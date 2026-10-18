@@ -16,7 +16,7 @@ for (const width of [1440, 1100, 390]) {
                 encodeFilterUrl({
                   kind: "in",
                   clause_id: "kind",
-                  field: "record.kind",
+                  field: "kind",
                   values: ["creature"],
                 }),
               ),

@@ -5,7 +5,7 @@ or `atlas setup --no-embeddings`; inspect readiness using `atlas setup --check`.
 
 ```sh
 atlas search 'Ghoul Fever' --retrieval fts --json
-atlas search --kind creature --trait undead --where 'actor.hp.maximum >= 80'
+atlas search --kind creature --trait undead --where 'defenses.hp.maximum >= 80'
 atlas filters fields --json
 atlas filters values --field traits --kind spell --json
 atlas record resolve 'Treat Wounds' --json
@@ -33,7 +33,9 @@ default), or `setup --locale LOCALE` to change it through setup. Setup preserves
 existing artifact locale when no override is given. Changing locale requires a
 rebuild. `index check` is a readiness check; `index validate` checks all typed
 snapshots and derived caches/projections. Both accept `--no-embeddings` for lexical
-artifacts. Old artifacts require rebuilding.
+workspaces. Supported upgrades migrate the workspace and backfill derived data
+while preserving lists and encounters. Pre-workspace artifacts require a new
+workspace; they have no compatibility reader.
 
 `atlas-dev` is a separate unpublished developer CLI for typed source loading,
 analysis, raw path/value discovery and checked artifact/source inspection. It has

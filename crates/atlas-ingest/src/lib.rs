@@ -9,7 +9,6 @@ mod index_build_input;
 mod report;
 mod source;
 mod source_aliases;
-mod source_embedding_reuse;
 mod source_enrichment;
 mod source_fingerprint;
 mod source_loading;
@@ -31,7 +30,12 @@ pub use source_loading::{
     LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource, QuarantinedSourceFile,
     SourceDocumentCounts, SourceFileProvenance, SourceLoadFailure, SourceLoadFailureStage,
     SourceLoadingReport, SourceMetadata, SourcePackMetadata, load_foundry_documents,
+    load_foundry_documents_with_reuse,
 };
-pub fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
-    build::build_artifact(options)
+pub fn build_artifact(
+    workspace: &atlas_storage::Workspace,
+    schema: u32,
+    options: BuildArtifactOptions,
+) -> Result<BuildArtifactReport, IngestError> {
+    build::build_artifact(workspace, schema, options)
 }

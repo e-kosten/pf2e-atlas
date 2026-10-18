@@ -7,6 +7,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+atlas-storage.workspace = true
 atlas-dice.workspace = true
 atlas-domain.workspace = true
 rand.workspace = true

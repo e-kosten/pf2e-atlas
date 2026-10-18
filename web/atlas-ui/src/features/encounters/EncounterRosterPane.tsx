@@ -549,7 +549,7 @@ function SortableRosterRow({
 function encounterRecordPickerRequest(query: string): SearchResultsRequest {
   const filter = {
     kind: "in" as const,
-    field: "record.kind",
+    field: "kind",
     values: ["creature", "hazard"],
   };
   const trimmed = query.trim();

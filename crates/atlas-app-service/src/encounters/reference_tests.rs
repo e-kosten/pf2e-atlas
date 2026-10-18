@@ -63,25 +63,24 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             source_fingerprint: None,
         },
     };
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
-        })
-        .unwrap();
-    let physical = f
+    let selected_request = request("wwwwwwwwwwwwwwww");
+    let selected_encounter = encounter.slug.clone();
+    let selected_participant = participant.participant_key.clone();
+    let (physical, metrics) = f
         .worker
-        .encounter_reference(
-            &encounter.slug,
-            &participant.participant_key,
-            request("wwwwwwwwwwwwwwww"),
+        .with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |workspace| {
+                workspace.retrieval().reset_read_metrics();
+                let physical = super::reference::read_encounter_reference(
+                    workspace,
+                    &selected_encounter,
+                    &selected_participant,
+                    selected_request,
+                )?;
+                Ok((physical, workspace.retrieval().read_metrics()))
+            },
         )
-        .unwrap();
-    let metrics = f
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok(r.read_metrics())
-        })
         .unwrap();
     assert_eq!(
         (
@@ -323,11 +322,21 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
             Ok(r.source_fingerprint().to_owned())
         })
         .unwrap();
-    let local_state_path = a.worker.local_state_path().to_path_buf();
-    drop(a);
-
-    let mut b = service("revision-b");
-    b.worker.local_state_path = local_state_path;
+    let mut updated = input(
+        vec![record(
+            "actors",
+            "Actor",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Stable actor","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}}},"items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Stable ability","system":{"description":{"value":"<p>Unchanged ability prose.</p>"}}}]}),
+        )],
+        false,
+    );
+    updated.context.source_revision = Some("revision-b".into());
+    let hash = updated.context.preparation_sha256().unwrap();
+    for record in &mut updated.records {
+        record.preparation_context_hash = hash.clone();
+    }
+    atlas_search::test_support::publish_input(a.worker.workspace_path(), &updated).unwrap();
+    let b = &a;
     let (generation_b, fingerprint_b) = b
         .worker
         .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
@@ -338,11 +347,26 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     assert_ne!(generation_a, generation_b);
     assert_eq!(fingerprint_a, fingerprint_b);
 
-    let error = b
+    let lookup_encounter = encounter.slug.clone();
+    let lookup_participant = participant_key.clone();
+    let lookup_request = request_a.clone();
+    let (error, metrics) = b
         .worker
-        .encounter_reference(&encounter.slug, &participant_key, request_a.clone())
-        .unwrap_err()
-        .into_app_error();
+        .with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |workspace| {
+                let error = super::reference::read_encounter_reference(
+                    workspace,
+                    &lookup_encounter,
+                    &lookup_participant,
+                    lookup_request,
+                )
+                .unwrap_err()
+                .into_app_error();
+                Ok((error, workspace.retrieval().read_metrics()))
+            },
+        )
+        .unwrap();
     assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
     assert_eq!(
         error.details,
@@ -357,13 +381,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
         Some(AppRecoverableAction::ReloadRecord)
     );
     assert_eq!(
-        b.worker
-            .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| Ok(
-                r.read_metrics()
-            ))
-            .unwrap()
-            .source_body_decodes,
-        0,
+        metrics.source_body_decodes, 0,
         "generation conflict is rejected before selecting the owned document",
     );
 

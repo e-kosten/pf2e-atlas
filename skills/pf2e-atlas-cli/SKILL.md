@@ -11,8 +11,10 @@ Check readiness with `atlas setup --check --json`. Use `atlas setup` to prepare
 source, the default pinned BGE Base profile and artifact, or `atlas setup
 --no-embeddings` for lexical search and reference lookup. `atlas index check
 --json` checks readiness; `atlas index validate --json` deeply checks the artifact.
-Use `--no-embeddings` with either index command for a lexical artifact. Older
-artifacts require rebuilding, with no compatibility reader. Indexing locale is
+Use `--no-embeddings` with either index command for a lexical workspace. Supported
+workspace upgrades preserve saved state through migrations and component backfills.
+Pre-workspace artifacts are unsupported; create a new workspace rather than deleting
+an existing database on an error. Indexing locale is
 English by default; `atlas setup --locale fr` or `atlas index build --locale fr`
 prepares that source locale with English fallback. Changing search locale requires
 rebuilding. Setup preserves an existing locale unless explicitly overridden.
@@ -79,7 +81,7 @@ Search broadly, then inspect the returned record and matching passage:
 atlas search 'Ghoul Fever' --retrieval fts --json
 atlas search 'a creature whose disease drains a victim over time' --json
 atlas search --kind creature --trait undead --json
-atlas search --where 'actor.hp.maximum >= 80 && "undead" in traits' --json
+atlas search --where 'defenses.hp.maximum >= 80 && "undead" in traits' --json
 atlas similar 'Dirge of Doom' --kind spell --json
 ```
 
@@ -113,10 +115,10 @@ atlas filters fields --json
 atlas filters fields --group movement --json
 atlas filters fields --all --json
 atlas filters fields --text 'maximum hp' --json
-atlas filters fields --field actor.hp.maximum --json
+atlas filters fields --field defenses.hp.maximum --json
 atlas filters values --field traits --kind spell --json
-atlas filters values --field actor.hp.maximum --kind creature --json
-atlas search --where 'actor.saves.fortitude >= 12' --print-filter --json
+atlas filters values --field defenses.hp.maximum --kind creature --json
+atlas search --where 'defenses.saves.fortitude >= 12' --print-filter --json
 ```
 
 `filters fields` describes allowed choices; `filters values` retains all supplied
@@ -126,7 +128,14 @@ parent records after remaster preference; source-availability statistics are
 before that preference and may count multiple collection occurrences per parent.
 Unavailable discovery is an error, never a zero count. For same-entry constraints,
 combine conditions inside one CEL `exists`, for example
-`actor.speeds.exists(s, s.type == "fly" && s.value >= 30)`.
+`movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)`.
+Use `embedded.spells.exists(s, "fire" in s.traits)` for records containing a fire
+spell. This does not match a standalone spell itself; use
+`kind == "spell" && "fire" in traits` for those. Equipment predicates use
+`embedded.equipment.exists(e, e.source.type == "weapon" && "agile" in e.traits)`.
+These collections contain immediate embedded copies, not linked records.
+`physical.unit_price_gp` is listed unit price in gold pieces.
+
 Scoped value discovery can match a different entry from an existing collection
 condition; verify the complete expression with `search --where`.
 
@@ -171,9 +180,9 @@ atlas lists export undead-research --output undead-research.json
 atlas lists import undead-research.json --json
 ```
 
-Lists live in a separate local-state database. A missing record keeps its saved
-snapshot and explicit unresolved status after an artifact rebuild. Do not mutate
-the reference artifact to implement saved state.
+Lists share the persistent workspace with reference data. A missing record keeps
+its saved snapshot and explicit unresolved status after a reference update. Use
+the list commands to change saved state; source updates preserve it.
 
 Use `atlas-dev` only for developer diagnostics: `source load`, `source analyze`,
 `source audit-paths`, `index inspect` and `index record`. These commands are a

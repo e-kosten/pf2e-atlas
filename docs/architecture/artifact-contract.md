@@ -1,50 +1,64 @@
 # Artifact contract
 
-The generated reference artifact is a read-only SQLite database owned by
-`atlas-index`. It stores checked Foundry source snapshots and rebuildable query,
-content and search projections. Mutable saved lists and encounters belong to the
-separate `atlas-local-state` database. Rebuilding the artifact never rewrites
-those local rows. [ADR 0046](./decisions/0046-source-backed-reference-artifact.md)
-records the durable storage and retrieval decisions.
+Reference data and saved state share one persistent SQLite workspace.
+`atlas-index` owns checked source snapshots and derived reference tables;
+`atlas-local-state` owns lists, encounters and their durable actions.
+`atlas-storage` owns admission, transactions and migration execution, while
+runtime composes one schema history. Normal reference publication preserves the
+workspace file and saved rows. [ADR0051](./decisions/0051-persistent-workspace.md)
+defines these ownership and lifetime boundaries.
 
 ## Identity and versions
 
 Record identity is the Foundry pack and source `_id`, serialized as `pack:id`.
 Readable route slugs may accompany that identity. They do not introduce another
-identity registry. Embedded documents stay in their parent snapshot, including
+public identity scheme. Internal `record_identity` rows survive source removal;
+saved foreign keys reference that stable registry with restrictive deletion. Embedded documents stay in their parent snapshot, including
 customized copies of canonical Items. Checked owner chains use unique source IDs
 where available and snapshot-local positions otherwise. Snapshot-local owners
 must not reconcile saved state across rebuilds.
 Product navigation using snapshot-local positions carries the source fingerprint;
 detail rejects missing or stale generation context for those explicit addresses.
 
-The supported contract is `pf2e-atlas-source-artifact/v3`, with format and SQLite
-`user_version` 3. `artifact_context` contains one typed, hashed build context.
-The checked snapshot codec has its own version owned by `atlas-foundry-model`.
-Unsupported artifacts require rebuilding. There is no migration, compatibility
-reader, normalized-record adapter or original-JSON fallback for old reference
-artifacts. Local-state migrations remain independent.
+The reference format, checked snapshot codec, preparation policies and query
+catalog have separate version identities. `artifact_context` contains the typed,
+hashed active build context. SQLite `user_version` instead tracks the shared
+physical migration ledger composed by runtime (currently two baseline migrations).
+The source artifact format is not the workspace schema version.
 
-The physical relational schema is
-[`atlas-index/migrations/00000000000001_create_artifact/up.sql`](../../crates/atlas-index/migrations/00000000000001_create_artifact/up.sql).
-Diesel declarations and writer/readers must agree with this executable schema.
-FTS5, sqlite-vec, dynamic eligibility relations and validation pragmas use focused
-SQL owned by index. Artifact-supplied data never supplies executable SQL.
+Pre-release separate-file formats have no compatibility reader or conversion
+shim. Future workspace upgrades use ordered migrations with recorded checksums,
+a consistent backup before structural changes, and transaction-scoped validation.
+Saved-domain and reference migrations share the same ledger and transaction.
+
+Reference DDL lives in
+[the index baseline SQL](../../crates/atlas-index/migrations/00000000000001_create_artifact/up.sql);
+saved-domain DDL lives in
+[local-state schema.sql](../../crates/atlas-local-state/src/schema.sql).
+Both execute through rusqlite on admitted sessions. FTS5, sqlite-vec, dynamic
+eligibility relations and validation pragmas remain index-owned SQL. Stored data
+never supplies executable SQL.
 
 ## Stored families
 
+The shared header contains `workspace` and `schema_migrations`. Durable intent
+lives in `requested_reference_config`; resumable inference uses
+`reference_update_jobs` and `embedding_checkpoints`. These are independent of the
+active reference context. Saved-domain tables include a seeded local principal
+and non-null ownership, with owner-scoped slug uniqueness.
+
 | Family | Tables and purpose |
 | --- | --- |
-| Identity and provenance | `packs`, `records`: canonical keys, compact source paths/hashes, lookup keys and body-free common summaries. |
+| Identity and provenance | `record_identity`, `packs`, `records`: canonical keys, compact source paths/hashes, lookup keys and body-free common summaries. |
 | Checked source | `record_bodies`: one gzip-compressed, versioned checked DTO snapshot per root. Invalid members retained by admission remain in that snapshot. No duplicate complete original JSON payload is stored. |
-| Query accelerators | `record_traits`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Root and immediate Actor Item scopes use the same typed extractors. |
+| Query accelerators | `record_traits`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families. |
 | Query catalog | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions. |
 | Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
-| Semantic search | `search_profiles`, `semantic_units`, `semantic_vectors`: complete profile identity, profile-scoped attributed section/chunk addresses, raw input hashes and vectors. |
+| Semantic search | `search_profiles`, `semantic_units`, profile-specific `semantic_vectors_<identity hash>` tables: complete profile identity, profile-scoped attributed section/chunk addresses, raw input hashes and vectors. |
 
 There is no generic metric EAV store, persisted RichDocument, synthetic canonical
 affliction table, copied embedded Item authority or complete plain-text/model-input
@@ -108,13 +122,13 @@ Vocabulary totals describe available matching values, exclude absent selections,
 and never masquerade as displayed-root counts. Closed choices remain in the
 executable catalog even when absent from the corpus.
 
-Query capability version 3 includes intentional shared user-facing labels and
-the root-only numeric `record.level_or_rank`
-binding over existing columns. Spells use spell rank and its availability state;
-other applicable level families use record level and its state. There is no
-fallback from unavailable spell rank to level. Existing explicit family fields
-retain their meanings. Artifacts rebuild for the new catalog identity even though
-the physical tables are unchanged; readers require the exact executable catalog.
+Public filters use domain namespaces, including root `kind`, `traits`,
+`level_or_rank` and explicit `embedded.spells`/`embedded.equipment` collections.
+Embedded predicates match immediate children only, irrespective of root-kind
+filters. Root-or-child queries require explicit OR. Retired Actor/Item paths fail
+rather than receiving an implicit translation. Supported query-catalog/projection
+upgrades regenerate rows from stored DTOs in one maintenance transaction; they
+neither require source admission nor invalidate unchanged embedding inputs.
 
 Filters, explicit key scopes and product-family eligibility constrain lexical and
 vector units before ranking. Macros remain available for developer inspection and
@@ -139,7 +153,8 @@ Prepared unresolved references preserve an explicit authored label or a qualifie
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
 The content interpretation identity is `foundry-content/v6`; older prepared
-artifacts require rebuilding even though the physical schema is unchanged.
+content requires re-preparation even when the physical schema is unchanged.
+Exact compatible embedding checkpoints remain reusable.
 
 App-service derives transient semantic family presentation from these checked
 snapshots and selected caches. Those response DTOs are not stored family bodies
@@ -181,17 +196,16 @@ does not expand passages. No silent truncation or token-estimator fallback is al
 Passage metadata addresses a selected section and UTF-8 byte range, with source or
 prepared HTML/canonical-text hashes and selection version. Identity units have no
 fabricated prose range. Readers recover text from checked source/prepared content.
-Vector reuse requires complete model identity and verification of the old unit's
-input association. Ingest reconstructs selected input from the old checked source
-and prepared caches using the pinned tokenizer, and compares its hash, token count,
-address and chunk ordinal before accepting a vector. Offline index validation
-checks source/cache addresses, coverage, hash syntax and vector integrity; it
-does not require model assets or claim tokenizer-backed input verification.
-Reuse never merges distinct source attributions. Vectors contain no duplicate filter metadata.
-Each stored profile independently has complete semantic identity/section/vector
-coverage. An empty manifest is a lexical artifact. One shared vec0 table uses
-globally unique unit IDs; KNN eligibility includes profile and eligible roots
-inside the scan. Similar seeds and reuse remain selected-profile scoped.
+Vector reuse requires exact model/input identity, token count, dimensions and
+verified vector bytes. Durable checkpoints survive interrupted builds and content
+policy changes; changed prepared text obtains a different input identity. Input
+reuse does not merge source attributions. Offline validation checks addresses,
+coverage and vector integrity without requiring model assets.
+Each stored profile has complete semantic coverage. An empty profile manifest is
+lexical-only. Each exact profile identity owns a dimensioned vec0 table; KNN
+eligibility remains constrained to eligible roots within the selected profile.
+Final publication reconciles active units and prunes inactive checkpoints in the
+same transaction, never before a successful replacement is available.
 Lexical/reference reads and stored-vector Similar do not require query weights.
 
 Search collapses semantic units by maximum similarity per root. Hybrid uses one
@@ -201,8 +215,8 @@ stored root identity seed and semantic candidates, excluding the seed. No invent
 trait/graph reranking weights apply. App search pages expose the same bounded
 Similar request and body-free seed summary; they do not extend the stored schema.
 
-The full serialized `SourceArtifactBuildContext` SHA-256 identifies the immutable
-artifact generation for search pages, detail envelopes and Related availability. It covers
+The full serialized `SourceArtifactBuildContext` SHA-256 identifies the active reference
+generation for search pages, detail envelopes and Related availability. It covers
 locale, shared preparation policies and the complete sorted profile manifest as
 well as source identity. Shared HTML/content preparation hashes exclude the
 profile manifest, including its model and passage recipe. Raw input hashes identify
@@ -238,20 +252,26 @@ by selected vocabulary. Exact lexical terms can therefore be reconstructed
 offline; there is no duplicate full localization catalog. Root alias terms must
 match the verified alias relation, with no arbitrary additional FTS vocabulary.
 
-The writer constructs a temporary database, runs the coherence checks below, then
-publishes atomically. Failure preserves the prior artifact. An open reader keeps
-its SQLite connections on one verified generation; it cannot combine old snapshots
-with new caches by reopening the published path. Platforms that prevent replacing
-an in-use artifact return a clear failure preserving the prior bytes rather than
-copying or deleting around the lock.
+The writer reconciles changed reference rows inside a maintenance transaction in
+the existing workspace. Unchanged rows retain their identity; removed sources lose
+current projections and become unavailable identities without deleting saved
+references. Reference publication and profile activation advance the workspace's
+reference revision; user-state writes do not. Failed publication rolls back the
+whole delta. Durable maintenance remains set until committed data is validated
+and admission can safely resume.
 
-Index retains a non-serialized physical instance identity from the successful
-reader-open guard. Search exposes it narrowly for application composition. Web
-startup requires every worker to have opened the same instance and complete
-context; comparing context hashes alone does not establish physical identity.
-A composed CLI command retains its first successfully opened reader instead of
-reopening the published path between parent and embedded reads. Physical identity
-stays process-local; public artifact generation remains the full context hash.
+Readers own bounded deferred transactions. One composed operation shares its
+snapshot across reference and saved-domain readers; idle CLI/web owners retain no
+SQLite session. Writes use immediate transactions and recheck preparation revisions
+before applying source-derived changes. Local-state actions use savepoints inside
+the outer transaction, so caught action errors cannot leak partial writes into a
+later commit. Durable receipt recovery precedes stale-source checks. Receipt JSON
+uses explicit storage versions and domain facts rather than application DTOs.
+
+The workspace identity is durable; request generation checks additionally bind the
+complete reference context. A later operation can observe a completed update, while
+an already admitted read remains coherent. Application-managed sidecar locks
+coordinate cooperating processes; external SQLite tools do not participate.
 
 Opening a reader checks format, typed context, executable schema/catalog and active
 model metadata. Explicit full validation checks SQLite integrity/foreign keys,

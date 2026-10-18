@@ -31,7 +31,7 @@ pub use identity::{SourceIdentityError, source_record_key};
 pub use item_query::spell_casting_form;
 pub use model::{SourceBackedRecord, SourceRecordConstructionError, source_owned_document_count};
 pub use nodes::{ItemSourceView, SourceNodeView};
-pub use query::SourceQueryView;
+pub use query::{SourceQueryView, source_family_record_kind};
 pub use relationships::{
     SourceRelationshipKind, SourceRelationshipOccurrence, resolve_source_relationships,
 };

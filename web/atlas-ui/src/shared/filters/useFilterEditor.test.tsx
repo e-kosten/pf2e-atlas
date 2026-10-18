@@ -5,7 +5,7 @@ import { editorFixture, fieldFixture } from "../../test/fixtures";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
 import { useFilterEditor } from "./useFilterEditor";
 
-const hp = fieldFixture("actor.hp.maximum", "number", "Maximum HP");
+const hp = fieldFixture("defenses.hp.maximum", "number", "Maximum HP");
 const fields = editorFixture([hp]).groups[0].fields;
 const initial = {
   ...DEFAULT_SEARCH_STATE,

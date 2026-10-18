@@ -1,7 +1,7 @@
 use crate::test_support::{input, record};
 use crate::*;
 use atlas_domain::{RecordKey, SourcePassageAddress};
-use atlas_index::{IndexBuildInput, SourceAliasInput, SourceRemasterPairInput, SqliteIndexReader};
+use atlas_index::{IndexBuildInput, SourceAliasInput, SourceRemasterPairInput};
 use serde_json::json;
 fn effect(id: &str, name: &str, level: i32, html: &str) -> atlas_index::SourceArtifactRecordInput {
     record(
@@ -22,11 +22,13 @@ fn explicit_request_overrides_service_default_and_single_profile_does_not_choose
         effect("bbbbbbbbbbbbbbbb", "Two", 2, ""),
     ]);
     let (artifact, _) = service(input);
-    let index = SqliteIndexReader::open_read_only(artifact.path()).unwrap();
-    let mut retrieval = AtlasRetrievalService::from_prepared_index_without_embeddings(
+    let index = atlas_index::test_support::open_reader(artifact.path()).unwrap();
+    let mut retrieval = AtlasRetrievalService::from_index(
         index,
         atlas_domain::SearchProfileId::new("embeddinggemma"),
-    );
+        None,
+    )
+    .unwrap();
     let mut request = TextSearchRequest::new("One", SearchPage::default());
     request.mode = RetrievalMode::Fts;
     assert_eq!(
@@ -49,14 +51,11 @@ fn explicit_request_overrides_service_default_and_single_profile_does_not_choose
         .semantic_units
         .retain(|unit| unit.profile_id.as_str() == "embeddinggemma");
     let (artifact, _) = service(gemma_only);
-    let index = SqliteIndexReader::open_read_only(artifact.path()).unwrap();
-    let error = AtlasRetrievalService::from_prepared_index(
-        index,
-        base,
-        atlas_embedding::SharedQueryInference::new("/missing/cache"),
-    )
-    .err()
-    .unwrap();
+    let index = atlas_index::test_support::open_reader(artifact.path()).unwrap();
+    let mut service = AtlasRetrievalService::from_index(index, base.clone(), None).unwrap();
+    let mut request = TextSearchRequest::new("One", SearchPage::default());
+    request.search_profile = Some(&base);
+    let error = service.search_text(request).unwrap_err();
     assert!(error.to_string().contains("bge-base"));
     assert!(error.to_string().contains("not stored"));
 }
@@ -202,7 +201,7 @@ fn exact_key_resolution_obeys_filters_without_suppressing_legacy_identity() {
     });
     let (_dir, service) = service(fixture);
     let legacy_ref = legacy.to_string();
-    for (expression, accepted) in [("item.level >= 1", true), ("item.level == 2", false)] {
+    for (expression, accepted) in [("level >= 1", true), ("level == 2", false)] {
         let filter = service.parse_where(expression).unwrap();
         let result = service
             .resolve_record_ref(ResolveRecordRefRequest {
@@ -257,7 +256,7 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     );
     let only = search(&mut service, "Legacy");
     assert_eq!(only.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
-    let filter = service.parse_where("item.level == 1").unwrap();
+    let filter = service.parse_where("level == 1").unwrap();
     let filtered = service
         .search_text(TextSearchRequest {
             search_profile: None,
@@ -607,14 +606,14 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
         false,
     ));
     let mut predicate = service
-        .parse_where("item.level == 1")
+        .parse_where("level == 1")
         .unwrap()
         .predicate()
         .clone();
     predicate.clause_id = Some("level-choice".into());
     let atlas_domain::QueryFacetOutcome::Available { value: counts } = service
         .discover_filter_counts(DiscoverFilterCountsRequest {
-            field: "item.level",
+            field: "level",
             clause_id: Some("level-choice"),
             context: FilterDiscoveryContext {
                 search_profile: None,
@@ -753,11 +752,13 @@ fn root_max_score_has_no_bonus_from_siblings_or_unit_window() {
 fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../scratch/ingest-validation/full-lexical.sqlite");
-    let reader = SqliteIndexReader::open_read_only(path).unwrap();
-    let mut service = AtlasRetrievalService::from_prepared_index_without_embeddings(
+    let reader = atlas_index::test_support::open_reader(path).unwrap();
+    let mut service = AtlasRetrievalService::from_index(
         reader,
         atlas_domain::SearchProfileId::new("bge-base"),
-    );
+        None,
+    )
+    .unwrap();
     for (pack, text, key, field) in [
         (
             "pathfinder-bestiary",
@@ -1121,7 +1122,7 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
         evidence: "verified source relation".into(),
     });
     let (_, service) = service(fixture);
-    let filtered = service.parse_where("item.level >= 2").unwrap();
+    let filtered = service.parse_where("level >= 2").unwrap();
     let result = service
         .similar_records(SimilarRecordRequest {
             search_profile: None,
@@ -1159,16 +1160,32 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
 
 #[test]
 fn generation_includes_preparation_context_beyond_navigation_fingerprint() {
-    let (_, service) = service(input(
-        vec![effect("aaaaaaaaaaaaaaaa", "Seed", 1, "")],
-        false,
-    ));
-    let original = service.artifact_generation().unwrap();
-    assert_eq!(original, service.artifact_context().sha256().unwrap());
-    let mut changed = service.artifact_context().clone();
-    changed.indexing_locale = "fr".into();
-    assert_eq!(changed.source_fingerprint, service.source_fingerprint());
-    assert_ne!(original, changed.sha256().unwrap());
+    let fixture = || input(vec![effect("aaaaaaaaaaaaaaaa", "Seed", 1, "")], false);
+    let (artifact, retrieval) = service(fixture());
+    let original = retrieval.artifact_generation().unwrap();
+    let fingerprint = retrieval.source_fingerprint().to_owned();
+    drop(retrieval);
+    let mut fixture = fixture();
+    fixture.context.indexing_locale = "fr".into();
+    for record in &mut fixture.records {
+        record.preparation_context_hash = fixture.context.preparation_sha256().unwrap();
+    }
+    test_support::publish_input(artifact.path(), &fixture).unwrap();
+    let reopen = || {
+        AtlasRetrievalService::from_index(
+            atlas_index::test_support::open_reader(artifact.path()).unwrap(),
+            atlas_domain::SearchProfileId::new("bge-base"),
+            None,
+        )
+        .unwrap()
+    };
+    let updated = reopen();
+    assert_eq!(updated.source_fingerprint(), fingerprint);
+    assert_eq!(updated.artifact_context().indexing_locale, "fr");
+    let generation = updated.artifact_generation().unwrap();
+    assert_ne!(original, generation);
+    drop(updated);
+    assert_eq!(reopen().artifact_generation().unwrap(), generation);
 }
 
 #[test]

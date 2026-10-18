@@ -380,7 +380,8 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
         local_model_dir(),
     )
     .unwrap();
-    let empty = generate_prepared_embeddings(&mut model, &[], &BTreeMap::new(), 8).unwrap();
+    let empty =
+        generate_prepared_embeddings(&mut model, &[], &BTreeMap::new(), 8, |_| Ok(())).unwrap();
     assert!(empty.vectors.is_empty());
     assert_eq!((empty.inferred_inputs, empty.reused_inputs), (0, 0));
     let texts = [
@@ -422,18 +423,20 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
     }
     assert_ne!(duplicate.address, units[0].address);
     units.push(duplicate);
-    let initial = generate_prepared_embeddings(&mut model, &units, &BTreeMap::new(), 16).unwrap();
+    let initial =
+        generate_prepared_embeddings(&mut model, &units, &BTreeMap::new(), 16, |_| Ok(())).unwrap();
     assert_eq!(initial.inferred_inputs, 1);
     assert_eq!(initial.vectors.len(), 2);
     assert_eq!(initial.vectors[0], initial.vectors[1]);
     let reusable = BTreeMap::from([(units[0].reuse_key.clone(), initial.vectors[0].clone())]);
-    let reused = generate_prepared_embeddings(&mut model, &units, &reusable, 16).unwrap();
+    let reused =
+        generate_prepared_embeddings(&mut model, &units, &reusable, 16, |_| Ok(())).unwrap();
     assert_eq!(reused.inferred_inputs, 0);
     assert_eq!(reused.reused_inputs, 1);
     assert_eq!(reused.vectors, initial.vectors);
     units[0].input.push_str("changed");
     assert!(matches!(
-        generate_prepared_embeddings(&mut model, &units, &reusable, 16),
+        generate_prepared_embeddings(&mut model, &units, &reusable, 16, |_| Ok(())),
         Err(EmbeddingError::PreparedInputMismatch)
     ));
 }

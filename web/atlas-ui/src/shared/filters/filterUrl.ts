@@ -1,7 +1,11 @@
 import LZString from "lz-string";
 import type { QueryPredicate } from "../../generated/atlas";
 
-const VERSION = "1.";
+// Version 2 uses the product field vocabulary introduced by catalog v4.
+// Old queries must not be reinterpreted or silently lose clauses.
+const VERSION = "2.";
+export const UNSUPPORTED_FILTER_URL =
+  "This search link uses an unsupported filter version. Reset the filters to continue.";
 const { compressToEncodedURIComponent, decompressFromEncodedURIComponent } = LZString;
 
 /** The URL carries query meaning; clause/scope identities belong to the editor. */
@@ -13,8 +17,8 @@ export function encodeFilterUrl(predicate: QueryPredicate): string {
 }
 
 export function decodeFilterUrl(encoded: string): QueryPredicate {
-  if (!encoded.startsWith(VERSION) || encoded.length > 16_384)
-    throw new Error("Invalid filter URL");
+  if (encoded.length > 16_384) throw new Error("Invalid filter URL");
+  if (!encoded.startsWith(VERSION)) throw new Error(UNSUPPORTED_FILTER_URL);
   const json = decompressFromEncodedURIComponent(encoded.slice(VERSION.length));
   if (!json) throw new Error("Invalid filter URL");
   let ordinal = 0;

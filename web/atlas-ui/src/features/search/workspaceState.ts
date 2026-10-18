@@ -77,7 +77,7 @@ function preferredKindPredicate(): QueryPredicate | null {
     const leaf: QueryPredicate = {
       kind: "in",
       clause_id: crypto.randomUUID(),
-      field: "record.kind",
+      field: "kind",
       values,
     };
     children.push(exclude ? { kind: "not", predicate: leaf } : leaf);

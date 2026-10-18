@@ -3,7 +3,7 @@ import type {
   SearchResultsRequest,
   QueryPredicate,
 } from "../../generated/atlas";
-import { decodeFilterUrl, encodeFilterUrl } from "./filterUrl";
+import { decodeFilterUrl, encodeFilterUrl, UNSUPPORTED_FILTER_URL } from "./filterUrl";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export type SearchFormState = {
   query: string;
@@ -121,8 +121,11 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
   try {
     const encoded = params.get("filter");
     if (encoded) filter = decodeFilterUrl(encoded);
-  } catch {
-    filterError = "Invalid structured filter URL";
+  } catch (error) {
+    filterError =
+      error instanceof Error && error.message === UNSUPPORTED_FILTER_URL
+        ? UNSUPPORTED_FILTER_URL
+        : "Invalid structured filter URL";
   }
   const pageSize = Number(params.get("limit") || 25);
   const similarSeed = params.get("similar")?.trim() || null;

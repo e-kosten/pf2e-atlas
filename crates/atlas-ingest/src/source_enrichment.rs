@@ -17,6 +17,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub struct SourceEnrichmentContext<'a> {
     pub audience: ContentAudience,
+    /// Exact content preparation dependencies; absent for uncached developer loading.
+    pub preparation_context_hash: Option<&'a str>,
     pub localization: Option<&'a dyn LocalizationResolver>,
 }
 
@@ -24,6 +26,8 @@ pub struct SourceEnrichmentContext<'a> {
 /// There is one DTO body; the admission's additional full raw tree is discarded.
 #[derive(Debug, PartialEq, Eq)]
 pub struct EnrichedFoundryDocument {
+    pub admission_reused: bool,
+    pub preparation_reused: bool,
     pub provenance: SourceFileProvenance,
     pub content_hash: String,
     pub bytes: Vec<u8>,
@@ -139,18 +143,34 @@ pub fn enrich_loaded_source(
                 .into_iter()
                 .zip(keys)
                 .map(|(document, key)| {
+                    let admission_reused = document.reused_preparation.is_some();
+                    let mut preparation_reused = false;
                     let outcome = match (key, document.admission.model) {
                         (Ok(key), Some(model)) => {
                             match SourceBackedRecord::new(key.pack().as_str(), model) {
                                 Ok(record) => {
-                                    let content = prepare_record_content(
-                                        &record,
-                                        context.audience,
-                                        context.localization,
-                                        Some(&resolver),
-                                    );
                                     let relationships =
                                         resolve_source_relationships(&record, Some(&resolver));
+                                    let content = match document.reused_preparation {
+                                        Some(previous)
+                                            if context.preparation_context_hash
+                                                == Some(previous.context_hash.as_str())
+                                                && previous.relationships == relationships
+                                                && references_unchanged(
+                                                    &previous.content,
+                                                    &resolver,
+                                                ) =>
+                                        {
+                                            preparation_reused = true;
+                                            previous.content
+                                        }
+                                        _ => prepare_record_content(
+                                            &record,
+                                            context.audience,
+                                            context.localization,
+                                            Some(&resolver),
+                                        ),
+                                    };
                                     EnrichedDocumentOutcome::Addressed {
                                         record: Box::new(record),
                                         content,
@@ -173,6 +193,8 @@ pub fn enrich_loaded_source(
                         },
                     };
                     EnrichedFoundryDocument {
+                        admission_reused,
+                        preparation_reused,
                         provenance: document.provenance,
                         content_hash: document.content_hash,
                         bytes: document.bytes,
@@ -197,6 +219,8 @@ pub fn enrich_loaded_source(
 
 #[derive(Debug, Default, Serialize)]
 pub struct SourceEnrichmentReport {
+    pub reused_admissions: usize,
+    pub reused_preparations: usize,
     pub discovered_files: usize,
     pub retained_documents: usize,
     pub addressed_documents: usize,
@@ -223,6 +247,8 @@ impl EnrichedFoundrySource {
             report.unavailable_packs += usize::from(pack.discovery_failure.is_some());
             for document in &pack.documents {
                 report.retained_documents += 1;
+                report.reused_admissions += usize::from(document.admission_reused);
+                report.reused_preparations += usize::from(document.preparation_reused);
                 report.admission_diagnostics += document.admission_diagnostics.len();
                 let typed = match &document.outcome {
                     EnrichedDocumentOutcome::Addressed {
@@ -282,3 +308,31 @@ impl EnrichedFoundrySource {
 
 #[cfg(test)]
 mod tests;
+
+/// Replay all actual resolver requests, including unresolved and hidden occurrences.
+/// Stored name/family facts detect label changes even when the target key is stable.
+fn references_unchanged(content: &[SourceContentOutcome], resolver: &SourceReferenceIndex) -> bool {
+    use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceResolver};
+    content.iter().all(|outcome| {
+        let SourceContentStatus::Prepared(prepared) = &outcome.status else {
+            return true;
+        };
+        prepared
+            .references
+            .iter()
+            .all(|reference| match &reference.resolution {
+                ContentReferenceResolution::UnverifiedUrl { .. }
+                | ContentReferenceResolution::Blocked => true,
+                ContentReferenceResolution::Unresolved => resolver
+                    .resolve_reference(&prepared.locator, &reference.authored_target)
+                    .is_none(),
+                ContentReferenceResolution::Resolved(target) => resolver
+                    .resolve_reference(&prepared.locator, &reference.authored_target)
+                    .is_some_and(|resolved| {
+                        resolved.target == *target
+                            && resolved.display_name == reference.label.target_name
+                            && resolved.item_family == reference.label.item_family
+                    }),
+            })
+    })
+}

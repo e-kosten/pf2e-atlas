@@ -43,7 +43,7 @@ impl SearchError {
     pub(crate) fn embedding(message: impl Into<String>) -> Self {
         Self::new(SearchErrorKind::EmbeddingUnavailable, message)
     }
-    pub(crate) fn query_embedding(error: EmbeddingError) -> Self {
+    pub fn query_embedding(error: EmbeddingError) -> Self {
         match error {
             EmbeddingError::EmptyInput => Self::invalid_search_options(
                 "query is empty or has no body tokens; provide nonempty query text",

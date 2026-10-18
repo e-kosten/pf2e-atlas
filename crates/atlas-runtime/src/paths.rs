@@ -21,9 +21,9 @@ pub struct ResolvedAtlasPaths {
     pub mode: ResolvedPathMode,
     pub repo_root: Option<PathBuf>,
     pub source_root: PathBuf,
+    pub source_root_explicit: bool,
     pub embedding_cache_root: PathBuf,
     pub index_path: PathBuf,
-    pub local_state_path: PathBuf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,7 +77,7 @@ pub(crate) fn resolve_atlas_paths(
             AtlasPathOverrides {
                 source_root: Some(repo_root.join("vendor").join("pf2e")),
                 embedding_cache_root: Some(repo_root.join(".cache").join("hf-models")),
-                index_path: Some(repo_root.join(".cache").join("pf2e-index.sqlite")),
+                index_path: Some(repo_root.join(".atlas").join("workspace.sqlite")),
             }
         }
         ResolvedPathMode::Global => {
@@ -85,7 +85,11 @@ pub(crate) fn resolve_atlas_paths(
             AtlasPathOverrides {
                 source_root: Some(cache_root.join("vendor").join("pf2e")),
                 embedding_cache_root: Some(cache_root.join("hf-models")),
-                index_path: Some(cache_root.join("pf2e-index.sqlite")),
+                index_path: Some(
+                    platform_data_root()?
+                        .join("pf2e-atlas")
+                        .join("workspace.sqlite"),
+                ),
             }
         }
     };
@@ -93,9 +97,9 @@ pub(crate) fn resolve_atlas_paths(
         .index_path
         .or(defaults.index_path)
         .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::IndexPath))?;
-    let local_state_path = local_state_path_for_index(&index_path);
 
     Ok(ResolvedAtlasPaths {
+        source_root_explicit: overrides.source_root.is_some(),
         mode: resolved_mode,
         repo_root: if resolved_mode == ResolvedPathMode::Repo {
             repo_root
@@ -113,15 +117,7 @@ pub(crate) fn resolve_atlas_paths(
                 RuntimeError::path_default_unavailable(RuntimePathTarget::EmbeddingCacheRoot)
             })?,
         index_path,
-        local_state_path,
     })
-}
-
-fn local_state_path_for_index(index_path: &Path) -> PathBuf {
-    index_path
-        .parent()
-        .unwrap_or_else(|| Path::new(""))
-        .join("pf2e-local-state.sqlite")
 }
 
 fn find_git_repo_root(current_dir: &Path) -> Option<PathBuf> {
@@ -176,34 +172,22 @@ fn home_dir() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn local_state_path_resolves_beside_repo_default_artifact() {
-        let index = PathBuf::from("/workspace/.cache/pf2e-index.sqlite");
-        assert_eq!(
-            local_state_path_for_index(&index),
-            PathBuf::from("/workspace/.cache/pf2e-local-state.sqlite")
-        );
+fn platform_data_root() -> Result<PathBuf, RuntimeError> {
+    if cfg!(target_os = "macos") {
+        return home_dir()
+            .map(|home| home.join("Library").join("Application Support"))
+            .ok_or_else(|| RuntimeError::cache_root_unavailable(RuntimePlatform::Macos));
     }
-
-    #[test]
-    fn local_state_path_resolves_beside_global_default_artifact() {
-        let index = PathBuf::from("/home/test/.cache/pf2e-atlas/pf2e-index.sqlite");
-        assert_eq!(
-            local_state_path_for_index(&index),
-            PathBuf::from("/home/test/.cache/pf2e-atlas/pf2e-local-state.sqlite")
-        );
+    if cfg!(target_os = "windows") {
+        return std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .or_else(|| home_dir().map(|home| home.join("AppData").join("Local")))
+            .ok_or_else(|| RuntimeError::cache_root_unavailable(RuntimePlatform::Windows));
     }
-
-    #[test]
-    fn local_state_path_resolves_beside_index_override() {
-        let index = PathBuf::from("/tmp/custom-artifact.sqlite");
-        assert_eq!(
-            local_state_path_for_index(&index),
-            PathBuf::from("/tmp/pf2e-local-state.sqlite")
-        );
+    if let Some(path) = std::env::var_os("XDG_DATA_HOME") {
+        return Ok(PathBuf::from(path));
     }
+    home_dir()
+        .map(|home| home.join(".local").join("share"))
+        .ok_or_else(|| RuntimeError::cache_root_unavailable(RuntimePlatform::Unix))
 }

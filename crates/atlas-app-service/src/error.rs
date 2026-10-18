@@ -59,7 +59,22 @@ impl From<AppError> for AppServiceError {
 
 impl From<atlas_runtime::RuntimeError> for AppServiceError {
     fn from(error: atlas_runtime::RuntimeError) -> Self {
-        Self::new(AppErrorCode::SetupRequired, error.to_string())
+        use atlas_runtime::RuntimeErrorKind;
+        let code = match error.kind() {
+            RuntimeErrorKind::WorkspaceBusy => return Self::service_busy(error.to_string()),
+            RuntimeErrorKind::WorkspaceMaintenance => AppErrorCode::SetupRequired,
+            RuntimeErrorKind::WorkspaceIncompatible => AppErrorCode::ArtifactIncompatible,
+            RuntimeErrorKind::ReferenceChanged { expected, actual } => {
+                return Self::artifact_generation_changed(
+                    &expected.to_string(),
+                    &actual.to_string(),
+                    AppRecoverableAction::RefreshResults,
+                );
+            }
+            RuntimeErrorKind::Search(kind) => search_error_code(*kind),
+            _ => AppErrorCode::SetupRequired,
+        };
+        Self::new(code, error.to_string())
     }
 }
 
@@ -83,7 +98,9 @@ impl From<LocalStateError> for AppServiceError {
                 AppErrorCode::EncounterParticipantConflict
             }
             LocalStateError::StaleEncounterRevision { .. } => AppErrorCode::EncounterTurnConflict,
-            LocalStateError::UnsupportedMetadata { .. }
+            LocalStateError::ActionRequiresTransaction
+            | LocalStateError::UnsupportedReceiptVersion(_)
+            | LocalStateError::UnsupportedMetadata { .. }
             | LocalStateError::IncompatibleSchema(_)
             | LocalStateError::ListKeyAllocationFailed
             | LocalStateError::EncounterKeyAllocationFailed
@@ -125,15 +142,7 @@ impl From<LocalStateError> for AppServiceError {
 
 impl From<SearchError> for AppServiceError {
     fn from(error: SearchError) -> Self {
-        let code = match error.kind() {
-            SearchErrorKind::IndexUnavailable => AppErrorCode::IndexUnavailable,
-            SearchErrorKind::ArtifactContractViolation => AppErrorCode::ArtifactIncompatible,
-            SearchErrorKind::InvalidFilter => AppErrorCode::FilterInvalid,
-            SearchErrorKind::InvalidOptions => AppErrorCode::InvalidRequest,
-            SearchErrorKind::VectorReadinessRequired => AppErrorCode::VectorReadinessRequired,
-            SearchErrorKind::EmbeddingUnavailable => AppErrorCode::EmbeddingModelUnavailable,
-            SearchErrorKind::QueryFailed => AppErrorCode::QueryFailed,
-        };
+        let code = search_error_code(error.kind());
         Self::new(code, error.to_string())
     }
 }
@@ -141,5 +150,17 @@ impl From<SearchError> for AppServiceError {
 impl From<atlas_domain::QueryError> for AppServiceError {
     fn from(error: atlas_domain::QueryError) -> Self {
         Self::new(AppErrorCode::FilterInvalid, error.to_string())
+    }
+}
+
+fn search_error_code(kind: SearchErrorKind) -> AppErrorCode {
+    match kind {
+        SearchErrorKind::IndexUnavailable => AppErrorCode::IndexUnavailable,
+        SearchErrorKind::ArtifactContractViolation => AppErrorCode::ArtifactIncompatible,
+        SearchErrorKind::InvalidFilter => AppErrorCode::FilterInvalid,
+        SearchErrorKind::InvalidOptions => AppErrorCode::InvalidRequest,
+        SearchErrorKind::VectorReadinessRequired => AppErrorCode::VectorReadinessRequired,
+        SearchErrorKind::EmbeddingUnavailable => AppErrorCode::EmbeddingModelUnavailable,
+        SearchErrorKind::QueryFailed => AppErrorCode::QueryFailed,
     }
 }

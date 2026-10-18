@@ -1,7 +1,7 @@
 # Architecture overview
 
-PF2e Atlas builds and queries a local SQLite reference artifact from Foundry PF2E
-source data. Product surfaces are the `atlas` CLI, the local web service launched
+PF2e Atlas keeps Foundry reference data and saved lists/encounters in one persistent
+SQLite workspace. Product surfaces are the `atlas` CLI, the local web service launched
 by `atlas web`, and the first-party agent skill installed by `atlas agent skills`.
 
 Read this document first, then the [runtime architecture](./runtime.md),
@@ -17,10 +17,11 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | `atlas-domain` | Shared keys, predicates, query catalog/discovery vocabulary, summary facts and passage addresses. No SQLite or source parser ownership. |
 | `atlas-embedding` | Two pinned baseline search profiles, shared segmentation/native input budgets, FastEmbed inference, retained shared query sessions and exact vector reuse identity. |
 | `atlas-ingest` | Source filesystem loading/provenance, admission reporting, explicit content/reference context, index inputs and build-time embedding execution. |
-| `atlas-index` | Executable SQLite schema, checked artifact publication/validation, row readers, query catalog/bindings/discovery, parameterized filter SQL and vector queries. |
+| `atlas-storage` | Connection admission, bounded read/write sessions, maintenance ownership, transactional migrations and backups. No domain schema ownership. |
+| `atlas-index` | Reference SQL schema, checked publication/validation, incremental projection updates, embedding checkpoints, row readers, query catalog/bindings/discovery, parameterized filter SQL and vector queries. |
 | `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, attributable witnesses, graph, verified edition preference and Suggested variants. |
-| `atlas-runtime` | Paths, setup/source-fetch/cache policy, artifact readiness and retrieval service construction. |
-| `atlas-local-state` | Durable mutable saved lists and encounters in a separate SQLite database, with independent migrations. |
+| `atlas-runtime` | Paths, setup/source-fetch/cache policy, requested configuration, shared migration composition, reference readiness and bounded typed workspace operations. |
+| `atlas-local-state` | Saved-domain SQL and session-bound lists/encounters, revision guards and versioned durable roll receipts. |
 | `atlas-dice` | Bounded library-backed dice evaluation and structured outcomes; no source, persistence or UI policy. |
 | `atlas-app-model` | Intentional app DTOs and generated TypeScript contracts for filters, search pages, record content, lists and encounters. |
 | `atlas-app-service` | Cross-layer app workflows, bounded retrieval execution, catalog editor presentation, source-based product projections and local-state hydration. |
@@ -45,11 +46,12 @@ pack plus source ID. Embedded documents stay in one checked parent snapshot.
    locale, audience and reference resolution inputs, prepares sanitized HTML and
    builds query/search/relationship inputs. Embedding independently covers selected
    explanatory prose and compact identity units.
-3. Index writes and validates a temporary source-backed artifact, then publishes
-   atomically. Checked snapshots are authoritative; named relational query rows,
+3. Index reconciles and validates reference changes in one transaction inside the
+   existing workspace. Saved state and stable identities survive publication.
+   Checked snapshots are authoritative; named relational query rows,
    HTML caches, lookup evidence and lexical/vector units are rebuildable projections.
-4. Runtime resolves paths and constructs concrete search services over read-only
-   index readers, with query embeddings only when the chosen workflow needs them.
+4. Runtime resolves paths and constructs bounded search sessions. Query embeddings
+   are prepared before opening the consuming database snapshot.
    Ordinary reads work without the source checkout and never run ingest admission.
 5. Search applies SQL eligibility before lexical/vector ranking, aggregates roots
    with attributable witnesses and reports bounded semantic coverage honestly.
@@ -82,8 +84,8 @@ actual consumers. Do not add a global embedded-node/status/content inventory to
 every record. Content preparation and relationship resolution return separate
 derived outputs. Authored source stays authoritative for runtime display.
 
-Keep schema and SQL in index. The tracked schema is the physical source of truth;
-Diesel declarations must stay checked against it. Focused raw SQL is appropriate
+Keep reference schema and SQL in index. The tracked schema is the physical source of truth;
+rusqlite executes parameterized statements on the owning session. Focused SQL is appropriate
 for FTS5/sqlite-vec/dynamic eligibility/validation. Query catalog metadata must
 match executable bindings, never artifact-supplied SQL. CLI CEL and the structured
 UI builder lower independently to the shared predicate. Do not invent another
@@ -135,7 +137,8 @@ generation. Mismatches require an explicit browser refresh from page1, preservin
 criteria and mutable drafts. See
 [ADR0049](./decisions/0049-search-lifetimes-and-pages.md).
 
-Keep local state separate from artifact generation. Unknown saved keys retain
+Keep saved-domain ownership separate from reference generation within the shared
+workspace. Unknown saved keys retain unavailable identity rows and
 their snapshots. NPC variants/conditions are read-time participant overlays over
 authored baselines. New HP uses known integral effective maxima; saved HP,
 explicit overrides and edit intent survive rebuilds. Missing values stay unknown.
@@ -192,6 +195,8 @@ or fabricated readiness. Frontend guidance defines the device matrix and the
 separate automated, Astra visual and actual-device evidence requirements.
 
 Architectural replacements land with every call site and matching docs updated.
-Generated reference artifacts rebuild directly: no legacy adapter, bridge or
-mixed old/new authority. Local-state migration is a separate durable-data concern.
-See ADR0046 for the source-backed artifact decision and prior ADRs for history.
+The persistent workspace upgrades through one composed migration ledger. Reference
+updates preserve saved domains and stable record identities; expensive inference
+is reused by exact model/input identity. No legacy adapter, bridge or mixed old/new
+authority is retained. See ADR0051 for workspace ownership and ADR0046 for the
+source-backed reference decision.

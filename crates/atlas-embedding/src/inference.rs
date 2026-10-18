@@ -220,6 +220,7 @@ pub fn generate_prepared_embeddings(
     inputs: &[PreparedEmbeddingInput],
     reusable: &BTreeMap<String, Vec<f32>>,
     batch_size: usize,
+    mut checkpoint: impl FnMut(&[(String, Vec<f32>)]) -> Result<(), EmbeddingError>,
 ) -> Result<GeneratedEmbeddings, EmbeddingError> {
     if batch_size == 0 {
         return Err(EmbeddingError::ModelRunFailed(
@@ -306,8 +307,14 @@ pub fn generate_prepared_embeddings(
     last_reported = 0;
     for batch in pending.chunks(batch_size) {
         let texts = batch.iter().map(|(_, text)| *text).collect::<Vec<_>>();
-        for ((key, _), vector) in batch.iter().zip(embedder.embed_documents(&texts)?) {
-            available.insert(key.clone(), vector);
+        let completed_batch = batch
+            .iter()
+            .zip(embedder.embed_documents(&texts)?)
+            .map(|((key, _), vector)| (key.clone(), vector))
+            .collect::<Vec<_>>();
+        checkpoint(&completed_batch)?;
+        for (key, vector) in completed_batch {
+            available.insert(key, vector);
         }
         completed += batch.len();
         if report_embedding_progress(completed, inferred_inputs, last_reported) {

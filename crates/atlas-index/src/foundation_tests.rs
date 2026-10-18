@@ -31,11 +31,11 @@ fn corpus_projection_and_selected_read_plans() -> Result<(), Box<dyn std::error:
     for (name, expression) in [
         (
             "actor-saves-iwr",
-            "actor.saves.reflex>=15 && actor.resistances.exists(x,x.type=='fire')",
+            "defenses.saves.reflex>=15 && defenses.resistances.exists(x,x.type=='fire')",
         ),
         (
             "same-child-spell",
-            "actor.items.exists(i,i.spell.rank>=3 && 'fire' in i.traits)",
+            "embedded.spells.exists(i,i.rank>=3 && 'fire' in i.traits)",
         ),
     ] {
         let query = parse_where(expression)?;
@@ -332,14 +332,33 @@ fn synchronize_fixture_terms(input: &mut IndexBuildInput) {
 pub(super) fn build(input: &IndexBuildInput) -> (tempfile::TempDir, std::path::PathBuf) {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("artifact.sqlite");
-    SqliteIndexWriter::new(&path).write(input).unwrap();
+    crate::test_support::publish_input(&path, input).unwrap();
     (directory, path)
+}
+
+#[test]
+fn publication_validation_observes_uncommitted_projection_changes() {
+    let (_directory, path) = build(&fixture(false));
+    let mut connection = Connection::open(&path).unwrap();
+    let transaction = connection.transaction().unwrap();
+    transaction
+        .execute(
+            "UPDATE records SET name='incorrect projection' WHERE record_id=1",
+            [],
+        )
+        .unwrap();
+    assert!(matches!(
+        validate_reference(&transaction),
+        Err(IndexError::Invalid(_))
+    ));
+    transaction.rollback().unwrap();
+    validate_reference(&connection).unwrap();
 }
 #[test]
 fn roundtrip_summary_content_and_macro_scope() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(&path).unwrap();
+    let reader = crate::test_support::open_reader(&path).unwrap();
     for r in &input.records {
         let decoded = reader
             .read_source_record_for_inspection(r.record.key())
@@ -417,8 +436,8 @@ fn roundtrip_summary_content_and_macro_scope() {
 fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
     let input = fixture(true);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only_with_vectors(path).unwrap();
-    let query = parse_where("record.kind == 'spell'").unwrap();
+    let reader = crate::test_support::open_reader(path).unwrap();
+    let query = parse_where("kind == 'spell'").unwrap();
     let hits = reader
         .vector_candidates(
             &atlas_domain::SearchProfileId::new("bge-base"),
@@ -457,24 +476,25 @@ fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
             )
             .is_err()
     );
-    let reused = reader
-        .read_reuse_candidates(
-            &[input.semantic_units[0].input_hash.clone()],
-            &SourceSearchProfileIdentity::from_spec(atlas_embedding::SEARCH_PROFILES[0]),
-            0,
-            1024,
+    let seed = reader
+        .seed_identity_vector(
+            &atlas_domain::SearchProfileId::new("bge-base"),
+            &input.semantic_units[0].record,
         )
+        .unwrap()
         .unwrap();
-    assert_eq!(reused[0].vector, input.semantic_units[0].vector);
+    assert_eq!(seed.vector, input.semantic_units[0].vector);
 }
 #[test]
 fn corrupted_snapshot_does_not_force_summary_or_batched_content_decode() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(&path).unwrap();
+    let reader = crate::test_support::open_reader(&path).unwrap();
+    drop(reader);
     let c = Connection::open(&path).unwrap();
     c.execute("UPDATE record_bodies SET snapshot=x'00'", [])
         .unwrap();
+    let reader = crate::test_support::open_reader(&path).unwrap();
     let batch = reader
         .read_summaries(
             &input
@@ -502,84 +522,7 @@ fn corrupted_snapshot_does_not_force_summary_or_batched_content_decode() {
     assert!(validate_artifact(path).is_err());
 }
 #[test]
-fn reuse_candidates_keep_attribution_and_source_reconstruction_is_batched() {
-    let input = fixture(true);
-    let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(&path).unwrap();
-    let hashes = input
-        .semantic_units
-        .iter()
-        .map(|u| u.input_hash.clone())
-        .collect::<Vec<_>>();
-    let mut cursor = 0;
-    let mut candidates = vec![];
-    loop {
-        let page = reader
-            .read_reuse_candidates(
-                &hashes,
-                &SourceSearchProfileIdentity::from_spec(atlas_embedding::SEARCH_PROFILES[0]),
-                cursor,
-                1,
-            )
-            .unwrap();
-        if page.is_empty() {
-            break;
-        }
-        assert_eq!(page.len(), 1);
-        assert!(page[0].location.unit_id > cursor);
-        cursor = page[0].location.unit_id;
-        candidates.extend(page);
-    }
-    assert_eq!(candidates.len(), input.semantic_units.len());
-    for (candidate, unit) in candidates.iter().zip(&input.semantic_units) {
-        assert_eq!(candidate.location.record, unit.record);
-        assert_eq!(candidate.location.address.as_ref(), Some(&unit.address));
-        assert_eq!(candidate.input_token_count, unit.input_token_count);
-        assert_eq!(candidate.chunk_ordinal, unit.chunk_ordinal);
-    }
-    assert!(
-        reader
-            .read_reuse_candidates(
-                &hashes,
-                &SourceSearchProfileIdentity::from_spec(atlas_embedding::SEARCH_PROFILES[0]),
-                0,
-                0
-            )
-            .is_err()
-    );
-    let keys = input
-        .records
-        .iter()
-        .filter(|r| {
-            !matches!(
-                r.record.source(),
-                atlas_foundry_model::FoundryDocumentSource::Macro(_)
-            )
-        })
-        .map(|r| r.record.key().clone())
-        .collect::<Vec<_>>();
-    reader.reset_read_metrics();
-    let selections = reader.read_search_selections_for_reuse(&keys).unwrap();
-    assert_eq!(selections.len(), keys.len());
-    let metrics = reader.read_metrics();
-    assert_eq!(metrics.sql_statements, 4);
-    assert_eq!(metrics.source_body_decodes, keys.len());
-    assert_eq!(metrics.prepared_content_batches, 1);
-    assert!(selections.iter().any(|s| s.fields.iter().any(|f| {
-        f.sections
-            .iter()
-            .any(|s| s.label.as_deref() == Some("Flame"))
-    })));
-    let db = Connection::open(&path).unwrap();
-    db.execute(
-        "UPDATE prepared_content SET preparation_context_hash=?",
-        ["0".repeat(64)],
-    )
-    .unwrap();
-    assert!(reader.read_search_selections_for_reuse(&keys).is_err());
-}
-#[test]
-fn reuse_reconstruction_rejects_missing_reference_sidecar() {
+fn reference_validation_rejects_missing_reference_sidecar() {
     let mut input = fixture(false);
     let mut staff = record(
         "items",
@@ -592,37 +535,32 @@ fn reuse_reconstruction_rejects_missing_reference_sidecar() {
     input.lexical_units.retain(|u| u.field.is_none());
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(&path).unwrap();
-    assert_eq!(
-        reader
-            .read_search_selections_for_reuse(std::slice::from_ref(&key))
-            .unwrap()
-            .len(),
-        1
-    );
     let db = Connection::open(&path).unwrap();
+    let records = crate::read_persisted_inputs(&db, &input.context).unwrap();
+    assert!(records.iter().any(|r| r.record.key() == &key));
     let deleted = db.execute(
         "DELETE FROM relationship_occurrences WHERE origin='content' AND record_id=(SELECT record_id FROM records WHERE key=?)",
         [key.to_string()],
     ).unwrap();
     assert!(deleted > 0);
-    assert!(reader.read_search_selections_for_reuse(&[key]).is_err());
+    assert!(crate::validate_artifact(&path).is_err());
 }
 #[test]
 fn failed_build_preserves_published_artifact() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
-    let before = std::fs::read(&path).unwrap();
+    let before = validate_artifact(&path).unwrap();
     let mut broken = fixture(true);
     broken.semantic_units.pop();
-    assert!(SqliteIndexWriter::new(&path).write(&broken).is_err());
-    assert_eq!(std::fs::read(&path).unwrap(), before);
+    assert!(crate::test_support::publish_input(&path, &broken).is_err());
+    assert_eq!(validate_artifact(&path).unwrap(), before);
     let mut bad = fixture(false);
     bad.records[1].preparation_context_hash = "0".repeat(64);
-    assert!(SqliteIndexWriter::new(&path).write(&bad).is_err());
-    assert_eq!(std::fs::read(&path).unwrap(), before);
-    let temporary = std::fs::read_dir(path.parent().unwrap()).unwrap().count();
-    assert_eq!(temporary, 1);
+    assert!(crate::test_support::publish_input(&path, &bad).is_err());
+    assert_eq!(validate_artifact(&path).unwrap(), before);
+    assert!(crate::test_support::open_reader(&path).is_err());
+    crate::test_support::publish_input(&path, &input).unwrap();
+    assert!(crate::test_support::open_reader(&path).is_ok());
 }
 #[test]
 fn stale_contract_and_projection_corruption_require_rebuild() {
@@ -637,8 +575,8 @@ fn stale_contract_and_projection_corruption_require_rebuild() {
     assert!(validate_artifact(&path).is_err());
     c.execute_batch("PRAGMA user_version=1").unwrap();
     assert!(matches!(
-        SqliteIndexReader::open_read_only(path),
-        Err(IndexError::Unsupported(_))
+        crate::test_support::open_reader(path),
+        Err(IndexError::Storage(_))
     ));
 }
 #[test]
@@ -668,7 +606,7 @@ fn numeric_domain_keeps_integer_precision_and_rejects_unrepresentable_unsigned()
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
     assert_eq!(
-        SqliteIndexReader::open_read_only(path)
+        crate::test_support::open_reader(path)
             .unwrap()
             .read_summary(input.records[0].record.key())
             .unwrap()
@@ -688,24 +626,13 @@ fn numeric_domain_keeps_integer_precision_and_rejects_unrepresentable_unsigned()
         assert!(crate::validation::check_vector(&vector, 768).is_err());
     }
 }
-#[cfg(unix)]
 #[test]
-fn live_reader_remains_on_one_artifact_when_atomic_publish_replaces_path() {
+fn bounded_reader_reopens_after_maintenance_publication() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(&path).unwrap();
-    let original_instance = reader.artifact_instance().clone();
-    let mut replacement = fixture(false);
-    replacement.records[0] = record(
-        "actors",
-        "Actor",
-        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Replacement","type":"npc"}),
-    );
-    replacement.records[0].preparation_context_hash =
-        replacement.context.preparation_sha256().unwrap();
-    replacement.lexical_units[0].identity_terms = "Replacement".into();
-    synchronize_fixture_terms(&mut replacement);
-    SqliteIndexWriter::new(&path).write(&replacement).unwrap();
+    let reader = crate::test_support::open_reader(&path).unwrap();
+    let original = reader.artifact_instance().clone();
+    let original_context = reader.context().clone();
     assert_eq!(
         reader
             .read_summary(input.records[0].record.key())
@@ -716,26 +643,23 @@ fn live_reader_remains_on_one_artifact_when_atomic_publish_replaces_path() {
             .unwrap(),
         "Dragon Guard"
     );
-    let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
+    drop(reader);
+    let mut replacement = fixture(false);
+    replacement.records[0] = record(
+        "actors",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Replacement","type":"npc"}),
+    );
+    replacement.records[0].preparation_context_hash =
+        replacement.context.preparation_sha256().unwrap();
+    replacement.lexical_units[0].identity_terms = "Replacement".into();
+    synchronize_fixture_terms(&mut replacement);
+    crate::test_support::publish_input(&path, &replacement).unwrap();
+    let reader = crate::test_support::open_reader(&path).unwrap();
+    assert_eq!(reader.context(), &original_context);
+    assert_ne!(reader.artifact_instance(), &original);
     assert_eq!(
         reader
-            .lexical_candidates("guard", &all, None, 10)
-            .unwrap()
-            .len(),
-        1
-    );
-    assert!(
-        reader
-            .lexical_candidates("replacement", &all, None, 10)
-            .unwrap()
-            .is_empty()
-    );
-    let fresh = SqliteIndexReader::open_read_only(path).unwrap();
-    assert_eq!(fresh.context(), reader.context());
-    assert_ne!(fresh.artifact_instance(), &original_instance);
-    assert_eq!(reader.artifact_instance(), &original_instance);
-    assert_eq!(
-        fresh
             .read_summary(input.records[0].record.key())
             .unwrap()
             .unwrap()
@@ -749,8 +673,8 @@ fn live_reader_remains_on_one_artifact_when_atomic_publish_replaces_path() {
 #[test]
 fn independently_opened_readers_share_one_artifact_instance() {
     let (_directory, path) = build(&fixture(false));
-    let first = SqliteIndexReader::open_read_only(&path).unwrap();
-    let second = SqliteIndexReader::open_read_only(&path).unwrap();
+    let first = crate::test_support::open_reader(&path).unwrap();
+    let second = crate::test_support::open_reader(&path).unwrap();
     assert_eq!(first.artifact_instance(), second.artifact_instance());
 }
 
@@ -790,8 +714,7 @@ fn fts_posting_and_semantic_tail_corruption_are_rejected() {
     input.semantic_units.retain(|u| u.field.is_none());
     let directory = tempfile::tempdir().unwrap();
     assert!(
-        SqliteIndexWriter::new(directory.path().join("missing.sqlite"))
-            .write(&input)
+        crate::test_support::publish_input(directory.path().join("missing.sqlite"), &input)
             .is_err()
     );
     let mut input = fixture(true);
@@ -804,9 +727,7 @@ fn fts_posting_and_semantic_tail_corruption_are_rejected() {
         chunk_bytes.end -= 1;
     }
     assert!(
-        SqliteIndexWriter::new(directory.path().join("tail.sqlite"))
-            .write(&input)
-            .is_err()
+        crate::test_support::publish_input(directory.path().join("tail.sqlite"), &input).is_err()
     );
 }
 
@@ -837,7 +758,7 @@ fn reference_markers_and_sidecars_are_one_to_one_at_publication_and_selected_rea
         "INSERT INTO relationship_occurrences(record_id,owners_json,field_path,ordinal,origin,kind,authored_target,occurrence_path,details_json,resolution,target_record_id,target_owners_json,target_url) SELECT record_id,owners_json,field_path,ordinal,origin,kind,authored_target,occurrence_path,details_json,resolution,target_record_id,target_owners_json,target_url FROM relationship_occurrences WHERE record_id=1 AND origin='content' AND ordinal=0",
     ] {
         let (_directory, path) = build(&input);
-        let reader = SqliteIndexReader::open_read_only(&path).unwrap();
+        let reader = crate::test_support::open_reader(&path).unwrap();
         assert!(reader.read_content(std::slice::from_ref(&locator)).is_ok());
         let relationships = reader
             .read_relationships(&SourceRelationshipRequest {
@@ -849,11 +770,13 @@ fn reference_markers_and_sidecars_are_one_to_one_at_publication_and_selected_rea
             })
             .unwrap();
         assert!(!relationships.occurrences.iter().any(|edge|matches!(&edge.resolution,atlas_record::source_content::ContentReferenceResolution::Resolved(atlas_record::source_content::ContentReferenceTarget::Record{key}) if key.pack().as_str()=="macros")));
+        drop(reader);
         assert_eq!(
             Connection::open(&path).unwrap().execute(sql, []).unwrap(),
             1,
             "{sql}"
         );
+        let reader = crate::test_support::open_reader(&path).unwrap();
         assert!(
             validate_artifact(&path).is_err(),
             "full validation accepted {sql}"
@@ -897,7 +820,7 @@ fn reference_markers_and_sidecars_are_one_to_one_at_publication_and_selected_rea
         .unwrap();
         assert!(validate_artifact(&path).is_err(), "{from}");
         assert!(
-            SqliteIndexReader::open_read_only(&path)
+            crate::test_support::open_reader(&path)
                 .unwrap()
                 .read_content(std::slice::from_ref(&locator))
                 .is_err(),
@@ -922,14 +845,14 @@ fn reference_markers_and_sidecars_are_one_to_one_at_publication_and_selected_rea
     .unwrap();
     assert!(validate_artifact(&path).is_err());
     assert!(
-        SqliteIndexReader::open_read_only(&path)
+        crate::test_support::open_reader(&path)
             .unwrap()
             .read_content(std::slice::from_ref(&locator))
             .is_err()
     );
 
     let (_directory, path) = build(&input);
-    let original = std::fs::read(&path).unwrap();
+    let original = validate_artifact(&path).unwrap();
     if let atlas_record::source_record::SourceContentStatus::Prepared(prepared) =
         &mut input.records[0].content[0].status
     {
@@ -937,8 +860,8 @@ fn reference_markers_and_sidecars_are_one_to_one_at_publication_and_selected_rea
     } else {
         panic!("fixture expected prepared references");
     }
-    assert!(SqliteIndexWriter::new(&path).write(&input).is_err());
-    assert_eq!(std::fs::read(&path).unwrap(), original);
+    assert!(crate::test_support::publish_input(&path, &input).is_err());
+    assert_eq!(validate_artifact(&path).unwrap(), original);
 }
 #[test]
 fn shape_and_numeric_sql_constraints_reject_text_and_incoherent_states() {
@@ -954,7 +877,7 @@ fn shape_and_numeric_sql_constraints_reject_text_and_incoherent_states() {
         assert!(c.execute_batch(sql).is_err(), "{sql}");
     }
     assert_eq!(
-        SqliteIndexReader::open_read_only(path)
+        crate::test_support::open_reader(path)
             .unwrap()
             .statistics()
             .unwrap()
@@ -1057,9 +980,7 @@ fn missing_vectors_and_wrong_model_identity_cannot_be_published() {
     let directory = tempfile::tempdir().unwrap();
     input.semantic_units = fixture(true).semantic_units;
     assert!(
-        SqliteIndexWriter::new(directory.path().join("bad.sqlite"))
-            .write(&input)
-            .is_err()
+        crate::test_support::publish_input(directory.path().join("bad.sqlite"), &input).is_err()
     );
     let mut input = fixture(true);
     input.context.search_profiles.first_mut().unwrap().revision = "other".into();
@@ -1068,15 +989,19 @@ fn missing_vectors_and_wrong_model_identity_cannot_be_published() {
         r.preparation_context_hash = hash.clone();
     }
     assert!(
-        SqliteIndexWriter::new(directory.path().join("bad.sqlite"))
-            .write(&input)
-            .is_err()
+        crate::test_support::publish_input(directory.path().join("bad.sqlite"), &input).is_err()
     );
     let input = fixture(true);
     let (_directory, path) = build(&input);
     let c = Connection::open(&path).unwrap();
-    c.execute("DELETE FROM semantic_vectors WHERE unit_id=1", [])
-        .unwrap();
+    c.execute(
+        &format!(
+            "DELETE FROM {} WHERE unit_id=1",
+            crate::schema::vector_table(&input.context.search_profiles[0]).unwrap()
+        ),
+        [],
+    )
+    .unwrap();
     assert!(validate_artifact(path).is_err());
 }
 #[test]
@@ -1101,7 +1026,7 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
     }];
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(path).unwrap();
+    let reader = crate::test_support::open_reader(path).unwrap();
     let matches = reader.lookup_name_or_alias(" OLD  NAME ").unwrap();
     assert_eq!(matches.len(), 2);
     assert_eq!(
@@ -1147,7 +1072,7 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
 fn source_exclusion_is_inside_knn_and_lexical_labels_keep_source_kind() {
     let input = fixture(true);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(path).unwrap();
+    let reader = crate::test_support::open_reader(path).unwrap();
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     let hits = reader
         .vector_candidates_excluding(
@@ -1174,73 +1099,14 @@ fn source_exclusion_is_inside_knn_and_lexical_labels_keep_source_kind() {
     );
 }
 #[test]
-fn migration_rollback_and_diesel_columns_match_canonical_ddl() {
-    use diesel::QueryDsl;
+fn migration_round_trip_matches_canonical_ddl() {
     let c = Connection::open_in_memory().unwrap();
     c.execute_batch(include_str!(
         "../migrations/00000000000001_create_artifact/up.sql"
     ))
     .unwrap();
     let ordinary:usize=c.query_row("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'lexical_fts%'",[],|r|r.get(0)).unwrap();
-    assert_eq!(ordinary, 36);
-    // Compile-time typed-column counts cover every table rather than an old schema subset.
-    macro_rules! table {
-        ($name:ident) => {{
-            let select = crate::schema::$name::table.select(crate::schema::$name::all_columns);
-            let sql = diesel::debug_query::<diesel::sqlite::Sqlite, _>(&select).to_string();
-            let compiled = c
-                .prepare(&sql)
-                .unwrap()
-                .column_names()
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>();
-            let actual = c
-                .prepare(concat!("PRAGMA table_info(", stringify!($name), ")"))
-                .unwrap()
-                .query_map([], |r| r.get::<_, String>(1))
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            assert_eq!(actual, compiled, stringify!($name));
-        }};
-    }
-    table!(packs);
-    table!(records);
-    table!(record_traits);
-    table!(actor_projection);
-    table!(actor_items);
-    table!(actor_item_traits);
-    table!(actor_iwr_entries);
-    table!(actor_languages);
-    table!(actor_speeds);
-    table!(actor_senses);
-    table!(spell_projection);
-    table!(spell_traditions);
-    table!(spell_damage_entries);
-    table!(spell_damage_kinds);
-    table!(physical_projection);
-    table!(weapon_projection);
-    table!(armor_projection);
-    table!(shield_projection);
-    table!(ability_projection);
-    table!(heritage_projection);
-    table!(effect_projection);
-    table!(condition_projection);
-    table!(deity_projection);
-    table!(deity_domains);
-    table!(deity_fonts);
-    table!(artifact_context);
-    table!(record_bodies);
-    table!(prepared_content);
-    table!(developer_diagnostics);
-    table!(relationship_occurrences);
-    table!(verified_aliases);
-    table!(remaster_pairs);
-    table!(query_field_catalog);
-    table!(lexical_units);
-    table!(search_profiles);
-    table!(semantic_units);
+    assert_eq!(ordinary, 41);
     c.execute_batch(include_str!(
         "../migrations/00000000000001_create_artifact/down.sql"
     ))
@@ -1255,23 +1121,7 @@ fn migration_rollback_and_diesel_columns_match_canonical_ddl() {
         0
     );
 }
-#[cfg(windows)]
-#[test]
-fn windows_in_use_publication_preserves_previous_artifact() {
-    use std::os::windows::fs::OpenOptionsExt;
-    let input = fixture(false);
-    let (_directory, path) = build(&input);
-    let before = std::fs::read(&path).unwrap();
-    let locked = std::fs::OpenOptions::new()
-        .read(true)
-        .share_mode(1 | 2)
-        .open(&path)
-        .unwrap();
-    let error = SqliteIndexWriter::new(&path).write(&input).unwrap_err();
-    assert!(error.to_string().contains("in use"));
-    assert_eq!(std::fs::read(&path).unwrap(), before);
-    drop(locked);
-}
+
 #[test]
 fn relationships_keep_source_owner_and_validate_owned_targets() {
     use atlas_record::source_content::{
@@ -1319,7 +1169,7 @@ fn relationships_keep_source_owner_and_validate_owned_targets() {
     }
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(&path).unwrap();
+    let reader = crate::test_support::open_reader(&path).unwrap();
     let request = SourceRelationshipRequest {
         record: input.records[0].record.key().clone(),
         owners: None,
@@ -1406,7 +1256,7 @@ fn failure_outcomes_and_projection_diagnostics_remain_developer_only() {
     input.lexical_units.retain(|u| u.field.is_none());
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(path).unwrap();
+    let reader = crate::test_support::open_reader(path).unwrap();
     let fields = reader
         .read_content_for_record(input.records[1].record.key(), 256)
         .unwrap();
@@ -1437,7 +1287,7 @@ fn failure_outcomes_and_projection_diagnostics_remain_developer_only() {
 fn read_counters_measure_batches_without_source_decodes() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
-    let reader = SqliteIndexReader::open_read_only(path).unwrap();
+    let reader = crate::test_support::open_reader(path).unwrap();
     let keys = input.records[..3]
         .iter()
         .map(|r| r.record.key().clone())
@@ -1499,7 +1349,7 @@ fn lexical_terms_and_used_trait_labels_are_checked_against_source_policy() {
 fn query_catalog_and_preparation_identity_require_current_artifacts() {
     let current = fixture(false);
     let (_directory, path) = build(&current);
-    assert!(SqliteIndexReader::open_read_only(&path).is_ok());
+    assert!(crate::test_support::open_reader(&path).is_ok());
     let mut old = current.context.clone();
     old.query_catalog_version = 1;
     assert!(crate::writer::validate_context(&old).is_err());
@@ -1508,12 +1358,153 @@ fn query_catalog_and_preparation_identity_require_current_artifacts() {
     assert!(crate::writer::validate_context(&old).is_err());
     let c = Connection::open(&path).unwrap();
     c.execute(
-        "DELETE FROM query_field_catalog WHERE field='record.level_or_rank'",
+        "DELETE FROM query_field_catalog WHERE field='level_or_rank'",
         [],
     )
     .unwrap();
     assert!(matches!(
-        SqliteIndexReader::open_read_only(&path),
+        crate::test_support::open_reader(&path),
         Err(IndexError::Unsupported(_))
     ));
+}
+
+#[test]
+fn incremental_publication_preserves_unchanged_rows_and_saved_references() {
+    let input = fixture(true);
+    let (_directory, path) = build(&input);
+    let connection = Connection::open(&path).unwrap();
+    connection.execute_batch("CREATE TABLE write_audit(kind TEXT); CREATE TRIGGER audit_source AFTER UPDATE ON records BEGIN INSERT INTO write_audit VALUES('record'); END; CREATE TRIGGER audit_body AFTER INSERT ON record_bodies BEGIN INSERT INTO write_audit VALUES('body'); END; CREATE TRIGGER audit_unit AFTER UPDATE ON semantic_units BEGIN INSERT INTO write_audit VALUES('semantic'); END; CREATE TRIGGER audit_identity AFTER UPDATE ON record_identity BEGIN INSERT INTO write_audit VALUES('identity'); END;").unwrap();
+    let removed_key = input.records[1].record.key().to_string();
+    let identity: i64 = connection
+        .query_row(
+            "SELECT record_id FROM records WHERE key=?",
+            [&removed_key],
+            |r| r.get(0),
+        )
+        .unwrap();
+    connection.execute("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'saved','saved','Saved','now','now')",[]).unwrap();
+    connection.execute("INSERT INTO saved_list_items(list_id,record_key,position,record_title_snapshot,added_at,updated_at) VALUES(1,?,0,'Remembered staff','now','now')",[&removed_key]).unwrap();
+    drop(connection);
+    crate::test_support::publish_input(&path, &input).unwrap();
+    let connection = Connection::open(&path).unwrap();
+    assert_eq!(
+        connection
+            .query_row("SELECT count(*) FROM write_audit", [], |r| r
+                .get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    drop(connection);
+    let mut reduced = fixture(true);
+    reduced.records.remove(1);
+    reduced
+        .lexical_units
+        .retain(|u| u.record.to_string() != removed_key);
+    reduced
+        .semantic_units
+        .retain(|u| u.record.to_string() != removed_key);
+    crate::test_support::publish_input(&path, &reduced).unwrap();
+    let connection = Connection::open(&path).unwrap();
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT availability FROM record_identity WHERE id=?",
+                [identity],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+        "unavailable"
+    );
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT record_title_snapshot FROM saved_list_items",
+                [],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+        "Remembered staff"
+    );
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT count(*) FROM write_audit WHERE kind IN ('record','body','semantic')",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+        0
+    );
+    drop(connection);
+    crate::test_support::publish_input(&path, &input).unwrap();
+    let connection = Connection::open(&path).unwrap();
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT record_id FROM records WHERE key=?",
+                [&removed_key],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+        identity
+    );
+    assert_eq!(
+        connection
+            .query_row("SELECT count(*) FROM saved_list_items", [], |r| r
+                .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+}
+
+#[test]
+fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_catalog() {
+    let mut input = fixture(false);
+    input.context.audience.include_gm = false;
+    input.records[0] = record(
+        "actors",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Dragon Guard","type":"npc","system":{"details":{"level":{"value":9},"privateNotes":"<p>@UUID[secret] @Check[reflex|dc:99]</p>"},"attributes":{"hp":{"max":80},"ac":{"value":24}},"traits":{"value":["dragon"],"rarity":"rare","size":{"value":"lg"}}}}),
+    );
+    for record in &mut input.records {
+        record.preparation_context_hash = input.context.preparation_sha256().unwrap();
+        record.content = prepare_record_content(&record.record, input.context.audience, None, None);
+    }
+    synchronize_fixture_terms(&mut input);
+    let (_directory, path) = build(&input);
+    let connection = Connection::open(&path).unwrap();
+    let hidden: usize = connection
+        .query_row(
+            "SELECT count(*) FROM prepared_content WHERE published=0",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(
+        hidden > 0,
+        "fixture must exercise hidden preparation metadata"
+    );
+    connection
+        .execute("DELETE FROM query_field_catalog", [])
+        .unwrap();
+    let restored = crate::read_persisted_inputs(&connection, &input.context).unwrap();
+    assert_eq!(restored.len(), input.records.len());
+    for original in &input.records {
+        let restored = restored
+            .iter()
+            .find(|record| record.record.key() == original.record.key())
+            .unwrap();
+        let label = &input
+            .packs
+            .iter()
+            .find(|pack| pack.pack_id == original.record.key().pack().as_str())
+            .unwrap()
+            .label;
+        assert_eq!(
+            crate::publication_delta::root_digest(original, label).unwrap(),
+            crate::publication_delta::root_digest(restored, label).unwrap(),
+            "{}",
+            original.record.key()
+        );
+    }
 }

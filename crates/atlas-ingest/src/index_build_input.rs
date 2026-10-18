@@ -28,6 +28,7 @@ pub(crate) fn index_build_input(
     source: EnrichedFoundrySource,
     context: SourceArtifactBuildContext,
     tokenizer: Option<&TextEmbeddingTokenizer>,
+    capture: &crate::source_fingerprint::SourceCapture,
 ) -> Result<PreparedBuildInput, IngestError> {
     let source_root = source.metadata.source_root.clone();
     let mut selections = Vec::new();
@@ -82,6 +83,7 @@ pub(crate) fn index_build_input(
                     stage: "admission".into(),
                     code: "unparseable_source_field".into(),
                     message: diagnostic.to_string(),
+                    source_diagnostic: Some(diagnostic),
                 })
                 .collect();
             output.index.records.push(SourceArtifactRecordInput {
@@ -95,7 +97,7 @@ pub(crate) fn index_build_input(
             });
         }
     }
-    crate::source_aliases::extract_source_aliases(&mut output.index, &source_root)?;
+    crate::source_aliases::extract_source_aliases(&mut output.index, &source_root, capture)?;
     if let Some(tokenizer) = tokenizer {
         let total = selections.len();
         for (ordinal, mut selection) in selections.into_iter().enumerate() {
