@@ -156,6 +156,15 @@ atlas record get equipment-srd:s1vB3HdXjMigYAnY --json
 atlas record source equipment-srd:s1vB3HdXjMigYAnY --json
 ```
 
+With `--json`, `record get` and `record resolve` return one `data.results` entry
+per input, in order, preserving duplicates. Each entry has `input` and `status`,
+plus `value` on success or `error` on failure. The outer status is `ok`, `partial`,
+or `error`, so successful siblings remain usable when another input fails.
+Runtime failures stop further work and mark remaining inputs `unprocessed`.
+Exit codes distinguish success (0), misses/ambiguity (1), invalid input (2),
+and runtime failures (3); mixed failures use the highest code. Command-wide
+failures, such as an unavailable workspace, use a top-level `error` instead.
+
 Human record reading supports summary, standard (the default), and full detail.
 Use `record get <spell-key> --rank 5` to preview supported spell mechanics at a
 selected rank; `--json` carries the same effective facts. Owned spells retain
@@ -163,6 +172,13 @@ their local customizations and use their casting context by default. Rank
 preview never spends encounter resources.
 Prepared HTML uses terminal emphasis when stdout is an interactive terminal.
 Pipes, files, `TERM=dumb` and nonempty `NO_COLOR` use plain text formatting.
+Each successful `record get --json` value has `identity` for what you are reading,
+`selected` for its exact navigation address, and `content` for prepared text
+`fields`, structured `body`, classification and embedded navigation. An embedded
+selection also includes `parent`, identifying its containing record. Root responses
+omit `parent` and serialize identity once. Rank previews report effective facts
+in the selected identity and content.
+
 `record get --json` returns the complete selected Atlas reference response;
 explicit `--detail` and `--json` conflict. `record source --json` instead exports
 the complete checked Foundry DTO from the artifact, including embedded documents
