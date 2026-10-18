@@ -33,7 +33,7 @@ if review warrants it; preserve its ID and record every resulting PR here.
 
 | ID | Intended PR scope | Status | Implementation approval | PR / candidate / validation |
 | --- | --- | --- | --- | --- |
-| CF-01 | CLI batches and error contracts | in_progress | Approved 2026-10-18 | Batch and record-response layouts accepted; full Rust gate passed; PR publication underway |
+| CF-01 | CLI batches and error contracts | in_progress | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); accepted CLI layouts; full Rust gate passed locally; hosted CI pending |
 | CF-02 | Creature/hazard reference facts and activity details | planned | Pending | Not started |
 | CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | planned | Pending | Not started |
 | CF-04 | Consumable presentation and nested-spell navigation | planned | Pending | Not started |
