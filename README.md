@@ -95,6 +95,39 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 
 Release candidates are installed only from pinned URLs or with `ATLAS_VERSION`.
 
+### Nightly builds
+
+Nightlies are prerelease builds of `main` for everyday testing. They are published
+when the scheduled build finds a new commit and all checks pass. Stable releases
+remain an explicit maintainer action; the default installer selects stable.
+
+Install or update to the newest successful nightly on macOS/Linux:
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.sh \
+  | sh -s -- --version nightly
+```
+
+On Windows, download the installer and select the nightly version:
+
+```powershell
+Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.ps1 -OutFile atlas-installer.ps1
+./atlas-installer.ps1 -Version nightly
+```
+
+The installer prints the dated release it resolved. `atlas --version` includes
+that build's UTC timestamp and source commit prefix. Each dated release retains
+its binaries, so you can reinstall a specific nightly with `--version <tag>`
+(or `-Version <tag>`). Repeat the nightly command to update; Atlas does not
+update itself automatically. Add `--yes` / `-Yes` for unattended replacement.
+
+To return to stable, run the installer with `--version latest` / `-Version latest`.
+Nightly and stable installations share the normal data paths; switching binaries
+does not restore older local data. Back up saved state before testing changes that
+migrate it, and rerun `atlas setup` if the selected build requires a rebuilt index.
+
+
 If you do not want to pipe an installer into a shell, download the cargo-dist archive for your OS from the [GitHub releases page](https://github.com/e-kosten/pf2e-atlas/releases), verify it against `SHA256SUMS`, extract `atlas`, put it on `PATH`, then run `atlas setup`.
 
 Early release binaries are unsigned. macOS or Windows may show an operating-system warning until signing and notarization are added in a later release.
