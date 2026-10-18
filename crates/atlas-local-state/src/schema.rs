@@ -34,6 +34,7 @@ fn initialize_in_transaction(connection: &Connection) -> LocalStateResult<()> {
         validate_v7_tables(connection)?;
         validate_v8_tables(connection)?;
         validate_v9_tables(connection)?;
+        connection.prepare("SELECT encounter_id,request_id,request_json,receipt_json FROM encounter_roll_receipts LIMIT 0")?;
         connection
             .prepare("SELECT participant_id,spell_id FROM encounter_expended_spells LIMIT 0")?;
         connection.prepare("SELECT participant_id,resource_key,capacity,remaining,undo_remaining FROM encounter_spell_resources LIMIT 0")?;
@@ -52,6 +53,7 @@ fn initialize_in_transaction(connection: &Connection) -> LocalStateResult<()> {
     add_v9_columns(connection)?;
     add_v10_tables(connection)?;
     add_v11_tables(connection)?;
+    add_v12_tables(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
@@ -234,6 +236,13 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
             [],
         )?;
     }
+    if metadata_value(connection, METADATA_SCHEMA_VERSION)?.as_deref() == Some("11") {
+        add_v12_tables(connection)?;
+        connection.execute(
+            "UPDATE local_state_metadata SET value='12' WHERE key='schema_version'",
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -248,6 +257,19 @@ fn add_v11_tables(connection: &Connection) -> LocalStateResult<()> {
     Ok(())
 }
 
+fn add_v12_tables(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "CREATE TABLE encounter_roll_receipts (
+            encounter_id INTEGER NOT NULL REFERENCES encounters(id) ON DELETE CASCADE,
+            request_id TEXT NOT NULL,
+            request_json TEXT NOT NULL,
+            receipt_json TEXT NOT NULL,
+            PRIMARY KEY(encounter_id,request_id)
+        )",
+    )?;
+    Ok(())
+}
+
 fn migrate_through_v6(connection: &Connection) -> LocalStateResult<()> {
     let Some(schema_version) = metadata_value(connection, METADATA_SCHEMA_VERSION)? else {
         return Err(LocalStateError::IncompatibleSchema(
@@ -255,7 +277,7 @@ fn migrate_through_v6(connection: &Connection) -> LocalStateResult<()> {
         ));
     };
     match schema_version.as_str() {
-        "6" | "7" | "8" | "9" | "10" => Ok(()),
+        "6" | "7" | "8" | "9" | "10" | "11" => Ok(()),
         LOCAL_STATE_SCHEMA_VERSION => Ok(()),
         "1" => {
             migrate_v1_to_v2(connection)?;

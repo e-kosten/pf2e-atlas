@@ -8,6 +8,210 @@ use super::*;
 use crate::LocalStateStore;
 
 #[test]
+fn concurrent_initiative_retries_commit_one_receipt() -> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("concurrent-roll")?;
+    store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let handles = (0..2)
+        .map(|_| {
+            let store = store.clone();
+            let snapshot = snapshot.clone();
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                let participant = &snapshot.participants[0];
+                barrier.wait();
+                store.encounters().roll_initiative(
+                    &snapshot.encounter.encounter_key,
+                    "same-request",
+                    &serde_json::json!({"initiative":true}),
+                    snapshot.encounter.revision,
+                    &[ResolvedInitiativeRoll {
+                        participant_key: participant.participant_key.clone(),
+                        expected_revision: participant.revision,
+                        basis: "Perception".into(),
+                        formula: "1d20+4".into(),
+                    }],
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    let results = handles
+        .into_iter()
+        .map(|h| h.join().unwrap())
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(results[0], results[1]);
+    let saved = store.encounters().get_with_participants("test")?.unwrap();
+    assert_eq!(saved.encounter.revision, snapshot.encounter.revision + 1);
+    assert_eq!(
+        saved.participants[0].revision,
+        snapshot.participants[0].revision + 1
+    );
+    Ok(())
+}
+
+#[test]
+fn initiative_receipts_recover_without_reroll_and_conflict_on_changed_intent()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("roll-retry")?;
+    store
+        .encounters()
+        .add_participant("test", creature("Twin", Some(10), 20))?;
+    store
+        .encounters()
+        .add_participant("test", creature("Twin", Some(10), 20))?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let key = &before.encounter.encounter_key;
+    let resolved = before
+        .participants
+        .iter()
+        .map(|p| ResolvedInitiativeRoll {
+            participant_key: p.participant_key.clone(),
+            expected_revision: p.revision,
+            basis: "Perception".into(),
+            formula: "1d20+5".into(),
+        })
+        .collect::<Vec<_>>();
+    let intent = serde_json::json!({"participants": ["first", "second"]});
+    let receipt = store.encounters().roll_initiative(
+        key,
+        "request-1",
+        &intent,
+        before.encounter.revision,
+        &resolved,
+    )?;
+    let saved = store.encounters().get_with_participants(key)?.unwrap();
+    assert_eq!(receipt.rolls.len(), 2);
+    assert_ne!(
+        receipt.rolls[0].participant_key,
+        receipt.rolls[1].participant_key
+    );
+    for roll in &receipt.rolls {
+        let participant = saved
+            .participants
+            .iter()
+            .find(|p| p.participant_key == roll.participant_key)
+            .unwrap();
+        assert_eq!(participant.initiative, Some(i64::from(roll.outcome.total)));
+        assert_eq!(participant.current_hp, Some(20));
+    }
+    assert_eq!(
+        saved.encounter.current_turn_participant_key,
+        before.encounter.current_turn_participant_key
+    );
+    assert_eq!(saved.encounter.round_number, before.encounter.round_number);
+    // Reopen to prove persistence; the old revision and even absent source inputs
+    // cannot force another roll once this request has committed.
+    let reopened = LocalStateStore::open(store.path())?;
+    assert_eq!(
+        reopened
+            .encounters()
+            .roll_initiative(key, "request-1", &intent, -1, &[])?,
+        receipt
+    );
+    assert_eq!(
+        reopened.encounters().get_with_participants(key)?.unwrap(),
+        saved
+    );
+    assert!(matches!(
+        reopened.encounters().initiative_roll_receipt(
+            key,
+            "request-1",
+            &serde_json::json!({"changed":true})
+        ),
+        Err(crate::LocalStateError::RollRequestConflict)
+    ));
+    reopened.encounters().delete(key)?;
+    assert!(
+        reopened
+            .encounters()
+            .initiative_roll_receipt(key, "request-1", &intent)?
+            .is_none()
+    );
+    Ok(())
+}
+
+#[test]
+fn initiative_batch_and_receipt_rollback_together() -> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("roll-rollback")?;
+    store
+        .encounters()
+        .add_participant("test", creature("First", Some(10), 20))?;
+    store
+        .encounters()
+        .add_participant("test", creature("Second", Some(10), 20))?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let key = &before.encounter.encounter_key;
+    let mut resolved = before
+        .participants
+        .iter()
+        .map(|p| ResolvedInitiativeRoll {
+            participant_key: p.participant_key.clone(),
+            expected_revision: p.revision,
+            basis: "Manual".into(),
+            formula: "20".into(),
+        })
+        .collect::<Vec<_>>();
+    let intent = serde_json::json!({"roll":"both"});
+    resolved[1].expected_revision += 1;
+    assert!(matches!(
+        store.encounters().roll_initiative(
+            key,
+            "retry",
+            &intent,
+            before.encounter.revision,
+            &resolved
+        ),
+        Err(crate::LocalStateError::StaleParticipantRevision { .. })
+    ));
+    assert_eq!(
+        store.encounters().get_with_participants(key)?.unwrap(),
+        before
+    );
+    resolved[1].expected_revision -= 1;
+    store.connection()?.execute_batch("CREATE TRIGGER fail_receipt BEFORE INSERT ON encounter_roll_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END;")?;
+    assert!(
+        store
+            .encounters()
+            .roll_initiative(key, "retry", &intent, before.encounter.revision, &resolved)
+            .is_err()
+    );
+    assert_eq!(
+        store.encounters().get_with_participants(key)?.unwrap(),
+        before
+    );
+    assert!(
+        store
+            .encounters()
+            .initiative_roll_receipt(key, "retry", &intent)?
+            .is_none()
+    );
+    store
+        .connection()?
+        .execute_batch("DROP TRIGGER fail_receipt")?;
+    let receipt = store.encounters().roll_initiative(
+        key,
+        "retry",
+        &intent,
+        before.encounter.revision,
+        &resolved,
+    )?;
+    assert_eq!(receipt.rolls.len(), 2);
+    assert!(
+        store
+            .encounters()
+            .get_with_participants(key)?
+            .unwrap()
+            .participants
+            .iter()
+            .all(|p| p.initiative == Some(20))
+    );
+    Ok(())
+}
+
+#[test]
 fn encounters_allow_duplicate_record_participants() -> Result<(), Box<dyn std::error::Error>> {
     let store = LocalStateStore::open(temp_path("encounter-duplicates"))?;
     let encounters = store.encounters();
@@ -1019,5 +1223,72 @@ fn spell_expenditure_marker_survives_reopen_and_rejects_stale_restore()
             .expended_spells
             .is_empty()
     );
+    Ok(())
+}
+
+#[test]
+fn participant_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("participant-roll")?;
+    store
+        .encounters()
+        .add_participant("test", creature("One", Some(10), 20))?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let key = &before.encounter.encounter_key;
+    let p = &before.participants[0];
+    let intent = serde_json::json!({"action":"strike"});
+    let first: i32 = store.encounters().roll_participant(
+        key,
+        "strike-one",
+        &intent,
+        ParticipantRollGuard {
+            expected_revision: before.encounter.revision,
+            participant_key: &p.participant_key,
+            expected_participant_revision: p.revision,
+        },
+        || Ok(17),
+    )?;
+    let recovered: i32 = store.encounters().roll_participant(
+        key,
+        "strike-one",
+        &intent,
+        ParticipantRollGuard {
+            expected_revision: -1,
+            participant_key: &p.participant_key,
+            expected_participant_revision: -1,
+        },
+        || panic!("retry evaluated again"),
+    )?;
+    assert_eq!(first, recovered);
+    let after = store.encounters().get_with_participants("test")?.unwrap();
+    assert_eq!(
+        serde_json::to_value(&before)?,
+        serde_json::to_value(&after)?
+    );
+    let failed: crate::LocalStateResult<i32> = store.encounters().roll_participant(
+        key,
+        "strike-two",
+        &intent,
+        ParticipantRollGuard {
+            expected_revision: before.encounter.revision,
+            participant_key: &p.participant_key,
+            expected_participant_revision: -1,
+        },
+        || panic!("stale guard evaluated"),
+    );
+    assert!(matches!(
+        failed,
+        Err(crate::LocalStateError::StaleParticipantRevision { .. })
+    ));
+    let conflict: crate::LocalStateResult<Option<i32>> =
+        store.encounters().participant_roll_receipt(
+            key,
+            "strike-one",
+            &serde_json::json!({"action":"initiative"}),
+        );
+    assert!(matches!(
+        conflict,
+        Err(crate::LocalStateError::RollRequestConflict)
+    ));
     Ok(())
 }

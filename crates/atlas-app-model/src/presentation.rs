@@ -177,6 +177,7 @@ pub struct ActorActivityView {
     pub action_cost: FactView<ActionCostView>,
     pub traits: Vec<crate::RecordBadgeView>,
     pub attack: NumberFactView,
+    pub attack_options: Vec<crate::StrikeAttackOptionView>,
     pub lore_modifier: NumberFactView,
     pub damage: FactView<Vec<DamageComponentView>>,
     pub difficulty_class: NumberFactView,
@@ -312,11 +313,17 @@ pub struct PhysicalPriceView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RollTablePresentationView {
     pub formula: FactView<String>,
-    pub results: FactView<Vec<OwnedRecordLinkView>>,
+    pub results: FactView<Vec<RollTableRowView>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TableResultPresentationView {
     pub range: FactView<String>,
     pub weight: NumberFactView,
     pub result_type: FactView<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RollTableRowView {
+    pub link: OwnedRecordLinkView,
+    pub range: FactView<[f64; 2]>,
 }

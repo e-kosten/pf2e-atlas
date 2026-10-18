@@ -86,9 +86,70 @@ presentation separately after receiving a commit receipt. No generated-artifact
 schema or gameplay rule changes are implied.
 
 Revision checks cover participant replacements. This does not introduce merge
-semantics for concurrent edits to list or encounter metadata, an idempotency key
-for a response lost after commit, or new gameplay automation. Those require
-separate contracts if concrete consumers need them.
+semantics for concurrent edits to list or encounter metadata. Roll requests use
+the narrower idempotency contract below; other mutations do not gain it implicitly.
+
+## Dice and initiative receipts
+
+`atlas-dice` validates and evaluates bounded formulas through `diceng`, retaining
+an arithmetic result tree with actual die sides, faces and kept/discarded state.
+It has no Foundry, SQLite or application workflow dependency. Browser drawing and
+motion consume results and cannot determine rolls. The supported initial grammar
+is ordinary dice, signed integer arithmetic, parentheses and keep-high/keep-low;
+unsupported source notation must not be silently approximated.
+
+App-service resolves initiative statistics through the existing encounter overlay
+policy and accepts explicit manual modifiers. Unlisted NPC skills use the source
+system's ability baseline before condition/variant adjustments. Unknown inputs
+remain unavailable for automatic rolling. Each participant rolls independently.
+
+Initiative options return the artifact generation used to hydrate their source
+modifiers. Source-based rolls must submit that generation, compared against the
+same hydration snapshot that resolves the roll. Saved-receipt recovery precedes
+this guard, so publication of a new artifact cannot reroll a committed request.
+Explicit manual-modifier requests remain source-free and need no generation.
+
+Local-state schema 12 stores encounter roll receipts. A canonical encounter key
+and request ID identify an operation; the original intent is saved alongside the
+resolved inputs and outcomes. Matching retries recover the receipt before source
+hydration and revision checks. Reusing an ID with different intent conflicts.
+The immediate write transaction repeats recovery, validates the complete batch,
+evaluates and saves each initiative using existing tie-order policy, then stores
+the receipt. Any failure rolls back the whole batch. Source/artifact I/O remains
+outside that transaction. Current turn, HP and spell resources are unchanged.
+
+Receipts are retained for the encounter lifetime and cascade on encounter deletion;
+there is no automatic time-based pruning and no recovery guarantee after deletion.
+Consumers refresh independently after a successful receipt. Retrying a lost
+response uses the same request ID and intent, not a fresh roll request.
+
+Strike rolls resolve the selected embedded activity through the same encounter
+projection used for display. Variant and condition adjustments belong in that
+projection; the roll workflow consumes its effective attack modifiers and damage
+formulas. It must not disable otherwise supported rolls to avoid implementing
+those adjustments. Attack number is an explicit choice, not inferred from prior
+clicks. Damage components retain their type, category and original dice outcomes.
+Damage-domain totals are derived in app-service, separately from generic dice
+arithmetic and from any eventual target damage application.
+The pinned PF2E 6.12.4 source supplies trait-based attack ability and strength
+damage applicability. NPC adjustment affects the first numeric damage component;
+applicable status penalties retain their normal stacking policy. Same-type damage
+components form an instance floored at zero, with the overall minimum represented
+explicitly. Persistent instances remain separate from immediate damage. Empty
+source damage formulas do not acquire damage through adjustment arithmetic.
+
+Strike receipts use the same encounter/request identity with an action
+discriminator. Their transaction checks encounter and participant revisions and
+stores the outcome without changing initiative, HP, turn or spell resources.
+Recovery precedes source hydration, so a lost response cannot reroll merely
+because the source or participant subsequently changed.
+
+Reference table rolls are stateless app-service reads. A checked artifact
+generation and selected table supply the formula and inclusive result ranges;
+all matching rows retain their prepared content and checked references. Gaps and
+invalid ranges are explicit. Rolling does not consume table entries or recursively
+roll linked tables. A subsequent reference roll is a new roll, not recovery of a
+durable encounter operation.
 
 ## Encounter boundary review and durations
 

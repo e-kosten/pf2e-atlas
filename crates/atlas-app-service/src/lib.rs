@@ -17,6 +17,7 @@ mod related;
 mod retrieval;
 mod search_pages;
 mod service;
+mod table_roll;
 
 #[cfg(test)]
 mod owned_reading_tests;

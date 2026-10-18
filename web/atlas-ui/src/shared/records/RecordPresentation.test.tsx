@@ -442,11 +442,14 @@ describe("semantic family presentation", () => {
               formula: knownFact("1d100"),
               results: knownFact([
                 {
-                  title: "Result 1–10",
-                  family: "TableResult",
-                  usage: "range 1–10",
-                  action_cost: unavailableFact("not_applicable"),
-                  navigation: child,
+                  range: knownFact([1, 10]),
+                  link: {
+                    title: "Result 1–10",
+                    family: "TableResult",
+                    usage: "range 1–10",
+                    action_cost: unavailableFact("not_applicable"),
+                    navigation: child,
+                  },
                 },
               ]),
             },

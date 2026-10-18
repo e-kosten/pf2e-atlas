@@ -5,6 +5,7 @@ mod facts;
 mod spell;
 pub(crate) mod spell_context;
 mod spell_rank;
+pub(crate) mod strike;
 use crate::projection::{field_state, navigation_fingerprint};
 use action_cost::{casting_cost, item_action_cost};
 pub(crate) use actor::compose_participant;
@@ -199,9 +200,20 @@ pub(crate) fn record_presentation(
         SourceNodeView::Table(table) => {
             RecordBodyView::RollTable(Box::new(RollTablePresentationView {
                 formula: text((&table.formula).into()),
-                results: fact(
-                    SourceFieldView::from(&table.results).map(|_| std::mem::take(&mut owned)),
-                ),
+                results: fact(SourceFieldView::from(&table.results).map(|_| {
+                    std::mem::take(&mut owned)
+                        .into_iter()
+                        .map(|link| {
+                            let range = match record.node_at(&link.navigation.owners) {
+                                Some(SourceNodeView::Result(result)) => {
+                                    table_numeric_range((&result.range).into())
+                                }
+                                _ => unavailable(),
+                            };
+                            RollTableRowView { link, range }
+                        })
+                        .collect()
+                })),
             }))
         }
         SourceNodeView::Result(result) => {
@@ -422,7 +434,7 @@ fn node_title(node: SourceNodeView<'_>) -> String {
             .into(),
     })
 }
-fn owned_links(
+pub(crate) fn owned_links(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
     owners: &[OwnedContentLocator],
@@ -502,3 +514,24 @@ fn physical(item: ItemSourceView<'_>) -> PhysicalPresentationView {
 
 #[cfg(test)]
 mod tests;
+
+fn table_numeric_range(
+    value: SourceFieldView<'_, &(serde_json::Number, serde_json::Number)>,
+) -> FactView<[f64; 2]> {
+    match value {
+        SourceFieldView::Value((lo, hi)) => match (lo.as_f64(), hi.as_f64()) {
+            (Some(lo), Some(hi)) if lo.is_finite() && hi.is_finite() && lo <= hi => FactView {
+                state: QueryFieldState::Value,
+                value: Some([lo, hi]),
+            },
+            _ => FactView {
+                state: QueryFieldState::Invalid,
+                value: None,
+            },
+        },
+        other => FactView {
+            state: field_state(other.availability()),
+            value: None,
+        },
+    }
+}

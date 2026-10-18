@@ -18,6 +18,7 @@ use atlas_app_model::{
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
 };
+use atlas_app_model::{InitiativeOptionsView, InitiativeRollView, RollInitiativeRequest};
 use atlas_app_service::{AppServiceError, AtlasAppService, ReadExecutionContext};
 use atlas_domain::QueryPredicate;
 use tokio::sync::Semaphore;
@@ -55,6 +56,20 @@ impl AtlasWebState {
 }
 
 pub(crate) trait AtlasWebService: Send + Sync {
+    fn roll_table(
+        &self,
+        request: atlas_app_model::RollTableRequest,
+    ) -> Result<atlas_app_model::TableRollView, AppServiceError>;
+    fn encounter_strike_options(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterStrikeOptionsRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError>;
+    fn roll_encounter_strike(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RollEncounterStrikeRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeRollView, AppServiceError>;
     fn readiness(&self) -> AppReadinessView;
 
     fn discover_filter_editor(
@@ -147,6 +162,16 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: ApplyEncounterHpActionRequest,
     ) -> Result<EncounterMutationView, AppServiceError>;
 
+    fn encounter_initiative_options(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<InitiativeOptionsView, AppServiceError>;
+    fn roll_encounter_initiative(
+        &self,
+        encounter_ref: &str,
+        request: RollInitiativeRequest,
+    ) -> Result<InitiativeRollView, AppServiceError>;
+
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,
@@ -233,6 +258,26 @@ pub(crate) trait AtlasWebService: Send + Sync {
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn roll_encounter_strike(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RollEncounterStrikeRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeRollView, AppServiceError> {
+        self.roll_encounter_strike(encounter_ref, request)
+    }
+    fn encounter_strike_options(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterStrikeOptionsRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError> {
+        self.encounter_strike_options(encounter_ref, request)
+    }
+    fn roll_table(
+        &self,
+        request: atlas_app_model::RollTableRequest,
+    ) -> Result<atlas_app_model::TableRollView, AppServiceError> {
+        self.roll_table(request)
+    }
     fn encounter_reference(
         &self,
         encounter_ref: &str,
@@ -367,6 +412,20 @@ impl AtlasWebService for AtlasAppService {
         request: ApplyEncounterHpActionRequest,
     ) -> Result<EncounterMutationView, AppServiceError> {
         self.apply_encounter_hp_action(encounter_ref, request)
+    }
+
+    fn encounter_initiative_options(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<InitiativeOptionsView, AppServiceError> {
+        self.encounter_initiative_options(encounter_ref)
+    }
+    fn roll_encounter_initiative(
+        &self,
+        encounter_ref: &str,
+        request: RollInitiativeRequest,
+    ) -> Result<InitiativeRollView, AppServiceError> {
+        self.roll_encounter_initiative(encounter_ref, request)
     }
 
     fn apply_encounter_spell_action(

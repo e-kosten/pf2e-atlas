@@ -610,6 +610,27 @@ Atlas-owned classes describe product layout rather than internal Ant DOM.
 
 ## Mutable workflows
 
+### Dice presentation
+
+`shared/dice` renders backend outcomes. `DieFace` owns static Simple/Shaded SVG
+drawing and `motion.ts` owns Spin/Tumble/Rock/None lifecycle. Shaded plus Spin is
+the product default; drawing and motion are independent options. Reduced motion
+bypasses animation. Motion never determines faces, changes totals or submits
+requests; strategies settle to their resting transform and cancel on unmount.
+The evaluator's arithmetic tree preserves individual faces and discarded dice.
+No physics or Three.js runtime is needed for the static projected assets.
+`appearance.ts` owns the shared defaults. Nonstandard dice use the d10 drawing
+with a visible actual-sides label (for example, d78), preserving the backend's
+formula, range and result. Feature consumers do not choose different defaults.
+Clicking an encounter attack bonus or damage expression opens its result popover
+and rolls immediately. Reroll is explicit; opening via an effect or rerender must
+never submit a roll. Fortune/misfortune changes apply to the next deliberate roll.
+
+Initiative uses the encounter mutation owner and backend-resolved choices.
+Preserve a request ID and unchanged intent for retry after an uncertain response.
+A new deliberate roll gets a new ID. A batch shows participant-attributed results;
+there is no combined batch total. Ordinary manual initiative entry remains valid.
+
 Source content in an encounter loads only on explicit request. HP mutations
 carry an explicit action, raw integer/addition/subtraction input and the read
 participant revision. Rust interprets formulas, damage/healing and correction

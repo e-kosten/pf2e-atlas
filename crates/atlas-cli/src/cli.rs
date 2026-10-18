@@ -10,6 +10,7 @@ use crate::commands::graph::args::{GraphArgs, GraphCommand};
 use crate::commands::index::args::{IndexArgs, IndexCommand};
 use crate::commands::lists::args::{ListsArgs, ListsCommand};
 use crate::commands::record::args::{RecordArgs, RecordCommand};
+use crate::commands::roll::RollArgs;
 use crate::commands::search::args::SearchOptions;
 use crate::commands::setup::args::SetupArgs;
 use crate::commands::similar::args::SimilarOptions;
@@ -43,6 +44,8 @@ pub(crate) struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
+    #[command(about = "Roll dice with a complete result breakdown; no setup required")]
+    Roll(RollArgs),
     #[command(about = "Install, repair, or check local Atlas runtime data")]
     Setup(SetupArgs),
     #[command(about = "Build, check, and validate Atlas indexes")]
@@ -103,6 +106,7 @@ pub(crate) fn main() -> ExitCode {
 impl Command {
     fn uses_json(&self) -> bool {
         match self {
+            Self::Roll(args) => args.json,
             Self::Setup(args) => args.paths.json,
             Self::Index(args) => match &args.command {
                 IndexCommand::Build(options) => options.json,
@@ -153,6 +157,7 @@ impl Command {
 
 fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
+        Command::Roll(args) => commands::roll::run_roll(args),
         Command::Setup(args) => commands::setup::run_setup(args),
         Command::Index(index) => match index.command {
             IndexCommand::Build(options) => commands::index::run_index_build(options),

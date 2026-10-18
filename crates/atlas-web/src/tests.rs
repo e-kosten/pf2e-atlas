@@ -811,6 +811,54 @@ async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt(
     assert_eq!(body["code"], "invalid_request");
 }
 
+#[tokio::test]
+async fn dice_routes_forward_typed_requests_and_conflicts() {
+    let selection = json!({"record_key":"tables:example","owners":[],"fields":[],"passage":null,"source_fingerprint":null});
+    let (status, body) = route_json(Method::GET, "/api/encounters/ambush/initiative", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["encounter_key"], "ambush");
+    let (status,body)=route_json(Method::POST,"/api/encounters/ambush/initiative",Some(json!({"request_id":"initiative-id","artifact_generation":null,"expected_revision":7,"participants":[]}))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["request_id"], "initiative-id");
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/rolls/table",
+        Some(json!({"selection":selection,"artifact_generation":"current"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["outcome"]["expression"]["dice"][0]["value"], 4);
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/rolls/table",
+        Some(json!({"selection":selection,"artifact_generation":"old"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "artifact_generation_changed");
+    let reference = json!({"selection":selection,"artifact_generation":"current"});
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/strike-options",
+        Some(json!({"participant_key":"goblin","reference":reference})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["title"], "ambush:goblin");
+    let (status,body)=route_json(Method::POST,"/api/encounters/ambush/strike-rolls",Some(json!({"participant_key":"goblin","reference":reference,"request_id":"strike-id","expected_revision":7,"expected_participant_revision":3,"attack_number":2,"mode":"fortune","modifier_override":null,"roll_kind":"attack"}))).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "encounter_participant_conflict");
+    assert_eq!(body["message"], "strike-id");
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/encounters/ambush/strike-rolls",
+        Some(json!({"request_id":"incomplete"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["code"], "invalid_request");
+}
+
 async fn route_json(method: Method, path: &str, body: Option<Value>) -> (StatusCode, Value) {
     let app = test_router();
     let mut builder = Request::builder().method(method).uri(path);
@@ -1100,6 +1148,69 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn roll_table(
+        &self,
+        request: atlas_app_model::RollTableRequest,
+    ) -> Result<atlas_app_model::TableRollView, AppServiceError> {
+        if request.artifact_generation != "current" {
+            return Err(AppServiceError::new(
+                AppErrorCode::ArtifactGenerationChanged,
+                "reference changed",
+            ));
+        }
+        assert_eq!(request.selection.record_key.to_string(), "tables:example");
+        Ok(serde_json::from_value(json!({"outcome":{"formula":"1d6","total":4,"expression":{"kind":"dice","dice":[{"sides":6,"value":4,"kept":true}],"total":4}},"matches":[],"invalid_ranges":[]})).unwrap())
+    }
+    fn encounter_strike_options(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterStrikeOptionsRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError> {
+        Ok(atlas_app_model::EncounterStrikeOptionsView {
+            expected_revision: 7,
+            expected_participant_revision: 3,
+            title: format!("{encounter_ref}:{}", request.participant_key),
+            attacks: vec![],
+            unavailable: None,
+            damage_available: false,
+            damage_unavailable: None,
+        })
+    }
+    fn roll_encounter_strike(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RollEncounterStrikeRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeRollView, AppServiceError> {
+        assert_eq!(encounter_ref, "ambush");
+        assert_eq!(request.attack_number, 2);
+        assert_eq!(request.reference.artifact_generation, "current");
+        Err(AppServiceError::new(
+            AppErrorCode::EncounterParticipantConflict,
+            request.request_id,
+        ))
+    }
+    fn encounter_initiative_options(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<atlas_app_model::InitiativeOptionsView, AppServiceError> {
+        Ok(atlas_app_model::InitiativeOptionsView {
+            artifact_generation: None,
+            encounter_key: encounter_ref.into(),
+            expected_revision: 0,
+            participants: vec![],
+        })
+    }
+    fn roll_encounter_initiative(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RollInitiativeRequest,
+    ) -> Result<atlas_app_model::InitiativeRollView, AppServiceError> {
+        Ok(atlas_app_model::InitiativeRollView {
+            encounter_key: encounter_ref.into(),
+            request_id: request.request_id,
+            rolls: vec![],
+        })
+    }
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,

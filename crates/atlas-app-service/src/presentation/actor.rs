@@ -310,7 +310,17 @@ pub(super) fn authored_activity(
                         state: QueryFieldState::Value,
                         value: Some(vec!["damage".into()]),
                     },
-                    category: identifier((&c.category).into()),
+                    // PF2e prepares bleed as persistent, including missing source categories.
+                    category: if identifier((&c.damage_type).into()).value.as_deref()
+                        == Some("bleed")
+                    {
+                        FactView {
+                            state: QueryFieldState::Value,
+                            value: Some("persistent".into()),
+                        }
+                    } else {
+                        identifier((&c.category).into())
+                    },
                     materials: unavailable(),
                     apply_modifier: unavailable(),
                 })
@@ -346,7 +356,7 @@ pub(super) fn authored_activity(
             unavailable(),
         ),
     };
-    ActorActivityView {
+    let mut activity = ActorActivityView {
         casting_ranks: vec![],
         has_reference_details: has_reference_details(item),
         title: node_title(SourceNodeView::Item(item)),
@@ -380,6 +390,7 @@ pub(super) fn authored_activity(
         })
         .collect(),
         attack,
+        attack_options: vec![],
         lore_modifier: number(item.lore_modifier()),
         damage,
         difficulty_class,
@@ -405,7 +416,9 @@ pub(super) fn authored_activity(
         },
         casting_context: None,
         notes: vec![],
-    }
+    };
+    activity.attack_options = super::strike::attack_options(&activity);
+    activity
 }
 fn has_reference_details(item: ItemSourceView<'_>) -> bool {
     match selected_item_body(item) {
@@ -532,7 +545,15 @@ pub(crate) fn compose_participant(
                     });
                 }
             }
+            for damage in activity.damage.value.iter_mut().flatten() {
+                if let Some(effective) = v.damage.iter().find(|d| d.damage_id == damage.id)
+                    && let Some(formula) = &effective.adjusted_formula
+                {
+                    damage.formula.value = Some(formula.clone());
+                }
+            }
             activity.notes.extend(v.notes.clone());
+            activity.attack_options = super::strike::attack_options(activity);
         }
     }
     a.runtime = Some(ActorRuntimeView {

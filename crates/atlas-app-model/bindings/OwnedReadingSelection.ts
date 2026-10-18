@@ -2,4 +2,4 @@
 import type { OwnedReadingCursor } from "./OwnedReadingCursor";
 import type { RecordNavigationView } from "./RecordNavigationView";
 
-export type OwnedReadingSelection = { "kind": "abilities", cursor: OwnedReadingCursor | null, target: RecordNavigationView | null, } | { "kind": "activity", navigation: RecordNavigationView, };
+export type OwnedReadingSelection = { "kind": "table_results", cursor: OwnedReadingCursor | null, } | { "kind": "abilities", cursor: OwnedReadingCursor | null, target: RecordNavigationView | null, } | { "kind": "activity", navigation: RecordNavigationView, };

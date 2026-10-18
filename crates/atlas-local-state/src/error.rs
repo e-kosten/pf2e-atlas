@@ -2,6 +2,14 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LocalStateError {
+    #[error("This roll request ID was already used for a different request")]
+    RollRequestConflict,
+    #[error("Invalid roll request: {0}")]
+    InvalidRollRequest(&'static str),
+    #[error("Dice evaluation failed: {0}")]
+    Dice(#[from] atlas_dice::DiceError),
+    #[error("Roll receipt is not valid: {0}")]
+    RollReceipt(#[from] serde_json::Error),
     #[error("local-state path is not valid UTF-8: {0}")]
     NonUtf8Path(String),
     #[error("invalid saved-list slug `{slug}`: {reason}")]

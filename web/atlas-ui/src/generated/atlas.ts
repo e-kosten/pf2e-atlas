@@ -162,6 +162,12 @@ export type { SearchPageView } from "../../../../crates/atlas-app-model/bindings
 export type { SearchResultsView } from "../../../../crates/atlas-app-model/bindings/SearchResultsView";
 export type { SearchWitnessView } from "../../../../crates/atlas-app-model/bindings/SearchWitnessView";
 export type { SetEncounterTurnRequest } from "../../../../crates/atlas-app-model/bindings/SetEncounterTurnRequest";
+export type { RollOutcome } from "../../../../crates/atlas-app-model/bindings/RollOutcome";
+export type { RollExpression } from "../../../../crates/atlas-app-model/bindings/RollExpression";
+export type { RollMode } from "../../../../crates/atlas-app-model/bindings/RollMode";
+export type { InitiativeOptionsView } from "../../../../crates/atlas-app-model/bindings/InitiativeOptionsView";
+export type { RollInitiativeRequest } from "../../../../crates/atlas-app-model/bindings/RollInitiativeRequest";
+export type { InitiativeRollView } from "../../../../crates/atlas-app-model/bindings/InitiativeRollView";
 export type { SimilarRecordsView } from "../../../../crates/atlas-app-model/bindings/SimilarRecordsView";
 export type { SourceByteRange } from "../../../../crates/atlas-app-model/bindings/SourceByteRange";
 export type { SourceContentLocator } from "../../../../crates/atlas-app-model/bindings/SourceContentLocator";
@@ -201,3 +207,14 @@ export type { EncounterSpellcastingView } from "../../../../crates/atlas-app-mod
 export type { EncounterSpellResourceView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellResourceView";
 export type { EncounterSpellView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellView";
 export type { EncounterSpellRankView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellRankView";
+
+export type { RollTableRequest } from "../../../../crates/atlas-app-model/bindings/RollTableRequest";
+export type { TableRollView } from "../../../../crates/atlas-app-model/bindings/TableRollView";
+export type { RollTableRowView } from "../../../../crates/atlas-app-model/bindings/RollTableRowView";
+export type { EncounterStrikeOptionsRequest } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeOptionsRequest";
+export type { EncounterStrikeOptionsView } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeOptionsView";
+export type { StrikeAttackOptionView } from "../../../../crates/atlas-app-model/bindings/StrikeAttackOptionView";
+export type { StrikeRollKind } from "../../../../crates/atlas-app-model/bindings/StrikeRollKind";
+export type { RollEncounterStrikeRequest } from "../../../../crates/atlas-app-model/bindings/RollEncounterStrikeRequest";
+export type { StrikeDamageRollView } from "../../../../crates/atlas-app-model/bindings/StrikeDamageRollView";
+export type { EncounterStrikeRollView } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeRollView";
