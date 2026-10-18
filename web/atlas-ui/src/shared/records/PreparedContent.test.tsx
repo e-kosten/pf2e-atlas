@@ -4,6 +4,55 @@ import { atlasRoutePath } from "../../app/routes";
 import { detailFixture } from "../../test/fixtures";
 import { ConfigProvider, theme } from "antd";
 describe("prepared source HTML", () => {
+  it("renders compact effects with native destinations and refreshes without duplicate controls", () => {
+    const detail = detailFixture("spells:source", "Source", "effects:target");
+    const field = detail.presentation.content[0];
+    field.body = {
+      kind: "html",
+      html: '<p>Success <span data-atlas-reference="0">Spell Effect: Success</span></p>',
+      controls: [],
+    };
+    const edge = {
+      ...detail.relationships[0],
+      effect_label: { text: "Effect", title: "Spell Effect: Success" },
+    };
+    const onReference = vi.fn();
+    const { rerender } = render(
+      <PreparedContent
+        content={field}
+        relationships={[edge]}
+        onReference={onReference}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Preview Spell Effect: Success" });
+    expect(link).toHaveTextContent("Effect");
+    expect(link).toHaveAttribute(
+      "href",
+      atlasRoutePath({
+        kind: "record",
+        recordKey: edge.target!.record_key,
+        selection: edge.target!,
+      }),
+    );
+    fireEvent.click(link, { ctrlKey: true });
+    expect(onReference).not.toHaveBeenCalled();
+    fireEvent.click(link);
+    expect(onReference).toHaveBeenCalledWith(
+      edge.target!.record_key,
+      link,
+      edge.target,
+    );
+    rerender(
+      <PreparedContent
+        content={field}
+        relationships={[{ ...edge }]}
+        onReference={onReference}
+      />,
+    );
+    expect(
+      screen.getAllByRole("link", { name: "Preview Spell Effect: Success" }),
+    ).toHaveLength(1);
+  });
   it("retains semantic inline glyphs and readable text without inventing controls", () => {
     const content = detailFixture("actors:ghoul", "Ghoul", "rules:outer").presentation
       .content[0];

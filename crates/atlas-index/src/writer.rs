@@ -377,6 +377,7 @@ fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Resu
                     details: SourceRelationshipDetails {
                         availability: Some(relationship.availability.clone()),
                         reference_kind: None,
+                        label: None,
                         audiences: Vec::new(),
                     },
                 },
@@ -651,6 +652,7 @@ fn write_content(
                                 details: SourceRelationshipDetails {
                                     availability: None,
                                     reference_kind: Some(reference.kind.clone()),
+                                    label: Some(reference.label.clone()),
                                     audiences: reference.audiences.clone(),
                                 },
                             },

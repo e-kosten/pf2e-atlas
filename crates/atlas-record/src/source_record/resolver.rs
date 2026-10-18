@@ -41,6 +41,10 @@ impl SourceReferenceIndex {
             let resolved = ResolvedContentReference {
                 target,
                 display_name: node.name().value().cloned(),
+                item_family: match node {
+                    super::SourceNodeView::Item(item) => Some(item.family().into()),
+                    _ => None,
+                },
             };
             let mut suffix = String::new();
             let mut stable = true;

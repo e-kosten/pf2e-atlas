@@ -37,6 +37,7 @@ pub fn prepare_source_content(
         references: Vec::new(),
         interactions: Vec::new(),
         diagnostics: Vec::new(),
+        block: String::new(),
     };
     let audiences = match visibility {
         ContentVisibilityRule::All => Vec::new(),
@@ -97,6 +98,7 @@ struct Projection<'a> {
     references: Vec<ContentReferenceOccurrence>,
     interactions: Vec<ContentInteraction>,
     diagnostics: Vec<ContentInterpretationDiagnostic>,
+    block: String,
 }
 
 impl Projection<'_> {
@@ -149,6 +151,28 @@ impl Projection<'_> {
                 attributes,
                 children,
             } => {
+                let previous_block = self.block.clone();
+                if matches!(
+                    tag.as_str(),
+                    "p" | "li"
+                        | "dt"
+                        | "dd"
+                        | "td"
+                        | "th"
+                        | "h1"
+                        | "h2"
+                        | "h3"
+                        | "h4"
+                        | "h5"
+                        | "h6"
+                        | "div"
+                        | "section"
+                        | "article"
+                        | "blockquote"
+                        | "pre"
+                ) {
+                    self.block = path.to_owned();
+                }
                 let mut audiences = audiences.to_vec();
                 let visibility = attributes.get("data-visibility").and_then(Option::as_deref);
                 if let Some(visibility) = visibility {
@@ -174,7 +198,7 @@ impl Projection<'_> {
                             ContentReferenceKind::HtmlLink
                         };
                         let (ordinal, _, _) =
-                            self.reference(path, &audiences, visible, kind, &target);
+                            self.reference(path, &audiences, visible, kind, &target, true);
                         attributes.insert("data-atlas-reference".into(), Some(ordinal.to_string()));
                         attributes.insert(
                             "data-atlas-reference-binding".into(),
@@ -192,6 +216,7 @@ impl Projection<'_> {
                 }
                 let children_html =
                     self.nodes(children, path, &audiences, visible, in_link || tag == "a");
+                self.block = previous_block;
                 if !visible {
                     return String::new();
                 }
@@ -322,6 +347,7 @@ impl Projection<'_> {
         visible: bool,
         kind: ContentReferenceKind,
         target: &str,
+        explicit_label: bool,
     ) -> (usize, Option<String>, ContentReferenceResolution) {
         let resolved = if matches!(kind, ContentReferenceKind::HtmlLink) {
             None
@@ -332,6 +358,12 @@ impl Projection<'_> {
         let display = resolved
             .as_ref()
             .and_then(|resolved| resolved.display_name.clone());
+        let label = super::ContentReferenceLabel {
+            explicit: explicit_label,
+            block: self.block.clone(),
+            target_name: display.clone(),
+            item_family: resolved.as_ref().and_then(|r| r.item_family.clone()),
+        };
         let resolution = if let Some(resolved) = resolved {
             if let ContentReferenceTarget::Url { url } = &resolved.target {
                 if is_safe_content_url(url) {
@@ -371,6 +403,7 @@ impl Projection<'_> {
             resolution: resolution.clone(),
             visible,
             audiences: audiences.to_vec(),
+            label,
         });
         (ordinal, display, resolution)
     }
@@ -399,8 +432,14 @@ impl Projection<'_> {
                 _ => ContentReferenceKind::Compendium,
             },
         };
-        let (ordinal, display, resolution) =
-            self.reference(path, audiences, visible, kind, &link.source.authored_target);
+        let (ordinal, display, resolution) = self.reference(
+            path,
+            audiences,
+            visible,
+            kind,
+            &link.source.authored_target,
+            link.label.is_some(),
+        );
         let label = link
             .label
             .as_deref()

@@ -31,9 +31,13 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
-- [Effect reference presentation](items/effect-reference-presentation.md)
-  Research a consistent policy for explanatory versus effect-application links
-  before changing their visibility. Status: planned.
+- [Database design and release readiness](items/database-release-readiness.md)
+  Review schema, storage boundaries, migrations and future user/campaign
+  ownership before 1.0; include safe embedding reuse. Status: planned.
+
+- [Embedding reuse across preparation upgrades](items/embedding-reuse-preparation-upgrades.md)
+  Reuse verified vectors when content preparation changes but model inputs do
+  not, without weakening artifact validation. Status: proposed.
 
 - [Product filter paths and semantics](items/product-filter-shape.md)
   Revisit source-oriented CEL paths and cross-kind semantics after shared

@@ -195,6 +195,7 @@ pub struct SourceStoredRelationship {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceRelationshipDetails {
+    pub label: Option<atlas_record::source_content::ContentReferenceLabel>,
     pub availability: Option<atlas_record::source_record::FieldAvailability>,
     pub reference_kind: Option<atlas_record::source_content::ContentReferenceKind>,
     pub audiences: Vec<String>,
