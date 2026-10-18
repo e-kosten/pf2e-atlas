@@ -182,6 +182,7 @@ jobs:
           test -n "$binary"
           test "$("$binary" --version)" = "atlas $EXPECTED_VERSION"
           "$binary" --help > /dev/null
+          node dev-tools/release/dist/src/cli/smoke-packaged-web.js "$binary" web/atlas-ui/dist
       - name: Check packaged binary on Windows
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh
@@ -195,6 +196,8 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $version -ne "atlas $env:EXPECTED_VERSION") { throw "packaged version mismatch" }
           & $binary.FullName --help | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "packaged help failed" }
+          node dev-tools/release/dist/src/cli/smoke-packaged-web.js $binary.FullName web/atlas-ui/dist
+          if ($LASTEXITCODE -ne 0) { throw "packaged web smoke test failed" }
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v6
         with:
