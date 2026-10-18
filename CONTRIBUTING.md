@@ -455,7 +455,8 @@ Tracked git hooks live in `.githooks/`:
 
 - `pre-commit` and `pre-merge-commit`: check staged whitespace and run path-sensitive formatting checks (Rust and/or frontend). Docs-only changes need only the whitespace check.
 - `commit-msg`: require a Conventional Commit subject; an optional body must be blank-line-separated.
-- Pushes do not run validation automatically. Run the applicable local gates explicitly before marking a PR ready, reuse passing evidence for unchanged code, and require green CI on the published head before merging. CI retains Clippy, typechecking, tests, builds and platform/browser checks.
+- `pre-push`: check third-party notices when outgoing commits change Cargo manifests/lockfiles, notices, Cargo configuration, or release tooling. New refs are checked conservatively. This rebuilds the small TypeScript release tool and runs Cargo metadata offline; it does not compile Rust, install packages, or rewrite notices. Install dependencies explicitly with `npm --prefix dev-tools/release ci --ignore-scripts`. For stale notices, run `npm --prefix dev-tools/release run notices` and commit the result. Push relevant refs from a checkout at their tip with committed dependency/notices inputs so the check validates the published candidate.
+- Run the applicable local gates explicitly before marking a PR ready, reuse passing evidence for unchanged code, and require green CI on the published head before merging. CI retains Clippy, typechecking, tests, builds and platform/browser checks.
 
 Formatting checks read files in the working tree; whitespace checks read the staged diff. Review partial staging carefully so local evidence corresponds to the committed candidate. Hooks do not replace code review or CI.
 
