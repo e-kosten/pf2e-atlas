@@ -22,7 +22,7 @@ import { fieldFixture } from "../../test/fixtures";
 import type { QueryPredicate } from "../../generated/atlas";
 describe("typed builder translation", () => {
   it("restores atomic NOT as an excluded rule and keeps its toggle across edits", () => {
-    const field = fieldFixture("record.kind");
+    const field = fieldFixture("kind");
     const predicate: QueryPredicate = {
       kind: "all_of",
       clause_id: "root",
@@ -61,7 +61,7 @@ describe("typed builder translation", () => {
     }
   });
   it("preserves authored double negation rather than applying operator inversion", () => {
-    const field = fieldFixture("record.kind");
+    const field = fieldFixture("kind");
     const predicate: QueryPredicate = {
       kind: "not",
       clause_id: "outer",
@@ -102,7 +102,7 @@ describe("typed builder translation", () => {
     expect(() => builderPredicate(query, [])).toThrow("available filter field");
   });
   it("retains unavailable closed choices for repair but refuses to execute them", () => {
-    const field = { ...fieldFixture("record.kind"), choices: ["creature", "hazard"] };
+    const field = { ...fieldFixture("kind"), choices: ["creature", "hazard"] };
     const query = predicateBuilder(
       { kind: "in", field: field.path, values: ["action"] },
       [field],
@@ -159,7 +159,7 @@ describe("typed builder translation", () => {
     expect(() => builderPredicate(empty, [field])).toThrow("Choose at least one value");
   });
   it("rejects malformed collection operands with a controlled validation error", () => {
-    const field = fieldFixture("actor.items", "collection");
+    const field = fieldFixture("embedded.equipment", "collection");
     for (const value of ["missing", ["missing"], {}, { rules: [] }])
       expect(() =>
         builderPredicate(
@@ -174,7 +174,7 @@ describe("typed builder translation", () => {
   it.each(["all_of", "any_of"] as const)(
     "keeps an excluded %s as one editable group across repeated edits",
     (kind) => {
-      const field = fieldFixture("actor.hp.maximum", "number");
+      const field = fieldFixture("defenses.hp.maximum", "number");
       let predicate: QueryPredicate = {
         kind: "not",
         clause_id: "exclude",
@@ -229,11 +229,11 @@ describe("typed builder translation", () => {
     expect(numericLiteral("0.5")).toBe(0.5);
   });
   it("preserves OR, NOT and one same-child witness", () => {
-    const collection = fieldFixture("actor.items", "collection");
+    const collection = fieldFixture("embedded.equipment", "collection");
     const child = {
       ...fieldFixture("item.name"),
       path: "common.name",
-      scope: "actor.items",
+      scope: "embedded.equipment",
     };
     const fields = [collection, child];
     const predicate = builderPredicate(
@@ -263,7 +263,7 @@ describe("typed builder translation", () => {
         children: [
           {
             kind: "exists",
-            collection: "actor.items",
+            collection: "embedded.equipment",
             scope_id: "child",
             predicate: {
               kind: "all_of",
@@ -293,14 +293,14 @@ describe("typed builder translation", () => {
       builderPredicate(
         {
           combinator: "and",
-          rules: [{ field: "actor.level", operator: "custom", value: 1 }],
+          rules: [{ field: "level", operator: "custom", value: 1 }],
         },
-        [fieldFixture("actor.level", "number")],
+        [fieldFixture("level", "number")],
       ),
     ).toThrow();
   });
   it("keeps all five availability states explicit and clears errors", () => {
-    const field = fieldFixture("actor.level", "number");
+    const field = fieldFixture("level", "number");
     for (const state of ["value", "missing", "null", "invalid", "not_applicable"])
       expect(
         builderPredicate(
@@ -318,19 +318,19 @@ describe("typed builder translation", () => {
 });
 
 describe("common filter editing without predicate simplification", () => {
-  const kind = fieldFixture("record.kind");
-  const level = fieldFixture("record.level_or_rank", "number");
+  const kind = fieldFixture("kind");
+  const level = fieldFixture("level_or_rank", "number");
   const traits = fieldFixture("traits", "set");
   const leaf = {
     kind: "in" as const,
     clause_id: "kind",
-    field: "record.kind",
+    field: "kind",
     values: ["creature"],
   };
   const other = {
     kind: "compare" as const,
     clause_id: "hp",
-    field: "actor.hp.maximum",
+    field: "defenses.hp.maximum",
     op: "gte" as const,
     value: 80,
   };
@@ -379,7 +379,7 @@ describe("common filter editing without predicate simplification", () => {
       combinator: "and",
       rules: [
         { id: "kind", field: kind.id, operator: "in", value: ["creature"] },
-        { id: "hp", field: "actor.hp.maximum", operator: "gte", value: "-" },
+        { id: "hp", field: "defenses.hp.maximum", operator: "gte", value: "-" },
       ],
     };
     const refreshed = replaceCommonDraft(draft, kind, { ...leaf, values: ["hazard"] });
@@ -388,7 +388,10 @@ describe("common filter editing without predicate simplification", () => {
       draft.rules[1],
     ]);
     expect(() =>
-      builderPredicate(refreshed, [kind, fieldFixture("actor.hp.maximum", "number")]),
+      builderPredicate(refreshed, [
+        kind,
+        fieldFixture("defenses.hp.maximum", "number"),
+      ]),
     ).toThrow("finite numeric");
   });
   it("reads a valid common condition from the draft rather than its earlier execution value", () => {
@@ -396,7 +399,7 @@ describe("common filter editing without predicate simplification", () => {
       combinator: "and",
       rules: [
         { id: "kind", field: kind.id, operator: "in", value: ["hazard"] },
-        { id: "hp", field: "actor.hp.maximum", operator: "gte", value: "-" },
+        { id: "hp", field: "defenses.hp.maximum", operator: "gte", value: "-" },
       ],
     };
     expect(commonDraftCondition(query, kind)).toEqual({
@@ -420,7 +423,7 @@ describe("common filter editing without predicate simplification", () => {
       combinator: "and",
       rules: [
         predicateBuilder(choices, [kind]),
-        { field: "actor.hp.maximum", operator: "gte", value: "-" },
+        { field: "defenses.hp.maximum", operator: "gte", value: "-" },
       ],
     };
     expect(commonDraftCondition(query, kind)).toEqual({
@@ -490,7 +493,7 @@ describe("common filter editing without predicate simplification", () => {
         ...shape,
         rules: [
           { field: kind.id, operator: "in", value: ["creature"] },
-          { field: "actor.hp.maximum", operator: "gte", value: "-" },
+          { field: "defenses.hp.maximum", operator: "gte", value: "-" },
         ],
       };
       expect(canReplaceCommonDraft(draft, kind)).toBe(false);
@@ -614,8 +617,8 @@ describe("common filter editing without predicate simplification", () => {
     const draft = {
       combinator: "or",
       rules: [
-        { field: "actor.hp.maximum", operator: "gte", value: "-" },
-        { field: "actor.level", operator: "eq", value: "12" },
+        { field: "defenses.hp.maximum", operator: "gte", value: "-" },
+        { field: "level", operator: "eq", value: "12" },
       ],
     };
     expect(replaceCommonDraft(draft, kind, leaf)).toMatchObject({
@@ -653,7 +656,7 @@ describe("common filter editing without predicate simplification", () => {
       {
         kind: "exists" as const,
         scope_id: "owned",
-        collection: "actor.items",
+        collection: "embedded.equipment",
         predicate: leaf,
       },
       { kind: "all_of" as const, children: [leaf, { ...leaf, clause_id: "second" }] },
@@ -702,7 +705,7 @@ describe("common filter editing without predicate simplification", () => {
     });
   });
   it("preserves distinct Exists scope and clause identities in the advanced adapter", () => {
-    const collection = fieldFixture("actor.items", "collection");
+    const collection = fieldFixture("embedded.equipment", "collection");
     const child = {
       ...fieldFixture("owned.name"),
       path: "name",
@@ -741,10 +744,10 @@ describe("common filter editing without predicate simplification", () => {
 });
 
 describe("mixed common values and complete advanced editing", () => {
-  const kind = fieldFixture("record.kind");
+  const kind = fieldFixture("kind");
   const traits = fieldFixture("traits", "set");
   it("round trips the complete query without growing excluded groups", () => {
-    const hp = fieldFixture("actor.hp.maximum", "number");
+    const hp = fieldFixture("defenses.hp.maximum", "number");
     const predicate: QueryPredicate = {
       kind: "all_of",
       clause_id: "root",
@@ -819,7 +822,7 @@ describe("mixed common values and complete advanced editing", () => {
     const other = {
       kind: "compare" as const,
       clause_id: "hp",
-      field: "actor.hp.maximum",
+      field: "defenses.hp.maximum",
       op: "gte" as const,
       value: 80,
     };
@@ -837,7 +840,7 @@ describe("structural boolean constants in the maintained builder", () => {
   it.each([true, false])(
     "roundtrips %s with IDs under root, OR, NOT, nested NOT and Exists",
     (value) => {
-      const collection = fieldFixture("actor.items", "collection");
+      const collection = fieldFixture("embedded.equipment", "collection");
       const constant = {
         kind: "boolean_constant" as const,
         clause_id: "constant",

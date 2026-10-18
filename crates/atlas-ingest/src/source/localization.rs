@@ -13,6 +13,13 @@ pub(crate) struct LocalizationCatalog {
 }
 impl LocalizationCatalog {
     pub(crate) fn load(source_root: &Path, locale: &str) -> Result<Self, IngestError> {
+        Self::load_captured(source_root, locale, None)
+    }
+    pub(crate) fn load_captured(
+        source_root: &Path,
+        locale: &str,
+        capture: Option<&crate::source_fingerprint::SourceCapture>,
+    ) -> Result<Self, IngestError> {
         if locale.is_empty()
             || !locale
                 .bytes()
@@ -23,11 +30,12 @@ impl LocalizationCatalog {
             ));
         }
         let directory = source_root.join("static/lang");
-        let (mut entries, english_sha256) = load_catalog(&directory.join("en.json"))?;
+        let (mut entries, english_sha256) = load_catalog(&directory.join("en.json"), capture)?;
         let locale_sha256 = if locale == "en" {
             english_sha256.clone()
         } else {
-            let (selected, hash) = load_catalog(&directory.join(format!("{locale}.json")))?;
+            let (selected, hash) =
+                load_catalog(&directory.join(format!("{locale}.json")), capture)?;
             entries.extend(selected);
             hash
         };
@@ -94,9 +102,15 @@ pub(crate) fn used_trait_labels(
     }
     Ok(labels)
 }
-fn load_catalog(path: &Path) -> Result<(BTreeMap<String, String>, String), IngestError> {
-    let bytes = fs::read(path)
-        .map_err(|e| IngestError::LocalizationFailed(format!("{}: {e}", path.display())))?;
+fn load_catalog(
+    path: &Path,
+    capture: Option<&crate::source_fingerprint::SourceCapture>,
+) -> Result<(BTreeMap<String, String>, String), IngestError> {
+    let bytes = match capture {
+        Some(c) => c.read(path)?,
+        None => fs::read(path)
+            .map_err(|e| IngestError::LocalizationFailed(format!("{}: {e}", path.display())))?,
+    };
     let value: Value = serde_json::from_slice(&bytes)
         .map_err(|e| IngestError::LocalizationFailed(format!("{}: {e}", path.display())))?;
     if !value.is_object() {

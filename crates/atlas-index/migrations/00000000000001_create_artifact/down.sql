@@ -1,5 +1,9 @@
+DROP TABLE requested_reference_config;
 -- Roll back this schema only. Existing artifacts are rebuilt, never migrated between authorities.
 PRAGMA foreign_keys=OFF;
+DROP TABLE IF EXISTS embedding_checkpoints;
+DROP TABLE IF EXISTS reference_update_jobs;
+DROP TABLE IF EXISTS projection_allocations;
 DROP TABLE IF EXISTS semantic_vectors;
 DROP TABLE IF EXISTS lexical_fts;
 DROP TABLE IF EXISTS semantic_units;
@@ -37,6 +41,7 @@ DROP TABLE IF EXISTS actor_items;
 DROP TABLE IF EXISTS actor_projection;
 DROP TABLE IF EXISTS record_traits;
 DROP TABLE IF EXISTS records;
+DROP TABLE IF EXISTS record_identity;
 DROP TABLE IF EXISTS packs;
 PRAGMA foreign_keys=ON;
 PRAGMA user_version=0;

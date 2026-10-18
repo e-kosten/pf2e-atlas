@@ -8,6 +8,7 @@ use std::path::PathBuf;
 fn document(value: serde_json::Value, path: &str) -> LoadedFoundryDocument {
     let bytes = serde_json::to_vec(&value).unwrap();
     LoadedFoundryDocument {
+        reused_preparation: None,
         provenance: SourceFileProvenance {
             pack_name: "test".into(),
             document_type: "Item".into(),
@@ -43,6 +44,7 @@ fn loaded(documents: Vec<LoadedFoundryDocument>) -> LoadedFoundrySource {
 }
 fn context() -> SourceEnrichmentContext<'static> {
     SourceEnrichmentContext {
+        preparation_context_hash: None,
         audience: ContentAudience {
             include_gm: false,
             include_owner: false,

@@ -20,16 +20,32 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
         },
     })
     .map_err(|e| e.to_string())?;
+    let configuration = runtime.configure_reference_build(
+        &atlas_runtime::RuntimeSetupOptions {
+            target: if options.no_embeddings {
+                SetupTarget::Records
+            } else {
+                SetupTarget::Full
+            },
+            locale: options.locale,
+            search_profiles: options.search_profiles,
+            ..Default::default()
+        },
+        options.manifest.as_deref(),
+    )?;
     let paths = runtime.paths();
-    let report = build_artifact(BuildArtifactOptions {
-        source_root: paths.source_root.clone(),
-        output_path: paths.index_path.clone(),
-        manifest_path: options.manifest,
-        locale: options.locale,
-        search_profiles: if options.no_embeddings {
-            vec![]
-        } else {
-            crate::cli::args::selected_search_profiles(options.search_profiles)
+    let workspace =
+        atlas_runtime::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
+    let report = build_artifact(
+        &workspace,
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        BuildArtifactOptions {
+            source_root: configuration.source_root,
+            output_path: paths.index_path.clone(),
+            manifest_path: configuration.manifest_path,
+            locale: configuration.indexing_locale,
+            search_profiles: configuration
+                .search_profiles
                 .into_iter()
                 .map(|id| {
                     atlas_embedding::search_profile(&id)
@@ -38,11 +54,11 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
                         })
                         .map_err(|e| e.to_string())
                 })
-                .collect::<Result<Vec<_>, _>>()?
+                .collect::<Result<Vec<_>, _>>()?,
+            reuse_embeddings: !options.no_reuse_embeddings,
+            embedding_batch_size: options.embedding_batch_size,
         },
-        reuse_embeddings: !options.no_reuse_embeddings,
-        embedding_batch_size: options.embedding_batch_size,
-    })
+    )
     .map_err(|e| e.to_string())?;
     if options.json {
         write_json_data(

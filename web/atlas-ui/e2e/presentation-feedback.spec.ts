@@ -107,7 +107,7 @@ test("owned reference return retains Similar, canonical filters, selected result
   const filter = {
     kind: "in" as const,
     clause_id: "hazard-kind",
-    field: "record.kind",
+    field: "kind",
     values: ["hazard"],
   };
   const params = new URLSearchParams({

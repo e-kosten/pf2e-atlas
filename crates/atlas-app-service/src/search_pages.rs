@@ -16,7 +16,41 @@ impl AtlasAppService {
         execution.check()?;
         let page = SearchPage::new(request.page.number, request.page.size)?;
         let projection_execution = execution.clone();
-        self.with_retrieval(execution, move |retrieval| {
+        let prepared = if let SearchCriteria::TextSearch {
+            query,
+            filter,
+            mode,
+        } = &request.criteria
+        {
+            let expected = request.expected_artifact_generation.clone();
+            let filter = filter.clone();
+            self.with_retrieval(execution, move |r| {
+                let actual = r.artifact_generation()?;
+                if let Some(expected) = expected
+                    && expected != actual
+                {
+                    return Err(AppServiceError::artifact_generation_changed(
+                        &expected,
+                        &actual,
+                        AppRecoverableAction::RefreshResults,
+                    ));
+                }
+                if let Some(filter) = filter {
+                    r.validate_filter(&filter)?;
+                }
+                Ok(())
+            })?;
+            self.prepare_query(
+                request.search_profile.as_ref(),
+                query,
+                retrieval_mode(*mode),
+            )?
+        } else {
+            None
+        };
+        execution.check()?;
+        self.with_prepared_workspace(execution, prepared, move |workspace| {
+            let retrieval = workspace.retrieval_mut();
             let artifact_generation = retrieval.artifact_generation()?;
             if let Some(expected) = &request.expected_artifact_generation
                 && expected != &artifact_generation

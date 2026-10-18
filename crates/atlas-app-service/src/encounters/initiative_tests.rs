@@ -75,14 +75,31 @@ fn changed_generation_rejects_without_mutation_and_saved_receipt_recovers() {
     let a = fixture("a");
     let key = encounter(&a);
     let original = request(a.worker.encounter_initiative_options(&key).unwrap());
-    let mut b = fixture("b");
-    b.worker.local_state_path = a.worker.local_state_path().to_path_buf();
+    let b = &a;
+    let mut changed = input(
+        vec![record(
+            "actors",
+            "Actor",
+            json!({
+                "_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Guard","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"hp":{"max":60}},"perception":{"mod":13},"abilities":{"dex":{"mod":3}},"skills":{}}
+            }),
+        )],
+        false,
+    );
+    changed.context.source_revision = Some("b".into());
+    let hash = changed.context.preparation_sha256().unwrap();
+    for record in &mut changed.records {
+        record.preparation_context_hash = hash.clone();
+    }
+    atlas_search::test_support::publish_input(a.worker.workspace_path(), &changed).unwrap();
     let before = b
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&key)?)
+        })
         .unwrap()
         .unwrap();
     let error = b
@@ -93,25 +110,35 @@ fn changed_generation_rejects_without_mutation_and_saved_receipt_recovers() {
     assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
     let after = b
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&key)?)
+        })
         .unwrap()
         .unwrap();
     assert_eq!(
         serde_json::to_value(before).unwrap(),
         serde_json::to_value(after).unwrap()
     );
+    let current = request(a.worker.encounter_initiative_options(&key).unwrap());
     let saved = a
         .worker
-        .roll_encounter_initiative(&key, original.clone())
+        .roll_encounter_initiative(&key, current.clone())
         .unwrap();
+    changed.context.source_revision = Some("c".into());
+    let hash = changed.context.preparation_sha256().unwrap();
+    for record in &mut changed.records {
+        record.preparation_context_hash = hash.clone();
+    }
+    atlas_search::test_support::publish_input(a.worker.workspace_path(), &changed).unwrap();
     assert_eq!(
-        b.worker.roll_encounter_initiative(&key, original).unwrap(),
+        a.worker.roll_encounter_initiative(&key, current).unwrap(),
         saved
     );
 }
+
 #[test]
 fn unlisted_npc_skill_uses_ability_and_condition_before_roll() {
     let f = fixture("a");
@@ -127,17 +154,18 @@ fn unlisted_npc_skill_uses_ability_and_condition_before_roll() {
     };
     assert_eq!(stealth(&initial), 3);
     f.worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .add_condition(atlas_local_state::AddEncounterParticipantCondition {
-            participant_key: initial.participants[0].participant_key.clone(),
-            condition_key: Some("conditionitems:TBSHQspnbcqxsmjL".into()),
-            name: "Frightened".into(),
-            value: Some(2),
-            source_participant_key: None,
-            duration: None,
-            note: None,
+        .with_write(|session| {
+            Ok(session.local_state().encounters().add_condition(
+                atlas_local_state::AddEncounterParticipantCondition {
+                    participant_key: initial.participants[0].participant_key.clone(),
+                    condition_key: Some("conditionitems:TBSHQspnbcqxsmjL".into()),
+                    name: "Frightened".into(),
+                    value: Some(2),
+                    source_participant_key: None,
+                    duration: None,
+                    note: None,
+                },
+            )?)
         })
         .unwrap();
     let current = f.worker.encounter_initiative_options(&key).unwrap();
@@ -227,7 +255,14 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
         modifier_override: None,
         roll_kind: StrikeRollKind::Damage,
     };
-    let result = f.worker.roll_encounter_strike(&key, request).unwrap();
+    let result = f
+        .worker
+        .roll_encounter_strike(&key, request.clone())
+        .unwrap();
     assert_eq!(result.damage_total, Some(5));
     assert_eq!(result.persistent_total, Some(2));
+
+    atlas_search::test_support::invalidate_reference(f.worker.workspace_path()).unwrap();
+    let recovered = f.worker.roll_encounter_strike(&key, request).unwrap();
+    assert_eq!(recovered, result);
 }

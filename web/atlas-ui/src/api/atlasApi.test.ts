@@ -524,7 +524,7 @@ describe("source-backed API transport", () => {
           expected_artifact_generation: null,
           criteria: {
             kind: "list_records",
-            filter: { kind: "compare", field: "actor.level", op: "eq", value },
+            filter: { kind: "compare", field: "level", op: "eq", value },
           },
           page: { number: 1, size: 25 },
         }),
@@ -671,7 +671,7 @@ describe("source-backed API transport", () => {
         mode: "lexical" as const,
         filter: {
           kind: "compare" as const,
-          field: "actor.level",
+          field: "level",
           op: "gte" as const,
           value: 0,
         },
@@ -734,7 +734,7 @@ describe("source-backed API transport", () => {
     expect(result.outcome.value.options[0].distinct_roots).toBe(4n);
     expect(result.outcome.value.total_values).toBe(1n);
     respond({
-      catalog_version: 1,
+      catalog_version: 4,
       limits: { source_bytes: 16384, nodes: 256, depth: 32, literal_list: 128 },
       groups: [],
     });
@@ -742,14 +742,14 @@ describe("source-backed API transport", () => {
       await discoverFilterEditor({
         selected_field_ids: [],
       }),
-    ).toMatchObject({ catalog_version: 1 });
+    ).toMatchObject({ catalog_version: 4 });
   });
   it("preserves useful saved-list CRUD requests", async () => {
     respond({ items: [] });
     await createSavedList({ slug: "research", name: "Research", tags: [] });
     await filterSavedList({
       list_ref: "Research",
-      filter: { kind: "state_match", field: "actor.level", state: "missing" },
+      filter: { kind: "state_match", field: "level", state: "missing" },
     });
     await deleteSavedList("Research");
     expect(fetchMock.mock.calls.map((c) => c[1].method)).toEqual([

@@ -1,10 +1,10 @@
-//! Complete temporary artifact builds, validated before atomic publication.
+//! Incremental reference publication on the caller-owned workspace transaction.
 use crate::{
     IndexBuildInput, IndexError, SourceArtifactBuildContext, SourceSearchProfileIdentity,
     codec::{checked_hash, gzip, sha256},
     input::*,
-    persistence::{ProjectionRow, execute, writable},
-    projections::{ProjectionIds, root_rows},
+    persistence::{ProjectionRow, execute},
+    projections::root_rows,
 };
 use atlas_domain::RecordKey;
 use atlas_foundry_model::{SNAPSHOT_VERSION, SOURCE_CONTRACT_ID, encode_snapshot};
@@ -16,70 +16,59 @@ use atlas_record::{
     },
     source_record::{FieldAvailability, SourceContentStatus},
 };
-use diesel::{Connection, ExpressionMethods, RunQueryDsl, connection::SimpleConnection};
 use rusqlite::types::Value;
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use rusqlite::{Connection, OptionalExtension};
+use std::{collections::BTreeMap, path::Path};
 
-pub struct SqliteIndexWriter {
-    path: PathBuf,
+pub struct SqliteIndexWriter<'a, 'owner> {
+    maintenance: &'a atlas_storage::MaintenanceSession<'owner>,
 }
 pub trait IndexArtifactWriter {
     fn output_path(&self) -> &Path;
     fn write(&self, input: &IndexBuildInput)
     -> Result<crate::ArtifactValidationReport, IndexError>;
 }
-impl SqliteIndexWriter {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into() }
+impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
+    pub fn new(maintenance: &'a atlas_storage::MaintenanceSession<'owner>) -> Self {
+        Self { maintenance }
+    }
+    pub fn write_job(
+        &self,
+        input: &IndexBuildInput,
+        job: &str,
+        target_hash: &str,
+    ) -> Result<crate::ArtifactValidationReport, IndexError> {
+        validate_input(input)?;
+        if input.context.sha256()? != target_hash {
+            return Err(IndexError::Invalid(
+                "publication input differs from update job target".into(),
+            ));
+        }
+        self.maintenance.publish(|connection| {
+            connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
+            write_rows(connection, input)?;
+            let report = crate::validation::validate_reference(connection)?;
+            crate::embedding_checkpoints::finish_reference_job(connection, job, target_hash)?;
+            Ok(report)
+        })
     }
 }
-impl IndexArtifactWriter for SqliteIndexWriter {
+impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
     fn output_path(&self) -> &Path {
-        &self.path
+        self.maintenance.path()
     }
     fn write(
         &self,
         input: &IndexBuildInput,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
         validate_input(input)?;
-        if !input.context.search_profiles.is_empty() {
-            atlas_sqlite_vec::register_sqlite_vec_auto_extension()
-                .map_err(|e| IndexError::Operation(e.to_string()))?;
-        }
-        let parent = self
-            .path
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."));
-        std::fs::create_dir_all(parent)?;
-        let temporary = tempfile::NamedTempFile::new_in(parent)?;
-        let mut c = writable(temporary.path())?;
-        c.transaction::<_, IndexError, _>(|c| {
-            c.batch_execute(include_str!(
-                "../migrations/00000000000001_create_artifact/up.sql"
-            ))?;
-            c.batch_execute(&format!("PRAGMA user_version={ARTIFACT_FORMAT_VERSION}"))?;
-            write_rows(c, input)?;
-            c.batch_execute("INSERT INTO lexical_fts(lexical_fts) VALUES('rebuild');")?;
-            Ok(())
-        })?;
-        drop(c);
-        tracing::info!(target:"atlas_progress",phase="artifact_validation","Validating completed temporary artifact; remaining duration unknown");
-        let report = crate::validation::validate_artifact(temporary.path())?;
-        temporary.as_file().sync_all()?;
-        tracing::info!(target:"atlas_progress",phase="artifact_publication",current=0u64,total=1u64,"Atomically publishing validated artifact");
-        temporary
-            .persist(&self.path)
-            .map_err(|e| IndexError::Operation(format!("cannot atomically publish artifact (it may be in use); prior artifact preserved: {e}")))?;
-        #[cfg(unix)]
-        {
-            std::fs::File::open(parent)?.sync_all()?;
-        }
-        tracing::info!(target:"atlas_progress",phase="artifact_publication",current=1u64,total=1u64,"Validated artifact published");
-        Ok(report)
+        self.maintenance.publish(|connection| {
+            // Cross-root edges may temporarily point at a root being replaced.
+            // Validation and commit both require every final reference to exist.
+            connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
+            write_rows(connection, input)?;
+            crate::validation::validate_reference(connection)
+        })
     }
 }
 impl SourceSearchProfileIdentity {
@@ -168,7 +157,7 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
         let spec = atlas_embedding::search_profile(&profile.profile_id)
             .map_err(|e| IndexError::Unsupported(e.to_string()))?;
         if profile.model_id != spec.model_spec().model_id
-            || profile.dimensions != 768
+            || profile.dimensions != spec.model_spec().dimensions
             || profile.token_limit == 0
             || profile.token_limit > 32768
             || profile.assets.is_empty()
@@ -291,13 +280,13 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
     }
     Ok(())
 }
-fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Result<(), IndexError> {
+fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
     let mut canonical = input.context.clone();
     canonical.search_profiles = input.context.canonical_profiles()?;
     let json = serde_json::to_string(&canonical)?;
     execute(
         c,
-        "INSERT INTO artifact_context(singleton,format_version,context_hash,context_json) VALUES(1,?,?,?)",
+        "INSERT INTO artifact_context(singleton,format_version,context_hash,context_json) VALUES(1,?,?,?) ON CONFLICT(singleton) DO UPDATE SET format_version=excluded.format_version,context_hash=excluded.context_hash,context_json=excluded.context_json WHERE context_hash<>excluded.context_hash",
         &[
             Value::Integer(i64::from(ARTIFACT_FORMAT_VERSION)),
             Value::Text(sha256(json.as_bytes())),
@@ -308,48 +297,88 @@ fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Resu
         let mut r = ProjectionRow::new("packs");
         r.text("pack_id", &pack.pack_id);
         r.text("label", &pack.label);
-        r.insert(c)?;
+        crate::publication_delta::upsert(c, &r, "pack_id")?;
     }
     let root_ids = input
         .records
         .iter()
-        .enumerate()
-        .map(|(i, r)| {
+        .map(|r| {
+            let name = match atlas_record::source_record::SourceNodeView::from(r.record.source())
+                .name()
+            {
+                atlas_record::source_record::SourceFieldView::Value(name) => Some(name.as_str()),
+                _ => None,
+            };
             Ok((
                 r.record.key().clone(),
-                i64::try_from(i + 1).map_err(|e| IndexError::Invalid(e.to_string()))?,
+                crate::identity::retain_source(c, r.record.key(), name)?,
             ))
         })
         .collect::<Result<BTreeMap<_, _>, IndexError>>()?;
+    let product_ids = input
+        .records
+        .iter()
+        .filter(|source| {
+            !matches!(
+                source.record.source(),
+                atlas_foundry_model::FoundryDocumentSource::Macro(_)
+            )
+        })
+        .map(|source| (source.record.key().clone(), root_ids[source.record.key()]))
+        .collect::<BTreeMap<_, _>>();
     let pack_labels = input
         .packs
         .iter()
         .map(|p| (p.pack_id.as_str(), p.label.as_str()))
         .collect::<BTreeMap<_, _>>();
-    let mut ids = ProjectionIds::default();
+    let mut changed = std::collections::BTreeSet::new();
+    let mut live = std::collections::BTreeSet::new();
     for (ordinal, source) in input.records.iter().enumerate() {
         let id = id_for(&root_ids, source.record.key())?;
         let label = pack_labels
             .get(source.record.key().pack().as_str())
             .ok_or_else(|| IndexError::Invalid("missing pack label".into()))?;
+        live.insert(id);
+        let digest = crate::publication_delta::root_digest(source, label)?;
+        let previous: Option<String> = c
+            .query_row(
+                "SELECT input_hash FROM projection_allocations WHERE record_id=?",
+                [id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let exists: bool = c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM records WHERE record_id=?)",
+            [id],
+            |r| r.get(0),
+        )?;
+        if exists && previous.as_deref() == Some(&digest) {
+            continue;
+        }
+        changed.insert(id);
+        crate::publication_delta::clear_root_derived(c, id)?;
+        let mut ids = crate::publication_delta::allocate(c, source, label, id, &digest)?;
         for row in root_rows(source, label, id, &mut ids)? {
-            row.insert(c)?;
+            if row.table == "records" {
+                crate::publication_delta::upsert(c, &row, "record_id")?;
+            } else {
+                row.insert(c)?;
+            }
         }
         let bytes = gzip(&encode_snapshot(source.record.source())?)?;
-        diesel::insert_into(crate::schema::record_bodies::table)
-            .values((
-                crate::schema::record_bodies::record_id.eq(id),
-                crate::schema::record_bodies::codec_version.eq(i64::from(SNAPSHOT_VERSION)),
-                crate::schema::record_bodies::encoding.eq("gzip6"),
-                crate::schema::record_bodies::snapshot.eq(bytes),
-            ))
-            .execute(c)?;
+        c.execute(
+            "INSERT INTO record_bodies(record_id,codec_version,encoding,snapshot) VALUES(?,?,?,?)",
+            rusqlite::params![id, i64::from(SNAPSHOT_VERSION), "gzip6", bytes],
+        )?;
         if (ordinal + 1).is_multiple_of(500) || ordinal + 1 == input.records.len() {
             tracing::info!(target:"atlas_progress",phase="artifact_snapshots",current=(ordinal+1) as u64,total=input.records.len() as u64,"Writing shared record snapshots");
         }
     }
     for (record_ordinal, source) in input.records.iter().enumerate() {
         let id = id_for(&root_ids, source.record.key())?;
+        if !changed.contains(&id) {
+            continue;
+        }
         write_content(c, source, id, &root_ids, input.context.audience)?;
         for (ordinal, relationship) in source.relationships.iter().enumerate() {
             if relationship.locator.record != *source.record.key()
@@ -394,152 +423,30 @@ fn write_rows(c: &mut diesel::SqliteConnection, input: &IndexBuildInput) -> Resu
             tracing::info!(target:"atlas_progress",phase="artifact_content",current=(record_ordinal+1) as u64,total=input.records.len() as u64,"Writing shared content and relationships");
         }
     }
-    for alias in &input.aliases {
-        if alias.alias.trim().is_empty() || alias.evidence.trim().is_empty() {
-            return Err(IndexError::Invalid(
-                "alias needs authored text and explicit evidence".into(),
-            ));
+    crate::publication_delta::aliases(c, input, &product_ids)?;
+    let definitions = crate::query::query_capabilities()?.fields;
+    let existing = c
+        .prepare("SELECT field FROM query_field_catalog")?
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for field in existing {
+        if !definitions.iter().any(|definition| definition.id == field) {
+            c.execute("DELETE FROM query_field_catalog WHERE field=?", [field])?;
         }
-        let id = product_id(input, &root_ids, &alias.record)?;
-        let mut r = ProjectionRow::new("verified_aliases");
-        r.id("record_id", id);
-        r.text("alias", &alias.alias);
-        r.text(
-            "alias_lookup_key",
-            atlas_domain::normalize_record_name(&alias.alias),
-        );
-        r.text("evidence_json", serde_json::to_string(&alias.evidence)?);
-        r.insert(c)?;
     }
-    for pair in &input.remaster_pairs {
-        let mut r = ProjectionRow::new("remaster_pairs");
-        r.id(
-            "legacy_record_id",
-            product_id(input, &root_ids, &pair.legacy)?,
-        );
-        r.id(
-            "remaster_record_id",
-            product_id(input, &root_ids, &pair.remaster)?,
-        );
-        if pair.evidence.trim().is_empty() {
-            return Err(IndexError::Invalid("remaster pair has no evidence".into()));
-        }
-        r.text("evidence_json", serde_json::to_string(&pair.evidence)?);
-        r.insert(c)?;
-    }
-    for definition in crate::query::query_capabilities()?.fields {
+    for definition in definitions {
         let mut r = ProjectionRow::new("query_field_catalog");
         r.text("field", &definition.id);
         r.text("definition_json", serde_json::to_string(&definition)?);
-        r.insert(c)?;
+        crate::publication_delta::upsert(c, &r, "field")?;
     }
-    for (i, unit) in input.lexical_units.iter().enumerate() {
-        let id = product_id(input, &root_ids, &unit.record)?;
-        let mut r = ProjectionRow::new("lexical_units");
-        r.id("unit_id", (i + 1) as i64);
-        r.id("record_id", id);
-        r.text("owners_json", serde_json::to_string(&unit.owners)?);
-        r.push(
-            "field_path",
-            unit.field
-                .as_ref()
-                .map(|s| Value::Text(s.clone()))
-                .unwrap_or(Value::Null),
-        );
-        r.push(
-            "section_json",
-            unit.address
-                .as_ref()
-                .map(serde_json::to_string)
-                .transpose()?
-                .map(Value::Text)
-                .unwrap_or(Value::Null),
-        );
-        r.text("unit_kind", unit.kind.as_str());
-        r.text("identity_terms", &unit.identity_terms);
-        r.text("alias_terms", &unit.alias_terms);
-        r.text("structured_terms", &unit.structured_terms);
-        r.text("definition_terms", &unit.definition_terms);
-        r.insert(c)?;
-    }
-    if !input.context.search_profiles.is_empty() {
-        for model in input.context.canonical_profiles()? {
-            let mut r = ProjectionRow::new("search_profiles");
-            r.text("profile_id", model.profile_id.as_str());
-            r.text("identity_json", serde_json::to_string(&model)?);
-            r.id("dimensions", model.dimensions as i64);
-            r.insert(c)?;
-        }
-        c.batch_execute("CREATE VIRTUAL TABLE semantic_vectors USING vec0(unit_id INTEGER PRIMARY KEY,embedding FLOAT[768] distance_metric=cosine);")?;
-        let mut profile_totals = input
-            .context
-            .search_profiles
-            .iter()
-            .map(|p| {
-                (
-                    p.profile_id.clone(),
-                    (
-                        0usize,
-                        input
-                            .semantic_units
-                            .iter()
-                            .filter(|unit| unit.profile_id == p.profile_id)
-                            .count(),
-                    ),
-                )
-            })
-            .collect::<BTreeMap<_, _>>();
-        for (i, unit) in input.semantic_units.iter().enumerate() {
-            let model = input.context.search_profile(&unit.profile_id)?;
-            crate::validation::check_vector(&unit.vector, model.dimensions)?;
-            let mut r = ProjectionRow::new("semantic_units");
-            r.id("unit_id", (i + 1) as i64);
-            r.id("record_id", product_id(input, &root_ids, &unit.record)?);
-            r.text("profile_id", unit.profile_id.as_str());
-            r.text("owners_json", serde_json::to_string(&unit.owners)?);
-            r.push(
-                "field_path",
-                unit.field
-                    .as_ref()
-                    .map(|s| Value::Text(s.clone()))
-                    .unwrap_or(Value::Null),
-            );
-            r.text("section_json", serde_json::to_string(&unit.address)?);
-            r.text(
-                "unit_kind",
-                if matches!(
-                    unit.address,
-                    atlas_domain::SourcePassageAddress::Identity {}
-                ) {
-                    "identity"
-                } else {
-                    "passage"
-                },
-            );
-            r.id("chunk_ordinal", unit.chunk_ordinal as i64);
-            r.id("input_token_count", unit.input_token_count as i64);
-            r.text("input_hash", &unit.input_hash);
-            r.insert(c)?;
-            execute(
-                c,
-                "INSERT INTO semantic_vectors(unit_id,embedding) VALUES(?,?)",
-                &[
-                    Value::Integer((i + 1) as i64),
-                    Value::Blob(crate::read_units::vector_bytes(&unit.vector)),
-                ],
-            )?;
-            let (current, total) = profile_totals.get_mut(&unit.profile_id).ok_or_else(|| {
-                IndexError::Invalid("vector profile has no publication total".into())
-            })?;
-            *current += 1;
-            if current.is_multiple_of(1000) || current == total {
-                let label = atlas_embedding::search_profile(&unit.profile_id)
-                    .map(|profile| profile.label)
-                    .unwrap_or(unit.profile_id.as_str());
-                tracing::info!(target:"atlas_progress",phase=%format!("{}:artifact_vectors",unit.profile_id),current=*current as u64,total=*total as u64,"{} [{}]: writing semantic vector occurrences",label,unit.profile_id);
-            }
-        }
-    }
+    crate::publication_delta::search_units(c, input, &product_ids)?;
+    crate::publication_delta::remove_absent_roots(c, &live)?;
+    c.execute(
+        "DELETE FROM packs WHERE pack_id NOT IN (SELECT pack_id FROM records)",
+        [],
+    )?;
+
     Ok(())
 }
 fn id_for(ids: &BTreeMap<RecordKey, i64>, key: &RecordKey) -> Result<i64, IndexError> {
@@ -547,22 +454,15 @@ fn id_for(ids: &BTreeMap<RecordKey, i64>, key: &RecordKey) -> Result<i64, IndexE
         .copied()
         .ok_or_else(|| IndexError::Invalid(format!("referenced root is absent: {key}")))
 }
-fn product_id(
-    input: &IndexBuildInput,
+pub(crate) fn product_id(
     ids: &BTreeMap<RecordKey, i64>,
     key: &RecordKey,
 ) -> Result<i64, IndexError> {
-    let id = id_for(ids, key)?;
-    let index = usize::try_from(id - 1).map_err(|e| IndexError::Invalid(e.to_string()))?;
-    if matches!(
-        input.records[index].record.source(),
-        atlas_foundry_model::FoundryDocumentSource::Macro(_)
-    ) {
-        return Err(IndexError::Invalid(
-            "Macro cannot be a product identity/search unit".into(),
-        ));
-    }
-    Ok(id)
+    ids.get(key).copied().ok_or_else(|| {
+        IndexError::Invalid(format!(
+            "referenced product root is absent or excluded: {key}"
+        ))
+    })
 }
 pub(crate) fn permits(a: ContentAudience, v: ContentVisibilityRule) -> bool {
     match v {
@@ -573,7 +473,7 @@ pub(crate) fn permits(a: ContentAudience, v: ContentVisibilityRule) -> bool {
     }
 }
 fn write_content(
-    c: &mut diesel::SqliteConnection,
+    c: &Connection,
     source: &SourceArtifactRecordInput,
     id: i64,
     ids: &BTreeMap<RecordKey, i64>,
@@ -593,12 +493,16 @@ fn write_content(
             .ok_or_else(|| {
                 IndexError::Invalid("prepared cache has no selected authored field".into())
             })?;
-        if !matches!(outcome.visibility_availability, FieldAvailability::Value)
-            || !permits(audience, outcome.visibility)
-        {
-            continue;
-        }
+        let published = matches!(outcome.visibility_availability, FieldAvailability::Value)
+            && permits(audience, outcome.visibility);
         let mut r = ProjectionRow::new("prepared_content");
+        r.id("published", i64::from(published));
+        r.text(
+            "metadata_json",
+            serde_json::to_string(&crate::persisted_inputs::PreparationMetadata::from_outcome(
+                outcome,
+            ))?,
+        );
         r.id("record_id", id);
         r.text("owners_json", serde_json::to_string(&locator.owners)?);
         r.text("field_path", &locator.field);
@@ -631,7 +535,7 @@ fn write_content(
                 )
                 .map_err(|e| IndexError::Invalid(e.to_string()))?;
                 for reference in &prepared.references {
-                    if reference.visible {
+                    if reference.visible && published {
                         let kind = match reference.kind {
                             ContentReferenceKind::Uuid => "uuid",
                             ContentReferenceKind::Compendium => "compendium",
@@ -660,11 +564,12 @@ fn write_content(
                         )?;
                     }
                 }
-                for diagnostic in &prepared.diagnostics {
+                for diagnostic in prepared.diagnostics.iter().filter(|_| published) {
                     write_diagnostic(
                         c,
                         id,
                         &SourceArtifactDiagnostic {
+                            source_diagnostic: None,
                             owners: Some(locator.owners.clone()),
                             field: Some(locator.field.clone()),
                             stage: "preparation".into(),
@@ -694,11 +599,12 @@ fn write_content(
             }
         };
         r.text("outcome", status);
-        if !matches!(status, "prepared" | "empty") {
+        if published && !matches!(status, "prepared" | "empty") {
             write_diagnostic(
                 c,
                 id,
                 &SourceArtifactDiagnostic {
+                    source_diagnostic: None,
                     owners: Some(locator.owners.clone()),
                     field: Some(locator.field.clone()),
                     stage: "preparation".into(),
@@ -726,8 +632,8 @@ fn write_content(
     }
     Ok(())
 }
-fn write_diagnostic(
-    c: &mut diesel::SqliteConnection,
+pub(crate) fn write_diagnostic(
+    c: &Connection,
     id: i64,
     d: &SourceArtifactDiagnostic,
 ) -> Result<(), IndexError> {
@@ -753,6 +659,7 @@ fn write_diagnostic(
     r.text(
         "details_json",
         serde_json::to_string(&crate::read_content::DiagnosticDetails {
+            source_diagnostic: d.source_diagnostic.clone(),
             code: d.code.clone(),
             message: d.message.clone(),
         })?,
@@ -760,7 +667,7 @@ fn write_diagnostic(
     r.insert(c)
 }
 fn write_relationship(
-    c: &mut diesel::SqliteConnection,
+    c: &Connection,
     id: i64,
     occurrence: &SourceStoredRelationship,
     ids: &BTreeMap<RecordKey, i64>,

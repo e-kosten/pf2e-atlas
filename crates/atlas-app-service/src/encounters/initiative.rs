@@ -10,12 +10,32 @@ impl AtlasAppService {
         &self,
         encounter_ref: &str,
     ) -> AppServiceResult<InitiativeOptionsView> {
-        let store = self.local_state_store()?;
-        let snapshot = store
-            .encounters()
-            .get_with_participants(encounter_ref)?
-            .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-        options(self, &snapshot)
+        let initial = self.with_state(|session| {
+            session
+                .local_state()
+                .encounters()
+                .get_with_participants(encounter_ref)?
+                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))
+        })?;
+        if !initial.participants.iter().any(|p| {
+            p.record_key
+                .as_deref()
+                .is_some_and(|key| atlas_domain::RecordKey::parse(key).is_ok())
+        }) {
+            return Ok(options_with_records(&initial, None, Default::default()));
+        }
+        let encounter_ref = encounter_ref.to_owned();
+        self.with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |session| {
+                let snapshot = session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(&encounter_ref)?
+                    .ok_or_else(|| super::projection::encounter_not_found(&encounter_ref))?;
+                options(session.retrieval_mut(), &snapshot)
+            },
+        )
     }
 
     pub fn roll_encounter_initiative(
@@ -23,44 +43,47 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: RollInitiativeRequest,
     ) -> AppServiceResult<InitiativeRollView> {
-        let store = self.local_state_store()?;
-        let encounter = store
-            .encounters()
-            .get(encounter_ref)?
-            .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-        let key = &encounter.encounter_key;
         let intent = serde_json::to_value(&request)
             .map_err(|e| AppServiceError::invalid_request(e.to_string()))?;
-        if let Some(receipt) =
-            store
-                .encounters()
-                .initiative_roll_receipt(key, &request.request_id, &intent)?
-        {
+        let (encounter, recovered) = self.with_state(|session| {
+            let encounters = session.local_state().encounters();
+            let encounter = encounters
+                .get(encounter_ref)?
+                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
+            let recovered = encounters.initiative_roll_receipt(
+                &encounter.encounter_key,
+                &request.request_id,
+                &intent,
+            )?;
+            Ok((encounter, recovered))
+        })?;
+        if let Some(receipt) = recovered {
             return Ok(receipt_view(receipt));
         }
+        let key = &encounter.encounter_key;
         if request.participants.is_empty() || request.participants.len() > 200 {
             return Err(AppServiceError::invalid_request(
                 "Select between 1 and 200 participants",
             ));
         }
-        let snapshot = store
-            .encounters()
-            .get_with_participants(key)?
-            .ok_or_else(|| super::projection::encounter_not_found(key))?;
         let needs_source = request
             .participants
             .iter()
             .any(|p| p.modifier_override.is_none());
-        if snapshot.encounter.revision != request.expected_revision {
-            return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
-                encounter_key: key.clone(),
-                expected_revision: request.expected_revision,
-                actual_revision: snapshot.encounter.revision,
-            }
-            .into());
-        }
-        let choices = if needs_source {
-            let current = options(self, &snapshot)?;
+        let (choices, reference_revision) = if needs_source {
+            let key = key.clone();
+            let (current, revision) = self.with_workspace(
+                &crate::ReadExecutionContext::uncancellable(),
+                move |session| {
+                    let snapshot = session
+                        .local_state()
+                        .encounters()
+                        .get_with_participants(&key)?
+                        .ok_or_else(|| super::projection::encounter_not_found(&key))?;
+                    let choices = options(session.retrieval_mut(), &snapshot)?;
+                    Ok((choices, session.reference_revision()?))
+                },
+            )?;
             if current.artifact_generation != request.artifact_generation {
                 return Err(AppServiceError::artifact_generation_changed(
                     request.artifact_generation.as_deref().unwrap_or(""),
@@ -68,9 +91,9 @@ impl AtlasAppService {
                     atlas_app_model::AppRecoverableAction::ReloadRecord,
                 ));
             }
-            Some(current)
+            (Some(current), Some(revision))
         } else {
-            None
+            (None, None)
         };
         let mut resolved = Vec::with_capacity(request.participants.len());
         for input in &request.participants {
@@ -114,22 +137,41 @@ impl AtlasAppService {
                 formula: format!("{dice}{modifier:+}"),
             });
         }
-        Ok(receipt_view(store.encounters().roll_initiative(
-            key,
-            &request.request_id,
-            &intent,
-            request.expected_revision,
-            &resolved,
-        )?))
+        self.with_write(|session| {
+            let encounters = session.local_state().encounters();
+            if let Some(receipt) =
+                encounters.initiative_roll_receipt(key, &request.request_id, &intent)?
+            {
+                return Ok(receipt_view(receipt));
+            }
+            if let Some(revision) = reference_revision {
+                session.require_reference_revision(revision)?;
+            }
+            Ok(receipt_view(encounters.roll_initiative(
+                key,
+                &request.request_id,
+                &intent,
+                request.expected_revision,
+                &resolved,
+            )?))
+        })
     }
 }
 
 fn options(
-    service: &AtlasAppService,
+    retrieval: &mut atlas_search::AtlasRetrievalService,
     snapshot: &EncounterWithParticipants,
 ) -> AppServiceResult<InitiativeOptionsView> {
     let (artifact_generation, records) =
-        super::hydration::hydrate_participant_records(service, &snapshot.participants)?;
+        super::hydration::hydrate_participant_records(retrieval, &snapshot.participants)?;
+    Ok(options_with_records(snapshot, artifact_generation, records))
+}
+
+fn options_with_records(
+    snapshot: &EncounterWithParticipants,
+    artifact_generation: Option<String>,
+    records: std::collections::BTreeMap<String, super::hydration::HydratedParticipantRecord>,
+) -> InitiativeOptionsView {
     let participants = snapshot
         .participants
         .iter()
@@ -188,12 +230,12 @@ fn options(
             }
         })
         .collect();
-    Ok(InitiativeOptionsView {
+    InitiativeOptionsView {
         artifact_generation,
         encounter_key: snapshot.encounter.encounter_key.clone(),
         expected_revision: snapshot.encounter.revision,
         participants,
-    })
+    }
 }
 
 // PF2e NPC.prepareDerivedData: an unlisted skill uses its ability modifier.

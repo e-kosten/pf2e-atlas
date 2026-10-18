@@ -65,7 +65,7 @@ describe("workspaceInteractionReducer", () => {
       filter: {
         kind: "in" as const,
         clause_id: "kind",
-        field: "record.kind",
+        field: "kind",
         values: ["creature"],
       },
     };
@@ -113,7 +113,7 @@ function baseState(
 }
 
 describe("remembered Kind default precedence", () => {
-  const field = fieldFixture("record.kind");
+  const field = fieldFixture("kind");
   const predicate = {
     kind: "all_of" as const,
     children: [

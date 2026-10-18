@@ -30,10 +30,12 @@ fn fixture() -> (FixtureWorker, String, String, String) {
     }
     let snapshot = f
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&key)?)
+        })
         .unwrap()
         .unwrap();
     let a = snapshot.participants[0].participant_key.clone();
@@ -47,17 +49,18 @@ fn add(
     duration: Option<ConditionDuration>,
 ) -> i64 {
     f.worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .add_condition(AddEncounterParticipantCondition {
-            participant_key: owner.into(),
-            condition_key: key.map(Into::into),
-            name: "Same display name".into(),
-            value: Some(2),
-            source_participant_key: None,
-            duration,
-            note: Some("table note".into()),
+        .with_write(|session| {
+            Ok(session.local_state().encounters().add_condition(
+                AddEncounterParticipantCondition {
+                    participant_key: owner.into(),
+                    condition_key: key.map(Into::into),
+                    name: "Same display name".into(),
+                    value: Some(2),
+                    source_participant_key: None,
+                    duration,
+                    note: Some("table note".into()),
+                },
+            )?)
         })
         .unwrap()
         .condition_id
@@ -74,10 +77,12 @@ fn rounds(amount: i64, anchor: Option<&str>, event: LocalEvent) -> Option<Condit
 }
 fn snapshot(f: &FixtureWorker, key: &str) -> atlas_local_state::EncounterWithParticipants {
     f.worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(key)?)
+        })
         .unwrap()
         .unwrap()
 }
@@ -215,17 +220,18 @@ fn canonical_persistent_only_owner_end_and_nonround_reminders_never_apply_hp_or_
     let (f, key, a, b) = fixture();
     let persistent = add(&f, &a, Some("conditionitems:lDVqvLKA6eF3Df60"), None);
     f.worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .add_condition(AddEncounterParticipantCondition {
-            participant_key: a.clone(),
-            condition_key: None,
-            name: "Persistent Damage".into(),
-            value: None,
-            source_participant_key: None,
-            duration: None,
-            note: None,
+        .with_write(|session| {
+            Ok(session.local_state().encounters().add_condition(
+                AddEncounterParticipantCondition {
+                    participant_key: a.clone(),
+                    condition_key: None,
+                    name: "Persistent Damage".into(),
+                    value: None,
+                    source_participant_key: None,
+                    duration: None,
+                    note: None,
+                },
+            )?)
         })
         .unwrap();
     add(
@@ -271,32 +277,39 @@ fn single_actor_has_one_end_one_start_and_no_eligible_actor_has_no_tick() {
     next(&f, &key);
     assert_eq!(amounts(&f, &key), [1, 0]);
     assert_eq!(snapshot(&f, &key).encounter.round_number, 2);
-    let store = f.worker.local_state_store().unwrap();
-    let mut row = store
-        .encounters()
-        .get_with_participants(&key)
+    let mut row = f
+        .worker
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&key)?)
+        })
         .unwrap()
         .unwrap()
         .participants
         .remove(0);
     row.initiative = None;
-    store
-        .encounters()
-        .update_participant(atlas_local_state::UpdateEncounterParticipant {
-            expected_revision: row.revision,
-            participant_key: row.participant_key,
-            hp_origin: row.hp_origin,
-            variant_origin: row.variant_origin,
-            display_name: row.display_name,
-            side: row.side,
-            participant_variant: row.participant_variant,
-            initiative: None,
-            max_hp: row.max_hp,
-            current_hp: row.current_hp,
-            temporary_hp: row.temporary_hp,
-            defeated: row.defeated,
-            hidden: row.hidden,
-            note: row.note,
+    f.worker
+        .with_write(|session| {
+            Ok(session.local_state().encounters().update_participant(
+                atlas_local_state::UpdateEncounterParticipant {
+                    expected_revision: row.revision,
+                    participant_key: row.participant_key,
+                    hp_origin: row.hp_origin,
+                    variant_origin: row.variant_origin,
+                    display_name: row.display_name,
+                    side: row.side,
+                    participant_variant: row.participant_variant,
+                    initiative: None,
+                    max_hp: row.max_hp,
+                    current_hp: row.current_hp,
+                    temporary_hp: row.temporary_hp,
+                    defeated: row.defeated,
+                    hidden: row.hidden,
+                    note: row.note,
+                },
+            )?)
         })
         .unwrap();
     next(&f, &key);
@@ -633,24 +646,25 @@ fn present_inactive_anchor_waits_until_its_actual_boundary() {
     add(&f, &a, None, rounds(3, Some(&b), LocalEvent::End));
     let row = snapshot(&f, &key).participants.remove(1);
     f.worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .update_participant(atlas_local_state::UpdateEncounterParticipant {
-            expected_revision: row.revision,
-            participant_key: row.participant_key,
-            hp_origin: row.hp_origin,
-            variant_origin: row.variant_origin,
-            display_name: row.display_name,
-            side: row.side,
-            participant_variant: row.participant_variant,
-            initiative: None,
-            max_hp: row.max_hp,
-            current_hp: row.current_hp,
-            temporary_hp: row.temporary_hp,
-            defeated: row.defeated,
-            hidden: row.hidden,
-            note: row.note,
+        .with_write(|session| {
+            Ok(session.local_state().encounters().update_participant(
+                atlas_local_state::UpdateEncounterParticipant {
+                    expected_revision: row.revision,
+                    participant_key: row.participant_key,
+                    hp_origin: row.hp_origin,
+                    variant_origin: row.variant_origin,
+                    display_name: row.display_name,
+                    side: row.side,
+                    participant_variant: row.participant_variant,
+                    initiative: None,
+                    max_hp: row.max_hp,
+                    current_hp: row.current_hp,
+                    temporary_hp: row.temporary_hp,
+                    defeated: row.defeated,
+                    hidden: row.hidden,
+                    note: row.note,
+                },
+            )?)
         })
         .unwrap();
     set(&f, &key, &a);

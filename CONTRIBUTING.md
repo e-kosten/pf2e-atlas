@@ -100,7 +100,8 @@ PF2e Atlas is a Rust workspace:
 - `crates/atlas-cli-support`: shared argument vocabulary, JSON envelopes, and progress rendering
 - `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction
 - `crates/atlas-search`: product-facing retrieval orchestration
-- `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL
+- `crates/atlas-storage`: bounded connections, process admission, migrations and backups
+- `crates/atlas-index`: reference schema, incremental publication, checkpoints, validation, row readers, filter discovery, filter compilation, and vector SQL
 - `crates/atlas-foundry-model`: generated authored DTOs, field-retaining admission and checked snapshot codecs
 - `crates/atlas-ingest`: typed Foundry loading, preparation, attributed indexing inputs, embedding execution and artifact-build composition
 - `crates/atlas-embedding`: two pinned search-profile contracts, shared BGE segmentation, native final budgets, FastEmbed inference and retained shared query sessions
@@ -108,7 +109,7 @@ PF2e Atlas is a Rust workspace:
 - `crates/atlas-domain`: shared typed query, source address, lightweight summary and canonical record-key vocabulary
 - `crates/atlas-app-service`: saved-list and encounter workflows, local overlays and consumer presentation projections
 - `crates/atlas-app-model`: generated frontend contracts for product workflows and presentation
-- `crates/atlas-local-state`: saved lists and encounters in a separate writable database
+- `crates/atlas-local-state`: saved lists, encounters and versioned receipts on caller-owned workspace sessions
 - `crates/atlas-web`: web transport and embedded frontend hosting
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing
 - `skills/pf2e-atlas-cli`: first-party local-agent skill installed by `atlas agent skills`
@@ -246,8 +247,8 @@ cargo run -p atlas-dev -- --help
 cargo run -p atlas-dev -- source load --source vendor/pf2e --json
 cargo run -p atlas-dev -- source analyze --source vendor/pf2e --json
 cargo run -p atlas-dev -- source audit-paths --source vendor/pf2e --record-type npc --json
-cargo run -p atlas-dev -- index inspect --index .cache/pf2e-index.sqlite --json
-cargo run -p atlas-dev -- index record actionspf2e:1kGNdIIhuglAjIp9 --index .cache/pf2e-index.sqlite --json
+cargo run -p atlas-dev -- index inspect --index .atlas/workspace.sqlite --json
+cargo run -p atlas-dev -- index record actionspf2e:1kGNdIIhuglAjIp9 --index .atlas/workspace.sqlite --json
 cargo test -p atlas-dev -p atlas-cli-support
 ```
 
@@ -423,7 +424,7 @@ The command builds the frontend and launches `atlas-web`'s developer-only
 `browser_fixture` example on 127.0.0.1:8796. The first run compiles Rust using the
 normal checkout-local target; later runs reuse it. Port 8796 must be free: the
 suite never adopts an unrelated running server. It creates a small checked-source
-SQLite artifact and separate mutable state under `scratch/responsive-validation/runs`.
+persistent SQLite workspace under `scratch/responsive-validation/runs`.
 Graceful SIGINT removes the default temporary run directory. A forced kill may
 leave a run directory for inspection; remove only that inactive run after retaining
 needed evidence. No Foundry clone or embedding models are downloaded.
@@ -458,7 +459,7 @@ Tracked git hooks live in `.githooks/`:
 
 Formatting checks read files in the working tree; whitespace checks read the staged diff. Review partial staging carefully so local evidence corresponds to the committed candidate. Hooks do not replace code review or CI.
 
-When changing the SQLite artifact schema, update the Diesel migration under `crates/atlas-index/migrations/`, regenerate or edit the checked-in `crates/atlas-index/src/schema.rs` to match, and run `cargo test -p atlas-index schema_freshness`. The migration is the physical schema source of truth; the freshness test prevents `schema.rs` from becoming a second drifting table descriptor.
+Domain-owned SQL is the physical schema source of truth: reference SQL lives in `crates/atlas-index/migrations/`, saved-domain SQL in `crates/atlas-local-state/src/schema.sql`. Runtime composes the ordered workspace migration ledger; storage executes it with checksums, backup and atomic validation. Once a migration is released, append an upgrade rather than editing its applied SQL. Keep tests for failed-upgrade rollback and saved-state preservation. Query-only changes can use the supported DTO-based projection backfill; do not force source admission or inference for schema changes alone.
 
 Docs-only or instruction-only changes do not require the Rust or frontend gates unless they affect executable examples, generated output expectations, or another validated artifact. Inspect the diff and check whitespace and any changed links or examples.
 
@@ -582,9 +583,9 @@ baseline. Known failures still return nonzero, even when the baseline matches;
 this tooling does not decide production ingest rejection policy. See the package
 README and [maintained portfolio report](./docs/research/maintained-source-portfolio.md).
 
-Search-profile operations use the artifact manifest: fresh `atlas setup` prepares
-BGE Base; omitted flags on a later setup preserve the stored set. Explicit repeated
-`--search-profile` flags define that set. Search/web omission selects a sole stored
+Search-profile operations persist requested configuration independently of the
+active reference manifest: fresh `atlas setup` prepares BGE Base; omitted flags
+preserve requested profiles, and explicit `--search-profile` flags add to them. Search/web omission selects a sole stored
 profile, or Base when both are built. Pinned model files live under
 `hf-models/<model-id>/<revision>/`; setup repairs selected invalid files through
 verified temporary download and rename. Do not relocate this path policy into

@@ -280,19 +280,8 @@ fn actor_body(p: &RecordPresentationView) -> &ActorPresentationView {
 #[test]
 fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_field() {
     let f = fixture_worker();
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
-        })
-        .unwrap();
     let detail = f.worker.record_detail(ACTOR).unwrap();
-    let metrics = f
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok(r.read_metrics())
-        })
-        .unwrap();
+    let metrics = f.worker.last_read_metrics();
     assert_eq!(metrics.source_body_decodes, 1);
     assert_eq!(metrics.prepared_content_batches, 1);
     let activity = actor_body(&detail.presentation)
@@ -397,19 +386,8 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
         )?)
     });
     let f = fixture_worker_with_executor(executor);
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
-        })
-        .unwrap();
     let detail = f.worker.record_detail(ACTOR).unwrap();
-    let metrics = f
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok(r.read_metrics())
-        })
-        .unwrap();
+    let metrics = f.worker.last_read_metrics();
     assert_eq!(metrics.source_body_decodes, 1);
     assert_eq!(metrics.prepared_content_batches, 1);
     let activities = actor_body(&detail.presentation)
@@ -498,12 +476,6 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
 #[test]
 fn list_results_are_body_free_and_only_product_summaries_are_serialized() {
     let f = fixture_worker();
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
-        })
-        .unwrap();
     let result = f
         .worker
         .list_records(
@@ -515,15 +487,7 @@ fn list_results_are_body_free_and_only_product_summaries_are_serialized() {
         )
         .unwrap();
     assert_eq!(result.records.len(), 4);
-    assert_eq!(
-        f.worker
-            .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| Ok(
-                r.read_metrics()
-            ))
-            .unwrap()
-            .source_body_decodes,
-        0
-    );
+    assert_eq!(f.worker.last_read_metrics().source_body_decodes, 0);
     let json = serde_json::to_value(result).unwrap().to_string();
     assert!(!json.contains("source_path"));
     assert!(!json.contains("content_hash"));
@@ -553,31 +517,22 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
         })
         .collect();
     f.worker
-        .local_state_store()
-        .unwrap()
-        .saved_lists()
-        .import(atlas_local_state::ImportSavedList {
-            slug: "large-list".into(),
-            name: "Large list".into(),
-            description: None,
-            tags: vec!["reference".into()],
-            items,
-            replace: false,
-        })
-        .unwrap();
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
+        .with_write(|write| {
+            Ok(write
+                .local_state()
+                .saved_lists()
+                .import(atlas_local_state::ImportSavedList {
+                    slug: "large-list".into(),
+                    name: "Large list".into(),
+                    description: None,
+                    tags: vec!["reference".into()],
+                    items,
+                    replace: false,
+                })?)
         })
         .unwrap();
     let list = f.worker.saved_list("large-list").unwrap();
-    let metrics = f
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok(r.read_metrics())
-        })
-        .unwrap();
+    let metrics = f.worker.last_read_metrics();
     assert_eq!(list.items.len(), 1031);
     assert_eq!(metrics.source_body_decodes, 0);
     assert_eq!(metrics.summary_batches, 2);
@@ -614,7 +569,7 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
 #[test]
 fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal() {
     let f = fixture_worker();
-    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"clause_id":"hp-choice","kind":"compare","field":"actor.hp.maximum","op":"gte","value":50})).unwrap();
+    let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"clause_id":"hp-choice","kind":"compare","field":"defenses.hp.maximum","op":"gte","value":50})).unwrap();
     assert!(
         f.worker
             .validate_filter(predicate.clone())
@@ -626,14 +581,14 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
             filter: None,
-            selected_field_ids: vec!["actor.hp.maximum".into()],
+            selected_field_ids: vec!["defenses.hp.maximum".into()],
         })
         .unwrap();
     let hp = editor
         .groups
         .iter()
         .flat_map(|g| &g.fields)
-        .find(|f| f.definition.id == "actor.hp.maximum")
+        .find(|f| f.definition.id == "defenses.hp.maximum")
         .unwrap();
     assert_eq!(hp.control, FilterControlView::Numeric);
     let invalid=serde_json::from_value(json!({"clause_id":"invalid-choice","kind":"compare","field":"invented.field","op":"gte","value":50})).unwrap();
@@ -643,7 +598,7 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
         validation.errors[0].field.as_deref(),
         Some("invented.field")
     );
-    let disjunction:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"any_of","children":[predicate, {"clause_id":"level-choice","kind":"compare","field":"actor.level","op":"gte","value":2}]})).unwrap();
+    let disjunction:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"any_of","children":[predicate, {"clause_id":"level-choice","kind":"compare","field":"level","op":"gte","value":2}]})).unwrap();
     assert!(
         f.worker
             .validate_filter(disjunction.clone())
@@ -654,7 +609,7 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
     assert!(
         f.worker
             .discover_raw_filter_counts(crate::RawFilterCountsRequest {
-                field: "actor.hp.maximum".into(),
+                field: "defenses.hp.maximum".into(),
                 filter: Some(disjunction),
                 clause_id: Some("hp-choice".into())
             })
@@ -778,7 +733,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
         .unwrap();
     assert_eq!(
         editor.common_field_ids,
-        ["record.kind", "record.level_or_rank", "rarity", "traits"]
+        ["kind", "level_or_rank", "rarity", "traits"]
     );
     assert_eq!(editor.groups[0].label, "Common");
     assert_eq!(
@@ -787,7 +742,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
             .iter()
             .map(|f| f.label.as_str())
             .collect::<Vec<_>>(),
-        ["Kind", "Level / Rank", "Rarity", "Traits"]
+        ["Kind", "Level / Rank", "Rarity", "Traits", "Level"]
     );
     let fields = editor
         .groups
@@ -817,7 +772,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
         for choice in definition
             .choices
             .iter()
-            .filter(|_| definition.id != "record.kind")
+            .filter(|_| definition.id != "kind")
         {
             assert!(
                 field
@@ -829,7 +784,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
     }
     let level = fields
         .iter()
-        .find(|field| field.definition.id == "item.level")
+        .find(|field| field.definition.id == "level")
         .unwrap();
     assert_eq!(level.label, "Level");
     assert!(
@@ -841,7 +796,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
     assert_eq!(
         fields
             .iter()
-            .find(|f| f.definition.id == "actor.hp.maximum")
+            .find(|f| f.definition.id == "defenses.hp.maximum")
             .unwrap()
             .label,
         "Maximum HP"
@@ -995,16 +950,17 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
         ),
     ] {
         f.worker
-            .local_state_store()
-            .unwrap()
-            .saved_lists()
-            .import(atlas_local_state::ImportSavedList {
-                slug: slug.into(),
-                name: slug.into(),
-                description: None,
-                items,
-                tags: vec![],
-                replace: false,
+            .with_write(|write| {
+                Ok(write.local_state().saved_lists().import(
+                    atlas_local_state::ImportSavedList {
+                        slug: slug.into(),
+                        name: slug.into(),
+                        description: None,
+                        items,
+                        tags: vec![],
+                        replace: false,
+                    },
+                )?)
             })
             .unwrap();
     }
@@ -1059,4 +1015,70 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
         let encoded = serde_json::to_value(values).unwrap().to_string();
         assert!(!encoded.contains("distinct_roots"));
     }
+}
+
+#[test]
+fn explicit_collections_share_grouping_and_movement_uses_feet() {
+    let editor = crate::discovery::filter_editor_view(
+        fixture_worker().worker.discover_filter_fields().unwrap(),
+        &[],
+    )
+    .unwrap();
+    assert_eq!(editor.catalog_version, 4);
+    let embedded = editor.groups.iter().find(|g| g.id == "embedded").unwrap();
+    assert_eq!(
+        embedded
+            .fields
+            .iter()
+            .filter(|f| f.definition.scope.is_none())
+            .count(),
+        17
+    );
+    assert!(embedded.fields.iter().all(|f| {
+        f.definition
+            .scope
+            .as_deref()
+            .unwrap_or(&f.definition.path)
+            .starts_with("embedded.")
+    }));
+    let fields = editor
+        .groups
+        .iter()
+        .flat_map(|g| &g.fields)
+        .collect::<Vec<_>>();
+    let speed = fields
+        .iter()
+        .find(|f| f.definition.id == "movement.speeds")
+        .unwrap();
+    assert_eq!(
+        speed
+            .collection_control
+            .as_ref()
+            .unwrap()
+            .amount_field_id
+            .as_deref(),
+        Some("movement.speeds[].feet")
+    );
+    let price = fields
+        .iter()
+        .find(|f| f.definition.id == "physical.unit_price_gp")
+        .unwrap();
+    assert_eq!(price.definition.units.as_deref(), Some("gp"));
+    assert_eq!(price.label, "Unit Price (gp)");
+    assert_eq!(
+        fields
+            .iter()
+            .find(|f| f.definition.id == "embedded.spells")
+            .unwrap()
+            .label,
+        "Spells"
+    );
+    assert_eq!(
+        fields
+            .iter()
+            .find(|f| f.definition.id == "embedded.equipment")
+            .unwrap()
+            .label,
+        "Equipment"
+    );
 }

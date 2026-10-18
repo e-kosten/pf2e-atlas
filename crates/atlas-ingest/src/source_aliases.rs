@@ -10,13 +10,13 @@ use atlas_record::{
 use scraper::{ElementRef, Html, Selector};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs,
     path::Path,
 };
 
 pub(crate) fn extract_source_aliases(
     input: &mut IndexBuildInput,
     root: &Path,
+    capture: &crate::source_fingerprint::SourceCapture,
 ) -> Result<(), IngestError> {
     let selector = |s: &str| {
         Selector::parse(s)
@@ -164,13 +164,8 @@ pub(crate) fn extract_source_aliases(
     }
     // These authored comments define textual renames, never old-record identity.
     let directory = root.join("src/module/migration/migrations");
-    if directory.is_dir() {
-        let mut paths = fs::read_dir(&directory)
-            .map_err(|e| IngestError::SourceUnavailable(e.to_string()))?
-            .map(|entry| entry.map(|entry| entry.path()))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| IngestError::SourceUnavailable(e.to_string()))?;
-        paths.sort();
+    {
+        let paths = capture.paths(&directory);
         let mut by_name = BTreeMap::<String, Vec<RecordKey>>::new();
         for (key, name) in &names {
             by_name
@@ -178,11 +173,11 @@ pub(crate) fn extract_source_aliases(
                 .or_default()
                 .push(key.clone());
         }
-        for path in paths
-            .into_iter()
-            .filter(|path| path.extension().is_some_and(|extension| extension == "ts"))
-        {
-            let source = fs::read_to_string(&path)
+        for path in paths.into_iter().filter(|path| {
+            path.parent() == Some(directory.as_path())
+                && path.extension().is_some_and(|extension| extension == "ts")
+        }) {
+            let source = String::from_utf8(capture.read(&path)?)
                 .map_err(|e| IngestError::SourceUnavailable(e.to_string()))?;
             for line in source.lines() {
                 let Some((_, suffix)) = line.split_once("Rename all uses and mentions of \"")

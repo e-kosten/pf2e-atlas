@@ -13,8 +13,9 @@ use atlas_record::{
     },
     source_record::SourceBackedRecord,
 };
-use rusqlite::OptionalExtension;
-use rusqlite::{Connection, OpenFlags, params_from_iter};
+#[cfg(any(test, feature = "test-support"))]
+use rusqlite::OpenFlags;
+use rusqlite::{Connection, params_from_iter};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::Path};
 
@@ -31,14 +32,11 @@ pub struct ArtifactValidationReport {
 }
 
 pub(crate) fn validate_open(c: &Connection) -> Result<SourceArtifactBuildContext, IndexError> {
-    let version: i64 = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-    if version != i64::from(ARTIFACT_FORMAT_VERSION) {
-        return Err(IndexError::Unsupported(format!(
-            "artifact schema version {version}"
-        )));
-    }
     let (format,hash,json):(i64,String,String)=c.query_row("SELECT format_version,context_hash,context_json FROM artifact_context WHERE singleton=1",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|e|IndexError::Invalid(format!("artifact context: {e}")))?;
-    if format != version || !checked_hash(&hash) || sha256(json.as_bytes()) != hash {
+    if format != i64::from(ARTIFACT_FORMAT_VERSION)
+        || !checked_hash(&hash)
+        || sha256(json.as_bytes()) != hash
+    {
         return Err(IndexError::Invalid(
             "artifact context digest/version mismatch".into(),
         ));
@@ -48,19 +46,9 @@ pub(crate) fn validate_open(c: &Connection) -> Result<SourceArtifactBuildContext
         return Err(bad("profile manifest must be canonical and duplicate-free"));
     }
     crate::writer::validate_context(&context)?;
-    // Reference schema is compiled code, never SQL supplied by artifact metadata.
-    let expected = Connection::open_in_memory()?;
-    expected.execute_batch(include_str!(
-        "../migrations/00000000000001_create_artifact/up.sql"
-    ))?;
-    let schema = |c: &Connection| -> Result<BTreeMap<String, String>, IndexError> {
-        Ok(c.prepare("SELECT name,sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'lexical_fts_%' AND name NOT LIKE 'semantic_vectors%' ORDER BY name")?.query_map([],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?)
-    };
-    if schema(c)? != schema(&expected)? {
-        return Err(IndexError::Unsupported(
-            "artifact tables/indexes differ from executable schema".into(),
-        ));
-    }
+    // The runtime migration coordinator authenticates the ordered ledger. Do not
+    // compare sqlite_master SQL text with fresh-baseline DDL: legitimate ALTER
+    // migrations can have identical capabilities and different stored SQL.
     let mut statement =
         c.prepare("SELECT field,definition_json FROM query_field_catalog ORDER BY field")?;
     let actual = statement
@@ -80,12 +68,21 @@ pub(crate) fn validate_open(c: &Connection) -> Result<SourceArtifactBuildContext
     Ok(context)
 }
 
+/// Test probes deliberately inspect committed state while product admission may
+/// be closed. Production callers must validate their admitted session instead.
+#[cfg(any(test, feature = "test-support"))]
 pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationReport, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;
     let c = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     c.set_prepared_statement_cache_capacity(128);
-    let context = validate_open(&c)?;
+    validate_reference(&c)
+}
+
+/// Validate the caller's exact snapshot, including uncommitted maintenance writes.
+/// This does not start or commit a transaction or reopen the database by path.
+pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, IndexError> {
+    let context = validate_open(c)?;
     tracing::info!(target:"atlas_progress",phase="artifact_integrity","Checking SQLite integrity; remaining duration unknown");
     let integrity: String = c.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
     if integrity != "ok" {
@@ -97,7 +94,6 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
         return Err(IndexError::Invalid("foreign key violation".into()));
     }
     let mut counts = BTreeMap::<&'static str, usize>::new();
-    let mut ids = ProjectionIds::default();
     let mut roots = 0usize;
     let mut prepared_fields = 0;
     let mut relationships = 0;
@@ -106,7 +102,7 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
     // No source bodies or prose survive this first pass; later edge checks use
     // that same source-owner resolver instead of decoding a target per edge.
     let mut reference_index = atlas_record::source_record::SourceReferenceIndex::default();
-    let total_roots = count(&c, "records")?;
+    let total_roots = count(c, "records")?;
     {
         let mut cursor = root_query.query([])?;
         let mut checked = 0usize;
@@ -146,6 +142,12 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
             relationships: vec![],
             diagnostics: vec![],
         };
+        let (seed, end): (i64, i64) = c.query_row(
+            "SELECT seed,end_id FROM projection_allocations WHERE record_id=?",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        let mut ids = ProjectionIds::seeded(seed);
         for expected in root_rows(&input, &label, id, &mut ids)? {
             let sql = format!(
                 "SELECT count(*) FROM {} WHERE {}",
@@ -175,21 +177,24 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
             }
             *counts.entry(expected.table).or_default() += 1;
         }
-        prepared_fields += validate_content(&c, id, &input.record, &context)?;
-        relationships += validate_relationships(&c, id, &input.record, &reference_index)?;
-        crate::validation_units::validate_selection(&c, id, &input.record, &context, &label)?;
+        if ids.end() > end {
+            return Err(bad("projection allocation overflow"));
+        }
+        prepared_fields += validate_content(c, id, &input.record, &context)?;
+        relationships += validate_relationships(c, id, &input.record, &reference_index)?;
+        crate::validation_units::validate_selection(c, id, &input.record, &context, &label)?;
         if roots.is_multiple_of(500) || roots == total_roots {
             tracing::info!(target:"atlas_progress",phase="artifact_coherence",current=roots as u64,total=total_roots as u64,"Checking source snapshots, projections and attributed units");
         }
     }
     for table in PROJECTION_TABLES {
-        if count(&c, table)? != counts.get(table).copied().unwrap_or(0) {
+        if count(c, table)? != counts.get(table).copied().unwrap_or(0) {
             return Err(IndexError::Invalid(format!(
                 "extra/missing typed rows in {table}"
             )));
         }
     }
-    if roots != count(&c, "record_bodies")? || roots > context.source_file_count {
+    if roots != count(c, "record_bodies")? || roots > context.source_file_count {
         return Err(IndexError::Invalid(
             "snapshot/root/source count mismatch".into(),
         ));
@@ -205,9 +210,9 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
             "lexical identity coverage is incomplete".into(),
         ));
     }
-    validate_fts(&c)?;
-    validate_vectors(&c, &context, product_count)?;
-    validate_aliases(&c)?;
+    validate_fts(c)?;
+    validate_vectors(c, &context, product_count)?;
+    validate_aliases(c)?;
     let mut urls=c.prepare("SELECT target_url FROM relationship_occurrences WHERE resolution IN ('resolved_url','unverified_url')")?;
     for url in urls.query_map([], |r| r.get::<_, String>(0))? {
         if !atlas_record::source_content::is_safe_content_url(&url?) {
@@ -220,8 +225,8 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
         projection_rows: counts.values().sum(),
         prepared_fields,
         relationships,
-        lexical_units: count(&c, "lexical_units")?,
-        semantic_units: count(&c, "semantic_units")?,
+        lexical_units: count(c, "lexical_units")?,
+        semantic_units: count(c, "semantic_units")?,
         source_fingerprint: context.source_fingerprint,
     })
 }
@@ -312,7 +317,7 @@ fn validate_content(
     if let Some(error) = owner_error {
         return Err(error.into());
     }
-    let mut s=c.prepare("SELECT owners_json,field_path,authored_markup_sha256,preparation_context_hash,outcome,html_gzip,interactions_json,visibility,role FROM prepared_content WHERE record_id=?")?;
+    let mut s=c.prepare("SELECT owners_json,field_path,authored_markup_sha256,preparation_context_hash,outcome,html_gzip,interactions_json,visibility,role FROM prepared_content WHERE record_id=? AND published=1")?;
     let mut rows = s.query([id])?;
     let mut n = 0;
     while let Some(r) = rows.next()? {
@@ -495,42 +500,31 @@ fn validate_vectors(
             return Err(bad("per-profile semantic identity coverage is incomplete"));
         }
     }
-    if count(c, "semantic_vectors")? != count(c, "semantic_units")? {
-        return Err(bad("vector/unit coverage mismatch"));
-    }
-    let mut statement=c.prepare("SELECT u.input_token_count,u.input_hash,u.profile_id,v.embedding FROM semantic_units u LEFT JOIN semantic_vectors v USING(unit_id)")?;
-    let total_units = count(c, "semantic_units")?;
-    let mut checked_units = 0usize;
-    let mut profile_counts = BTreeMap::new();
-    for profile in &context.search_profiles {
+    for model in &context.search_profiles {
+        let table = crate::schema::vector_table(model)?;
         let total: usize = c.query_row(
             "SELECT count(*) FROM semantic_units WHERE profile_id=?",
-            [profile.profile_id.as_str()],
-            |r| r.get(0),
+            [model.profile_id.as_str()],
+            |row| row.get(0),
         )?;
-        profile_counts.insert(profile.profile_id.clone(), (0usize, total));
-    }
-    let mut rows = statement.query([])?;
-    while let Some(row) = rows.next()? {
-        let profile = atlas_domain::SearchProfileId::new(row.get::<_, String>(2)?);
-        let model = context.search_profile(&profile)?;
-        let tokens: usize = row.get(0)?;
-        if tokens == 0 || tokens > model.token_limit || !checked_hash(&row.get::<_, String>(1)?) {
-            return Err(bad("invalid semantic input metadata"));
+        if count(c, &table)? != total {
+            return Err(bad("vector/unit coverage mismatch"));
         }
-        let bytes: Vec<u8> = row.get(3)?;
-        check_vector(&crate::read_units::decode_vector(&bytes)?, model.dimensions)?;
-        checked_units += 1;
-        let (checked, total) = profile_counts
-            .get_mut(&profile)
-            .ok_or_else(|| bad("vector profile is absent"))?;
-        *checked += 1;
-        if checked_units.is_multiple_of(1000) || checked == total || checked_units == total_units {
-            let label = atlas_embedding::search_profile(&profile)
-                .map(|p| p.label)
-                .unwrap_or(profile.as_str());
-            tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity",current=checked_units as u64,total=total_units as u64,
-                "Checking {label} [{profile}] vectors: {checked}/{total} profile occurrences; all-profile occurrence progress");
+        let mut statement = c.prepare(&format!("SELECT u.input_token_count,u.input_hash,v.embedding FROM semantic_units u LEFT JOIN {table} v USING(unit_id) WHERE u.profile_id=?"))?;
+        let mut rows = statement.query([model.profile_id.as_str()])?;
+        let mut checked = 0usize;
+        while let Some(row) = rows.next()? {
+            let tokens: usize = row.get(0)?;
+            if tokens == 0 || tokens > model.token_limit || !checked_hash(&row.get::<_, String>(1)?)
+            {
+                return Err(bad("invalid semantic input metadata"));
+            }
+            let bytes: Vec<u8> = row.get(2)?;
+            check_vector(&crate::read_units::decode_vector(&bytes)?, model.dimensions)?;
+            checked += 1;
+            if checked.is_multiple_of(1000) || checked == total {
+                tracing::info!(target:"atlas_progress", phase="artifact_vector_integrity", current=checked as u64, total=total as u64, profile=%model.profile_id,"Checking profile vectors");
+            }
         }
     }
     Ok(())
@@ -549,7 +543,7 @@ fn validate_profile_storage(
             serde_json::from_str(&row.get::<_, String>(1)?)?;
         if identity.profile_id.as_str() != row.get::<_, String>(0)?
             || identity.dimensions != row.get::<_, usize>(2)?
-            || identity.dimensions != 768
+            || identity.dimensions == 0
         {
             return Err(bad("profile metadata identity mismatch"));
         }
@@ -558,25 +552,30 @@ fn validate_profile_storage(
     if actual != context.canonical_profiles()? {
         return Err(bad("stored search profiles differ from complete manifest"));
     }
-    let vector_sql: Option<String> = c
-        .query_row(
-            "SELECT sql FROM sqlite_master WHERE name='semantic_vectors'",
-            [],
-            |r| r.get(0),
-        )
-        .optional()?;
-    if context.search_profiles.is_empty() {
-        if vector_sql.is_some() || count(c, "semantic_units")? != 0 {
-            return Err(bad("semantic storage exists without profiles"));
+    let expected = context
+        .search_profiles
+        .iter()
+        .map(crate::schema::vector_table)
+        .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
+    let actual = c.prepare("SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%USING vec0%' ORDER BY name")?.query_map([], |row| row.get::<_,String>(0))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
+    if actual != expected {
+        return Err(bad("profile vector table set differs from manifest"));
+    }
+    if expected.is_empty() && count(c, "semantic_units")? != 0 {
+        return Err(bad("semantic storage exists without profiles"));
+    }
+    for model in &context.search_profiles {
+        let table = crate::schema::vector_table(model)?;
+        let sql: String = c.query_row(
+            "SELECT sql FROM sqlite_master WHERE name=?",
+            [&table],
+            |row| row.get(0),
+        )?;
+        if sql != crate::schema::vector_ddl(model)? {
+            return Err(bad(
+                "profile vector table dimensions or distance policy differs",
+            ));
         }
-    } else if vector_sql.as_deref()
-        != Some(
-            "CREATE VIRTUAL TABLE semantic_vectors USING vec0(unit_id INTEGER PRIMARY KEY,embedding FLOAT[768] distance_metric=cosine)",
-        )
-    {
-        return Err(bad(
-            "profile vector table dimensions or distance policy differs",
-        ));
     }
     Ok(())
 }

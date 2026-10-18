@@ -4,7 +4,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 3;
+pub const QUERY_CAPABILITY_VERSION: u32 = 4;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -92,6 +92,110 @@ const ITEM_RARITY: &[&str] = &[
     "weapon",
 ];
 
+/// Immediate embedded source members. Membership is an executable catalog contract,
+/// independent of parent kind filters and never recursive or reference traversal.
+struct EmbeddedCollection {
+    path: &'static str,
+    members: &'static [&'static str],
+    label: &'static str,
+}
+const EMBEDDED_COLLECTIONS: &[EmbeddedCollection] = &[
+    EmbeddedCollection {
+        path: "embedded.spells",
+        members: &["spell"],
+        label: "Spells",
+    },
+    EmbeddedCollection {
+        path: "embedded.equipment",
+        members: PHYSICAL,
+        label: "Equipment",
+    },
+    EmbeddedCollection {
+        path: "embedded.abilities",
+        members: &["action"],
+        label: "Abilities",
+    },
+    EmbeddedCollection {
+        path: "embedded.afflictions",
+        members: &["affliction"],
+        label: "Afflictions",
+    },
+    EmbeddedCollection {
+        path: "embedded.ancestries",
+        members: &["ancestry"],
+        label: "Ancestries",
+    },
+    EmbeddedCollection {
+        path: "embedded.backgrounds",
+        members: &["background"],
+        label: "Backgrounds",
+    },
+    EmbeddedCollection {
+        path: "embedded.campaign_features",
+        members: &["campaignFeature"],
+        label: "Campaign Features",
+    },
+    EmbeddedCollection {
+        path: "embedded.classes",
+        members: &["class"],
+        label: "Classes",
+    },
+    EmbeddedCollection {
+        path: "embedded.conditions",
+        members: &["condition"],
+        label: "Conditions",
+    },
+    EmbeddedCollection {
+        path: "embedded.deities",
+        members: &["deity"],
+        label: "Deities",
+    },
+    EmbeddedCollection {
+        path: "embedded.effects",
+        members: &["effect"],
+        label: "Effects",
+    },
+    EmbeddedCollection {
+        path: "embedded.feats",
+        members: &["feat"],
+        label: "Feats",
+    },
+    EmbeddedCollection {
+        path: "embedded.heritages",
+        members: &["heritage"],
+        label: "Heritages",
+    },
+    EmbeddedCollection {
+        path: "embedded.kits",
+        members: &["kit"],
+        label: "Kits",
+    },
+    EmbeddedCollection {
+        path: "embedded.lore",
+        members: &["lore"],
+        label: "Lore",
+    },
+    EmbeddedCollection {
+        path: "embedded.strikes",
+        members: &["melee"],
+        label: "Strikes",
+    },
+    EmbeddedCollection {
+        path: "embedded.spellcasting_entries",
+        members: &["spellcastingEntry"],
+        label: "Spellcasting Entries",
+    },
+];
+pub(super) fn embedded_label(path: &str) -> Option<&'static str> {
+    EMBEDDED_COLLECTIONS
+        .iter()
+        .find(|c| c.path == path)
+        .map(|c| c.label)
+}
+pub(super) fn is_embedded_scope(scope: Option<&str>) -> bool {
+    scope.is_some_and(|s| EMBEDDED_COLLECTIONS.iter().any(|c| c.path == s))
+}
+
 /// The generated Deserialize implementation supplies its declared variants via
 /// Serde's public Error interface. No corpus vocabulary or manual enum copy.
 #[derive(Debug)]
@@ -143,6 +247,13 @@ pub(crate) enum Binding {
         owner: &'static str,
         kind: Option<&'static str>,
     },
+    Embedded {
+        members: &'static [&'static str],
+    },
+    UnitPriceGp,
+    EmbeddedKind {
+        members: &'static [&'static str],
+    },
     Member {
         column: &'static str,
     },
@@ -186,14 +297,14 @@ fn field(
             family_types: families.iter().map(|f| (*f).to_owned()).collect(),
             units: unit.map(str::to_owned),
             basis: match path {
-                "record.level_or_rank" => "authored spell rank and rank state for spells; authored record level and level state for other applicable families; no fallback from unavailable rank",
-                "physical.price.per_item_cp" => "authored coin value divided by authored per; denomination omissions=0, per omission=1; bounded correctly rounded cp",
+                "level_or_rank" => "authored spell rank and rank state for spells; authored record level and level state for other applicable families; no fallback from unavailable rank",
+                "physical.unit_price_gp" => "authored coin value divided by authored per; denomination omissions=0, per omission=1; converted from copper to gp",
                 "physical.bulk" => "authored normal Bulk; 0 negligible, 0.1 Light; no encumbrance or per-individual adjustment",
                 "spell.casting_form" => "upstream trim/lowercase glyph lookup; unmatched authored time is other",
                 "spell.focus" => "authored focus OR cantrip with known-empty traditions",
                 "spell.ritual" => "typed ritual object true; explicit null false; omission unavailable",
                 "heritage.versatile" => "typed ancestry object false; explicit null true; omission unavailable",
-                "actor.immunities" | "actor.weaknesses" | "actor.resistances" => "authored collection; omission-only empty default inside known system/attributes",
+                "defenses.immunities" | "defenses.weaknesses" | "defenses.resistances" => "authored collection; omission-only empty default inside known system/attributes",
                 p if p.starts_with("effect.duration.") => "authored duration in the selected fixed unit; other known units not applicable",
                 _ => "authored source; known values only",
             }.to_owned(),
@@ -289,7 +400,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
         None,
     ));
     fields.push(field(
-        "record.kind",
+        "kind",
         String,
         &[],
         common("record_kind"),
@@ -337,21 +448,13 @@ fn build() -> Result<Vec<Descriptor>, String> {
         Vec::new(),
         None,
     ));
-    fields.push(field(
-        "actor.level",
-        Number,
-        ACTOR_LEVELS,
-        common("level"),
-        Vec::new(),
-        Some("level"),
-    ));
     let mut levels = PHYSICAL.to_vec();
     levels.extend(["feat", "campaignFeature", "effect", "affliction"]);
+    levels.extend_from_slice(ACTOR_LEVELS);
     let mut common_levels = levels.clone();
-    common_levels.extend_from_slice(ACTOR_LEVELS);
     common_levels.push("spell");
     fields.push(field(
-        "record.level_or_rank",
+        "level_or_rank",
         Number,
         &common_levels,
         Binding::LevelOrRank,
@@ -359,7 +462,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
         Some("level / rank"),
     ));
     fields.push(field(
-        "item.level",
+        "level",
         Number,
         &levels,
         common("level"),
@@ -367,9 +470,9 @@ fn build() -> Result<Vec<Descriptor>, String> {
         Some("level"),
     ));
     for (path, families) in [
-        ("actor.size", &["npc", "hazard", "vehicle"][..]),
+        ("body.size", &["npc", "hazard", "vehicle"][..]),
         ("physical.size", PHYSICAL),
-        ("ancestry.size", &["ancestry"][..]),
+        ("ancestry.default_size", &["ancestry"][..]),
     ] {
         fields.push(field(
             path,
@@ -381,29 +484,29 @@ fn build() -> Result<Vec<Descriptor>, String> {
         ));
     }
     for (path, column, families, unit) in [
+        ("defenses.ac", "armor_class", &["npc", "hazard"][..], None),
         (
-            "actor.armor_class",
-            "armor_class",
-            &["npc", "hazard"][..],
-            None,
-        ),
-        (
-            "actor.hp.maximum",
+            "defenses.hp.maximum",
             "hp_maximum",
             &["npc", "hazard"][..],
             Some("hit points"),
         ),
         (
-            "actor.saves.fortitude",
+            "defenses.saves.fortitude",
             "fortitude",
             &["npc", "hazard"][..],
             None,
         ),
-        ("actor.saves.reflex", "reflex", &["npc", "hazard"][..], None),
-        ("actor.saves.will", "will", &["npc", "hazard"][..], None),
-        ("actor.perception", "perception", &["npc"][..], None),
         (
-            "actor.speed.land",
+            "defenses.saves.reflex",
+            "reflex",
+            &["npc", "hazard"][..],
+            None,
+        ),
+        ("defenses.saves.will", "will", &["npc", "hazard"][..], None),
+        ("perception", "perception", &["npc"][..], None),
+        (
+            "movement.land",
             "land_speed",
             &["npc", "character"][..],
             Some("feet"),
@@ -428,7 +531,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
         None,
     ));
     fields.push(field(
-        "actor.languages",
+        "languages",
         Set,
         &["npc", "character"],
         set(
@@ -442,7 +545,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
     ));
     for (path, col, table, owner, families, kind) in [
         (
-            "actor.speeds",
+            "movement.speeds",
             "speeds",
             "actor_speeds",
             "record_id",
@@ -450,7 +553,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             None,
         ),
         (
-            "actor.senses",
+            "senses",
             "senses",
             "actor_senses",
             "record_id",
@@ -458,7 +561,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             None,
         ),
         (
-            "actor.immunities",
+            "defenses.immunities",
             "immunities",
             "actor_iwr_entries",
             "record_id",
@@ -466,7 +569,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             Some("immunity"),
         ),
         (
-            "actor.weaknesses",
+            "defenses.weaknesses",
             "weaknesses",
             "actor_iwr_entries",
             "record_id",
@@ -474,20 +577,12 @@ fn build() -> Result<Vec<Descriptor>, String> {
             Some("weakness"),
         ),
         (
-            "actor.resistances",
+            "defenses.resistances",
             "resistances",
             "actor_iwr_entries",
             "record_id",
             IWR,
             Some("resistance"),
-        ),
-        (
-            "actor.items",
-            "items",
-            "actor_items",
-            "record_id",
-            ACTORS,
-            None,
         ),
     ] {
         fields.push(field(
@@ -608,12 +703,12 @@ fn build() -> Result<Vec<Descriptor>, String> {
     ));
     for (path, col, ty, families, values, unit) in [
         (
-            "physical.price.per_item_cp",
+            "physical.unit_price_gp",
             "price_per_item_cp",
             Number,
             PHYSICAL,
             Vec::new(),
-            Some("copper per authored item"),
+            Some("gp"),
         ),
         (
             "physical.bulk",
@@ -894,9 +989,10 @@ fn build() -> Result<Vec<Descriptor>, String> {
                     | "rarity"
                     | "publication.title"
                     | "publication.remaster"
-                    | "item.level"
+                    | "level"
+                    | "kind"
                     | "physical.size"
-                    | "ancestry.size"
+                    | "ancestry.default_size"
             )
         })
         .cloned()
@@ -916,63 +1012,103 @@ fn build() -> Result<Vec<Descriptor>, String> {
         Vec::new(),
         None,
     ));
-    for mut descriptor in child_items {
-        if descriptor.definition.path == "source.type" {
-            descriptor.definition.choices = ITEMS.iter().map(|s| (*s).to_owned()).collect();
+    for d in fields.iter_mut().chain(child_items.iter_mut()) {
+        if d.definition.path == "physical.unit_price_gp" {
+            d.binding = Binding::UnitPriceGp;
         }
-        descriptor.definition.scope = Some("actor.items".to_owned());
-        descriptor.definition.id = format!("actor.items[].{}", descriptor.definition.path);
-        descriptor
-            .definition
-            .family_types
-            .retain(|f| ITEMS.contains(&f.as_str()));
-        if let Binding::Set { table, owner, .. } = &mut descriptor.binding
-            && *table == "record_traits"
-        {
-            *table = "actor_item_traits";
-            *owner = "item_id";
+    }
+    for collection in EMBEDDED_COLLECTIONS {
+        fields.push(field(
+            collection.path,
+            Collection,
+            ACTORS,
+            Binding::Embedded {
+                members: collection.members,
+            },
+            Vec::new(),
+            None,
+        ));
+        for mut descriptor in child_items.iter().cloned() {
+            let unrestricted = descriptor.definition.family_types.is_empty();
+            descriptor
+                .definition
+                .family_types
+                .retain(|f| collection.members.contains(&f.as_str()));
+            if !unrestricted && descriptor.definition.family_types.is_empty() {
+                continue;
+            }
+            if unrestricted {
+                descriptor.definition.family_types =
+                    collection.members.iter().map(|f| (*f).to_owned()).collect();
+            }
+            if descriptor.definition.path == "kind" {
+                descriptor.binding = Binding::EmbeddedKind {
+                    members: collection.members,
+                };
+                descriptor.definition.choices = collection
+                    .members
+                    .iter()
+                    .filter_map(|m| atlas_record::source_record::source_family_record_kind(m))
+                    .map(|k| k.as_str().to_owned())
+                    .collect();
+                descriptor.definition.choices.sort();
+                descriptor.definition.choices.dedup();
+            }
+            if descriptor.definition.path == "source.type" {
+                descriptor.definition.choices =
+                    collection.members.iter().map(|s| (*s).to_owned()).collect();
+            }
+            descriptor.definition.scope = Some(collection.path.to_owned());
+            descriptor.definition.id =
+                format!("{}[].{}", collection.path, descriptor.definition.path);
+            if let Binding::Set { table, owner, .. } = &mut descriptor.binding
+                && *table == "record_traits"
+            {
+                *table = "actor_item_traits";
+                *owner = "item_id";
+            }
+            fields.push(descriptor);
         }
-        fields.push(descriptor);
     }
     for (scope, path, ty, values, unit) in [
         (
-            "actor.speeds",
+            "movement.speeds",
             "type",
             String,
             choices::<CharacterAttributesSourceSpeedOtherSpeedsEntryType>()?,
             None,
         ),
-        ("actor.speeds", "value", Number, Vec::new(), Some("feet")),
+        ("movement.speeds", "feet", Number, Vec::new(), Some("feet")),
         (
-            "actor.senses",
+            "senses",
             "type",
             String,
             choices::<SenseConstructorParamsType>()?,
             None,
         ),
         (
-            "actor.immunities",
+            "defenses.immunities",
             "type",
             String,
             choices::<ActorAttributesSourceImmunitiesEntryImmunitySourceType>()?,
             None,
         ),
         (
-            "actor.weaknesses",
+            "defenses.weaknesses",
             "type",
             String,
             choices::<WeaknessSourceType>()?,
             None,
         ),
-        ("actor.weaknesses", "value", Number, Vec::new(), None),
+        ("defenses.weaknesses", "value", Number, Vec::new(), None),
         (
-            "actor.resistances",
+            "defenses.resistances",
             "type",
             String,
             choices::<ResistanceSourceType>()?,
             None,
         ),
-        ("actor.resistances", "value", Number, Vec::new(), None),
+        ("defenses.resistances", "value", Number, Vec::new(), None),
         (
             "spell.damage",
             "type",

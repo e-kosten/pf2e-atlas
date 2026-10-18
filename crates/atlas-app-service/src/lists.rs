@@ -14,8 +14,8 @@ use atlas_app_model::{
 use atlas_domain::RecordKey;
 use atlas_local_state::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
-    LocalStateStore, NewSavedList, ResolvedSavedListItem, SavedList, SavedListItem,
-    SavedListItemStatus, UpdateSavedList, hydrate_saved_list_item,
+    NewSavedList, ResolvedSavedListItem, SavedList, SavedListItem, SavedListItemStatus,
+    UpdateSavedList, hydrate_saved_list_item,
 };
 use atlas_search::{
     GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult, RecordScope,
@@ -31,33 +31,17 @@ use crate::service::AtlasAppService;
 
 impl AtlasAppService {
     pub fn saved_lists(&self) -> AppServiceResult<SavedListIndexView> {
-        let store = self.local_state_store()?;
-        let lists = store.saved_lists().list()?;
-        Ok(SavedListIndexView {
-            lists: lists.into_iter().map(saved_list_summary).collect(),
+        self.with_state(move |session| {
+            let store = session.local_state();
+            let lists = store.saved_lists().list()?;
+            Ok(SavedListIndexView {
+                lists: lists.into_iter().map(saved_list_summary).collect(),
+            })
         })
     }
 
     pub fn saved_list(&self, list_ref: &str) -> AppServiceResult<SavedListDetailView> {
-        let list = self
-            .local_state_store()?
-            .saved_lists()
-            .get_with_items(list_ref)?
-            .ok_or_else(|| {
-                AppServiceError::new(
-                    AppErrorCode::SavedListNotFound,
-                    format!("saved list `{list_ref}` was not found"),
-                )
-            })?;
-        let records_by_key = hydrate_saved_list_records(self, &list.items)?;
-        Ok(SavedListDetailView {
-            list: saved_list_summary(list.list),
-            items: list
-                .items
-                .into_iter()
-                .map(|item| saved_list_item_view(item, &records_by_key))
-                .collect(),
-        })
+        self.saved_list_with_filter(list_ref, None, None, false)
     }
 
     pub fn filter_saved_list(
@@ -78,15 +62,17 @@ impl AtlasAppService {
         &self,
         request: CreateSavedListRequest,
     ) -> AppServiceResult<SavedListCreateView> {
-        let store = self.local_state_store()?;
-        let list = store.saved_lists().create(NewSavedList {
-            slug: request.slug,
-            name: request.name,
-            description: request.description,
-            tags: request.tags,
-        })?;
-        Ok(SavedListCreateView {
-            list: saved_list_summary(list),
+        self.with_write(move |session| {
+            let store = session.local_state();
+            let list = store.saved_lists().create(NewSavedList {
+                slug: request.slug,
+                name: request.name,
+                description: request.description,
+                tags: request.tags,
+            })?;
+            Ok(SavedListCreateView {
+                list: saved_list_summary(list),
+            })
         })
     }
 
@@ -94,20 +80,22 @@ impl AtlasAppService {
         &self,
         request: UpdateSavedListRequest,
     ) -> AppServiceResult<SavedListUpdateView> {
-        let store = self.local_state_store()?;
-        let list_key = request.list_key;
-        let list = store
-            .saved_lists()
-            .update(UpdateSavedList {
-                list_key: list_key.clone(),
-                slug: request.slug,
-                name: request.name,
-                description: request.description,
-                tags: request.tags,
-            })?
-            .ok_or_else(|| saved_list_not_found(&list_key))?;
-        Ok(SavedListUpdateView {
-            list: saved_list_summary(list),
+        self.with_write(move |session| {
+            let store = session.local_state();
+            let list_key = request.list_key;
+            let list = store
+                .saved_lists()
+                .update(UpdateSavedList {
+                    list_key: list_key.clone(),
+                    slug: request.slug,
+                    name: request.name,
+                    description: request.description,
+                    tags: request.tags,
+                })?
+                .ok_or_else(|| saved_list_not_found(&list_key))?;
+            Ok(SavedListUpdateView {
+                list: saved_list_summary(list),
+            })
         })
     }
 
@@ -115,83 +103,33 @@ impl AtlasAppService {
         &self,
         request: AddSavedListItemRequest,
     ) -> AppServiceResult<SavedListItemMutationView> {
-        let record = resolve_record_ref(self, &request.record_ref)?;
-        let record_key = record.key.to_string();
-        let record_name = record
-            .name
-            .as_value()
-            .cloned()
-            .unwrap_or_else(|| record.key.to_string());
-        let store = self.local_state_store()?;
-        let outcome = store.saved_lists().add_resolved_item(
-            &request.list_ref,
-            ResolvedSavedListItem {
-                record_key: record.key,
-                title_snapshot: record_name.clone(),
-                kind_snapshot: record
-                    .record_kind
-                    .as_value()
-                    .map(|kind| kind.as_str().to_string()),
-                note: request.note,
+        let record_ref = request.record_ref.clone();
+        let list_ref = request.list_ref.clone();
+        let (record, list, revision) = self.with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |session| {
+                let list = session
+                    .local_state()
+                    .saved_lists()
+                    .get(&list_ref)?
+                    .ok_or_else(|| saved_list_not_found(&list_ref))?;
+                let record = resolve_record_ref(session.retrieval_mut(), &record_ref)?;
+                Ok((record, list, session.reference_revision()?))
             },
         )?;
-        let list = store
-            .saved_lists()
-            .get(&request.list_ref)?
-            .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
-        Ok(SavedListItemMutationView {
-            list_key: list.list_key,
-            slug: list.slug,
-            record_key,
-            record_name: Some(record_name),
-            outcome: match outcome {
-                AddSavedListItemOutcome::Added => SavedListItemMutationOutcomeView::Added,
-                AddSavedListItemOutcome::AlreadyPresent => {
-                    SavedListItemMutationOutcomeView::AlreadyPresent
-                }
-            },
-        })
-    }
-
-    pub fn add_saved_list_items(
-        &self,
-        request: BatchAddSavedListItemsRequest,
-    ) -> AppServiceResult<BatchSavedListItemMutationView> {
-        let store = self.local_state_store()?;
-        let list = store
-            .saved_lists()
-            .get(&request.list_ref)?
-            .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
-        let mut items = Vec::new();
-        let mut added_count = 0;
-        let mut already_present_count = 0;
-        let mut failed_count = 0;
-        for item in request.items {
-            let input = item.record_ref;
-            let record = match resolve_record_ref(self, &input) {
-                Ok(record) => record,
-                Err(error) => {
-                    let error = error.into_app_error();
-                    if !is_batch_item_error(error.code) {
-                        return Err(error.into());
-                    }
-                    failed_count += 1;
-                    items.push(BatchSavedListItemResultView {
-                        input,
-                        outcome: BatchSavedListItemOutcomeView::Failed,
-                        record_key: None,
-                        record_name: None,
-                        error: Some(error),
-                    });
-                    continue;
-                }
-            };
+        self.with_write(move |session| {
+            session.require_reference_revision(revision)?;
             let record_key = record.key.to_string();
             let record_name = record
                 .name
                 .as_value()
                 .cloned()
                 .unwrap_or_else(|| record.key.to_string());
+            let store = session.local_state();
+            let list = store
+                .saved_lists()
+                .get(&list.list_key)?
+                .ok_or_else(|| saved_list_not_found(&list.list_key))?;
             let outcome = store.saved_lists().add_resolved_item(
                 &list.list_key,
                 ResolvedSavedListItem {
@@ -201,35 +139,122 @@ impl AtlasAppService {
                         .record_kind
                         .as_value()
                         .map(|kind| kind.as_str().to_string()),
-                    note: item.note,
+                    note: request.note,
                 },
             )?;
-            let outcome = match outcome {
-                AddSavedListItemOutcome::Added => {
-                    added_count += 1;
-                    BatchSavedListItemOutcomeView::Added
-                }
-                AddSavedListItemOutcome::AlreadyPresent => {
-                    already_present_count += 1;
-                    BatchSavedListItemOutcomeView::AlreadyPresent
-                }
-            };
-            items.push(BatchSavedListItemResultView {
-                input,
-                outcome,
-                record_key: Some(record_key),
+            Ok(SavedListItemMutationView {
+                list_key: list.list_key,
+                slug: list.slug,
+                record_key,
                 record_name: Some(record_name),
-                error: None,
-            });
-        }
-        Ok(BatchSavedListItemMutationView {
-            list_key: list.list_key,
-            slug: list.slug,
-            requested_count: items.len() as u64,
-            added_count,
-            already_present_count,
-            failed_count,
-            items,
+                outcome: match outcome {
+                    AddSavedListItemOutcome::Added => SavedListItemMutationOutcomeView::Added,
+                    AddSavedListItemOutcome::AlreadyPresent => {
+                        SavedListItemMutationOutcomeView::AlreadyPresent
+                    }
+                },
+            })
+        })
+    }
+
+    pub fn add_saved_list_items(
+        &self,
+        request: BatchAddSavedListItemsRequest,
+    ) -> AppServiceResult<BatchSavedListItemMutationView> {
+        let (list, resolved, revision) = self.with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |session| {
+                let list = session
+                    .local_state()
+                    .saved_lists()
+                    .get(&request.list_ref)?
+                    .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
+                let resolved = request
+                    .items
+                    .into_iter()
+                    .map(|item| {
+                        let record = resolve_record_ref(session.retrieval_mut(), &item.record_ref);
+                        (item.record_ref, item.note, record)
+                    })
+                    .collect::<Vec<_>>();
+                Ok((list, resolved, session.reference_revision()?))
+            },
+        )?;
+        self.with_write(move |session| {
+            session.require_reference_revision(revision)?;
+            let store = session.local_state();
+            let list = store
+                .saved_lists()
+                .get(&list.list_key)?
+                .ok_or_else(|| saved_list_not_found(&list.list_key))?;
+            let mut items = Vec::new();
+            let mut added_count = 0;
+            let mut already_present_count = 0;
+            let mut failed_count = 0;
+            for (input, note, resolved) in resolved {
+                let record = match resolved {
+                    Ok(record) => record,
+                    Err(error) => {
+                        let error = error.into_app_error();
+                        if !is_batch_item_error(error.code) {
+                            return Err(error.into());
+                        }
+                        failed_count += 1;
+                        items.push(BatchSavedListItemResultView {
+                            input,
+                            outcome: BatchSavedListItemOutcomeView::Failed,
+                            record_key: None,
+                            record_name: None,
+                            error: Some(error),
+                        });
+                        continue;
+                    }
+                };
+                let record_key = record.key.to_string();
+                let record_name = record
+                    .name
+                    .as_value()
+                    .cloned()
+                    .unwrap_or_else(|| record.key.to_string());
+                let outcome = store.saved_lists().add_resolved_item(
+                    &list.list_key,
+                    ResolvedSavedListItem {
+                        record_key: record.key,
+                        title_snapshot: record_name.clone(),
+                        kind_snapshot: record
+                            .record_kind
+                            .as_value()
+                            .map(|kind| kind.as_str().to_string()),
+                        note,
+                    },
+                )?;
+                let outcome = match outcome {
+                    AddSavedListItemOutcome::Added => {
+                        added_count += 1;
+                        BatchSavedListItemOutcomeView::Added
+                    }
+                    AddSavedListItemOutcome::AlreadyPresent => {
+                        already_present_count += 1;
+                        BatchSavedListItemOutcomeView::AlreadyPresent
+                    }
+                };
+                items.push(BatchSavedListItemResultView {
+                    input,
+                    outcome,
+                    record_key: Some(record_key),
+                    record_name: Some(record_name),
+                    error: None,
+                });
+            }
+            Ok(BatchSavedListItemMutationView {
+                list_key: list.list_key,
+                slug: list.slug,
+                requested_count: items.len() as u64,
+                added_count,
+                already_present_count,
+                failed_count,
+                items,
+            })
         })
     }
 
@@ -237,44 +262,68 @@ impl AtlasAppService {
         &self,
         request: RemoveSavedListItemRequest,
     ) -> AppServiceResult<SavedListItemMutationView> {
-        let (record_key, record_name) = if let Ok(key) = RecordKey::parse(&request.record_ref) {
-            (key, None)
-        } else {
-            let record = resolve_record_ref(self, &request.record_ref)?;
-            (record.key, record.name.as_value().cloned())
-        };
-        let store = self.local_state_store()?;
-        let removed = store
-            .saved_lists()
-            .remove_item(&request.list_ref, &record_key.to_string())?;
-        let list = store
-            .saved_lists()
-            .get(&request.list_ref)?
-            .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
-        Ok(SavedListItemMutationView {
-            list_key: list.list_key,
-            slug: list.slug,
-            record_key: record_key.to_string(),
-            record_name,
-            outcome: if removed {
-                SavedListItemMutationOutcomeView::Removed
+        let (record_key, record_name, revision, canonical_list) =
+            if let Ok(key) = RecordKey::parse(&request.record_ref) {
+                (key, None, None, None)
             } else {
-                SavedListItemMutationOutcomeView::NotPresent
-            },
+                let record_ref = request.record_ref.clone();
+                let list_ref = request.list_ref.clone();
+                self.with_workspace(
+                    &crate::ReadExecutionContext::uncancellable(),
+                    move |session| {
+                        let list = session
+                            .local_state()
+                            .saved_lists()
+                            .get(&list_ref)?
+                            .ok_or_else(|| saved_list_not_found(&list_ref))?;
+                        let record = resolve_record_ref(session.retrieval_mut(), &record_ref)?;
+                        Ok((
+                            record.key,
+                            record.name.as_value().cloned(),
+                            Some(session.reference_revision()?),
+                            Some(list.list_key),
+                        ))
+                    },
+                )?
+            };
+        self.with_write(move |session| {
+            if let Some(revision) = revision {
+                session.require_reference_revision(revision)?;
+            }
+            let lists = session.local_state().saved_lists();
+            let list_ref = canonical_list.as_deref().unwrap_or(&request.list_ref);
+            let list = lists
+                .get(list_ref)?
+                .ok_or_else(|| saved_list_not_found(list_ref))?;
+            let removed = lists.remove_item(&list.list_key, &record_key.to_string())?;
+            Ok(SavedListItemMutationView {
+                list_key: list.list_key,
+                slug: list.slug,
+                record_key: record_key.to_string(),
+                record_name,
+                outcome: if removed {
+                    SavedListItemMutationOutcomeView::Removed
+                } else {
+                    SavedListItemMutationOutcomeView::NotPresent
+                },
+            })
         })
     }
 
     pub fn delete_saved_list(&self, list_ref: &str) -> AppServiceResult<DeleteSavedListView> {
-        let store = self.local_state_store()?;
-        let list = store
-            .saved_lists()
-            .get(list_ref)?
-            .ok_or_else(|| saved_list_not_found(list_ref))?;
-        let deleted = store.saved_lists().delete(&list.list_key)?;
-        Ok(DeleteSavedListView {
-            list_key: list.list_key,
-            slug: list.slug,
-            deleted,
+        let list_ref = list_ref.to_string();
+        self.with_write(move |session| {
+            let store = session.local_state();
+            let list = store
+                .saved_lists()
+                .get(&list_ref)?
+                .ok_or_else(|| saved_list_not_found(&list_ref))?;
+            let deleted = store.saved_lists().delete(&list.list_key)?;
+            Ok(DeleteSavedListView {
+                list_key: list.list_key,
+                slug: list.slug,
+                deleted,
+            })
         })
     }
 
@@ -318,7 +367,18 @@ impl AtlasAppService {
             )));
         }
         let id = request.id.unwrap_or(request.document.list.id);
-        let records_by_key = hydrate_export_records(self, &request.document.items)?;
+        let export_items = request.document.items.clone();
+        let (records_by_key, revision) = if export_items.is_empty() {
+            (BTreeMap::new(), None)
+        } else {
+            self.with_workspace(
+                &crate::ReadExecutionContext::uncancellable(),
+                move |session| {
+                    let records = hydrate_export_records(session.retrieval_mut(), &export_items)?;
+                    Ok((records, Some(session.reference_revision()?)))
+                },
+            )?
+        };
         let imported = request
             .document
             .items
@@ -349,46 +409,36 @@ impl AtlasAppService {
                 }
             })
             .collect::<Vec<_>>();
-        let store = self.local_state_store()?;
-        let replaced = store.saved_lists().get(&id)?.is_some() && request.replace;
-        let imported = store.saved_lists().import(ImportSavedList {
-            slug: id,
-            name: request.document.list.name,
-            description: request.document.list.description,
-            tags: request.document.list.tags,
-            items: imported,
-            replace: request.replace,
-        })?;
-        let mut active_count = 0;
-        let mut unresolved_count = 0;
-        for item in &imported.items {
-            if records_by_key.contains_key(&item.record_key) {
-                active_count += 1;
-            } else {
-                unresolved_count += 1;
+        self.with_write(move |session| {
+            if let Some(revision) = revision {
+                session.require_reference_revision(revision)?;
             }
-        }
-        Ok(ImportSavedListView {
-            list: saved_list_summary(imported.list),
-            replaced,
-            active_count,
-            unresolved_count,
+            let store = session.local_state();
+            let replaced = store.saved_lists().get(&id)?.is_some() && request.replace;
+            let imported = store.saved_lists().import(ImportSavedList {
+                slug: id,
+                name: request.document.list.name,
+                description: request.document.list.description,
+                tags: request.document.list.tags,
+                items: imported,
+                replace: request.replace,
+            })?;
+            let mut active_count = 0;
+            let mut unresolved_count = 0;
+            for item in &imported.items {
+                if records_by_key.contains_key(&item.record_key) {
+                    active_count += 1;
+                } else {
+                    unresolved_count += 1;
+                }
+            }
+            Ok(ImportSavedListView {
+                list: saved_list_summary(imported.list),
+                replaced,
+                active_count,
+                unresolved_count,
+            })
         })
-    }
-
-    pub(crate) fn saved_list_record_keys(
-        &self,
-        list_ref: &str,
-    ) -> AppServiceResult<Vec<RecordKey>> {
-        Ok(self
-            .local_state_store()?
-            .saved_lists()
-            .get_with_items(list_ref)?
-            .ok_or_else(|| saved_list_not_found(list_ref))?
-            .items
-            .into_iter()
-            .filter_map(|item| RecordKey::parse(&item.record_key).ok())
-            .collect())
     }
 
     fn saved_list_with_filter(
@@ -398,41 +448,79 @@ impl AtlasAppService {
         query: Option<&str>,
         has_match_scope: bool,
     ) -> AppServiceResult<SavedListDetailView> {
-        let list = self
-            .local_state_store()?
-            .saved_lists()
-            .get_with_items(list_ref)?
-            .ok_or_else(|| saved_list_not_found(list_ref))?;
-        let active_keys = list
+        let initial = self.with_state(|session| {
+            session
+                .local_state()
+                .saved_lists()
+                .get_with_items(list_ref)?
+                .ok_or_else(|| saved_list_not_found(list_ref))
+        })?;
+        if !initial
             .items
             .iter()
-            .filter_map(|item| RecordKey::parse(&item.record_key).ok())
-            .collect::<Vec<_>>();
-        let records_by_key = if let Some(query) = query {
-            searched_saved_list_records(self, &active_keys, filter, query)?
-        } else if has_match_scope {
-            filtered_saved_list_records(self, &active_keys, filter)?
-        } else {
-            hydrate_saved_list_records(self, &list.items)?
-        };
-        Ok(SavedListDetailView {
-            list: saved_list_summary(list.list),
-            items: list
-                .items
-                .into_iter()
-                .filter(|item| !has_match_scope || records_by_key.contains_key(&item.record_key))
-                .map(|item| saved_list_item_view(item, &records_by_key))
-                .collect(),
-        })
-    }
+            .any(|item| RecordKey::parse(&item.record_key).is_ok())
+        {
+            return Ok(SavedListDetailView {
+                list: saved_list_summary(initial.list),
+                items: initial
+                    .items
+                    .into_iter()
+                    .filter(|_| !has_match_scope)
+                    .map(|item| saved_list_item_view(item, &BTreeMap::new()))
+                    .collect(),
+            });
+        }
 
-    pub(crate) fn local_state_store(&self) -> AppServiceResult<LocalStateStore> {
-        LocalStateStore::open(self.local_state_path.clone()).map_err(Into::into)
+        let list_ref = list_ref.to_string();
+        let filter = filter.cloned();
+        let query = query.map(str::to_owned);
+        self.with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |session| {
+                let list = session
+                    .local_state()
+                    .saved_lists()
+                    .get_with_items(&list_ref)?
+                    .ok_or_else(|| saved_list_not_found(&list_ref))?;
+                let active_keys = list
+                    .items
+                    .iter()
+                    .filter_map(|item| RecordKey::parse(&item.record_key).ok())
+                    .collect::<Vec<_>>();
+                let records_by_key = if let Some(query) = query.as_deref() {
+                    searched_saved_list_records(
+                        session.retrieval_mut(),
+                        &active_keys,
+                        filter.as_ref(),
+                        query,
+                    )?
+                } else if has_match_scope {
+                    filtered_saved_list_records(
+                        session.retrieval_mut(),
+                        &active_keys,
+                        filter.as_ref(),
+                    )?
+                } else {
+                    hydrate_saved_list_records(session.retrieval_mut(), &list.items)?
+                };
+                Ok(SavedListDetailView {
+                    list: saved_list_summary(list.list),
+                    items: list
+                        .items
+                        .into_iter()
+                        .filter(|item| {
+                            !has_match_scope || records_by_key.contains_key(&item.record_key)
+                        })
+                        .map(|item| saved_list_item_view(item, &records_by_key))
+                        .collect(),
+                })
+            },
+        )
     }
 }
 
 fn hydrate_saved_list_records(
-    service: &AtlasAppService,
+    retrieval: &mut atlas_search::AtlasRetrievalService,
     items: &[SavedListItem],
 ) -> AppServiceResult<BTreeMap<String, HydratedListRecord>> {
     let record_keys = items
@@ -442,31 +530,27 @@ fn hydrate_saved_list_records(
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
     }
-    service.with_retrieval(
-        &crate::ReadExecutionContext::uncancellable(),
-        move |retrieval| {
-            Ok(retrieval
-                .get_records(GetRecordsRequest {
-                    record_keys: &record_keys,
-                })?
-                .records
-                .into_iter()
-                .map(|record| {
-                    (
-                        record.key.to_string(),
-                        HydratedListRecord {
-                            view: crate::projection::localized_summary_view(&record, retrieval),
-                            summary: record,
-                        },
-                    )
-                })
-                .collect())
-        },
-    )
+
+    Ok(retrieval
+        .get_records(GetRecordsRequest {
+            record_keys: &record_keys,
+        })?
+        .records
+        .into_iter()
+        .map(|record| {
+            (
+                record.key.to_string(),
+                HydratedListRecord {
+                    view: crate::projection::localized_summary_view(&record, retrieval),
+                    summary: record,
+                },
+            )
+        })
+        .collect())
 }
 
 fn hydrate_export_records(
-    service: &AtlasAppService,
+    retrieval: &mut atlas_search::AtlasRetrievalService,
     items: &[SavedListExportItemView],
 ) -> AppServiceResult<BTreeMap<String, atlas_domain::SourceRecordSummary>> {
     let record_keys = items
@@ -476,19 +560,15 @@ fn hydrate_export_records(
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
     }
-    service.with_retrieval(
-        &crate::ReadExecutionContext::uncancellable(),
-        move |retrieval| {
-            Ok(retrieval
-                .get_records(GetRecordsRequest {
-                    record_keys: &record_keys,
-                })?
-                .records
-                .into_iter()
-                .map(|record| (record.key.to_string(), record))
-                .collect())
-        },
-    )
+
+    Ok(retrieval
+        .get_records(GetRecordsRequest {
+            record_keys: &record_keys,
+        })?
+        .records
+        .into_iter()
+        .map(|record| (record.key.to_string(), record))
+        .collect())
 }
 
 fn saved_list_export_item(item: SavedListItemView) -> SavedListExportItemView {
@@ -519,7 +599,7 @@ fn is_batch_item_error(code: AppErrorCode) -> bool {
 }
 
 fn filtered_saved_list_records(
-    service: &AtlasAppService,
+    retrieval: &mut atlas_search::AtlasRetrievalService,
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::QueryPredicate>,
 ) -> AppServiceResult<BTreeMap<String, HydratedListRecord>> {
@@ -528,38 +608,34 @@ fn filtered_saved_list_records(
     }
     let record_keys = record_keys.to_vec();
     let filter = filter.cloned();
-    service.with_retrieval(
-        &crate::ReadExecutionContext::uncancellable(),
-        move |retrieval| {
-            let mut records = BTreeMap::new();
-            let mut page_number = 1;
-            loop {
-                let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
-                let result = retrieval.list_records(
-                    ListRecordsRequest::new(filter.as_ref(), page)
-                        .with_scope(RecordScope::Keys(&record_keys)),
-                )?;
-                for record in result.records {
-                    records.insert(
-                        record.key.to_string(),
-                        HydratedListRecord {
-                            view: crate::projection::localized_summary_view(&record, retrieval),
-                            summary: record,
-                        },
-                    );
-                }
-                if !result.page.has_more {
-                    break;
-                }
-                page_number += 1;
-            }
-            Ok(records)
-        },
-    )
+
+    let mut records = BTreeMap::new();
+    let mut page_number = 1;
+    loop {
+        let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
+        let result = retrieval.list_records(
+            ListRecordsRequest::new(filter.as_ref(), page)
+                .with_scope(RecordScope::Keys(&record_keys)),
+        )?;
+        for record in result.records {
+            records.insert(
+                record.key.to_string(),
+                HydratedListRecord {
+                    view: crate::projection::localized_summary_view(&record, retrieval),
+                    summary: record,
+                },
+            );
+        }
+        if !result.page.has_more {
+            break;
+        }
+        page_number += 1;
+    }
+    Ok(records)
 }
 
 fn searched_saved_list_records(
-    service: &AtlasAppService,
+    retrieval: &mut atlas_search::AtlasRetrievalService,
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::QueryPredicate>,
     query: &str,
@@ -571,81 +647,70 @@ fn searched_saved_list_records(
     let scoped_keys = record_keys.iter().cloned().collect::<BTreeSet<_>>();
     let filter = filter.cloned();
     let query = query.to_string();
-    service.with_retrieval(
-        &crate::ReadExecutionContext::uncancellable(),
-        move |retrieval| {
-            let mut records = BTreeMap::new();
-            let mut page_number = 1;
-            loop {
-                let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
-                let result = retrieval.search_text(TextSearchRequest {
-                    search_profile: None,
-                    query: &query,
-                    filter: filter.as_ref(),
-                    scope: RecordScope::Keys(&record_keys),
-                    page,
-                    mode: RetrievalMode::Fts,
-                    prefer_remaster: true,
-                })?;
-                for record in result.records {
-                    if scoped_keys.contains(&record.record.key) {
-                        records.insert(
-                            record.record.key.to_string(),
-                            HydratedListRecord {
-                                view: crate::projection::localized_summary_view(
-                                    &record.record,
-                                    retrieval,
-                                ),
-                                summary: record.record,
-                            },
-                        );
-                    }
-                }
-                if !result.page.has_more {
-                    break;
-                }
-                page_number += 1;
+
+    let mut records = BTreeMap::new();
+    let mut page_number = 1;
+    loop {
+        let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
+        let result = retrieval.search_text(TextSearchRequest {
+            search_profile: None,
+            query: &query,
+            filter: filter.as_ref(),
+            scope: RecordScope::Keys(&record_keys),
+            page,
+            mode: RetrievalMode::Fts,
+            prefer_remaster: true,
+        })?;
+        for record in result.records {
+            if scoped_keys.contains(&record.record.key) {
+                records.insert(
+                    record.record.key.to_string(),
+                    HydratedListRecord {
+                        view: crate::projection::localized_summary_view(&record.record, retrieval),
+                        summary: record.record,
+                    },
+                );
             }
-            Ok(records)
-        },
-    )
+        }
+        if !result.page.has_more {
+            break;
+        }
+        page_number += 1;
+    }
+    Ok(records)
 }
 
 fn resolve_record_ref(
-    service: &AtlasAppService,
+    retrieval: &mut atlas_search::AtlasRetrievalService,
     record_ref: &str,
 ) -> AppServiceResult<atlas_domain::SourceRecordSummary> {
     let record_ref = record_ref.to_string();
-    service.with_retrieval(
-        &crate::ReadExecutionContext::uncancellable(),
-        move |retrieval| {
-            let resolution = retrieval.resolve_record_ref(ResolveRecordRefRequest {
-                record_ref: &record_ref,
-                filter: None,
-            })?;
-            let key = match resolution {
-                RecordRefResolutionResult::Key(key) => key,
-                RecordRefResolutionResult::Miss => {
-                    return Err(AppServiceError::new(
-                        AppErrorCode::RecordResolutionMiss,
-                        format!("record resolution miss: {record_ref}"),
-                    ));
-                }
-                RecordRefResolutionResult::Ambiguous(matches) => {
-                    return Err(record_resolution_ambiguous_error(&record_ref, matches));
-                }
-            };
-            let records = retrieval.get_records(GetRecordsRequest {
-                record_keys: std::slice::from_ref(&key),
-            })?;
-            records.records.into_iter().next().ok_or_else(|| {
-                AppServiceError::new(
-                    AppErrorCode::RecordNotFound,
-                    format!("record not found: {key}"),
-                )
-            })
-        },
-    )
+
+    let resolution = retrieval.resolve_record_ref(ResolveRecordRefRequest {
+        record_ref: &record_ref,
+        filter: None,
+    })?;
+    let key = match resolution {
+        RecordRefResolutionResult::Key(key) => key,
+        RecordRefResolutionResult::Miss => {
+            return Err(AppServiceError::new(
+                AppErrorCode::RecordResolutionMiss,
+                format!("record resolution miss: {record_ref}"),
+            ));
+        }
+        RecordRefResolutionResult::Ambiguous(matches) => {
+            return Err(record_resolution_ambiguous_error(&record_ref, matches));
+        }
+    };
+    let records = retrieval.get_records(GetRecordsRequest {
+        record_keys: std::slice::from_ref(&key),
+    })?;
+    records.records.into_iter().next().ok_or_else(|| {
+        AppServiceError::new(
+            AppErrorCode::RecordNotFound,
+            format!("record not found: {key}"),
+        )
+    })
 }
 
 fn record_resolution_ambiguous_error(

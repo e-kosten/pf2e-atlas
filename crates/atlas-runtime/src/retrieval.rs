@@ -1,5 +1,5 @@
 use crate::AtlasRuntime;
-use atlas_search::{AtlasRetrievalService, SearchError};
+use atlas_search::SearchError;
 pub struct SearchProfileReadiness {
     pub id: atlas_domain::SearchProfileId,
     pub label: &'static str,
@@ -50,23 +50,32 @@ impl AtlasRuntime {
             })
             .collect()
     }
-    pub fn open_retrieval_service(&self) -> Result<AtlasRetrievalService, SearchError> {
-        let index = self.open_search_index()?;
-        let default_profile = self.resolve_default_search_profile(index.context())?;
-        AtlasRetrievalService::from_prepared_index(index, default_profile, self.inference.clone())
-    }
-    pub fn open_retrieval_service_no_embeddings(
+    /// Resolve profile metadata under a short snapshot, then infer with no
+    /// admitted database session. The consuming operation checks the profile again.
+    pub fn prepare_query(
         &self,
-    ) -> Result<AtlasRetrievalService, SearchError> {
-        let index = self.open_index()?;
-        let default_profile = self.resolve_default_search_profile(index.context())?;
-        Ok(AtlasRetrievalService::from_prepared_index_without_embeddings(index, default_profile))
-    }
-    pub fn open_retrieval_service_for_stored_vectors(
-        &self,
-    ) -> Result<AtlasRetrievalService, SearchError> {
-        let index = self.open_search_index()?;
-        let default_profile = self.resolve_default_search_profile(index.context())?;
-        Ok(AtlasRetrievalService::from_prepared_index_without_embeddings(index, default_profile))
+        requested: Option<&atlas_domain::SearchProfileId>,
+        text: &str,
+    ) -> Result<atlas_search::PreparedQueryEmbedding, SearchError> {
+        let profile = {
+            let index = self.open_index()?;
+            index
+                .require_vectors()
+                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
+            let profile = requested
+                .cloned()
+                .unwrap_or(self.resolve_default_search_profile(index.context())?);
+            let spec =
+                atlas_embedding::search_profile(&profile).map_err(SearchError::query_embedding)?;
+            if index.context().search_profile(&profile)?
+                != &atlas_index::SourceSearchProfileIdentity::from_spec(spec)
+            {
+                return Err(SearchError::vector_readiness_required(
+                    "stored query model differs from the executable contract",
+                ));
+            }
+            profile
+        };
+        atlas_search::PreparedQueryEmbedding::prepare(&self.inference, &profile, text)
     }
 }

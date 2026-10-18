@@ -7,7 +7,7 @@ use atlas_app_model::{
 use atlas_domain::{QueryCapability, QueryFieldDefinition, QueryFieldType, QueryLiteral};
 use std::collections::BTreeMap;
 
-const COMMON: [&str; 4] = ["record.kind", "record.level_or_rank", "rarity", "traits"];
+const COMMON: [&str; 4] = ["kind", "level_or_rank", "rarity", "traits"];
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum ProductGroup {
     Common,
@@ -82,13 +82,13 @@ pub(crate) fn filter_editor_view(
             } else {
                 FilterFieldPlacement::Addable
             };
-        let label = field_label(&definition);
+        let label = definition.label.clone();
         let choices: Vec<_> = definition
             .choices
             .iter()
             .map(|value| FilterChoiceView {
                 value: QueryLiteral::String(value.clone()),
-                label: if definition.path == "record.kind" {
+                label: if definition.path == "kind" {
                     crate::projection::kind_label(value)
                 } else {
                     words(value)
@@ -115,19 +115,21 @@ pub(crate) fn filter_editor_view(
             .map(|operator| operator_view(operator))
             .collect::<crate::AppServiceResult<Vec<_>>>()?;
         let help = match definition.id.as_str() {
-            "record.level_or_rank" => Some("Spell rank for spells; authored level for other applicable records. Unavailable values stay unknown.".into()),
-            "item.level" => Some("Authored level for applicable physical items, feats, campaign features, effects and afflictions; use Level / rank to include spells and creatures.".into()),
+            "level_or_rank" => Some("Spell rank for spells; authored level for other applicable records. Unavailable values stay unknown.".into()),
+            "level" => Some("Level for applicable creatures, physical items, feats, campaign features, effects and afflictions; use Level / rank to include spells.".into()),
             "source.document_kind" => Some("Source document classification; use Kind for reference categories.".into()),
             _ => None,
         };
         let collection_control = match definition.id.as_str() {
-            "actor.speeds" | "actor.weaknesses" | "actor.resistances" => {
-                Some(FilterCollectionControlView {
-                    category_field_id: format!("{}[].type", definition.id),
-                    amount_field_id: Some(format!("{}[].value", definition.id)),
-                })
-            }
-            "actor.senses" | "actor.immunities" | "spell.damage" => {
+            "movement.speeds" => Some(FilterCollectionControlView {
+                category_field_id: "movement.speeds[].type".into(),
+                amount_field_id: Some("movement.speeds[].feet".into()),
+            }),
+            "defenses.weaknesses" | "defenses.resistances" => Some(FilterCollectionControlView {
+                category_field_id: format!("{}[].type", definition.id),
+                amount_field_id: Some(format!("{}[].value", definition.id)),
+            }),
+            "senses" | "defenses.immunities" | "spell.damage" => {
                 Some(FilterCollectionControlView {
                     category_field_id: format!("{}[].type", definition.id),
                     amount_field_id: None,
@@ -157,7 +159,7 @@ pub(crate) fn filter_editor_view(
         let field = FilterEditorFieldView {
             applicable: true,
             unit_fields,
-            short_choices: matches!(definition.id.as_str(), "record.kind" | "rarity")
+            short_choices: matches!(definition.id.as_str(), "kind" | "rarity")
                 || (!choices.is_empty() && choices.len() <= 12),
             definition,
             control,
@@ -208,34 +210,35 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         return ProductGroup::Common;
     }
     let path = d.scope.as_deref().unwrap_or(&d.path);
-    if path == "actor.items" {
+    if path.starts_with("embedded.") {
         return ProductGroup::Embedded;
     }
-    if path == "actor.languages" {
+    if path == "languages" {
         return ProductGroup::Languages;
     }
     if matches!(
         path,
-        "actor.speeds" | "actor.senses" | "actor.speed.land" | "actor.perception"
+        "movement.speeds" | "senses" | "movement.land" | "perception"
     ) {
         return ProductGroup::Movement;
     }
     if matches!(
         path,
-        "actor.armor_class"
-            | "actor.hp.maximum"
-            | "actor.immunities"
-            | "actor.weaknesses"
-            | "actor.resistances"
-    ) || path.starts_with("actor.saves.")
+        "defenses.ac"
+            | "defenses.hp.maximum"
+            | "defenses.immunities"
+            | "defenses.weaknesses"
+            | "defenses.resistances"
+    ) || path.starts_with("defenses.saves.")
     {
         return ProductGroup::Defenses;
     }
     match path.split('.').next().unwrap_or("") {
-        "actor" => ProductGroup::Creatures,
+        "body" => ProductGroup::Creatures,
+        "level" => ProductGroup::Common,
         "hazard" => ProductGroup::Hazards,
-        "item" | "physical" | "weapon" | "armor" | "shield" | "consumable" | "equipment"
-        | "backpack" | "treasure" => ProductGroup::Equipment,
+        "physical" | "weapon" | "armor" | "shield" | "consumable" | "equipment" | "backpack"
+        | "treasure" => ProductGroup::Equipment,
         "spell" => ProductGroup::Spells,
         "feat" | "action" => ProductGroup::Feats,
         "ancestry" => ProductGroup::Ancestries,
@@ -245,19 +248,10 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         "deity" => ProductGroup::Deities,
         "effect" | "condition" => ProductGroup::Effects,
         "affliction" => ProductGroup::Afflictions,
-        "campaignFeature" => ProductGroup::Campaign,
+        "campaign_feature" => ProductGroup::Campaign,
         "source" | "publication" => ProductGroup::Source,
         _ => ProductGroup::Other,
     }
-}
-fn field_label(d: &QueryFieldDefinition) -> String {
-    if d.path == "actor.items" {
-        return "Embedded records".into();
-    }
-    if d.scope.as_deref() == Some("actor.items") && d.path == "source.type" {
-        return "Item type".into();
-    }
-    d.label.clone()
 }
 fn words(value: &str) -> String {
     let spaced = value.replace(['_', '-'], " ");

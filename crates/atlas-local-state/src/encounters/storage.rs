@@ -58,6 +58,7 @@ pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<Encounter>> 
         "SELECT encounter_key, slug, name, description, note, status, round_number,
                 current_turn_participant_key, created_at, updated_at, revision
          FROM encounters
+         WHERE owner_id = 1
          ORDER BY updated_at DESC, slug ASC",
     )?;
     let rows = statement.query_map([], encounter_from_row)?;
@@ -73,7 +74,7 @@ pub(crate) fn get(
             "SELECT encounter_key, slug, name, description, note, status, round_number,
                     current_turn_participant_key, created_at, updated_at, revision
              FROM encounters
-             WHERE encounter_key = ?1 OR slug = ?1",
+             WHERE owner_id = 1 AND (encounter_key = ?1 OR slug = ?1)",
             params![encounter_ref],
             encounter_from_row,
         )
@@ -128,7 +129,7 @@ pub(crate) fn update_encounter(
 
 pub(crate) fn delete(connection: &Connection, encounter_ref: &str) -> LocalStateResult<bool> {
     let removed = connection.execute(
-        "DELETE FROM encounters WHERE encounter_key = ?1 OR slug = ?1",
+        "DELETE FROM encounters WHERE owner_id = 1 AND (encounter_key = ?1 OR slug = ?1)",
         params![encounter_ref],
     )?;
     Ok(removed > 0)
@@ -145,6 +146,16 @@ pub(crate) fn add_participant(
         ));
     };
     let now = now_rfc3339()?;
+    if let Some(key) = &participant.record_key {
+        crate::references::retain(
+            connection,
+            &key.to_string(),
+            participant
+                .record_title_snapshot
+                .as_deref()
+                .unwrap_or(&participant.display_name),
+        )?;
+    }
     let position = next_position(connection, encounter_id)?;
     let initiative_order = next_initiative_order(connection, encounter_id, participant.initiative)?;
     for _ in 0..5 {
@@ -704,7 +715,7 @@ pub(crate) fn condition(
 fn encounter_id(connection: &Connection, encounter_ref: &str) -> rusqlite::Result<Option<i64>> {
     connection
         .query_row(
-            "SELECT id FROM encounters WHERE encounter_key = ?1 OR slug = ?1",
+            "SELECT id FROM encounters WHERE owner_id = 1 AND (encounter_key = ?1 OR slug = ?1)",
             params![encounter_ref],
             |row| row.get(0),
         )
@@ -896,7 +907,7 @@ fn participant_keys_for_order(
 fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {
     connection
         .query_row(
-            "SELECT 1 FROM encounters WHERE slug = ?1",
+            "SELECT 1 FROM encounters WHERE owner_id = 1 AND slug = ?1",
             params![slug],
             |_row| Ok(()),
         )

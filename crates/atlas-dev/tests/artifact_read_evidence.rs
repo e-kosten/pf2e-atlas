@@ -8,7 +8,7 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
     match name {
         "actor_saves_iwr" => {
             let query = atlas_index::parse_where(
-                "actor.saves.reflex >= 20 && actor.resistances.exists(r,r.type == 'fire')",
+                "defenses.saves.reflex >= 20 && defenses.resistances.exists(r,r.type == 'fire')",
             )
             .unwrap();
             reader
@@ -18,7 +18,7 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
                 .len()
         }
         "same_child_spell" => {
-            let query=atlas_index::parse_where("actor.items.exists(i,i.source.type == 'spell' && i.spell.rank >= 3 && 'arcane' in i.spell.traditions)").unwrap();
+            let query=atlas_index::parse_where("embedded.spells.exists(i,i.source.type == 'spell' && i.spell.rank >= 3 && 'arcane' in i.spell.traditions)").unwrap();
             reader
                 .eligible_keys(&query, None, false, 0, 100)
                 .unwrap()
@@ -63,7 +63,7 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
 fn public_reader_warm_and_fresh_connection_evidence() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let path = root.join("scratch/ingest-validation/full-lexical.sqlite");
-    let reader = SqliteIndexReader::open_read_only(&path).unwrap();
+    let reader = atlas_index::test_support::open_reader(&path).unwrap();
     let mut operations = vec![];
     for name in [
         "actor_saves_iwr",
@@ -82,7 +82,7 @@ fn public_reader_warm_and_fresh_connection_evidence() {
         }
         for _ in 0..20 {
             let time = Instant::now();
-            let connection = SqliteIndexReader::open_read_only(&path).unwrap();
+            let connection = atlas_index::test_support::open_reader(&path).unwrap();
             assert_eq!(operation(&connection, name), count);
             fresh.push(time.elapsed().as_micros());
         }

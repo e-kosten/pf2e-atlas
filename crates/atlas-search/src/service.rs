@@ -5,10 +5,8 @@ use atlas_index::SqliteIndexReader;
 
 pub struct AtlasRetrievalService {
     pub(crate) index: SqliteIndexReader,
-    pub(crate) inference: Option<SharedQueryInference>,
+    query_embedding: Option<PreparedQueryEmbedding>,
     default_profile: SearchProfileId,
-    #[cfg(test)]
-    pub(crate) text_query_embedding_invocations: usize,
 }
 impl AtlasRetrievalService {
     pub fn source_fingerprint(&self) -> &str {
@@ -21,47 +19,33 @@ impl AtlasRetrievalService {
             .get(identifier)
             .map(String::as_str)
     }
-    pub fn from_prepared_index(
+    /// A bounded read operation. Query inference must already be complete.
+    pub fn from_index(
         index: SqliteIndexReader,
         default_profile: SearchProfileId,
-        inference: SharedQueryInference,
+        query_embedding: Option<PreparedQueryEmbedding>,
     ) -> Result<Self, SearchError> {
-        index.context().search_profile(&default_profile)?;
-        index
-            .capabilities()
-            .vector_unavailable_reason
-            .map_or(Ok(()), |reason| {
-                Err(SearchError::vector_readiness_required(reason))
-            })?;
-        let service = Self {
-            index,
-            inference: Some(inference),
-            default_profile,
-            #[cfg(test)]
-            text_query_embedding_invocations: 0,
-        };
-        service.require_current_query_profile(&service.default_profile)?;
-        service
-            .inference
-            .as_ref()
-            .ok_or_else(|| {
-                SearchError::vector_readiness_required("query inference owner unavailable")
-            })?
-            .preload(&service.default_profile)
-            .map_err(SearchError::query_embedding)?;
-        Ok(service)
-    }
-    pub fn from_prepared_index_without_embeddings(
-        index: SqliteIndexReader,
-        default_profile: SearchProfileId,
-    ) -> Self {
-        Self {
-            index,
-            inference: None,
-            default_profile,
-            #[cfg(test)]
-            text_query_embedding_invocations: 0,
+        if let Some(prepared) = &query_embedding
+            && index
+                .context()
+                .search_profile(&prepared.profile.profile_id)?
+                != &prepared.profile
+        {
+            return Err(SearchError::vector_readiness_required(
+                "query model changed during preparation; retry",
+            ));
         }
+        Ok(Self {
+            index,
+            default_profile,
+            query_embedding,
+        })
+    }
+    /// Connection plumbing for the runtime composition owner. Product consumers
+    /// use runtime's typed local-state capability instead of this session.
+    #[doc(hidden)]
+    pub fn workspace_session(&self) -> &atlas_storage::ReadSession {
+        self.index.workspace_session()
     }
     pub fn default_search_profile(&self) -> &SearchProfileId {
         &self.default_profile
@@ -85,33 +69,29 @@ impl AtlasRetrievalService {
         id: &SearchProfileId,
         text: &str,
     ) -> Result<Vec<f32>, SearchError> {
-        self.require_current_query_profile(id)?;
-        self.inference
-            .as_ref()
-            .ok_or_else(|| {
-                SearchError::vector_readiness_required(
-                    "query embeddings are unavailable in this runtime mode",
-                )
-            })?
-            .embed_query(id, text)
-            .map_err(SearchError::query_embedding)
-    }
-    fn require_current_query_profile(&self, id: &SearchProfileId) -> Result<(), SearchError> {
-        let stored = self.index.context().search_profile(id)?;
-        let spec = atlas_embedding::search_profile(id).map_err(SearchError::query_embedding)?;
-        if stored != &atlas_index::SourceSearchProfileIdentity::from_spec(spec) {
-            return Err(SearchError::vector_readiness_required(format!(
-                "stored profile `{id}` differs from the current query model/input contract; rebuild with --search-profile {id}"
-            )));
+        let prepared = self.query_embedding.as_ref().ok_or_else(|| {
+            SearchError::vector_readiness_required(
+                "semantic query must be prepared before opening the read operation",
+            )
+        })?;
+        if &prepared.profile.profile_id != id || prepared.text != text {
+            return Err(SearchError::invalid_search_options(
+                "prepared query does not match requested text/profile",
+            ));
         }
-        Ok(())
+        if self.index.context().search_profile(id)? != &prepared.profile {
+            return Err(SearchError::vector_readiness_required(
+                "query model changed during preparation; retry",
+            ));
+        }
+        Ok(prepared.vector.clone())
     }
-    /// Complete immutable artifact preparation identity, separate from source-local addresses.
+    /// Durable workspace identity and the revision of this admitted snapshot.
     pub fn artifact_generation(&self) -> Result<String, crate::SearchError> {
-        Ok(self.artifact_context().sha256()?)
+        Ok(self.index.artifact_instance().generation())
     }
 
-    /// Process-local identity used to compose independent readers of one file.
+    /// Durable identity of the admitted workspace reference revision.
     pub fn artifact_instance(&self) -> &crate::ArtifactInstance {
         self.index.artifact_instance()
     }
@@ -135,5 +115,35 @@ impl AtlasRetrievalService {
         Ok(atlas_index::validate_query(
             predicate.unwrap_or(&atlas_domain::QueryPredicate::boolean(true)),
         )?)
+    }
+}
+
+/// Exact query/model binding prepared without an admitted database session.
+pub struct PreparedQueryEmbedding {
+    profile: atlas_index::SourceSearchProfileIdentity,
+    text: String,
+    vector: Vec<f32>,
+}
+impl PreparedQueryEmbedding {
+    pub fn prepare(
+        inference: &SharedQueryInference,
+        profile: &SearchProfileId,
+        text: &str,
+    ) -> Result<Self, SearchError> {
+        if text.trim().is_empty() {
+            return Err(SearchError::invalid_search_options(
+                "query must not be empty",
+            ));
+        }
+        let spec =
+            atlas_embedding::search_profile(profile).map_err(SearchError::query_embedding)?;
+        let vector = inference
+            .embed_query(profile, text)
+            .map_err(SearchError::query_embedding)?;
+        Ok(Self {
+            profile: atlas_index::SourceSearchProfileIdentity::from_spec(spec),
+            text: text.into(),
+            vector,
+        })
     }
 }

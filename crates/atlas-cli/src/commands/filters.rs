@@ -23,7 +23,7 @@ pub(crate) fn build_filter(
         );
     }
     for (field, values) in [
-        ("record.kind", &options.kinds),
+        ("kind", &options.kinds),
         ("source.pack.id", &options.pack_names),
         ("rarity", &options.rarities),
     ] {
@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn convenience_and_cel_share_validated_predicate() {
         let (p, _) = build_filter(&FilterOptions {
-            where_expression: Some("actor.hp.maximum >= 80".into()),
+            where_expression: Some("defenses.hp.maximum >= 80".into()),
             kinds: vec!["creature".into()],
             traits: vec!["undead".into()],
             ..Default::default()
@@ -74,7 +74,7 @@ mod tests {
     }
     #[test]
     fn unknown_fields_and_unsupported_syntax_fail() {
-        for s in ["missing.field == 2", "actor.hp.maximum + 3 > 5"] {
+        for s in ["missing.field == 2", "defenses.hp.maximum + 3 > 5"] {
             assert!(
                 build_filter(&FilterOptions {
                     where_expression: Some(s.into()),

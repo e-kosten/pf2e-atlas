@@ -114,7 +114,7 @@ pub struct SourceRelationshipBundle {
     pub occurrences: Vec<SourceStoredRelationship>,
     pub truncated: bool,
 }
-const CONTENT_SELECT: &str = "SELECT r.key,c.owners_json,c.field_path,c.role,c.visibility,c.outcome,c.html_gzip,c.interactions_json,c.authored_markup_sha256 FROM prepared_content c JOIN records r USING(record_id) WHERE r.document_kind<>'Macro'";
+const CONTENT_SELECT: &str = "SELECT r.key,c.owners_json,c.field_path,c.role,c.visibility,c.outcome,c.html_gzip,c.interactions_json,c.authored_markup_sha256 FROM prepared_content c JOIN records r USING(record_id) WHERE r.document_kind<>'Macro' AND c.published=1";
 fn decode_error(e: impl std::error::Error + Send + Sync + 'static) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
 }
@@ -590,6 +590,7 @@ impl SqliteIndexReader {
                 stage: r.get(2)?,
                 code: details.code,
                 message: details.message,
+                source_diagnostic: details.source_diagnostic,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?)
@@ -597,6 +598,8 @@ impl SqliteIndexReader {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct DiagnosticDetails {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_diagnostic: Option<atlas_foundry_model::SourceDiagnostic>,
     pub code: String,
     pub message: String,
 }
