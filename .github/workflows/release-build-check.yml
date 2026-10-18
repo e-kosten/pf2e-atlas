@@ -147,10 +147,11 @@ jobs:
         run: node dev-tools/release/dist/src/cli/generate-notices.js
       - name: Validate PowerShell installer
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
-        shell: pwsh
+        # Git Bash supplies XZ-capable tar for the installer archive fixtures.
+        shell: bash
         run: |
-          ./scripts/install/atlas-installer.ps1 -DryRun
-          ./scripts/release/test-installer.ps1
+          pwsh -NoProfile -File scripts/install/atlas-installer.ps1 -DryRun
+          pwsh -NoProfile -File scripts/release/test-installer.ps1
       - name: Build archives with cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
