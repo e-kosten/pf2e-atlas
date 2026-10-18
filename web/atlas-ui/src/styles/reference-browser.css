@@ -107,8 +107,9 @@ body:has(:is(.search-workspace, .list-workspace)) {
   overflow-wrap: anywhere;
 }
 .reference-result__title > span {
-  color: var(--muted);
-  font-size: 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
 }
 .reference-result__metadata {
   grid-column: 1;

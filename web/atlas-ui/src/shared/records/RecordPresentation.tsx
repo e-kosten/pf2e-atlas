@@ -1,4 +1,5 @@
 import { RollTableReading } from "./RollTableReading";
+import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import type { ReactNode } from "react";
@@ -195,14 +196,12 @@ export function RecordIdentity({
         </div>
       </div>
       <div className="badge-row">
-        {identity.rarity?.trim() && identity.rarity !== "common" && (
-          <span className="record-reference__rarity">
-            {sentenceCase(identity.rarity)}
-          </span>
-        )}
-        {identity.traits.map((trait) => (
-          <Tag key={`${trait.kind}-${trait.value}`}>{sentenceCase(trait.label)}</Tag>
-        ))}
+        <RecordRarity rarity={identity.rarity} />
+        {identity.traits
+          .filter((trait) => trait.kind !== "rarity")
+          .map((trait) => (
+            <Tag key={`${trait.kind}-${trait.value}`}>{sentenceCase(trait.label)}</Tag>
+          ))}
       </div>
       {identity.publication?.trim() && <p className="muted">{identity.publication}</p>}
     </header>
@@ -414,7 +413,11 @@ export function RecordPresentation({
           {body.value.price_per.state !== "missing" && (
             <FactLine label="Price per" fact={body.value.price_per} />
           )}
-          <FactLine label="Bulk" fact={body.value.bulk} />
+          <FactLine
+            label="Bulk"
+            fact={body.value.bulk}
+            format={(value) => (value === 0.1 ? "L" : String(value))}
+          />
         </div>
       )}
       {body.kind === "roll_table" &&
@@ -477,9 +480,13 @@ export function RecordPresentation({
             <h3>
               {body.kind === "roll_table"
                 ? "Results"
-                : presentation.identity.kind === "journal"
+                : owned.every(
+                      (link) =>
+                        link.navigation.owners[link.navigation.owners.length - 1]
+                          ?.collection === "/pages",
+                    )
                   ? "Pages"
-                  : "Owned records"}
+                  : "Contents"}
             </h3>
             {(body.kind === "roll_table"
               ? (body.value.results.value ?? []).map((row) => row.link)

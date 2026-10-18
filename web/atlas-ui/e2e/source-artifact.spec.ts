@@ -467,7 +467,7 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
   page,
 }) => {
   await page.goto("/search?q=transform%20into%20a%20dragon");
-  await expect(page.getByText(/candidate records/)).toBeVisible();
+  await expect(page.getByText(/^Top [\d,]+ matches$/)).toBeVisible();
   await expect(
     page.locator("[data-record-key]").filter({ hasText: "Dragon Form" }).first(),
   ).toBeVisible();

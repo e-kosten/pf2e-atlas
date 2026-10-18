@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { RecordPresentation } from "./RecordPresentation";
-import { DamageComponents } from "./ActorReference";
+import { ActorActivities, DamageComponents } from "./ActorReference";
 import { SpellChanges, SpellReference } from "./SpellReference";
 import {
   actorFixture,
@@ -43,6 +43,52 @@ function actorPresentation(): RecordPresentationView {
     owned: [],
   };
 }
+
+it.each([false, true])(
+  "links only activities with additional reference details (encounter=%s)",
+  (encounter) => {
+    const actor = actorFixture();
+    actor.activities = knownFact([
+      { ...activityFixture("Complete summary"), has_reference_details: false },
+      { ...activityFixture("Additional details"), has_reference_details: true },
+    ]);
+    const onReference = vi.fn();
+    render(
+      <ActorActivities actor={actor} onReference={onReference} encounter={encounter} />,
+    );
+    expect(screen.getByText("Complete summary")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Complete summary" })).toBeNull();
+    fireEvent.click(screen.getByRole("link", { name: "Additional details" }));
+    expect(onReference).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("labels journal children as Pages even when the product kind is lore", () => {
+  const presentation = detailFixture("journals:example", "Journal").presentation;
+  const activity = activityFixture("A journal page", "journals:example");
+  presentation.identity.kind = "lore";
+  presentation.owned = [
+    {
+      title: activity.title,
+      family: "JournalEntryPage",
+      usage: null,
+      action_cost: unavailableFact("not_applicable"),
+      navigation: {
+        ...activity.navigation,
+        owners: [
+          {
+            collection: "/pages",
+            identity: { Stable: "page-id" },
+          },
+        ],
+      },
+    },
+  ];
+  render(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
+  expect(screen.getByRole("heading", { name: "Pages" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "A journal page" })).toBeVisible();
+  expect(screen.queryByText("Owned records")).toBeNull();
+});
 
 describe("semantic family presentation", () => {
   it.each([
@@ -506,7 +552,7 @@ describe("semantic family presentation", () => {
       />,
     );
     expect(screen.getByText("held in one hand")).toBeVisible();
-    expect(screen.getByText("0.1")).toBeVisible();
+    expect(screen.getByText("L")).toBeVisible();
     expect(screen.getByText("10 gp")).toBeVisible();
   });
   it("shows fixed-rank authored changes as reference data", () => {

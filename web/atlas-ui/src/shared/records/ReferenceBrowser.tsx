@@ -183,21 +183,19 @@ function ReferenceResult({
             ref={trigger}
             className="reference-result__matches"
             color="default"
-            variant="link"
+            variant="text"
             size="small"
             aria-expanded={matchesOpen}
             aria-label={`${matches.length} matches in ${record.title}`}
             styles={{
               root: {
-                color: token.colorText,
+                color: token.colorTextDescription,
                 outlineColor: token.colorText,
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
               },
             }}
             disabled={disabled}
           >
-            {matches.length} {matches.length === 1 ? "match" : "matches"}
+            Matches
           </Button>
         </Popover>
       )}
