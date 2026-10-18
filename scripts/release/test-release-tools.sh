@@ -131,6 +131,7 @@ while [ "$#" -gt 0 ]; do
 done
 [ -n "$dest" ] || exit 2
 [ -n "$url" ] || exit 2
+if [ -n "${ATLAS_URL_LOG:-}" ]; then printf '%s\n' "$url" >> "$ATLAS_URL_LOG"; fi
 cp "$ATLAS_FAKE_RELEASE_DIR/$(basename "$url")" "$dest"
 EOF_CURL
   chmod +x "$fake_bin/curl"
@@ -168,6 +169,27 @@ EOF_CURL
     echo "installer replaced existing binary without confirmation" >&2
     exit 1
   fi
+
+  nightly_tag="v9.9.9-nightly.20261018092300.gabcdef123456"
+  printf '%s\n' "$nightly_tag" > "$dist/nightly-version.txt"
+  url_log="$tmp/nightly-urls"
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_URL_LOG="$url_log" \
+    "$repo_root/scripts/install/atlas-installer.sh" \
+    --install-dir "$install_dir" --version nightly --yes >/dev/null
+  [ "$(head -n 1 "$url_log")" = "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt" ]
+  [ "$(tail -n +2 "$url_log" | grep -c "/download/$nightly_tag/")" = 3 ] || {
+    echo "nightly installer did not pin all downloads to the resolved release" >&2
+    exit 1
+  }
+  printf 'v9.9.9\n' > "$dist/nightly-version.txt"
+  if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
+    "$repo_root/scripts/install/atlas-installer.sh" \
+    --install-dir "$install_dir" --version nightly --yes >/dev/null 2>&1
+  then
+    echo "nightly installer accepted a stable channel pointer" >&2
+    exit 1
+  fi
+  [ "$("$install_dir/atlas" --version)" = "atlas 9.9.9" ]
 
   rollback_dist="$tmp/rollback-dist"
   cp -R "$dist" "$rollback_dist"

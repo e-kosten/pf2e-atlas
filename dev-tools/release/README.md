@@ -53,3 +53,17 @@ earlier validation step.
 
 These commands prepare or inspect files. Release publication stays in the
 existing release workflow and explicit `prepare-release.sh --publish` flow.
+
+## Nightly builds
+
+`src/nightly.ts` owns nightly version preparation, source selection and publication;
+`src/cli/nightly.ts` exposes those operations to `.github/workflows/nightly.yml`.
+The workflow reuses the existing CI and packaging jobs for one main SHA. It stays
+inactive on the integration branch and publishes only after reaching main.
+
+After `npm --prefix dev-tools/release run build`, a read-only plan can be inspected
+with `node dev-tools/release/dist/src/cli/nightly.js plan --scheduled`. Preparation
+modifies the build checkout's CLI version and lockfile only. Publication validates
+the assembled assets, keeps dated prereleases immutable, and tests the downloaded
+Linux installer before advancing the nightly channel. The package tests exercise
+skip/retry behavior and failure boundaries without network or GitHub writes.

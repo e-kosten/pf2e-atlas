@@ -304,6 +304,51 @@ and validate it with `npm --prefix dev-tools/release run verify`. See
 [release tooling](./dev-tools/release/README.md) for notices, manifest, checksum and
 platform smoke-test commands. These dependencies stay out of product bundles.
 
+### Nightly publication
+
+`.github/workflows/nightly.yml` runs daily at 09:23 UTC and can be dispatched
+manually from `main`. Scheduled runs skip the commit already served by the nightly
+channel; manual runs rebuild it. A single source SHA is used for CI, packaging and
+publication. Runs from other branches do not publish.
+
+The workflow calls the existing CI and release-build-check workflows. Nightly
+packaging edits only the CI checkout's CLI manifest and lockfile, using a version
+such as `0.1.0-nightly.20261018092300.gabcdef123456`. No version-bump commits or
+handwritten release notes are needed. The four-platform packaging checks run the
+actual binaries before upload. The publication job validates all assets, publishes
+a dated prerelease, and smoke-tests its downloaded Linux installer and binary.
+Only then does it update `nightly-version.txt` in the `nightly` installer-channel
+release. Installers resolve that pointer once and download all remaining assets
+from the dated release. Dated releases remain available for rollback; the channel
+release's tag is only an installer entry point, not the source identity of a build.
+
+Nightlies are always prereleases and never become GitHub's latest stable release.
+The stable workflow excludes nightly tags. Nightly writes use the job-scoped
+`GITHUB_TOKEN` with `contents: write`; repository rules must permit this workflow
+to create nightly tags and releases. No personal token is needed. If publication
+fails, inspect the failed run and rerun it; published dated assets are not
+replaced, and failed validation/install checks do not advance the channel.
+
+After the integration branch merges into `main`, run `gh workflow run nightly.yml --ref main`,
+inspect the complete hosted run, then install the nightly on the dogfooding machine
+and check `atlas --version` and `atlas --help`. A local tooling test is not evidence
+that the hosted platform builds or live installation succeeded.
+
+Local release-tooling checks:
+
+```bash
+scripts/release/validate-release-tooling.sh
+scripts/release/test-release-tools.sh
+scripts/release/test-prepare-release.sh
+npm --prefix dev-tools/release run verify
+```
+
+The Windows packaging job also runs `scripts/release/test-installer.ps1`. Fixture
+tests cover pointer resolution and pinning, invalid pointers, checksum failures,
+version preparation, scheduled skipping, and preserving the channel on failures.
+
+### Stable releases and release candidates
+
 Releases use a three-step flow:
 
 1. From a clean, current `main`, create the release-preparation branch and scaffold the version bump and release notes:
